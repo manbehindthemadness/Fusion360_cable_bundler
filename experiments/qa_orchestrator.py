@@ -548,7 +548,7 @@ def _run_desktop_ui_oracle(endpoint: str, timeout_seconds: float) -> dict[str, o
     }
     if diagram_observation.get("status") == "failed":
         result["status"] = "failed"
-        result["error"] = "Relationship diagram contains disconnected rendered edges."
+        result["error"] = "Relationship diagram contains disconnected or obstructed rendered edges."
     elif not palette_bounds_stable:
         result["status"] = "failed"
         result["error"] = "Stable desktop palette moved or resized between captures."
@@ -568,8 +568,8 @@ def _read_relationship_diagram_observation(
     """
     Prepare the relationship diagram and read its rendered edge-continuity result.
 
-    The palette computes the observation from its final DOM bounds, then reports only
-    connector counts and maximum endpoint gap through the add-in's private QA state.
+    The palette computes the observation from its final DOM geometry, then reports
+    connector continuity and node-obstruction metrics through private QA state.
     """
     client = McpClient(endpoint, timeout_seconds)
     payload: dict[str, object] = {}
@@ -588,6 +588,7 @@ def _read_relationship_diagram_observation(
     status = payload.get("status")
     connector_count = payload.get("connectorCount")
     maximum_gap = payload.get("maximumEndpointGap")
+    obstructed_trace_count = payload.get("obstructedTraceCount")
     contract_version = payload.get("contractVersion")
     layout = payload.get("layout")
     if status not in {"passed", "failed", "skipped"}:
@@ -596,14 +597,21 @@ def _read_relationship_diagram_observation(
         raise RuntimeError("Palette returned an invalid diagram connector count.")
     if isinstance(maximum_gap, bool) or not isinstance(maximum_gap, (int, float)):
         raise RuntimeError("Palette returned an invalid diagram endpoint gap.")
-    if contract_version != "1":
+    if (
+        isinstance(obstructed_trace_count, bool)
+        or not isinstance(obstructed_trace_count, int)
+        or obstructed_trace_count < 0
+    ):
+        raise RuntimeError("Palette returned an invalid diagram obstruction count.")
+    if contract_version != "3":
         raise RuntimeError("Palette returned an unsupported diagram contract version.")
-    if layout != "measured-pathway-stack":
+    if layout != "endpoint-junction-forest":
         raise RuntimeError("Palette returned an unsupported diagram layout.")
     return {
         "status": status,
         "connectorCount": connector_count,
         "maximumEndpointGap": float(maximum_gap),
+        "obstructedTraceCount": obstructed_trace_count,
         "contractVersion": contract_version,
         "layout": layout,
     }
@@ -646,8 +654,9 @@ def run(_context: str):
         "status": "skipped",
         "connectorCount": 0,
         "maximumEndpointGap": 0.0,
-        "contractVersion": "1",
-        "layout": "measured-pathway-stack",
+        "obstructedTraceCount": 0,
+        "contractVersion": "3",
+        "layout": "endpoint-junction-forest",
     }}
     print("{DIAGRAM_OBSERVATION_RESULT_PREFIX}" + json.dumps(observation, sort_keys=True))
 '''

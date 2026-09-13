@@ -205,6 +205,35 @@ function qaTopologyEdgeGap(edge, diagram) {
   );
 }
 
+function qaTopologyTraceObstructed(edge, diagram) {
+  if (typeof edge.getTotalLength !== "function"
+      || typeof edge.getPointAtLength !== "function"
+      || typeof edge.getScreenCTM !== "function") return false;
+  const matrix = edge.getScreenCTM();
+  if (!matrix) return false;
+  const nodes = Array.from(
+    diagram.querySelectorAll?.(".relationship-topology-node") || [],
+  ).filter((node) => {
+    if (node.dataset.pathwayId === edge.dataset.pathwayId) return false;
+    return node.dataset.junctionId !== edge.dataset.junctionId;
+  });
+  const length = edge.getTotalLength();
+  const sampleCount = Math.max(2, Math.ceil(length / 4));
+  for (let index = 0; index <= sampleCount; index += 1) {
+    const point = edge.getPointAtLength(length * index / sampleCount);
+    const projected = {
+      x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+      y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+    };
+    if (nodes.some((node) => {
+      const rectangle = node.getBoundingClientRect();
+      return projected.x > rectangle.left + 1 && projected.x < rectangle.right - 1
+        && projected.y > rectangle.top + 1 && projected.y < rectangle.bottom - 1;
+    })) return true;
+  }
+  return false;
+}
+
 function qaRelationshipNodesOverlap(nodes) {
   return nodes.some((node, index) => {
     const rect = node.getBoundingClientRect();
@@ -232,6 +261,7 @@ function qaObserveRelationshipDiagram() {
       status: "skipped",
       connectorCount: 0,
       maximumEndpointGap: 0,
+      obstructedTraceCount: 0,
       contractVersion: RELATIONSHIP_DIAGRAM_CONTRACT_VERSION,
       layout: RELATIONSHIP_DIAGRAM_LAYOUT,
     }).catch(() => {});
@@ -277,6 +307,9 @@ function qaObserveRelationshipDiagram() {
       ...topologyEdges.map((edge) => qaTopologyEdgeGap(edge, diagram)),
     ];
     const maximumEndpointGap = endpointGaps.length ? Math.max(...endpointGaps) : 0;
+    const obstructedTraceCount = topologyEdges.filter(
+      (edge) => qaTopologyTraceObstructed(edge, diagram),
+    ).length;
     const contractVersion = diagram?.dataset.diagramContractVersion || "";
     const layout = diagram?.dataset.diagramLayout || "";
     const passed = Boolean(workspace)
@@ -285,6 +318,7 @@ function qaObserveRelationshipDiagram() {
       && junctionHubs.length === (harness.junctions || []).length
       && (harness.pathways.length === 0 || connectorEdges.length > 0)
       && maximumEndpointGap <= 1
+      && obstructedTraceCount === 0
       && !qaRelationshipNodesOverlap(topologyNodes)
       && contractVersion === RELATIONSHIP_DIAGRAM_CONTRACT_VERSION
       && layout === RELATIONSHIP_DIAGRAM_LAYOUT
@@ -294,6 +328,7 @@ function qaObserveRelationshipDiagram() {
       status: passed ? "passed" : "failed",
       connectorCount,
       maximumEndpointGap,
+      obstructedTraceCount,
       contractVersion,
       layout,
     }).catch(() => {});

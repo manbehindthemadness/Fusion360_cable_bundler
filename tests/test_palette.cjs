@@ -871,6 +871,56 @@ test('master relationship graphic is last and independently cross-checked', () =
   assert.equal(sections[2].open, true);
 });
 
+test('master topology traces detour around unrelated measured nodes', () => {
+  const { context } = palette();
+  const source = { id: 'pathway:source', left: 20, top: 120, width: 120, height: 60 };
+  const obstacle = { id: 'pathway:obstacle', left: 240, top: 90, width: 140, height: 120 };
+  const target = { id: 'junction:target', left: 500, top: 120, width: 120, height: 60 };
+
+  const routed = context.routeRelationshipEdge(source, target, [source, obstacle, target]);
+
+  assert.equal(routed.kind, 'detour');
+  assert.ok(routed.points.length >= 4);
+  assert.equal(routed.points[0].x, 140);
+  assert.equal(routed.points[0].y, 150);
+  assert.equal(routed.points[routed.points.length - 1].x, 500);
+  assert.equal(routed.points[routed.points.length - 1].y, 150);
+  assert.ok(routed.points.some((point) => point.y <= obstacle.top - 14
+    || point.y >= obstacle.top + obstacle.height + 14));
+  assert.match(routed.d, / Q /);
+
+  const clearTarget = { ...target, top: 280 };
+  const clearRoute = context.routeRelationshipEdge(source, clearTarget, [source, clearTarget]);
+  assert.equal(clearRoute.kind, 'direct');
+  assert.match(clearRoute.d, / C /);
+});
+
+test('master topology node ordering changes only when crossings decrease', () => {
+  const { context } = palette();
+  const nodes = [
+    { id: 'a', depth: 0 },
+    { id: 'b', depth: 0 },
+    { id: 'c', depth: 1 },
+    { id: 'd', depth: 1 },
+  ];
+  const component = {
+    nodes,
+    edges: [
+      { sourceId: 'a', targetId: 'd' },
+      { sourceId: 'b', targetId: 'c' },
+    ],
+  };
+
+  const optimized = context.optimizeRelationshipNodeOrder(component);
+
+  assert.equal(optimized.map((node) => node.id).join(','), 'a,b,d,c');
+  assert.equal(
+    context.optimizeRelationshipNodeOrder({ nodes, edges: [] })
+      .map((node) => node.id).join(','),
+    'a,b,c,d',
+  );
+});
+
 test('palette entry point loads organized local style and script resources', () => {
   const html = readFileSync(join(__dirname, '..', 'palette.html'), 'utf8');
   assert.match(html, /<link rel="stylesheet" href="palette\/styles\.css">/);
@@ -1759,10 +1809,30 @@ asyncTest('developer visual QA probe verifies the relationship-diagram structure
       status: 'passed',
       connectorCount: 20,
       maximumEndpointGap: 0,
-      contractVersion: '2',
+      obstructedTraceCount: 0,
+      contractVersion: '3',
       layout: 'endpoint-junction-forest',
     },
   }]));
+});
+
+test('developer visual QA detects a topology trace inside an unrelated node', () => {
+  const { context } = palette();
+  const unrelated = {
+    dataset: { pathwayId: 'middle' },
+    getBoundingClientRect: () => ({ left: 40, right: 60, top: 40, bottom: 60 }),
+  };
+  const diagram = { querySelectorAll: () => [unrelated] };
+  const edge = {
+    dataset: { pathwayId: 'source', junctionId: 'target' },
+    getTotalLength: () => 100,
+    getPointAtLength: (distance) => ({ x: distance, y: 50 }),
+    getScreenCTM: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+  };
+
+  assert.equal(context.qaTopologyTraceObstructed(edge, diagram), true);
+  edge.getPointAtLength = (distance) => ({ x: distance, y: 30 });
+  assert.equal(context.qaTopologyTraceObstructed(edge, diagram), false);
 });
 
 test('palette QA probe is denied without current developer consent', () => {

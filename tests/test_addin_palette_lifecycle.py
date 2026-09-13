@@ -1908,7 +1908,8 @@ def test_palette_records_bounded_relationship_diagram_observation(
                 "status": "passed",
                 "connectorCount": 4,
                 "maximumEndpointGap": 0.0,
-                "contractVersion": "2",
+                "obstructedTraceCount": 0,
+                "contractVersion": "3",
                 "layout": "endpoint-junction-forest",
             }
         ),
@@ -1921,7 +1922,8 @@ def test_palette_records_bounded_relationship_diagram_observation(
         "status": "passed",
         "connectorCount": 4,
         "maximumEndpointGap": 0.0,
-        "contractVersion": "2",
+        "obstructedTraceCount": 0,
+        "contractVersion": "3",
         "layout": "endpoint-junction-forest",
     }
     assert json.loads(args.returnData) == {"ok": True}

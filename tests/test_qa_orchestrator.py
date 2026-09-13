@@ -511,7 +511,7 @@ def test_desktop_ui_oracle_fails_disconnected_relationship_diagram(
     result = qa_orchestrator._run_desktop_ui_oracle("local", 1.0)
 
     assert result["status"] == "failed"
-    assert "disconnected rendered edges" in result["error"]
+    assert "disconnected or obstructed rendered edges" in result["error"]
     assert result["diagramObservation"] == {
         "status": "failed",
         "connectorCount": 2,

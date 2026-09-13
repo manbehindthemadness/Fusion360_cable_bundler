@@ -2392,6 +2392,7 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                 status = payload.get("status")
                 connector_count = payload.get("connectorCount")
                 maximum_gap = payload.get("maximumEndpointGap")
+                obstructed_trace_count = payload.get("obstructedTraceCount")
                 contract_version = payload.get("contractVersion")
                 layout = payload.get("layout")
                 if status not in {"passed", "failed", "skipped"}:
@@ -2409,7 +2410,13 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                     or float(maximum_gap) < 0
                 ):
                     raise ValueError("Diagram QA endpoint gap must be finite and nonnegative.")
-                if contract_version != "2":
+                if (
+                    isinstance(obstructed_trace_count, bool)
+                    or not isinstance(obstructed_trace_count, int)
+                    or obstructed_trace_count < 0
+                ):
+                    raise ValueError("Diagram QA obstruction count must be nonnegative.")
+                if contract_version != "3":
                     raise ValueError("Diagram QA contract version is unsupported.")
                 if layout != "endpoint-junction-forest":
                     raise ValueError("Diagram QA layout is unsupported.")
@@ -2417,6 +2424,7 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                     "status": status,
                     "connectorCount": connector_count,
                     "maximumEndpointGap": float(maximum_gap),
+                    "obstructedTraceCount": obstructed_trace_count,
                     "contractVersion": contract_version,
                     "layout": layout,
                 }
