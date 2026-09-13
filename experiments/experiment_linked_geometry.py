@@ -33,9 +33,9 @@ from experiments.experiment_preview_reload import (  # noqa: E402
     _wait_for_cloud_processing,
 )
 from experiments.scenario_report import ScenarioReport  # noqa: E402
-from wire_bundler import addin  # noqa: E402
 from wire_bundler.domain import loads  # noqa: E402
 from wire_bundler.fusion import FusionHarnessGateway  # noqa: E402
+from wire_bundler.fusion.ui import palette_state  # noqa: E402
 
 SCENARIO_NAME = "linked_geometry"
 ARTIFACT_ROOT = ADDIN_ROOT / "artifacts" / "verification"
@@ -152,8 +152,9 @@ def verify_linked_geometry(
             ):
                 raise AssertionError("Healthy linked geometry did not survive reload.")
 
-            palette_state = json.loads(addin._serialize_palette_state(application))  # noqa: SLF001
-            harnesses = palette_state.get("harnesses")
+            serialized_state = palette_state.serialize_palette_state(application)
+            palette_state_payload = json.loads(serialized_state)
+            harnesses = palette_state_payload.get("harnesses")
             if not isinstance(harnesses, list) or len(harnesses) != 1:
                 raise AssertionError("Palette did not expose exactly one damaged fixture.")
             connections = harnesses[0].get("connections")

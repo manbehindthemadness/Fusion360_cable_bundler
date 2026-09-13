@@ -118,8 +118,8 @@ def run_capture_handshake(
         observer = _CommandCaptureHandler()
         if not definition.commandCreated.add(observer):
             raise RuntimeError("Fusion could not observe the Add Pathway command.")
-        addin = importlib.import_module("wire_bundler.addin")
-        open_add_pathway = vars(addin)["_open_add_pathway_command"]
+        launchers = importlib.import_module("wire_bundler.fusion.ui.launchers")
+        open_add_pathway = vars(launchers)["_open_add_pathway_command"]
         open_add_pathway(
             application,
             json.dumps({"harnessId": str(HARNESS_ID)}),

@@ -99,7 +99,7 @@
       "behavior": "Every persistent edit, Preview, Generate, Rebuild, and Clear Solids operation creates one reversible Fusion history action with stable Undo/Redo results; transient Clear Preview removes graphics immediately.",
       "status": "automated",
       "layers": ["palette", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_addin_palette_lifecycle.py", "tests/test_palette.cjs", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_fusion_ui_palette.py", "tests/test_palette.cjs", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
       "capabilities": []
     },
     {
@@ -108,7 +108,7 @@
       "behavior": "Repeated add-in stop and start cycles remove and restore commands, palettes, handlers, previews, and package modules cleanly.",
       "status": "manual",
       "layers": ["manual", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_addin_palette_lifecycle.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_fusion_ui_lifecycle.py", "experiments/fusion_mcp_capabilities.json"],
       "capabilities": ["safe-repeated-host-owned-addin-start-stop", "command-registry-inspection", "palette-registry-inspection"],
       "manualReason": "Fusion 2704.1.53 crashed during the second Application.scripts stop/start cycle inside one MCP-hosted script. Repeated host-owned cycles through Scripts and Add-Ins passed on the current macOS host.",
       "reviewTrigger": "Retry automation only after Autodesk exposes a stable host-owned lifecycle boundary or a later Fusion release materially changes Application.scripts behavior."
@@ -128,7 +128,7 @@
       "behavior": "Palette hover and diagram scopes select the intended root-context profiles, gates, and generated wire bodies.",
       "status": "automated",
       "layers": ["pytest", "palette", "fusion-api", "mcp"],
-      "evidence": ["tests/test_palette.cjs", "tests/test_addin_palette_lifecycle.py", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_viewport.py", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
       "capabilities": []
     },
     {

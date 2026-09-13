@@ -20,6 +20,8 @@ from wire_bundler.domain import (
     WireProfile,
 )
 
+pytest_plugins = ("tests.fusion_ui_support",)
+
 
 @pytest.fixture
 def valid_harness() -> HarnessDefinition:

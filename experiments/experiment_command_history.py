@@ -474,11 +474,11 @@ def _verify_selection_backed_history(
     )
     baseline = _read_definition(gateway)
     source_tokens = _connection_member_tokens(baseline, SOURCE_CONNECTION_ID)
-    current_addin = importlib.import_module("wire_bundler.addin")
-    open_add_pathway = vars(current_addin)["_open_add_pathway_command"]
-    open_append_gates = vars(current_addin)["_open_append_gates_command"]
-    open_end_edit = vars(current_addin)["_open_end_member_edit"]
-    open_add_wires = vars(current_addin)["_open_add_wires_command"]
+    launchers = importlib.import_module("wire_bundler.fusion.ui.launchers")
+    open_add_pathway = vars(launchers)["_open_add_pathway_command"]
+    open_append_gates = vars(launchers)["_open_append_gates_command"]
+    open_end_edit = vars(launchers)["_open_end_member_edit"]
+    open_add_wires = vars(launchers)["_open_add_wires_command"]
     harness_payload = json.dumps({"harnessId": str(HARNESS_ID)})
     pathway_payload = json.dumps({"harnessId": str(HARNESS_ID), "pathwayId": str(PATHWAY_ID)})
     cases = (
@@ -1003,8 +1003,8 @@ def _observe_wire_palette_dom(
             "expectedLabel": expected_label,
         }
     )
-    current_addin = importlib.import_module("wire_bundler.addin")
-    vars(current_addin)["_send_palette_state"](application)
+    palette_state = importlib.import_module("wire_bundler.fusion.ui.palette_state")
+    vars(palette_state)["_send_palette_state"](application)
     _await_palette_probe(
         application,
         palette,
@@ -1467,8 +1467,8 @@ def _palette_harness_projection(application: adsk.core.Application) -> dict[str,
     """
     Read the serialized palette projection for the command fixture.
     """
-    current_addin = importlib.import_module("wire_bundler.addin")
-    serialize_palette_state = vars(current_addin)["_serialize_palette_state"]
+    palette_state = importlib.import_module("wire_bundler.fusion.ui.palette_state")
+    serialize_palette_state = palette_state.serialize_palette_state
     serialized = serialize_palette_state(application)
     payload = json.loads(serialized)
     if not isinstance(payload, dict):
@@ -1567,8 +1567,8 @@ def execute_palette_action(
         lambda: str(application.userInterface.activeCommand) == "SelectCommand",
         f"Fusion default command before {action}",
     )
-    current_addin = importlib.import_module("wire_bundler.addin")
-    open_palette_edit = vars(current_addin)["_open_palette_edit"]
+    launchers = importlib.import_module("wire_bundler.fusion.ui.launchers")
+    open_palette_edit = vars(launchers)["_open_palette_edit"]
     open_palette_edit(application, action, payload)
 
 
@@ -1576,8 +1576,8 @@ def _clear_transient_preview(application: adsk.core.Application) -> int:
     """
     Exercise the production clear path that intentionally bypasses model history.
     """
-    current_addin = importlib.import_module("wire_bundler.addin")
-    clear_preview = vars(current_addin)["_clear_preview"]
+    viewport = importlib.import_module("wire_bundler.fusion.ui.viewport")
+    clear_preview = vars(viewport)["_clear_preview"]
     return clear_preview(application)
 
 
@@ -1622,8 +1622,8 @@ def wait_for(
         adsk.doEvents()
         if condition():
             return
-        current_addin = importlib.import_module("wire_bundler.addin")
-        last_command_error = vars(current_addin)["_last_command_error"]
+        runtime_module = importlib.import_module("wire_bundler.fusion.ui.runtime")
+        last_command_error = vars(runtime_module)["runtime"].last_command_error
         if last_command_error:
             raise RuntimeError(f"Fusion command failed during {description}: {last_command_error}")
         sleep(0.01)
