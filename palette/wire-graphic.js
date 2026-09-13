@@ -1,6 +1,14 @@
 function svgElement(tag, attributes = {}) {
   const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
-  Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, `${value}`));
+  Object.entries(attributes).forEach(([name, value]) => {
+    node.setAttribute(name, `${value}`);
+    if (name.startsWith("data-")) {
+      const datasetName = name.slice(5).replace(/-([a-z])/g, (_match, letter) => (
+        letter.toUpperCase()
+      ));
+      node.dataset[datasetName] = `${value}`;
+    }
+  });
   return node;
 }
 

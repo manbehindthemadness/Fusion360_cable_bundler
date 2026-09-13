@@ -107,7 +107,12 @@ class Element {
     for (const child of children) if (typeof child === 'object') child.parentElement = this;
     this.children = children;
   }
-  addEventListener(event, handler) { this.events[event] = handler; }
+  addEventListener(event, handler) {
+    const prior = this.events[event];
+    this.events[event] = prior
+      ? (...args) => { prior(...args); handler(...args); }
+      : handler;
+  }
   setAttribute(key, value) {
     this.attributes[key] = value;
     if (key === 'class') this.className = value;
@@ -565,6 +570,116 @@ test('branching topology renders each incident endpoint once', () => {
   ).length, 3);
 });
 
+test('master topology focus follows complete wire routes and clears transiently', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways.push(
+    { pathwayId: 'p2', name: 'Continuation', startName: '', endName: '', orderedControlIds: [] },
+    { pathwayId: 'p3', name: 'Unoccupied', startName: '', endName: '', orderedControlIds: [] },
+  );
+  definition.junctions = [{
+    junctionId: 'j1', name: 'Intersection', controlId: 'c1', pathwayRelationships: [
+      { pathwayId: 'p', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ],
+  }];
+  definition.wires.forEach((wire) => { wire.orderedPathwayIds = ['p', 'p2']; });
+
+  const rendered = context.renderRelationshipMap(definition, []);
+  const pathwayHubs = descendants(
+    rendered, (node) => node.className === 'relationship-pathway-hub',
+  );
+  const nodes = descendants(
+    rendered, (node) => node.className?.split(' ').includes('relationship-topology-node'),
+  );
+  const occupiedHub = pathwayHubs.find((hub) => hub.children[0].textContent === 'lower fuse box path');
+  occupiedHub.events.mouseenter();
+  assert.equal(rendered.className.includes('relationship-focus-active'), true);
+  assert.equal(nodes.find((node) => node.dataset.pathwayId === 'p3')
+    .className.includes('relationship-focus-dimmed'), true);
+  assert.ok(nodes.filter((node) => node.dataset.pathwayId !== 'p3')
+    .every((node) => node.className.includes('relationship-focus-match')));
+  occupiedHub.events.mouseleave();
+  assert.equal(rendered.className.includes('relationship-focus-active'), false);
+  assert.equal(occupiedHub.className.includes('relationship-focus-source'), false);
+  assert.ok(nodes.every((node) => !node.className.includes('relationship-focus-dimmed')));
+
+  const endEntry = descendants(
+    rendered, (node) => node.className === 'relationship-end-entry',
+  ).find((entry) => entry.dataset.wireIds === 'w1');
+  endEntry.events.focus();
+  const traces = descendants(
+    rendered, (node) => node.className?.split(' ').includes('wire-trace'),
+  );
+  assert.ok(traces.filter((trace) => trace.dataset.wireId === 'w1')
+    .every((trace) => trace.className.includes('relationship-focus-match')));
+  assert.ok(traces.filter((trace) => trace.dataset.wireId === 'w2')
+    .every((trace) => trace.className.includes('relationship-focus-dimmed')));
+  endEntry.events.blur();
+  assert.equal(rendered.className.includes('relationship-focus-active'), false);
+});
+
+test('topology edges use bounded adaptive lanes and counted bundles', () => {
+  const { context } = palette();
+  const definition = harness();
+  const edge = {
+    sourceId: 'pathway:p', targetId: 'junction:j1',
+    junction: { junctionId: 'j1' }, relationship: { pathwayId: 'p', endpoint: 'end' },
+  };
+  const route = {
+    kind: 'direct', d: 'M 0 20 C 50 20, 50 40, 100 40',
+    points: [{ x: 0, y: 20 }, { x: 100, y: 40 }],
+  };
+  const fiveWires = [
+    ...definition.wires,
+    { ...definition.wires[0], wireId: 'w4' },
+    { ...definition.wires[0], wireId: 'w5' },
+  ];
+  const lanes = context.renderTopologyEdge(edge, route, fiveWires);
+  assert.equal(lanes.dataset.renderMode, 'lanes');
+  assert.deepEqual(descendants(
+    lanes, (node) => node.className?.split(' ').includes('relationship-wire-lane'),
+  ).map((lane) => lane.dataset.laneOffset), ['-8', '-4', '0', '4', '8']);
+
+  const sixWires = [
+    ...fiveWires,
+    { ...definition.wires[0], wireId: 'w6', materials: {
+      ...definition.materialDefaults, mainColor: { name: 'Red', hex: '#cc1122' },
+    } },
+  ];
+  const bundle = context.renderTopologyEdge(edge, route, sixWires);
+  assert.equal(bundle.dataset.renderMode, 'bundle');
+  assert.equal(descendants(
+    bundle, (node) => node.className?.split(' ').includes('relationship-wire-lane'),
+  ).length, 0);
+  const bundleTrace = descendants(
+    bundle, (node) => node.className?.split(' ').includes('relationship-wire-bundle'),
+  )[0];
+  assert.equal(bundleTrace.attributes.stroke, '#526f85');
+  assert.equal(descendants(
+    bundle, (node) => node.className === 'relationship-wire-count',
+  )[0].children[1].textContent, '×6');
+  const sharedColorBundle = context.renderTopologyEdge(
+    edge,
+    route,
+    [...fiveWires, { ...definition.wires[0], wireId: 'w6' }],
+  );
+  assert.equal(descendants(
+    sharedColorBundle,
+    (node) => node.className?.split(' ').includes('relationship-wire-bundle'),
+  )[0].attributes.stroke, '#202020');
+
+  const empty = context.renderTopologyEdge(edge, route, []);
+  assert.equal(empty.dataset.renderMode, 'structure');
+  assert.equal(descendants(empty, (node) => node.className === 'wire-trace').length, 0);
+  const port = context.renderTopologyPort({
+    nodeId: 'pathway:p', side: 'right', point: { x: 100, y: 40 },
+    wireIds: new Set(fiveWires.map((wire) => wire.wireId)), maximumLaneCount: 5,
+  });
+  assert.equal(port.attributes.height, '24');
+  assert.equal(port.dataset.wireIds, 'w1 w2 w3 w4 w5');
+});
+
 asyncTest('pathway node context menu adds a refine to that pathway', async () => {
   const { context, calls } = palette();
   const definition = harness();
@@ -706,7 +821,7 @@ asyncTest('pathway context menu segments eligible controls and renders its junct
     junctionLinks[0], (node) => node.className === 'structural-trace',
   ).length, 2);
   assert.equal(descendants(
-    junctionLinks[0], (node) => node.className === 'wire-trace',
+    junctionLinks[0], (node) => node.className?.split(' ').includes('wire-trace'),
   ).length, 6);
   assert.equal(pathwayGroup.style.gridTemplateColumns, [
     '210px', '32px', '154px', '32px', 'max-content',
@@ -758,7 +873,7 @@ test('multi-junction chains retain pathway ends and continuous procedural traces
     junctionLinks[0], (node) => node.className === 'structural-trace',
   ).length, 4);
   assert.equal(descendants(
-    junctionLinks[0], (node) => node.className === 'wire-trace',
+    junctionLinks[0], (node) => node.className?.split(' ').includes('wire-trace'),
   ).length, 12);
   const topologyNodes = descendants(
     rendered, (node) => node.className?.split(' ').includes('relationship-topology-node'),
@@ -1810,7 +1925,9 @@ asyncTest('developer visual QA probe verifies the relationship-diagram structure
       connectorCount: 20,
       maximumEndpointGap: 0,
       obstructedTraceCount: 0,
-      contractVersion: '3',
+      portCount: 4,
+      invalidTraceGroupCount: 0,
+      contractVersion: '4',
       layout: 'endpoint-junction-forest',
     },
   }]));

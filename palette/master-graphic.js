@@ -1,7 +1,98 @@
-const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "3";
+const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "4";
 const RELATIONSHIP_DIAGRAM_LAYOUT = "endpoint-junction-forest";
 const TOPOLOGY_TRACE_CLEARANCE = 14;
 const TOPOLOGY_TRACE_CORNER_RADIUS = 8;
+const TOPOLOGY_LANE_LIMIT = 5;
+const TOPOLOGY_LANE_SPACING = 4;
+
+function relationshipWireIds(wires) {
+  return wires.map((wire) => wire.wireId).join(" ");
+}
+
+function relationshipElementWireIds(element) {
+  const value = element.dataset?.wireIds || element.dataset?.wireId || "";
+  return new Set(value.split(" ").filter(Boolean));
+}
+
+function relationshipSetsIntersect(left, right) {
+  return [...left].some((value) => right.has(value));
+}
+
+/** Apply transient focus to every master-diagram element sharing route membership. */
+function createRelationshipFocusController(container) {
+  const itemClasses = [
+    "relationship-topology-node",
+    "relationship-topology-edge",
+    "relationship-topology-port",
+    "relationship-end-entry",
+    "wire-trace",
+    "stripe-trace",
+    "aggregate-trace",
+  ];
+  let pointerFocus = null;
+  let keyboardFocus = null;
+  const sources = new Set();
+
+  const items = () => [...new Set(itemClasses.flatMap(
+    (className) => Array.from(container.querySelectorAll(`.${className}`)),
+  ))];
+  const clearClasses = () => {
+    container.classList.remove("relationship-focus-active");
+    items().forEach((item) => item.classList.remove(
+      "relationship-focus-match", "relationship-focus-dimmed", "relationship-focus-source",
+    ));
+    sources.forEach((source) => source.classList.remove(
+      "relationship-focus-match", "relationship-focus-dimmed", "relationship-focus-source",
+    ));
+  };
+  const apply = () => {
+    clearClasses();
+    const focus = keyboardFocus || pointerFocus;
+    if (!focus) return;
+    container.classList.add("relationship-focus-active");
+    const wireIds = new Set(focus.wireIds);
+    const nodeIds = new Set(focus.nodeIds);
+    items().forEach((item) => {
+      const itemWireIds = relationshipElementWireIds(item);
+      const itemNodeIds = new Set([
+        item.dataset?.nodeId,
+        item.dataset?.sourceId,
+        item.dataset?.targetId,
+      ].filter(Boolean));
+      const matches = wireIds.size
+        ? relationshipSetsIntersect(wireIds, itemWireIds)
+        : relationshipSetsIntersect(nodeIds, itemNodeIds);
+      item.classList.add(matches ? "relationship-focus-match" : "relationship-focus-dimmed");
+    });
+    focus.source.classList.add("relationship-focus-source", "relationship-focus-match");
+    focus.source.classList.remove("relationship-focus-dimmed");
+  };
+  const bind = (source, descriptor) => {
+    sources.add(source);
+    const focus = {
+      source,
+      wireIds: descriptor.wires.map((wire) => wire.wireId),
+      nodeIds: descriptor.nodeIds || [],
+    };
+    source.addEventListener("mouseenter", () => {
+      pointerFocus = focus;
+      apply();
+    });
+    source.addEventListener("mouseleave", () => {
+      if (pointerFocus === focus) pointerFocus = null;
+      apply();
+    });
+    source.addEventListener("focus", () => {
+      keyboardFocus = focus;
+      apply();
+    });
+    source.addEventListener("blur", () => {
+      if (keyboardFocus === focus) keyboardFocus = null;
+      apply();
+    });
+  };
+  return { bind };
+}
 
 function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
   const connectionField = endpoint === "start" ? "startConnectionId" : "endConnectionId";
@@ -260,7 +351,7 @@ function closeJunctionRelationships() {
   else dialog?.remove();
 }
 
-function renderRelationshipJunctionHub(harness, junction) {
+function renderRelationshipJunctionHub(harness, junction, focusController, nodeIds) {
   const hub = document.createElement("button");
   const name = document.createElement("strong");
   const kind = document.createElement("small");
@@ -273,6 +364,10 @@ function renderRelationshipJunctionHub(harness, junction) {
     ? `${relationshipCount} pathway ${relationshipCount === 1 ? "endpoint" : "endpoints"}`
     : "Unconnected junction";
   hoverHighlight(hub, () => highlightMember(harness, "junction", junction.junctionId));
+  focusController.bind(hub, {
+    wires: relationshipJunctionWires(harness, junction),
+    nodeIds,
+  });
   hub.addEventListener("click", () => openJunctionRelationships(harness, junction));
   hub.addEventListener("contextmenu", (event) => {
     event.preventDefault();
@@ -309,7 +404,11 @@ function renderRelationshipConnector(
       groups.flatMap((group) => group.wires.map((wire) => wire.wireId)),
     );
     if (!isExpanded && wires.every((wire) => groupedWireIds.has(wire.wireId))) {
-      svg.append(svgElement("path", { class: "aggregate-trace", d: curvePath(50, 50) }));
+      svg.append(svgElement("path", {
+        class: "aggregate-trace",
+        d: curvePath(50, 50),
+        "data-wire-ids": relationshipWireIds(wires),
+      }));
       return;
     }
     const groupPositions = new Map();
@@ -391,6 +490,7 @@ function renderRelationshipBridge(wires) {
 
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
+  focusController,
 ) {
   const side = endpoint === "start" ? "A" : "B";
   const details = document.createElement("details");
@@ -411,6 +511,10 @@ function renderRelationshipEndList(
     ? `${visibleGroups.length} of ${groups.length}`
     : `${groups.length}`;
   hoverHighlight(summary, () => highlightMember(harness, "pathway_wires", pathway.pathwayId));
+  focusController.bind(summary, {
+    wires: groups.flatMap((group) => group.wires),
+    nodeIds: [`pathway:${pathway.pathwayId}`],
+  });
   if (!groups.length) {
     details.open = false;
     summary.append(label);
@@ -430,6 +534,7 @@ function renderRelationshipEndList(
     button.type = "button";
     button.className = "relationship-end-entry";
     button.dataset.connectionId = group.connectionId;
+    button.dataset.wireIds = relationshipWireIds(group.wires);
     name.textContent = group.label;
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
@@ -438,6 +543,10 @@ function renderRelationshipEndList(
     hoverHighlight(button, () => group.connectionId
       ? highlightMember(harness, "connection", group.connectionId)
       : highlightMember(harness, "preview_wire", group.wires[0].wireId));
+    focusController.bind(button, {
+      wires: group.wires,
+      nodeIds: [`pathway:${pathway.pathwayId}`],
+    });
     button.addEventListener("click", () => navigateToWire(group.wires[0].wireId));
     items.append(button);
   });
@@ -715,6 +824,144 @@ function routeRelationshipEdge(source, target, nodes) {
   };
 }
 
+function topologyRouteMidpoint(route) {
+  if (route.points.length === 2) {
+    const [start, end] = route.points;
+    const middleX = (start.x + end.x) / 2;
+    return cubicPoint(
+      start,
+      { x: middleX, y: start.y },
+      { x: middleX, y: end.y },
+      end,
+      0.5,
+    );
+  }
+  const segments = route.points.slice(1).map((point, index) => {
+    const prior = route.points[index];
+    return {
+      prior,
+      point,
+      length: Math.abs(point.x - prior.x) + Math.abs(point.y - prior.y),
+    };
+  });
+  const halfLength = segments.reduce((total, segment) => total + segment.length, 0) / 2;
+  let traversed = 0;
+  for (const segment of segments) {
+    if (traversed + segment.length >= halfLength) {
+      const progress = segment.length
+        ? (halfLength - traversed) / segment.length
+        : 0;
+      return {
+        x: segment.prior.x + (segment.point.x - segment.prior.x) * progress,
+        y: segment.prior.y + (segment.point.y - segment.prior.y) * progress,
+      };
+    }
+    traversed += segment.length;
+  }
+  return route.points[route.points.length - 1];
+}
+
+function topologyWireMode(wires) {
+  if (!wires.length) return "structure";
+  return wires.length <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
+}
+
+/** Render one routed topology edge using bounded, deterministic wire detail. */
+function renderTopologyEdge(edge, route, wires) {
+  const group = svgElement("g", {
+    class: "relationship-topology-edge",
+    "data-source-id": edge.sourceId,
+    "data-target-id": edge.targetId,
+    "data-wire-ids": relationshipWireIds(wires),
+    "data-wire-count": wires.length,
+    "data-render-mode": topologyWireMode(wires),
+  });
+  const structural = svgElement("path", {
+    class: "structural-trace",
+    d: route.d,
+    "data-junction-id": edge.junction.junctionId,
+    "data-pathway-id": edge.relationship.pathwayId,
+    "data-endpoint": edge.relationship.endpoint,
+    "data-source-x": `${route.points[0].x}`,
+    "data-source-y": `${route.points[0].y}`,
+    "data-target-x": `${route.points[route.points.length - 1].x}`,
+    "data-target-y": `${route.points[route.points.length - 1].y}`,
+    "data-route-kind": route.kind,
+    "data-route-points": JSON.stringify(route.points),
+  });
+  group.append(structural);
+  if (wires.length <= TOPOLOGY_LANE_LIMIT) {
+    wires.forEach((wire, index) => {
+      const offset = (index - (wires.length - 1) / 2) * TOPOLOGY_LANE_SPACING;
+      group.append(svgElement("path", {
+        class: "wire-trace relationship-wire-lane",
+        d: route.d,
+        stroke: wire.materials?.mainColor?.hex || "#1777c8",
+        transform: `translate(0 ${offset})`,
+        "data-lane-offset": `${offset}`,
+        "data-wire-id": wire.wireId,
+      }));
+    });
+  } else {
+    const colors = new Set(
+      wires.map((wire) => wire.materials?.mainColor?.hex || "#1777c8"),
+    );
+    const midpoint = topologyRouteMidpoint(route);
+    const badge = svgElement("g", {
+      class: "relationship-wire-count",
+      transform: `translate(${midpoint.x} ${midpoint.y})`,
+    });
+    badge.append(
+      svgElement("rect", { x: -14, y: -9, width: 28, height: 18, rx: 9 }),
+      svgElement("text", { x: 0, y: 4, "text-anchor": "middle" }),
+    );
+    badge.children[1].textContent = `×${wires.length}`;
+    group.append(
+      svgElement("path", {
+        class: "wire-trace relationship-wire-bundle",
+        d: route.d,
+        stroke: colors.size === 1 ? [...colors][0] : "#526f85",
+        "data-wire-ids": relationshipWireIds(wires),
+      }),
+      badge,
+    );
+  }
+  return group;
+}
+
+function recordTopologyPort(ports, nodeId, side, point, wires) {
+  const key = `${nodeId}:${side}`;
+  const prior = ports.get(key) || {
+    nodeId,
+    side,
+    point,
+    wireIds: new Set(),
+    maximumLaneCount: 0,
+  };
+  wires.forEach((wire) => prior.wireIds.add(wire.wireId));
+  const laneCount = wires.length <= TOPOLOGY_LANE_LIMIT ? wires.length : 1;
+  prior.maximumLaneCount = Math.max(prior.maximumLaneCount, laneCount);
+  ports.set(key, prior);
+}
+
+function renderTopologyPort(port) {
+  const laneCount = port.maximumLaneCount;
+  const height = laneCount > 1
+    ? (laneCount - 1) * TOPOLOGY_LANE_SPACING + 8
+    : 8;
+  return svgElement("rect", {
+    class: "relationship-topology-port",
+    x: port.point.x - 4,
+    y: port.point.y - height / 2,
+    width: 8,
+    height,
+    rx: 4,
+    "data-node-id": port.nodeId,
+    "data-side": port.side,
+    "data-wire-ids": [...port.wireIds].join(" "),
+  });
+}
+
 /**
  * Position acyclic topology components in stable layers and draw their edges.
  */
@@ -774,6 +1021,7 @@ function layoutRelationshipGraph(stack, components, harness) {
     preserveAspectRatio: "none",
     "aria-hidden": "true",
   });
+  const ports = new Map();
   components.forEach((component) => {
     const nodes = new Map(component.nodes.map((node) => [node.id, node]));
     component.edges.forEach((edge) => {
@@ -785,34 +1033,21 @@ function layoutRelationshipGraph(stack, components, harness) {
       const sourceY = source.top + source.height / 2;
       const targetY = target.top + target.height / 2;
       const route = routeRelationshipEdge(source, target, component.nodes);
-      overlay.append(svgElement("path", {
-        class: "structural-trace",
-        d: route.d,
-        "data-junction-id": edge.junction.junctionId,
-        "data-pathway-id": edge.relationship.pathwayId,
-        "data-endpoint": edge.relationship.endpoint,
-        "data-source-x": `${sourceX}`,
-        "data-source-y": `${sourceY}`,
-        "data-target-x": `${targetX}`,
-        "data-target-y": `${targetY}`,
-        "data-route-kind": route.kind,
-        "data-route-points": JSON.stringify(route.points),
-      }));
       const wires = relationshipEndpointWires(
         harness,
         edge.junction,
         edge.relationship,
       );
-      wires.forEach((wire) => {
-        overlay.append(svgElement("path", {
-          class: "wire-trace",
-          d: route.d,
-          stroke: wire.materials?.mainColor?.hex || "#1777c8",
-          "data-wire-id": wire.wireId,
-        }));
-      });
+      overlay.append(renderTopologyEdge(edge, route, wires));
+      recordTopologyPort(
+        ports, source.id, "right", { x: sourceX, y: sourceY }, wires,
+      );
+      recordTopologyPort(
+        ports, target.id, "left", { x: targetX, y: targetY }, wires,
+      );
     });
   });
+  ports.forEach((port) => overlay.append(renderTopologyPort(port)));
   stack.insertBefore(overlay, stack.children[0] || null);
   stack.style.width = `${canvasWidth}px`;
   stack.style.height = `${canvasHeight}px`;
@@ -880,6 +1115,7 @@ function addRelationshipMapContextMenu(workspace) {
 
 function renderRelationshipPathwayNode(
   harness, candidate, connections, query, collapseLimit, showContextMenu,
+  focusController, nodeIds,
 ) {
   const groups = {
     start: relationshipEndGroups(harness, candidate.pathwayId, "start", connections),
@@ -896,14 +1132,17 @@ function renderRelationshipPathwayNode(
   const matchingWireIds = new Set(
     [...visibleStart, ...visibleEnd].flatMap((group) => group.wires.map((wire) => wire.wireId)),
   );
-  const pathwayWires = relationshipPathwayWires(harness, candidate.pathwayId)
+  const allPathwayWires = relationshipPathwayWires(harness, candidate.pathwayId);
+  const pathwayWires = allPathwayWires
     .filter((wire) => pathwayMatches || matchingWireIds.has(wire.wireId));
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
+    focusController,
   );
   const endList = renderRelationshipEndList(
     harness, candidate, "end", groups.end, visibleEnd, query, collapseLimit,
+    focusController,
   );
   const startConnector = renderRelationshipConnector(
     visibleStart, pathwayWires, true, startList.open, pathwayWires.length === 0,
@@ -934,6 +1173,7 @@ function renderRelationshipPathwayNode(
   hubName.textContent = candidate.name || "Unnamed pathway";
   hubDirection.textContent = pathwayDirection(candidate);
   hoverHighlight(hub, () => highlightMember(harness, "pathway_gates", candidate.pathwayId));
+  focusController.bind(hub, { wires: allPathwayWires, nodeIds });
   hub.addEventListener("click", () => openPathwayPopup(harness, candidate.pathwayId));
   hub.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
@@ -965,6 +1205,7 @@ function renderRelationshipMap(harness, auditIssues) {
   const settings = document.createElement("label");
   const collapseInput = document.createElement("input");
   const workspace = createBlockDiagramWorkspace("Zoomable master relationship diagram");
+  const focusController = createRelationshipFocusController(container);
   const showContextMenu = addRelationshipMapContextMenu(workspace);
   container.className = "section-content relationship-map";
   container.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
@@ -1013,11 +1254,18 @@ function renderRelationshipMap(harness, auditIssues) {
       if (query && !searchable.includes(query)) return;
       component.nodes.forEach((node) => {
         const wrapper = document.createElement("div");
+        const memberWires = node.kind === "junction"
+          ? relationshipJunctionWires(harness, node.item)
+          : relationshipPathwayWires(harness, node.item.pathwayId);
+        const focusNodeIds = [node.id, ...node.neighbors];
         wrapper.className = `relationship-topology-node relationship-topology-${node.kind}`;
         wrapper.dataset.nodeId = node.id;
+        wrapper.dataset.wireIds = relationshipWireIds(memberWires);
         if (node.kind === "junction") {
           wrapper.dataset.junctionId = node.item.junctionId;
-          wrapper.append(renderRelationshipJunctionHub(harness, node.item));
+          wrapper.append(renderRelationshipJunctionHub(
+            harness, node.item, focusController, focusNodeIds,
+          ));
         } else {
           wrapper.dataset.pathwayId = node.item.pathwayId;
           wrapper.append(renderRelationshipPathwayNode(
@@ -1027,6 +1275,8 @@ function renderRelationshipMap(harness, auditIssues) {
             query,
             collapseLimit,
             showContextMenu,
+            focusController,
+            focusNodeIds,
           ));
         }
         node.element = wrapper;

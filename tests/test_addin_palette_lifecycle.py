@@ -1909,7 +1909,9 @@ def test_palette_records_bounded_relationship_diagram_observation(
                 "connectorCount": 4,
                 "maximumEndpointGap": 0.0,
                 "obstructedTraceCount": 0,
-                "contractVersion": "3",
+                "portCount": 4,
+                "invalidTraceGroupCount": 0,
+                "contractVersion": "4",
                 "layout": "endpoint-junction-forest",
             }
         ),
@@ -1923,10 +1925,59 @@ def test_palette_records_bounded_relationship_diagram_observation(
         "connectorCount": 4,
         "maximumEndpointGap": 0.0,
         "obstructedTraceCount": 0,
-        "contractVersion": "3",
+        "portCount": 4,
+        "invalidTraceGroupCount": 0,
+        "contractVersion": "4",
         "layout": "endpoint-junction-forest",
     }
     assert json.loads(args.returnData) == {"ok": True}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("portCount", -1),
+        ("invalidTraceGroupCount", True),
+        ("contractVersion", "3"),
+    ],
+)
+def test_palette_rejects_invalid_relationship_diagram_rendering_metrics(
+    addin_module: _PaletteLifecycleModule,
+    field: str,
+    value: object,
+) -> None:
+    """
+    Reject malformed adaptive-trace observations before retaining QA state.
+    """
+    application = SimpleNamespace(userInterface=None)
+    core_module = sys.modules["adsk.core"]
+    vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
+    vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda candidate: candidate)
+    payload = cast(
+        dict[str, object],
+        {
+            "status": "passed",
+            "connectorCount": 4,
+            "maximumEndpointGap": 0.0,
+            "obstructedTraceCount": 0,
+            "portCount": 4,
+            "invalidTraceGroupCount": 0,
+            "contractVersion": "4",
+            "layout": "endpoint-junction-forest",
+        },
+    )
+    payload[field] = value
+    args = SimpleNamespace(
+        action="qa_diagram_observation",
+        data=json.dumps(payload),
+        returnData="",
+    )
+    addin_module._last_diagram_qa_observation = None
+
+    addin_module._PaletteIncomingHandler().notify(args)
+
+    assert addin_module._last_diagram_qa_observation is None
+    assert json.loads(args.returnData)["ok"] is False
 
 
 def test_lists_installed_fusion_appearance_libraries_and_contents(

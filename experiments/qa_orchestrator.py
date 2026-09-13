@@ -589,6 +589,8 @@ def _read_relationship_diagram_observation(
     connector_count = payload.get("connectorCount")
     maximum_gap = payload.get("maximumEndpointGap")
     obstructed_trace_count = payload.get("obstructedTraceCount")
+    port_count = payload.get("portCount")
+    invalid_trace_group_count = payload.get("invalidTraceGroupCount")
     contract_version = payload.get("contractVersion")
     layout = payload.get("layout")
     if status not in {"passed", "failed", "skipped"}:
@@ -603,7 +605,15 @@ def _read_relationship_diagram_observation(
         or obstructed_trace_count < 0
     ):
         raise RuntimeError("Palette returned an invalid diagram obstruction count.")
-    if contract_version != "3":
+    if isinstance(port_count, bool) or not isinstance(port_count, int) or port_count < 0:
+        raise RuntimeError("Palette returned an invalid diagram port count.")
+    if (
+        isinstance(invalid_trace_group_count, bool)
+        or not isinstance(invalid_trace_group_count, int)
+        or invalid_trace_group_count < 0
+    ):
+        raise RuntimeError("Palette returned an invalid diagram trace-group count.")
+    if contract_version != "4":
         raise RuntimeError("Palette returned an unsupported diagram contract version.")
     if layout != "endpoint-junction-forest":
         raise RuntimeError("Palette returned an unsupported diagram layout.")
@@ -612,6 +622,8 @@ def _read_relationship_diagram_observation(
         "connectorCount": connector_count,
         "maximumEndpointGap": float(maximum_gap),
         "obstructedTraceCount": obstructed_trace_count,
+        "portCount": port_count,
+        "invalidTraceGroupCount": invalid_trace_group_count,
         "contractVersion": contract_version,
         "layout": layout,
     }
@@ -655,7 +667,9 @@ def run(_context: str):
         "connectorCount": 0,
         "maximumEndpointGap": 0.0,
         "obstructedTraceCount": 0,
-        "contractVersion": "3",
+        "portCount": 0,
+        "invalidTraceGroupCount": 0,
+        "contractVersion": "4",
         "layout": "endpoint-junction-forest",
     }}
     print("{DIAGRAM_OBSERVATION_RESULT_PREFIX}" + json.dumps(observation, sort_keys=True))

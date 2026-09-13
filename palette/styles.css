@@ -540,7 +540,45 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   stroke-linecap: round;
 }
 .relationship-topology-edges .structural-trace { stroke: #7b9ab2; stroke-width: 2; }
-.relationship-topology-edges .wire-trace { stroke-width: 7; }
+.relationship-topology-edge,
+.relationship-topology-port,
+.relationship-topology-node,
+.relationship-end-entry,
+.relationship-topology-edges .wire-trace,
+.relationship-connector .wire-trace,
+.relationship-connector .stripe-trace,
+.relationship-connector .aggregate-trace {
+  transition: opacity 120ms ease, stroke-width 120ms ease;
+}
+.relationship-topology-edges .relationship-wire-lane { stroke-width: 3; }
+.relationship-topology-edges .relationship-wire-bundle { stroke-width: 7; }
+.relationship-topology-port {
+  fill: var(--surface);
+  stroke: #6887a0;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.relationship-wire-count rect {
+  fill: #526f85;
+  stroke: var(--surface);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.relationship-wire-count text {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.relationship-focus-active .relationship-focus-dimmed { opacity: 0.25; }
+.relationship-focus-active .relationship-focus-match { opacity: 1; }
+.relationship-focus-source {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.relationship-topology-edge.relationship-focus-match .structural-trace { stroke-width: 3; }
+.relationship-topology-edge.relationship-focus-match .relationship-wire-bundle {
+  stroke-width: 9;
+}
 .relationship-pathway-group {
   position: absolute;
   z-index: 1;

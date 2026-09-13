@@ -2393,6 +2393,8 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                 connector_count = payload.get("connectorCount")
                 maximum_gap = payload.get("maximumEndpointGap")
                 obstructed_trace_count = payload.get("obstructedTraceCount")
+                port_count = payload.get("portCount")
+                invalid_trace_group_count = payload.get("invalidTraceGroupCount")
                 contract_version = payload.get("contractVersion")
                 layout = payload.get("layout")
                 if status not in {"passed", "failed", "skipped"}:
@@ -2416,7 +2418,19 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                     or obstructed_trace_count < 0
                 ):
                     raise ValueError("Diagram QA obstruction count must be nonnegative.")
-                if contract_version != "3":
+                if (
+                    isinstance(port_count, bool)
+                    or not isinstance(port_count, int)
+                    or port_count < 0
+                ):
+                    raise ValueError("Diagram QA port count must be nonnegative.")
+                if (
+                    isinstance(invalid_trace_group_count, bool)
+                    or not isinstance(invalid_trace_group_count, int)
+                    or invalid_trace_group_count < 0
+                ):
+                    raise ValueError("Diagram QA trace-group count must be nonnegative.")
+                if contract_version != "4":
                     raise ValueError("Diagram QA contract version is unsupported.")
                 if layout != "endpoint-junction-forest":
                     raise ValueError("Diagram QA layout is unsupported.")
@@ -2425,6 +2439,8 @@ class _PaletteIncomingHandler(adsk.core.HTMLEventHandler):
                     "connectorCount": connector_count,
                     "maximumEndpointGap": float(maximum_gap),
                     "obstructedTraceCount": obstructed_trace_count,
+                    "portCount": port_count,
+                    "invalidTraceGroupCount": invalid_trace_group_count,
                     "contractVersion": contract_version,
                     "layout": layout,
                 }

@@ -247,6 +247,62 @@ function qaRelationshipNodesOverlap(nodes) {
   });
 }
 
+function qaInvalidTraceGroupCount(diagram) {
+  const edges = Array.from(
+    diagram.querySelectorAll?.(".relationship-topology-edge") || [],
+  );
+  const ports = Array.from(
+    diagram.querySelectorAll?.(".relationship-topology-port") || [],
+  );
+  const attribute = (node, name) => (
+    node?.getAttribute?.(name) ?? node?.attributes?.[name] ?? ""
+  );
+  const portFor = (nodeId, side) => ports.find((port) => (
+    port.dataset.nodeId === nodeId && port.dataset.side === side
+  ));
+  const invalidEdges = edges.filter((edge) => {
+    const wireCount = Number.parseInt(edge.dataset.wireCount, 10);
+    const mode = edge.dataset.renderMode;
+    const lanes = Array.from(edge.querySelectorAll?.(".relationship-wire-lane") || []);
+    const bundles = Array.from(edge.querySelectorAll?.(".relationship-wire-bundle") || []);
+    const badges = Array.from(edge.querySelectorAll?.(".relationship-wire-count") || []);
+    const wireIds = relationshipElementWireIds(edge);
+    const expectedMode = wireCount === 0
+      ? "structure" : wireCount <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
+    if (!Number.isInteger(wireCount) || wireCount < 0 || wireIds.size !== wireCount
+        || mode !== expectedMode) return true;
+    if (mode === "structure" && (lanes.length || bundles.length || badges.length)) return true;
+    if (mode === "lanes") {
+      const offsets = lanes.map((lane) => Number.parseFloat(lane.dataset.laneOffset));
+      const expectedOffsets = lanes.map((_lane, index) => (
+        (index - (wireCount - 1) / 2) * TOPOLOGY_LANE_SPACING
+      ));
+      if (lanes.length !== wireCount || bundles.length || badges.length
+          || offsets.some((offset) => !Number.isFinite(offset))
+          || offsets.some((offset, index) => offset !== expectedOffsets[index])) return true;
+    }
+    if (mode === "bundle" && (lanes.length || bundles.length !== 1 || badges.length !== 1)) {
+      return true;
+    }
+    const sourcePort = portFor(edge.dataset.sourceId, "right");
+    const targetPort = portFor(edge.dataset.targetId, "left");
+    if (!sourcePort || !targetPort) return true;
+    if (mode !== "lanes") return false;
+    const sourceY = Number.parseFloat(attribute(edge.querySelector(".structural-trace"), "data-source-y"));
+    const targetY = Number.parseFloat(attribute(edge.querySelector(".structural-trace"), "data-target-y"));
+    return lanes.some((lane) => {
+      const offset = Number.parseFloat(lane.dataset.laneOffset);
+      return [sourcePort, targetPort].some((port, index) => {
+        const portTop = Number.parseFloat(attribute(port, "y"));
+        const portHeight = Number.parseFloat(attribute(port, "height"));
+        const laneY = (index ? targetY : sourceY) + offset;
+        return laneY < portTop || laneY > portTop + portHeight;
+      });
+    });
+  });
+  return Number(invalidEdges.length);
+}
+
 function qaObserveRelationshipDiagram() {
   const selectedHarness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,
@@ -262,6 +318,8 @@ function qaObserveRelationshipDiagram() {
       connectorCount: 0,
       maximumEndpointGap: 0,
       obstructedTraceCount: 0,
+      portCount: 0,
+      invalidTraceGroupCount: 0,
       contractVersion: RELATIONSHIP_DIAGRAM_CONTRACT_VERSION,
       layout: RELATIONSHIP_DIAGRAM_LAYOUT,
     }).catch(() => {});
@@ -300,6 +358,9 @@ function qaObserveRelationshipDiagram() {
     const topologyNodes = Array.from(
       diagram?.querySelectorAll?.(".relationship-topology-node") || [],
     );
+    const topologyPorts = Array.from(
+      diagram?.querySelectorAll?.(".relationship-topology-port") || [],
+    );
     const paths = Array.from(diagram?.querySelectorAll?.("path") || []);
     const connectorCount = paths.length;
     const endpointGaps = [
@@ -310,6 +371,7 @@ function qaObserveRelationshipDiagram() {
     const obstructedTraceCount = topologyEdges.filter(
       (edge) => qaTopologyTraceObstructed(edge, diagram),
     ).length;
+    const invalidTraceGroupCount = qaInvalidTraceGroupCount(diagram);
     const contractVersion = diagram?.dataset.diagramContractVersion || "";
     const layout = diagram?.dataset.diagramLayout || "";
     const passed = Boolean(workspace)
@@ -319,6 +381,8 @@ function qaObserveRelationshipDiagram() {
       && (harness.pathways.length === 0 || connectorEdges.length > 0)
       && maximumEndpointGap <= 1
       && obstructedTraceCount === 0
+      && (topologyEdges.length === 0 || topologyPorts.length > 0)
+      && invalidTraceGroupCount === 0
       && !qaRelationshipNodesOverlap(topologyNodes)
       && contractVersion === RELATIONSHIP_DIAGRAM_CONTRACT_VERSION
       && layout === RELATIONSHIP_DIAGRAM_LAYOUT
@@ -329,6 +393,8 @@ function qaObserveRelationshipDiagram() {
       connectorCount,
       maximumEndpointGap,
       obstructedTraceCount,
+      portCount: topologyPorts.length,
+      invalidTraceGroupCount,
       contractVersion,
       layout,
     }).catch(() => {});

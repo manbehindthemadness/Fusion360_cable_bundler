@@ -528,6 +528,9 @@ def test_diagram_observation_script_targets_only_harness_builder_palette() -> No
     assert "observe_relationship_diagram" in script
     assert "kev0_wire_bundler_harness_builder_palette" in script
     assert "_last_diagram_qa_observation" in script
+    assert '"portCount": 0' in script
+    assert '"invalidTraceGroupCount": 0' in script
+    assert '"contractVersion": "4"' in script
     assert "fusion_mcp_execute" not in script
 
 
