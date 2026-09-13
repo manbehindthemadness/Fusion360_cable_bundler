@@ -1995,7 +1995,7 @@ class _EditRefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             ):
                 raise ValueError("Selected refine point no longer exists.")
             geometry = control.refine_geometry
-            group = draw_refine_editor(design, geometry)
+            group = draw_refine_editor(design, control_id, geometry)
             triad = _add_refine_transform_input(args.command.commandInputs, geometry)
             triad.hideAllScaling()
             triad.setTranslateVisibility(True)

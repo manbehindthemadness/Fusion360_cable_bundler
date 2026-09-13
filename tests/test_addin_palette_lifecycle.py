@@ -70,6 +70,7 @@ class _PaletteLifecycleModule(Protocol):
     _open_palette_edit: Callable[[object, str, str], None]
     _apply_palette_edit: Callable[[object, str, str], str]
     _refresh_active_preview: Callable[..., str]
+    _reconcile_active_refines: Callable[[object], None]
     _apply_generated_materials: Callable[[object, UUID], str]
     _send_palette_state: Callable[[object, str], None]
     reconcile_preview_history: Callable[[object, tuple[HarnessDefinition, ...]], None]
@@ -86,6 +87,7 @@ class _PaletteLifecycleModule(Protocol):
     _RefineMouseDragHandler: type
     _RefineActiveSelectionHandler: type
     _EditRefineCommandState: type
+    _EditRefineDestroyedHandler: type
     _EditRefineInputChangedHandler: type
     _EditRefineExecutePreviewHandler: type
     _read_refine_placement: Callable[[object, object], _RefinePlacementResult]
@@ -100,7 +102,7 @@ class _PaletteLifecycleModule(Protocol):
     _read_edited_refine_geometry: Callable[[object], RefineGeometry]
     _preview_edited_refine: Callable[[object, object], None]
     draw_candidate_refine: Callable[[object, RefineGeometry], object]
-    draw_refine_editor: Callable[[object, RefineGeometry], object]
+    draw_refine_editor: Callable[[object, UUID, RefineGeometry], object]
     update_candidate_refine: Callable[[object, RefineGeometry], None]
     update_refine_editor: Callable[[object, RefineGeometry], None]
     PathwaySpine: type
@@ -118,6 +120,7 @@ class _PaletteLifecycleModule(Protocol):
     _clear_highlight: Callable[[object], None]
     _clear_solids: Callable[[object, str], int]
     clear_route_previews: Callable[[object], int]
+    clear_refine_spine: Callable[[object], None]
     clear_wire_solids: Callable[[object], int]
     generated_wire_bodies: Callable[..., tuple[object, ...]]
     has_refine_graphics: Callable[[object], bool]
@@ -849,6 +852,81 @@ def test_refine_editor_updates_one_graphics_transform_in_place(
         (2, 3, 3.0),
     ]
     assert group.transform is transform
+
+
+def test_refine_editor_hides_only_selected_persistent_marker(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep sibling refines visible while replacing the selected marker for editing.
+    """
+    from wire_bundler.fusion import refine_graphics
+
+    geometry = _refine_control().refine_geometry
+    assert geometry is not None
+    sibling_id = UUID("30000000-0000-0000-0000-000000000100")
+    selected = SimpleNamespace(id=str(REFINE_ID), isVisible=True)
+    sibling = SimpleNamespace(id=str(sibling_id), isVisible=True)
+    persistent_group = SimpleNamespace(
+        count=2,
+        item=lambda index: (selected, sibling)[index],
+    )
+    editor_group = SimpleNamespace(id="", name="")
+    groups = SimpleNamespace(add=Mock(return_value=editor_group))
+    design = SimpleNamespace(rootComponent=SimpleNamespace(customGraphicsGroups=groups))
+    clear_spine = Mock()
+    clear_persistent = Mock()
+    draw_candidate = Mock()
+    update_editor = Mock()
+    monkeypatch.setattr(refine_graphics, "clear_refine_spine", clear_spine)
+    monkeypatch.setattr(refine_graphics, "clear_refine_graphics", clear_persistent)
+    monkeypatch.setattr(
+        refine_graphics,
+        "_find_group",
+        lambda _design, _identity: persistent_group,
+    )
+    monkeypatch.setattr(refine_graphics, "draw_candidate_refine", draw_candidate)
+    monkeypatch.setattr(refine_graphics, "update_refine_editor", update_editor)
+
+    result = addin_module.draw_refine_editor(design, REFINE_ID, geometry)
+
+    assert result is editor_group
+    assert selected.isVisible is False
+    assert sibling.isVisible is True
+    clear_spine.assert_called_once_with(design)
+    clear_persistent.assert_not_called()
+    groups.add.assert_called_once_with()
+    draw_candidate.assert_called_once()
+    update_editor.assert_called_once_with(editor_group, geometry)
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_edit_refine_destroy_restores_persistent_markers(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    cancelled: bool,
+) -> None:
+    """
+    Reconcile every saved marker when editing ends through Save or Cancel.
+    """
+    design = object()
+    viewport = SimpleNamespace(refresh=Mock())
+    application = SimpleNamespace(activeProduct=design, activeViewport=viewport)
+    core_module = sys.modules["adsk.core"]
+    fusion_module = sys.modules["adsk.fusion"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    fusion_module.Design = SimpleNamespace(cast=lambda product: product)  # type: ignore[attr-defined]
+    clear_spine = Mock()
+    reconcile = Mock()
+    monkeypatch.setattr(addin_module, "clear_refine_spine", clear_spine)
+    monkeypatch.setattr(addin_module, "_reconcile_active_refines", reconcile)
+
+    addin_module._EditRefineDestroyedHandler([]).notify(SimpleNamespace(isCancelled=cancelled))
+
+    clear_spine.assert_called_once_with(design)
+    reconcile.assert_called_once_with(application)
+    viewport.refresh.assert_called_once_with()
 
 
 def test_selecting_persistent_refine_opens_transform_editor(

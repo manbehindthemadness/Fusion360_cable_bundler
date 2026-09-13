@@ -205,13 +205,21 @@ def update_candidate_refine(
 
 
 def draw_refine_editor(
-    design: adsk.fusion.Design, geometry: RefineGeometry
+    design: adsk.fusion.Design,
+    control_id: UUID,
+    geometry: RefineGeometry,
 ) -> adsk.fusion.CustomGraphicsGroup:
     """
-    Replace persistent markers with one transformable local-space marker.
+    Hide the edited marker and add one transformable local-space replacement.
     """
     clear_refine_spine(design)
-    clear_refine_graphics(design)
+    persistent_group = _find_group(design, REFINE_GRAPHICS_GROUP_ID)
+    if persistent_group is not None:
+        for index in range(persistent_group.count):
+            marker = persistent_group.item(index)
+            if marker is not None and marker.id == str(control_id):
+                marker.isVisible = False
+                break
     group = design.rootComponent.customGraphicsGroups.add()
     if group is None:
         raise RuntimeError("Fusion did not create the refine editor graphics group.")
