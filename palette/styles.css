@@ -640,6 +640,7 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   cursor: pointer;
 }
 .relationship-end-entry:hover, .relationship-end-entry:focus { border-color: var(--accent); }
+.relationship-end-entry[data-disconnected="true"] { cursor: default; }
 .relationship-end-entry small { color: var(--muted); }
 .relationship-pathway-hub {
   position: relative;

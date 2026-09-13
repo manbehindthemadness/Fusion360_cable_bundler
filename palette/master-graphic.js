@@ -112,11 +112,24 @@ function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
           connectionName: connections.get(connectionId)?.name || "",
           endpointNames: new Set(),
           wires: [],
+          standalone: false,
         });
       }
       const group = groups.get(groupKey);
       if (wire[endpointNameField]) group.endpointNames.add(wire[endpointNameField]);
       group.wires.push(wire);
+    });
+  (harness.standaloneEnds || [])
+    .filter((end) => end.pathwayId === pathwayId && end.endpoint === endpoint)
+    .forEach((end) => {
+      const connection = connections.get(end.connectionId);
+      groups.set(end.connectionId, {
+        connectionId: end.connectionId,
+        connectionName: connection?.name || "",
+        endpointNames: new Set(),
+        wires: [],
+        standalone: true,
+      });
     });
   return [...groups.values()].map((group) => {
     const endpointNames = [...group.endpointNames];
@@ -528,17 +541,19 @@ function renderRelationshipEndList(
   summary.append(label, count);
   items.className = "relationship-end-items";
   visibleGroups.forEach((group) => {
-    const button = document.createElement("button");
+    const button = document.createElement(group.standalone ? "div" : "button");
     const name = document.createElement("strong");
     const meta = document.createElement("small");
-    button.type = "button";
+    if (!group.standalone) button.type = "button";
     button.className = "relationship-end-entry";
     button.dataset.connectionId = group.connectionId;
     button.dataset.wireIds = relationshipWireIds(group.wires);
     name.textContent = group.label;
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
-    meta.textContent = `${connectionContext}${group.wires.length} ${group.wires.length === 1 ? "wire" : "wires"}`;
+    meta.textContent = group.standalone
+      ? `${connectionContext}Disconnected`
+      : `${connectionContext}${group.wires.length} ${group.wires.length === 1 ? "wire" : "wires"}`;
     button.append(name, meta);
     hoverHighlight(button, () => group.connectionId
       ? highlightMember(harness, "connection", group.connectionId)
@@ -547,7 +562,13 @@ function renderRelationshipEndList(
       wires: group.wires,
       nodeIds: [`pathway:${pathway.pathwayId}`],
     });
-    button.addEventListener("click", () => navigateToWire(group.wires[0].wireId));
+    if (!group.standalone) {
+      button.addEventListener("click", () => navigateToWire(group.wires[0].wireId));
+    } else {
+      button.dataset.disconnected = "true";
+      button.tabIndex = 0;
+      button.setAttribute("aria-label", `${group.label}, disconnected end`);
+    }
     items.append(button);
   });
   if (!visibleGroups.length) items.append(emptyMessage(`No matching End ${side} connections.`));
@@ -1106,6 +1127,7 @@ function addRelationshipMapContextMenu(workspace) {
   workspace.viewport.addEventListener("contextmenu", (event) => {
     show(event, [
       { label: "Add pathway", action: addPathway },
+      { label: "Add end", action: addEnd },
       { label: "Add junction", action: addJunction },
     ]);
   });

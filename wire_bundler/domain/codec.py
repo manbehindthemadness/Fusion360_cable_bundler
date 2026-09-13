@@ -24,6 +24,7 @@ from .model import (
     PathwayEndpoint,
     RefineGeometry,
     RoutingMode,
+    StandaloneEndDefinition,
     StripePattern,
     WireAppearanceReference,
     WireColor,
@@ -111,6 +112,16 @@ def loads(serialized: str) -> HarnessDefinition:
         if schema_version >= 6
         else ()
     )
+    standalone_ends = (
+        tuple(
+            _parse_standalone_end(item, f"$.standalone_ends[{index}]")
+            for index, item in enumerate(
+                _require_list(payload, "standalone_ends", "$.standalone_ends")
+            )
+        )
+        if schema_version >= 9
+        else ()
+    )
     wires = tuple(
         _parse_wire(item, f"$.wires[{index}]", schema_version, pathways)
         for index, item in enumerate(_require_list(payload, "wires", "$.wires"))
@@ -126,6 +137,7 @@ def loads(serialized: str) -> HarnessDefinition:
         pathways=pathways,
         wires=wires,
         junctions=junctions,
+        standalone_ends=standalone_ends,
         gate_defaults=parse_interpolation(payload.get("gate_defaults", {}), "$.gate_defaults"),
         end_defaults=parse_interpolation(payload.get("end_defaults", {}), "$.end_defaults"),
         material_defaults=(
@@ -223,6 +235,14 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 ],
             }
             for junction in definition.junctions
+        ],
+        "standalone_ends": [
+            {
+                "connection_id": str(end.connection_id),
+                "pathway_id": str(end.pathway_id),
+                "endpoint": end.endpoint.value,
+            }
+            for end in definition.standalone_ends
         ],
         "wires": [
             {
@@ -664,6 +684,18 @@ def _parse_junction_relationship(
     """
     value = _require_mapping(raw_value, path)
     return JunctionPathwayRelationship(
+        pathway_id=_require_uuid(value, "pathway_id", f"{path}.pathway_id"),
+        endpoint=_require_enum(PathwayEndpoint, value, "endpoint", f"{path}.endpoint"),
+    )
+
+
+def _parse_standalone_end(raw_value: object, path: str) -> StandaloneEndDefinition:
+    """
+    Parse one disconnected pathway-end assignment.
+    """
+    value = _require_mapping(raw_value, path)
+    return StandaloneEndDefinition(
+        connection_id=_require_uuid(value, "connection_id", f"{path}.connection_id"),
         pathway_id=_require_uuid(value, "pathway_id", f"{path}.pathway_id"),
         endpoint=_require_enum(PathwayEndpoint, value, "endpoint", f"{path}.endpoint"),
     )

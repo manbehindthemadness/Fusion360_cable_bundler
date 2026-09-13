@@ -17,6 +17,7 @@ from wire_bundler.domain import (
     JunctionPathwayRelationship,
     PathwayEndpoint,
     RefineGeometry,
+    StandaloneEndDefinition,
     StripePattern,
     WireAppearanceReference,
     WireColor,
@@ -39,6 +40,26 @@ def test_round_trip_preserves_definition(valid_harness: HarnessDefinition) -> No
     assert parsed == valid_harness
     assert parsed.wires[0].ordered_pathway_ids == valid_harness.wires[0].ordered_pathway_ids
     assert parsed.wires[0].ordered_control_ids == valid_harness.wires[0].ordered_control_ids
+
+
+def test_round_trip_and_migration_preserve_standalone_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist schema-nine ends while older definitions migrate with none.
+    """
+    standalone = StandaloneEndDefinition(
+        valid_harness.connections[0].connection_id,
+        valid_harness.pathways[0].pathway_id,
+        PathwayEndpoint.START,
+    )
+    definition = replace(valid_harness, standalone_ends=(standalone,), wires=())
+    assert loads(dumps(definition)) == definition
+
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 8
+    payload.pop("standalone_ends")
+    assert loads(json.dumps(payload)).standalone_ends == ()
 
 
 def test_round_trip_preserves_refine_geometry(valid_harness: HarnessDefinition) -> None:

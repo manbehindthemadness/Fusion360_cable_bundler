@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 class RoutingMode(str, Enum):
@@ -440,6 +440,20 @@ class JunctionDefinition:
 
 
 @dataclass(frozen=True)
+class StandaloneEndDefinition:
+    """
+    Attach one disconnected physical end to a pathway boundary.
+
+    The referenced connection owns the ordered guide profiles. No conductor or
+    route exists until a future workflow consumes the end.
+    """
+
+    connection_id: UUID
+    pathway_id: UUID
+    endpoint: PathwayEndpoint
+
+
+@dataclass(frozen=True)
 class WireDefinition:
     """
     Map one persistent conductor from a start to a destination.
@@ -476,6 +490,7 @@ class HarnessDefinition:
     pathways: tuple[PathwayDefinition, ...]
     wires: tuple[WireDefinition, ...]
     junctions: tuple[JunctionDefinition, ...] = ()
+    standalone_ends: tuple[StandaloneEndDefinition, ...] = ()
     gate_defaults: InterpolationSettings = InterpolationSettings()
     end_defaults: InterpolationSettings = InterpolationSettings()
     material_defaults: WireMaterialSettings = WireMaterialSettings()

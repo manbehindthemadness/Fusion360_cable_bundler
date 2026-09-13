@@ -55,6 +55,7 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
     _validate_controls(definition, issues)
     _validate_pathways(definition, issues)
     _validate_junctions(definition, issues)
+    _validate_standalone_ends(definition, issues)
     _validate_wires(definition, issues)
     return tuple(issues)
 
@@ -414,7 +415,10 @@ def _validate_wires(
     control_ids = {control.control_id for control in definition.controls}
     pathways_by_id = {pathway.pathway_id: pathway for pathway in definition.pathways}
     seen_numbers: dict[str, str] = {}
-    seen_endpoints: dict[UUID, str] = {}
+    seen_endpoints: dict[UUID, str] = {
+        end.connection_id: f"standalone_ends[{index}].connection_id"
+        for index, end in enumerate(definition.standalone_ends)
+    }
 
     for index, wire in enumerate(definition.wires):
         path = f"wires[{index}]"
@@ -533,6 +537,45 @@ def _validate_wires(
                 )
             else:
                 seen_wire_controls.add(control_id)
+
+
+def _validate_standalone_ends(
+    definition: HarnessDefinition,
+    issues: list[ValidationIssue],
+) -> None:
+    """
+    Validate disconnected connection placement without requiring wire geometry.
+    """
+    connection_ids = {connection.connection_id for connection in definition.connections}
+    pathway_ids = {pathway.pathway_id for pathway in definition.pathways}
+    seen_connections: dict[UUID, str] = {}
+    for index, end in enumerate(definition.standalone_ends):
+        path = f"standalone_ends[{index}]"
+        _validate_reference(
+            end.connection_id,
+            connection_ids,
+            "missing_connection_reference",
+            f"{path}.connection_id",
+            issues,
+        )
+        _validate_reference(
+            end.pathway_id,
+            pathway_ids,
+            "missing_pathway_reference",
+            f"{path}.pathway_id",
+            issues,
+        )
+        previous_path = seen_connections.get(end.connection_id)
+        if previous_path is not None:
+            issues.append(
+                ValidationIssue(
+                    "duplicate_endpoint",
+                    f"{path}.connection_id",
+                    f"Connection is already assigned at {previous_path}.",
+                )
+            )
+        else:
+            seen_connections[end.connection_id] = f"{path}.connection_id"
 
 
 def _validate_wire_number(

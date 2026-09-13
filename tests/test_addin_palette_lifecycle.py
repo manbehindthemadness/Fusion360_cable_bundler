@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Optional, Protocol, cast
+from typing import Any, Optional, Protocol, cast
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -26,6 +26,7 @@ from wire_bundler.domain import (
     JunctionPathwayRelationship,
     PathwayEndpoint,
     RefineGeometry,
+    StandaloneEndDefinition,
     WireColor,
     WireStripe,
     dumps,
@@ -54,6 +55,8 @@ class _PaletteLifecycleModule(Protocol):
     PALETTE_RESOURCE_FILES: tuple[Path, ...]
     JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID: str
     JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID: str
+    STANDALONE_END_GUIDES_INPUT_ID: str
+    STANDALONE_END_BOUNDARY_INPUT_ID: str
     _PaletteIncomingHandler: type
     _PaletteEditExecuteHandler: type
     _PaletteEditDestroyedHandler: type
@@ -80,6 +83,8 @@ class _PaletteLifecycleModule(Protocol):
     _AddJunctionPreSelectHandler: type
     _AddJunctionRelationshipCommandState: type
     _AddJunctionRelationshipInputChangedHandler: type
+    _AddStandaloneEndCommandState: type
+    _AddStandaloneEndPreSelectHandler: type
     _JunctionRelationshipCandidate: type
     _SegmentCommandState: type
     _SegmentPreSelectHandler: type
@@ -92,8 +97,9 @@ class _PaletteLifecycleModule(Protocol):
     _EditRefineExecutePreviewHandler: type
     _read_refine_placement: Callable[[object, object], _RefinePlacementResult]
     _junction_profile_token: Callable[[object, object], str]
-    _read_junction_relationship_candidate: Callable[[object, object], object]
+    _read_junction_relationship_candidate: Callable[[object, object], Any]
     _update_junction_relationship_choices: Callable[[object, object], None]
+    _read_standalone_end_inputs: Callable[[object, object], tuple[tuple[str, ...], Any]]
     _open_add_junction_command: Callable[[object, str], None]
     _open_add_junction_relationship_command: Callable[[object, str], None]
     _update_refine_placement: Callable[..., None]
@@ -421,6 +427,53 @@ def test_relationship_selector_refreshes_choices_as_a_collection(
         ("Pathway_001 · End B", False),
     ]
     assert choice_input.isVisible is True
+
+
+def test_standalone_end_selector_reads_guides_and_one_pathway_boundary(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep ordered guide profiles separate from their placement boundary.
+    """
+    _configure_relationship_selector_casts()
+    guide = SimpleNamespace(entityToken="guide", nativeObject=None)
+    boundary = SimpleNamespace(entityToken="boundary", nativeObject=None)
+    candidate = addin_module._JunctionRelationshipCandidate(
+        JunctionPathwayRelationship(UUID(int=10), PathwayEndpoint.END),
+        "Main · End B",
+        UUID(int=11),
+        boundary,
+    )
+    state = addin_module._AddStandaloneEndCommandState(UUID(int=1), (candidate,))
+    guide_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(entity=guide),
+    )
+    boundary_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(entity=boundary),
+    )
+    inputs_by_id = {
+        addin_module.STANDALONE_END_GUIDES_INPUT_ID: guide_input,
+        addin_module.STANDALONE_END_BOUNDARY_INPUT_ID: boundary_input,
+    }
+    inputs = SimpleNamespace(itemById=inputs_by_id.get)
+
+    guides, selected = addin_module._read_standalone_end_inputs(inputs, state)
+
+    assert guides == ("guide",)
+    assert selected == candidate
+    selection_args = SimpleNamespace(
+        activeInput=SimpleNamespace(id=addin_module.STANDALONE_END_BOUNDARY_INPUT_ID),
+        selection=SimpleNamespace(entity=guide),
+        isSelectable=True,
+    )
+    addin_module._AddStandaloneEndPreSelectHandler(state).notify(selection_args)
+    assert selection_args.isSelectable is False
+
+    guide_input.selection = lambda _index: SimpleNamespace(entity=boundary)
+    with pytest.raises(ValueError, match="cannot also"):
+        addin_module._read_standalone_end_inputs(inputs, state)
 
 
 def test_relationship_selector_refreshes_only_for_geometry_input_changes(
@@ -1126,6 +1179,13 @@ def test_palette_state_contains_complete_editor_definition(
         valid_harness,
         pathways=(replace(valid_harness.pathways[0], start_name="Sensor", end_name="Controller"),),
         wires=(replace(valid_harness.wires[0], display_name="Signal", start_end_name="O2"),),
+        standalone_ends=(
+            StandaloneEndDefinition(
+                valid_harness.connections[0].connection_id,
+                valid_harness.pathways[0].pathway_id,
+                PathwayEndpoint.START,
+            ),
+        ),
     )
     result = HarnessLoadResult(
         component_name="Harness_001",
@@ -1169,6 +1229,13 @@ def test_palette_state_contains_complete_editor_definition(
     assert harness["wires"][0]["wireNumber"] == "001"
     assert harness["wires"][0]["orderedPathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
     assert harness["wires"][0]["orderedControlIds"] == [str(valid_harness.controls[0].control_id)]
+    assert harness["standaloneEnds"] == [
+        {
+            "connectionId": str(valid_harness.connections[0].connection_id),
+            "pathwayId": str(valid_harness.pathways[0].pathway_id),
+            "endpoint": "start",
+        }
+    ]
     relationship_map = harness["relationshipMap"]
     assert relationship_map["routes"][0]["nodeIds"] == [
         f"connection:{valid_harness.connections[0].connection_id}",

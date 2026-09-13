@@ -447,11 +447,18 @@ def segment_pathway(
         )
         for wire in definition.wires
     )
+    standalone_ends = tuple(
+        replace(end, pathway_id=following_pathway.pathway_id)
+        if end.pathway_id == pathway_id and end.endpoint is PathwayEndpoint.END
+        else end
+        for end in definition.standalone_ends
+    )
     updated = replace(
         definition,
         pathways=tuple(pathways),
         junctions=(*prior_junctions, junction),
         wires=wires,
+        standalone_ends=standalone_ends,
     )
     updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
@@ -607,7 +614,7 @@ def move_pathway_gate(
         raise ValueError("Selected gate is already at that end of the pathway.")
     locked_indexes = _locked_pathway_control_indexes(definition, pathway)
     if current_index in locked_indexes or target_index in locked_indexes:
-        raise ValueError("A junction-related pathway endpoint cannot be reordered.")
+        raise ValueError("A junction-related or standalone pathway endpoint cannot be reordered.")
     ordered_ids.insert(target_index, ordered_ids.pop(current_index))
     updated_pathway = replace(pathway, ordered_control_ids=tuple(ordered_ids))
     updated = replace(definition, pathways=_replace_pathway(definition, updated_pathway))
@@ -633,7 +640,7 @@ def remove_pathway_gate(
         raise ValueError("A pathway must retain at least one gate.")
     control_index = pathway.ordered_control_ids.index(control_id)
     if control_index in _locked_pathway_control_indexes(definition, pathway):
-        raise ValueError("A junction-related pathway endpoint cannot be removed.")
+        raise ValueError("A junction-related or standalone pathway endpoint cannot be removed.")
     updated_pathway = replace(
         pathway,
         ordered_control_ids=tuple(
@@ -1069,14 +1076,18 @@ def _related_pathway_endpoints(
     pathway_id: UUID,
 ) -> set[PathwayEndpoint]:
     """
-    Return endpoint boundaries claimed by any junction for one pathway.
+    Return endpoint boundaries anchored by junctions or standalone ends.
     """
-    return {
+    junction_endpoints = {
         relationship.endpoint
         for junction in definition.junctions
         for relationship in junction.pathway_relationships
         if relationship.pathway_id == pathway_id
     }
+    standalone_endpoints = {
+        end.endpoint for end in definition.standalone_ends if end.pathway_id == pathway_id
+    }
+    return junction_endpoints | standalone_endpoints
 
 
 def _locked_pathway_control_indexes(
@@ -1084,7 +1095,7 @@ def _locked_pathway_control_indexes(
     pathway: PathwayDefinition,
 ) -> set[int]:
     """
-    Return control positions that define junction-related pathway boundaries.
+    Return control positions that define anchored pathway boundaries.
     """
     if not pathway.ordered_control_ids:
         return set()

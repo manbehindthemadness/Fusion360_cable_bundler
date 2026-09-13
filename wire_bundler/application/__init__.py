@@ -8,6 +8,12 @@ from .add_pathway import (
     add_pathway,
     suggest_pathway_name,
 )
+from .add_standalone_end import (
+    StandaloneEndGateway,
+    StandaloneEndResult,
+    StandaloneEndUpdateError,
+    add_standalone_end,
+)
 from .add_wire_batch import (
     WireBatchGateway,
     WireBatchResult,
@@ -78,6 +84,9 @@ __all__ = [
     "HarnessLibraryGateway",
     "HarnessLoadResult",
     "StoredHarness",
+    "StandaloneEndGateway",
+    "StandaloneEndResult",
+    "StandaloneEndUpdateError",
     "WireBatchGateway",
     "WireBatchResult",
     "WireBatchUpdateError",
@@ -97,6 +106,7 @@ __all__ = [
     "add_junction",
     "add_junction_relationship",
     "add_pathway_refine",
+    "add_standalone_end",
     "add_wire_batch",
     "append_pathway_gates",
     "audit_relationship_map",

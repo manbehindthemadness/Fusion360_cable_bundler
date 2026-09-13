@@ -48,6 +48,7 @@ from wire_bundler.domain import (
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
+    StandaloneEndDefinition,
     WireColor,
     WireDefinition,
     WireMaterialOverrides,
@@ -336,6 +337,44 @@ def test_related_pathway_boundary_controls_cannot_move_or_be_removed(
     assert gateway.writes == []
 
 
+def test_standalone_end_boundary_control_cannot_move_or_be_removed(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the profile that locates a disconnected end's pathway boundary.
+    """
+    definition = _expanded_harness(valid_harness)
+    pathway = definition.pathways[0]
+    loose = Connection(UUID("20000000-0000-0000-0000-000000000090"), "Loose A", "loose-a")
+    definition = replace(
+        definition,
+        connections=(*definition.connections, loose),
+        standalone_ends=(
+            StandaloneEndDefinition(loose.connection_id, pathway.pathway_id, PathwayEndpoint.START),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+    boundary_control_id = pathway.ordered_control_ids[0]
+
+    with pytest.raises(ValueError, match="standalone"):
+        move_pathway_gate(
+            definition.harness_id,
+            pathway.pathway_id,
+            boundary_control_id,
+            1,
+            gateway,
+        )
+    with pytest.raises(ValueError, match="standalone"):
+        remove_pathway_gate(
+            definition.harness_id,
+            pathway.pathway_id,
+            boundary_control_id,
+            gateway,
+        )
+
+    assert gateway.writes == []
+
+
 def test_new_controls_stay_inside_junction_related_pathway_boundaries(
     valid_harness: HarnessDefinition,
 ) -> None:
@@ -476,7 +515,19 @@ def test_segments_pathway_at_standalone_junction_and_preserves_wire_route(
     """
     definition = _expanded_harness(valid_harness)
     pathway = replace(definition.pathways[0], start_name="Input", end_name="Output")
-    definition = replace(definition, pathways=(pathway,))
+    loose_a = Connection(UUID("20000000-0000-0000-0000-000000000090"), "Loose A", "loose-a")
+    loose_b = Connection(UUID("20000000-0000-0000-0000-000000000091"), "Loose B", "loose-b")
+    definition = replace(
+        definition,
+        pathways=(pathway,),
+        connections=(*definition.connections, loose_a, loose_b),
+        standalone_ends=(
+            StandaloneEndDefinition(
+                loose_a.connection_id, pathway.pathway_id, PathwayEndpoint.START
+            ),
+            StandaloneEndDefinition(loose_b.connection_id, pathway.pathway_id, PathwayEndpoint.END),
+        ),
+    )
     gateway = _recording_gateway(definition)
     identifiers = iter((EXTENSION_ID, JUNCTION_ID))
 
@@ -505,6 +556,8 @@ def test_segments_pathway_at_standalone_junction_and_preserves_wire_route(
         wire.ordered_pathway_ids == (pathway.pathway_id, EXTENSION_ID) for wire in stored.wires
     )
     assert all(wire.ordered_control_ids == pathway.ordered_control_ids for wire in stored.wires)
+    assert stored.standalone_ends[0].pathway_id == pathway.pathway_id
+    assert stored.standalone_ends[1].pathway_id == EXTENSION_ID
 
 
 def test_suggests_root_sequence_and_rejects_unsupported_segment_control(

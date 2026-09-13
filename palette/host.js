@@ -653,6 +653,22 @@ async function addJunction() {
   }
 }
 
+async function addEnd() {
+  const harness = currentState.harnesses.find(
+    (candidate) => harnessKey(candidate) === selectedHarnessKey,
+  );
+  if (!harness || harness.status === "damaged" || !harness.pathways.length) return;
+  appendNotice("Select ordered end guides, then one pathway end…");
+  try {
+    const response = await send("add_end", { harnessId: harness.harnessId });
+    if (!response.ok) {
+      appendNotice(response.error || "Add End could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
 async function addJunctionRelationship(junctionId) {
   const harness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,

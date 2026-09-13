@@ -14,6 +14,7 @@ from wire_bundler.domain import (
     PathwayDefinition,
     PathwayEndpoint,
     RoutingMode,
+    StandaloneEndDefinition,
     WireDefinition,
     validate_harness,
 )
@@ -26,6 +27,24 @@ def test_accepts_complete_harness(valid_harness: HarnessDefinition) -> None:
     issues = validate_harness(valid_harness)
 
     assert issues == ()
+
+
+def test_validates_standalone_end_references_and_connection_ownership(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Require valid placement and prevent reuse of a wire-owned connection.
+    """
+    standalone = StandaloneEndDefinition(
+        valid_harness.connections[0].connection_id,
+        valid_harness.pathways[0].pathway_id,
+        PathwayEndpoint.START,
+    )
+    definition = replace(valid_harness, standalone_ends=(standalone,))
+
+    issues = validate_harness(definition)
+
+    assert any(issue.code == "duplicate_endpoint" for issue in issues)
 
 
 def test_accepts_isolated_and_single_ended_junctions(

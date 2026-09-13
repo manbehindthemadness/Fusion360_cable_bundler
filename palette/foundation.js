@@ -325,7 +325,12 @@ function renderPathways(harness, selectedPathwayId = null) {
     gateContent.className = "section-content";
     sequence.className = "sequence";
     const relatedEndpoints = new Set(
-      (harness.junctions || []).flatMap((junction) => junction.pathwayRelationships || [])
+      [
+        ...(harness.junctions || []).flatMap(
+          (junction) => junction.pathwayRelationships || [],
+        ),
+        ...(harness.standaloneEnds || []),
+      ]
         .filter((relationship) => relationship.pathwayId === pathway.pathwayId)
         .map((relationship) => relationship.endpoint),
     );
@@ -362,13 +367,13 @@ function renderPathways(harness, selectedPathwayId = null) {
         !control || !control.hasLinkedGeometry,
       );
       row.children[0].title = isLocked
-        ? `Click for ${control?.kind === "refine" ? "refine" : "gate"} options; junction endpoint is locked`
+        ? `Click for ${control?.kind === "refine" ? "refine" : "gate"} options; pathway endpoint is locked`
         : `Click for ${control?.kind === "refine" ? "refine" : "gate"} options; drag to reorder`;
       row.children[0].addEventListener("click", (event) => {
         if (event.detail === 0 && control) void editControl();
       });
       row.title = isLocked
-        ? `${control?.name || "Gate"} is preserved by a junction relationship`
+        ? `${control?.name || "Gate"} is preserved by a junction or standalone end attachment`
         : `Drag to reorder ${control?.name || "gate"} (${controlId})`;
       enableSequenceDrag(sequence, gateRows, row, index, (target) => mutate(
         "move_pathway_gate", { ...movePayload, offset: target - index }, "Reordering gate…",

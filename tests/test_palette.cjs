@@ -316,7 +316,10 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
   });
   assert.equal(prevented, true);
   assert.equal(menu.hidden, false);
-  assert.deepEqual(menu.children.map((item) => item.textContent), ['Add pathway', 'Add junction']);
+  assert.deepEqual(
+    menu.children.map((item) => item.textContent),
+    ['Add pathway', 'Add end', 'Add junction'],
+  );
   menu.children[0].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
@@ -324,7 +327,7 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
   assert.equal(calls[0].payload.harnessId, 'h');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
-  menu.children[1].events.click();
+  menu.children[2].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
   assert.equal(calls[1].action, 'add_junction');
@@ -380,6 +383,50 @@ test('isolated junction renders without traces and retains filtering and hover',
     graphic, (node) => node.className === 'relationship-junction-hub',
   )[0];
   assert.ok(junction);
+});
+
+asyncTest('master graphic adds and renders one disconnected pathway end', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.connections.push({
+    connectionId: 'loose-end', name: 'End B 001', hasLinkedGeometry: true,
+  });
+  definition.standaloneEnds = [{
+    connectionId: 'loose-end', pathwayId: 'p', endpoint: 'end',
+  }];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  runInNewContext(
+    'currentState = { harnesses: [definition] }; selectedHarnessKey = "h";',
+    Object.assign(context, { definition }),
+  );
+
+  const graphic = context.renderRelationshipMap(definition, []);
+  const entries = descendants(
+    graphic,
+    (node) => node.className === 'relationship-end-entry'
+      && node.dataset.connectionId === 'loose-end',
+  );
+  assert.equal(entries.length, 1);
+  assert.deepEqual(entries[0].children.map((child) => child.textContent), [
+    'End B 001', 'Disconnected',
+  ]);
+  assert.equal(entries[0].dataset.wireIds, '');
+  assert.equal(entries[0].events.click, undefined);
+
+  const viewport = descendants(
+    graphic, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
+  menu.children[1].events.click();
+  await Promise.resolve();
+  assert.equal(calls[0].action, 'add_end');
+  assert.equal(calls[0].payload.harnessId, 'h');
 });
 
 asyncTest('junction popup matches pathway styling and shows traversing wire members', async () => {
@@ -1579,6 +1626,17 @@ test('junction-related pathway boundary stays locked while interior gates remain
   assert.equal(descendants(locked[0], (node) => node.title === 'Remove gate')[0].disabled, true);
   assert.equal(movable.length, 2);
   assert.equal(calls.length, 0);
+
+  definition.junctions = [];
+  definition.standaloneEnds = [{
+    connectionId: 'loose', pathwayId: 'p', endpoint: 'end',
+  }];
+  const standaloneRendered = context.renderPathways(definition);
+  const standaloneLocked = descendants(
+    standaloneRendered, (node) => node.dataset.reorder === 'locked',
+  );
+  assert.equal(standaloneLocked.length, 1);
+  assert.match(standaloneLocked[0].title, /standalone end/);
 });
 
 test('pathway popup replaces its traversal stack before a delayed close event', () => {
