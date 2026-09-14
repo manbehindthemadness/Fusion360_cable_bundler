@@ -15,6 +15,7 @@ from ...application import (
     move_wire_endpoint,
     remove_junction_relationship,
     remove_pathway_gate,
+    remove_standalone_end,
     remove_wire,
     rename_junction,
     rename_pathway,
@@ -113,6 +114,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Removed pathway gate."
+    if action == "remove_standalone_end":
+        remove_standalone_end(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "standalone end"),
+            gateway,
+        )
+        return "Deleted standalone end."
     if action == "set_interpolation":
         target = payload.get("target")
         if target not in ("gate", "end", "defaults"):

@@ -205,6 +205,30 @@ def test_damaged_deletion_runs_inside_palette_command(
     assert not args.executeFailed
 
 
+def test_palette_edit_deletes_standalone_end_by_connection_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the disconnected-end identity and delegate the metadata deletion.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    gateway = object()
+    remove = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "remove_standalone_end", remove)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "remove_standalone_end",
+        json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
+    )
+
+    remove.assert_called_once_with(harness_id, connection_id, gateway)
+    assert notice == "Deleted standalone end."
+
+
 @pytest.mark.parametrize("action", ["rename_wire", "set_interpolation"])
 def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str

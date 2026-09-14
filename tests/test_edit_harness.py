@@ -24,6 +24,7 @@ from wire_bundler.application import (
     move_wire_endpoint,
     remove_junction_relationship,
     remove_pathway_gate,
+    remove_standalone_end,
     remove_wire,
     rename_junction,
     rename_pathway,
@@ -67,6 +68,7 @@ EXTENSION_ID = UUID("35000000-0000-0000-0000-000000000002")
 JUNCTION_ID = UUID("36000000-0000-0000-0000-000000000001")
 ISOLATED_CONTROL_ID = UUID("37000000-0000-0000-0000-000000000001")
 ISOLATED_JUNCTION_ID = UUID("37000000-0000-0000-0000-000000000002")
+STANDALONE_CONNECTION_ID = UUID("38000000-0000-0000-0000-000000000001")
 
 
 def test_adds_isolated_junction_from_unused_geometry(
@@ -1161,6 +1163,74 @@ def test_removes_complete_wire_pair_and_only_its_unused_members(
     assert SOURCE_2_ID not in {item.connection_id for item in stored.connections}
     assert END_2_ID not in {item.connection_id for item in stored.connections}
     assert stored.profiles == definition.profiles
+
+
+def test_removes_standalone_end_and_its_owned_connection(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Delete disconnected-end metadata without changing wire-owned data.
+    """
+    connection = Connection(STANDALONE_CONNECTION_ID, "Loose End", "loose-profile")
+    standalone_end = StandaloneEndDefinition(
+        STANDALONE_CONNECTION_ID,
+        valid_harness.pathways[0].pathway_id,
+        PathwayEndpoint.END,
+    )
+    definition = replace(
+        valid_harness,
+        connections=(*valid_harness.connections, connection),
+        standalone_ends=(standalone_end,),
+    )
+    gateway = _recording_gateway(definition)
+
+    remove_standalone_end(definition.harness_id, STANDALONE_CONNECTION_ID, gateway)
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.standalone_ends == ()
+    assert connection not in stored.connections
+    assert stored.wires == definition.wires
+    assert stored.profiles == definition.profiles
+
+
+def test_rejects_missing_standalone_end_without_writing(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reject a stale palette identity before persistence.
+    """
+    gateway = _recording_gateway(valid_harness)
+
+    with pytest.raises(ValueError, match="does not exist"):
+        remove_standalone_end(valid_harness.harness_id, STANDALONE_CONNECTION_ID, gateway)
+
+    assert gateway.writes == []
+
+
+def test_restores_standalone_end_after_delete_failure(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Restore the exact disconnected-end definition when persistence fails.
+    """
+    connection = Connection(STANDALONE_CONNECTION_ID, "Loose End", "loose-profile")
+    definition = replace(
+        valid_harness,
+        connections=(*valid_harness.connections, connection),
+        standalone_ends=(
+            StandaloneEndDefinition(
+                STANDALONE_CONNECTION_ID,
+                valid_harness.pathways[0].pathway_id,
+                PathwayEndpoint.END,
+            ),
+        ),
+    )
+    gateway = _recording_gateway(definition, (RuntimeError("write failed"), None))
+
+    with pytest.raises(RuntimeError, match="write failed"):
+        remove_standalone_end(definition.harness_id, STANDALONE_CONNECTION_ID, gateway)
+
+    assert gateway.serialized_definition == dumps(definition)
 
 
 def test_restores_exact_definition_after_edit_failure(valid_harness: HarnessDefinition) -> None:

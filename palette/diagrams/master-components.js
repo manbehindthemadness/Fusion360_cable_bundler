@@ -271,7 +271,7 @@ function renderRelationshipBridge(wires) {
 
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
-  focusController,
+  showContextMenu, focusController,
 ) {
   const side = endpoint === "start" ? "A" : "B";
   const details = document.createElement("details");
@@ -336,6 +336,16 @@ function renderRelationshipEndList(
       button.dataset.disconnected = "true";
       button.tabIndex = 0;
       button.setAttribute("aria-label", `${group.label}, disconnected end`);
+      button.addEventListener("contextmenu", (event) => {
+        event.stopPropagation();
+        showContextMenu(event, [{
+          label: "Delete",
+          action: () => mutate("remove_standalone_end", {
+            harnessId: harness.harnessId,
+            connectionId: group.connectionId,
+          }, `Deleting ${group.label}…`),
+        }]);
+      });
     }
     items.append(button);
   });
@@ -434,11 +444,11 @@ function renderRelationshipPathwayNode(
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
-    focusController,
+    showContextMenu, focusController,
   );
   const endList = renderRelationshipEndList(
     harness, candidate, "end", groups.end, visibleEnd, query, collapseLimit,
-    focusController,
+    showContextMenu, focusController,
   );
   const startConnector = renderRelationshipConnector(
     visibleStart, pathwayWires, true, startList.open, pathwayWires.length === 0,

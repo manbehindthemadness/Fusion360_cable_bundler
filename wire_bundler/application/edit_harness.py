@@ -1023,6 +1023,33 @@ def remove_wire(
     _persist(harness_id, original, updated, gateway)
 
 
+def remove_standalone_end(
+    harness_id: UUID,
+    connection_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Remove one disconnected end association and its owned connection metadata.
+
+    Referenced Fusion geometry is not deleted.
+    """
+    original, definition = _read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    updated = replace(
+        definition,
+        connections=tuple(
+            connection
+            for connection in definition.connections
+            if connection.connection_id != connection_id
+        ),
+        standalone_ends=tuple(
+            end for end in definition.standalone_ends if end.connection_id != connection_id
+        ),
+    )
+    _persist(harness_id, original, updated, gateway)
+
+
 def _validate_offset(offset: int) -> None:
     """
     Require a single-position ordered move.

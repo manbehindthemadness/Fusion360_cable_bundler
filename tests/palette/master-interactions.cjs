@@ -140,6 +140,11 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   ]);
   assert.equal(entries[0].dataset.wireIds, '');
   assert.equal(entries[0].events.click, undefined);
+  assert.ok(descendants(
+    graphic,
+    (node) => node.className === 'relationship-end-entry'
+      && node.dataset.connectionId !== 'loose-end',
+  ).every((entry) => entry.events.contextmenu === undefined));
 
   const viewport = descendants(
     graphic, (node) => node.className === 'block-diagram-viewport',
@@ -147,11 +152,28 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   const menu = descendants(
     graphic, (node) => node.className === 'relationship-map-context-menu',
   )[0];
+  let prevented = false;
+  let stopped = false;
+  entries[0].events.contextmenu({
+    clientX: 60,
+    clientY: 70,
+    preventDefault: () => { prevented = true; },
+    stopPropagation: () => { stopped = true; },
+  });
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+  assert.deepEqual(menu.children.map((item) => item.textContent), ['Delete']);
+  menu.children[0].events.click();
+  await Promise.resolve();
+  assert.equal(calls[0].action, 'remove_standalone_end');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.connectionId, 'loose-end');
+
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
   menu.children[1].events.click();
   await Promise.resolve();
-  assert.equal(calls[0].action, 'add_end');
-  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[1].action, 'add_end');
+  assert.equal(calls[1].payload.harnessId, 'h');
 });
 
 asyncTest('junction popup matches pathway styling and shows traversing wire members', async () => {

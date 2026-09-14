@@ -152,6 +152,7 @@ class _PaletteLifecycleModule(Protocol):
     REFINE_GRAPHICS_GROUP_ID: str
     _show_palette: Callable[[object], None]
     _create_harness_gateway: Callable[[object], object]
+    remove_standalone_end: Callable[[UUID, UUID, object], None]
     serialize_palette_state: Callable[[object, str], str]
     _delete_damaged_harness: Callable[[object, str], str]
     _appearance_libraries_payload: Callable[[object], list[dict[str, str]]]
