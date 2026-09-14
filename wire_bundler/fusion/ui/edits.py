@@ -13,6 +13,7 @@ import adsk.fusion
 from ...application import (
     move_pathway_gate,
     move_wire_endpoint,
+    remove_junction,
     remove_junction_relationship,
     remove_pathway,
     remove_pathway_gate,
@@ -122,6 +123,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Deleted pathway branch."
+    if action == "remove_junction":
+        remove_junction(
+            harness_id,
+            _read_payload_uuid(payload, "junctionId", "junction"),
+            gateway,
+        )
+        return "Deleted junction branch."
     if action == "remove_standalone_end":
         remove_standalone_end(
             harness_id,

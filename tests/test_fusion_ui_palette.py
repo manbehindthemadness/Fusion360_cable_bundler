@@ -253,6 +253,30 @@ def test_palette_edit_deletes_pathway_by_identity(
     assert notice == "Deleted pathway branch."
 
 
+def test_palette_edit_deletes_junction_by_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Translate the master-diagram junction deletion into one application edit.
+    """
+    harness_id = UUID(int=1)
+    junction_id = UUID(int=2)
+    gateway = object()
+    remove = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "remove_junction", remove)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "remove_junction",
+        json.dumps({"harnessId": str(harness_id), "junctionId": str(junction_id)}),
+    )
+
+    remove.assert_called_once_with(harness_id, junction_id, gateway)
+    assert notice == "Deleted junction branch."
+
+
 @pytest.mark.parametrize("action", ["rename_wire", "set_interpolation"])
 def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str
@@ -328,6 +352,39 @@ def test_pathway_deletion_runs_in_one_native_transaction(
     refreshed.assert_called_once_with(application, harness_id, ensure_visible=False)
     application.activeViewport.refresh.assert_called_once_with()
     sent.assert_called_once_with(application, "Deleted pathway branch.")
+    assert not args.executeFailed
+
+
+def test_junction_deletion_runs_in_one_native_transaction(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Reconcile deleted refine graphics before the native junction deletion commits.
+    """
+    document = object()
+    harness_id = UUID(int=1)
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    applied = Mock(return_value="Deleted junction branch.")
+    reconciled = Mock()
+    refreshed = Mock(return_value="")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
+    monkeypatch.setattr(addin_module, "reconcile_active_refines", reconciled)
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps({"harnessId": str(harness_id), "junctionId": str(UUID(int=2))})
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(("remove_junction", payload, document)).notify(args)
+
+    applied.assert_called_once_with(application, "remove_junction", payload)
+    reconciled.assert_called_once_with(application)
+    refreshed.assert_called_once_with(application, harness_id, ensure_visible=False)
+    application.activeViewport.refresh.assert_called_once_with()
+    sent.assert_called_once_with(application, "Deleted junction branch.")
     assert not args.executeFailed
 
 

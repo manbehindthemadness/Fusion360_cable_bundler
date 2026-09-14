@@ -635,6 +635,29 @@ function removePathway(harness, pathway) {
   );
 }
 
+function removeJunction(harness, junction) {
+  const deletedPathwayIds = relationshipJunctionDeletionIds(harness, junction);
+  const deletedWires = harness.wires.filter((wire) => wire.orderedPathwayIds.some(
+    (pathwayId) => deletedPathwayIds.has(pathwayId),
+  ));
+  const deletedEnds = (harness.standaloneEnds || []).filter(
+    (end) => deletedPathwayIds.has(end.pathwayId),
+  );
+  const junctionLabel = junction.name || "this junction";
+  const descendantCount = deletedPathwayIds.size;
+  const warning = [
+    `Delete ${junctionLabel} and ${descendantCount} descendant ${descendantCount === 1 ? "pathway" : "pathways"}?`,
+    `This also deletes ${deletedWires.length} ${deletedWires.length === 1 ? "wire" : "wires"} and ${deletedEnds.length} standalone ${deletedEnds.length === 1 ? "end" : "ends"}.`,
+    "This action can be undone in Fusion.",
+  ].join(" ");
+  if (!window.confirm(warning)) return;
+  void mutate(
+    "remove_junction",
+    { harnessId: harness.harnessId, junctionId: junction.junctionId },
+    `Deleting ${junctionLabel}…`,
+  );
+}
+
 function removeWirePair(harness, wire) {
   if (!window.confirm(`Remove wire #${wire.wireNumber} and both connection assignments?`)) return;
   void mutate(

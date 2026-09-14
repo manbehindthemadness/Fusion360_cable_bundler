@@ -22,6 +22,7 @@ from wire_bundler.application import (
     append_pathway_gates,
     move_pathway_gate,
     move_wire_endpoint,
+    remove_junction,
     remove_junction_relationship,
     remove_pathway,
     remove_pathway_gate,
@@ -1228,6 +1229,187 @@ def test_restores_pathway_after_delete_persistence_failure(
             valid_harness.pathways[0].pathway_id,
             gateway,
         )
+
+    assert gateway.serialized_definition == original
+    assert len(gateway.writes) == 2
+    assert gateway.writes[0] != original
+    assert gateway.writes[1] == original
+
+
+def test_removes_junction_branch_and_its_dependent_data(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Delete a junction's following branch while retaining its incoming pathway.
+    """
+    preceding = valid_harness.pathways[0]
+    following = PathwayDefinition(
+        EXTENSION_ID,
+        "Junction Following Pathway",
+        preceding.routing_mode,
+        (GATE_2_ID,),
+    )
+    junction = JunctionDefinition(
+        JUNCTION_ID,
+        "Junction 01",
+        GATE_3_ID,
+        (
+            JunctionPathwayRelationship(preceding.pathway_id, PathwayEndpoint.END),
+            JunctionPathwayRelationship(following.pathway_id, PathwayEndpoint.START),
+        ),
+    )
+    standalone = StandaloneEndDefinition(
+        STANDALONE_CONNECTION_ID,
+        following.pathway_id,
+        PathwayEndpoint.END,
+    )
+    definition = replace(
+        valid_harness,
+        controls=(
+            *valid_harness.controls,
+            ControlStructure(GATE_2_ID, "Routing Gate 02", ControlKind.ROUTING_GATE, "gate-2"),
+            ControlStructure(GATE_3_ID, "Junction Gate", ControlKind.ROUTING_GATE, "junction"),
+        ),
+        connections=(
+            *valid_harness.connections,
+            Connection(STANDALONE_CONNECTION_ID, "Loose End", "loose-end"),
+        ),
+        junctions=(junction,),
+        pathways=(preceding, following),
+        standalone_ends=(standalone,),
+        wires=(
+            replace(
+                valid_harness.wires[0],
+                ordered_pathway_ids=(preceding.pathway_id, following.pathway_id),
+                ordered_control_ids=(
+                    *preceding.ordered_control_ids,
+                    *following.ordered_control_ids,
+                ),
+            ),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    remove_junction(definition.harness_id, junction.junction_id, gateway)
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.pathways == (preceding,)
+    assert stored.junctions == ()
+    assert [control.control_id for control in stored.controls] == list(
+        preceding.ordered_control_ids
+    )
+    assert stored.connections == ()
+    assert stored.profiles == ()
+    assert stored.standalone_ends == ()
+    assert stored.wires == ()
+
+
+def test_removing_junction_preserves_shared_downstream_topology(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep a following route when a surviving pathway also enters its next junction.
+    """
+    preceding = valid_harness.pathways[0]
+    following = PathwayDefinition(
+        EXTENSION_ID, "Deleted Following", preceding.routing_mode, (GATE_2_ID,)
+    )
+    surviving_parent = PathwayDefinition(
+        ISOLATED_JUNCTION_ID, "Surviving Parent", preceding.routing_mode, (GATE_3_ID,)
+    )
+    downstream = PathwayDefinition(
+        STANDALONE_CONNECTION_ID, "Shared Following", preceding.routing_mode, (UUID(int=11),)
+    )
+    selected_junction = JunctionDefinition(
+        JUNCTION_ID,
+        "Selected Junction",
+        ISOLATED_CONTROL_ID,
+        (
+            JunctionPathwayRelationship(preceding.pathway_id, PathwayEndpoint.END),
+            JunctionPathwayRelationship(following.pathway_id, PathwayEndpoint.START),
+        ),
+    )
+    downstream_junction = JunctionDefinition(
+        UUID(int=9),
+        "Shared Junction",
+        UUID(int=10),
+        (
+            JunctionPathwayRelationship(following.pathway_id, PathwayEndpoint.END),
+            JunctionPathwayRelationship(surviving_parent.pathway_id, PathwayEndpoint.END),
+            JunctionPathwayRelationship(downstream.pathway_id, PathwayEndpoint.START),
+        ),
+    )
+    definition = replace(
+        valid_harness,
+        controls=(
+            *valid_harness.controls,
+            ControlStructure(GATE_2_ID, "Routing Gate 02", ControlKind.ROUTING_GATE, "gate-2"),
+            ControlStructure(GATE_3_ID, "Routing Gate 03", ControlKind.ROUTING_GATE, "gate-3"),
+            ControlStructure(
+                ISOLATED_CONTROL_ID,
+                "Selected Junction Gate",
+                ControlKind.ROUTING_GATE,
+                "junction-1",
+            ),
+            ControlStructure(
+                UUID(int=10), "Shared Junction Gate", ControlKind.ROUTING_GATE, "junction-2"
+            ),
+            ControlStructure(UUID(int=11), "Routing Gate 04", ControlKind.ROUTING_GATE, "gate-4"),
+        ),
+        junctions=(selected_junction, downstream_junction),
+        pathways=(preceding, following, surviving_parent, downstream),
+    )
+    gateway = _recording_gateway(definition)
+
+    remove_junction(definition.harness_id, selected_junction.junction_id, gateway)
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.pathways == (preceding, surviving_parent, downstream)
+    assert stored.junctions == (
+        replace(
+            downstream_junction,
+            pathway_relationships=(
+                JunctionPathwayRelationship(surviving_parent.pathway_id, PathwayEndpoint.END),
+                JunctionPathwayRelationship(downstream.pathway_id, PathwayEndpoint.START),
+            ),
+        ),
+    )
+
+
+def test_rejects_missing_junction_without_writing(valid_harness: HarnessDefinition) -> None:
+    """
+    Reject a stale junction identity before attempting a destructive edit.
+    """
+    gateway = _recording_gateway(valid_harness)
+
+    with pytest.raises(ValueError, match="does not exist"):
+        remove_junction(valid_harness.harness_id, JUNCTION_ID, gateway)
+
+    assert gateway.writes == []
+
+
+def test_restores_junction_after_delete_persistence_failure(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Restore the exact serialized definition when junction deletion cannot persist.
+    """
+    junction = JunctionDefinition(JUNCTION_ID, "Junction 01", ISOLATED_CONTROL_ID)
+    definition = replace(
+        valid_harness,
+        controls=(
+            *valid_harness.controls,
+            ControlStructure(
+                ISOLATED_CONTROL_ID, "Junction Gate", ControlKind.ROUTING_GATE, "junction"
+            ),
+        ),
+        junctions=(junction,),
+    )
+    gateway = _recording_gateway(definition, (OSError("disk full"),))
+    original = gateway.serialized_definition
+
+    with pytest.raises(OSError, match="disk full"):
+        remove_junction(definition.harness_id, junction.junction_id, gateway)
 
     assert gateway.serialized_definition == original
     assert len(gateway.writes) == 2

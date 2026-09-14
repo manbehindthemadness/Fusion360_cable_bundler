@@ -735,6 +735,84 @@ def remove_pathway(
     _persist(harness_id, original, updated, gateway)
 
 
+def remove_junction(
+    harness_id: UUID,
+    junction_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Remove one junction, its exclusive downstream branch, and owned dependent data.
+
+    Other junctions remain in place so surviving pathways retain their surrounding
+    topology and relationship identities.
+    """
+    original, definition = _read_definition(harness_id, gateway)
+    junction = _require_junction(definition, junction_id)
+    deleted_pathway_ids = _pathway_branch_deletion_ids(
+        definition,
+        {
+            relationship.pathway_id
+            for relationship in junction.pathway_relationships
+            if relationship.endpoint is PathwayEndpoint.START
+        },
+    )
+    pathways = tuple(
+        pathway for pathway in definition.pathways if pathway.pathway_id not in deleted_pathway_ids
+    )
+    junctions = tuple(
+        replace(
+            candidate,
+            pathway_relationships=tuple(
+                relationship
+                for relationship in candidate.pathway_relationships
+                if relationship.pathway_id not in deleted_pathway_ids
+            ),
+        )
+        for candidate in definition.junctions
+        if candidate.junction_id != junction_id
+    )
+    wires = tuple(
+        wire
+        for wire in definition.wires
+        if not any(pathway_id in deleted_pathway_ids for pathway_id in wire.ordered_pathway_ids)
+    )
+    standalone_ends = tuple(
+        end for end in definition.standalone_ends if end.pathway_id not in deleted_pathway_ids
+    )
+    referenced_connection_ids = {
+        connection_id
+        for wire in wires
+        for connection_id in (wire.start_connection_id, wire.end_connection_id)
+    } | {end.connection_id for end in standalone_ends}
+    referenced_profile_ids = {wire.profile_id for wire in wires}
+    referenced_control_ids = {
+        control_id for pathway in pathways for control_id in pathway.ordered_control_ids
+    } | {candidate.control_id for candidate in junctions}
+    updated = replace(
+        definition,
+        controls=tuple(
+            control
+            for control in definition.controls
+            if control.control_id in referenced_control_ids
+        ),
+        connections=tuple(
+            connection
+            for connection in definition.connections
+            if connection.connection_id in referenced_connection_ids
+        ),
+        junctions=junctions,
+        pathways=pathways,
+        profiles=tuple(
+            profile
+            for profile in definition.profiles
+            if profile.profile_id in referenced_profile_ids
+        ),
+        standalone_ends=standalone_ends,
+        wires=wires,
+    )
+    _persist(harness_id, original, updated, gateway)
+
+
 def move_wire_endpoint(
     harness_id: UUID,
     wire_id: UUID,
@@ -1155,6 +1233,22 @@ def _require_pathway(
     return pathway
 
 
+def _require_junction(
+    definition: HarnessDefinition,
+    junction_id: UUID,
+) -> JunctionDefinition:
+    """
+    Return an existing junction or reject a stale palette identity.
+    """
+    junction = next(
+        (item for item in definition.junctions if item.junction_id == junction_id),
+        None,
+    )
+    if junction is None:
+        raise ValueError("Selected junction does not exist in this harness.")
+    return junction
+
+
 def _pathway_deletion_ids(
     definition: HarnessDefinition,
     pathway_id: UUID,
@@ -1165,7 +1259,17 @@ def _pathway_deletion_ids(
     A junction always remains. Its following pathways join the cascade only after every
     pathway entering that junction is already scheduled for deletion.
     """
-    deleted_pathway_ids = {pathway_id}
+    return _pathway_branch_deletion_ids(definition, {pathway_id})
+
+
+def _pathway_branch_deletion_ids(
+    definition: HarnessDefinition,
+    root_pathway_ids: set[UUID],
+) -> set[UUID]:
+    """
+    Return exclusively downstream pathways reached from one or more root pathways.
+    """
+    deleted_pathway_ids = set(root_pathway_ids)
     changed = True
     while changed:
         changed = False

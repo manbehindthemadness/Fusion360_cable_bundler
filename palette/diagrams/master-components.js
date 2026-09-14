@@ -132,7 +132,9 @@ function closeJunctionRelationships() {
   else dialog?.remove();
 }
 
-function renderRelationshipJunctionHub(harness, junction, focusController, nodeIds) {
+function renderRelationshipJunctionHub(
+  harness, junction, showContextMenu, focusController, nodeIds,
+) {
   const hub = document.createElement("button");
   const name = document.createElement("strong");
   const kind = document.createElement("small");
@@ -151,9 +153,11 @@ function renderRelationshipJunctionHub(harness, junction, focusController, nodeI
   });
   hub.addEventListener("click", () => openJunctionRelationships(harness, junction));
   hub.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
     event.stopPropagation();
-    openJunctionRelationships(harness, junction);
+    showContextMenu(event, [
+      { label: "Open junction configuration", action: () => openJunctionRelationships(harness, junction) },
+      { label: "Delete", action: () => removeJunction(harness, junction) },
+    ]);
   });
   hub.append(name, kind);
   return hub;

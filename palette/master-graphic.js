@@ -72,7 +72,7 @@ function renderRelationshipMap(harness, auditIssues) {
         if (node.kind === "junction") {
           wrapper.dataset.junctionId = node.item.junctionId;
           wrapper.append(renderRelationshipJunctionHub(
-            harness, node.item, focusController, focusNodeIds,
+            harness, node.item, showContextMenu, focusController, focusNodeIds,
           ));
         } else {
           wrapper.dataset.pathwayId = node.item.pathwayId;

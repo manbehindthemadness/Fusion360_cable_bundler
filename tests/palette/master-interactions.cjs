@@ -580,6 +580,58 @@ asyncTest('pathway context menu deletes after confirmation and keeps cancellatio
   assert.equal(calls[0].payload.pathwayId, 'p');
 });
 
+asyncTest('junction context menu deletes after confirmation and keeps cancellation local', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.pathways.push({
+    pathwayId: 'p2', name: 'Branch', startName: '', endName: '', orderedControlIds: [],
+  });
+  definition.junctions = [{
+    junctionId: 'j1', name: 'Main junction', controlId: 'c1', pathwayRelationships: [
+      { pathwayId: 'p', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ],
+  }];
+  definition.wires[0].orderedPathwayIds = ['p', 'p2'];
+  context.window.confirm = () => false;
+  const graphic = context.renderRelationshipMap(definition, []);
+  const workspace = descendants(
+    graphic, (node) => node.className === 'block-diagram-workspace',
+  )[0];
+  const hub = descendants(
+    workspace, (node) => node.className === 'relationship-junction-hub',
+  )[0];
+  const menu = descendants(
+    workspace, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  hub.events.contextmenu({
+    clientX: 120, clientY: 140, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Open junction configuration', 'Delete',
+  ]);
+  menu.children[1].events.click();
+  await Promise.resolve();
+  assert.equal(calls.length, 0);
+
+  let warning = '';
+  context.window.confirm = (message) => {
+    warning = message;
+    return true;
+  };
+  hub.events.contextmenu({
+    clientX: 120, clientY: 140, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[1].events.click();
+  await Promise.resolve();
+  assert.match(warning, /Delete Main junction/);
+  assert.match(warning, /1 wire/);
+  assert.match(warning, /undone in Fusion/);
+  assert.equal(calls[0].action, 'remove_junction');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.junctionId, 'j1');
+});
+
 asyncTest('pathway context menu segments eligible controls and renders its junction', async () => {
   const { context, calls } = palette();
   const definition = harness();
