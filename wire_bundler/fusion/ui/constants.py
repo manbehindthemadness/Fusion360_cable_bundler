@@ -94,6 +94,7 @@ PALETTE_EDIT_NAMES = {
     "move_pathway_gate": "Reorder Pathway Gates",
     "update_junction_relationships": "Edit Junction Relationships",
     "remove_junction_relationship": "Remove Junction Relationship",
+    "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_standalone_end": "Delete Standalone End",
     "move_wire_endpoint": "Reorder Wire Ends",

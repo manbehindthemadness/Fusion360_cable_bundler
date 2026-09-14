@@ -538,6 +538,48 @@ asyncTest('pathway node context menu adds a refine to that pathway', async () =>
   assert.equal(calls[0].payload.pathwayId, 'p');
 });
 
+asyncTest('pathway context menu deletes after confirmation and keeps cancellation local', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  context.window.confirm = () => false;
+  const graphic = context.renderRelationshipMap(definition, []);
+  const workspace = descendants(
+    graphic, (node) => node.className === 'block-diagram-workspace',
+  )[0];
+  const hub = descendants(
+    workspace, (node) => node.className === 'relationship-pathway-hub',
+  )[0];
+  const menu = descendants(
+    workspace, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  hub.events.contextmenu({
+    clientX: 120, clientY: 140, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Add refine point', 'Segment', 'Delete',
+  ]);
+  menu.children[2].events.click();
+  await Promise.resolve();
+  assert.equal(calls.length, 0);
+
+  let warning = '';
+  context.window.confirm = (message) => {
+    warning = message;
+    return true;
+  };
+  hub.events.contextmenu({
+    clientX: 120, clientY: 140, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[2].events.click();
+  await Promise.resolve();
+  assert.match(warning, /Delete lower fuse box path/);
+  assert.match(warning, /3 wires/);
+  assert.match(warning, /undone in Fusion/);
+  assert.equal(calls[0].action, 'remove_pathway');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.pathwayId, 'p');
+});
+
 asyncTest('pathway context menu segments eligible controls and renders its junction', async () => {
   const { context, calls } = palette();
   const definition = harness();

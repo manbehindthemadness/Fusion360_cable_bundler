@@ -229,6 +229,30 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     assert notice == "Deleted standalone end."
 
 
+def test_palette_edit_deletes_pathway_by_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Translate the master-diagram deletion into one application edit.
+    """
+    harness_id = UUID(int=1)
+    pathway_id = UUID(int=2)
+    gateway = object()
+    remove = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "remove_pathway", remove)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "remove_pathway",
+        json.dumps({"harnessId": str(harness_id), "pathwayId": str(pathway_id)}),
+    )
+
+    remove.assert_called_once_with(harness_id, pathway_id, gateway)
+    assert notice == "Deleted pathway branch."
+
+
 @pytest.mark.parametrize("action", ["rename_wire", "set_interpolation"])
 def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str
@@ -272,6 +296,39 @@ def test_palette_edit_waits_for_execute_and_releases_handlers(
     cast(Mock, cleanup[0]).notify(SimpleNamespace())
     assert handlers[0] not in addin_module._runtime.handlers
     assert cleanup[0] not in addin_module._runtime.handlers
+
+
+def test_pathway_deletion_runs_in_one_native_transaction(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Reconcile deleted refine graphics before the native deletion command commits.
+    """
+    document = object()
+    harness_id = UUID(int=1)
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    applied = Mock(return_value="Deleted pathway branch.")
+    reconciled = Mock()
+    refreshed = Mock(return_value="")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
+    monkeypatch.setattr(addin_module, "reconcile_active_refines", reconciled)
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps({"harnessId": str(harness_id), "pathwayId": str(UUID(int=2))})
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(("remove_pathway", payload, document)).notify(args)
+
+    applied.assert_called_once_with(application, "remove_pathway", payload)
+    reconciled.assert_called_once_with(application)
+    refreshed.assert_called_once_with(application, harness_id, ensure_visible=False)
+    application.activeViewport.refresh.assert_called_once_with()
+    sent.assert_called_once_with(application, "Deleted pathway branch.")
+    assert not args.executeFailed
 
 
 def test_material_save_applies_existing_bodies_and_preview(

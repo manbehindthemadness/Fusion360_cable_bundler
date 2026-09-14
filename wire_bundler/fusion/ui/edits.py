@@ -14,6 +14,7 @@ from ...application import (
     move_pathway_gate,
     move_wire_endpoint,
     remove_junction_relationship,
+    remove_pathway,
     remove_pathway_gate,
     remove_standalone_end,
     remove_wire,
@@ -114,6 +115,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Removed pathway gate."
+    if action == "remove_pathway":
+        remove_pathway(
+            harness_id,
+            _read_payload_uuid(payload, "pathwayId", "pathway"),
+            gateway,
+        )
+        return "Deleted pathway branch."
     if action == "remove_standalone_end":
         remove_standalone_end(
             harness_id,

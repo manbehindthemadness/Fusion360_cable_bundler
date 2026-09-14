@@ -491,6 +491,7 @@ function renderRelationshipPathwayNode(
         disabled: !canSegment,
         title: canSegment ? "" : "Requires an interior routing gate or refine point",
       },
+      { label: "Delete", action: () => removePathway(harness, candidate) },
     ]);
   });
   hub.append(hubName, hubDirection);

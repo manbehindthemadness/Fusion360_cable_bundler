@@ -147,6 +147,32 @@ function relationshipPathwayWires(harness, pathwayId) {
   return harness.wires.filter((wire) => wire.orderedPathwayIds.includes(pathwayId));
 }
 
+/** Return the selected pathway and its exclusively downstream pathway branch. */
+function relationshipPathwayDeletionIds(harness, pathwayId) {
+  const deletedPathwayIds = new Set([pathwayId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    (harness.junctions || []).forEach((junction) => {
+      const relationships = junction.pathwayRelationships || [];
+      const incomingPathwayIds = relationships
+        .filter((relationship) => relationship.endpoint === "end")
+        .map((relationship) => relationship.pathwayId);
+      if (!incomingPathwayIds.length || !incomingPathwayIds.every(
+        (candidateId) => deletedPathwayIds.has(candidateId),
+      )) return;
+      relationships
+        .filter((relationship) => relationship.endpoint === "start")
+        .forEach((relationship) => {
+          if (deletedPathwayIds.has(relationship.pathwayId)) return;
+          deletedPathwayIds.add(relationship.pathwayId);
+          changed = true;
+        });
+    });
+  }
+  return deletedPathwayIds;
+}
+
 function relationshipJunctionWires(harness, junction) {
   const relationships = junction.pathwayRelationships || [];
   const preceding = new Set(
