@@ -3,6 +3,9 @@ const RELATIONSHIP_DIAGRAM_LAYOUT = "endpoint-junction-forest";
 
 /** Assemble the filterable master relationship diagram from focused components. */
 function renderRelationshipMap(harness, auditIssues) {
+  const diagramViewKey = harnessKey(harness);
+  const savedDiagramView = relationshipDiagramViews.get(diagramViewKey);
+  let restoreInitialView = savedDiagramView !== undefined;
   const connections = new Map(
     harness.connections.map((connection) => [connection.connectionId, connection]),
   );
@@ -12,7 +15,13 @@ function renderRelationshipMap(harness, auditIssues) {
   const summary = document.createElement("span");
   const settings = document.createElement("label");
   const collapseInput = document.createElement("input");
-  const workspace = createBlockDiagramWorkspace("Zoomable master relationship diagram");
+  const workspace = createBlockDiagramWorkspace(
+    "Zoomable master relationship diagram",
+    {
+      initialView: savedDiagramView,
+      onViewChange: (view) => relationshipDiagramViews.set(diagramViewKey, view),
+    },
+  );
   const focusController = createRelationshipFocusController(container);
   const wireCreationController = createWireCreationController(harness, container);
   const showContextMenu = addRelationshipMapContextMenu(workspace);
@@ -103,13 +112,17 @@ function renderRelationshipMap(harness, auditIssues) {
       );
       message.className = "empty relationship-map-empty";
       workspace.stage.append(message);
-      window.requestAnimationFrame(() => workspace.fit());
+      window.requestAnimationFrame(() => {
+        if (restoreInitialView) restoreInitialView = false;
+        else workspace.fit();
+      });
       return;
     }
     workspace.stage.append(stack);
     window.requestAnimationFrame(() => {
       layoutRelationshipGraph(stack, renderedComponents, harness);
-      workspace.fit();
+      if (restoreInitialView) restoreInitialView = false;
+      else workspace.fit();
     });
   };
   filter.addEventListener("input", draw);

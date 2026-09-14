@@ -1142,6 +1142,41 @@ def remove_standalone_end(
     _persist(harness_id, original, updated, gateway)
 
 
+def rename_standalone_end(
+    harness_id: UUID,
+    connection_id: UUID,
+    name: str,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Rename one pathway end while preserving its connection and route identity.
+    """
+    if not isinstance(name, str):
+        raise ValueError("Standalone end name must be a string.")
+    original, definition = _read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    connection = next(
+        (
+            candidate
+            for candidate in definition.connections
+            if candidate.connection_id == connection_id
+        ),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected standalone end has a missing connection.")
+    updated_connection = replace(connection, name=name.strip())
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if candidate.connection_id == connection_id else candidate
+            for candidate in definition.connections
+        ),
+    )
+    _persist(harness_id, original, updated, gateway)
+
+
 def _validate_offset(offset: int) -> None:
     """
     Require a single-position ordered move.

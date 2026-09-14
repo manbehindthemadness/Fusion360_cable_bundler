@@ -229,6 +229,36 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     assert notice == "Deleted standalone end."
 
 
+def test_palette_edit_renames_standalone_end_by_connection_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the end identity and delegate its connection-name edit.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    gateway = object()
+    rename = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "rename_standalone_end", rename)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "rename_standalone_end",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "name": "Bulkhead outlet",
+            }
+        ),
+    )
+
+    rename.assert_called_once_with(harness_id, connection_id, "Bulkhead outlet", gateway)
+    assert notice == "Saved end name."
+
+
 def test_palette_edit_deletes_pathway_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

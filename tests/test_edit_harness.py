@@ -31,6 +31,7 @@ from wire_bundler.application import (
     rename_junction,
     rename_pathway,
     rename_route_end,
+    rename_standalone_end,
     rename_wire,
     segment_pathway,
     set_harness_material_defaults,
@@ -1538,6 +1539,66 @@ def test_removes_standalone_end_and_its_owned_connection(
     assert connection not in stored.connections
     assert stored.wires == definition.wires
     assert stored.profiles == definition.profiles
+
+
+def test_renames_standalone_end_connection_without_changing_other_data(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Update only the selected end's connection name.
+    """
+    connection = Connection(
+        STANDALONE_CONNECTION_ID,
+        "Loose End",
+        "loose-profile",
+        ("second-profile",),
+    )
+    standalone_end = StandaloneEndDefinition(
+        STANDALONE_CONNECTION_ID,
+        valid_harness.pathways[0].pathway_id,
+        PathwayEndpoint.END,
+    )
+    definition = replace(
+        valid_harness,
+        connections=(*valid_harness.connections, connection),
+        standalone_ends=(standalone_end,),
+    )
+    gateway = _recording_gateway(definition)
+
+    rename_standalone_end(
+        definition.harness_id,
+        STANDALONE_CONNECTION_ID,
+        "  Bulkhead outlet  ",
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored == replace(
+        definition,
+        connections=(
+            *valid_harness.connections,
+            replace(connection, name="Bulkhead outlet"),
+        ),
+    )
+
+
+def test_rejects_stale_standalone_end_rename_without_writing(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reject an end identity that is not independently attached to a pathway.
+    """
+    gateway = _recording_gateway(valid_harness)
+
+    with pytest.raises(ValueError, match="does not exist"):
+        rename_standalone_end(
+            valid_harness.harness_id,
+            valid_harness.connections[0].connection_id,
+            "Unused rename",
+            gateway,
+        )
+
+    assert gateway.writes == []
 
 
 def test_rejects_missing_standalone_end_without_writing(

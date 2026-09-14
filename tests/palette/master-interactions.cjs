@@ -152,6 +152,21 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   const menu = descendants(
     graphic, (node) => node.className === 'relationship-map-context-menu',
   )[0];
+  const stage = descendants(
+    graphic, (node) => node.className === 'block-diagram-stage',
+  )[0];
+  const zoom = descendants(
+    graphic, (node) => node.className === 'block-diagram-zoom',
+  )[0];
+  descendants(graphic, (node) => node.title === 'Zoom in')[0].events.click();
+  viewport.events.pointerdown({
+    button: 1, pointerId: 7, clientX: 30, clientY: 30, preventDefault: () => {},
+  });
+  viewport.events.pointermove({ pointerId: 7, clientX: 55, clientY: 65 });
+  viewport.events.pointerup({ pointerId: 7 });
+  const renamedViewTransform = stage.style.transform;
+  const renamedViewZoom = zoom.textContent;
+  entries[0].children[1].textContent = 'Alternate metadata';
   let prevented = false;
   let stopped = false;
   entries[0].events.contextmenu({
@@ -162,18 +177,65 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   });
   assert.equal(prevented, true);
   assert.equal(stopped, true);
-  assert.deepEqual(menu.children.map((item) => item.textContent), ['Delete']);
+  assert.deepEqual(menu.children.map((item) => item.textContent), ['Rename', 'Delete']);
   menu.children[0].events.click();
-  await Promise.resolve();
-  assert.equal(calls[0].action, 'remove_standalone_end');
+  let input = descendants(entries[0], (node) => node.tag === 'input')[0];
+  assert.equal(input.value, 'End B 001');
+  assert.equal(input.attributes['aria-label'], 'End name');
+  input.value = 'Bulkhead outlet';
+  input.events.keydown({ key: 'Enter', preventDefault: () => {} });
+  assert.equal(calls[0].action, 'rename_standalone_end');
   assert.equal(calls[0].payload.harnessId, 'h');
   assert.equal(calls[0].payload.connectionId, 'loose-end');
+  assert.equal(calls[0].payload.name, 'Bulkhead outlet');
+  definition.connections.find(
+    (connection) => connection.connectionId === 'loose-end',
+  ).name = 'Bulkhead outlet';
+  const refreshed = context.renderRelationshipMap(definition, []);
+  assert.equal(descendants(
+    refreshed, (node) => node.className === 'block-diagram-stage',
+  )[0].style.transform, renamedViewTransform);
+  assert.equal(descendants(
+    refreshed, (node) => node.className === 'block-diagram-zoom',
+  )[0].textContent, renamedViewZoom);
+  const otherHarness = context.renderRelationshipMap({ ...definition, harnessId: 'other' }, []);
+  assert.notEqual(descendants(
+    otherHarness, (node) => node.className === 'block-diagram-stage',
+  )[0].style.transform, renamedViewTransform);
+
+  entries[0].events.contextmenu({
+    clientX: 60, clientY: 70, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[0].events.click();
+  input = descendants(entries[0], (node) => node.tag === 'input')[0];
+  input.value = 'Cancelled rename';
+  input.events.keydown({ key: 'Escape', preventDefault: () => {} });
+  assert.equal(calls.length, 1);
+
+  entries[0].events.contextmenu({
+    clientX: 60, clientY: 70, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[0].events.click();
+  input = descendants(entries[0], (node) => node.tag === 'input')[0];
+  input.value = 'Blurred rename';
+  input.events.blur();
+  assert.equal(calls[1].action, 'rename_standalone_end');
+  assert.equal(calls[1].payload.name, 'Blurred rename');
+
+  entries[0].events.contextmenu({
+    clientX: 60, clientY: 70, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[1].events.click();
+  await Promise.resolve();
+  assert.equal(calls[2].action, 'remove_standalone_end');
+  assert.equal(calls[2].payload.harnessId, 'h');
+  assert.equal(calls[2].payload.connectionId, 'loose-end');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
   menu.children[1].events.click();
   await Promise.resolve();
-  assert.equal(calls[1].action, 'add_end');
-  assert.equal(calls[1].payload.harnessId, 'h');
+  assert.equal(calls[3].action, 'add_end');
+  assert.equal(calls[3].payload.harnessId, 'h');
 });
 
 asyncTest('junction popup matches pathway styling and shows traversing wire members', async () => {

@@ -56,6 +56,7 @@ let openPathwayPopupId = "";
 let openJunctionPopupId = "";
 const routeFilters = new Map();
 const relationshipFilters = new Map();
+const relationshipDiagramViews = new Map();
 const relationshipEndListOverrides = new Map();
 const DEFAULT_RELATIONSHIP_COLLAPSE_LIMIT = 7;
 const MIN_RELATIONSHIP_COLLAPSE_LIMIT = 1;
@@ -243,6 +244,36 @@ function nameField(
   ));
   field.append(input);
   return field;
+}
+
+/** Temporarily replace a label with an inline name editor. */
+function beginInlineNameEdit(container, label, before, options) {
+  if (container.querySelector("input")) return;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "filter";
+  input.value = options.value || "";
+  input.placeholder = options.placeholder;
+  input.setAttribute("aria-label", options.ariaLabel);
+  label.hidden = true;
+  container.insertBefore(input, before);
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return;
+    finished = true;
+    input.remove();
+    label.hidden = false;
+    if (save) void options.onSave(input.value);
+  };
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === "Escape") {
+      event.preventDefault();
+      finish(event.key === "Enter");
+    }
+  });
+  input.addEventListener("blur", () => finish(true));
+  input.focus();
+  input.select();
 }
 
 function wireLabel(wire) {

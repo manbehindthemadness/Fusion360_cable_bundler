@@ -22,6 +22,7 @@ from ...application import (
     rename_junction,
     rename_pathway,
     rename_route_end,
+    rename_standalone_end,
     rename_wire,
     set_harness_material_defaults,
     set_wire_diameter,
@@ -137,6 +138,17 @@ def _apply_palette_edit(
             gateway,
         )
         return "Deleted standalone end."
+    if action == "rename_standalone_end":
+        name = payload.get("name")
+        if not isinstance(name, str):
+            raise ValueError("Standalone end rename request requires a text name.")
+        rename_standalone_end(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "standalone end"),
+            name,
+            gateway,
+        )
+        return "Saved end name."
     if action == "set_interpolation":
         target = payload.get("target")
         if target not in ("gate", "end", "defaults"):

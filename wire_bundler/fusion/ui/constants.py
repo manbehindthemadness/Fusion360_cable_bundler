@@ -102,6 +102,7 @@ PALETTE_EDIT_NAMES = {
     "remove_wire": "Delete Wire",
     "rename_junction": "Rename Junction",
     "rename_route_end": "Rename Wire End",
+    "rename_standalone_end": "Rename Standalone End",
     "rename_pathway": "Rename Pathway",
     "rename_wire": "Rename Wire",
     "set_wire_diameter": "Change Wire Diameter",

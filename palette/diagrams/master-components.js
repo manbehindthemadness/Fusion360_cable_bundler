@@ -273,6 +273,20 @@ function renderRelationshipBridge(wires) {
   return svg;
 }
 
+/** Replace one end label with an inline editor and persist the submitted name. */
+function renameRelationshipEnd(harness, group, entry, name, metadata) {
+  beginInlineNameEdit(entry, name, metadata, {
+    value: group.connectionName || group.label,
+    placeholder: group.label || "End name",
+    ariaLabel: "End name",
+    onSave: (value) => mutate("rename_standalone_end", {
+      harnessId: harness.harnessId,
+      connectionId: group.connectionId,
+      name: value,
+    }, "Saving end name…"),
+  });
+}
+
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
   showContextMenu, focusController, wireCreationController,
@@ -354,13 +368,19 @@ function renderRelationshipEndList(
       button.setAttribute("aria-label", `${group.label}, disconnected end`);
       button.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
-        showContextMenu(event, [{
-          label: "Delete",
-          action: () => mutate("remove_standalone_end", {
-            harnessId: harness.harnessId,
-            connectionId: group.connectionId,
-          }, `Deleting ${group.label}…`),
-        }]);
+        showContextMenu(event, [
+          {
+            label: "Rename",
+            action: () => renameRelationshipEnd(harness, group, button, name, meta),
+          },
+          {
+            label: "Delete",
+            action: () => mutate("remove_standalone_end", {
+              harnessId: harness.harnessId,
+              connectionId: group.connectionId,
+            }, `Deleting ${group.label}…`),
+          },
+        ]);
       });
     }
     items.append(button);

@@ -4,7 +4,7 @@ const BLOCK_DIAGRAM_MAX_SCALE = 2.5;
 /**
  * Create a zoomable diagram workspace whose panning matches Fusion navigation.
  */
-function createBlockDiagramWorkspace(label) {
+function createBlockDiagramWorkspace(label, options = {}) {
   const root = document.createElement("div");
   const toolbar = document.createElement("div");
   const zoomOut = document.createElement("button");
@@ -14,9 +14,12 @@ function createBlockDiagramWorkspace(label) {
   const fit = document.createElement("button");
   const viewport = document.createElement("div");
   const stage = document.createElement("div");
-  let scale = 1;
-  let offsetX = 0;
-  let offsetY = 0;
+  const initialView = options.initialView || {};
+  let scale = Number.isFinite(initialView.scale)
+    ? Math.min(BLOCK_DIAGRAM_MAX_SCALE, Math.max(BLOCK_DIAGRAM_MIN_SCALE, initialView.scale))
+    : 1;
+  let offsetX = Number.isFinite(initialView.offsetX) ? initialView.offsetX : 0;
+  let offsetY = Number.isFinite(initialView.offsetY) ? initialView.offsetY : 0;
   let pan = null;
 
   root.className = "block-diagram-workspace";
@@ -39,10 +42,11 @@ function createBlockDiagramWorkspace(label) {
   fit.title = "Fit diagram";
   zoomValue.className = "block-diagram-zoom";
 
-  const renderTransform = () => {
+  const renderTransform = (notify = true) => {
     stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     zoomValue.value = `${Math.round(scale * 100)}%`;
     zoomValue.textContent = zoomValue.value;
+    if (notify && options.onViewChange) options.onViewChange({ scale, offsetX, offsetY });
   };
   const setScale = (nextScale, anchorX = viewport.clientWidth / 2,
     anchorY = viewport.clientHeight / 2) => {
@@ -114,6 +118,6 @@ function createBlockDiagramWorkspace(label) {
   toolbar.append(zoomOut, zoomValue, zoomIn, actualSize, fit);
   viewport.append(stage);
   root.append(toolbar, viewport);
-  renderTransform();
+  renderTransform(false);
   return { root, stage, fit: fitDiagram, zoomValue, viewport };
 }

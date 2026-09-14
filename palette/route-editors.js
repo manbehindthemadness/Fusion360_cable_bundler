@@ -157,33 +157,14 @@ function wireHeader(harness, wire, details, missing) {
   label.setAttribute("aria-controls", details.id);
   hoverHighlight(row, () => highlightMember(harness, "preview_wire", wire.wireId));
   const rename = actionButton("✎", "Rename wire", () => {
-    if (row.querySelector("input")) return;
-    const input = document.createElement("input");
-    input.className = "filter";
-    input.value = wire.displayName || "";
-    input.placeholder = wireLabel(wire);
-    input.setAttribute("aria-label", "Wire name");
-    label.hidden = true;
-    row.insertBefore(input, actions);
-    let finished = false;
-    const finish = (save) => {
-      if (finished) return;
-      finished = true;
-      input.remove();
-      label.hidden = false;
-      if (save) void mutate("rename_wire", {
-        harnessId: harness.harnessId, wireId: wire.wireId, name: input.value,
-      }, "Saving wire name…");
-    };
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === "Escape") {
-        event.preventDefault();
-        finish(event.key === "Enter");
-      }
+    beginInlineNameEdit(row, label, actions, {
+      value: wire.displayName,
+      placeholder: wireLabel(wire),
+      ariaLabel: "Wire name",
+      onSave: (value) => mutate("rename_wire", {
+        harnessId: harness.harnessId, wireId: wire.wireId, name: value,
+      }, "Saving wire name…"),
     });
-    input.addEventListener("blur", () => finish(true));
-    input.focus();
-    input.select();
   });
   actions.append(rename, actionButton(
     "×", `Remove ${wireLabel(wire)}`, () => removeWirePair(harness, wire), false, true,
