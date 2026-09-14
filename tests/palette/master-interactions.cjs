@@ -625,7 +625,7 @@ asyncTest('junction context menu deletes after confirmation and keeps cancellati
   menu.children[1].events.click();
   await Promise.resolve();
   assert.match(warning, /Delete Main junction/);
-  assert.match(warning, /1 wire/);
+  assert.match(warning, /pathways, wires, and neighboring junctions will be kept/);
   assert.match(warning, /undone in Fusion/);
   assert.equal(calls[0].action, 'remove_junction');
   assert.equal(calls[0].payload.harnessId, 'h');

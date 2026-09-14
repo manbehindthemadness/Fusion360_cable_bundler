@@ -274,7 +274,7 @@ def test_palette_edit_deletes_junction_by_identity(
     )
 
     remove.assert_called_once_with(harness_id, junction_id, gateway)
-    assert notice == "Deleted junction branch."
+    assert notice == "Deleted junction."
 
 
 @pytest.mark.parametrize("action", ["rename_wire", "set_interpolation"])
@@ -367,7 +367,7 @@ def test_junction_deletion_runs_in_one_native_transaction(
     application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    applied = Mock(return_value="Deleted junction branch.")
+    applied = Mock(return_value="Deleted junction.")
     reconciled = Mock()
     refreshed = Mock(return_value="")
     sent = Mock()
@@ -384,7 +384,7 @@ def test_junction_deletion_runs_in_one_native_transaction(
     reconciled.assert_called_once_with(application)
     refreshed.assert_called_once_with(application, harness_id, ensure_visible=False)
     application.activeViewport.refresh.assert_called_once_with()
-    sent.assert_called_once_with(application, "Deleted junction branch.")
+    sent.assert_called_once_with(application, "Deleted junction.")
     assert not args.executeFailed
 
 

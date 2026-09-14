@@ -178,16 +178,6 @@ function relationshipBranchDeletionIds(harness, rootPathwayIds) {
   return deletedPathwayIds;
 }
 
-/** Return every pathway deleted with one junction's downstream branch. */
-function relationshipJunctionDeletionIds(harness, junction) {
-  return relationshipBranchDeletionIds(
-    harness,
-    (junction.pathwayRelationships || [])
-      .filter((relationship) => relationship.endpoint === "start")
-      .map((relationship) => relationship.pathwayId),
-  );
-}
-
 function relationshipJunctionWires(harness, junction) {
   const relationships = junction.pathwayRelationships || [];
   const preceding = new Set(

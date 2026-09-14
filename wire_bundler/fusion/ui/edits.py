@@ -129,7 +129,7 @@ def _apply_palette_edit(
             _read_payload_uuid(payload, "junctionId", "junction"),
             gateway,
         )
-        return "Deleted junction branch."
+        return "Deleted junction."
     if action == "remove_standalone_end":
         remove_standalone_end(
             harness_id,

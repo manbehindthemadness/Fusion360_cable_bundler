@@ -741,74 +741,18 @@ def remove_junction(
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Remove one junction, its exclusive downstream branch, and owned dependent data.
-
-    Other junctions remain in place so surviving pathways retain their surrounding
-    topology and relationship identities.
+    Remove one junction and its dedicated control without changing neighboring topology.
     """
     original, definition = _read_definition(harness_id, gateway)
     junction = _require_junction(definition, junction_id)
-    deleted_pathway_ids = _pathway_branch_deletion_ids(
-        definition,
-        {
-            relationship.pathway_id
-            for relationship in junction.pathway_relationships
-            if relationship.endpoint is PathwayEndpoint.START
-        },
-    )
-    pathways = tuple(
-        pathway for pathway in definition.pathways if pathway.pathway_id not in deleted_pathway_ids
-    )
-    junctions = tuple(
-        replace(
-            candidate,
-            pathway_relationships=tuple(
-                relationship
-                for relationship in candidate.pathway_relationships
-                if relationship.pathway_id not in deleted_pathway_ids
-            ),
-        )
-        for candidate in definition.junctions
-        if candidate.junction_id != junction_id
-    )
-    wires = tuple(
-        wire
-        for wire in definition.wires
-        if not any(pathway_id in deleted_pathway_ids for pathway_id in wire.ordered_pathway_ids)
-    )
-    standalone_ends = tuple(
-        end for end in definition.standalone_ends if end.pathway_id not in deleted_pathway_ids
-    )
-    referenced_connection_ids = {
-        connection_id
-        for wire in wires
-        for connection_id in (wire.start_connection_id, wire.end_connection_id)
-    } | {end.connection_id for end in standalone_ends}
-    referenced_profile_ids = {wire.profile_id for wire in wires}
-    referenced_control_ids = {
-        control_id for pathway in pathways for control_id in pathway.ordered_control_ids
-    } | {candidate.control_id for candidate in junctions}
     updated = replace(
         definition,
         controls=tuple(
-            control
-            for control in definition.controls
-            if control.control_id in referenced_control_ids
+            control for control in definition.controls if control.control_id != junction.control_id
         ),
-        connections=tuple(
-            connection
-            for connection in definition.connections
-            if connection.connection_id in referenced_connection_ids
+        junctions=tuple(
+            candidate for candidate in definition.junctions if candidate.junction_id != junction_id
         ),
-        junctions=junctions,
-        pathways=pathways,
-        profiles=tuple(
-            profile
-            for profile in definition.profiles
-            if profile.profile_id in referenced_profile_ids
-        ),
-        standalone_ends=standalone_ends,
-        wires=wires,
     )
     _persist(harness_id, original, updated, gateway)
 

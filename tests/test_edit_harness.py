@@ -1236,11 +1236,11 @@ def test_restores_pathway_after_delete_persistence_failure(
     assert gateway.writes[1] == original
 
 
-def test_removes_junction_branch_and_its_dependent_data(
+def test_removes_only_junction_and_its_dedicated_control(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Delete a junction's following branch while retaining its incoming pathway.
+    Preserve connected pathways and dependent data when deleting one junction.
     """
     preceding = valid_harness.pathways[0]
     following = PathwayDefinition(
@@ -1293,22 +1293,20 @@ def test_removes_junction_branch_and_its_dependent_data(
     remove_junction(definition.harness_id, junction.junction_id, gateway)
 
     stored = loads(gateway.serialized_definition)
-    assert stored.pathways == (preceding,)
-    assert stored.junctions == ()
-    assert [control.control_id for control in stored.controls] == list(
-        preceding.ordered_control_ids
+    assert stored == replace(
+        definition,
+        controls=tuple(
+            control for control in definition.controls if control.control_id != junction.control_id
+        ),
+        junctions=(),
     )
-    assert stored.connections == ()
-    assert stored.profiles == ()
-    assert stored.standalone_ends == ()
-    assert stored.wires == ()
 
 
-def test_removing_junction_preserves_shared_downstream_topology(
+def test_removing_junction_preserves_neighbor_junction_and_all_relationships(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Keep a following route when a surviving pathway also enters its next junction.
+    Keep an adjacent junction intact even when it references a connected pathway.
     """
     preceding = valid_harness.pathways[0]
     following = PathwayDefinition(
@@ -1364,15 +1362,14 @@ def test_removing_junction_preserves_shared_downstream_topology(
     remove_junction(definition.harness_id, selected_junction.junction_id, gateway)
 
     stored = loads(gateway.serialized_definition)
-    assert stored.pathways == (preceding, surviving_parent, downstream)
-    assert stored.junctions == (
-        replace(
-            downstream_junction,
-            pathway_relationships=(
-                JunctionPathwayRelationship(surviving_parent.pathway_id, PathwayEndpoint.END),
-                JunctionPathwayRelationship(downstream.pathway_id, PathwayEndpoint.START),
-            ),
+    assert stored == replace(
+        definition,
+        controls=tuple(
+            control
+            for control in definition.controls
+            if control.control_id != selected_junction.control_id
         ),
+        junctions=(downstream_junction,),
     )
 
 
