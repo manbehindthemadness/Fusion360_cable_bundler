@@ -1,4 +1,5 @@
 function renderEditor(harness) {
+  closeCreateWiresPopup();
   ui.editor.replaceChildren();
   ui.generateSolids.disabled = harness.status === "damaged" || !harness.wires?.length;
   ui.defaults.disabled = harness.status === "damaged";

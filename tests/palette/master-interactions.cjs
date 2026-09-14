@@ -721,3 +721,196 @@ asyncTest('pathway context menu segments eligible controls and renders its junct
   assert.equal(calls.at(-1).payload.memberType, 'junction');
   assert.equal(calls.at(-1).payload.memberId, 'j1');
 });
+
+test('Create Wires selects only reachable pathway-end headers and cancels elsewhere', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways = [
+    { pathwayId: 'p1', name: 'Source path', startName: '', endName: '',
+      orderedControlIds: [] },
+    { pathwayId: 'p2', name: 'Middle path', startName: '', endName: '',
+      orderedControlIds: [] },
+    { pathwayId: 'p3', name: 'Target path', startName: '', endName: '',
+      orderedControlIds: [] },
+    { pathwayId: 'p4', name: 'Disconnected path', startName: '', endName: '',
+      orderedControlIds: [] },
+  ];
+  definition.connections = [
+    { connectionId: 'source', name: 'End A 001', hasLinkedGeometry: true },
+    { connectionId: 'target', name: 'End B 001', hasLinkedGeometry: true },
+    { connectionId: 'isolated', name: 'End A 002', hasLinkedGeometry: true },
+  ];
+  definition.wires = [];
+  definition.standaloneEnds = [
+    { connectionId: 'source', pathwayId: 'p1', endpoint: 'start' },
+    { connectionId: 'target', pathwayId: 'p3', endpoint: 'end' },
+    { connectionId: 'isolated', pathwayId: 'p4', endpoint: 'start' },
+  ];
+  definition.junctions = [
+    { junctionId: 'j1', name: 'Junction 1', controlId: 'c1', pathwayRelationships: [
+      { pathwayId: 'p1', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ] },
+    { junctionId: 'j2', name: 'Junction 2', controlId: 'c2', pathwayRelationships: [
+      { pathwayId: 'p2', endpoint: 'end' },
+      { pathwayId: 'p3', endpoint: 'start' },
+    ] },
+  ];
+
+  const graphic = context.renderRelationshipMap(definition, []);
+  const endLists = descendants(
+    graphic, (node) => node.className?.startsWith('relationship-end-list'),
+  );
+  const boundary = (pathwayId, endpoint) => endLists.find(
+    (list) => list.dataset.pathwayId === pathwayId && list.dataset.endpoint === endpoint,
+  );
+  const source = boundary('p1', 'start').children[0];
+  const target = boundary('p3', 'end').children[0];
+  const isolated = boundary('p4', 'start').children[0];
+  const empty = boundary('p1', 'end').children[0];
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  const contextEvent = {
+    clientX: 80, clientY: 90, preventDefault: () => {}, stopPropagation: () => {},
+  };
+
+  empty.events.contextmenu(contextEvent);
+  assert.equal(menu.children[0].textContent, 'Create Wires');
+  assert.equal(menu.children[0].disabled, true);
+  assert.equal(menu.children[0].title, 'Requires at least one end');
+
+  boundary('p1', 'start').open = false;
+  source.events.contextmenu(contextEvent);
+  assert.equal(menu.children[0].disabled, false);
+  menu.children[0].events.click();
+  assert.ok(source.className.includes('wire-creation-source'));
+  assert.ok(target.className.includes('wire-creation-target'));
+  assert.ok(isolated.className.includes('wire-creation-unavailable'));
+
+  let prevented = false;
+  let stopped = false;
+  context.document.dispatchEvent({
+    type: 'click', button: 0, target,
+    preventDefault: () => { prevented = true; },
+    stopPropagation: () => { stopped = true; },
+  });
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+  const dialog = context.document.body.querySelector('.create-wires-popup');
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.attributes['aria-labelledby'], 'create-wires-title');
+
+  const close = descendants(dialog, (node) => node.textContent === 'Close')[0];
+  close.events.click();
+  assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
+
+  source.events.contextmenu(contextEvent);
+  menu.children[0].events.click();
+  let escapePrevented = false;
+  context.document.dispatchEvent({
+    type: 'keydown', key: 'Escape', target: source,
+    preventDefault: () => { escapePrevented = true; }, stopPropagation: () => {},
+  });
+  assert.equal(escapePrevented, true);
+  assert.equal(source.className.includes('wire-creation-source'), false);
+
+  source.events.contextmenu(contextEvent);
+  menu.children[0].events.click();
+  let outsidePrevented = false;
+  context.document.dispatchEvent({
+    type: 'click', button: 0, target: graphic,
+    preventDefault: () => { outsidePrevented = true; }, stopPropagation: () => {},
+  });
+  assert.equal(outsidePrevented, true);
+  assert.equal(source.className.includes('wire-creation-source'), false);
+  assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
+
+  source.events.contextmenu(contextEvent);
+  menu.children[0].events.click();
+  context.renderEditor(definition);
+  assert.equal(source.className.includes('wire-creation-source'), false);
+  let staleListenerPrevented = false;
+  context.document.dispatchEvent({
+    type: 'click', button: 0, target: graphic,
+    preventDefault: () => { staleListenerPrevented = true; }, stopPropagation: () => {},
+  });
+  assert.equal(staleListenerPrevented, false);
+});
+
+test('Create Wires popup lists contextually disconnected ends around an empty center', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways = [
+    { pathwayId: 'p1', name: 'Source path', startName: '', endName: '',
+      orderedControlIds: [] },
+    { pathwayId: 'p2', name: 'Target path', startName: '', endName: '',
+      orderedControlIds: [] },
+  ];
+  definition.connections = [
+    { connectionId: 'cross-a', name: 'End A 001', hasLinkedGeometry: true },
+    { connectionId: 'cross-b', name: 'End B 001', hasLinkedGeometry: true },
+    { connectionId: 'elsewhere-a', name: 'End A 002', hasLinkedGeometry: true },
+    { connectionId: 'elsewhere-b', name: 'Other boundary', hasLinkedGeometry: true },
+    { connectionId: 'loose-b', name: 'End B 002', hasLinkedGeometry: true },
+  ];
+  definition.wires = [
+    { wireId: 'cross', wireNumber: '001', profileId: 'profile',
+      startConnectionId: 'cross-a', endConnectionId: 'cross-b',
+      orderedPathwayIds: ['p1', 'p2'] },
+    { wireId: 'elsewhere', wireNumber: '002', profileId: 'profile',
+      startConnectionId: 'elsewhere-a', endConnectionId: 'elsewhere-b',
+      orderedPathwayIds: ['p1'] },
+  ];
+  definition.standaloneEnds = [
+    { connectionId: 'loose-b', pathwayId: 'p2', endpoint: 'end' },
+  ];
+  definition.junctions = [{
+    junctionId: 'j1', name: 'Junction', controlId: 'c1', pathwayRelationships: [
+      { pathwayId: 'p1', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ],
+  }];
+
+  const graphic = context.renderRelationshipMap(definition, []);
+  const boundary = (pathwayId, endpoint) => descendants(
+    graphic,
+    (node) => node.className?.startsWith('relationship-end-list')
+      && node.dataset.pathwayId === pathwayId && node.dataset.endpoint === endpoint,
+  )[0];
+  const source = boundary('p1', 'start').children[0];
+  const target = boundary('p2', 'end').children[0];
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  source.events.contextmenu({
+    clientX: 80, clientY: 90, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  menu.children[0].events.click();
+  context.document.dispatchEvent({
+    type: 'click', button: 0, target, preventDefault: () => {}, stopPropagation: () => {},
+  });
+
+  const dialog = context.document.body.querySelector('.create-wires-popup');
+  const columns = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
+  );
+  const cards = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
+  );
+  assert.equal(columns.length, 3);
+  assert.deepEqual(columns.map((column) => column.children[0].textContent), [
+    'Source path · End A', 'Wire Assignments', 'Target path · End B',
+  ]);
+  assert.deepEqual(cards.map((card) => card.dataset.connectionId), [
+    'elsewhere-a', 'loose-b',
+  ]);
+  assert.ok(cards.every((card) => card.children[1].textContent === 'Disconnected'));
+  assert.deepEqual(cards.map((card) => [card.dataset.pathwayId, card.dataset.endpoint]), [
+    ['p1', 'start'], ['p2', 'end'],
+  ]);
+  const center = descendants(
+    dialog, (node) => node.className === 'create-wires-assignment-content',
+  )[0];
+  assert.equal(center.children.length, 0);
+});

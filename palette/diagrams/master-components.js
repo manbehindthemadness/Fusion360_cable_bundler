@@ -275,7 +275,7 @@ function renderRelationshipBridge(wires) {
 
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
-  showContextMenu, focusController,
+  showContextMenu, focusController, wireCreationController,
 ) {
   const side = endpoint === "start" ? "A" : "B";
   const details = document.createElement("details");
@@ -299,6 +299,18 @@ function renderRelationshipEndList(
   focusController.bind(summary, {
     wires: groups.flatMap((group) => group.wires),
     nodeIds: [`pathway:${pathway.pathwayId}`],
+  });
+  const wireCreationBoundary = wireCreationController.bind(
+    pathway, endpoint, groups, summary,
+  );
+  summary.addEventListener("contextmenu", (event) => {
+    event.stopPropagation();
+    showContextMenu(event, [{
+      label: "Create Wires",
+      action: () => wireCreationController.begin(wireCreationBoundary),
+      disabled: !groups.length,
+      title: groups.length ? "" : "Requires at least one end",
+    }]);
   });
   if (!groups.length) {
     details.open = false;
@@ -425,7 +437,7 @@ function addRelationshipMapContextMenu(workspace) {
 
 function renderRelationshipPathwayNode(
   harness, candidate, connections, query, collapseLimit, showContextMenu,
-  focusController, nodeIds,
+  focusController, wireCreationController, nodeIds,
 ) {
   const groups = {
     start: relationshipEndGroups(harness, candidate.pathwayId, "start", connections),
@@ -448,11 +460,11 @@ function renderRelationshipPathwayNode(
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
-    showContextMenu, focusController,
+    showContextMenu, focusController, wireCreationController,
   );
   const endList = renderRelationshipEndList(
     harness, candidate, "end", groups.end, visibleEnd, query, collapseLimit,
-    showContextMenu, focusController,
+    showContextMenu, focusController, wireCreationController,
   );
   const startConnector = renderRelationshipConnector(
     visibleStart, pathwayWires, true, startList.open, pathwayWires.length === 0,

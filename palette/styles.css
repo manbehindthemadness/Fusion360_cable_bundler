@@ -21,7 +21,8 @@ body {
 .wire-details { display: grid; gap: 8px; }
 .wire-options { border: 1px solid var(--border); border-radius: 6px; width: 320px; max-width: 90vw; }
 .pathway-popup,
-.junction-relationships-popup {
+.junction-relationships-popup,
+.create-wires-popup {
   width: 620px;
   max-width: 92vw;
   max-height: 88vh;
@@ -33,7 +34,8 @@ body {
   color: var(--text);
 }
 .pathway-popup::backdrop,
-.junction-relationships-popup::backdrop { background: #0005; }
+.junction-relationships-popup::backdrop,
+.create-wires-popup::backdrop { background: #0005; }
 .pathway-popup > .pathway-popup-entry,
 .junction-relationships-popup > .pathway-popup-entry { margin: 0; }
 .pathway-popup-actions {
@@ -575,6 +577,56 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+.wire-creation-selecting .relationship-end-list > summary {
+  transition: opacity 120ms ease, outline-color 120ms ease, background 120ms ease;
+}
+.wire-creation-selecting .relationship-end-list > summary.wire-creation-source {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  background: #dceefb;
+}
+.wire-creation-selecting .relationship-end-list > summary.wire-creation-target {
+  outline: 2px solid var(--success);
+  outline-offset: 2px;
+  background: #edf8ed;
+  cursor: pointer;
+}
+.wire-creation-selecting .relationship-end-list > summary.wire-creation-unavailable {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.create-wires-popup {
+  width: 900px;
+  overflow: hidden;
+}
+.create-wires-popup > h2 { margin-bottom: 12px; }
+.create-wires-layout {
+  height: min(560px, 68vh);
+  min-height: 260px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.create-wires-column {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--surface-subtle);
+}
+.create-wires-column > h3 {
+  margin-bottom: 9px;
+  overflow-wrap: anywhere;
+}
+.create-wires-end-list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.create-wires-end-card { cursor: default; }
+.create-wires-assignment-content { min-height: 100%; }
 .relationship-topology-edge.relationship-focus-match .structural-trace { stroke-width: 3; }
 .relationship-topology-edge.relationship-focus-match .relationship-wire-bundle {
   stroke-width: 9;

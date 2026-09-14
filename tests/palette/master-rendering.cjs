@@ -252,6 +252,7 @@ test('palette entry point loads organized local style and script resources', () 
       'palette/wire-graphic.js',
       'palette/diagrams/master-model.js',
       'palette/diagrams/master-layout.js',
+      'palette/diagrams/create-wires.js',
       'palette/diagrams/master-components.js',
       'palette/master-graphic.js',
       'palette/editor.js',

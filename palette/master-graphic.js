@@ -14,6 +14,7 @@ function renderRelationshipMap(harness, auditIssues) {
   const collapseInput = document.createElement("input");
   const workspace = createBlockDiagramWorkspace("Zoomable master relationship diagram");
   const focusController = createRelationshipFocusController(container);
+  const wireCreationController = createWireCreationController(harness, container);
   const showContextMenu = addRelationshipMapContextMenu(workspace);
   container.className = "section-content relationship-map";
   container.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
@@ -39,6 +40,7 @@ function renderRelationshipMap(harness, auditIssues) {
   settings.append(collapseInput, "connections");
 
   const draw = () => {
+    wireCreationController.cancel();
     const query = filter.value.trim().toLocaleLowerCase();
     const collapseLimit = clampRelationshipCollapseLimit(collapseInput.value);
     relationshipFilters.set(harnessKey(harness), query);
@@ -84,6 +86,7 @@ function renderRelationshipMap(harness, auditIssues) {
             collapseLimit,
             showContextMenu,
             focusController,
+            wireCreationController,
             focusNodeIds,
           ));
         }

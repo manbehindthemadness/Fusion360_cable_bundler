@@ -13,6 +13,7 @@ function closeEditor() {
   send("clear_highlight").catch(() => {});
   closePathwayPopup();
   closeJunctionRelationships();
+  closeCreateWiresPopup();
   selectedHarnessKey = "";
   removeSession("wireBundler.selectedHarness");
   ui.editorView.hidden = true;
@@ -36,6 +37,7 @@ function render(state) {
   } else {
     closePathwayPopup();
     closeJunctionRelationships();
+    closeCreateWiresPopup();
     selectedHarnessKey = "";
     removeSession("wireBundler.selectedHarness");
     ui.editorView.hidden = true;
