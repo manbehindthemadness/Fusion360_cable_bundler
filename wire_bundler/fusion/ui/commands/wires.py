@@ -13,7 +13,7 @@ import adsk.core
 import adsk.fusion
 
 from ....application import add_wire_batch
-from ....domain import loads
+from ....domain import DEFAULT_WIRE_DIAMETER_MM, loads
 from ..constants import (
     DESTINATION_CONNECTIONS_INPUT_ID,
     SOURCE_CONNECTIONS_INPUT_ID,
@@ -150,7 +150,7 @@ class _AddWiresCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 if pathway_input.listItems.add(pathway.name, is_selected) is None:
                     raise RuntimeError(f"Fusion did not add the pathway option: {pathway.name}")
 
-            diameter_value = adsk.core.ValueInput.createByString("1.5 mm")
+            diameter_value = adsk.core.ValueInput.createByString(f"{DEFAULT_WIRE_DIAMETER_MM:g} mm")
             diameter_input = command_inputs.addValueInput(
                 WIRE_DIAMETER_INPUT_ID,
                 "Wire Diameter",

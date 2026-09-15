@@ -382,10 +382,16 @@ function renderRelationshipEndList(
   return details;
 }
 
-function addRelationshipMapContextMenu(workspace) {
+function addRelationshipMapContextMenu(workspace, harness) {
   const show = addContextMenu(workspace.root, workspace.viewport);
   workspace.viewport.addEventListener("contextmenu", (event) => {
     show(event, [
+      {
+        label: "Preview Routes",
+        action: previewRoutes,
+        disabled: !(harness.wireGroups || []).length,
+        title: (harness.wireGroups || []).length ? "" : "Requires at least one wire group",
+      },
       { label: "Add pathway", action: addPathway },
       { label: "Add end", action: addEnd },
       { label: "Add junction", action: addJunction },

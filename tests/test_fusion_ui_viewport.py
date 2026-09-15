@@ -185,7 +185,7 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
 
     viewport.refresh.assert_called_once()
     notice = send_state.call_args.args[1]
-    assert notice.startswith("Previewing 3 wire routes.\nWire 001:")
+    assert notice.startswith("Previewing 3 wire-group route legs.\nWire 001:")
     assert "from 5.063 mm to 4.563 mm" in notice
 
 

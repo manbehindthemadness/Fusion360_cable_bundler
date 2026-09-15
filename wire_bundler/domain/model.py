@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import UUID, uuid5
 
 SCHEMA_VERSION = 10
+DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
 class RoutingMode(str, Enum):

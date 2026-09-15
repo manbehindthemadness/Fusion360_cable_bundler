@@ -1,7 +1,6 @@
 const ui = {
   back: document.getElementById("back"),
   addWires: document.getElementById("add-wires"),
-  previewRoutes: document.getElementById("preview-routes"),
   clearPreview: document.getElementById("clear-preview"),
   generateSolids: document.getElementById("generate-solids"),
   clearSolids: document.getElementById("clear-solids"),

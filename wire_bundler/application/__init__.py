@@ -78,6 +78,11 @@ from .relationship_map import (
     audit_relationship_map,
     build_relationship_map,
 )
+from .wire_group_routes import (
+    WireGroupControlStep,
+    WireGroupRouteLeg,
+    plan_wire_group_routes,
+)
 
 __all__ = [
     "DamagedHarnessGateway",
@@ -87,6 +92,8 @@ __all__ = [
     "PathwaySegmentResult",
     "WireEditorPairing",
     "WireEditorRename",
+    "WireGroupControlStep",
+    "WireGroupRouteLeg",
     "HarnessGateway",
     "HarnessLibraryGateway",
     "HarnessLoadResult",
@@ -123,6 +130,7 @@ __all__ = [
     "load_harnesses",
     "move_pathway_gate",
     "move_wire_endpoint",
+    "plan_wire_group_routes",
     "remove_junction",
     "remove_pathway",
     "remove_pathway_gate",

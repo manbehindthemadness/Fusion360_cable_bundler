@@ -24,7 +24,7 @@ function renderRelationshipMap(harness, auditIssues) {
   );
   const focusController = createRelationshipFocusController(container);
   const wireCreationController = createWireCreationController(harness, container);
-  const showContextMenu = addRelationshipMapContextMenu(workspace);
+  const showContextMenu = addRelationshipMapContextMenu(workspace, harness);
   container.className = "section-content relationship-map";
   container.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
   container.dataset.diagramLayout = RELATIONSHIP_DIAGRAM_LAYOUT;

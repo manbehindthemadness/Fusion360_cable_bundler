@@ -52,11 +52,7 @@ def _refresh_active_preview(
     """
     design = _require_active_design(application)
     definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
-    if (
-        ensure_visible
-        and definition.wires
-        and any(definition.wire_materials(wire).stripes for wire in definition.wires)
-    ):
+    if ensure_visible and definition.wire_groups and definition.material_defaults.stripes:
         warnings: tuple[str, ...] = ()
         show_route_previews(design, definition)
     else:
@@ -96,6 +92,9 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     definition = loads(gateway.read_harness_definition(harness_id))
     wire_ids: tuple[UUID, ...] = ()
     refine_ids: tuple[UUID, ...] = ()
+    preview_connection_ids: tuple[UUID, ...] = ()
+    preview_pathway_ids: tuple[UUID, ...] = ()
+    preview_control_ids: tuple[UUID, ...] = ()
     if member_type == "junction":
         junction = next(
             (item for item in definition.junctions if item.junction_id == member_id),
@@ -110,6 +109,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if control is None:
             raise ValueError("Selected junction has a missing routing control.")
         refine_ids = (control.control_id,) if control.kind is ControlKind.REFINE else ()
+        preview_control_ids = (control.control_id,)
         tokens = (control.entity_token,) if control.entity_token else ()
     elif member_type in {"pathway", "pathway_gates", "pathway_wires"}:
         pathway = next((item for item in definition.pathways if item.pathway_id == member_id), None)
@@ -122,6 +122,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             if member_type != "pathway_gates"
             else ()
         )
+        preview_pathway_ids = (member_id,)
         control_ids = pathway.ordered_control_ids if member_type != "pathway_wires" else ()
         controls = {control.control_id: control for control in definition.controls}
         refine_ids = tuple(
@@ -144,12 +145,14 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if member_type == "wire":
             wire_ids = (member_id,)
         elif member_type == "connection":
+            preview_connection_ids = (member_id,)
             wire_ids = tuple(
                 wire.wire_id
                 for wire in definition.wires
                 if member_id in {wire.start_connection_id, wire.end_connection_id}
             )
         elif member_type == "control":
+            preview_control_ids = (member_id,)
             wire_ids = tuple(
                 wire.wire_id for wire in definition.wires if member_id in wire.ordered_control_ids
             )
@@ -168,7 +171,13 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             ):
                 raise ValueError("Selected connection member no longer exists.")
             tokens = (tokens[index],)
-    preview_count = highlight_route_members(design, wire_ids)
+    preview_count = highlight_route_members(
+        design,
+        wire_ids,
+        connection_ids=preview_connection_ids,
+        pathway_ids=preview_pathway_ids,
+        control_ids=preview_control_ids,
+    )
     refine_count = highlight_refine_graphics(design, refine_ids)
     profiles: list[adsk.fusion.Profile] = []
     for token in tokens:
@@ -260,7 +269,7 @@ def _preview_routes(application: adsk.core.Application, serialized_data: str) ->
     notices: list[str] = []
     routes = show_route_previews(design, definition, notices=notices)
     application.activeViewport.refresh()
-    summary = f"Previewing {len(routes)} wire routes."
+    summary = f"Previewing {len(routes)} wire-group route legs."
     _send_palette_state(application, "\n".join((summary, *notices)))
     return len(routes)
 

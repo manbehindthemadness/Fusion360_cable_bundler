@@ -748,7 +748,7 @@ async function previewRoutes() {
   const harness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,
   );
-  if (!harness || harness.status === "damaged" || !harness.wires.length) return;
+  if (!harness || harness.status === "damaged" || !(harness.wireGroups || []).length) return;
   appendNotice("Solving route preview…");
   try {
     const response = await send("preview_routes", { harnessId: harness.harnessId });
@@ -784,7 +784,6 @@ ui.materialDefaults.addEventListener("click", () => {
 });
 ui.generateSolids.addEventListener("click", generateSolids);
 ui.clearSolids.addEventListener("click", clearSolids);
-ui.previewRoutes.addEventListener("click", previewRoutes);
 ui.clearPreview.addEventListener("click", clearPreview);
 ui.back.addEventListener("click", closeEditor);
 ui.create.addEventListener("click", createHarness);

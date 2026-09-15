@@ -4,6 +4,7 @@ Pure application domain for harness definitions and validation.
 
 from .codec import DefinitionParseError, dumps, loads
 from .model import (
+    DEFAULT_WIRE_DIAMETER_MM,
     SCHEMA_VERSION,
     Connection,
     ControlKind,
@@ -31,6 +32,7 @@ from .naming import next_available_name
 from .validation import ValidationIssue, validate_harness
 
 __all__ = [
+    "DEFAULT_WIRE_DIAMETER_MM",
     "SCHEMA_VERSION",
     "Connection",
     "ControlKind",

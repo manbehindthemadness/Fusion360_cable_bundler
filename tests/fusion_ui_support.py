@@ -182,7 +182,7 @@ class _PaletteLifecycleModule(Protocol):
     _highlight_member: Callable[[object, str], int]
     _require_active_design: Callable[[object], object]
     highlight_route_preview: Callable[[object, object], int]
-    highlight_route_members: Callable[[object, tuple[UUID, ...]], int]
+    highlight_route_members: Callable[..., int]
     highlight_refine_graphics: Callable[[object, tuple[UUID, ...]], int]
     load_harnesses: Callable[[object], tuple[HarnessLoadResult, ...]]
 

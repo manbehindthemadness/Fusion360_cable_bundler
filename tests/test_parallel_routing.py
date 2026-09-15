@@ -15,6 +15,7 @@ from wire_bundler.routing import (
     RefineFrame,
     Vector3,
     WireRouteInput,
+    place_route_crossings,
     solve_parallel_routes,
 )
 
@@ -64,6 +65,19 @@ def test_preserves_wire_and_gate_order_in_preview() -> None:
         second_offset = routes[wire_index].points[2]
         assert first_offset.x == pytest.approx(second_offset.x)
         assert first_offset.y == pytest.approx(second_offset.y)
+
+
+def test_places_network_crossings_without_synthesizing_complete_routes() -> None:
+    """
+    Expose the same deterministic packing for junction-centered network legs.
+    """
+    wires = tuple(_wire(index) for index in range(1, 4))
+    gate = _gate(1)
+
+    crossings = place_route_crossings(wires, gate)
+    routes = solve_parallel_routes(wires, (gate,))
+
+    assert crossings == tuple(route.points[1] for route in routes)
 
 
 def test_refine_preserves_bundle_spacing_without_aperture_constraint() -> None:

@@ -825,7 +825,7 @@ def test_refine_control_hover_highlights_persistent_marker(
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "highlight_refine_graphics", marker_highlight)
-    monkeypatch.setattr(addin_module, "highlight_route_members", lambda _design, _ids: 0)
+    monkeypatch.setattr(addin_module, "highlight_route_members", lambda _design, _ids, **_kwargs: 0)
     monkeypatch.setattr(addin_module, "generated_wire_bodies", lambda *_args: ())
     payload = json.dumps(
         {

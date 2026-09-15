@@ -5,7 +5,6 @@ function renderEditor(harness) {
   ui.defaults.disabled = harness.status === "damaged";
   ui.materialDefaults.disabled = harness.status === "damaged";
   ui.addWires.disabled = harness.status === "damaged" || !harness.pathways?.length;
-  ui.previewRoutes.disabled = harness.status === "damaged" || !harness.wires?.length;
   const heading = document.createElement("div");
   const title = document.createElement("h2");
   const meta = document.createElement("div");

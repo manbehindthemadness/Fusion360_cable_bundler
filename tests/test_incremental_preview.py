@@ -14,10 +14,16 @@ from uuid import UUID
 
 import pytest
 
+from wire_bundler.application import WireGroupControlStep, WireGroupRouteLeg
 from wire_bundler.domain import (
+    DEFAULT_WIRE_DIAMETER_MM,
+    Connection,
     HarnessDefinition,
+    PathwayEndpoint,
+    StandaloneEndDefinition,
     StripePattern,
     WireColor,
+    WireGroupDefinition,
     WireMaterialSettings,
     WireStripe,
 )
@@ -25,11 +31,14 @@ from wire_bundler.domain.model import InterpolationSettings
 from wire_bundler.routing import (
     CubicBezier,
     GateFrame,
+    RefineFrame,
     RoutePreview,
     TransitionAdjustment,
     TransitionLengths,
     Vector3,
+    WireRouteInput,
     fair_route,
+    minimum_circular_bend_radius,
     sample_centerline,
 )
 from wire_bundler.routing.geometry import cross, magnitude, unit
@@ -40,9 +49,15 @@ class _PreviewModule(Protocol):
     Describe the adapter surface exercised against mocked graphics.
     """
 
-    _preview_states: dict[str, object]
-    _PreviewState: Callable[..., object]
+    _preview_states: dict[str, _PreviewStateData]
+    _PreviewState: Callable[..., _PreviewStateData]
     _solve_definition_routes: Callable[..., tuple[RoutePreview, ...]]
+    _solve_wire_group_routes: Callable[
+        ..., tuple[tuple[RoutePreview, ...], tuple[WireGroupRouteLeg, ...]]
+    ]
+    _routing_frame: Callable[..., object]
+    plan_wire_group_routes: Callable[[HarnessDefinition], tuple[WireGroupRouteLeg, ...]]
+    place_route_crossings: Callable[..., tuple[Vector3, ...]]
     _fairing_failure_diagnostic: Callable[
         [RoutePreview, tuple[Vector3, ...], tuple[TransitionLengths, ...], float], str
     ]
@@ -58,6 +73,16 @@ class _PreviewModule(Protocol):
     clear_route_previews: Callable[[object], int]
     has_route_previews: Callable[[object], bool]
     reconcile_preview_history: Callable[[object, tuple[HarnessDefinition, ...]], None]
+
+
+class _PreviewStateData(Protocol):
+    """
+    Describe mutable preview state used by focused adapter tests.
+    """
+
+    definition: HarnessDefinition
+    routes: dict[UUID, RoutePreview]
+    is_group_network: bool
 
 
 class _Group:
@@ -201,6 +226,242 @@ def scenario(monkeypatch: pytest.MonkeyPatch, valid_harness: HarnessDefinition) 
     monkeypatch.setattr(module, "_solve_definition_routes", solve)
     monkeypatch.setattr(module, "_add_route_graphics", draw)
     return state
+
+
+def _two_end_group_geometry(
+    definition: HarnessDefinition,
+) -> tuple[dict[str, Vector3], RefineFrame]:
+    """
+    Return deterministic endpoint positions and a shared pathway crossing.
+    """
+    positions = {
+        definition.connections[0].entity_token: Vector3(0, 0, 0),
+        definition.connections[1].entity_token: Vector3(10, 0, 0),
+    }
+    frame = RefineFrame(
+        definition.controls[0].control_id,
+        "Gate",
+        Vector3(5, 0, 0),
+        Vector3(1, 0, 0),
+        Vector3(0, 1, 0),
+    )
+    return positions, frame
+
+
+def test_solves_group_route_with_default_profile_and_shared_control_crossing(
+    scenario: _Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Build a transient route from group endpoints instead of persisted wire records.
+    """
+    definition = scenario.definition
+    wire = definition.wires[0]
+    grouped = replace(
+        definition,
+        wire_groups=(
+            WireGroupDefinition(UUID(int=9901), (wire.start_connection_id, wire.end_connection_id)),
+        ),
+    )
+    positions, frame = _two_end_group_geometry(definition)
+    _mock_group_route_geometry(scenario, monkeypatch, frame, positions)
+    packed_diameters: list[float] = []
+
+    def place_crossings(
+        inputs: tuple[WireRouteInput, ...],
+        crossing_frame: RefineFrame,
+        _clearance_mm: float,
+    ) -> tuple[Vector3, ...]:
+        """
+        Record that stored profile dimensions take precedence over the fallback.
+        """
+        packed_diameters.extend(item.diameter_mm for item in inputs)
+        return (crossing_frame.origin,) * len(inputs)
+
+    monkeypatch.setattr(scenario.module, "place_route_crossings", place_crossings)
+
+    routes, legs = scenario.module._solve_wire_group_routes(scenario.design, grouped, 0.0)
+
+    assert len(routes) == len(legs) == 1
+    assert routes[0].wire_id == legs[0].route_id
+    assert routes[0].wire_number == "Group 1 Leg 1"
+    assert routes[0].points[1] == frame.origin
+    assert {routes[0].points[0], routes[0].points[-1]} == {
+        Vector3(0, 0, 0),
+        Vector3(10, 0, 0),
+    }
+    assert packed_diameters == [definition.profiles[0].diameter_mm]
+
+
+def test_solves_profileless_group_with_shared_default_diameter(
+    scenario: _Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Use the native wire default without persisting a profile or legacy wire.
+    """
+    definition = scenario.definition
+    wire = definition.wires[0]
+    pathway_id = definition.pathways[0].pathway_id
+    grouped = replace(
+        definition,
+        profiles=(),
+        wires=(),
+        standalone_ends=(
+            StandaloneEndDefinition(wire.start_connection_id, pathway_id, PathwayEndpoint.START),
+            StandaloneEndDefinition(wire.end_connection_id, pathway_id, PathwayEndpoint.END),
+        ),
+        wire_groups=(
+            WireGroupDefinition(UUID(int=9902), (wire.start_connection_id, wire.end_connection_id)),
+        ),
+    )
+    positions, frame = _two_end_group_geometry(definition)
+    _mock_group_route_geometry(scenario, monkeypatch, frame, positions)
+    packed_diameters: list[float] = []
+    bend_radii: list[float] = []
+
+    def place_crossings(
+        inputs: tuple[WireRouteInput, ...],
+        crossing_frame: RefineFrame,
+        _clearance_mm: float,
+    ) -> tuple[Vector3, ...]:
+        """
+        Record the physical diameter supplied to crossing placement.
+        """
+        packed_diameters.extend(item.diameter_mm for item in inputs)
+        return (crossing_frame.origin,) * len(inputs)
+
+    def fair(
+        route: RoutePreview,
+        _normals: tuple[Vector3, ...],
+        _transitions: tuple[TransitionLengths, ...],
+        minimum_bend_radius_mm: float,
+        adjustments: Optional[list[TransitionAdjustment]] = None,
+    ) -> RoutePreview:
+        """
+        Record the bend constraint while retaining deterministic route points.
+        """
+        assert adjustments == []
+        bend_radii.append(minimum_bend_radius_mm)
+        return route
+
+    monkeypatch.setattr(scenario.module, "place_route_crossings", place_crossings)
+    monkeypatch.setattr(scenario.module, "fair_route", fair)
+
+    routes, legs = scenario.module._solve_wire_group_routes(scenario.design, grouped, 0.0)
+
+    assert len(routes) == len(legs) == 1
+    assert packed_diameters == [DEFAULT_WIRE_DIAMETER_MM]
+    assert bend_radii == pytest.approx([minimum_circular_bend_radius(DEFAULT_WIRE_DIAMETER_MM)])
+
+
+def test_group_preview_does_not_fall_back_to_persisted_wires(
+    scenario: _Scenario,
+) -> None:
+    """
+    Require group membership even while legacy wire definitions remain stored.
+    """
+    with pytest.raises(ValueError, match="Create at least one wire group"):
+        scenario.module._solve_wire_group_routes(scenario.design, scenario.definition, 0.0)
+
+
+def test_group_preview_legs_share_one_packed_junction_hub(
+    scenario: _Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Converge every leg of one Y at the same group-specific hub crossing.
+    """
+    definition = scenario.definition
+    connection_ids = (
+        definition.connections[0].connection_id,
+        definition.connections[1].connection_id,
+        UUID(int=9910),
+    )
+    third = Connection(connection_ids[2], "Third", "third-profile")
+    group_id = UUID(int=9911)
+    grouped = replace(
+        definition,
+        connections=(*definition.connections, third),
+        wire_groups=(WireGroupDefinition(group_id, connection_ids),),
+    )
+    control_id = definition.controls[0].control_id
+    legs = tuple(
+        WireGroupRouteLeg(
+            UUID(int=9920 + index),
+            group_id,
+            f"Group 1 Leg {index + 1}",
+            connection_id,
+            None,
+            (WireGroupControlStep(control_id),),
+            (definition.pathways[0].pathway_id,),
+        )
+        for index, connection_id in enumerate(connection_ids)
+    )
+    positions = {
+        connection.entity_token: Vector3(index * 10.0, 0, 0)
+        for index, connection in enumerate(grouped.connections)
+    }
+    hub = RefineFrame(
+        control_id,
+        "Junction",
+        Vector3(5, 5, 0),
+        Vector3(1, 0, 0),
+        Vector3(0, 1, 0),
+    )
+    monkeypatch.setattr(scenario.module, "plan_wire_group_routes", lambda _definition: legs)
+    _mock_group_route_geometry(scenario, monkeypatch, hub, positions)
+
+    routes, _plans = scenario.module._solve_wire_group_routes(scenario.design, grouped, 0.0)
+
+    assert len(routes) == 3
+    assert {route.points[-1] for route in routes} == {hub.origin}
+
+
+def test_removing_all_groups_clears_an_active_group_preview(
+    scenario: _Scenario,
+) -> None:
+    """
+    Remove every transient leg when the Wire Editor removes final membership.
+    """
+    wire = scenario.definition.wires[0]
+    grouped = replace(
+        scenario.definition,
+        wire_groups=(
+            WireGroupDefinition(UUID(int=9903), (wire.start_connection_id, wire.end_connection_id)),
+        ),
+    )
+    state = scenario.module._preview_states[scenario.group.id]
+    state.definition = grouped
+    state.is_group_network = True
+    children = tuple(scenario.group.children)
+
+    assert (
+        scenario.module.refresh_route_previews(scenario.design, replace(grouped, wire_groups=()))
+        == ()
+    )
+
+    assert not scenario.group.children
+    assert all(child.deleted for child in children)
+    assert state.routes == {}
+
+
+def _mock_group_route_geometry(
+    scenario: _Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+    frame: RefineFrame,
+    positions: dict[str, Vector3],
+) -> None:
+    """
+    Replace Fusion frame lookup and fairing with deterministic test geometry.
+    """
+    monkeypatch.setattr(scenario.module, "_routing_frame", lambda *_args: frame)
+    monkeypatch.setattr(
+        scenario.module,
+        "_profile_frame",
+        lambda _design, token: (positions[token], Vector3(0, 0, 1)),
+    )
+    monkeypatch.setattr(scenario.module, "fair_route", lambda route, *_args, **_kwargs: route)
 
 
 def test_recomputes_affected_bundle_but_redraws_only_changed_wire(scenario: _Scenario) -> None:

@@ -13,6 +13,7 @@ from tests.fusion_ui_support import (
     PathwayEndpoint,
     SimpleNamespace,
     WireColor,
+    WireGroupDefinition,
     WireStripe,
     _PaletteLifecycleModule,
     cast,
@@ -518,6 +519,15 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
     definition = replace(
         valid_harness,
         material_defaults=replace(valid_harness.material_defaults, stripes=(stripe,)),
+        wire_groups=(
+            WireGroupDefinition(
+                UUID(int=9902),
+                (
+                    valid_harness.wires[0].start_connection_id,
+                    valid_harness.wires[0].end_connection_id,
+                ),
+            ),
+        ),
     )
     design = object()
     application = SimpleNamespace(activeProduct=design)

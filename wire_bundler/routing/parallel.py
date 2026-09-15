@@ -131,6 +131,27 @@ def solve_parallel_routes(
     return previews
 
 
+def place_route_crossings(
+    wires: tuple[WireRouteInput, ...],
+    frame: Union[GateFrame, RefineFrame],
+    clearance_mm: float = 0.0,
+) -> tuple[Vector3, ...]:
+    """
+    Place a stable set of route identities at one shared routing frame.
+
+    Network routing uses this entry point to preserve one group slot across
+    every leg meeting at a junction without inventing duplicate full routes.
+    """
+    if not wires:
+        raise ValueError("At least one wire is required for route placement.")
+    if not math.isfinite(clearance_mm) or clearance_mm < 0.0:
+        raise ValueError("Wire clearance must be a finite non-negative value.")
+    for wire in wires:
+        if not math.isfinite(wire.diameter_mm) or wire.diameter_mm <= 0.0:
+            raise ValueError(f"Wire {wire.wire_number} has an invalid diameter.")
+    return _place_crossings(wires, frame, clearance_mm)
+
+
 def _place_crossings(
     wires: tuple[WireRouteInput, ...],
     frame: Union[GateFrame, RefineFrame],

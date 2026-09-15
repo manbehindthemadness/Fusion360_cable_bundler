@@ -10,6 +10,7 @@ from .parallel import (
     RoutePreview,
     Vector3,
     WireRouteInput,
+    place_route_crossings,
     solve_parallel_routes,
 )
 from .smooth import (
@@ -35,6 +36,7 @@ __all__ = [
     "RoutePreview",
     "Vector3",
     "WireRouteInput",
+    "place_route_crossings",
     "solve_parallel_routes",
     "TransitionLengths",
     "TransitionAdjustment",

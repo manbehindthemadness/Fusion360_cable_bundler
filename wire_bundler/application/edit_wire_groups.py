@@ -71,7 +71,7 @@ def save_wire_editor(
     if (left_pathway_id, left_endpoint) == (right_pathway_id, right_endpoint):
         raise ValueError("Wire Editor boundaries must differ.")
     original, definition = _read_definition(harness_id, gateway)
-    locations = _wire_end_locations(definition)
+    locations = wire_end_locations(definition)
     selected_locations = {
         "left": (left_pathway_id, left_endpoint),
         "right": (right_pathway_id, right_endpoint),
@@ -155,8 +155,10 @@ def save_wire_editor(
             assert right_index is not None
             groups[right_index].connection_ids.append(pairing.left_connection_id)
         elif right_index is None:
+            assert left_index is not None
             groups[left_index].connection_ids.append(pairing.right_connection_id)
         else:
+            assert left_index is not None and right_index is not None
             keep_index, remove_index = sorted((left_index, right_index))
             groups[keep_index].connection_ids.extend(groups[remove_index].connection_ids)
             groups.pop(remove_index)
@@ -189,7 +191,7 @@ def save_wire_editor(
     _persist(harness_id, original, updated, gateway)
 
 
-def _wire_end_locations(
+def wire_end_locations(
     definition: HarnessDefinition,
 ) -> dict[UUID, tuple[UUID, PathwayEndpoint]]:
     """

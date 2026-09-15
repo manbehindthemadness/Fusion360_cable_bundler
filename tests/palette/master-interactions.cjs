@@ -43,16 +43,17 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
   assert.equal(menu.hidden, false);
   assert.deepEqual(
     menu.children.map((item) => item.textContent),
-    ['Add pathway', 'Add end', 'Add junction'],
+    ['Preview Routes', 'Add pathway', 'Add end', 'Add junction'],
   );
-  menu.children[0].events.click();
+  assert.equal(menu.children[0].disabled, true);
+  menu.children[1].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
   assert.equal(calls[0].action, 'add_pathway');
   assert.equal(calls[0].payload.harnessId, 'h');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
-  menu.children[2].events.click();
+  menu.children[3].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
   assert.equal(calls[1].action, 'add_junction');
@@ -60,8 +61,40 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
 
   const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
   assert.doesNotMatch(html, /id="add-pathway"/);
+  assert.doesNotMatch(html, /id="preview-routes"/);
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   assert.match(styles, /\.relationship-map > \.block-diagram-workspace \.block-diagram-viewport \{[^}]*height: 390px;/s);
+});
+
+asyncTest('empty-space context menu previews grouped wire ends', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.wires = [];
+  definition.wireGroups = [{ wireGroupId: 'g1', connectionIds: ['a1', 'b1'] }];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  runInNewContext(
+    'currentState = { harnesses: [definition] }; selectedHarnessKey = "h";',
+    Object.assign(context, { definition }),
+  );
+  const graphic = context.renderRelationshipMap(definition, []);
+  const viewport = descendants(
+    graphic, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+
+  viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
+
+  assert.equal(menu.children[0].textContent, 'Preview Routes');
+  assert.equal(menu.children[0].disabled, false);
+  menu.children[0].events.click();
+  await Promise.resolve();
+  assert.equal(calls[0].action, 'preview_routes');
+  assert.equal(calls[0].payload.harnessId, 'h');
 });
 
 test('isolated junction renders without traces and retains filtering and hover', () => {
@@ -232,7 +265,7 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   assert.equal(calls[2].payload.connectionId, 'loose-end');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
-  menu.children[1].events.click();
+  menu.children[2].events.click();
   await Promise.resolve();
   assert.equal(calls[3].action, 'add_end');
   assert.equal(calls[3].payload.harnessId, 'h');
