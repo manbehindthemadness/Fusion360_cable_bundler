@@ -1077,3 +1077,219 @@ asyncTest('Create Wires popup interacts with loose ends and survives refreshes',
   context.renderEditor({ ...definition, harnessId: 'other-harness' });
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });
+
+asyncTest('Create Wires visually pairs dragged ends without mutating the harness', async () => {
+  const { context, calls } = palette();
+  context.send = (action, payload) => {
+    calls.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const definition = harness();
+  definition.pathways = [
+    { pathwayId: 'left-path', name: 'Left path', startName: '', endName: '',
+      orderedControlIds: [] },
+    { pathwayId: 'right-path', name: 'Right path', startName: '', endName: '',
+      orderedControlIds: [] },
+  ];
+  definition.connections = [
+    { connectionId: 'left-1', name: 'Left 1', hasLinkedGeometry: true },
+    { connectionId: 'left-2', name: 'Left 2', hasLinkedGeometry: true },
+    { connectionId: 'left-3', name: 'Left 3', hasLinkedGeometry: true },
+    { connectionId: 'right-1', name: 'Right 1', hasLinkedGeometry: true },
+    { connectionId: 'right-2', name: 'Right 2', hasLinkedGeometry: true },
+  ];
+  definition.wires = [];
+  definition.junctions = [];
+  definition.standaloneEnds = [
+    ...['left-1', 'left-2', 'left-3'].map((connectionId) => ({
+      connectionId, pathwayId: 'left-path', endpoint: 'start',
+    })),
+    ...['right-1', 'right-2'].map((connectionId) => ({
+      connectionId, pathwayId: 'right-path', endpoint: 'end',
+    })),
+  ];
+  const left = context.resolveWireCreationBoundary(
+    definition, { pathwayId: 'left-path', endpoint: 'start' },
+  );
+  const right = context.resolveWireCreationBoundary(
+    definition, { pathwayId: 'right-path', endpoint: 'end' },
+  );
+  context.openCreateWiresPopup(definition, left, right);
+
+  const dialog = () => context.document.body.querySelector('.create-wires-popup');
+  const center = () => descendants(
+    dialog(), (node) => node.className === 'create-wires-assignment-content',
+  )[0];
+  const lists = () => descendants(
+    dialog(), (node) => node.className === 'create-wires-end-list',
+  );
+  const cards = () => descendants(
+    dialog(), (node) => node.className?.split(' ').includes('create-wires-end-card'),
+  );
+  const card = (connectionId, location) => cards().find(
+    (candidate) => candidate.dataset.connectionId === connectionId
+      && candidate.dataset.assignmentLocation === location,
+  );
+  const rows = () => descendants(
+    center(), (node) => node.className === 'create-wires-assignment-row',
+  );
+  const bounds = (leftEdge, top, width, height) => ({
+    left: leftEdge, top, right: leftEdge + width, bottom: top + height, width, height,
+    x: leftEdge, y: top, toJSON() { return {}; },
+  });
+  const prepareSurfaces = () => {
+    center().getBoundingClientRect = () => bounds(250, 100, 400, 400);
+    lists()[0].getBoundingClientRect = () => bounds(0, 100, 200, 400);
+    lists()[1].getBoundingClientRect = () => bounds(700, 100, 200, 400);
+  };
+  const drag = (item, x, y, inspectMarker = () => {}) => {
+    item.setPointerCapture = () => {};
+    item.hasPointerCapture = () => true;
+    item.releasePointerCapture = () => {};
+    const event = (clientX, clientY) => ({
+      button: 0, pointerId: 1, clientX, clientY,
+      target: { closest: () => null }, preventDefault() {},
+    });
+    item.events.pointerdown(event(30, 120));
+    item.events.pointermove(event(x, y));
+    inspectMarker();
+    item.events.pointerup(event(x, y));
+  };
+
+  prepareSurfaces();
+  drag(card('left-1', 'pool'), 300, 140, () => {
+    assert.equal(center().dataset.drop, 'empty');
+    assert.equal(center().dataset.dropSide, 'left');
+  });
+  assert.deepEqual(rows().map((row) => row.dataset.complete), [undefined]);
+  assert.equal(card('left-1', 'center').dataset.assignmentSide, 'left');
+
+  prepareSurfaces();
+  rows()[0].getBoundingClientRect = () => bounds(250, 120, 400, 50);
+  drag(card('left-2', 'pool'), 300, 190);
+  assert.equal(card('left-1', 'pool').dataset.assignmentSide, 'left');
+  assert.equal(card('left-2', 'center').dataset.assignmentSide, 'left');
+  assert.deepEqual(
+    lists()[0].children.filter((child) => child.dataset?.connectionId)
+      .map((child) => child.dataset.connectionId),
+    ['left-1', 'left-3'],
+  );
+
+  prepareSurfaces();
+  const pendingRightSlot = descendants(
+    rows()[0], (node) => node.className === 'create-wires-assignment-slot right',
+  )[0];
+  pendingRightSlot.getBoundingClientRect = () => bounds(460, 120, 180, 50);
+  drag(card('right-1', 'pool'), 500, 140, () => {
+    assert.equal(pendingRightSlot.dataset.drop, 'slot');
+    assert.equal(pendingRightSlot.dataset.dropSide, 'right');
+  });
+  assert.equal(rows()[0].dataset.complete, 'true');
+  assert.equal(descendants(
+    rows()[0], (node) => node.className === 'create-wires-assignment-connector',
+  ).length, 1);
+  assert.equal(calls.every((call) => call.action === 'clear_highlight'), true);
+  const pairedRight = card('right-1', 'center');
+  assert.equal(pairedRight.children[1].textContent, 'Disconnected');
+  assert.equal(pairedRight.children[1].hidden, false);
+  pairedRight.events.mouseenter();
+  await Promise.resolve();
+  assert.equal(calls.at(-1).action, 'highlight_member');
+  assert.equal(calls.at(-1).payload.memberId, 'right-1');
+  pairedRight.events.contextmenu({
+    clientX: 500, clientY: 140, preventDefault() {}, stopPropagation() {},
+  });
+  const popupMenu = descendants(
+    dialog(), (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  assert.deepEqual(popupMenu.children.map((item) => item.textContent), ['Rename', 'Delete']);
+
+  prepareSurfaces();
+  drag(card('left-2', 'center'), 750, 130);
+  assert.equal(card('left-2', 'center').dataset.assignmentSide, 'left');
+
+  prepareSurfaces();
+  const leftPoolCards = lists()[0].children.filter((child) => child.dataset?.connectionId);
+  leftPoolCards[0].getBoundingClientRect = () => bounds(0, 100, 200, 40);
+  leftPoolCards[1].getBoundingClientRect = () => bounds(0, 180, 200, 40);
+  drag(card('left-2', 'center'), 100, 160);
+  assert.deepEqual(
+    lists()[0].children.filter((child) => child.dataset?.connectionId)
+      .map((child) => child.dataset.connectionId),
+    ['left-1', 'left-2', 'left-3'],
+  );
+  assert.equal(rows()[0].dataset.complete, undefined);
+  assert.equal(card('right-1', 'center').dataset.assignmentSide, 'right');
+
+  prepareSurfaces();
+  const pendingLeftSlot = descendants(
+    rows()[0], (node) => node.className === 'create-wires-assignment-slot left',
+  )[0];
+  pendingLeftSlot.getBoundingClientRect = () => bounds(270, 120, 180, 50);
+  drag(card('left-3', 'pool'), 350, 140);
+  assert.equal(rows()[0].dataset.complete, 'true');
+
+  prepareSurfaces();
+  const remainingLeftCards = lists()[0].children.filter(
+    (child) => child.dataset?.connectionId,
+  );
+  remainingLeftCards.forEach((item, index) => {
+    item.getBoundingClientRect = () => bounds(0, 100 + index * 50, 200, 40);
+  });
+  drag(card('left-3', 'center'), 100, 450);
+  assert.deepEqual(
+    lists()[0].children.filter((child) => child.dataset?.connectionId)
+      .map((child) => child.dataset.connectionId),
+    ['left-1', 'left-2', 'left-3'],
+  );
+  assert.equal(card('right-1', 'center').dataset.assignmentSide, 'right');
+
+  prepareSurfaces();
+  const restoredPendingLeftSlot = descendants(
+    rows()[0], (node) => node.className === 'create-wires-assignment-slot left',
+  )[0];
+  restoredPendingLeftSlot.getBoundingClientRect = () => bounds(270, 120, 180, 50);
+  drag(card('left-3', 'pool'), 350, 140);
+  assert.equal(rows()[0].dataset.complete, 'true');
+
+  definition.connections.find((connection) => connection.connectionId === 'right-1').name =
+    'Renamed Right';
+  context.renderEditor(definition);
+  assert.equal(rows().length, 1);
+  assert.equal(rows()[0].dataset.complete, 'true');
+  assert.equal(card('right-1', 'center').children[0].textContent, 'Renamed Right');
+
+  descendants(dialog(), (node) => node.textContent === 'Close')[0].events.click();
+  context.openCreateWiresPopup(
+    definition,
+    context.resolveWireCreationBoundary(
+      definition, { pathwayId: 'left-path', endpoint: 'start' },
+    ),
+    context.resolveWireCreationBoundary(
+      definition, { pathwayId: 'right-path', endpoint: 'end' },
+    ),
+  );
+  assert.equal(rows().length, 0);
+  assert.equal(cards().every((item) => item.dataset.assignmentLocation === 'pool'), true);
+});
+
+test('Create Wires retains only the newly exposed pending row when a pair is broken', () => {
+  const { context } = palette();
+  const assignments = {
+    pools: { left: [], right: [] },
+    rows: [
+      {
+        left: { connectionId: 'paired-left', returnIndex: 0 },
+        right: { connectionId: 'paired-right', returnIndex: 0 },
+      },
+      { left: { connectionId: 'old-pending', returnIndex: 0 }, right: null },
+    ],
+  };
+
+  context.unassignWireCreationRowItem(assignments, 'left', 0, 0);
+
+  assert.deepEqual(assignments.pools.left, ['old-pending', 'paired-left']);
+  assert.deepEqual(assignments.rows, [
+    { left: null, right: { connectionId: 'paired-right', returnIndex: 0 } },
+  ]);
+});
