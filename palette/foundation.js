@@ -54,6 +54,7 @@ let currentState = { harnesses: [], notice: "" };
 let selectedHarnessKey = readSession("wireBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";
+let openCreateWiresPopupState = null;
 const routeFilters = new Map();
 const relationshipFilters = new Map();
 const relationshipDiagramViews = new Map();
@@ -274,6 +275,75 @@ function beginInlineNameEdit(container, label, before, options) {
   input.addEventListener("blur", () => finish(true));
   input.focus();
   input.select();
+}
+
+/** Replace one standalone-end label with the shared inline rename editor. */
+function renameRelationshipEnd(harness, group, entry, name, metadata) {
+  beginInlineNameEdit(entry, name, metadata, {
+    value: group.connectionName || group.label,
+    placeholder: group.label || "End name",
+    ariaLabel: "End name",
+    onSave: (value) => mutate("rename_standalone_end", {
+      harnessId: harness.harnessId,
+      connectionId: group.connectionId,
+      name: value,
+    }, "Saving end name…"),
+  });
+}
+
+/** Add one positioned, keyboard-dismissible context menu to a UI surface. */
+function addContextMenu(root, returnFocus = null) {
+  const menu = document.createElement("div");
+  const close = () => {
+    menu.hidden = true;
+    document.removeEventListener("mousedown", dismissOnOutsideMouseDown, true);
+  };
+  const dismissOnOutsideMouseDown = (event) => {
+    if (!menu.contains(event.target)) close();
+  };
+  menu.className = "relationship-map-context-menu";
+  menu.hidden = true;
+  menu.setAttribute("role", "menu");
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      close();
+      if (returnFocus) returnFocus.focus();
+    }
+  });
+  const show = (event, items) => {
+    event.preventDefault();
+    const bounds = root.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(4, event.clientX - bounds.left),
+      Math.max(4, root.clientWidth - 160),
+    );
+    const top = Math.min(
+      Math.max(4, event.clientY - bounds.top),
+      Math.max(4, root.clientHeight - 44 * items.length),
+    );
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.replaceChildren();
+    items.forEach(({ label, action, disabled = false, title = "" }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.textContent = label;
+      button.disabled = disabled;
+      button.title = title;
+      button.addEventListener("click", () => {
+        close();
+        void action();
+      });
+      menu.append(button);
+    });
+    menu.hidden = false;
+    document.addEventListener("mousedown", dismissOnOutsideMouseDown, true);
+    const firstEnabled = Array.from(menu.children).find((button) => !button.disabled);
+    if (firstEnabled) firstEnabled.focus();
+  };
+  root.append(menu);
+  return show;
 }
 
 function wireLabel(wire) {

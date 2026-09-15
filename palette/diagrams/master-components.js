@@ -273,20 +273,6 @@ function renderRelationshipBridge(wires) {
   return svg;
 }
 
-/** Replace one end label with an inline editor and persist the submitted name. */
-function renameRelationshipEnd(harness, group, entry, name, metadata) {
-  beginInlineNameEdit(entry, name, metadata, {
-    value: group.connectionName || group.label,
-    placeholder: group.label || "End name",
-    ariaLabel: "End name",
-    onSave: (value) => mutate("rename_standalone_end", {
-      harnessId: harness.harnessId,
-      connectionId: group.connectionId,
-      name: value,
-    }, "Saving end name…"),
-  });
-}
-
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
   showContextMenu, focusController, wireCreationController,
@@ -395,55 +381,7 @@ function renderRelationshipEndList(
 }
 
 function addRelationshipMapContextMenu(workspace) {
-  const menu = document.createElement("div");
-  const close = () => {
-    menu.hidden = true;
-    document.removeEventListener("mousedown", dismissOnOutsideMouseDown, true);
-  };
-  const dismissOnOutsideMouseDown = (event) => {
-    if (!menu.contains(event.target)) close();
-  };
-  menu.className = "relationship-map-context-menu";
-  menu.hidden = true;
-  menu.setAttribute("role", "menu");
-  menu.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      close();
-      workspace.viewport.focus();
-    }
-  });
-  const show = (event, items) => {
-    event.preventDefault();
-    const bounds = workspace.root.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(4, event.clientX - bounds.left),
-      Math.max(4, workspace.root.clientWidth - 160),
-    );
-    const top = Math.min(
-      Math.max(4, event.clientY - bounds.top),
-      Math.max(4, workspace.root.clientHeight - 44 * items.length),
-    );
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
-    menu.replaceChildren();
-    items.forEach(({ label, action, disabled = false, title = "" }) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("role", "menuitem");
-      button.textContent = label;
-      button.disabled = disabled;
-      button.title = title;
-      button.addEventListener("click", () => {
-        close();
-        void action();
-      });
-      menu.append(button);
-    });
-    menu.hidden = false;
-    document.addEventListener("mousedown", dismissOnOutsideMouseDown, true);
-    const firstEnabled = Array.from(menu.children).find((button) => !button.disabled);
-    if (firstEnabled) firstEnabled.focus();
-  };
+  const show = addContextMenu(workspace.root, workspace.viewport);
   workspace.viewport.addEventListener("contextmenu", (event) => {
     show(event, [
       { label: "Add pathway", action: addPathway },
@@ -451,7 +389,6 @@ function addRelationshipMapContextMenu(workspace) {
       { label: "Add junction", action: addJunction },
     ]);
   });
-  workspace.root.append(menu);
   return show;
 }
 

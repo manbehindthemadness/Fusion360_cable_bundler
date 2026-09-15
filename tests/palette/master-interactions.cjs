@@ -900,8 +900,12 @@ test('Create Wires selects only reachable pathway-end headers and cancels elsewh
   assert.equal(staleListenerPrevented, false);
 });
 
-test('Create Wires popup lists contextually disconnected ends around an empty center', () => {
-  const { context } = palette();
+asyncTest('Create Wires popup interacts with loose ends and survives refreshes', async () => {
+  const { context, calls } = palette();
+  context.send = (action, payload) => {
+    calls.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
   const definition = harness();
   definition.pathways = [
     { pathwayId: 'p1', name: 'Source path', startName: '', endName: '',
@@ -924,6 +928,13 @@ test('Create Wires popup lists contextually disconnected ends around an empty ce
       startConnectionId: 'elsewhere-a', endConnectionId: 'elsewhere-b',
       orderedPathwayIds: ['p1'] },
   ];
+  definition.wires.forEach((wire) => {
+    wire.materials = definition.materialDefaults;
+    wire.materialOverrides = {
+      insulationMaterial: null, conductorMaterial: null, mainColor: null,
+      appearance: null, stripes: null, manufacturer: null, partNumber: null, notes: null,
+    };
+  });
   definition.standaloneEnds = [
     { connectionId: 'loose-b', pathwayId: 'p2', endpoint: 'end' },
   ];
@@ -953,11 +964,11 @@ test('Create Wires popup lists contextually disconnected ends around an empty ce
     type: 'click', button: 0, target, preventDefault: () => {}, stopPropagation: () => {},
   });
 
-  const dialog = context.document.body.querySelector('.create-wires-popup');
-  const columns = descendants(
+  let dialog = context.document.body.querySelector('.create-wires-popup');
+  let columns = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
   );
-  const cards = descendants(
+  let cards = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
   );
   assert.equal(columns.length, 3);
@@ -975,4 +986,94 @@ test('Create Wires popup lists contextually disconnected ends around an empty ce
     dialog, (node) => node.className === 'create-wires-assignment-content',
   )[0];
   assert.equal(center.children.length, 0);
+  assert.equal(cards[0].events.contextmenu, undefined);
+  cards[0].events.mouseenter();
+  await Promise.resolve();
+  assert.equal(calls.at(-1).action, 'highlight_member');
+  assert.equal(calls.at(-1).payload.memberType, 'connection');
+  assert.equal(calls.at(-1).payload.memberId, 'elsewhere-a');
+  cards[0].events.mouseleave();
+  await Promise.resolve();
+  assert.equal(calls.at(-1).action, 'clear_highlight');
+  cards[1].events.mouseenter();
+  await Promise.resolve();
+  assert.equal(calls.at(-1).payload.memberId, 'loose-b');
+
+  let prevented = false;
+  let stopped = false;
+  cards[1].events.contextmenu({
+    clientX: 70,
+    clientY: 80,
+    preventDefault: () => { prevented = true; },
+    stopPropagation: () => { stopped = true; },
+  });
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+  let popupMenu = descendants(
+    dialog, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  assert.deepEqual(popupMenu.children.map((item) => item.textContent), ['Rename', 'Delete']);
+  popupMenu.children[0].events.click();
+  let input = descendants(cards[1], (node) => node.tag === 'input')[0];
+  assert.equal(input.value, 'End B 002');
+  input.value = 'Bulkhead outlet';
+  input.events.keydown({ key: 'Enter', preventDefault: () => {} });
+  const rename = calls.find((call) => call.action === 'rename_standalone_end');
+  assert.equal(rename.payload.harnessId, 'h');
+  assert.equal(rename.payload.connectionId, 'loose-b');
+  assert.equal(rename.payload.name, 'Bulkhead outlet');
+
+  columns.forEach((column, index) => { column.scrollTop = (index + 1) * 17; });
+  definition.connections.find(
+    (connection) => connection.connectionId === 'loose-b',
+  ).name = 'Bulkhead outlet';
+  context.renderEditor(definition);
+  dialog = context.document.body.querySelector('.create-wires-popup');
+  assert.equal(dialog.open, true);
+  columns = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
+  );
+  assert.deepEqual(columns.map((column) => column.scrollTop), [17, 34, 51]);
+  cards = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
+  );
+  assert.deepEqual(cards.map((card) => card.children[0].textContent), [
+    'End A 002', 'Bulkhead outlet',
+  ]);
+
+  cards[1].events.contextmenu({
+    clientX: 70, clientY: 80, preventDefault: () => {}, stopPropagation: () => {},
+  });
+  popupMenu = descendants(
+    dialog, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  popupMenu.children[1].events.click();
+  const remove = calls.find((call) => call.action === 'remove_standalone_end');
+  assert.equal(remove.payload.harnessId, 'h');
+  assert.equal(remove.payload.connectionId, 'loose-b');
+
+  definition.standaloneEnds = [];
+  definition.connections = definition.connections.filter(
+    (connection) => connection.connectionId !== 'loose-b',
+  );
+  context.renderEditor(definition);
+  dialog = context.document.body.querySelector('.create-wires-popup');
+  cards = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
+  );
+  assert.deepEqual(cards.map((card) => card.dataset.connectionId), ['elsewhere-a']);
+
+  descendants(dialog, (node) => node.textContent === 'Close')[0].events.click();
+  context.renderEditor(definition);
+  assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
+
+  const left = context.resolveWireCreationBoundary(
+    definition, { pathwayId: 'p1', endpoint: 'start' },
+  );
+  const right = context.resolveWireCreationBoundary(
+    definition, { pathwayId: 'p2', endpoint: 'end' },
+  );
+  context.openCreateWiresPopup(definition, left, right);
+  context.renderEditor({ ...definition, harnessId: 'other-harness' });
+  assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });

@@ -1,5 +1,5 @@
 function renderEditor(harness) {
-  closeCreateWiresPopup();
+  suspendCreateWiresPopup();
   ui.editor.replaceChildren();
   ui.generateSolids.disabled = harness.status === "damaged" || !harness.wires?.length;
   ui.defaults.disabled = harness.status === "damaged";
@@ -19,6 +19,7 @@ function renderEditor(harness) {
   ui.editor.append(heading);
 
   if (harness.status === "damaged") {
+    closeCreateWiresPopup();
     closePathwayPopup();
     closeJunctionRelationships();
     const error = document.createElement("div");
@@ -137,4 +138,5 @@ function renderEditor(harness) {
     if (junction) openJunctionRelationships(harness, junction);
     else closeJunctionRelationships();
   }
+  restoreCreateWiresPopup(harness);
 }

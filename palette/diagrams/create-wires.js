@@ -81,8 +81,40 @@ function wireCreationBoundaryLabel(boundary) {
   return `${boundary.pathway.name || "Unnamed pathway"} · End ${side}`;
 }
 
-/** Render one passive endpoint pool with stable future interaction hooks. */
-function renderWireCreationEndPool(boundary, groups) {
+/** Return the durable identity needed to rebuild one popup boundary. */
+function wireCreationBoundaryState(boundary) {
+  return { pathwayId: boundary.pathway.pathwayId, endpoint: boundary.endpoint };
+}
+
+/** Rebuild one popup boundary from refreshed harness state. */
+function resolveWireCreationBoundary(harness, state) {
+  const pathway = harness.pathways.find(
+    (candidate) => candidate.pathwayId === state.pathwayId,
+  );
+  if (!pathway || !["start", "end"].includes(state.endpoint)) return null;
+  const connections = new Map(
+    harness.connections.map((connection) => [connection.connectionId, connection]),
+  );
+  return {
+    key: wireCreationBoundaryKey(pathway.pathwayId, state.endpoint),
+    pathway,
+    endpoint: state.endpoint,
+    groups: relationshipEndGroups(harness, pathway.pathwayId, state.endpoint, connections),
+  };
+}
+
+/** Highlight the geometry represented by one popup end group. */
+function highlightWireCreationEnd(harness, group) {
+  if (group.connectionId) {
+    return highlightMember(harness, "connection", group.connectionId);
+  }
+  const wire = group.wires[0];
+  if (wire) return highlightMember(harness, "preview_wire", wire.wireId);
+  return undefined;
+}
+
+/** Render one endpoint pool with the master diagram's end interactions. */
+function renderWireCreationEndPool(harness, boundary, groups, showContextMenu) {
   const column = document.createElement("section");
   const heading = document.createElement("h3");
   const list = document.createElement("div");
@@ -100,10 +132,33 @@ function renderWireCreationEndPool(boundary, groups) {
     card.dataset.connectionId = group.connectionId;
     card.dataset.pathwayId = boundary.pathway.pathwayId;
     card.dataset.endpoint = boundary.endpoint;
+    card.dataset.wireIds = relationshipWireIds(group.wires);
     card.setAttribute("role", "listitem");
     name.textContent = group.label;
     status.textContent = "Disconnected";
     card.append(name, status);
+    hoverHighlight(card, () => highlightWireCreationEnd(harness, group));
+    if (group.standalone) {
+      card.dataset.disconnected = "true";
+      card.tabIndex = 0;
+      card.setAttribute("aria-label", `${group.label}, disconnected end`);
+      card.addEventListener("contextmenu", (event) => {
+        event.stopPropagation();
+        showContextMenu(event, [
+          {
+            label: "Rename",
+            action: () => renameRelationshipEnd(harness, group, card, name, status),
+          },
+          {
+            label: "Delete",
+            action: () => mutate("remove_standalone_end", {
+              harnessId: harness.harnessId,
+              connectionId: group.connectionId,
+            }, `Deleting ${group.label}…`),
+          },
+        ]);
+      });
+    }
     list.append(card);
   });
   if (!groups.length) list.append(emptyMessage("No disconnected ends."));
@@ -111,16 +166,34 @@ function renderWireCreationEndPool(boundary, groups) {
   return column;
 }
 
-/** Close the wire-creation workspace and any active boundary selection. */
-function closeCreateWiresPopup() {
+/** Remove the popup while optionally retaining enough state to restore it. */
+function removeCreateWiresPopup(preserveState) {
   if (cancelActiveWireCreationSelection) cancelActiveWireCreationSelection();
   const dialog = document.body.querySelector(".create-wires-popup");
+  if (preserveState && dialog && openCreateWiresPopupState) {
+    openCreateWiresPopupState.scrollPositions = Array.from(
+      dialog.querySelectorAll(".create-wires-column"),
+    ).map((column) => column.scrollTop || 0);
+    dialog.remove();
+    return;
+  }
+  if (!preserveState) openCreateWiresPopupState = null;
   if (dialog?.open) dialog.close();
   else dialog?.remove();
 }
 
-/** Open the non-mutating three-column workspace for two selected boundaries. */
-function openCreateWiresPopup(harness, left, right) {
+/** Close the wire-creation workspace and clear its restoration state. */
+function closeCreateWiresPopup() {
+  removeCreateWiresPopup(false);
+}
+
+/** Temporarily remove the popup while the selected harness is rerendered. */
+function suspendCreateWiresPopup() {
+  removeCreateWiresPopup(true);
+}
+
+/** Open the three-column workspace for two selected boundaries. */
+function openCreateWiresPopup(harness, left, right, scrollPositions = [0, 0, 0]) {
   closePathwayPopup();
   closeJunctionRelationships();
   closeCreateWiresPopup();
@@ -135,6 +208,13 @@ function openCreateWiresPopup(harness, left, right) {
   const groups = wireCreationDisconnectedGroups(harness, left, right);
   dialog.className = "create-wires-popup";
   dialog.setAttribute("aria-labelledby", "create-wires-title");
+  const showContextMenu = addContextMenu(dialog);
+  openCreateWiresPopupState = {
+    harnessKey: harnessKey(harness),
+    left: wireCreationBoundaryState(left),
+    right: wireCreationBoundaryState(right),
+    scrollPositions: [...scrollPositions],
+  };
   heading.id = "create-wires-title";
   heading.textContent = "Create Wires";
   layout.className = "create-wires-layout";
@@ -144,21 +224,48 @@ function openCreateWiresPopup(harness, left, right) {
   centerContent.setAttribute("aria-label", "Wire assignments reserved for future editing");
   center.append(centerHeading, centerContent);
   layout.append(
-    renderWireCreationEndPool(left, groups.left),
+    renderWireCreationEndPool(harness, left, groups.left, showContextMenu),
     center,
-    renderWireCreationEndPool(right, groups.right),
+    renderWireCreationEndPool(harness, right, groups.right, showContextMenu),
   );
   actions.className = "pathway-popup-actions";
   close.type = "button";
   close.className = "button";
   close.textContent = "Close";
   close.addEventListener("click", closeCreateWiresPopup);
-  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("close", () => {
+    if (document.body.querySelector(".create-wires-popup") === dialog) {
+      openCreateWiresPopupState = null;
+    }
+    dialog.remove();
+  });
   actions.append(close);
   dialog.append(heading, layout, actions);
   document.body.append(dialog);
   dialog.showModal();
+  window.requestAnimationFrame(() => {
+    Array.from(dialog.querySelectorAll(".create-wires-column")).forEach((column, index) => {
+      column.scrollTop = scrollPositions[index] || 0;
+    });
+  });
   close.focus();
+}
+
+/** Restore an open popup after refreshed harness state has rebuilt the editor. */
+function restoreCreateWiresPopup(harness) {
+  const state = openCreateWiresPopupState;
+  if (!state) return;
+  if (state.harnessKey !== harnessKey(harness)) {
+    closeCreateWiresPopup();
+    return;
+  }
+  const left = resolveWireCreationBoundary(harness, state.left);
+  const right = resolveWireCreationBoundary(harness, state.right);
+  if (!left || !right) {
+    closeCreateWiresPopup();
+    return;
+  }
+  openCreateWiresPopup(harness, left, right, state.scrollPositions);
 }
 
 /** Own the transient first/second-boundary selection mode for one diagram render. */
