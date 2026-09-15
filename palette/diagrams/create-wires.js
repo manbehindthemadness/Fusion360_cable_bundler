@@ -320,7 +320,7 @@ function enableWireCreationDrag(card, source, surfaces, onDrop) {
     if (source.location === "pool") {
       const pending = surfaces.rows.find((record) => record.pending);
       if (pending && pending.emptySide === source.side) {
-        if (wireCreationContainsPoint(pending.slots[source.side], event.clientX, event.clientY)) {
+        if (wireCreationContainsPoint(surfaces.center, event.clientX, event.clientY)) {
           drag.target = { location: "pending", rowIndex: pending.index };
           mark(pending.slots[source.side], "slot", source.side);
         }

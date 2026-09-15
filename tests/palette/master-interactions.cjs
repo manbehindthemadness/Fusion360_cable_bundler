@@ -1180,7 +1180,7 @@ asyncTest('Create Wires visually pairs dragged ends without mutating the harness
     rows()[0], (node) => node.className === 'create-wires-assignment-slot right',
   )[0];
   pendingRightSlot.getBoundingClientRect = () => bounds(460, 120, 180, 50);
-  drag(card('right-1', 'pool'), 500, 140, () => {
+  drag(card('right-1', 'pool'), 500, 450, () => {
     assert.equal(pendingRightSlot.dataset.drop, 'slot');
     assert.equal(pendingRightSlot.dataset.dropSide, 'right');
   });
@@ -1252,11 +1252,34 @@ asyncTest('Create Wires visually pairs dragged ends without mutating the harness
   drag(card('left-3', 'pool'), 350, 140);
   assert.equal(rows()[0].dataset.complete, 'true');
 
+  prepareSurfaces();
+  rows()[0].getBoundingClientRect = () => bounds(250, 120, 400, 50);
+  drag(card('left-1', 'pool'), 300, 450);
+  assert.equal(rows().length, 2);
+  assert.equal(rows()[0].dataset.complete, 'true');
+  assert.equal(rows()[1].dataset.complete, undefined);
+  assert.equal(card('left-1', 'center').parentElement.className,
+    'create-wires-assignment-slot left');
+
+  prepareSurfaces();
+  const secondPendingRightSlot = descendants(
+    rows()[1], (node) => node.className === 'create-wires-assignment-slot right',
+  )[0];
+  secondPendingRightSlot.getBoundingClientRect = () => bounds(460, 180, 180, 50);
+  drag(card('right-2', 'pool'), 500, 450, () => {
+    assert.equal(secondPendingRightSlot.dataset.drop, 'slot');
+  });
+  assert.equal(rows().length, 2);
+  assert.equal(rows()[0].dataset.complete, 'true');
+  assert.equal(rows()[1].dataset.complete, 'true');
+  assert.equal(card('right-2', 'center').parentElement.parentElement.dataset.assignmentRow, '1');
+
   definition.connections.find((connection) => connection.connectionId === 'right-1').name =
     'Renamed Right';
   context.renderEditor(definition);
-  assert.equal(rows().length, 1);
+  assert.equal(rows().length, 2);
   assert.equal(rows()[0].dataset.complete, 'true');
+  assert.equal(rows()[1].dataset.complete, 'true');
   assert.equal(card('right-1', 'center').children[0].textContent, 'Renamed Right');
 
   descendants(dialog(), (node) => node.textContent === 'Close')[0].events.click();
