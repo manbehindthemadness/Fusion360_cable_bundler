@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.application import plan_wire_group_routes
+from wire_bundler.application import WireGroupControlStep, plan_wire_group_routes
 from wire_bundler.domain import (
     Connection,
     ControlKind,
@@ -84,6 +84,71 @@ def test_plans_y_legs_once_through_a_junction(
     assert all((leg.start_connection_id is None) != (leg.end_connection_id is None) for leg in legs)
 
 
+@pytest.mark.parametrize(
+    ("pathway_index", "endpoint", "control_index", "expected_reversed"),
+    (
+        (1, PathwayEndpoint.START, 0, False),
+        (0, PathwayEndpoint.END, -1, True),
+    ),
+)
+def test_plans_terminal_lead_from_internal_pathway_boundary(
+    valid_harness: HarnessDefinition,
+    pathway_index: int,
+    endpoint: PathwayEndpoint,
+    control_index: int,
+    expected_reversed: bool,
+) -> None:
+    """
+    Attach an internal end to the group body without duplicating a pathway span.
+    """
+    definition, connection_ids, pathway_ids, _junction_control_id = _y_harness(valid_harness)
+    attached, connection_id = _with_internal_end(definition, pathway_index, endpoint)
+
+    legs = plan_wire_group_routes(attached)
+
+    lead = next(leg for leg in legs if leg.start_connection_id == connection_id)
+    expected_control_id = attached.pathways[pathway_index].ordered_control_ids[control_index]
+    represented_connections = [
+        identity
+        for leg in legs
+        for identity in (leg.start_connection_id, leg.end_connection_id)
+        if identity is not None
+    ]
+    assert len(legs) == 4
+    assert lead.end_connection_id is None
+    assert lead.pathway_ids == ()
+    assert lead.control_steps == (WireGroupControlStep(expected_control_id, expected_reversed),)
+    assert sorted(pathway_id for leg in legs for pathway_id in leg.pathway_ids) == sorted(
+        pathway_ids
+    )
+    assert sorted(represented_connections, key=str) == sorted(
+        (*connection_ids, connection_id), key=str
+    )
+    assert (
+        sum(expected_control_id in {step.control_id for step in leg.control_steps} for leg in legs)
+        == 2
+    )
+
+
+def test_rejects_terminal_lead_without_a_pathway_control(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Report when an internal pathway boundary has no body crossing to join.
+    """
+    definition, _connection_ids, _pathway_ids, _junction_control_id = _y_harness(valid_harness)
+    attached, _connection_id = _with_internal_end(
+        definition,
+        1,
+        PathwayEndpoint.START,
+    )
+    pathways = list(attached.pathways)
+    pathways[1] = replace(pathways[1], ordered_control_ids=())
+
+    with pytest.raises(ValueError, match="internal end.*without a routing control"):
+        plan_wire_group_routes(replace(attached, pathways=tuple(pathways)))
+
+
 def test_rejects_multi_end_branching_at_a_terminal_boundary(
     valid_harness: HarnessDefinition,
 ) -> None:
@@ -119,6 +184,33 @@ def test_rejects_multi_end_branching_at_a_terminal_boundary(
 
     with pytest.raises(ValueError, match="junction-centered branching"):
         plan_wire_group_routes(linear)
+
+
+def _with_internal_end(
+    definition: HarnessDefinition,
+    pathway_index: int,
+    endpoint: PathwayEndpoint,
+) -> tuple[HarnessDefinition, UUID]:
+    """
+    Add one grouped end at a pathway boundary already traversed by the group tree.
+    """
+    connection_id = UUID(int=980 + pathway_index)
+    connection = Connection(connection_id, "Internal End", "internal-end")
+    group = definition.wire_groups[0]
+    updated = replace(
+        definition,
+        connections=(*definition.connections, connection),
+        standalone_ends=(
+            *definition.standalone_ends,
+            StandaloneEndDefinition(
+                connection_id,
+                definition.pathways[pathway_index].pathway_id,
+                endpoint,
+            ),
+        ),
+        wire_groups=(replace(group, connection_ids=(*group.connection_ids, connection_id)),),
+    )
+    return updated, connection_id
 
 
 def _y_harness(

@@ -116,7 +116,9 @@ def plan_wire_group_routes(definition: HarnessDefinition) -> tuple[WireGroupRout
         tree_edges = _minimal_tree_edges(graph, terminal_nodes, group_index)
         tree_graph = _subgraph(tree_edges)
         _validate_branch_hubs(tree_graph, set(terminal_nodes), group_index)
-        paths = _maximal_leg_paths(tree_graph, set(terminal_nodes))
+        internal_terminals = {node for node in terminal_nodes if len(tree_graph.get(node, ())) > 1}
+        leaf_terminals = set(terminal_nodes) - internal_terminals
+        paths = _maximal_leg_paths(tree_graph, leaf_terminals)
         for leg_index, path in enumerate(paths):
             steps, pathway_ids = _path_controls(path, edges, pathway_controls, junction_controls)
             canonical_path = min(
@@ -132,6 +134,23 @@ def plan_wire_group_routes(definition: HarnessDefinition) -> tuple[WireGroupRout
                     end_connection_id=terminal_connections.get(path[-1]),
                     control_steps=steps,
                     pathway_ids=pathway_ids,
+                )
+            )
+        for lead_index, node in enumerate(sorted(internal_terminals, key=lambda item: item.key)):
+            connection_id = terminal_connections[node]
+            control_step = _terminal_lead_step(node, pathway_controls, group_index)
+            planned.append(
+                WireGroupRouteLeg(
+                    route_id=uuid5(
+                        group.wire_group_id,
+                        f"terminal-lead:{node.key}:{connection_id}",
+                    ),
+                    wire_group_id=group.wire_group_id,
+                    label=f"Group {group_index + 1} Leg {len(paths) + lead_index + 1}",
+                    start_connection_id=connection_id,
+                    end_connection_id=None,
+                    control_steps=(control_step,),
+                    pathway_ids=(),
                 )
             )
     return tuple(planned)
@@ -237,16 +256,32 @@ def _validate_branch_hubs(
     """
     if len(terminals) < 3:
         return
-    invalid_terminal = any(len(graph.get(node, ())) != 1 for node in terminals)
     branch_nodes = [node for node, adjacent in graph.items() if len(adjacent) >= 3]
-    if (
-        invalid_terminal
-        or not branch_nodes
-        or any(node.kind != "junction" for node in branch_nodes)
-    ):
+    if not branch_nodes or any(node.kind != "junction" for node in branch_nodes):
         raise ValueError(
             f"Wire group {group_index + 1} requires junction-centered branching for three or more ends."
         )
+
+
+def _terminal_lead_step(
+    node: _Node,
+    pathway_controls: dict[UUID, tuple[UUID, ...]],
+    group_index: int,
+) -> WireGroupControlStep:
+    """
+    Return the pathway-end crossing used by one internal terminal lead.
+    """
+    control_ids = pathway_controls[node.identity]
+    if not control_ids:
+        raise ValueError(
+            f"Wire group {group_index + 1} contains an internal end on a pathway "
+            "without a routing control."
+        )
+    if node.endpoint is PathwayEndpoint.START:
+        return WireGroupControlStep(control_ids[0])
+    if node.endpoint is PathwayEndpoint.END:
+        return WireGroupControlStep(control_ids[-1], True)
+    raise ValueError("A wire-group terminal lead must belong to a pathway boundary.")
 
 
 def _maximal_leg_paths(
