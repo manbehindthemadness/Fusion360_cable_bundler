@@ -336,7 +336,7 @@ function renderRelationshipEndList(
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
     meta.textContent = group.standalone
-      ? `${connectionContext}Disconnected`
+      ? `${connectionContext}${group.wireGroupId ? "Connected" : "Disconnected"}`
       : `${connectionContext}${group.wires.length} ${group.wires.length === 1 ? "wire" : "wires"}`;
     button.append(name, meta);
     hoverHighlight(button, () => group.connectionId
@@ -349,9 +349,11 @@ function renderRelationshipEndList(
     if (!group.standalone) {
       button.addEventListener("click", () => navigateToWire(group.wires[0].wireId));
     } else {
-      button.dataset.disconnected = "true";
+      if (!group.wireGroupId) button.dataset.disconnected = "true";
       button.tabIndex = 0;
-      button.setAttribute("aria-label", `${group.label}, disconnected end`);
+      button.setAttribute(
+        "aria-label", `${group.label}, ${group.wireGroupId ? "connected" : "disconnected"} end`,
+      );
       button.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
         showContextMenu(event, [

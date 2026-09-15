@@ -57,6 +57,7 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
     _validate_junctions(definition, issues)
     _validate_standalone_ends(definition, issues)
     _validate_wires(definition, issues)
+    _validate_wire_groups(definition, issues)
     return tuple(issues)
 
 
@@ -90,6 +91,10 @@ def _validate_unique_ids(
             for index, junction in enumerate(definition.junctions)
         ),
         *((wire.wire_id, f"wires[{index}].wire_id") for index, wire in enumerate(definition.wires)),
+        *(
+            (group.wire_group_id, f"wire_groups[{index}].wire_group_id")
+            for index, group in enumerate(definition.wire_groups)
+        ),
     ]
     for identity, path in identities:
         previous_path = seen.get(identity)
@@ -576,6 +581,83 @@ def _validate_standalone_ends(
             )
         else:
             seen_connections[end.connection_id] = f"{path}.connection_id"
+
+
+def _validate_wire_groups(
+    definition: HarnessDefinition,
+    issues: list[ValidationIssue],
+) -> None:
+    """
+    Validate exclusive group membership across distinct pathway boundaries.
+    """
+    connection_ids = {connection.connection_id for connection in definition.connections}
+    locations: dict[UUID, tuple[UUID, PathwayEndpoint]] = {
+        end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends
+    }
+    for wire in definition.wires:
+        if wire.ordered_pathway_ids:
+            locations[wire.start_connection_id] = (
+                wire.ordered_pathway_ids[0],
+                PathwayEndpoint.START,
+            )
+            locations[wire.end_connection_id] = (
+                wire.ordered_pathway_ids[-1],
+                PathwayEndpoint.END,
+            )
+
+    memberships: dict[UUID, str] = {}
+    for group_index, group in enumerate(definition.wire_groups):
+        group_path = f"wire_groups[{group_index}]"
+        if len(group.connection_ids) < 2:
+            issues.append(
+                ValidationIssue(
+                    "undersized_wire_group",
+                    f"{group_path}.connection_ids",
+                    "A wire group must contain at least two ends.",
+                )
+            )
+        boundaries: dict[tuple[UUID, PathwayEndpoint], str] = {}
+        for member_index, connection_id in enumerate(group.connection_ids):
+            member_path = f"{group_path}.connection_ids[{member_index}]"
+            _validate_reference(
+                connection_id,
+                connection_ids,
+                "missing_connection_reference",
+                member_path,
+                issues,
+            )
+            previous_membership = memberships.get(connection_id)
+            if previous_membership is not None:
+                issues.append(
+                    ValidationIssue(
+                        "duplicate_wire_group_member",
+                        member_path,
+                        f"Wire end is already grouped at {previous_membership}.",
+                    )
+                )
+            else:
+                memberships[connection_id] = member_path
+            location = locations.get(connection_id)
+            if location is None:
+                issues.append(
+                    ValidationIssue(
+                        "unlocated_wire_group_member",
+                        member_path,
+                        "A grouped wire end must be assigned to a pathway boundary.",
+                    )
+                )
+                continue
+            previous_boundary = boundaries.get(location)
+            if previous_boundary is not None:
+                issues.append(
+                    ValidationIssue(
+                        "duplicate_wire_group_boundary",
+                        member_path,
+                        f"Wire group already contains an end from {previous_boundary}.",
+                    )
+                )
+            else:
+                boundaries[location] = member_path
 
 
 def _validate_wire_number(

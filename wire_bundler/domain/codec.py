@@ -29,6 +29,7 @@ from .model import (
     WireAppearanceReference,
     WireColor,
     WireDefinition,
+    WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
     WireProfile,
@@ -122,6 +123,14 @@ def loads(serialized: str) -> HarnessDefinition:
         if schema_version >= 9
         else ()
     )
+    wire_groups = (
+        tuple(
+            _parse_wire_group(item, f"$.wire_groups[{index}]")
+            for index, item in enumerate(_require_list(payload, "wire_groups", "$.wire_groups"))
+        )
+        if schema_version >= 10
+        else ()
+    )
     wires = tuple(
         _parse_wire(item, f"$.wires[{index}]", schema_version, pathways)
         for index, item in enumerate(_require_list(payload, "wires", "$.wires"))
@@ -138,6 +147,7 @@ def loads(serialized: str) -> HarnessDefinition:
         wires=wires,
         junctions=junctions,
         standalone_ends=standalone_ends,
+        wire_groups=wire_groups,
         gate_defaults=parse_interpolation(payload.get("gate_defaults", {}), "$.gate_defaults"),
         end_defaults=parse_interpolation(payload.get("end_defaults", {}), "$.end_defaults"),
         material_defaults=(
@@ -243,6 +253,13 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "endpoint": end.endpoint.value,
             }
             for end in definition.standalone_ends
+        ],
+        "wire_groups": [
+            {
+                "wire_group_id": str(group.wire_group_id),
+                "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
+            }
+            for group in definition.wire_groups
         ],
         "wires": [
             {
@@ -698,6 +715,21 @@ def _parse_standalone_end(raw_value: object, path: str) -> StandaloneEndDefiniti
         connection_id=_require_uuid(value, "connection_id", f"{path}.connection_id"),
         pathway_id=_require_uuid(value, "pathway_id", f"{path}.pathway_id"),
         endpoint=_require_enum(PathwayEndpoint, value, "endpoint", f"{path}.endpoint"),
+    )
+
+
+def _parse_wire_group(raw_value: object, path: str) -> WireGroupDefinition:
+    """
+    Parse one persistent collection of electrically connected wire ends.
+    """
+    value = _require_mapping(raw_value, path)
+    raw_connection_ids = _require_list(value, "connection_ids", f"{path}.connection_ids")
+    return WireGroupDefinition(
+        wire_group_id=_require_uuid(value, "wire_group_id", f"{path}.wire_group_id"),
+        connection_ids=tuple(
+            _parse_uuid(raw_id, f"{path}.connection_ids[{index}]")
+            for index, raw_id in enumerate(raw_connection_ids)
+        ),
     )
 
 

@@ -176,6 +176,15 @@ def serialize_palette_state(
                     }
                     for end in definition.standalone_ends
                 ],
+                "wireGroups": [
+                    {
+                        "wireGroupId": str(group.wire_group_id),
+                        "connectionIds": [
+                            str(connection_id) for connection_id in group.connection_ids
+                        ],
+                    }
+                    for group in definition.wire_groups
+                ],
                 "wires": [
                     {
                         "wireId": str(wire.wire_id),

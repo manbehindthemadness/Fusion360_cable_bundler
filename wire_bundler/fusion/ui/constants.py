@@ -98,6 +98,7 @@ PALETTE_EDIT_NAMES = {
     "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_standalone_end": "Delete Standalone End",
+    "save_wire_editor": "Save Wire Editor",
     "move_wire_endpoint": "Reorder Wire Ends",
     "remove_wire": "Delete Wire",
     "rename_junction": "Rename Junction",

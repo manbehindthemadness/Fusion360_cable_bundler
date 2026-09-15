@@ -259,6 +259,58 @@ def test_palette_edit_renames_standalone_end_by_connection_identity(
     assert notice == "Saved end name."
 
 
+def test_palette_edit_saves_wire_editor_transaction(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse all staged end and grouping changes into one application call.
+    """
+    harness_id = UUID(int=1)
+    left_pathway_id = UUID(int=2)
+    right_pathway_id = UUID(int=3)
+    left_connection_id = UUID(int=4)
+    right_connection_id = UUID(int=5)
+    deleted_connection_id = UUID(int=6)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "save_wire_editor", save)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "save_wire_editor",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "leftBoundary": {"pathwayId": str(left_pathway_id), "endpoint": "start"},
+                "rightBoundary": {"pathwayId": str(right_pathway_id), "endpoint": "end"},
+                "pairings": [
+                    {
+                        "leftConnectionId": str(left_connection_id),
+                        "rightConnectionId": str(right_connection_id),
+                    }
+                ],
+                "detachedConnectionIds": [str(left_connection_id)],
+                "renames": [{"connectionId": str(right_connection_id), "name": "Right"}],
+                "deletedConnectionIds": [str(deleted_connection_id)],
+            }
+        ),
+    )
+
+    save.assert_called_once()
+    arguments = save.call_args.args
+    assert arguments[:5] == (
+        harness_id,
+        left_pathway_id,
+        addin_module.PathwayEndpoint.START,
+        right_pathway_id,
+        addin_module.PathwayEndpoint.END,
+    )
+    assert arguments[-1] is gateway
+    assert notice == "Saved Wire Editor changes."
+
+
 def test_palette_edit_deletes_pathway_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

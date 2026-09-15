@@ -21,6 +21,7 @@ from wire_bundler.domain import (
     StripePattern,
     WireAppearanceReference,
     WireColor,
+    WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
     WireStripe,
@@ -60,6 +61,26 @@ def test_round_trip_and_migration_preserve_standalone_ends(
     payload["schema_version"] = 8
     payload.pop("standalone_ends")
     assert loads(json.dumps(payload)).standalone_ends == ()
+
+
+def test_round_trip_and_migration_preserve_wire_groups(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist schema-ten connectivity while schema-nine definitions acquire none.
+    """
+    group = WireGroupDefinition(
+        UUID("60000000-0000-0000-0000-000000000001"),
+        tuple(connection.connection_id for connection in valid_harness.connections),
+    )
+    definition = replace(valid_harness, wire_groups=(group,))
+
+    assert loads(dumps(definition)) == definition
+
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 9
+    payload.pop("wire_groups")
+    assert loads(json.dumps(payload)).wire_groups == ()
 
 
 def test_round_trip_preserves_refine_geometry(valid_harness: HarnessDefinition) -> None:

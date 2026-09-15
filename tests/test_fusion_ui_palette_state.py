@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from tests.fusion_ui_support import (
+    UUID,
     HarnessDefinition,
     HarnessLoadResult,
     PathwayEndpoint,
     SimpleNamespace,
     StandaloneEndDefinition,
+    WireGroupDefinition,
     _PaletteLifecycleModule,
     json,
     pytest,
@@ -42,6 +44,12 @@ def test_palette_state_contains_complete_editor_definition(
                 valid_harness.connections[0].connection_id,
                 valid_harness.pathways[0].pathway_id,
                 PathwayEndpoint.START,
+            ),
+        ),
+        wire_groups=(
+            WireGroupDefinition(
+                UUID("60000000-0000-0000-0000-000000000001"),
+                tuple(connection.connection_id for connection in valid_harness.connections),
             ),
         ),
     )
@@ -90,6 +98,14 @@ def test_palette_state_contains_complete_editor_definition(
             "connectionId": str(valid_harness.connections[0].connection_id),
             "pathwayId": str(valid_harness.pathways[0].pathway_id),
             "endpoint": "start",
+        }
+    ]
+    assert harness["wireGroups"] == [
+        {
+            "wireGroupId": "60000000-0000-0000-0000-000000000001",
+            "connectionIds": [
+                str(connection.connection_id) for connection in valid_harness.connections
+            ],
         }
     ]
     relationship_map = harness["relationshipMap"]

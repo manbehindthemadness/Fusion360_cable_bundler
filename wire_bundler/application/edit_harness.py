@@ -22,6 +22,7 @@ from ..domain import (
     RefineGeometry,
     RoutingMode,
     WireDefinition,
+    WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
     dumps,
@@ -731,6 +732,7 @@ def remove_pathway(
         ),
         standalone_ends=standalone_ends,
         wires=wires,
+        wire_groups=_prune_wire_groups(definition.wire_groups, referenced_connection_ids),
     )
     _persist(harness_id, original, updated, gateway)
 
@@ -1111,6 +1113,11 @@ def remove_wire(
             or profile.profile_id in referenced_profile_ids
         ),
         wires=wires,
+        wire_groups=_prune_wire_groups(
+            definition.wire_groups,
+            {connection.connection_id for connection in definition.connections}
+            - removed_connection_ids,
+        ),
     )
     _persist(harness_id, original, updated, gateway)
 
@@ -1137,6 +1144,10 @@ def remove_standalone_end(
         ),
         standalone_ends=tuple(
             end for end in definition.standalone_ends if end.connection_id != connection_id
+        ),
+        wire_groups=_prune_wire_groups(
+            definition.wire_groups,
+            {connection.connection_id for connection in definition.connections} - {connection_id},
         ),
     )
     _persist(harness_id, original, updated, gateway)
@@ -1283,6 +1294,27 @@ def _replace_pathway(
         updated_pathway if item.pathway_id == updated_pathway.pathway_id else item
         for item in definition.pathways
     )
+
+
+def _prune_wire_groups(
+    groups: tuple[WireGroupDefinition, ...],
+    retained_connection_ids: set[UUID],
+) -> tuple[WireGroupDefinition, ...]:
+    """
+    Remove unavailable members and discard groups that no longer connect two ends.
+    """
+    pruned = (
+        replace(
+            group,
+            connection_ids=tuple(
+                connection_id
+                for connection_id in group.connection_ids
+                if connection_id in retained_connection_ids
+            ),
+        )
+        for group in groups
+    )
+    return tuple(group for group in pruned if len(group.connection_ids) >= 2)
 
 
 def _related_pathway_endpoints(

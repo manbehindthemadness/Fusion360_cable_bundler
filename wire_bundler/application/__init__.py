@@ -55,6 +55,7 @@ from .edit_harness import (
     update_junction_relationships,
     update_pathway_refine,
 )
+from .edit_wire_groups import WireEditorPairing, WireEditorRename, save_wire_editor
 from .load_harnesses import (
     DamagedHarnessGateway,
     HarnessLibraryGateway,
@@ -84,6 +85,8 @@ __all__ = [
     "HarnessEditError",
     "HarnessEditGateway",
     "PathwaySegmentResult",
+    "WireEditorPairing",
+    "WireEditorRename",
     "HarnessGateway",
     "HarnessLibraryGateway",
     "HarnessLoadResult",
@@ -131,6 +134,7 @@ __all__ = [
     "rename_pathway",
     "rename_standalone_end",
     "rename_wire",
+    "save_wire_editor",
     "segment_pathway",
     "set_harness_material_defaults",
     "set_wire_diameter",

@@ -863,8 +863,8 @@ test('Wire Editor selects only reachable pathway-end headers and cancels elsewhe
   assert.equal(dialog.open, true);
   assert.equal(dialog.attributes['aria-labelledby'], 'create-wires-title');
 
-  const close = descendants(dialog, (node) => node.textContent === 'Close')[0];
-  close.events.click();
+  const cancel = descendants(dialog, (node) => node.textContent === 'Cancel')[0];
+  cancel.events.click();
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 
   source.events.contextmenu(contextEvent);
@@ -1020,15 +1020,9 @@ asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', 
   assert.equal(input.value, 'End B 002');
   input.value = 'Bulkhead outlet';
   input.events.keydown({ key: 'Enter', preventDefault: () => {} });
-  const rename = calls.find((call) => call.action === 'rename_standalone_end');
-  assert.equal(rename.payload.harnessId, 'h');
-  assert.equal(rename.payload.connectionId, 'loose-b');
-  assert.equal(rename.payload.name, 'Bulkhead outlet');
+  assert.equal(calls.some((call) => call.action === 'rename_standalone_end'), false);
 
   columns.forEach((column, index) => { column.scrollTop = (index + 1) * 17; });
-  definition.connections.find(
-    (connection) => connection.connectionId === 'loose-b',
-  ).name = 'Bulkhead outlet';
   context.renderEditor(definition);
   dialog = context.document.body.querySelector('.create-wires-popup');
   assert.equal(dialog.open, true);
@@ -1050,23 +1044,13 @@ asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', 
     dialog, (node) => node.className === 'relationship-map-context-menu',
   )[0];
   popupMenu.children[1].events.click();
-  const remove = calls.find((call) => call.action === 'remove_standalone_end');
-  assert.equal(remove.payload.harnessId, 'h');
-  assert.equal(remove.payload.connectionId, 'loose-b');
-
-  definition.standaloneEnds = [];
-  definition.connections = definition.connections.filter(
-    (connection) => connection.connectionId !== 'loose-b',
-  );
-  context.renderEditor(definition);
-  dialog = context.document.body.querySelector('.create-wires-popup');
+  assert.equal(calls.some((call) => call.action === 'remove_standalone_end'), false);
   cards = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
   );
   assert.deepEqual(cards.map((card) => card.dataset.connectionId), ['elsewhere-a']);
 
-  descendants(dialog, (node) => node.textContent === 'Close')[0].events.click();
-  context.renderEditor(definition);
+  descendants(dialog, (node) => node.textContent === 'Cancel')[0].events.click();
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 
   const left = context.resolveWireCreationBoundary(
@@ -1076,6 +1060,12 @@ asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', 
     definition, { pathwayId: 'p2', endpoint: 'end' },
   );
   context.openCreateWiresPopup(definition, left, right);
+  dialog = context.document.body.querySelector('.create-wires-popup');
+  cards = descendants(
+    dialog, (node) => node.className?.split(' ').includes('create-wires-end-card'),
+  );
+  assert.equal(cards.find((card) => card.dataset.connectionId === 'loose-b').children[0].textContent,
+    'End B 002');
   context.renderEditor({ ...definition, harnessId: 'other-harness' });
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });
@@ -1192,7 +1182,7 @@ asyncTest('Wire Editor visually pairs dragged ends without mutating the harness'
   ).length, 1);
   assert.equal(calls.every((call) => call.action === 'clear_highlight'), true);
   const pairedRight = card('right-1', 'center');
-  assert.equal(pairedRight.children[1].textContent, 'Disconnected');
+  assert.equal(pairedRight.children[1].textContent, 'Connected');
   assert.equal(pairedRight.children[1].hidden, false);
   pairedRight.events.mouseenter();
   await Promise.resolve();
@@ -1333,7 +1323,7 @@ asyncTest('Wire Editor visually pairs dragged ends without mutating the harness'
     row.children[2].children[0].dataset.connectionId,
   ]), [['left-1', 'right-2'], ['left-3', 'right-1']]);
 
-  descendants(dialog(), (node) => node.textContent === 'Close')[0].events.click();
+  descendants(dialog(), (node) => node.textContent === 'Cancel')[0].events.click();
   context.openCreateWiresPopup(
     definition,
     context.resolveWireCreationBoundary(
@@ -1366,6 +1356,75 @@ test('Wire Editor retains only the newly exposed pending row when a pair is brok
   assert.deepEqual(assignments.rows, [
     { left: null, right: { connectionId: 'paired-right', returnIndex: 0 } },
   ]);
+});
+
+test('Wire Editor opens persisted cross-boundary groups as center rows', () => {
+  const { context } = palette();
+  const assignments = context.initialWireCreationAssignments({
+    left: [
+      { connectionId: 'left-paired', wireGroupId: 'group-1' },
+      { connectionId: 'left-offscreen', wireGroupId: 'group-2' },
+      { connectionId: 'left-loose', wireGroupId: '' },
+    ],
+    right: [
+      { connectionId: 'right-paired', wireGroupId: 'group-1' },
+      { connectionId: 'right-loose', wireGroupId: '' },
+    ],
+  });
+
+  assert.deepEqual(assignments.pools.left, ['left-offscreen', 'left-loose']);
+  assert.deepEqual(assignments.pools.right, ['right-loose']);
+  assert.deepEqual(JSON.parse(JSON.stringify(assignments.rows)), [{
+    left: { connectionId: 'left-paired', returnIndex: 0 },
+    right: { connectionId: 'right-paired', returnIndex: 0 },
+  }]);
+  assert.equal(assignments.initialPartners['left-paired'], 'right-paired');
+  assert.equal(assignments.initialPartners['right-paired'], 'left-paired');
+});
+
+asyncTest('Wire Editor Save submits complete staged changes in one transaction', async () => {
+  const { context, calls } = palette();
+  context.send = (action, payload) => {
+    calls.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const assignments = {
+    pools: { left: [], right: [] },
+    rows: [
+      {
+        left: { connectionId: 'left-1', returnIndex: 0 },
+        right: { connectionId: 'right-2', returnIndex: 0 },
+      },
+      { left: { connectionId: 'incomplete', returnIndex: 0 }, right: null },
+    ],
+    initialPartners: { 'left-1': 'right-1', 'right-1': 'left-1' },
+    movedConnectionIds: { 'left-1': true },
+    renames: { 'right-2': 'Renamed', deleted: 'Ignored rename' },
+    deletedConnectionIds: { deleted: true },
+  };
+  const save = { disabled: false };
+
+  await context.saveWireCreationAssignments(
+    { harnessId: 'h' },
+    {
+      left: { pathway: { pathwayId: 'left-path' }, endpoint: 'start' },
+      right: { pathway: { pathwayId: 'right-path' }, endpoint: 'end' },
+    },
+    assignments,
+    save,
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'save_wire_editor');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0].payload)), {
+    harnessId: 'h',
+    leftBoundary: { pathwayId: 'left-path', endpoint: 'start' },
+    rightBoundary: { pathwayId: 'right-path', endpoint: 'end' },
+    pairings: [{ leftConnectionId: 'left-1', rightConnectionId: 'right-2' }],
+    detachedConnectionIds: ['left-1'],
+    renames: [{ connectionId: 'right-2', name: 'Renamed' }],
+    deletedConnectionIds: ['deleted'],
+  });
 });
 
 test('Wire Editor swaps occupied same-side members while partners stay in place', () => {

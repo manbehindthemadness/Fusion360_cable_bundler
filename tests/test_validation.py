@@ -6,6 +6,7 @@ from dataclasses import replace
 from uuid import UUID
 
 from wire_bundler.domain import (
+    Connection,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -16,6 +17,7 @@ from wire_bundler.domain import (
     RoutingMode,
     StandaloneEndDefinition,
     WireDefinition,
+    WireGroupDefinition,
     validate_harness,
 )
 
@@ -45,6 +47,62 @@ def test_validates_standalone_end_references_and_connection_ownership(
     issues = validate_harness(definition)
 
     assert any(issue.code == "duplicate_endpoint" for issue in issues)
+
+
+def test_validates_wire_group_membership_and_pathway_boundaries(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Require two located members and forbid repeated membership or boundaries.
+    """
+    first = WireGroupDefinition(
+        UUID("60000000-0000-0000-0000-000000000001"),
+        (valid_harness.connections[0].connection_id,),
+    )
+    repeated = WireGroupDefinition(
+        UUID("60000000-0000-0000-0000-000000000002"),
+        (
+            valid_harness.connections[0].connection_id,
+            valid_harness.connections[1].connection_id,
+        ),
+    )
+    issues = validate_harness(replace(valid_harness, wire_groups=(first, repeated)))
+
+    assert any(issue.code == "undersized_wire_group" for issue in issues)
+    assert any(issue.code == "duplicate_wire_group_member" for issue in issues)
+
+
+def test_rejects_distinct_group_members_at_the_same_pathway_end(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep one wire group from containing two physical ends on one boundary.
+    """
+    first_id = UUID("63000000-0000-0000-0000-000000000001")
+    second_id = UUID("63000000-0000-0000-0000-000000000002")
+    pathway_id = valid_harness.pathways[0].pathway_id
+    definition = replace(
+        valid_harness,
+        connections=(
+            *valid_harness.connections,
+            Connection(first_id, "First", "first-token"),
+            Connection(second_id, "Second", "second-token"),
+        ),
+        standalone_ends=(
+            StandaloneEndDefinition(first_id, pathway_id, PathwayEndpoint.START),
+            StandaloneEndDefinition(second_id, pathway_id, PathwayEndpoint.START),
+        ),
+        wire_groups=(
+            WireGroupDefinition(
+                UUID("60000000-0000-0000-0000-000000000003"),
+                (first_id, second_id),
+            ),
+        ),
+    )
+
+    issues = validate_harness(definition)
+
+    assert any(issue.code == "duplicate_wire_group_boundary" for issue in issues)
 
 
 def test_accepts_isolated_and_single_ended_junctions(

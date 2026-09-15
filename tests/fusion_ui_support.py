@@ -28,6 +28,7 @@ from wire_bundler.domain import (
     RefineGeometry,
     StandaloneEndDefinition,
     WireColor,
+    WireGroupDefinition,
     WireStripe,
     dumps,
     loads,
@@ -58,6 +59,7 @@ __all__ = (
     "UUID",
     "Vector3",
     "WireColor",
+    "WireGroupDefinition",
     "WireStripe",
     "_PaletteLifecycleModule",
     "_configure_relationship_selector_casts",
@@ -157,6 +159,7 @@ class _PaletteLifecycleModule(Protocol):
     _create_harness_gateway: Callable[[object], object]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
+    save_wire_editor: Callable[..., None]
     serialize_palette_state: Callable[[object, str], str]
     _delete_damaged_harness: Callable[[object, str], str]
     _appearance_libraries_payload: Callable[[object], list[dict[str, str]]]

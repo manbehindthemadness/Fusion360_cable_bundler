@@ -115,12 +115,36 @@ function highlightWireCreationEnd(harness, group) {
 
 /** Create the transient ordered state for a newly opened wire workspace. */
 function initialWireCreationAssignments(groups) {
+  const rightByGroup = new Map(
+    groups.right.filter((group) => group.wireGroupId).map((group) => [
+      group.wireGroupId, group,
+    ]),
+  );
+  const pairedIds = new Set();
+  const initialPartners = {};
+  const rows = [];
+  groups.left.forEach((left) => {
+    const right = left.wireGroupId && rightByGroup.get(left.wireGroupId);
+    if (!right) return;
+    pairedIds.add(left.connectionId);
+    pairedIds.add(right.connectionId);
+    initialPartners[left.connectionId] = right.connectionId;
+    initialPartners[right.connectionId] = left.connectionId;
+    rows.push({
+      left: { connectionId: left.connectionId, returnIndex: 0 },
+      right: { connectionId: right.connectionId, returnIndex: 0 },
+    });
+  });
   return {
     pools: {
-      left: groups.left.map((group) => group.connectionId),
-      right: groups.right.map((group) => group.connectionId),
+      left: groups.left.map((group) => group.connectionId).filter((id) => !pairedIds.has(id)),
+      right: groups.right.map((group) => group.connectionId).filter((id) => !pairedIds.has(id)),
     },
-    rows: [],
+    rows,
+    initialPartners,
+    movedConnectionIds: {},
+    renames: {},
+    deletedConnectionIds: {},
   };
 }
 
@@ -128,9 +152,17 @@ function initialWireCreationAssignments(groups) {
 function reconcileWireCreationAssignments(assignments, groups) {
   if (!assignments) return initialWireCreationAssignments(groups);
   if (!assignments.pools) assignments.pools = { left: [], right: [] };
+  assignments.initialPartners ||= {};
+  assignments.movedConnectionIds ||= {};
+  assignments.renames ||= {};
+  assignments.deletedConnectionIds ||= {};
   const available = {
-    left: new Set(groups.left.map((group) => group.connectionId)),
-    right: new Set(groups.right.map((group) => group.connectionId)),
+    left: new Set(groups.left.map((group) => group.connectionId).filter(
+      (connectionId) => !assignments.deletedConnectionIds[connectionId],
+    )),
+    right: new Set(groups.right.map((group) => group.connectionId).filter(
+      (connectionId) => !assignments.deletedConnectionIds[connectionId],
+    )),
   };
   const seen = { left: new Set(), right: new Set() };
   let newlyPendingRow = null;
@@ -221,6 +253,10 @@ function unassignWireCreationRowItem(assignments, side, rowIndex, poolIndex) {
   const row = assignments.rows[rowIndex];
   const item = row?.[side];
   if (!item) return;
+  if (assignments.initialPartners?.[item.connectionId]) {
+    assignments.movedConnectionIds ||= {};
+    assignments.movedConnectionIds[item.connectionId] = true;
+  }
   insertWireCreationPoolItem(assignments, side, item, poolIndex);
   row[side] = null;
   if (!row.left && !row.right) assignments.rows.splice(rowIndex, 1);
@@ -233,11 +269,94 @@ function swapWireCreationRowItems(assignments, side, sourceRowIndex, targetRowIn
   const source = assignments.rows[sourceRowIndex];
   const target = assignments.rows[targetRowIndex];
   if (!source?.[side] || !target?.[side]) return;
+  [source[side], target[side]].forEach((item) => {
+    if (assignments.initialPartners?.[item.connectionId]) {
+      assignments.movedConnectionIds ||= {};
+      assignments.movedConnectionIds[item.connectionId] = true;
+    }
+  });
   [source[side], target[side]] = [target[side], source[side]];
 }
 
+/** Remove one standalone end from the staged workspace without persisting it. */
+function deleteWireCreationEnd(assignments, connectionId) {
+  assignments.deletedConnectionIds[connectionId] = true;
+  delete assignments.renames[connectionId];
+  ["left", "right"].forEach((side) => {
+    assignments.pools[side] = assignments.pools[side].filter((id) => id !== connectionId);
+  });
+  assignments.rows.forEach((row) => {
+    ["left", "right"].forEach((side) => {
+      if (row[side]?.connectionId === connectionId) row[side] = null;
+    });
+  });
+  assignments.rows = assignments.rows.filter((row) => row.left || row.right);
+  const pendingRows = assignments.rows.filter(
+    (row) => Boolean(row.left) !== Boolean(row.right),
+  );
+  if (pendingRows.length > 1) returnOtherPendingWireCreationRows(assignments, pendingRows[0]);
+}
+
+/** Return the complete left/right relationships currently staged in the center. */
+function wireCreationCompletePairings(assignments) {
+  return assignments.rows.filter((row) => row.left && row.right).map((row) => ({
+    leftConnectionId: row.left.connectionId,
+    rightConnectionId: row.right.connectionId,
+  }));
+}
+
+/** Return persisted-pair members that the current arrangement explicitly reassigns. */
+function wireCreationDetachedConnectionIds(assignments, pairings, deleted) {
+  const finalPartners = {};
+  pairings.forEach((pairing) => {
+    finalPartners[pairing.leftConnectionId] = pairing.rightConnectionId;
+    finalPartners[pairing.rightConnectionId] = pairing.leftConnectionId;
+  });
+  return Object.keys(assignments.movedConnectionIds).filter(
+    (connectionId) => !deleted.has(connectionId)
+      && finalPartners[connectionId] !== assignments.initialPartners[connectionId],
+  );
+}
+
+/** Resolve staged connected status using the same detach-then-merge semantics as Save. */
+function wireCreationStagedConnectedIds(harness, assignments) {
+  const deleted = new Set(Object.keys(assignments.deletedConnectionIds));
+  const pairings = wireCreationCompletePairings(assignments);
+  const detached = new Set(
+    wireCreationDetachedConnectionIds(assignments, pairings, deleted),
+  );
+  const groups = (harness.wireGroups || []).map((group) => (
+    (group.connectionIds || []).filter(
+      (connectionId) => !deleted.has(connectionId) && !detached.has(connectionId),
+    )
+  ));
+  const groupIndex = (connectionId) => groups.findIndex(
+    (members) => members.includes(connectionId),
+  );
+  pairings.forEach((pairing) => {
+    const leftIndex = groupIndex(pairing.leftConnectionId);
+    const rightIndex = groupIndex(pairing.rightConnectionId);
+    if (leftIndex >= 0 && leftIndex === rightIndex) return;
+    if (leftIndex < 0 && rightIndex < 0) {
+      groups.push([pairing.leftConnectionId, pairing.rightConnectionId]);
+    } else if (leftIndex < 0) {
+      groups[rightIndex].push(pairing.leftConnectionId);
+    } else if (rightIndex < 0) {
+      groups[leftIndex].push(pairing.rightConnectionId);
+    } else {
+      const keepIndex = Math.min(leftIndex, rightIndex);
+      const removeIndex = Math.max(leftIndex, rightIndex);
+      groups[keepIndex].push(...groups[removeIndex]);
+      groups.splice(removeIndex, 1);
+    }
+  });
+  return new Set(groups.filter((members) => members.length >= 2).flat());
+}
+
 /** Render one draggable end card with the master diagram's end interactions. */
-function renderWireCreationEndCard(harness, boundary, group, showContextMenu) {
+function renderWireCreationEndCard(
+  harness, boundary, group, assignments, connected, showContextMenu, rerender,
+) {
   const card = document.createElement("div");
   const name = document.createElement("strong");
   const status = document.createElement("small");
@@ -247,27 +366,36 @@ function renderWireCreationEndCard(harness, boundary, group, showContextMenu) {
   card.dataset.endpoint = boundary.endpoint;
   card.dataset.wireIds = relationshipWireIds(group.wires);
   card.setAttribute("role", "listitem");
-  name.textContent = group.label;
-  status.textContent = "Disconnected";
+  name.textContent = assignments.renames[group.connectionId] ?? group.label;
+  status.textContent = connected ? "Connected" : "Disconnected";
   card.append(name, status);
   hoverHighlight(card, () => highlightWireCreationEnd(harness, group));
   if (group.standalone) {
-    card.dataset.disconnected = "true";
+    if (!connected) card.dataset.disconnected = "true";
     card.tabIndex = 0;
-    card.setAttribute("aria-label", `${group.label}, disconnected end`);
+    card.setAttribute("aria-label", `${group.label}, ${connected ? "connected" : "disconnected"} end`);
     card.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
       showContextMenu(event, [
         {
           label: "Rename",
-          action: () => renameRelationshipEnd(harness, group, card, name, status),
+          action: () => beginInlineNameEdit(card, name, status, {
+            value: assignments.renames[group.connectionId]
+              ?? group.connectionName ?? group.label,
+            placeholder: group.label || "End name",
+            ariaLabel: "End name",
+            onSave: (value) => {
+              assignments.renames[group.connectionId] = value;
+              rerender();
+            },
+          }),
         },
         {
           label: "Delete",
-          action: () => mutate("remove_standalone_end", {
-            harnessId: harness.harnessId,
-            connectionId: group.connectionId,
-          }, `Deleting ${group.label}…`),
+          action: () => {
+            deleteWireCreationEnd(assignments, group.connectionId);
+            rerender();
+          },
         },
       ]);
     });
@@ -400,10 +528,14 @@ function createWireCreationEndPool(boundary) {
 function renderWireCreationAssignments(
   harness, boundaries, groups, assignments, pools, center, showContextMenu,
 ) {
+  const rerender = () => renderWireCreationAssignments(
+    harness, boundaries, groups, assignments, pools, center, showContextMenu,
+  );
   const groupMaps = {
     left: new Map(groups.left.map((group) => [group.connectionId, group])),
     right: new Map(groups.right.map((group) => [group.connectionId, group])),
   };
+  const connectedIds = wireCreationStagedConnectedIds(harness, assignments);
   const surfaces = {
     center,
     markers: new Set(),
@@ -419,7 +551,13 @@ function renderWireCreationAssignments(
       const group = groupMaps[side].get(connectionId);
       if (!group) return;
       const card = renderWireCreationEndCard(
-        harness, boundaries[side], group, showContextMenu,
+        harness,
+        boundaries[side],
+        group,
+        assignments,
+        connectedIds.has(connectionId),
+        showContextMenu,
+        rerender,
       );
       card.dataset.assignmentSide = side;
       card.dataset.assignmentLocation = "pool";
@@ -450,7 +588,13 @@ function renderWireCreationAssignments(
       const group = item && groupMaps[side].get(item.connectionId);
       if (!group) return;
       const card = renderWireCreationEndCard(
-        harness, boundaries[side], group, showContextMenu,
+        harness,
+        boundaries[side],
+        group,
+        assignments,
+        connectedIds.has(item.connectionId),
+        showContextMenu,
+        rerender,
       );
       card.dataset.assignmentSide = side;
       card.dataset.assignmentLocation = "center";
@@ -476,9 +620,7 @@ function renderWireCreationAssignments(
         (target) => {
           void send("clear_highlight").catch(() => {});
           assignWireCreationPoolItem(assignments, side, poolIndex, target.rowIndex ?? 0);
-          renderWireCreationAssignments(
-            harness, boundaries, groups, assignments, pools, center, showContextMenu,
-          );
+          rerender();
         },
       );
     });
@@ -498,9 +640,7 @@ function renderWireCreationAssignments(
           } else {
             unassignWireCreationRowItem(assignments, side, rowIndex, target.poolIndex);
           }
-          renderWireCreationAssignments(
-            harness, boundaries, groups, assignments, pools, center, showContextMenu,
-          );
+          rerender();
         },
       );
     });
@@ -533,6 +673,41 @@ function suspendCreateWiresPopup() {
   removeCreateWiresPopup(true);
 }
 
+/** Commit every staged Wire Editor change through one host transaction. */
+async function saveWireCreationAssignments(harness, boundaries, assignments, saveButton) {
+  const pairings = wireCreationCompletePairings(assignments);
+  const deletedConnectionIds = Object.keys(assignments.deletedConnectionIds);
+  const deleted = new Set(deletedConnectionIds);
+  const detachedConnectionIds = wireCreationDetachedConnectionIds(
+    assignments, pairings, deleted,
+  );
+  const renames = Object.entries(assignments.renames)
+    .filter(([connectionId]) => !deleted.has(connectionId))
+    .map(([connectionId, name]) => ({ connectionId, name }));
+  saveButton.disabled = true;
+  appendNotice("Saving Wire Editor changes…");
+  try {
+    const response = await send("save_wire_editor", {
+      harnessId: harness.harnessId,
+      leftBoundary: wireCreationBoundaryState(boundaries.left),
+      rightBoundary: wireCreationBoundaryState(boundaries.right),
+      pairings,
+      detachedConnectionIds,
+      renames,
+      deletedConnectionIds,
+    });
+    if (!response.ok) {
+      appendNotice(response.error || "Wire Editor changes could not be saved.", true);
+      saveButton.disabled = false;
+      return;
+    }
+    closeCreateWiresPopup();
+  } catch (error) {
+    appendNotice(error.message, true);
+    saveButton.disabled = false;
+  }
+}
+
 /** Open the three-column workspace for two selected boundaries. */
 function openCreateWiresPopup(
   harness, left, right, scrollPositions = [0, 0, 0], restoredAssignments = null,
@@ -547,7 +722,8 @@ function openCreateWiresPopup(
   const centerHeading = document.createElement("h3");
   const centerContent = document.createElement("div");
   const actions = document.createElement("div");
-  const close = document.createElement("button");
+  const cancel = document.createElement("button");
+  const save = document.createElement("button");
   const groups = wireCreationDisconnectedGroups(harness, left, right);
   const assignments = reconcileWireCreationAssignments(restoredAssignments, groups);
   const leftPool = createWireCreationEndPool(left);
@@ -585,17 +761,27 @@ function openCreateWiresPopup(
     showContextMenu,
   );
   actions.className = "pathway-popup-actions";
-  close.type = "button";
-  close.className = "button";
-  close.textContent = "Close";
-  close.addEventListener("click", closeCreateWiresPopup);
+  cancel.type = "button";
+  cancel.className = "button secondary";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", closeCreateWiresPopup);
+  save.type = "button";
+  save.className = "button";
+  save.textContent = "Save";
+  save.addEventListener("click", () => saveWireCreationAssignments(
+    harness, { left, right }, assignments, save,
+  ));
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeCreateWiresPopup();
+  });
   dialog.addEventListener("close", () => {
     if (document.body.querySelector(".create-wires-popup") === dialog) {
       openCreateWiresPopupState = null;
     }
     dialog.remove();
   });
-  actions.append(close);
+  actions.append(cancel, save);
   dialog.append(heading, layout, actions);
   document.body.append(dialog);
   dialog.showModal();
@@ -604,7 +790,7 @@ function openCreateWiresPopup(
       column.scrollTop = scrollPositions[index] || 0;
     });
   });
-  close.focus();
+  save.focus();
 }
 
 /** Restore an open popup after refreshed harness state has rebuilt the editor. */

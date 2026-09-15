@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 class RoutingMode(str, Enum):
@@ -454,6 +454,18 @@ class StandaloneEndDefinition:
 
 
 @dataclass(frozen=True)
+class WireGroupDefinition:
+    """
+    Connect two or more physical wire ends without creating routed conductors.
+
+    Member order is stable metadata order and has no electrical precedence.
+    """
+
+    wire_group_id: UUID
+    connection_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True)
 class WireDefinition:
     """
     Map one persistent conductor from a start to a destination.
@@ -491,6 +503,7 @@ class HarnessDefinition:
     wires: tuple[WireDefinition, ...]
     junctions: tuple[JunctionDefinition, ...] = ()
     standalone_ends: tuple[StandaloneEndDefinition, ...] = ()
+    wire_groups: tuple[WireGroupDefinition, ...] = ()
     gate_defaults: InterpolationSettings = InterpolationSettings()
     end_defaults: InterpolationSettings = InterpolationSettings()
     material_defaults: WireMaterialSettings = WireMaterialSettings()

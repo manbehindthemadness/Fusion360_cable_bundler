@@ -90,6 +90,12 @@ function createRelationshipFocusController(container) {
 }
 
 function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
+  const wireGroupByConnection = new Map();
+  (harness.wireGroups || []).forEach((wireGroup) => {
+    (wireGroup.connectionIds || []).forEach((connectionId) => {
+      wireGroupByConnection.set(connectionId, wireGroup.wireGroupId);
+    });
+  });
   const connectionField = endpoint === "start" ? "startConnectionId" : "endConnectionId";
   const endpointNameField = endpoint === "start" ? "startEndName" : "endEndName";
   const groups = new Map();
@@ -136,6 +142,7 @@ function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
     )).join(" ");
     return {
       ...group,
+      wireGroupId: wireGroupByConnection.get(group.connectionId) || "",
       label,
       searchable: `${label} ${group.connectionName} ${endpointNames.join(" ")} ${wireSearch}`
         .toLocaleLowerCase(),

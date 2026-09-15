@@ -14,6 +14,8 @@ import pytest
 from wire_bundler.application import (
     HarnessEditError,
     HarnessEditGateway,
+    WireEditorPairing,
+    WireEditorRename,
     add_junction,
     add_junction_relationship,
     add_pathway,
@@ -33,6 +35,7 @@ from wire_bundler.application import (
     rename_route_end,
     rename_standalone_end,
     rename_wire,
+    save_wire_editor,
     segment_pathway,
     set_harness_material_defaults,
     set_wire_diameter,
@@ -55,6 +58,7 @@ from wire_bundler.domain import (
     StandaloneEndDefinition,
     WireColor,
     WireDefinition,
+    WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
     dumps,
@@ -72,6 +76,64 @@ JUNCTION_ID = UUID("36000000-0000-0000-0000-000000000001")
 ISOLATED_CONTROL_ID = UUID("37000000-0000-0000-0000-000000000001")
 ISOLATED_JUNCTION_ID = UUID("37000000-0000-0000-0000-000000000002")
 STANDALONE_CONNECTION_ID = UUID("38000000-0000-0000-0000-000000000001")
+WIRE_GROUP_ID = UUID("60000000-0000-0000-0000-000000000001")
+WIRE_GROUP_2_ID = UUID("60000000-0000-0000-0000-000000000002")
+EDITOR_LEFT_PATH_ID = UUID("61000000-0000-0000-0000-000000000001")
+EDITOR_RIGHT_PATH_ID = UUID("61000000-0000-0000-0000-000000000002")
+EDITOR_OFFSCREEN_PATH_ID = UUID("61000000-0000-0000-0000-000000000003")
+EDITOR_LEFT_ID = UUID("62000000-0000-0000-0000-000000000001")
+EDITOR_RIGHT_ID = UUID("62000000-0000-0000-0000-000000000002")
+EDITOR_OFFSCREEN_ID = UUID("62000000-0000-0000-0000-000000000003")
+EDITOR_DELETE_ID = UUID("62000000-0000-0000-0000-000000000004")
+EDITOR_LEFT_2_ID = UUID("62000000-0000-0000-0000-000000000005")
+EDITOR_RIGHT_2_ID = UUID("62000000-0000-0000-0000-000000000006")
+
+
+def _wire_editor_definition(valid_harness: HarnessDefinition) -> HarnessDefinition:
+    """
+    Add deterministic standalone ends on three Wire Editor boundaries.
+    """
+    pathways = tuple(
+        PathwayDefinition(
+            pathway_id,
+            name,
+            valid_harness.routing_mode,
+            valid_harness.pathways[0].ordered_control_ids,
+        )
+        for pathway_id, name in (
+            (EDITOR_LEFT_PATH_ID, "Left"),
+            (EDITOR_RIGHT_PATH_ID, "Right"),
+            (EDITOR_OFFSCREEN_PATH_ID, "Offscreen"),
+        )
+    )
+    connection_ids = (
+        EDITOR_LEFT_ID,
+        EDITOR_RIGHT_ID,
+        EDITOR_OFFSCREEN_ID,
+        EDITOR_DELETE_ID,
+        EDITOR_LEFT_2_ID,
+        EDITOR_RIGHT_2_ID,
+    )
+    connections = tuple(
+        Connection(connection_id, f"End {index + 1}", f"editor-token-{index + 1}")
+        for index, connection_id in enumerate(connection_ids)
+    )
+    standalone_ends = (
+        StandaloneEndDefinition(EDITOR_LEFT_ID, EDITOR_LEFT_PATH_ID, PathwayEndpoint.START),
+        StandaloneEndDefinition(EDITOR_RIGHT_ID, EDITOR_RIGHT_PATH_ID, PathwayEndpoint.END),
+        StandaloneEndDefinition(
+            EDITOR_OFFSCREEN_ID, EDITOR_OFFSCREEN_PATH_ID, PathwayEndpoint.START
+        ),
+        StandaloneEndDefinition(EDITOR_DELETE_ID, EDITOR_LEFT_PATH_ID, PathwayEndpoint.START),
+        StandaloneEndDefinition(EDITOR_LEFT_2_ID, EDITOR_LEFT_PATH_ID, PathwayEndpoint.START),
+        StandaloneEndDefinition(EDITOR_RIGHT_2_ID, EDITOR_RIGHT_PATH_ID, PathwayEndpoint.END),
+    )
+    return replace(
+        valid_harness,
+        connections=(*valid_harness.connections, *connections),
+        pathways=(*valid_harness.pathways, *pathways),
+        standalone_ends=standalone_ends,
+    )
 
 
 def test_adds_isolated_junction_from_unused_geometry(
@@ -1529,6 +1591,12 @@ def test_removes_standalone_end_and_its_owned_connection(
         valid_harness,
         connections=(*valid_harness.connections, connection),
         standalone_ends=(standalone_end,),
+        wire_groups=(
+            WireGroupDefinition(
+                WIRE_GROUP_ID,
+                (STANDALONE_CONNECTION_ID, valid_harness.connections[0].connection_id),
+            ),
+        ),
     )
     gateway = _recording_gateway(definition)
 
@@ -1536,9 +1604,156 @@ def test_removes_standalone_end_and_its_owned_connection(
 
     stored = loads(gateway.serialized_definition)
     assert stored.standalone_ends == ()
+    assert stored.wire_groups == ()
     assert connection not in stored.connections
     assert stored.wires == definition.wires
     assert stored.profiles == definition.profiles
+
+
+def test_saves_wire_editor_changes_as_one_group_transaction(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Extend an offscreen group while applying staged rename and deletion edits.
+    """
+    definition = replace(
+        _wire_editor_definition(valid_harness),
+        wire_groups=(WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_LEFT_ID, EDITOR_OFFSCREEN_ID)),),
+    )
+    gateway = _recording_gateway(definition)
+
+    save_wire_editor(
+        definition.harness_id,
+        EDITOR_LEFT_PATH_ID,
+        PathwayEndpoint.START,
+        EDITOR_RIGHT_PATH_ID,
+        PathwayEndpoint.END,
+        (WireEditorPairing(EDITOR_LEFT_ID, EDITOR_RIGHT_ID),),
+        (),
+        (WireEditorRename(EDITOR_RIGHT_ID, " Renamed right "),),
+        (EDITOR_DELETE_ID,),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups == (
+        WireGroupDefinition(
+            WIRE_GROUP_ID,
+            (EDITOR_LEFT_ID, EDITOR_OFFSCREEN_ID, EDITOR_RIGHT_ID),
+        ),
+    )
+    assert (
+        next(
+            connection.name
+            for connection in stored.connections
+            if connection.connection_id == EDITOR_RIGHT_ID
+        )
+        == "Renamed right"
+    )
+    assert EDITOR_DELETE_ID not in {connection.connection_id for connection in stored.connections}
+
+
+def test_wire_editor_creates_a_group_for_two_ungrouped_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Give a newly saved center pairing one persistent group identity.
+    """
+    definition = _wire_editor_definition(valid_harness)
+    gateway = _recording_gateway(definition)
+
+    save_wire_editor(
+        definition.harness_id,
+        EDITOR_LEFT_PATH_ID,
+        PathwayEndpoint.START,
+        EDITOR_RIGHT_PATH_ID,
+        PathwayEndpoint.END,
+        (WireEditorPairing(EDITOR_LEFT_ID, EDITOR_RIGHT_ID),),
+        (),
+        (),
+        (),
+        gateway,
+        id_factory=lambda: WIRE_GROUP_ID,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups == (
+        WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_LEFT_ID, EDITOR_RIGHT_ID)),
+    )
+
+
+def test_wire_editor_breaks_only_the_explicitly_moved_existing_member(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Leave the stationary visible end connected to its offscreen partner.
+    """
+    definition = replace(
+        _wire_editor_definition(valid_harness),
+        wire_groups=(
+            WireGroupDefinition(
+                WIRE_GROUP_ID,
+                (EDITOR_LEFT_ID, EDITOR_RIGHT_ID, EDITOR_OFFSCREEN_ID),
+            ),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    save_wire_editor(
+        definition.harness_id,
+        EDITOR_LEFT_PATH_ID,
+        PathwayEndpoint.START,
+        EDITOR_RIGHT_PATH_ID,
+        PathwayEndpoint.END,
+        (),
+        (EDITOR_LEFT_ID,),
+        (),
+        (),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups == (
+        WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_RIGHT_ID, EDITOR_OFFSCREEN_ID)),
+    )
+
+
+def test_wire_editor_swaps_members_without_merging_their_existing_groups(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reassign both moved same-side ends around their stationary partners.
+    """
+    definition = replace(
+        _wire_editor_definition(valid_harness),
+        wire_groups=(
+            WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_LEFT_ID, EDITOR_RIGHT_ID)),
+            WireGroupDefinition(WIRE_GROUP_2_ID, (EDITOR_LEFT_2_ID, EDITOR_RIGHT_2_ID)),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    save_wire_editor(
+        definition.harness_id,
+        EDITOR_LEFT_PATH_ID,
+        PathwayEndpoint.START,
+        EDITOR_RIGHT_PATH_ID,
+        PathwayEndpoint.END,
+        (
+            WireEditorPairing(EDITOR_LEFT_2_ID, EDITOR_RIGHT_ID),
+            WireEditorPairing(EDITOR_LEFT_ID, EDITOR_RIGHT_2_ID),
+        ),
+        (EDITOR_LEFT_ID, EDITOR_LEFT_2_ID),
+        (),
+        (),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups == (
+        WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_RIGHT_ID, EDITOR_LEFT_2_ID)),
+        WireGroupDefinition(WIRE_GROUP_2_ID, (EDITOR_RIGHT_2_ID, EDITOR_LEFT_ID)),
+    )
 
 
 def test_renames_standalone_end_connection_without_changing_other_data(
