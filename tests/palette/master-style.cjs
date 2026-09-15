@@ -18,4 +18,9 @@ test('Create Wires uses three independently scrollable columns', () => {
     new RegExp(columnPattern, 's'),
   );
   assert.match(styles, /\.create-wires-column \{[^}]*overflow-y: auto;/s);
+  assert.match(styles, /\.create-wires-assignment-content \{[^}]*min-height: 0;/s);
+  assert.doesNotMatch(
+    styles,
+    /\.create-wires-assignment-content \{[^}]*min-height: 100%;/s,
+  );
 });

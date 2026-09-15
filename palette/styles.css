@@ -626,7 +626,7 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   gap: 6px;
 }
 .create-wires-end-card { cursor: default; }
-.create-wires-assignment-content { min-height: 100%; }
+.create-wires-assignment-content { min-height: 0; }
 .relationship-topology-edge.relationship-focus-match .structural-trace { stroke-width: 3; }
 .relationship-topology-edge.relationship-focus-match .relationship-wire-bundle {
   stroke-width: 9;
