@@ -784,7 +784,7 @@ asyncTest('pathway context menu segments eligible controls and renders its junct
   assert.equal(calls.at(-1).payload.memberId, 'j1');
 });
 
-test('Create Wires selects only reachable pathway-end headers and cancels elsewhere', () => {
+test('Wire Editor selects only reachable pathway-end headers and cancels elsewhere', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways = [
@@ -838,7 +838,7 @@ test('Create Wires selects only reachable pathway-end headers and cancels elsewh
   };
 
   empty.events.contextmenu(contextEvent);
-  assert.equal(menu.children[0].textContent, 'Create Wires');
+  assert.equal(menu.children[0].textContent, 'Wire Editor');
   assert.equal(menu.children[0].disabled, true);
   assert.equal(menu.children[0].title, 'Requires at least one end');
 
@@ -900,7 +900,7 @@ test('Create Wires selects only reachable pathway-end headers and cancels elsewh
   assert.equal(staleListenerPrevented, false);
 });
 
-asyncTest('Create Wires popup interacts with loose ends and survives refreshes', async () => {
+asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -965,6 +965,8 @@ asyncTest('Create Wires popup interacts with loose ends and survives refreshes',
   });
 
   let dialog = context.document.body.querySelector('.create-wires-popup');
+  const heading = descendants(dialog, (node) => node.id === 'create-wires-title')[0];
+  assert.equal(heading.textContent, 'Wire Editor');
   let columns = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
   );
@@ -1078,7 +1080,7 @@ asyncTest('Create Wires popup interacts with loose ends and survives refreshes',
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });
 
-asyncTest('Create Wires visually pairs dragged ends without mutating the harness', async () => {
+asyncTest('Wire Editor visually pairs dragged ends without mutating the harness', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1274,6 +1276,51 @@ asyncTest('Create Wires visually pairs dragged ends without mutating the harness
   assert.equal(rows()[1].dataset.complete, 'true');
   assert.equal(card('right-2', 'center').parentElement.parentElement.dataset.assignmentRow, '1');
 
+  prepareSurfaces();
+  card('left-1', 'center').getBoundingClientRect = () => bounds(270, 180, 180, 40);
+  drag(card('left-3', 'center'), 350, 200, () => {
+    assert.equal(card('left-1', 'center').dataset.drop, 'swap');
+    assert.equal(card('left-1', 'center').dataset.dropSide, 'left');
+  });
+  assert.deepEqual(rows().map((row) => [
+    row.children[0].children[0].dataset.connectionId,
+    row.children[2].children[0].dataset.connectionId,
+  ]), [['left-1', 'right-1'], ['left-3', 'right-2']]);
+
+  prepareSurfaces();
+  card('right-2', 'center').getBoundingClientRect = () => bounds(460, 180, 180, 40);
+  drag(card('right-1', 'center'), 550, 200, () => {
+    assert.equal(card('right-2', 'center').dataset.drop, 'swap');
+    assert.equal(card('right-2', 'center').dataset.dropSide, 'right');
+  });
+  assert.deepEqual(rows().map((row) => [
+    row.children[0].children[0].dataset.connectionId,
+    row.children[2].children[0].dataset.connectionId,
+  ]), [['left-1', 'right-2'], ['left-3', 'right-1']]);
+
+  prepareSurfaces();
+  card('left-3', 'center').getBoundingClientRect = () => bounds(270, 180, 180, 40);
+  card('right-2', 'center').getBoundingClientRect = () => bounds(460, 120, 180, 40);
+  drag(card('left-1', 'center'), 550, 140, () => {
+    assert.equal(card('right-2', 'center').dataset.drop, undefined);
+  });
+  assert.deepEqual(rows().map((row) => row.children[0].children[0].dataset.connectionId), [
+    'left-1', 'left-3',
+  ]);
+
+  prepareSurfaces();
+  card('left-1', 'center').getBoundingClientRect = () => bounds(270, 120, 180, 40);
+  drag(card('left-1', 'center'), 350, 140);
+  assert.deepEqual(rows().map((row) => row.children[0].children[0].dataset.connectionId), [
+    'left-1', 'left-3',
+  ]);
+
+  prepareSurfaces();
+  drag(card('left-1', 'center'), 500, 450);
+  assert.deepEqual(rows().map((row) => row.children[0].children[0].dataset.connectionId), [
+    'left-1', 'left-3',
+  ]);
+
   definition.connections.find((connection) => connection.connectionId === 'right-1').name =
     'Renamed Right';
   context.renderEditor(definition);
@@ -1281,6 +1328,10 @@ asyncTest('Create Wires visually pairs dragged ends without mutating the harness
   assert.equal(rows()[0].dataset.complete, 'true');
   assert.equal(rows()[1].dataset.complete, 'true');
   assert.equal(card('right-1', 'center').children[0].textContent, 'Renamed Right');
+  assert.deepEqual(rows().map((row) => [
+    row.children[0].children[0].dataset.connectionId,
+    row.children[2].children[0].dataset.connectionId,
+  ]), [['left-1', 'right-2'], ['left-3', 'right-1']]);
 
   descendants(dialog(), (node) => node.textContent === 'Close')[0].events.click();
   context.openCreateWiresPopup(
@@ -1296,7 +1347,7 @@ asyncTest('Create Wires visually pairs dragged ends without mutating the harness
   assert.equal(cards().every((item) => item.dataset.assignmentLocation === 'pool'), true);
 });
 
-test('Create Wires retains only the newly exposed pending row when a pair is broken', () => {
+test('Wire Editor retains only the newly exposed pending row when a pair is broken', () => {
   const { context } = palette();
   const assignments = {
     pools: { left: [], right: [] },
@@ -1314,5 +1365,32 @@ test('Create Wires retains only the newly exposed pending row when a pair is bro
   assert.deepEqual(assignments.pools.left, ['old-pending', 'paired-left']);
   assert.deepEqual(assignments.rows, [
     { left: null, right: { connectionId: 'paired-right', returnIndex: 0 } },
+  ]);
+});
+
+test('Wire Editor swaps occupied same-side members while partners stay in place', () => {
+  const { context } = palette();
+  const leftA = { connectionId: 'left-a', returnIndex: 0 };
+  const leftB = { connectionId: 'left-b', returnIndex: 1 };
+  const rightA = { connectionId: 'right-a', returnIndex: 0 };
+  const assignments = {
+    pools: { left: [], right: [] },
+    rows: [
+      { left: leftA, right: rightA },
+      { left: leftB, right: null },
+    ],
+  };
+
+  context.swapWireCreationRowItems(assignments, 'left', 0, 1);
+  assert.deepEqual(assignments.rows, [
+    { left: leftB, right: rightA },
+    { left: leftA, right: null },
+  ]);
+
+  context.swapWireCreationRowItems(assignments, 'right', 0, 1);
+  context.swapWireCreationRowItems(assignments, 'left', 0, 0);
+  assert.deepEqual(assignments.rows, [
+    { left: leftB, right: rightA },
+    { left: leftA, right: null },
   ]);
 });

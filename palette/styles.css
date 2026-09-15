@@ -663,8 +663,10 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 .create-wires-assignment-row[data-complete="true"] .create-wires-assignment-connector {
   background: var(--accent);
 }
-.create-wires-assignment-row[data-drop]::after,
-.create-wires-end-card[data-drop]::after {
+.create-wires-assignment-row[data-drop="before"]::after,
+.create-wires-assignment-row[data-drop="after"]::after,
+.create-wires-end-card[data-drop="before"]::after,
+.create-wires-end-card[data-drop="after"]::after {
   content: "";
   position: absolute;
   left: 0;
@@ -680,7 +682,8 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 .create-wires-assignment-row[data-drop="after"]::after,
 .create-wires-end-card[data-drop="after"]::after { bottom: -5px; }
 .create-wires-end-list[data-drop="empty"],
-.create-wires-assignment-slot[data-drop="slot"] {
+.create-wires-assignment-slot[data-drop="slot"],
+.create-wires-end-card[data-drop="swap"] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   border-radius: 4px;

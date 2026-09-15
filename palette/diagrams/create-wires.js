@@ -227,6 +227,15 @@ function unassignWireCreationRowItem(assignments, side, rowIndex, poolIndex) {
   else returnOtherPendingWireCreationRows(assignments, row);
 }
 
+/** Exchange two occupied center-row members without moving their partners. */
+function swapWireCreationRowItems(assignments, side, sourceRowIndex, targetRowIndex) {
+  if (sourceRowIndex === targetRowIndex) return;
+  const source = assignments.rows[sourceRowIndex];
+  const target = assignments.rows[targetRowIndex];
+  if (!source?.[side] || !target?.[side]) return;
+  [source[side], target[side]] = [target[side], source[side]];
+}
+
 /** Render one draggable end card with the master diagram's end interactions. */
 function renderWireCreationEndCard(harness, boundary, group, showContextMenu) {
   const card = document.createElement("div");
@@ -282,7 +291,7 @@ function wireCreationContainsPoint(element, clientX, clientY) {
     clientY >= bounds.top && clientY <= bounds.bottom;
 }
 
-/** Add pathway-guide-style pointer dragging to one Create Wires card. */
+/** Add pathway-guide-style pointer dragging to one Wire Editor card. */
 function enableWireCreationDrag(card, source, surfaces, onDrop) {
   let drag = null;
   const clearMarkers = () => {
@@ -337,6 +346,18 @@ function enableWireCreationDrag(card, source, surfaces, onDrop) {
         mark(surfaces.rows[markerIndex].row,
           rowIndex >= surfaces.rows.length ? "after" : "before", source.side);
       }
+      return;
+    }
+    const swapTarget = surfaces.rows.find((record) => {
+      if (record.index === source.rowIndex) return false;
+      const targetCard = record.slots[source.side].children[0];
+      return targetCard && wireCreationContainsPoint(
+        targetCard, event.clientX, event.clientY,
+      );
+    });
+    if (swapTarget) {
+      drag.target = { location: "swap", rowIndex: swapTarget.index };
+      mark(swapTarget.slots[source.side].children[0], "swap", source.side);
       return;
     }
     const pool = surfaces.pools[source.side];
@@ -472,7 +493,11 @@ function renderWireCreationAssignments(
         surfaces,
         (target) => {
           void send("clear_highlight").catch(() => {});
-          unassignWireCreationRowItem(assignments, side, rowIndex, target.poolIndex);
+          if (target.location === "swap") {
+            swapWireCreationRowItems(assignments, side, rowIndex, target.rowIndex);
+          } else {
+            unassignWireCreationRowItem(assignments, side, rowIndex, target.poolIndex);
+          }
           renderWireCreationAssignments(
             harness, boundaries, groups, assignments, pools, center, showContextMenu,
           );
@@ -538,7 +563,7 @@ function openCreateWiresPopup(
     assignments,
   };
   heading.id = "create-wires-title";
-  heading.textContent = "Create Wires";
+  heading.textContent = "Wire Editor";
   layout.className = "create-wires-layout";
   center.className = "create-wires-column create-wires-assignment-pool";
   centerHeading.textContent = "Wire Assignments";

@@ -7,7 +7,7 @@ test('master relationship viewport uses a distinct darker backdrop', () => {
   assert.match(styles, /\.relationship-map-viewport \{[^}]*background: #dfe5ea;/s);
 });
 
-test('Create Wires uses three independently scrollable columns', () => {
+test('Wire Editor uses three independently scrollable columns', () => {
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   const columnPattern = [
     String.raw`\.create-wires-layout \{[^}]*grid-template-columns: `,
@@ -39,6 +39,10 @@ test('Create Wires uses three independently scrollable columns', () => {
   assert.match(
     styles,
     /\.create-wires-assignment-slot\[data-drop="slot"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
+  );
+  assert.match(
+    styles,
+    /\.create-wires-end-card\[data-drop="swap"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
   );
   assert.doesNotMatch(
     styles,
