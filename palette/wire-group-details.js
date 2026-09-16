@@ -452,7 +452,7 @@ function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId) {
 }
 
 /** Render the physical member list for one wire group. */
-function renderWireGroupDetailsMembers(harness, group, focusedConnectionId) {
+function renderWireGroupDetailsMembers(harness, group, focusedConnectionId, onSelect) {
   const connections = new Map(
     harness.connections.map((connection) => [connection.connectionId, connection]),
   );
@@ -478,10 +478,27 @@ function renderWireGroupDetailsMembers(harness, group, focusedConnectionId) {
     );
     row.classList.add("wire-group-details-member");
     row.dataset.connectionId = `${connectionId}`;
-    if (connectionId === focusedConnectionId) row.classList.add("focused");
+    const reference = row.querySelector(".member-reference");
+    const isFocused = connectionId === focusedConnectionId;
+    reference.title = `Start diagram from ${connection?.name || "this connected end"}`;
+    reference.setAttribute("aria-label", reference.title);
+    reference.setAttribute("aria-pressed", isFocused ? "true" : "false");
+    reference.addEventListener("click", () => onSelect(connectionId));
+    if (isFocused) row.classList.add("focused");
     members.append(row);
   });
   return members;
+}
+
+/** Move the selected styling within an existing Connected Ends list. */
+function focusWireGroupDetailsMember(members, connectionId) {
+  members.querySelectorAll(".wire-group-details-member").forEach((row) => {
+    const isFocused = row.dataset.connectionId === connectionId;
+    row.classList[isFocused ? "add" : "remove"]("focused");
+    row.querySelector(".member-reference").setAttribute(
+      "aria-pressed", isFocused ? "true" : "false",
+    );
+  });
 }
 
 /** Close the active wire-group details dialog and clear its refresh state. */
@@ -518,7 +535,9 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
   const memberHeading = document.createElement("h3");
   const actions = document.createElement("div");
   const close = document.createElement("button");
+  let focusedConnectionId = connectionId;
   let graphicWorkspace = null;
+  let members = null;
   dialog.className = "wire-group-details-popup";
   dialog.setAttribute("aria-label", "Wire details");
   content.className = "wire-group-details-content";
@@ -535,13 +554,31 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
     error.textContent = `Route graphic unavailable: ${harness.wireGroupRouteError}`;
     content.append(error);
   } else {
-    graphicWorkspace = renderWireGroupDetailsGraphic(harness, group, connectionId);
+    graphicWorkspace = renderWireGroupDetailsGraphic(harness, group, focusedConnectionId);
     content.append(graphicWorkspace.root);
   }
   memberHeading.textContent = "Connected Ends";
+  const selectConnection = (selectedConnectionId) => {
+    if (selectedConnectionId === focusedConnectionId
+      || !group.connectionIds.includes(selectedConnectionId)) return;
+    focusedConnectionId = selectedConnectionId;
+    openWireGroupDetailsState = { wireGroupId, connectionId: selectedConnectionId };
+    focusWireGroupDetailsMember(members, selectedConnectionId);
+    if (harness.wireGroupRouteError || !graphicWorkspace) return;
+    const replacement = renderWireGroupDetailsGraphic(
+      harness, group, selectedConnectionId,
+    );
+    graphicWorkspace.root.parentElement.insertBefore(replacement.root, graphicWorkspace.root);
+    graphicWorkspace.root.remove();
+    graphicWorkspace = replacement;
+    window.requestAnimationFrame(() => graphicWorkspace.fit());
+  };
+  members = renderWireGroupDetailsMembers(
+    harness, group, focusedConnectionId, selectConnection,
+  );
   content.append(
     memberHeading,
-    renderWireGroupDetailsMembers(harness, group, connectionId),
+    members,
   );
   actions.className = "pathway-popup-actions";
   close.type = "button";

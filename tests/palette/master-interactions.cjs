@@ -313,10 +313,50 @@ test('connected wire-end Details opens and refreshes group route details', () =>
       && node.className.split(' ').includes('focused'),
   )[0].dataset.connectionId, entries[0].dataset.connectionId);
 
+  const initialDialog = dialog;
+  const initialGraphic = descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-graphic'),
+  )[0];
+  const memberRows = descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-member'),
+  );
+  const selectedRow = memberRows.find(
+    (row) => row.dataset.connectionId !== entries[0].dataset.connectionId,
+  );
+  const selectedReference = selectedRow.querySelector('.member-reference');
+  let redrawFrames = 0;
+  context.window.requestAnimationFrame = (callback) => { redrawFrames += 1; callback(); };
+  selectedReference.events.click();
+  const replacementGraphic = descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-graphic'),
+  )[0];
+
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), initialDialog);
+  assert.notEqual(replacementGraphic, initialGraphic);
+  assert.equal(redrawFrames, 1);
+  assert.equal(selectedRow.className.split(' ').includes('focused'), true);
+  assert.equal(selectedReference.attributes['aria-pressed'], 'true');
+  assert.equal(memberRows.find(
+    (row) => row.dataset.connectionId === entries[0].dataset.connectionId,
+  ).querySelector('.member-reference').attributes['aria-pressed'], 'false');
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('focused'),
+  )[0].dataset.connectionId, selectedRow.dataset.connectionId);
+  selectedReference.events.click();
+  assert.equal(redrawFrames, 1);
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-graphic'),
+  )[0], replacementGraphic);
+
   context.renderEditor(definition);
   dialog = context.document.body.querySelector('.wire-group-details-popup');
   assert.equal(context.document.body.querySelectorAll('.wire-group-details-popup').length, 1);
   assert.equal(dialog.open, true);
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('focused'),
+  )[0].dataset.connectionId, selectedRow.dataset.connectionId);
 
   context.closeWireGroupDetails();
   graphic = context.renderRelationshipMap(definition, []);
@@ -342,6 +382,22 @@ test('connected wire-end Details opens and refreshes group route details', () =>
   assert.equal(descendants(
     dialog, (node) => node.className?.split(' ').includes('wire-group-details-graphic'),
   ).length, 0);
+  const unavailableRows = descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-member'),
+  );
+  const unavailableSelection = unavailableRows.find(
+    (row) => row.dataset.connectionId === 'b1',
+  );
+  unavailableSelection.querySelector('.member-reference').events.click();
+  assert.equal(unavailableSelection.className.split(' ').includes('focused'), true);
+
+  definition.wireGroupRouteError = null;
+  context.renderEditor(definition);
+  dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('focused'),
+  )[0].dataset.connectionId, 'b1');
 
   definition.wireGroups = [];
   context.renderEditor(definition);
