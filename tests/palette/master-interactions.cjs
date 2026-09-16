@@ -106,8 +106,9 @@ asyncTest('empty master graphic owns ordered harness commands', async () => {
     /id="(?:clear-preview|generate-solids|clear-solids|material-defaults|interpolation-defaults)"/,
   );
   assert.match(html, /id="back"/);
-  assert.match(html, /id="add-wires"/);
-  assert.match(html, /id="create-from-editor"/);
+  assert.match(html, /id="create"[^>]*>Create New Harness</);
+  assert.doesNotMatch(html, /id="add-wires"/);
+  assert.doesNotMatch(html, /id="create-from-editor"/);
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   assert.match(styles, /\.relationship-map > \.block-diagram-workspace \.block-diagram-viewport \{[^}]*height: 390px;/s);
 });
@@ -419,10 +420,15 @@ test('connected wire-end Details opens and refreshes group route details', () =>
     clientX: 60, clientY: 70, preventDefault() {}, stopPropagation() {},
   };
 
+  entries[0].events.click();
+  let dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(dialog.open, true);
+  context.closeWireGroupDetails();
+
   entries[0].events.contextmenu(contextEvent);
   assert.deepEqual(menu.children.map((item) => item.textContent), ['Details', 'Rename', 'Delete']);
   menu.children[0].events.click();
-  let dialog = context.document.body.querySelector('.wire-group-details-popup');
+  dialog = context.document.body.querySelector('.wire-group-details-popup');
   assert.equal(dialog.open, true);
   assert.equal(descendants(dialog, (node) => node.tag === 'h2')[0].textContent, 'Wire Details');
   assert.equal(descendants(

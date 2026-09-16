@@ -17,19 +17,6 @@ function truncateGraphicLabel(value, length = 22) {
   return text.length > length ? `${text.slice(0, length - 1)}…` : text;
 }
 
-function navigateToWire(wireId) {
-  const section = ui.editor.querySelector('[data-section="wire-routes"]');
-  const card = ui.editor.querySelector(`[data-wire-id="${wireId}"]`);
-  if (section) {
-    section.open = true;
-    expandedSections.add("wire-routes");
-  }
-  if (!card) return;
-  const details = card.querySelector(".wire-details");
-  if (details) details.hidden = false;
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 function navigateToPathway(harness, pathwayId) {
   openPathwayPopup(harness, pathwayId);
 }

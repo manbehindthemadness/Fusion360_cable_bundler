@@ -347,14 +347,24 @@ function renderRelationshipEndList(
       wires: group.wires,
       nodeIds: [`pathway:${pathway.pathwayId}`],
     });
-    if (!group.standalone) {
-      button.addEventListener("click", () => navigateToWire(group.wires[0].wireId));
-    } else {
+    const openDetails = () => openWireGroupDetails(
+      harness, group.wireGroupId, group.connectionId,
+    );
+    if (group.wireGroupId) button.addEventListener("click", openDetails);
+    if (group.standalone) {
       if (!group.wireGroupId) button.dataset.disconnected = "true";
       button.tabIndex = 0;
       button.setAttribute(
         "aria-label", `${group.label}, ${group.wireGroupId ? "connected" : "disconnected"} end`,
       );
+      if (group.wireGroupId) {
+        button.setAttribute("role", "button");
+        button.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openDetails();
+        });
+      }
       button.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
         const items = [

@@ -156,7 +156,8 @@ function qaWireCard(harnessId, wireId) {
   const wire = harness?.wires?.find((candidate) => candidate.wireId === wireId);
   if (!harness || !wire) return {};
   openHarness(harnessId);
-  const card = Array.from(ui.editor.querySelectorAll("div"))
+  const routes = renderWireRoutes(harness);
+  const card = Array.from(routes.querySelectorAll("div"))
     .find((candidate) => candidate.dataset.wireId === wireId);
   return { harness, wire, card };
 }
@@ -799,10 +800,8 @@ async function clearPreview() {
   }
 }
 
-ui.addWires.addEventListener("click", () => addWires());
 ui.back.addEventListener("click", closeEditor);
 ui.create.addEventListener("click", createHarness);
-ui.createFromEditor.addEventListener("click", createHarness);
 ui.harnessFilter.addEventListener("input", renderLibrary);
 ui.refresh.addEventListener("click", refresh);
 ui.developerMode.addEventListener("change", () => {

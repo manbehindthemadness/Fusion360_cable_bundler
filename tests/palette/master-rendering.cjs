@@ -291,37 +291,25 @@ test('Wire Details expands full labels and sorts separated route ports', () => {
   assert.equal(new Set(junctionPorts).size, junctionPorts.length);
 });
 
-test('master relationship graphic is last and independently cross-checked', () => {
+test('master relationship graphic leads validation and omits redundant editor panels', () => {
   const { context } = palette();
   const definition = harness();
   context.renderEditor(definition);
   const sections = Array.from(context.ui.editor.children).filter((node) => node.tag === 'details');
   assert.deepEqual(
     sections.map((section) => section.dataset.section),
-    ['wire-routes', 'validation', 'master-relationship-graphic'],
+    ['master-relationship-graphic', 'validation'],
   );
   const audit = descendants(sections[1], (node) => node.className === 'relationship-audit')[0];
   assert.match(audit.textContent, /agrees with wire routes/);
   const pathwayCards = descendants(
-    sections[2], (node) => node.className === 'relationship-pathway-group',
+    sections[0], (node) => node.className === 'relationship-pathway-group',
   );
   assert.equal(pathwayCards.length, 1);
   const endLists = descendants(pathwayCards[0], (node) => node.className === 'relationship-end-list');
   assert.equal(endLists.length, 2);
   assert.ok(endLists.every((list) => list.open));
-  const wireGraphics = descendants(sections[0], (node) => node.className === 'wire-relationship-graphic');
-  assert.equal(wireGraphics.length, 3);
-  const pathwayBubble = descendants(wireGraphics[0], (node) => (
-    node.className === 'relationship-node pathway'
-  ))[0];
-  assert.equal(pathwayBubble.attributes.width, '150');
-  assert.equal(pathwayBubble.attributes.transform, undefined);
-  const graphicLabels = descendants(wireGraphics[0], (node) => node.tag === 'text')
-    .map((node) => node.textContent);
-  assert.ok(graphicLabels.includes('Data input'));
-  assert.ok(graphicLabels.includes('lower fuse box path'));
-  assert.ok(graphicLabels.includes('Data output'));
-  const connectors = descendants(sections[2], (node) => node.className === 'relationship-connector');
+  const connectors = descendants(sections[0], (node) => node.className === 'relationship-connector');
   assert.equal(connectors.length, 2);
   assert.ok(connectors.every((connector) => (
     descendants(connector, (node) => node.tag === 'path').length === 3
@@ -329,7 +317,10 @@ test('master relationship graphic is last and independently cross-checked', () =
   endLists[0].open = false;
   endLists[0].events.toggle();
   assert.equal(descendants(connectors[0], (node) => node.tag === 'path').length, 1);
-  assert.equal(sections[2].open, true);
+  assert.equal(sections[0].open, true);
+  assert.equal(sections[1].open, false);
+  assert.equal(context.ui.editor.querySelector('[data-section="wire-routes"]'), undefined);
+  assert.equal(descendants(context.ui.editor, (node) => node.className === 'overview').length, 0);
 });
 
 test('master topology traces leave adaptive ports normally and avoid measured nodes', () => {
@@ -510,7 +501,7 @@ test('palette entry point loads organized local style and script resources', () 
   assert.doesNotMatch(html, /<style>|<script>/);
 });
 
-test('master relationship filtering, hover, navigation, and mismatch reporting work', () => {
+test('master relationship filtering, hover, and mismatch reporting work', () => {
   const { context, calls } = palette();
   const definition = harness();
   definition.relationshipMap.routes[0].nodeIds.reverse();
@@ -518,7 +509,7 @@ test('master relationship filtering, hover, navigation, and mismatch reporting w
   assert.ok(issues.some((issue) => issue.code === 'palette_wire_route_mismatch'));
   context.highlightMember = (_harness, type, id) => calls.push({ type, id });
   context.renderEditor(definition);
-  const graphic = context.ui.editor.children[context.ui.editor.children.length - 1];
+  const graphic = context.ui.editor.querySelector('[data-section="master-relationship-graphic"]');
   const filter = descendants(graphic, (node) => node.attributes['aria-label'] === 'Filter master relationship graphic')[0];
   filter.value = '002';
   filter.events.input();
@@ -528,12 +519,9 @@ test('master relationship filtering, hover, navigation, and mismatch reporting w
   assert.equal(entries.length, 2);
   entries[0].events.mouseenter();
   assert.deepEqual(calls[calls.length - 1], { type: 'connection', id: 'a2' });
-  entries[0].events.click();
-  const wireCard = context.ui.editor.querySelector('[data-wire-id="w2"]');
-  assert.equal(wireCard.scrolledIntoView, true);
-  assert.equal(wireCard.querySelector('.wire-details').hidden, false);
   const validation = context.ui.editor.querySelector('[data-section="validation"]');
   assert.ok(descendants(validation, (node) => node.textContent?.includes('does not match')).length);
+  assert.equal(validation.open, false);
 });
 
 test('expanded master traces use wire colors and pathway hubs open their popup', () => {

@@ -20,14 +20,6 @@
     </div>
   </header>
   <main>
-    <div class="notice-toolbar">
-      <span>Event console</span>
-      <label>
-        <input id="verbose-diagnostics" type="checkbox">
-        Verbose diagnostics
-      </label>
-    </div>
-    <div id="notice" role="log" aria-label="Harness events" aria-live="polite"></div>
     <section id="library-view" aria-label="Harness library">
       <div class="library-actions">
         <button id="create" class="button primary" type="button">Create New Harness</button>
@@ -41,11 +33,21 @@
     <section id="editor-view" aria-label="Harness editor" hidden>
       <div class="editor-nav">
         <button id="back" class="button compact" type="button">← All Harnesses</button>
-        <button id="add-wires" class="button compact primary" type="button">Add Wire Pairs</button>
-        <button id="create-from-editor" class="button compact" type="button">New Harness</button>
       </div>
       <div id="editor"></div>
     </section>
+    <details class="event-console">
+      <summary>Event Console</summary>
+      <div class="event-console-content">
+        <div class="notice-toolbar">
+          <label>
+            <input id="verbose-diagnostics" type="checkbox">
+            Verbose diagnostics
+          </label>
+        </div>
+        <div id="notice" role="log" aria-label="Harness events" aria-live="polite"></div>
+      </div>
+    </details>
   </main>
   <dialog id="developer-consent" class="developer-consent"
           aria-labelledby="developer-consent-title"

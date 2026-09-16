@@ -1,8 +1,6 @@
 const ui = {
   back: document.getElementById("back"),
-  addWires: document.getElementById("add-wires"),
   create: document.getElementById("create"),
-  createFromEditor: document.getElementById("create-from-editor"),
   editor: document.getElementById("editor"),
   editorView: document.getElementById("editor-view"),
   harnessFilter: document.getElementById("harness-filter"),

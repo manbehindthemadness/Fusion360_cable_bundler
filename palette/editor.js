@@ -1,7 +1,6 @@
 function renderEditor(harness) {
   suspendCreateWiresPopup();
   ui.editor.replaceChildren();
-  ui.addWires.disabled = harness.status === "damaged" || !harness.pathways?.length;
   const heading = document.createElement("div");
   const title = document.createElement("h2");
   const meta = document.createElement("div");
@@ -47,22 +46,6 @@ function renderEditor(harness) {
     return;
   }
 
-  const overview = document.createElement("dl");
-  const overviewRows = [
-    ["Definition", harness.definitionName],
-    ["Schema", harness.schemaVersion],
-    ["Harness ID", harness.harnessId],
-  ];
-  overview.className = "overview";
-  overviewRows.forEach(([label, value]) => {
-    const term = document.createElement("dt");
-    const description = document.createElement("dd");
-    term.textContent = label;
-    description.textContent = value;
-    overview.append(term, description);
-  });
-  ui.editor.append(overview);
-
   const validation = document.createElement("div");
   const auditIssues = relationshipAuditIssues(harness);
   const audit = document.createElement("div");
@@ -106,25 +89,18 @@ function renderEditor(harness) {
 
   ui.editor.append(
     editorSection(
-      "wire-routes",
-      "Wire Routes",
-      `${harness.wires.length}`,
-      renderWireRoutes(harness),
-      false,
+      "master-relationship-graphic",
+      "Master Relationship Graphic",
+      auditIssues.length ? `${auditIssues.length} findings` : `${harness.pathways.length} pathways`,
+      renderRelationshipMap(harness, auditIssues),
+      true,
     ),
     editorSection(
       "validation",
       "Validation",
       findingCount ? `${findingCount} findings` : "Clear",
       validation,
-      findingCount > 0,
-    ),
-    editorSection(
-      "master-relationship-graphic",
-      "Master Relationship Graphic",
-      auditIssues.length ? `${auditIssues.length} findings` : `${harness.pathways.length} pathways`,
-      renderRelationshipMap(harness, auditIssues),
-      true,
+      false,
     ),
   );
   if (openPathwayPopupId) openPathwayPopup(harness, openPathwayPopupId);

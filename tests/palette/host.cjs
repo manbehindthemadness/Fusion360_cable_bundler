@@ -122,7 +122,7 @@ test('developer mode and verbose diagnostics survive palette context recreation'
   assert.equal(second.ui.verboseDiagnostics.checked, true);
 });
 
-asyncTest('developer mode QA probe observes the rendered wire DOM through a fixed target', async () => {
+asyncTest('developer mode QA probe observes a detached wire card through a fixed target', async () => {
   const preferences = new Map([
     ['wireBundler.developerMode', 'true'],
     ['wireBundler.developerConsentVersion', '1'],
@@ -148,11 +148,7 @@ asyncTest('developer mode QA probe observes the rendered wire DOM through a fixe
   assert.deepEqual(sent, [{ action: 'clear_highlight', payload: undefined }]);
   assert.equal(context.ui.libraryView.hidden, true);
   assert.equal(context.ui.editorView.hidden, false);
-  assert.equal(
-    context.ui.editor.querySelector('[data-wire-id="w1"]')
-      .querySelector('.member-reference').textContent,
-    'Wire #001',
-  );
+  assert.equal(context.ui.editor.querySelector('.wire-route'), undefined);
 });
 
 asyncTest('developer visual QA probe verifies the relationship-diagram structure', async () => {
@@ -384,6 +380,13 @@ test('developer disclosure explains capture scope and separate opt-in', () => {
 });
 
 test('event console exposes a bounded vertical resize control', () => {
+  const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  const libraryIndex = html.indexOf('id="library-view"');
+  const editorIndex = html.indexOf('id="editor-view"');
+  const consoleIndex = html.indexOf('class="event-console"');
+  assert.ok(consoleIndex > libraryIndex && consoleIndex > editorIndex);
+  assert.match(html, /<details class="event-console">\s*<summary>Event Console<\/summary>/);
+  assert.doesNotMatch(html, /<details class="event-console"[^>]*\bopen\b/);
   assert.match(styles, /#notice \{[^}]*min-height: 72px;[^}]*max-height: 60vh;[^}]*resize: vertical;/s);
 });
