@@ -84,6 +84,15 @@ test('multi-junction chains retain pathway ends and continuous procedural traces
 test('relationship diagrams zoom and pan exclusively with middle mouse dragging', () => {
   const { context } = palette();
   const definition = harness();
+  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  assert.match(
+    styles,
+    /\.block-diagram-workspace \.block-diagram-viewport \{[^}]*cursor: default;/s,
+  );
+  assert.match(
+    styles,
+    /\.block-diagram-workspace \.block-diagram-viewport\.panning,[^{]*\.block-diagram-workspace \.block-diagram-viewport\.panning \* \{[^}]*cursor: grabbing;/s,
+  );
   const perWire = context.renderWireRelationshipGraphic(
     definition, definition.wires[0], new Map(), new Map(), new Element('div'), new Element('div'),
   );
