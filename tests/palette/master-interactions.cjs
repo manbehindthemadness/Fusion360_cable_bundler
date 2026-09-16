@@ -453,6 +453,93 @@ test('wire details sub-graphic shares one junction across a pigtail group', () =
   assert.equal(descendants(dialog, (node) => node.className === 'wire-group-route-link').length, 6);
 });
 
+asyncTest('wire details background menu preserves Materials across state refresh', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const requests = [];
+  definition.wires = [];
+  definition.standaloneEnds = [
+    { connectionId: 'a1', pathwayId: 'p', endpoint: 'start' },
+    { connectionId: 'b1', pathwayId: 'p', endpoint: 'end' },
+  ];
+  definition.wireGroups = [{
+    wireGroupId: 'g1', connectionIds: ['a1', 'b1'], diameterMm: 1.5,
+    materials: definition.materialDefaults,
+    materialOverrides: {
+      insulationMaterial: null, conductorMaterial: null, mainColor: null,
+      appearance: null, stripes: null, manufacturer: null, partNumber: null, notes: null,
+    },
+    routeLegs: [{
+      routeId: 'leg-1', label: 'Group 1 Leg 1', startConnectionId: 'a1',
+      endConnectionId: 'b1', controlSteps: [], pathwayIds: ['p'],
+    }],
+  }];
+  definition.wireGroupRouteError = null;
+  context.send = async (action, payload) => {
+    if (action === 'get_appearance_libraries') return { ok: true, libraries: [] };
+    requests.push({ action, payload });
+    return { ok: true };
+  };
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  const dialog = context.document.body.querySelector('.wire-group-details-popup');
+  const content = dialog.querySelector('.wire-group-details-content');
+  const menu = dialog.querySelector('.relationship-map-context-menu');
+  const backgroundEvent = {
+    target: content, clientX: 70, clientY: 80, preventDefault() {}, stopPropagation() {},
+  };
+  dialog.events.contextmenu(backgroundEvent);
+  assert.deepEqual(menu.children.map((item) => item.textContent), ['Materials', 'Properties']);
+  assert.equal(menu.hidden, false);
+
+  menu.hidden = true;
+  const member = dialog.querySelector('.wire-group-details-member');
+  dialog.events.contextmenu({ ...backgroundEvent, target: member });
+  assert.equal(menu.hidden, true);
+  const node = dialog.querySelector('.wire-group-details-node');
+  dialog.events.contextmenu({ ...backgroundEvent, target: node });
+  assert.equal(menu.hidden, true);
+
+  dialog.events.contextmenu(backgroundEvent);
+  menu.children[1].events.click();
+  const properties = context.document.body.querySelector('.wire-group-properties');
+  assert.equal(properties.open, true);
+  assert.equal(descendants(properties, (item) => item.type === 'number').length, 1);
+  properties.close();
+
+  dialog.events.contextmenu(backgroundEvent);
+  menu.children[0].events.click();
+  const materials = context.document.body.querySelector('.material-options');
+  assert.equal(materials.open, true);
+  assert.equal(descendants(materials, (item) => item.type === 'number').length, 0);
+  await descendants(materials, (item) => item.textContent === 'Apply')[0].events.click();
+  assert.equal(materials.open, true);
+  assert.equal(descendants(materials, (item) => item.attributes.role === 'alert')[0].textContent,
+    'Applied.');
+
+  context.renderEditor(definition);
+  assert.equal(context.document.body.querySelector('.material-options'), materials);
+  assert.equal(materials.open, true);
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), dialog);
+
+  const colorOverride = descendants(materials, (item) => item.type === 'checkbox')[0];
+  const colorPicker = descendants(materials, (item) => item.type === 'color')[0];
+  colorOverride.checked = true;
+  colorOverride.events.change();
+  colorPicker.value = '#112233';
+  const form = descendants(materials, (item) => item.tag === 'form')[0];
+  form.events.submit({ preventDefault() {} });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(materials.open, false);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].payload.overrides.mainColor.red, 17);
+  assert.equal(requests[1].payload.overrides.mainColor.green, 34);
+  assert.equal(requests[1].payload.overrides.mainColor.blue, 51);
+  context.renderEditor(definition);
+  const refreshedDetails = context.document.body.querySelector('.wire-group-details-popup');
+  assert.notEqual(refreshedDetails, dialog);
+  assert.equal(refreshedDetails.open, true);
+});
+
 asyncTest('junction popup matches pathway styling and shows traversing wire members', async () => {
   const { context, calls } = palette();
   const definition = harness();

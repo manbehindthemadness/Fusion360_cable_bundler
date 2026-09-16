@@ -46,6 +46,7 @@ body {
   margin-top: 12px;
 }
 .wire-group-details-popup {
+  position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   width: 90vw;

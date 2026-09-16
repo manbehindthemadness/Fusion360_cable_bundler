@@ -39,6 +39,8 @@ from wire_bundler.application import (
     segment_pathway,
     set_harness_material_defaults,
     set_wire_diameter,
+    set_wire_group_material_overrides,
+    set_wire_group_properties,
     set_wire_material_overrides,
     suggest_pathway_extension_name,
     update_junction_relationships,
@@ -1653,6 +1655,105 @@ def test_saves_wire_editor_changes_as_one_group_transaction(
     assert EDITOR_DELETE_ID not in {connection.connection_id for connection in stored.connections}
 
 
+def test_edits_connected_wire_properties_and_material_overrides(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist diameter and inherited material choices on only the selected group.
+    """
+    definition = replace(
+        _wire_editor_definition(valid_harness),
+        wire_groups=(
+            WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_LEFT_ID, EDITOR_OFFSCREEN_ID)),
+            WireGroupDefinition(WIRE_GROUP_2_ID, (EDITOR_RIGHT_ID, EDITOR_LEFT_2_ID)),
+        ),
+    )
+    blue = WireColor("Blue", 0, 80, 200)
+    initial_overrides = WireMaterialOverrides(main_color=blue, stripes=())
+    definition = replace(
+        definition,
+        wire_groups=(replace(definition.wire_groups[0], material_overrides=initial_overrides),)
+        + definition.wire_groups[1:],
+    )
+    gateway = _recording_gateway(definition)
+
+    set_wire_group_properties(
+        definition.harness_id,
+        WIRE_GROUP_ID,
+        2.75,
+        "ETFE",
+        None,
+        "",
+        "WB-42",
+        None,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups[0].diameter_mm == 2.75
+    assert stored.wire_groups[0].material_overrides == replace(
+        initial_overrides,
+        insulation_material="ETFE",
+        manufacturer="",
+        part_number="WB-42",
+    )
+    assert stored.wire_groups[1] == definition.wire_groups[1]
+
+    overrides = replace(stored.wire_groups[0].material_overrides, manufacturer="Acme")
+    set_wire_group_material_overrides(definition.harness_id, WIRE_GROUP_ID, overrides, gateway)
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.wire_groups[0].diameter_mm == 2.75
+    assert stored.wire_groups[0].material_overrides == overrides
+    assert stored.wire_groups[1] == definition.wire_groups[1]
+
+
+def test_wire_editor_merge_keeps_retained_group_settings(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the earlier retained identity's construction settings across a merge.
+    """
+    retained_overrides = WireMaterialOverrides(main_color=WireColor("Blue", 0, 80, 200))
+    discarded_overrides = WireMaterialOverrides(main_color=WireColor("Red", 200, 20, 20))
+    definition = replace(
+        _wire_editor_definition(valid_harness),
+        wire_groups=(
+            WireGroupDefinition(
+                WIRE_GROUP_ID,
+                (EDITOR_LEFT_ID, EDITOR_OFFSCREEN_ID),
+                2.5,
+                retained_overrides,
+            ),
+            WireGroupDefinition(
+                WIRE_GROUP_2_ID,
+                (EDITOR_RIGHT_ID,),
+                4.0,
+                discarded_overrides,
+            ),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    save_wire_editor(
+        definition.harness_id,
+        EDITOR_LEFT_PATH_ID,
+        PathwayEndpoint.START,
+        EDITOR_RIGHT_PATH_ID,
+        PathwayEndpoint.END,
+        (WireEditorPairing(EDITOR_LEFT_ID, EDITOR_RIGHT_ID),),
+        (),
+        (),
+        (),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert len(stored.wire_groups) == 1
+    assert stored.wire_groups[0].wire_group_id == WIRE_GROUP_ID
+    assert stored.wire_groups[0].diameter_mm == 2.5
+    assert stored.wire_groups[0].material_overrides == retained_overrides
+
+
 def test_wire_editor_creates_a_group_for_two_ungrouped_ends(
     valid_harness: HarnessDefinition,
 ) -> None:
@@ -1678,7 +1779,11 @@ def test_wire_editor_creates_a_group_for_two_ungrouped_ends(
 
     stored = loads(gateway.serialized_definition)
     assert stored.wire_groups == (
-        WireGroupDefinition(WIRE_GROUP_ID, (EDITOR_LEFT_ID, EDITOR_RIGHT_ID)),
+        WireGroupDefinition(
+            WIRE_GROUP_ID,
+            (EDITOR_LEFT_ID, EDITOR_RIGHT_ID),
+            definition.profiles[0].diameter_mm,
+        ),
     )
 
 

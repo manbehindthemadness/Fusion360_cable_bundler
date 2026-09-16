@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
@@ -464,6 +464,8 @@ class WireGroupDefinition:
 
     wire_group_id: UUID
     connection_ids: tuple[UUID, ...]
+    diameter_mm: float = DEFAULT_WIRE_DIAMETER_MM
+    material_overrides: WireMaterialOverrides = WireMaterialOverrides()
 
 
 @dataclass(frozen=True)
@@ -514,6 +516,12 @@ class HarnessDefinition:
         Resolve one wire's effective material settings from parent defaults.
         """
         return wire.material_overrides.resolve(self.material_defaults)
+
+    def wire_group_materials(self, group: WireGroupDefinition) -> WireMaterialSettings:
+        """
+        Resolve one connected wire group's material settings from parent defaults.
+        """
+        return group.material_overrides.resolve(self.material_defaults)
 
 
 def route_control_ids(

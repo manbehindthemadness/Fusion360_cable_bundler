@@ -608,6 +608,19 @@ def _validate_wire_groups(
     memberships: dict[UUID, str] = {}
     for group_index, group in enumerate(definition.wire_groups):
         group_path = f"wire_groups[{group_index}]"
+        if (
+            isinstance(group.diameter_mm, bool)
+            or not isinstance(group.diameter_mm, (int, float))
+            or not math.isfinite(group.diameter_mm)
+            or group.diameter_mm <= 0
+        ):
+            issues.append(
+                ValidationIssue(
+                    "invalid_wire_group_diameter",
+                    f"{group_path}.diameter_mm",
+                    "Wire-group diameter must be finite and positive.",
+                )
+            )
         if len(group.connection_ids) < 2:
             issues.append(
                 ValidationIssue(

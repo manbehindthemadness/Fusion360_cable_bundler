@@ -4,15 +4,18 @@ Commit the Route Editor's staged end and connectivity changes atomically.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Optional
 from uuid import UUID, uuid4
 
 from ..domain import (
+    DEFAULT_WIRE_DIAMETER_MM,
     HarnessDefinition,
     PathwayEndpoint,
     WireGroupDefinition,
+    WireMaterialOverrides,
     validate_harness,
 )
 from .edit_harness import HarnessEditGateway, _persist, _read_definition
@@ -46,6 +49,8 @@ class _MutableWireGroup:
 
     wire_group_id: UUID
     connection_ids: list[UUID]
+    diameter_mm: float
+    material_overrides: WireMaterialOverrides
 
 
 def save_wire_editor(
@@ -114,7 +119,12 @@ def save_wire_editor(
         raise ValueError("A deleted Route Editor end cannot appear in a pairing.")
 
     groups = [
-        _MutableWireGroup(group.wire_group_id, list(group.connection_ids))
+        _MutableWireGroup(
+            group.wire_group_id,
+            list(group.connection_ids),
+            group.diameter_mm,
+            group.material_overrides,
+        )
         for group in definition.wire_groups
     ]
     removed_ids = deleted | detached
@@ -149,6 +159,12 @@ def save_wire_editor(
                 _MutableWireGroup(
                     group_id,
                     [pairing.left_connection_id, pairing.right_connection_id],
+                    (
+                        definition.profiles[0].diameter_mm
+                        if definition.profiles
+                        else DEFAULT_WIRE_DIAMETER_MM
+                    ),
+                    WireMaterialOverrides(),
                 )
             )
         elif left_index is None:
@@ -164,7 +180,12 @@ def save_wire_editor(
             groups.pop(remove_index)
 
     updated_groups = tuple(
-        WireGroupDefinition(group.wire_group_id, tuple(group.connection_ids))
+        WireGroupDefinition(
+            group.wire_group_id,
+            tuple(group.connection_ids),
+            group.diameter_mm,
+            group.material_overrides,
+        )
         for group in groups
         if len(group.connection_ids) >= 2
     )
@@ -189,6 +210,84 @@ def save_wire_editor(
     if group_issues:
         raise ValueError(group_issues[0].message)
     _persist(harness_id, original, updated, gateway)
+
+
+def set_wire_group_properties(
+    harness_id: UUID,
+    wire_group_id: UUID,
+    diameter_mm: float,
+    insulation_material: Optional[str],
+    conductor_material: Optional[str],
+    manufacturer: Optional[str],
+    part_number: Optional[str],
+    notes: Optional[str],
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace one connected wire group's construction properties atomically.
+    """
+    if (
+        isinstance(diameter_mm, bool)
+        or not isinstance(diameter_mm, (int, float))
+        or not math.isfinite(diameter_mm)
+        or diameter_mm <= 0
+    ):
+        raise ValueError("Wire-group diameter must be a finite positive value.")
+    _update_wire_group(
+        harness_id,
+        wire_group_id,
+        gateway,
+        lambda group: replace(
+            group,
+            diameter_mm=diameter_mm,
+            material_overrides=replace(
+                group.material_overrides,
+                insulation_material=insulation_material,
+                conductor_material=conductor_material,
+                manufacturer=manufacturer,
+                part_number=part_number,
+                notes=notes,
+            ),
+        ),
+    )
+
+
+def set_wire_group_material_overrides(
+    harness_id: UUID,
+    wire_group_id: UUID,
+    overrides: WireMaterialOverrides,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace one connected wire group's field-level material overrides.
+    """
+    if not isinstance(overrides, WireMaterialOverrides):
+        raise ValueError("Wire-group material overrides are invalid.")
+    _update_wire_group(
+        harness_id,
+        wire_group_id,
+        gateway,
+        lambda group: replace(group, material_overrides=overrides),
+    )
+
+
+def _update_wire_group(
+    harness_id: UUID,
+    wire_group_id: UUID,
+    gateway: HarnessEditGateway,
+    update: Callable[[WireGroupDefinition], WireGroupDefinition],
+) -> None:
+    """
+    Apply one validated replacement to an existing connected wire group.
+    """
+    original, definition = _read_definition(harness_id, gateway)
+    if not any(group.wire_group_id == wire_group_id for group in definition.wire_groups):
+        raise ValueError("Selected wire group does not exist in this harness.")
+    groups = tuple(
+        update(group) if group.wire_group_id == wire_group_id else group
+        for group in definition.wire_groups
+    )
+    _persist(harness_id, original, replace(definition, wire_groups=groups), gateway)
 
 
 def wire_end_locations(

@@ -108,6 +108,8 @@ PALETTE_EDIT_NAMES = {
     "rename_pathway": "Rename Pathway",
     "rename_wire": "Rename Wire",
     "set_wire_diameter": "Change Wire Diameter",
+    "set_wire_group_properties": "Change Connected Wire Properties",
+    "set_wire_group_material_overrides": "Change Connected Wire Materials",
     "set_harness_material_defaults": "Change Harness Wire Materials",
     "set_wire_material_overrides": "Change Wire Materials",
     "set_interpolation": "Change Interpolation Options",

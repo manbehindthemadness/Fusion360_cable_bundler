@@ -509,6 +509,27 @@ function closeWireGroupDetails() {
   else dialog?.remove();
 }
 
+/** Return whether a Wire Details context-menu event belongs to an interactive child. */
+function wireGroupDetailsContextTargetIsInteractive(target, dialog) {
+  const interactiveTags = new Set([
+    "button", "input", "select", "textarea", "a", "summary", "label",
+    "h1", "h2", "h3", "p", "strong", "small", "text", "path", "rect",
+  ]);
+  let current = target;
+  while (current && current !== dialog) {
+    const classes = typeof current.className === "string" ? current.className.split(" ") : [];
+    const tag = `${current.tagName || current.tag || ""}`.toLocaleLowerCase();
+    if (interactiveTags.has(tag)
+      || classes.some((name) => [
+        "wire-group-details-node",
+        "wire-group-details-member",
+        "relationship-map-context-menu",
+      ].includes(name))) return true;
+    current = current.parentElement;
+  }
+  return false;
+}
+
 /** Open one refresh-stable route-and-member dialog for a connected wire group. */
 function openWireGroupDetails(harness, wireGroupId, connectionId) {
   closePathwayPopup();
@@ -541,6 +562,14 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
   dialog.className = "wire-group-details-popup";
   dialog.setAttribute("aria-label", "Wire details");
   content.className = "wire-group-details-content";
+  const showContextMenu = addContextMenu(dialog, dialog);
+  dialog.addEventListener("contextmenu", (event) => {
+    if (wireGroupDetailsContextTargetIsInteractive(event.target, dialog)) return;
+    showContextMenu(event, [
+      { label: "Materials", action: () => openMaterialOptions(harness, null, group) },
+      { label: "Properties", action: () => openWireGroupProperties(harness, group) },
+    ]);
+  });
   heading.className = "wire-group-details-heading";
   title.textContent = "Wire Details";
   summary.textContent = `${group.connectionIds.length} connected ${

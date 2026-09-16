@@ -18,7 +18,6 @@ import adsk.fusion
 
 from ..application import WireGroupRouteLeg, plan_wire_group_routes
 from ..domain import (
-    DEFAULT_WIRE_DIAMETER_MM,
     Connection,
     ControlKind,
     ControlStructure,
@@ -189,13 +188,16 @@ def show_route_previews(
         raise RuntimeError("Fusion did not create the route-preview graphics group.")
     preview_group.id = f"{PREVIEW_GROUP_ID}:{uuid4()}"
     preview_group.name = f"{definition.name} Route Preview"
+    route_group_ids = {leg.route_id: leg.wire_group_id for leg in legs}
+    groups_by_id = {group.wire_group_id: group for group in definition.wire_groups}
     try:
         for index, route in enumerate(routes):
+            wire_group = groups_by_id[route_group_ids[route.wire_id]]
             _add_route_graphics(
                 preview_group,
                 route,
                 index,
-                definition.material_defaults.main_color,
+                definition.wire_group_materials(wire_group).main_color,
             )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         preview_group.deleteMe()
@@ -209,7 +211,7 @@ def show_route_previews(
         {route.wire_id: index for index, route in enumerate(routes)},
         clearance_mm,
         is_group_network=True,
-        route_group_ids={leg.route_id: leg.wire_group_id for leg in legs},
+        route_group_ids=route_group_ids,
         route_connection_ids={leg.route_id: group_connections[leg.wire_group_id] for leg in legs},
         route_pathway_ids={leg.route_id: leg.pathway_ids for leg in legs},
         route_control_ids={
@@ -348,9 +350,7 @@ def _solve_wire_group_routes(
     if not definition.wire_groups:
         raise ValueError("Create at least one wire group before previewing routes.")
     legs = plan_wire_group_routes(definition)
-    diameter_mm = (
-        definition.profiles[0].diameter_mm if definition.profiles else DEFAULT_WIRE_DIAMETER_MM
-    )
+    groups_by_id = {group.wire_group_id: group for group in definition.wire_groups}
     controls = {control.control_id: control for control in definition.controls}
     connections = {connection.connection_id: connection for connection in definition.connections}
     frames: dict[UUID, Union[GateFrame, RefineFrame]] = {}
@@ -374,7 +374,7 @@ def _solve_wire_group_routes(
                 wire_number=f"Group {group_order[group_id] + 1}",
                 start=origin,
                 end=origin,
-                diameter_mm=diameter_mm,
+                diameter_mm=groups_by_id[group_id].diameter_mm,
             )
             for group_id in ordered_group_ids
         )
@@ -386,6 +386,7 @@ def _solve_wire_group_routes(
     profile_frames: dict[str, tuple[Vector3, Vector3]] = {}
     routes: list[RoutePreview] = []
     for leg in legs:
+        diameter_mm = groups_by_id[leg.wire_group_id].diameter_mm
         points: list[Vector3] = []
         normals: list[Vector3] = []
         transitions: list[TransitionLengths] = []
@@ -605,11 +606,18 @@ def _refresh_wire_group_preview(
         child.deleteMe()
     for route_id in removed_ids:
         state.routes.pop(route_id, None)
-    color_changed = (
-        state.definition.material_defaults.main_color != definition.material_defaults.main_color
-    )
+    old_groups = {item.wire_group_id: item for item in state.definition.wire_groups}
+    new_groups = {item.wire_group_id: item for item in definition.wire_groups}
+    route_group_ids = {leg.route_id: leg.wire_group_id for leg in legs}
     warnings: list[str] = []
     for route in routes:
+        group_id = route_group_ids[route.wire_id]
+        old_group = old_groups.get(group_id)
+        new_group = new_groups[group_id]
+        color_changed = old_group is None or (
+            state.definition.wire_group_materials(old_group).main_color
+            != definition.wire_group_materials(new_group).main_color
+        )
         if state.routes.get(route.wire_id) == route and not color_changed:
             continue
         previous = _wire_graphics(group, {route.wire_id})
@@ -621,7 +629,7 @@ def _refresh_wire_group_preview(
                 group,
                 route,
                 color_index,
-                definition.material_defaults.main_color,
+                definition.wire_group_materials(new_group).main_color,
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             for child in _wire_graphics(group, {route.wire_id}):

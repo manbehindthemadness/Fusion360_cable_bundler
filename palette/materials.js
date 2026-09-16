@@ -8,11 +8,160 @@ function colorFromHex(name, hex) {
   };
 }
 
-function openMaterialOptions(harness, wire = null) {
+/** Attach the controlled material-catalog suggestions used by text inputs. */
+function addMaterialAutocomplete(wrapper, input, values, onChoose = () => {}) {
+  const menu = document.createElement("div");
+  const available = values.map((value) => typeof value === "string" ? value : value.name);
+  wrapper.classList.add("autocomplete");
+  menu.className = "autocomplete-suggestions";
+  menu.hidden = true;
+  const renderSuggestions = () => {
+    const query = input.value.trim().toLocaleLowerCase();
+    const matches = available.filter(
+      (value) => !query || value.toLocaleLowerCase().includes(query),
+    ).slice(0, 16);
+    menu.replaceChildren();
+    matches.forEach((value) => {
+      const choice = document.createElement("button");
+      choice.type = "button";
+      choice.textContent = value;
+      choice.addEventListener("mousedown", (event) => event.preventDefault());
+      choice.addEventListener("click", () => {
+        input.value = value;
+        menu.hidden = true;
+        onChoose(value);
+      });
+      menu.append(choice);
+    });
+    menu.hidden = matches.length === 0;
+  };
+  input.addEventListener("click", renderSuggestions);
+  input.addEventListener("input", renderSuggestions);
+  input.addEventListener("blur", () => { menu.hidden = true; });
+  wrapper.append(menu);
+}
+
+/** Open the currently supported connected-wire construction properties. */
+function openWireGroupProperties(harness, wireGroup) {
+  const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
+    "wire-options wire-group-properties",
+  );
+  const diameterLabel = document.createElement("label");
+  const diameter = document.createElement("input");
+  const controls = {};
+  const catalog = currentState.catalog || {
+    insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
+  };
+  heading.textContent = "Connected wire properties";
+  note.textContent = "Checked material fields override this harness for the connected wire.";
+  diameterLabel.textContent = "Diameter (mm)";
+  diameter.type = "number";
+  diameter.className = "filter";
+  diameter.step = "any";
+  diameter.required = true;
+  diameter.value = `${wireGroup.diameterMm}`;
+  diameterLabel.append(diameter);
+  form.append(heading, note, diameterLabel);
+
+  const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
+    const wrapper = document.createElement("div");
+    const header = document.createElement("div");
+    const label = document.createElement("strong");
+    const toggleLabel = document.createElement("label");
+    const toggle = document.createElement("input");
+    const toggleText = document.createElement("span");
+    const input = document.createElement(multiline ? "textarea" : "input");
+    wrapper.className = "material-field";
+    header.className = "material-field-heading";
+    label.textContent = labelText;
+    toggle.type = "checkbox";
+    toggle.checked = wireGroup.materialOverrides[key] !== null;
+    toggleText.textContent = "Override";
+    if (!multiline) input.type = "text";
+    input.className = "filter";
+    input.value = wireGroup.materials[key] || "";
+    const update = () => { input.disabled = !toggle.checked; };
+    toggle.addEventListener("change", update);
+    toggleLabel.append(toggle, toggleText);
+    header.append(label, toggleLabel);
+    update();
+    wrapper.append(header, input);
+    if (!multiline && suggestions.length) {
+      addMaterialAutocomplete(wrapper, input, suggestions);
+    }
+    form.append(wrapper);
+    controls[key] = { input, toggle };
+  };
+  addMaterialField(
+    "insulationMaterial", "Insulation material", catalog.insulationMaterials,
+  );
+  addMaterialField(
+    "conductorMaterial", "Conductor material", catalog.conductorMaterials,
+  );
+  addMaterialField("manufacturer", "Manufacturer");
+  addMaterialField("partNumber", "Part number");
+  addMaterialField("notes", "Notes", [], true);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const diameterMm = Number(diameter.value);
+    if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
+      error.textContent = "Enter a positive diameter in millimeters.";
+      return;
+    }
+    const fieldValue = (key) => controls[key].toggle.checked
+      ? controls[key].input.value : null;
+    const insulationMaterial = fieldValue("insulationMaterial");
+    const conductorMaterial = fieldValue("conductorMaterial");
+    const manufacturer = fieldValue("manufacturer");
+    const partNumber = fieldValue("partNumber");
+    const notes = fieldValue("notes");
+    if (insulationMaterial !== null && !insulationMaterial.trim()) {
+      error.textContent = "Insulation material must not be empty.";
+      return;
+    }
+    if (conductorMaterial !== null && !conductorMaterial.trim()) {
+      error.textContent = "Conductor material must not be empty.";
+      return;
+    }
+    cancel.disabled = true;
+    save.disabled = true;
+    try {
+      const response = await send("set_wire_group_properties", {
+        harnessId: harness.harnessId,
+        wireGroupId: wireGroup.wireGroupId,
+        diameterMm,
+        insulationMaterial,
+        conductorMaterial,
+        manufacturer,
+        partNumber,
+        notes,
+      });
+      if (response.ok) dialog.close();
+      else error.textContent = response.error || "Could not save connected-wire properties.";
+    } catch (failure) {
+      error.textContent = failure.message;
+    } finally {
+      cancel.disabled = false;
+      save.disabled = false;
+    }
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  actions.append(cancel, save);
+  form.append(error, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function openMaterialOptions(harness, wire = null, wireGroup = null) {
   const isWire = wire !== null;
-  const settings = isWire ? wire.materials : harness.materialDefaults;
-  const overrides = isWire ? wire.materialOverrides : null;
-  const originalMaterials = JSON.parse(JSON.stringify(isWire ? overrides : settings));
+  const isWireGroup = wireGroup !== null;
+  const hasOverrides = isWire || isWireGroup;
+  const settings = isWire
+    ? wire.materials : isWireGroup ? wireGroup.materials : harness.materialDefaults;
+  const overrides = isWire
+    ? wire.materialOverrides : isWireGroup ? wireGroup.materialOverrides : null;
+  const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
   const profile = isWire
     ? harness.profiles.find((candidate) => candidate.profileId === wire.profileId) : null;
   const originalDiameterMm = profile?.diameterMm ?? null;
@@ -28,10 +177,13 @@ function openMaterialOptions(harness, wire = null) {
   const apply = document.createElement("button");
   const controls = {};
   heading.textContent = isWire
-    ? `Wire options · ${wireLabel(wire)}` : "Harness wire-material defaults";
+    ? `Wire options · ${wireLabel(wire)}`
+    : isWireGroup ? "Connected wire materials" : "Harness wire-material defaults";
   note.textContent = isWire
     ? "Diameter applies to this wire. Checked material fields override this harness."
-    : "These values are inherited by every wire unless that wire overrides a field.";
+    : isWireGroup
+      ? "Checked material fields override this harness for the connected wire."
+      : "These values are inherited by every wire unless that wire overrides a field.";
   form.append(heading, note);
 
   let diameter = null;
@@ -50,40 +202,8 @@ function openMaterialOptions(harness, wire = null) {
     form.append(diameterLabel);
   }
 
-  const addAutocomplete = (wrapper, input, values, onChoose = () => {}) => {
-    const menu = document.createElement("div");
-    const available = values.map((value) => typeof value === "string" ? value : value.name);
-    wrapper.classList.add("autocomplete");
-    menu.className = "autocomplete-suggestions";
-    menu.hidden = true;
-    const renderSuggestions = () => {
-      const query = input.value.trim().toLocaleLowerCase();
-      const matches = available.filter(
-        (value) => !query || value.toLocaleLowerCase().includes(query),
-      ).slice(0, 16);
-      menu.replaceChildren();
-      matches.forEach((value) => {
-        const choice = document.createElement("button");
-        choice.type = "button";
-        choice.textContent = value;
-        choice.addEventListener("mousedown", (event) => event.preventDefault());
-        choice.addEventListener("click", () => {
-          input.value = value;
-          menu.hidden = true;
-          onChoose(value);
-        });
-        menu.append(choice);
-      });
-      menu.hidden = matches.length === 0;
-    };
-    input.addEventListener("click", renderSuggestions);
-    input.addEventListener("input", renderSuggestions);
-    input.addEventListener("blur", () => { menu.hidden = true; });
-    wrapper.append(menu);
-  };
-
   const addOverrideToggle = (header, key, update) => {
-    if (!isWire) return null;
+    if (!hasOverrides) return null;
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
     const text = document.createElement("span");
@@ -112,13 +232,20 @@ function openMaterialOptions(harness, wire = null) {
     header.prepend(label);
     update();
     wrapper.append(header, input);
-    if (!multiline && suggestions.length) addAutocomplete(wrapper, input, suggestions);
+    if (!multiline && suggestions.length) {
+      addMaterialAutocomplete(wrapper, input, suggestions);
+    }
     form.append(wrapper);
     controls[key] = { input, toggle };
   };
 
-  addTextField("insulationMaterial", "Insulation material", catalog.insulationMaterials);
-  addTextField("conductorMaterial", "Conductor material", catalog.conductorMaterials);
+  if (!isWireGroup) {
+    addTextField("insulationMaterial", "Insulation material", catalog.insulationMaterials);
+    addTextField("conductorMaterial", "Conductor material", catalog.conductorMaterials);
+    addTextField("manufacturer", "Manufacturer");
+    addTextField("partNumber", "Part number");
+    addTextField("notes", "Notes", [], true);
+  }
 
   const colorWrapper = document.createElement("div");
   const colorHeader = document.createElement("div");
@@ -261,7 +388,7 @@ function openMaterialOptions(harness, wire = null) {
   appearanceLabel.append(appearanceSelect);
   libraryControls.append(libraryLabel, appearanceLabel);
   colorWrapper.append(colorHeader, appearanceSource, colorRow, libraryControls);
-  addAutocomplete(colorNameWrapper, colorName, catalog.colors, (name) => {
+  addMaterialAutocomplete(colorNameWrapper, colorName, catalog.colors, (name) => {
     const match = catalog.colors.find((item) => item.name === name);
     if (match) colorPicker.value = match.hex;
   });
@@ -364,10 +491,6 @@ function openMaterialOptions(harness, wire = null) {
   stripeWrapper.append(stripeHeader, stripeList, addStripe);
   form.append(stripeWrapper);
 
-  addTextField("manufacturer", "Manufacturer");
-  addTextField("partNumber", "Part number");
-  addTextField("notes", "Notes", [], true);
-
   const readStripes = () => [...stripeList.children].map((row, index) => {
     const inputs = row.querySelectorAll("input");
     const pattern = row.querySelector("select").value;
@@ -399,10 +522,10 @@ function openMaterialOptions(harness, wire = null) {
       }
       const fieldValue = (key) => {
         const control = controls[key];
-        return isWire && !control.toggle.checked ? null : control.input.value;
+        return hasOverrides && !control.toggle.checked ? null : control.input.value;
       };
       let appearance = null;
-      if ((!isWire || colorToggle.checked) && appearanceSource.value === "library") {
+      if ((!hasOverrides || colorToggle.checked) && appearanceSource.value === "library") {
         const library = loadedLibraries.find((item) => item.id === librarySelect.value);
         const selected = loadedAppearances.find(
           (item) => item.id === appearanceSelect.value,
@@ -419,22 +542,24 @@ function openMaterialOptions(harness, wire = null) {
         };
       }
       const materials = {
-        insulationMaterial: fieldValue("insulationMaterial"),
-        conductorMaterial: fieldValue("conductorMaterial"),
-        mainColor: isWire && !colorToggle.checked ? null
+        insulationMaterial: isWireGroup
+          ? overrides.insulationMaterial : fieldValue("insulationMaterial"),
+        conductorMaterial: isWireGroup
+          ? overrides.conductorMaterial : fieldValue("conductorMaterial"),
+        mainColor: hasOverrides && !colorToggle.checked ? null
           : colorFromHex(colorName.value, colorPicker.value),
-        appearance: isWire && !colorToggle.checked ? null : appearance,
-        stripes: isWire && !stripeToggle.checked ? null : readStripes(),
-        manufacturer: fieldValue("manufacturer"),
-        partNumber: fieldValue("partNumber"),
-        notes: fieldValue("notes"),
+        appearance: hasOverrides && !colorToggle.checked ? null : appearance,
+        stripes: hasOverrides && !stripeToggle.checked ? null : readStripes(),
+        manufacturer: isWireGroup ? overrides.manufacturer : fieldValue("manufacturer"),
+        partNumber: isWireGroup ? overrides.partNumber : fieldValue("partNumber"),
+        notes: isWireGroup ? overrides.notes : fieldValue("notes"),
       };
-      if ((!isWire || materials.insulationMaterial !== null)
+      if (!isWireGroup && (!hasOverrides || materials.insulationMaterial !== null)
           && !materials.insulationMaterial.trim()) {
         error.textContent = "Insulation material must not be empty.";
         return;
       }
-      if ((!isWire || materials.conductorMaterial !== null)
+      if (!isWireGroup && (!hasOverrides || materials.conductorMaterial !== null)
           && !materials.conductorMaterial.trim()) {
         error.textContent = "Conductor material must not be empty.";
         return;
@@ -454,10 +579,20 @@ function openMaterialOptions(harness, wire = null) {
         hasAppliedChanges = true;
       }
       const response = await send(
-        isWire ? "set_wire_material_overrides" : "set_harness_material_defaults",
+        isWire
+          ? "set_wire_material_overrides"
+          : isWireGroup
+            ? "set_wire_group_material_overrides"
+            : "set_harness_material_defaults",
         isWire
           ? { harnessId: harness.harnessId, wireId: wire.wireId, overrides: materials }
-          : { harnessId: harness.harnessId, materials },
+          : isWireGroup
+            ? {
+              harnessId: harness.harnessId,
+              wireGroupId: wireGroup.wireGroupId,
+              overrides: materials,
+            }
+            : { harnessId: harness.harnessId, materials },
       );
       if (response.ok) {
         hasAppliedChanges = !closeAfter;
@@ -498,10 +633,20 @@ function openMaterialOptions(harness, wire = null) {
         savedDiameterMm = originalDiameterMm;
       }
       const response = await send(
-        isWire ? "set_wire_material_overrides" : "set_harness_material_defaults",
+        isWire
+          ? "set_wire_material_overrides"
+          : isWireGroup
+            ? "set_wire_group_material_overrides"
+            : "set_harness_material_defaults",
         isWire
           ? { harnessId: harness.harnessId, wireId: wire.wireId, overrides: originalMaterials }
-          : { harnessId: harness.harnessId, materials: originalMaterials },
+          : isWireGroup
+            ? {
+              harnessId: harness.harnessId,
+              wireGroupId: wireGroup.wireGroupId,
+              overrides: originalMaterials,
+            }
+            : { harnessId: harness.harnessId, materials: originalMaterials },
       );
       if (!response.ok) {
         error.textContent = response.error || "Could not restore wire materials.";

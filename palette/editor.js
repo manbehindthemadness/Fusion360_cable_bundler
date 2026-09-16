@@ -138,7 +138,9 @@ function renderEditor(harness) {
     if (junction) openJunctionRelationships(harness, junction);
     else closeJunctionRelationships();
   }
-  if (openWireGroupDetailsState) {
+  const materialOptions = document.body.querySelector(".material-options");
+  // Keep the foreground material editor above its originating details dialog during refresh.
+  if (openWireGroupDetailsState && !materialOptions?.open) {
     openWireGroupDetails(
       harness,
       openWireGroupDetailsState.wireGroupId,

@@ -29,6 +29,8 @@ from ...application import (
     save_wire_editor,
     set_harness_material_defaults,
     set_wire_diameter,
+    set_wire_group_material_overrides,
+    set_wire_group_properties,
     set_wire_material_overrides,
     update_junction_relationships,
 )
@@ -254,6 +256,31 @@ def _apply_palette_edit(
             harness_id, _read_payload_uuid(payload, "wireId", "wire"), diameter, gateway
         )
         return "Saved wire diameter."
+    if action == "set_wire_group_properties":
+        diameter = payload.get("diameterMm")
+        if isinstance(diameter, bool) or not isinstance(diameter, (int, float)):
+            raise ValueError("Wire-group diameter must be a number in millimeters.")
+        property_materials = _read_material_overrides(
+            {
+                "insulationMaterial": payload.get("insulationMaterial"),
+                "conductorMaterial": payload.get("conductorMaterial"),
+                "manufacturer": payload.get("manufacturer"),
+                "partNumber": payload.get("partNumber"),
+                "notes": payload.get("notes"),
+            }
+        )
+        set_wire_group_properties(
+            harness_id,
+            _read_payload_uuid(payload, "wireGroupId", "wire group"),
+            diameter,
+            property_materials.insulation_material,
+            property_materials.conductor_material,
+            property_materials.manufacturer,
+            property_materials.part_number,
+            property_materials.notes,
+            gateway,
+        )
+        return "Saved connected-wire properties."
     if action == "set_harness_material_defaults":
         set_harness_material_defaults(
             harness_id,
@@ -269,6 +296,14 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved wire-material overrides."
+    if action == "set_wire_group_material_overrides":
+        set_wire_group_material_overrides(
+            harness_id,
+            _read_payload_uuid(payload, "wireGroupId", "wire group"),
+            _read_material_overrides(payload.get("overrides")),
+            gateway,
+        )
+        return "Saved connected-wire material overrides."
     if action in {"rename_junction", "rename_pathway", "rename_wire"}:
         name = payload.get("name")
         if not isinstance(name, str):

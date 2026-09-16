@@ -24,6 +24,7 @@ from wire_bundler.domain import (
     StripePattern,
     WireColor,
     WireGroupDefinition,
+    WireMaterialOverrides,
     WireMaterialSettings,
     WireStripe,
 )
@@ -82,7 +83,9 @@ class _PreviewStateData(Protocol):
 
     definition: HarnessDefinition
     routes: dict[UUID, RoutePreview]
+    color_indices: dict[UUID, int]
     is_group_network: bool
+    route_group_ids: dict[UUID, UUID]
 
 
 class _Group:
@@ -248,7 +251,7 @@ def _two_end_group_geometry(
     return positions, frame
 
 
-def test_solves_group_route_with_default_profile_and_shared_control_crossing(
+def test_solves_group_route_with_its_persisted_diameter(
     scenario: _Scenario,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -260,7 +263,11 @@ def test_solves_group_route_with_default_profile_and_shared_control_crossing(
     grouped = replace(
         definition,
         wire_groups=(
-            WireGroupDefinition(UUID(int=9901), (wire.start_connection_id, wire.end_connection_id)),
+            WireGroupDefinition(
+                UUID(int=9901),
+                (wire.start_connection_id, wire.end_connection_id),
+                2.25,
+            ),
         ),
     )
     positions, frame = _two_end_group_geometry(definition)
@@ -273,7 +280,7 @@ def test_solves_group_route_with_default_profile_and_shared_control_crossing(
         _clearance_mm: float,
     ) -> tuple[Vector3, ...]:
         """
-        Record that stored profile dimensions take precedence over the fallback.
+        Record the connected wire's stored construction diameter.
         """
         packed_diameters.extend(item.diameter_mm for item in inputs)
         return (crossing_frame.origin,) * len(inputs)
@@ -290,7 +297,7 @@ def test_solves_group_route_with_default_profile_and_shared_control_crossing(
         Vector3(0, 0, 0),
         Vector3(10, 0, 0),
     }
-    assert packed_diameters == [definition.profiles[0].diameter_mm]
+    assert packed_diameters == [2.25]
 
 
 def test_solves_profileless_group_with_shared_default_diameter(
@@ -444,6 +451,72 @@ def test_removing_all_groups_clears_an_active_group_preview(
     assert not scenario.group.children
     assert all(child.deleted for child in children)
     assert state.routes == {}
+
+
+def test_group_material_override_redraws_preview_with_resolved_color(
+    scenario: _Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Redraw unchanged group geometry when its inherited presentation changes.
+    """
+    wire = scenario.definition.wires[0]
+    group_id = UUID(int=9904)
+    route_id = UUID(int=9905)
+    group_definition = WireGroupDefinition(
+        group_id, (wire.start_connection_id, wire.end_connection_id)
+    )
+    grouped = replace(scenario.definition, wire_groups=(group_definition,))
+    leg = WireGroupRouteLeg(
+        route_id,
+        group_id,
+        "Group 1 Leg 1",
+        wire.start_connection_id,
+        wire.end_connection_id,
+        (),
+        (scenario.definition.pathways[0].pathway_id,),
+    )
+    route = RoutePreview(route_id, leg.label, (Vector3(0, 0, 0), Vector3(1, 1, 1)))
+    state = scenario.module._preview_states[scenario.group.id]
+    state.definition = grouped
+    state.routes = {route_id: route}
+    state.color_indices = {route_id: 0}
+    state.is_group_network = True
+    state.route_group_ids = {route_id: group_id}
+    scenario.group.children = [_Group(str(route_id), scenario.group)]
+    monkeypatch.setattr(
+        scenario.module,
+        "_solve_wire_group_routes",
+        lambda *_args: ((route,), (leg,)),
+    )
+    drawn_colors: list[WireColor] = []
+
+    def draw(
+        owner: _Group,
+        rendered_route: RoutePreview,
+        _color_index: int,
+        wire_color: WireColor,
+    ) -> None:
+        """
+        Record the resolved group color used for replacement graphics.
+        """
+        drawn_colors.append(wire_color)
+        owner.children.append(_Group(str(rendered_route.wire_id), owner))
+
+    monkeypatch.setattr(scenario.module, "_add_route_graphics", draw)
+    blue = WireColor("Blue", 0, 80, 200)
+    updated = replace(
+        grouped,
+        wire_groups=(
+            replace(
+                group_definition,
+                material_overrides=WireMaterialOverrides(main_color=blue),
+            ),
+        ),
+    )
+
+    assert scenario.module.refresh_route_previews(scenario.design, updated) == ()
+    assert drawn_colors == [blue]
 
 
 def _mock_group_route_geometry(

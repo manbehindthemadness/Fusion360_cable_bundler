@@ -72,6 +72,23 @@ def test_validates_wire_group_membership_and_pathway_boundaries(
     assert any(issue.code == "duplicate_wire_group_member" for issue in issues)
 
 
+def test_rejects_nonpositive_wire_group_diameter(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Require connected-wire construction diameters to remain physically usable.
+    """
+    group = WireGroupDefinition(
+        UUID("60000000-0000-0000-0000-000000000010"),
+        tuple(connection.connection_id for connection in valid_harness.connections),
+        0.0,
+    )
+
+    issues = validate_harness(replace(valid_harness, wire_groups=(group,)))
+
+    assert any(issue.code == "invalid_wire_group_diameter" for issue in issues)
+
+
 def test_rejects_distinct_group_members_at_the_same_pathway_end(
     valid_harness: HarnessDefinition,
 ) -> None:

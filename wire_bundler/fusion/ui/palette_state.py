@@ -244,6 +244,9 @@ def _wire_group_payloads(
         {
             "wireGroupId": str(group.wire_group_id),
             "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
+            "diameterMm": group.diameter_mm,
+            "materials": _material_settings_payload(definition.wire_group_materials(group)),
+            "materialOverrides": _material_overrides_payload(group.material_overrides),
             "routeLegs": [
                 {
                     "routeId": str(leg.route_id),

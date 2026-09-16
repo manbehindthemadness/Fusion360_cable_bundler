@@ -12,6 +12,7 @@ from typing import Any, Optional, Type, TypeVar, cast
 from uuid import UUID
 
 from .model import (
+    DEFAULT_WIRE_DIAMETER_MM,
     SCHEMA_VERSION,
     Connection,
     ControlKind,
@@ -125,7 +126,12 @@ def loads(serialized: str) -> HarnessDefinition:
     )
     wire_groups = (
         tuple(
-            _parse_wire_group(item, f"$.wire_groups[{index}]")
+            _parse_wire_group(
+                item,
+                f"$.wire_groups[{index}]",
+                schema_version,
+                profiles[0].diameter_mm if profiles else DEFAULT_WIRE_DIAMETER_MM,
+            )
             for index, item in enumerate(_require_list(payload, "wire_groups", "$.wire_groups"))
         )
         if schema_version >= 10
@@ -258,6 +264,8 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
             {
                 "wire_group_id": str(group.wire_group_id),
                 "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
+                "diameter_mm": group.diameter_mm,
+                "material_overrides": _material_overrides_to_dict(group.material_overrides),
             }
             for group in definition.wire_groups
         ],
@@ -718,7 +726,12 @@ def _parse_standalone_end(raw_value: object, path: str) -> StandaloneEndDefiniti
     )
 
 
-def _parse_wire_group(raw_value: object, path: str) -> WireGroupDefinition:
+def _parse_wire_group(
+    raw_value: object,
+    path: str,
+    schema_version: int,
+    legacy_diameter_mm: float,
+) -> WireGroupDefinition:
     """
     Parse one persistent collection of electrically connected wire ends.
     """
@@ -729,6 +742,16 @@ def _parse_wire_group(raw_value: object, path: str) -> WireGroupDefinition:
         connection_ids=tuple(
             _parse_uuid(raw_id, f"{path}.connection_ids[{index}]")
             for index, raw_id in enumerate(raw_connection_ids)
+        ),
+        diameter_mm=(
+            _require_float(value, "diameter_mm", f"{path}.diameter_mm")
+            if schema_version >= 11
+            else legacy_diameter_mm
+        ),
+        material_overrides=(
+            parse_material_overrides(value.get("material_overrides"), f"{path}.material_overrides")
+            if schema_version >= 11
+            else WireMaterialOverrides()
         ),
     )
 

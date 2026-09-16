@@ -9,6 +9,7 @@ from uuid import UUID
 import pytest
 
 from wire_bundler.domain import (
+    DEFAULT_WIRE_DIAMETER_MM,
     ControlKind,
     ControlStructure,
     DefinitionParseError,
@@ -67,20 +68,42 @@ def test_round_trip_and_migration_preserve_wire_groups(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Persist schema-ten connectivity while schema-nine definitions acquire none.
+    Persist schema-eleven wire settings while older definitions migrate safely.
     """
+    overrides = WireMaterialOverrides(
+        main_color=WireColor("Blue", 0, 80, 200),
+        stripes=(),
+    )
     group = WireGroupDefinition(
         UUID("60000000-0000-0000-0000-000000000001"),
         tuple(connection.connection_id for connection in valid_harness.connections),
+        2.25,
+        overrides,
     )
     definition = replace(valid_harness, wire_groups=(group,))
 
     assert loads(dumps(definition)) == definition
 
     payload = json.loads(dumps(definition))
+    payload["schema_version"] = 10
+    payload["wire_groups"][0].pop("diameter_mm")
+    payload["wire_groups"][0].pop("material_overrides")
+    migrated = loads(json.dumps(payload)).wire_groups[0]
+    assert migrated.diameter_mm == valid_harness.profiles[0].diameter_mm
+    assert migrated.material_overrides == WireMaterialOverrides()
+
     payload["schema_version"] = 9
     payload.pop("wire_groups")
     assert loads(json.dumps(payload)).wire_groups == ()
+
+    profileless_payload = json.loads(dumps(replace(definition, profiles=())))
+    profileless_payload["schema_version"] = 10
+    profileless_payload["wire_groups"][0].pop("diameter_mm")
+    profileless_payload["wire_groups"][0].pop("material_overrides")
+    assert (
+        loads(json.dumps(profileless_payload)).wire_groups[0].diameter_mm
+        == DEFAULT_WIRE_DIAMETER_MM
+    )
 
 
 def test_round_trip_preserves_refine_geometry(valid_harness: HarnessDefinition) -> None:

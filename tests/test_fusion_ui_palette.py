@@ -312,6 +312,51 @@ def test_palette_edit_saves_wire_editor_transaction(
     assert notice == "Saved Route Editor changes."
 
 
+def test_palette_edit_saves_connected_wire_properties_atomically(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse diameter and nullable construction-material overrides into one edit.
+    """
+    harness_id = UUID(int=1)
+    wire_group_id = UUID(int=2)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_wire_group_properties", save)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "set_wire_group_properties",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "wireGroupId": str(wire_group_id),
+                "diameterMm": 2.75,
+                "insulationMaterial": "ETFE",
+                "conductorMaterial": None,
+                "manufacturer": "",
+                "partNumber": "WB-42",
+                "notes": "Install as matched stock",
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        wire_group_id,
+        2.75,
+        "ETFE",
+        None,
+        "",
+        "WB-42",
+        "Install as matched stock",
+        gateway,
+    )
+    assert notice == "Saved connected-wire properties."
+
+
 def test_palette_edit_deletes_pathway_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -504,6 +549,50 @@ def test_material_save_applies_existing_bodies_and_preview(
         application,
         "Saved harness wire-material defaults. Applied materials to 2 generated wires.",
     )
+    assert not args.executeFailed
+
+
+def test_connected_wire_property_save_refreshes_only_group_preview(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Refresh transient group graphics without applying legacy generated-wire materials.
+    """
+    document = object()
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    harness_id = UUID(int=1)
+    applied = Mock(return_value="Saved connected-wire properties.")
+    applied_bodies = Mock()
+    refreshed = Mock(return_value="")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
+    monkeypatch.setattr(addin_module, "_apply_generated_materials", applied_bodies)
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps(
+        {
+            "harnessId": str(harness_id),
+            "wireGroupId": str(UUID(int=2)),
+            "diameterMm": 2.75,
+            "insulationMaterial": "ETFE",
+            "conductorMaterial": None,
+            "manufacturer": "",
+            "partNumber": "WB-42",
+            "notes": "Install as matched stock",
+        }
+    )
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(
+        ("set_wire_group_properties", payload, document)
+    ).notify(args)
+
+    applied_bodies.assert_not_called()
+    refreshed.assert_called_once_with(application, harness_id, ensure_visible=True)
+    sent.assert_called_once_with(application, "Saved connected-wire properties.")
     assert not args.executeFailed
 
 

@@ -105,6 +105,9 @@ def test_palette_state_contains_complete_editor_definition(
     assert wire_group["connectionIds"] == [
         str(connection.connection_id) for connection in valid_harness.connections
     ]
+    assert wire_group["diameterMm"] == valid_harness.wire_groups[0].diameter_mm
+    assert wire_group["materials"] == harness["materialDefaults"]
+    assert wire_group["materialOverrides"]["mainColor"] is None
     assert len(wire_group["routeLegs"]) == 1
     route_leg = wire_group["routeLegs"][0]
     assert route_leg["routeId"]
