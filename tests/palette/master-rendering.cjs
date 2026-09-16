@@ -54,9 +54,17 @@ test('multi-junction chains retain pathway ends and continuous procedural traces
     junctionLinks[0], (node) => node.className === 'structural-trace',
   );
   assert.ok(structuralPaths.every((path) => {
-    const coordinates = path.attributes.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
-    return coordinates[6] - coordinates[0] <= 60;
+    const points = JSON.parse(path.attributes['data-route-points']);
+    return !path.attributes.d.includes(' C ')
+      && points.slice(1).every((point, index) => (
+        point.x === points[index].x || point.y === points[index].y
+      ));
   }));
+  const topologyPorts = descendants(
+    junctionLinks[0], (node) => node.className === 'relationship-topology-port',
+  );
+  assert.equal(topologyPorts.length, 8);
+  assert.equal(new Set(topologyPorts.map((port) => port.dataset.portId)).size, 8);
 
   definition.wires = [];
   const unoccupied = context.renderRelationshipMap(definition, []);
@@ -315,15 +323,23 @@ test('master relationship graphic is last and independently cross-checked', () =
   assert.equal(sections[2].open, true);
 });
 
-test('master topology traces detour around unrelated measured nodes', () => {
+test('master topology traces leave adaptive ports normally and avoid measured nodes', () => {
   const { context } = palette();
   const source = { id: 'pathway:source', left: 20, top: 120, width: 120, height: 60 };
   const obstacle = { id: 'pathway:obstacle', left: 240, top: 90, width: 140, height: 120 };
   const target = { id: 'junction:target', left: 500, top: 120, width: 120, height: 60 };
+  const sourcePort = {
+    id: 'edge:source', nodeId: source.id, side: 'right', point: { x: 140, y: 150 },
+  };
+  const targetPort = {
+    id: 'edge:target', nodeId: target.id, side: 'left', point: { x: 500, y: 150 },
+  };
 
-  const routed = context.routeRelationshipEdge(source, target, [source, obstacle, target]);
+  const routed = context.routeRelationshipEdge(
+    sourcePort, targetPort, [source, obstacle, target],
+  );
 
-  assert.equal(routed.kind, 'detour');
+  assert.equal(routed.kind, 'orthogonal');
   assert.ok(routed.points.length >= 4);
   assert.equal(routed.points[0].x, 140);
   assert.equal(routed.points[0].y, 150);
@@ -332,11 +348,106 @@ test('master topology traces detour around unrelated measured nodes', () => {
   assert.ok(routed.points.some((point) => point.y <= obstacle.top - 14
     || point.y >= obstacle.top + obstacle.height + 14));
   assert.match(routed.d, / Q /);
+  assert.ok(routed.points.slice(1).every((point, index) => (
+    point.x === routed.points[index].x || point.y === routed.points[index].y
+  )));
+  assert.equal(routed.points[1].y, routed.points[0].y);
+  assert.ok(routed.points[1].x > routed.points[0].x);
 
   const clearTarget = { ...target, top: 280 };
-  const clearRoute = context.routeRelationshipEdge(source, clearTarget, [source, clearTarget]);
-  assert.equal(clearRoute.kind, 'direct');
-  assert.match(clearRoute.d, / C /);
+  const clearTargetPort = {
+    ...targetPort,
+    point: { x: clearTarget.left, y: clearTarget.top + clearTarget.height / 2 },
+  };
+  const clearRoute = context.routeRelationshipEdge(
+    sourcePort, clearTargetPort, [source, clearTarget],
+  );
+  assert.equal(clearRoute.kind, 'orthogonal');
+  assert.doesNotMatch(clearRoute.d, / C /);
+});
+
+test('master topology starts with four centered ports and expands sides symmetrically', () => {
+  const { context } = palette();
+  const center = {
+    id: 'junction:center', left: 100, top: 100, width: 120, height: 100,
+  };
+  const neighbors = [
+    { id: 'pathway:p0', left: 400, top: 110, width: 100, height: 80 },
+    { id: 'pathway:p1', left: -200, top: 110, width: 100, height: 80 },
+    { id: 'pathway:p2', left: 110, top: -200, width: 100, height: 80 },
+    { id: 'pathway:p3', left: 110, top: 400, width: 100, height: 80 },
+    { id: 'pathway:p4', left: 400, top: 70, width: 100, height: 80 },
+    { id: 'pathway:p5', left: 400, top: 150, width: 100, height: 80 },
+  ];
+  const edges = neighbors.map((neighbor, index) => ({
+    sourceId: center.id,
+    targetId: neighbor.id,
+    junction: { junctionId: `j${index}` },
+    relationship: { pathwayId: `p${index}`, endpoint: 'start' },
+  }));
+  const component = { nodes: [center, ...neighbors], edges };
+
+  assert.equal(JSON.stringify(context.relationshipCanonicalPorts(center)), JSON.stringify({
+    left: { x: 100, y: 150 },
+    right: { x: 220, y: 150 },
+    top: { x: 160, y: 100 },
+    bottom: { x: 160, y: 200 },
+  }));
+  const ports = context.allocateRelationshipPorts(component);
+  const centerPorts = ports.filter((port) => port.nodeId === center.id);
+  const repeatedRight = centerPorts.filter((port) => port.side === 'right');
+  assert.equal(centerPorts.length, 6);
+  assert.equal(
+    [...new Set(centerPorts.map((port) => port.side))].sort().join(','),
+    'bottom,left,right,top',
+  );
+  assert.equal(repeatedRight.length, 3);
+  assert.equal(
+    repeatedRight.map((port) => port.point.y).sort((left, right) => left - right).join(','),
+    '128,150,172',
+  );
+  assert.equal(
+    JSON.stringify(context.allocateRelationshipPorts({
+      nodes: component.nodes, edges: edges.slice().reverse(),
+    })),
+    JSON.stringify(ports),
+  );
+
+  const rightOnly = {
+    nodes: [center, ...neighbors.slice(0, 5).map((neighbor, index) => ({
+      ...neighbor, id: `pathway:right-${index}`, left: 400, top: 110 + index * 10,
+    }))],
+    edges: edges.slice(0, 5).map((edge, index) => ({
+      ...edge,
+      targetId: `pathway:right-${index}`,
+      junction: { junctionId: `right-${index}` },
+    })),
+  };
+  const rightOnlyCenterPorts = context.allocateRelationshipPorts(rightOnly)
+    .filter((port) => port.nodeId === center.id);
+  assert.equal(
+    new Set(rightOnlyCenterPorts.slice(0, 4).map((port) => port.side)).size,
+    4,
+  );
+  assert.equal(rightOnlyCenterPorts[4].side, 'right');
+});
+
+test('master topology route scoring rejects overlaps more strongly than clean crossings', () => {
+  const { context } = palette();
+  const occupied = [{ start: { x: 0, y: 20 }, end: { x: 100, y: 20 } }];
+  const overlap = context.topologySegmentConflictScore(
+    { start: { x: 20, y: 20 }, end: { x: 80, y: 20 } }, occupied,
+  );
+  const crossing = context.topologySegmentConflictScore(
+    { start: { x: 50, y: 0 }, end: { x: 50, y: 40 } }, occupied,
+  );
+  const clear = context.topologySegmentConflictScore(
+    { start: { x: 0, y: 40 }, end: { x: 100, y: 40 } }, occupied,
+  );
+
+  assert.ok(overlap > crossing);
+  assert.ok(crossing > clear);
+  assert.equal(clear, 0);
 });
 
 test('master topology node ordering changes only when crossings decrease', () => {

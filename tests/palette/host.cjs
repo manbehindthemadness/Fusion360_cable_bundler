@@ -222,6 +222,32 @@ test('developer visual QA detects a topology trace inside an unrelated node', ()
   assert.equal(context.qaTopologyTraceObstructed(edge, diagram), false);
 });
 
+test('developer visual QA measures topology endpoints against dynamic port sides', () => {
+  const { context } = palette();
+  const junction = {
+    getBoundingClientRect: () => ({ left: 0, right: 100, top: 0, bottom: 60 }),
+  };
+  const pathway = {
+    getBoundingClientRect: () => ({ left: 200, right: 300, top: 200, bottom: 260 }),
+  };
+  const diagram = {
+    querySelector: (selector) => (selector.includes('junction') ? junction : pathway),
+  };
+  const edge = {
+    dataset: { endpoint: 'start', pathwayId: 'p', junctionId: 'j' },
+    parentElement: { dataset: { sourceSide: 'bottom', targetSide: 'top' } },
+    getTotalLength: () => 100,
+    getPointAtLength: (distance) => (distance ? { x: 250, y: 200 } : { x: 50, y: 60 }),
+    getScreenCTM: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+  };
+
+  assert.equal(context.qaTopologyEdgeGap(edge, diagram), 0);
+  edge.getPointAtLength = (distance) => (
+    distance ? { x: 250, y: 200 } : { x: 50, y: 65 }
+  );
+  assert.equal(context.qaTopologyEdgeGap(edge, diagram), 5);
+});
+
 test('palette QA probe is denied without current developer consent', () => {
   const { context } = palette();
   const result = context.window.fusionJavaScriptHandler.handle('qa_probe', JSON.stringify({

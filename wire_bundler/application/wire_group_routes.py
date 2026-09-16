@@ -167,7 +167,7 @@ def _topology_graph(
     definition: HarnessDefinition,
 ) -> tuple[dict[_Node, list[_Edge]], dict[tuple[str, str], _Edge]]:
     """
-    Build the undirected pathway/junction topology used by the Connection Editor.
+    Build the undirected pathway/junction topology used by the Route Editor.
     """
     graph: dict[_Node, list[_Edge]] = {}
     edge_index: dict[tuple[str, str], _Edge] = {}

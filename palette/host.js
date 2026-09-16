@@ -200,11 +200,26 @@ function qaTopologyEdgeGap(edge, diagram) {
   const finish = project(edge.getPointAtLength(edge.getTotalLength()));
   const sourceRect = source.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
+  const sideGap = (point, rectangle, side) => {
+    if (!["left", "right", "top", "bottom"].includes(side)) {
+      return Number.POSITIVE_INFINITY;
+    }
+    if (["left", "right"].includes(side)) {
+      const sideX = side === "left" ? rectangle.left : rectangle.right;
+      return Math.max(
+        Math.abs(point.x - sideX),
+        Math.max(0, rectangle.top - point.y, point.y - rectangle.bottom),
+      );
+    }
+    const sideY = side === "top" ? rectangle.top : rectangle.bottom;
+    return Math.max(
+      Math.abs(point.y - sideY),
+      Math.max(0, rectangle.left - point.x, point.x - rectangle.right),
+    );
+  };
   return Math.max(
-    Math.abs(start.x - sourceRect.right),
-    Math.max(0, sourceRect.top - start.y, start.y - sourceRect.bottom),
-    Math.abs(finish.x - targetRect.left),
-    Math.max(0, targetRect.top - finish.y, finish.y - targetRect.bottom),
+    sideGap(start, sourceRect, edge.parentElement?.dataset.sourceSide),
+    sideGap(finish, targetRect, edge.parentElement?.dataset.targetSide),
   );
 }
 
@@ -260,9 +275,7 @@ function qaInvalidTraceGroupCount(diagram) {
   const attribute = (node, name) => (
     node?.getAttribute?.(name) ?? node?.attributes?.[name] ?? ""
   );
-  const portFor = (nodeId, side) => ports.find((port) => (
-    port.dataset.nodeId === nodeId && port.dataset.side === side
-  ));
+  const portFor = (portId) => ports.find((port) => port.dataset.portId === portId);
   const invalidEdges = edges.filter((edge) => {
     const wireCount = Number.parseInt(edge.dataset.wireCount, 10);
     const mode = edge.dataset.renderMode;
@@ -287,19 +300,31 @@ function qaInvalidTraceGroupCount(diagram) {
     if (mode === "bundle" && (lanes.length || bundles.length !== 1 || badges.length !== 1)) {
       return true;
     }
-    const sourcePort = portFor(edge.dataset.sourceId, "right");
-    const targetPort = portFor(edge.dataset.targetId, "left");
+    const sourcePort = portFor(edge.dataset.sourcePortId);
+    const targetPort = portFor(edge.dataset.targetPortId);
     if (!sourcePort || !targetPort) return true;
+    if (sourcePort.dataset.nodeId !== edge.dataset.sourceId
+        || targetPort.dataset.nodeId !== edge.dataset.targetId
+        || sourcePort.dataset.side !== edge.dataset.sourceSide
+        || targetPort.dataset.side !== edge.dataset.targetSide) return true;
     if (mode !== "lanes") return false;
-    const sourceY = Number.parseFloat(attribute(edge.querySelector(".structural-trace"), "data-source-y"));
-    const targetY = Number.parseFloat(attribute(edge.querySelector(".structural-trace"), "data-target-y"));
     return lanes.some((lane) => {
-      const offset = Number.parseFloat(lane.dataset.laneOffset);
+      const endpoints = [{
+        x: Number.parseFloat(attribute(lane, "data-source-x")),
+        y: Number.parseFloat(attribute(lane, "data-source-y")),
+      }, {
+        x: Number.parseFloat(attribute(lane, "data-target-x")),
+        y: Number.parseFloat(attribute(lane, "data-target-y")),
+      }];
       return [sourcePort, targetPort].some((port, index) => {
+        const portLeft = Number.parseFloat(attribute(port, "x"));
         const portTop = Number.parseFloat(attribute(port, "y"));
+        const portWidth = Number.parseFloat(attribute(port, "width"));
         const portHeight = Number.parseFloat(attribute(port, "height"));
-        const laneY = (index ? targetY : sourceY) + offset;
-        return laneY < portTop || laneY > portTop + portHeight;
+        const laneX = endpoints[index].x;
+        const laneY = endpoints[index].y;
+        return laneX < portLeft || laneX > portLeft + portWidth
+          || laneY < portTop || laneY > portTop + portHeight;
       });
     });
   });

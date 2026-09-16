@@ -419,7 +419,7 @@ function wireCreationContainsPoint(element, clientX, clientY) {
     clientY >= bounds.top && clientY <= bounds.bottom;
 }
 
-/** Add pathway-guide-style pointer dragging to one Connection Editor card. */
+/** Add pathway-guide-style pointer dragging to one Route Editor card. */
 function enableWireCreationDrag(card, source, surfaces, onDrop) {
   let drag = null;
   const clearMarkers = () => {
@@ -673,7 +673,7 @@ function suspendCreateWiresPopup() {
   removeCreateWiresPopup(true);
 }
 
-/** Commit every staged Connection Editor change through one host transaction. */
+/** Commit every staged Route Editor change through one host transaction. */
 async function saveWireCreationAssignments(harness, boundaries, assignments, saveButton) {
   const pairings = wireCreationCompletePairings(assignments);
   const deletedConnectionIds = Object.keys(assignments.deletedConnectionIds);
@@ -685,7 +685,7 @@ async function saveWireCreationAssignments(harness, boundaries, assignments, sav
     .filter(([connectionId]) => !deleted.has(connectionId))
     .map(([connectionId, name]) => ({ connectionId, name }));
   saveButton.disabled = true;
-  appendNotice("Saving Connection Editor changes…");
+  appendNotice("Saving Route Editor changes…");
   try {
     const response = await send("save_wire_editor", {
       harnessId: harness.harnessId,
@@ -697,7 +697,7 @@ async function saveWireCreationAssignments(harness, boundaries, assignments, sav
       deletedConnectionIds,
     });
     if (!response.ok) {
-      appendNotice(response.error || "Connection Editor changes could not be saved.", true);
+      appendNotice(response.error || "Route Editor changes could not be saved.", true);
       saveButton.disabled = false;
       return;
     }
@@ -739,7 +739,7 @@ function openCreateWiresPopup(
     assignments,
   };
   heading.id = "create-wires-title";
-  heading.textContent = "Connection Editor";
+  heading.textContent = "Route Editor";
   layout.className = "create-wires-layout";
   center.className = "create-wires-column create-wires-assignment-pool";
   centerHeading.textContent = "Wire Assignments";

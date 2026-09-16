@@ -19,7 +19,7 @@ test('Wire Details fills most of the window and uses the shared diagram workspac
   assert.match(styles, /\.wire-group-route-link \{[^}]*fill: none;[^}]*stroke-linecap: round;/s);
 });
 
-test('Connection Editor uses three independently scrollable columns', () => {
+test('Route Editor uses three independently scrollable columns', () => {
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   const columnPattern = [
     String.raw`\.create-wires-layout \{[^}]*grid-template-columns: `,

@@ -698,8 +698,12 @@ test('topology edges use bounded adaptive lanes and counted bundles', () => {
     junction: { junctionId: 'j1' }, relationship: { pathwayId: 'p', endpoint: 'end' },
   };
   const route = {
-    kind: 'direct', d: 'M 0 20 C 50 20, 50 40, 100 40',
-    points: [{ x: 0, y: 20 }, { x: 100, y: 40 }],
+    kind: 'orthogonal', d: 'M 0 20 L 0 0 L 100 0 L 100 40',
+    points: [
+      { x: 0, y: 20 }, { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 40 },
+    ],
+    sourcePort: { id: 'edge:source', side: 'top' },
+    targetPort: { id: 'edge:target', side: 'top' },
   };
   const fiveWires = [
     ...definition.wires,
@@ -708,9 +712,16 @@ test('topology edges use bounded adaptive lanes and counted bundles', () => {
   ];
   const lanes = context.renderTopologyEdge(edge, route, fiveWires);
   assert.equal(lanes.dataset.renderMode, 'lanes');
-  assert.deepEqual(descendants(
+  const laneTraces = descendants(
     lanes, (node) => node.className?.split(' ').includes('relationship-wire-lane'),
-  ).map((lane) => lane.dataset.laneOffset), ['-8', '-4', '0', '4', '8']);
+  );
+  assert.deepEqual(laneTraces.map((lane) => lane.dataset.laneOffset), [
+    '-8', '-4', '0', '4', '8',
+  ]);
+  assert.deepEqual(laneTraces.map((lane) => lane.attributes['data-source-x']), [
+    '-8', '-4', '0', '4', '8',
+  ]);
+  assert.ok(laneTraces.every((lane) => lane.attributes.transform === undefined));
 
   const sixWires = [
     ...fiveWires,
@@ -744,10 +755,12 @@ test('topology edges use bounded adaptive lanes and counted bundles', () => {
   assert.equal(empty.dataset.renderMode, 'structure');
   assert.equal(descendants(empty, (node) => node.className === 'wire-trace').length, 0);
   const port = context.renderTopologyPort({
-    nodeId: 'pathway:p', side: 'right', point: { x: 100, y: 40 },
-    wireIds: new Set(fiveWires.map((wire) => wire.wireId)), maximumLaneCount: 5,
+    id: 'edge:source', nodeId: 'pathway:p', side: 'right',
+    point: { x: 100, y: 40 }, wires: fiveWires,
   });
+  assert.equal(port.attributes.width, '24');
   assert.equal(port.attributes.height, '24');
+  assert.equal(port.dataset.portId, 'edge:source');
   assert.equal(port.dataset.wireIds, 'w1 w2 w3 w4 w5');
 });
 
@@ -999,7 +1012,7 @@ asyncTest('pathway context menu segments eligible controls and renders its junct
   assert.equal(calls.at(-1).payload.memberId, 'j1');
 });
 
-test('Connection Editor selects only reachable pathway-end headers and cancels elsewhere', () => {
+test('Route Editor selects only reachable pathway-end headers and cancels elsewhere', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways = [
@@ -1053,7 +1066,7 @@ test('Connection Editor selects only reachable pathway-end headers and cancels e
   };
 
   empty.events.contextmenu(contextEvent);
-  assert.equal(menu.children[0].textContent, 'Connection Editor');
+  assert.equal(menu.children[0].textContent, 'Route Editor');
   assert.equal(menu.children[0].disabled, true);
   assert.equal(menu.children[0].title, 'Requires at least one end');
 
@@ -1115,7 +1128,7 @@ test('Connection Editor selects only reachable pathway-end headers and cancels e
   assert.equal(staleListenerPrevented, false);
 });
 
-asyncTest('Connection Editor popup interacts with loose ends and survives refreshes', async () => {
+asyncTest('Route Editor popup interacts with loose ends and survives refreshes', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1181,7 +1194,7 @@ asyncTest('Connection Editor popup interacts with loose ends and survives refres
 
   let dialog = context.document.body.querySelector('.create-wires-popup');
   const heading = descendants(dialog, (node) => node.id === 'create-wires-title')[0];
-  assert.equal(heading.textContent, 'Connection Editor');
+  assert.equal(heading.textContent, 'Route Editor');
   let columns = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
   );
@@ -1285,7 +1298,7 @@ asyncTest('Connection Editor popup interacts with loose ends and survives refres
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });
 
-asyncTest('Connection Editor visually pairs dragged ends without mutating the harness', async () => {
+asyncTest('Route Editor visually pairs dragged ends without mutating the harness', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1552,7 +1565,7 @@ asyncTest('Connection Editor visually pairs dragged ends without mutating the ha
   assert.equal(cards().every((item) => item.dataset.assignmentLocation === 'pool'), true);
 });
 
-test('Connection Editor retains only the newly exposed pending row when a pair is broken', () => {
+test('Route Editor retains only the newly exposed pending row when a pair is broken', () => {
   const { context } = palette();
   const assignments = {
     pools: { left: [], right: [] },
@@ -1573,7 +1586,7 @@ test('Connection Editor retains only the newly exposed pending row when a pair i
   ]);
 });
 
-test('Connection Editor opens persisted cross-boundary groups as center rows', () => {
+test('Route Editor opens persisted cross-boundary groups as center rows', () => {
   const { context } = palette();
   const assignments = context.initialWireCreationAssignments({
     left: [
@@ -1597,7 +1610,7 @@ test('Connection Editor opens persisted cross-boundary groups as center rows', (
   assert.equal(assignments.initialPartners['right-paired'], 'left-paired');
 });
 
-asyncTest('Connection Editor Save submits complete staged changes in one transaction', async () => {
+asyncTest('Route Editor Save submits complete staged changes in one transaction', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1642,7 +1655,7 @@ asyncTest('Connection Editor Save submits complete staged changes in one transac
   });
 });
 
-test('Connection Editor swaps occupied same-side members while partners stay in place', () => {
+test('Route Editor swaps occupied same-side members while partners stay in place', () => {
   const { context } = palette();
   const leftA = { connectionId: 'left-a', returnIndex: 0 };
   const leftB = { connectionId: 'left-b', returnIndex: 1 };

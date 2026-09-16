@@ -307,7 +307,7 @@ function renderRelationshipEndList(
   summary.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
     showContextMenu(event, [{
-      label: "Connection Editor",
+      label: "Route Editor",
       action: () => wireCreationController.begin(wireCreationBoundary),
       disabled: !groups.length,
       title: groups.length ? "" : "Requires at least one end",

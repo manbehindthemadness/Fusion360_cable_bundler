@@ -422,7 +422,7 @@ def test_removing_all_groups_clears_an_active_group_preview(
     scenario: _Scenario,
 ) -> None:
     """
-    Remove every transient leg when the Connection Editor removes final membership.
+    Remove every transient leg when the Route Editor removes final membership.
     """
     wire = scenario.definition.wires[0]
     grouped = replace(

@@ -1,5 +1,5 @@
 """
-Commit the Connection Editor's staged end and connectivity changes atomically.
+Commit the Route Editor's staged end and connectivity changes atomically.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .edit_harness import HarnessEditGateway, _persist, _read_definition
 @dataclass(frozen=True)
 class WireEditorPairing:
     """
-    Pair one end from each selected Connection Editor boundary.
+    Pair one end from each selected Route Editor boundary.
     """
 
     left_connection_id: UUID
@@ -62,14 +62,14 @@ def save_wire_editor(
     id_factory: Callable[[], UUID] = uuid4,
 ) -> None:
     """
-    Commit all staged Connection Editor changes as one reversible metadata edit.
+    Commit all staged Route Editor changes as one reversible metadata edit.
 
     Existing groups are extended or merged. Explicitly detached members are
     removed before final pairings are applied, while temporary one-member
     groups retain their identities until reassignment finishes.
     """
     if (left_pathway_id, left_endpoint) == (right_pathway_id, right_endpoint):
-        raise ValueError("Connection Editor boundaries must differ.")
+        raise ValueError("Route Editor boundaries must differ.")
     original, definition = _read_definition(harness_id, gateway)
     locations = wire_end_locations(definition)
     selected_locations = {
@@ -79,14 +79,14 @@ def save_wire_editor(
     deleted = set(deleted_connection_ids)
     detached = set(detached_connection_ids)
     if len(deleted) != len(deleted_connection_ids):
-        raise ValueError("A Connection Editor end may be deleted only once.")
+        raise ValueError("A Route Editor end may be deleted only once.")
     if len(detached) != len(detached_connection_ids):
-        raise ValueError("A Connection Editor end may be detached only once.")
+        raise ValueError("A Route Editor end may be detached only once.")
     rename_ids = [rename.connection_id for rename in renames]
     if len(set(rename_ids)) != len(rename_ids):
-        raise ValueError("A Connection Editor end may be renamed only once.")
+        raise ValueError("A Route Editor end may be renamed only once.")
     if deleted.intersection(rename_ids):
-        raise ValueError("A deleted Connection Editor end cannot also be renamed.")
+        raise ValueError("A deleted Route Editor end cannot also be renamed.")
 
     standalone_ids = {end.connection_id for end in definition.standalone_ends}
     selected_ids = {
@@ -95,11 +95,11 @@ def save_wire_editor(
         if location in selected_locations.values()
     }
     if not deleted.issubset(standalone_ids & selected_ids):
-        raise ValueError("A deleted Connection Editor end is stale or not standalone.")
+        raise ValueError("A deleted Route Editor end is stale or not standalone.")
     if not set(rename_ids).issubset(standalone_ids & selected_ids):
-        raise ValueError("A renamed Connection Editor end is stale or not standalone.")
+        raise ValueError("A renamed Route Editor end is stale or not standalone.")
     if not detached.issubset(selected_ids):
-        raise ValueError("A detached Connection Editor end is stale or outside the selected boundaries.")
+        raise ValueError("A detached Route Editor end is stale or outside the selected boundaries.")
 
     paired_ids: list[UUID] = []
     for pairing in pairings:
@@ -109,9 +109,9 @@ def save_wire_editor(
             raise ValueError("A pairing contains an end outside the selected right boundary.")
         paired_ids.extend((pairing.left_connection_id, pairing.right_connection_id))
     if len(set(paired_ids)) != len(paired_ids):
-        raise ValueError("A Connection Editor end may appear in only one final pairing.")
+        raise ValueError("A Route Editor end may appear in only one final pairing.")
     if deleted.intersection(paired_ids):
-        raise ValueError("A deleted Connection Editor end cannot appear in a pairing.")
+        raise ValueError("A deleted Route Editor end cannot appear in a pairing.")
 
     groups = [
         _MutableWireGroup(group.wire_group_id, list(group.connection_ids))
