@@ -111,6 +111,7 @@ PALETTE_EDIT_NAMES = {
     "set_wire_group_properties": "Change Connected Wire Properties",
     "set_wire_group_material_overrides": "Change Connected Wire Materials",
     "set_harness_material_defaults": "Change Harness Wire Materials",
+    "set_harness_properties": "Change Harness Properties",
     "set_wire_material_overrides": "Change Wire Materials",
     "set_interpolation": "Change Interpolation Options",
     "remove_end_member": "Remove End Member",

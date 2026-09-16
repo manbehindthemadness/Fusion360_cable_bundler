@@ -160,6 +160,7 @@ class _PaletteLifecycleModule(Protocol):
     remove_standalone_end: Callable[[UUID, UUID, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
     save_wire_editor: Callable[..., None]
+    set_harness_properties: Callable[..., None]
     set_wire_group_properties: Callable[..., None]
     serialize_palette_state: Callable[[object, str], str]
     _delete_damaged_harness: Callable[[object, str], str]

@@ -514,7 +514,10 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 .relationship-map-context-menu {
   position: absolute;
   z-index: 4;
+  box-sizing: border-box;
+  width: max-content;
   min-width: 150px;
+  max-width: calc(100% - 8px);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 4px;
@@ -523,11 +526,15 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 }
 .relationship-map-context-menu button {
   width: 100%;
+  max-width: 100%;
   border: 0;
   border-radius: 3px;
   padding: 7px 9px;
   background: transparent;
+  overflow: hidden;
   text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .relationship-map-context-menu button:hover,
 .relationship-map-context-menu button:focus { background: var(--surface-subtle); }
@@ -536,6 +543,12 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   cursor: not-allowed;
   opacity: 0.65;
 }
+.block-diagram-viewport > .relationship-map-context-menu {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  width: fit-content;
+}
+.block-diagram-viewport > .relationship-map-context-menu button { width: auto; }
 .relationship-map-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

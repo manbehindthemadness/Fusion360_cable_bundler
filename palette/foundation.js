@@ -1,11 +1,6 @@
 const ui = {
   back: document.getElementById("back"),
   addWires: document.getElementById("add-wires"),
-  clearPreview: document.getElementById("clear-preview"),
-  generateSolids: document.getElementById("generate-solids"),
-  clearSolids: document.getElementById("clear-solids"),
-  defaults: document.getElementById("interpolation-defaults"),
-  materialDefaults: document.getElementById("material-defaults"),
   create: document.getElementById("create"),
   createFromEditor: document.getElementById("create-from-editor"),
   editor: document.getElementById("editor"),
@@ -313,16 +308,6 @@ function addContextMenu(root, returnFocus = null) {
   const show = (event, items) => {
     event.preventDefault();
     const bounds = root.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(4, event.clientX - bounds.left),
-      Math.max(4, root.clientWidth - 160),
-    );
-    const top = Math.min(
-      Math.max(4, event.clientY - bounds.top),
-      Math.max(4, root.clientHeight - 44 * items.length),
-    );
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
     menu.replaceChildren();
     items.forEach(({ label, action, disabled = false, title = "" }) => {
       const button = document.createElement("button");
@@ -337,7 +322,20 @@ function addContextMenu(root, returnFocus = null) {
       });
       menu.append(button);
     });
+    menu.style.left = "4px";
+    menu.style.top = "4px";
     menu.hidden = false;
+    const menuBounds = menu.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(4, event.clientX - bounds.left),
+      Math.max(4, root.clientWidth - menuBounds.width - 4),
+    );
+    const top = Math.min(
+      Math.max(4, event.clientY - bounds.top),
+      Math.max(4, root.clientHeight - menuBounds.height - 4),
+    );
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
     document.addEventListener("mousedown", dismissOnOutsideMouseDown, true);
     const firstEnabled = Array.from(menu.children).find((button) => !button.disabled);
     if (firstEnabled) firstEnabled.focus();

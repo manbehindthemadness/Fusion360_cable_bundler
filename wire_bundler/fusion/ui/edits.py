@@ -28,6 +28,7 @@ from ...application import (
     rename_wire,
     save_wire_editor,
     set_harness_material_defaults,
+    set_harness_properties,
     set_wire_diameter,
     set_wire_group_material_overrides,
     set_wire_group_properties,
@@ -39,6 +40,7 @@ from ...domain import JunctionPathwayRelationship, PathwayEndpoint
 from ...domain.codec import parse_interpolation
 from .commands.ends import apply_end_member_edit
 from .payloads import (
+    _read_harness_properties,
     _read_material_overrides,
     _read_material_settings,
     _read_palette_payload,
@@ -288,6 +290,24 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved harness wire-material defaults."
+    if action == "set_harness_properties":
+        (
+            insulation_material,
+            conductor_material,
+            manufacturer,
+            part_number,
+            notes,
+        ) = _read_harness_properties(payload)
+        set_harness_properties(
+            harness_id,
+            insulation_material,
+            conductor_material,
+            manufacturer,
+            part_number,
+            notes,
+            gateway,
+        )
+        return "Saved harness properties."
     if action == "set_wire_material_overrides":
         set_wire_material_overrides(
             harness_id,

@@ -393,7 +393,7 @@ function renderRelationshipEndList(
 }
 
 function addRelationshipMapContextMenu(workspace, harness) {
-  const show = addContextMenu(workspace.root, workspace.viewport);
+  const show = addContextMenu(workspace.viewport, workspace.viewport);
   workspace.viewport.addEventListener("contextmenu", (event) => {
     show(event, [
       {
@@ -402,9 +402,20 @@ function addRelationshipMapContextMenu(workspace, harness) {
         disabled: !(harness.wireGroups || []).length,
         title: (harness.wireGroups || []).length ? "" : "Requires at least one wire group",
       },
-      { label: "Add pathway", action: addPathway },
-      { label: "Add end", action: addEnd },
-      { label: "Add junction", action: addJunction },
+      { label: "Clear Preview", action: clearPreview },
+      {
+        label: "Generate Solids",
+        action: generateSolids,
+        disabled: !harness.wires?.length,
+        title: harness.wires?.length ? "" : "Requires at least one wire",
+      },
+      { label: "Clear Solids", action: clearSolids },
+      { label: "Add Pathway", action: addPathway },
+      { label: "Add Junction", action: addJunction },
+      { label: "Add End", action: addEnd },
+      { label: "Materials", action: () => openMaterialOptions(harness) },
+      { label: "Defaults", action: () => openInterpolationOptions(harness, "defaults") },
+      { label: "Properties", action: () => openHarnessProperties(harness) },
     ]);
   });
   return show;

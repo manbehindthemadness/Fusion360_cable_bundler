@@ -38,6 +38,7 @@ from wire_bundler.application import (
     save_wire_editor,
     segment_pathway,
     set_harness_material_defaults,
+    set_harness_properties,
     set_wire_diameter,
     set_wire_group_material_overrides,
     set_wire_group_properties,
@@ -964,6 +965,59 @@ def test_wire_material_overrides_take_precedence_over_parent(
     assert stored.wire_materials(stored.wires[1]).main_color == blue
     assert stored.wire_materials(stored.wires[1]).insulation_material == "ETFE"
     assert stored.wires[1] == second
+
+
+def test_harness_properties_preserve_visuals_and_resolve_group_inheritance(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace parent properties while retaining visuals and explicit group overrides.
+    """
+    base = _wire_editor_definition(valid_harness)
+    blue = WireColor("Blue", 35, 94, 190)
+    defaults = replace(
+        base.material_defaults,
+        main_color=blue,
+        manufacturer="Prior manufacturer",
+    )
+    inherited_group = WireGroupDefinition(
+        WIRE_GROUP_ID,
+        (EDITOR_LEFT_ID, EDITOR_OFFSCREEN_ID),
+    )
+    overridden_group = WireGroupDefinition(
+        WIRE_GROUP_2_ID,
+        (EDITOR_RIGHT_ID, EDITOR_LEFT_2_ID),
+        material_overrides=WireMaterialOverrides(manufacturer="Group manufacturer"),
+    )
+    definition = replace(
+        base,
+        material_defaults=defaults,
+        wire_groups=(inherited_group, overridden_group),
+    )
+    gateway = _recording_gateway(definition)
+
+    set_harness_properties(
+        definition.harness_id,
+        "ETFE",
+        "Tinned Copper",
+        "Harness manufacturer",
+        "WB-42",
+        "Matched stock",
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.material_defaults == replace(
+        defaults,
+        insulation_material="ETFE",
+        conductor_material="Tinned Copper",
+        manufacturer="Harness manufacturer",
+        part_number="WB-42",
+        notes="Matched stock",
+    )
+    assert stored.wire_group_materials(stored.wire_groups[0]).manufacturer == "Harness manufacturer"
+    assert stored.wire_group_materials(stored.wire_groups[1]).manufacturer == "Group manufacturer"
+    assert stored.wire_group_materials(stored.wire_groups[1]).insulation_material == "ETFE"
 
 
 @pytest.mark.parametrize("diameter", [0.0, -1.0, float("nan"), float("inf")])

@@ -2,7 +2,35 @@
 /* global require, __dirname */
 const { Element, assert, asyncTest, descendants, harness, join, palette, readFileSync, runInNewContext, test } = require('./support.cjs');
 
-asyncTest('empty master graphic owns Add pathway and Add junction', async () => {
+test('master context menu fits its labels and remains inside its surface', () => {
+  const { context } = palette();
+  const root = new Element('div');
+  root.clientWidth = 260;
+  root.clientHeight = 180;
+  const show = context.addContextMenu(root, root);
+  const menu = root.children[0];
+  menu.clientWidth = 190;
+  menu.clientHeight = 100;
+
+  show(
+    { clientX: 265, clientY: 185, preventDefault() {} },
+    [{ label: 'A Longer Context Command', action() {} }],
+  );
+
+  assert.equal(menu.style.left, '66px');
+  assert.equal(menu.style.top, '76px');
+  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  assert.match(
+    styles,
+    /\.block-diagram-viewport > \.relationship-map-context-menu \{[^}]*display: inline-grid;[^}]*grid-template-columns: max-content;[^}]*width: fit-content;/s,
+  );
+  assert.match(
+    styles,
+    /\.block-diagram-viewport > \.relationship-map-context-menu button \{[^}]*width: auto;/s,
+  );
+});
+
+asyncTest('empty master graphic owns ordered harness commands', async () => {
   const { context, calls } = palette();
   const definition = harness();
   definition.pathways = [];
@@ -29,6 +57,7 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
     workspace,
     (node) => node.className === 'relationship-map-context-menu',
   )[0];
+  assert.equal(menu.parentElement, viewport);
   assert.ok(descendants(
     graphic, (node) => node.textContent === 'No pathways or junctions to display yet.',
   ).length);
@@ -43,25 +72,34 @@ asyncTest('empty master graphic owns Add pathway and Add junction', async () => 
   assert.equal(menu.hidden, false);
   assert.deepEqual(
     menu.children.map((item) => item.textContent),
-    ['Preview Routes', 'Add pathway', 'Add end', 'Add junction'],
+    [
+      'Preview Routes', 'Clear Preview', 'Generate Solids', 'Clear Solids',
+      'Add Pathway', 'Add Junction', 'Add End', 'Materials', 'Defaults', 'Properties',
+    ],
   );
   assert.equal(menu.children[0].disabled, true);
-  menu.children[1].events.click();
+  assert.equal(menu.children[2].disabled, true);
+  menu.children[4].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
   assert.equal(calls[0].action, 'add_pathway');
   assert.equal(calls[0].payload.harnessId, 'h');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
-  menu.children[3].events.click();
+  menu.children[5].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
   assert.equal(calls[1].action, 'add_junction');
   assert.equal(calls[1].payload.harnessId, 'h');
 
   const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
-  assert.doesNotMatch(html, /id="add-pathway"/);
-  assert.doesNotMatch(html, /id="preview-routes"/);
+  assert.doesNotMatch(
+    html,
+    /id="(?:clear-preview|generate-solids|clear-solids|material-defaults|interpolation-defaults)"/,
+  );
+  assert.match(html, /id="back"/);
+  assert.match(html, /id="add-wires"/);
+  assert.match(html, /id="create-from-editor"/);
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   assert.match(styles, /\.relationship-map > \.block-diagram-workspace \.block-diagram-viewport \{[^}]*height: 390px;/s);
 });
@@ -95,6 +133,80 @@ asyncTest('empty-space context menu previews grouped wire ends', async () => {
   await Promise.resolve();
   assert.equal(calls[0].action, 'preview_routes');
   assert.equal(calls[0].payload.harnessId, 'h');
+});
+
+asyncTest('existing master background menu runs moved toolbar commands', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.wireGroups = [{ wireGroupId: 'g1', connectionIds: ['a1', 'b1'] }];
+  context.window.confirm = () => true;
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true, notice: 'Cleared.' };
+  };
+  runInNewContext(
+    'currentState = { harnesses: [definition] }; selectedHarnessKey = "h";',
+    Object.assign(context, { definition }),
+  );
+  const graphic = context.renderRelationshipMap(definition, []);
+  const viewport = descendants(
+    graphic, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  const choose = (index) => {
+    viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
+    menu.children[index].events.click();
+  };
+
+  choose(1);
+  await Promise.resolve();
+  assert.equal(calls[0].action, 'clear_preview');
+
+  choose(2);
+  assert.equal(calls[1].action, 'generate_solids');
+  assert.equal(calls[1].payload.harnessId, 'h');
+  assert.equal(calls[1].payload.replaceExisting, true);
+
+  choose(3);
+  assert.equal(calls[2].action, 'clear_solids');
+  assert.equal(calls[2].payload.harnessId, 'h');
+
+  choose(6);
+  await Promise.resolve();
+  assert.equal(calls[3].action, 'add_end');
+  assert.equal(calls[3].payload.harnessId, 'h');
+
+  choose(7);
+  const materials = descendants(
+    context.document.body,
+    (node) => node.className?.split(' ').includes('material-options'),
+  )[0];
+  assert.equal(materials.open, true);
+  assert.equal(
+    descendants(materials, (node) => node.tag === 'h2')[0].textContent,
+    'Harness Materials',
+  );
+
+  choose(8);
+  const defaults = descendants(
+    context.document.body,
+    (node) => node.className === 'wire-options'
+      && node.attributes['aria-label'] === 'Generation defaults',
+  )[0];
+  assert.equal(defaults.open, true);
+
+  choose(9);
+  const properties = descendants(
+    context.document.body,
+    (node) => node.className?.split(' ').includes('harness-properties'),
+  )[0];
+  assert.equal(properties.open, true);
+  assert.equal(
+    descendants(properties, (node) => node.tag === 'h2')[0].textContent,
+    'Harness Properties',
+  );
 });
 
 test('isolated junction renders without traces and retains filtering and hover', () => {

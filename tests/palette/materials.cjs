@@ -10,14 +10,14 @@ function configureMaterialCatalog(context) {
   } }));
 }
 
-test('material text fields use controlled autocomplete instead of native datalists', () => {
+test('property text fields use controlled autocomplete instead of native datalists', () => {
   const { context } = palette();
   const definition = harness();
   configureMaterialCatalog(context);
   context.send = async (action) => action === 'get_appearance_libraries'
     ? { ok: true, libraries: [] } : { ok: true, appearances: [] };
 
-  context.openMaterialOptions(definition);
+  context.openHarnessProperties(definition);
 
   const dialog = context.document.body.children.at(-1);
   assert.equal(descendants(dialog, (item) => item.tag === 'datalist').length, 0);
@@ -30,6 +30,60 @@ test('material text fields use controlled autocomplete instead of native datalis
   insulation.value = '';
   insulation.events.input();
   assert.deepEqual(choices.children.map((item) => item.textContent), ['PVC', 'ETFE']);
+});
+
+asyncTest('harness properties are separate from visual materials', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const requests = [];
+  configureMaterialCatalog(context);
+  context.send = async (action, payload) => {
+    if (action === 'get_appearance_libraries') return { ok: true, libraries: [] };
+    requests.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openMaterialOptions(definition);
+  const materials = context.document.body.children.at(-1);
+  const materialLabels = descendants(materials, (item) => item.tag === 'strong')
+    .map((item) => item.textContent);
+  assert.deepEqual(materialLabels, ['Main insulation appearance', 'Procedural stripes']);
+  assert.equal(descendants(materials, (item) => item.type === 'checkbox').length, 0);
+  descendants(materials, (item) => item.tag === 'form')[0]
+    .events.submit({ preventDefault() {} });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requests[0].action, 'set_harness_material_defaults');
+  assert.equal(requests[0].payload.materials.insulationMaterial, 'PVC');
+  assert.equal(requests[0].payload.materials.conductorMaterial, 'Copper');
+  assert.equal(requests[0].payload.materials.manufacturer, '');
+  assert.equal(requests[0].payload.materials.partNumber, '');
+  assert.equal(requests[0].payload.materials.notes, '');
+
+  context.openHarnessProperties(definition);
+  const properties = context.document.body.children.at(-1);
+  const form = descendants(properties, (item) => item.tag === 'form')[0];
+  const fields = descendants(properties, (item) => item.className?.split(' ')
+    .includes('material-field'));
+  assert.deepEqual(
+    descendants(properties, (item) => item.tag === 'strong').map((item) => item.textContent),
+    ['Insulation Material', 'Conductor Material', 'Manufacturer', 'Part Number', 'Notes'],
+  );
+  assert.equal(descendants(properties, (item) => item.type === 'checkbox').length, 0);
+  assert.equal(descendants(properties, (item) => item.type === 'number').length, 0);
+  descendants(fields[0], (item) => item.type === 'text')[0].value = 'ETFE';
+  descendants(fields[1], (item) => item.type === 'text')[0].value = 'Tinned Copper';
+  descendants(fields[2], (item) => item.type === 'text')[0].value = 'Acme';
+  descendants(fields[3], (item) => item.type === 'text')[0].value = 'WB-42';
+  descendants(fields[4], (item) => item.tag === 'textarea')[0].value = 'Matched stock';
+  await form.events.submit({ preventDefault() {} });
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].action, 'set_harness_properties');
+  assert.equal(JSON.stringify(requests[1].payload), JSON.stringify({
+    harnessId: 'h', insulationMaterial: 'ETFE', conductorMaterial: 'Tinned Copper',
+    manufacturer: 'Acme', partNumber: 'WB-42', notes: 'Matched stock',
+  }));
+  assert.equal(properties.open, false);
 });
 
 asyncTest('wire options Cancel restores the values rendered by Apply', async () => {
@@ -102,7 +156,7 @@ asyncTest('connected wire materials reuse overrides without exposing diameter', 
   const dialog = context.document.body.children.at(-1);
   assert.equal(descendants(dialog, (item) => item.type === 'number').length, 0);
   assert.equal(descendants(dialog, (item) => item.tag === 'h2')[0].textContent,
-    'Connected wire materials');
+    'Connected Wire Materials');
   const labels = descendants(dialog, (item) => item.tag === 'strong')
     .map((item) => item.textContent);
   assert.equal(labels.includes('Insulation material'), false);

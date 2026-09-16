@@ -221,6 +221,21 @@ def _read_material_settings(raw_value: object) -> WireMaterialSettings:
     )
 
 
+def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, str]:
+    """
+    Parse inheritable construction and catalog properties supplied by the palette.
+    """
+    if not isinstance(raw_value, dict):
+        raise ValueError("Harness properties must be an object.")
+    return (
+        _read_material_text(raw_value, "insulationMaterial", "Insulation material", required=True),
+        _read_material_text(raw_value, "conductorMaterial", "Conductor material", required=True),
+        _read_material_text(raw_value, "manufacturer", "Manufacturer", required=False),
+        _read_material_text(raw_value, "partNumber", "Part number", required=False),
+        _read_material_text(raw_value, "notes", "Notes", required=False),
+    )
+
+
 def _read_material_overrides(raw_value: object) -> WireMaterialOverrides:
     """
     Parse nullable wire overrides; null values retain parent inheritance.

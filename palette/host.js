@@ -800,17 +800,6 @@ async function clearPreview() {
 }
 
 ui.addWires.addEventListener("click", () => addWires());
-ui.defaults.addEventListener("click", () => {
-  const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
-  if (harness && harness.status !== "damaged") openInterpolationOptions(harness, "defaults");
-});
-ui.materialDefaults.addEventListener("click", () => {
-  const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
-  if (harness && harness.status !== "damaged") openMaterialOptions(harness);
-});
-ui.generateSolids.addEventListener("click", generateSolids);
-ui.clearSolids.addEventListener("click", clearSolids);
-ui.clearPreview.addEventListener("click", clearPreview);
 ui.back.addEventListener("click", closeEditor);
 ui.create.addEventListener("click", createHarness);
 ui.createFromEditor.addEventListener("click", createHarness);

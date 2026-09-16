@@ -41,75 +41,97 @@ function addMaterialAutocomplete(wrapper, input, values, onChoose = () => {}) {
   wrapper.append(menu);
 }
 
-/** Open the currently supported connected-wire construction properties. */
-function openWireGroupProperties(harness, wireGroup) {
+/** Build one labeled text property with optional controlled catalog suggestions. */
+function createMaterialTextField(settings, key, labelText, suggestions = [], multiline = false) {
+  const wrapper = document.createElement("div");
+  const header = document.createElement("div");
+  const label = document.createElement("strong");
+  const input = document.createElement(multiline ? "textarea" : "input");
+  wrapper.className = "material-field";
+  header.className = "material-field-heading";
+  label.textContent = labelText;
+  if (!multiline) input.type = "text";
+  input.className = "filter";
+  input.value = settings[key] || "";
+  header.append(label);
+  wrapper.append(header, input);
+  if (!multiline && suggestions.length) {
+    addMaterialAutocomplete(wrapper, input, suggestions);
+  }
+  return { wrapper, header, input };
+}
+
+/** Open inheritable harness properties or one connected wire group's overrides. */
+function openPropertiesDialog(harness, wireGroup = null) {
+  const isWireGroup = wireGroup !== null;
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
-    "wire-options wire-group-properties",
+    `wire-options ${isWireGroup ? "wire-group-properties" : "harness-properties"}`,
   );
-  const diameterLabel = document.createElement("label");
-  const diameter = document.createElement("input");
+  const settings = isWireGroup ? wireGroup.materials : harness.materialDefaults;
+  const overrides = isWireGroup ? wireGroup.materialOverrides : null;
   const controls = {};
   const catalog = currentState.catalog || {
     insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
   };
-  heading.textContent = "Connected wire properties";
-  note.textContent = "Checked material fields override this harness for the connected wire.";
-  diameterLabel.textContent = "Diameter (mm)";
-  diameter.type = "number";
-  diameter.className = "filter";
-  diameter.step = "any";
-  diameter.required = true;
-  diameter.value = `${wireGroup.diameterMm}`;
-  diameterLabel.append(diameter);
-  form.append(heading, note, diameterLabel);
+  heading.textContent = isWireGroup ? "Connected Wire Properties" : "Harness Properties";
+  note.textContent = isWireGroup
+    ? "Checked property fields override this harness for the connected wire."
+    : "These values are inherited by connected wires unless they override a field.";
+  form.append(heading, note);
+
+  let diameter = null;
+  if (isWireGroup) {
+    const diameterLabel = document.createElement("label");
+    diameter = document.createElement("input");
+    diameterLabel.textContent = "Diameter (mm)";
+    diameter.type = "number";
+    diameter.className = "filter";
+    diameter.step = "any";
+    diameter.required = true;
+    diameter.value = `${wireGroup.diameterMm}`;
+    diameterLabel.append(diameter);
+    form.append(diameterLabel);
+  }
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
-    const wrapper = document.createElement("div");
-    const header = document.createElement("div");
-    const label = document.createElement("strong");
-    const toggleLabel = document.createElement("label");
-    const toggle = document.createElement("input");
-    const toggleText = document.createElement("span");
-    const input = document.createElement(multiline ? "textarea" : "input");
-    wrapper.className = "material-field";
-    header.className = "material-field-heading";
-    label.textContent = labelText;
-    toggle.type = "checkbox";
-    toggle.checked = wireGroup.materialOverrides[key] !== null;
-    toggleText.textContent = "Override";
-    if (!multiline) input.type = "text";
-    input.className = "filter";
-    input.value = wireGroup.materials[key] || "";
-    const update = () => { input.disabled = !toggle.checked; };
-    toggle.addEventListener("change", update);
-    toggleLabel.append(toggle, toggleText);
-    header.append(label, toggleLabel);
-    update();
-    wrapper.append(header, input);
-    if (!multiline && suggestions.length) {
-      addMaterialAutocomplete(wrapper, input, suggestions);
+    const { wrapper, header, input } = createMaterialTextField(
+      settings, key, labelText, suggestions, multiline,
+    );
+    let toggle = null;
+    if (isWireGroup) {
+      const toggleLabel = document.createElement("label");
+      const toggleText = document.createElement("span");
+      toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = overrides[key] !== null;
+      toggleText.textContent = "Override";
+      const update = () => { input.disabled = !toggle.checked; };
+      toggle.addEventListener("change", update);
+      toggleLabel.append(toggle, toggleText);
+      header.append(toggleLabel);
+      update();
     }
     form.append(wrapper);
     controls[key] = { input, toggle };
   };
   addMaterialField(
-    "insulationMaterial", "Insulation material", catalog.insulationMaterials,
+    "insulationMaterial", "Insulation Material", catalog.insulationMaterials,
   );
   addMaterialField(
-    "conductorMaterial", "Conductor material", catalog.conductorMaterials,
+    "conductorMaterial", "Conductor Material", catalog.conductorMaterials,
   );
   addMaterialField("manufacturer", "Manufacturer");
-  addMaterialField("partNumber", "Part number");
+  addMaterialField("partNumber", "Part Number");
   addMaterialField("notes", "Notes", [], true);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const diameterMm = Number(diameter.value);
-    if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
+    const diameterMm = isWireGroup ? Number(diameter.value) : null;
+    if (isWireGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
       error.textContent = "Enter a positive diameter in millimeters.";
       return;
     }
-    const fieldValue = (key) => controls[key].toggle.checked
-      ? controls[key].input.value : null;
+    const fieldValue = (key) => isWireGroup && !controls[key].toggle.checked
+      ? null : controls[key].input.value;
     const insulationMaterial = fieldValue("insulationMaterial");
     const conductorMaterial = fieldValue("conductorMaterial");
     const manufacturer = fieldValue("manufacturer");
@@ -126,18 +148,32 @@ function openWireGroupProperties(harness, wireGroup) {
     cancel.disabled = true;
     save.disabled = true;
     try {
-      const response = await send("set_wire_group_properties", {
-        harnessId: harness.harnessId,
-        wireGroupId: wireGroup.wireGroupId,
-        diameterMm,
-        insulationMaterial,
-        conductorMaterial,
-        manufacturer,
-        partNumber,
-        notes,
-      });
+      const response = await send(
+        isWireGroup ? "set_wire_group_properties" : "set_harness_properties",
+        isWireGroup
+          ? {
+            harnessId: harness.harnessId,
+            wireGroupId: wireGroup.wireGroupId,
+            diameterMm,
+            insulationMaterial,
+            conductorMaterial,
+            manufacturer,
+            partNumber,
+            notes,
+          }
+          : {
+            harnessId: harness.harnessId,
+            insulationMaterial,
+            conductorMaterial,
+            manufacturer,
+            partNumber,
+            notes,
+          },
+      );
       if (response.ok) dialog.close();
-      else error.textContent = response.error || "Could not save connected-wire properties.";
+      else error.textContent = response.error || `Could not save ${
+        isWireGroup ? "connected-wire" : "harness"
+      } properties.`;
     } catch (failure) {
       error.textContent = failure.message;
     } finally {
@@ -151,6 +187,16 @@ function openWireGroupProperties(harness, wireGroup) {
   dialog.append(form);
   document.body.append(dialog);
   dialog.showModal();
+}
+
+/** Open parent properties inherited by connected wire groups. */
+function openHarnessProperties(harness) {
+  openPropertiesDialog(harness);
+}
+
+/** Open one connected wire group's inherited construction properties. */
+function openWireGroupProperties(harness, wireGroup) {
+  openPropertiesDialog(harness, wireGroup);
 }
 
 function openMaterialOptions(harness, wire = null, wireGroup = null) {
@@ -178,12 +224,12 @@ function openMaterialOptions(harness, wire = null, wireGroup = null) {
   const controls = {};
   heading.textContent = isWire
     ? `Wire options · ${wireLabel(wire)}`
-    : isWireGroup ? "Connected wire materials" : "Harness wire-material defaults";
+    : isWireGroup ? "Connected Wire Materials" : "Harness Materials";
   note.textContent = isWire
     ? "Diameter applies to this wire. Checked material fields override this harness."
     : isWireGroup
-      ? "Checked material fields override this harness for the connected wire."
-      : "These values are inherited by every wire unless that wire overrides a field.";
+      ? "Checked visual fields override this harness for the connected wire."
+      : "These visual values are inherited by connected wires without overrides.";
   form.append(heading, note);
 
   let diameter = null;
@@ -217,29 +263,17 @@ function openMaterialOptions(harness, wire = null, wireGroup = null) {
   };
 
   const addTextField = (key, labelText, suggestions = [], multiline = false) => {
-    const wrapper = document.createElement("div");
-    const header = document.createElement("div");
-    const label = document.createElement("strong");
-    const input = document.createElement(multiline ? "textarea" : "input");
-    wrapper.className = "material-field";
-    header.className = "material-field-heading";
-    label.textContent = labelText;
-    if (!multiline) input.type = "text";
-    input.className = "filter";
-    input.value = settings[key] || "";
+    const { wrapper, header, input } = createMaterialTextField(
+      settings, key, labelText, suggestions, multiline,
+    );
     const update = () => { input.disabled = Boolean(toggle && !toggle.checked); };
     const toggle = addOverrideToggle(header, key, update);
-    header.prepend(label);
     update();
-    wrapper.append(header, input);
-    if (!multiline && suggestions.length) {
-      addMaterialAutocomplete(wrapper, input, suggestions);
-    }
     form.append(wrapper);
     controls[key] = { input, toggle };
   };
 
-  if (!isWireGroup) {
+  if (isWire) {
     addTextField("insulationMaterial", "Insulation material", catalog.insulationMaterials);
     addTextField("conductorMaterial", "Conductor material", catalog.conductorMaterials);
     addTextField("manufacturer", "Manufacturer");
@@ -543,23 +577,27 @@ function openMaterialOptions(harness, wire = null, wireGroup = null) {
       }
       const materials = {
         insulationMaterial: isWireGroup
-          ? overrides.insulationMaterial : fieldValue("insulationMaterial"),
+          ? overrides.insulationMaterial
+          : isWire ? fieldValue("insulationMaterial") : settings.insulationMaterial,
         conductorMaterial: isWireGroup
-          ? overrides.conductorMaterial : fieldValue("conductorMaterial"),
+          ? overrides.conductorMaterial
+          : isWire ? fieldValue("conductorMaterial") : settings.conductorMaterial,
         mainColor: hasOverrides && !colorToggle.checked ? null
           : colorFromHex(colorName.value, colorPicker.value),
         appearance: hasOverrides && !colorToggle.checked ? null : appearance,
         stripes: hasOverrides && !stripeToggle.checked ? null : readStripes(),
-        manufacturer: isWireGroup ? overrides.manufacturer : fieldValue("manufacturer"),
-        partNumber: isWireGroup ? overrides.partNumber : fieldValue("partNumber"),
-        notes: isWireGroup ? overrides.notes : fieldValue("notes"),
+        manufacturer: isWireGroup
+          ? overrides.manufacturer : isWire ? fieldValue("manufacturer") : settings.manufacturer,
+        partNumber: isWireGroup
+          ? overrides.partNumber : isWire ? fieldValue("partNumber") : settings.partNumber,
+        notes: isWireGroup ? overrides.notes : isWire ? fieldValue("notes") : settings.notes,
       };
-      if (!isWireGroup && (!hasOverrides || materials.insulationMaterial !== null)
+      if (isWire && materials.insulationMaterial !== null
           && !materials.insulationMaterial.trim()) {
         error.textContent = "Insulation material must not be empty.";
         return;
       }
-      if (!isWireGroup && (!hasOverrides || materials.conductorMaterial !== null)
+      if (isWire && materials.conductorMaterial !== null
           && !materials.conductorMaterial.trim()) {
         error.textContent = "Conductor material must not be empty.";
         return;

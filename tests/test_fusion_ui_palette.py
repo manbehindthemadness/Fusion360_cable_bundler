@@ -357,6 +357,46 @@ def test_palette_edit_saves_connected_wire_properties_atomically(
     assert notice == "Saved connected-wire properties."
 
 
+def test_palette_edit_saves_harness_properties_without_visual_materials(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the property-only payload without requiring appearance or stripe values.
+    """
+    harness_id = UUID(int=1)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_harness_properties", save)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "set_harness_properties",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "insulationMaterial": "ETFE",
+                "conductorMaterial": "Tinned Copper",
+                "manufacturer": "Acme",
+                "partNumber": "WB-42",
+                "notes": "Matched stock",
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        "ETFE",
+        "Tinned Copper",
+        "Acme",
+        "WB-42",
+        "Matched stock",
+        gateway,
+    )
+    assert notice == "Saved harness properties."
+
+
 def test_palette_edit_deletes_pathway_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

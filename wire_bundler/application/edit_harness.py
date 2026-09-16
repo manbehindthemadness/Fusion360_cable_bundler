@@ -1024,6 +1024,35 @@ def set_harness_material_defaults(
     )
 
 
+def set_harness_properties(
+    harness_id: UUID,
+    insulation_material: str,
+    conductor_material: str,
+    manufacturer: str,
+    part_number: str,
+    notes: str,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace inheritable construction and catalog properties without changing appearance.
+    """
+    original, definition = _read_definition(harness_id, gateway)
+    updated_defaults = replace(
+        definition.material_defaults,
+        insulation_material=insulation_material,
+        conductor_material=conductor_material,
+        manufacturer=manufacturer,
+        part_number=part_number,
+        notes=notes,
+    )
+    _persist(
+        harness_id,
+        original,
+        replace(definition, material_defaults=updated_defaults),
+        gateway,
+    )
+
+
 def set_wire_material_overrides(
     harness_id: UUID,
     wire_id: UUID,
