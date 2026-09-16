@@ -13,6 +13,7 @@ function closeEditor() {
   send("clear_highlight").catch(() => {});
   closePathwayPopup();
   closeJunctionRelationships();
+  closeWireGroupDetails();
   closeCreateWiresPopup();
   selectedHarnessKey = "";
   removeSession("wireBundler.selectedHarness");

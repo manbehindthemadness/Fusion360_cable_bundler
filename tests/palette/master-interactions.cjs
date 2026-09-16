@@ -271,6 +271,132 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   assert.equal(calls[3].payload.harnessId, 'h');
 });
 
+test('connected wire-end Details opens and refreshes group route details', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.wires = [];
+  definition.standaloneEnds = [
+    { connectionId: 'a1', pathwayId: 'p', endpoint: 'start' },
+    { connectionId: 'b1', pathwayId: 'p', endpoint: 'end' },
+  ];
+  definition.wireGroups = [{
+    wireGroupId: 'g1',
+    connectionIds: ['a1', 'b1'],
+    routeLegs: [{
+      routeId: 'leg-1', label: 'Group 1 Leg 1', startConnectionId: 'a1',
+      endConnectionId: 'b1', controlSteps: [], pathwayIds: ['p'],
+    }],
+  }];
+  definition.wireGroupRouteError = null;
+  let graphic = context.renderRelationshipMap(definition, []);
+  let entries = descendants(
+    graphic, (node) => node.className === 'relationship-end-entry',
+  );
+  const menu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  const contextEvent = {
+    clientX: 60, clientY: 70, preventDefault() {}, stopPropagation() {},
+  };
+
+  entries[0].events.contextmenu(contextEvent);
+  assert.deepEqual(menu.children.map((item) => item.textContent), ['Details', 'Rename', 'Delete']);
+  menu.children[0].events.click();
+  let dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(dialog.open, true);
+  assert.equal(descendants(dialog, (node) => node.tag === 'h2')[0].textContent, 'Wire Details');
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-member'),
+  ).length, 2);
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('focused'),
+  )[0].dataset.connectionId, entries[0].dataset.connectionId);
+
+  context.renderEditor(definition);
+  dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(context.document.body.querySelectorAll('.wire-group-details-popup').length, 1);
+  assert.equal(dialog.open, true);
+
+  context.closeWireGroupDetails();
+  graphic = context.renderRelationshipMap(definition, []);
+  entries = descendants(graphic, (node) => node.className === 'relationship-end-entry');
+  const refreshedMenu = descendants(
+    graphic, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  entries[1].events.contextmenu(contextEvent);
+  refreshedMenu.children[0].events.click();
+  dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('focused'),
+  )[0].dataset.connectionId, entries[1].dataset.connectionId);
+
+  context.closeWireGroupDetails();
+  definition.wireGroupRouteError = 'The connected ends are not reachable.';
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.match(descendants(
+    dialog, (node) => node.className === 'wire-group-route-error',
+  )[0].textContent, /not reachable/);
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-graphic'),
+  ).length, 0);
+
+  definition.wireGroups = [];
+  context.renderEditor(definition);
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+});
+
+test('wire details sub-graphic shares one junction across a pigtail group', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.wires = [];
+  definition.pathways = ['p1', 'p2', 'p3'].map((pathwayId, index) => ({
+    pathwayId, name: `Path ${index + 1}`, startName: '', endName: '', orderedControlIds: [],
+  }));
+  definition.connections = ['a', 'b', 'c'].map((connectionId) => ({
+    connectionId, name: `End ${connectionId.toUpperCase()}`, hasLinkedGeometry: true,
+  }));
+  definition.standaloneEnds = [
+    { connectionId: 'a', pathwayId: 'p1', endpoint: 'start' },
+    { connectionId: 'b', pathwayId: 'p2', endpoint: 'end' },
+    { connectionId: 'c', pathwayId: 'p3', endpoint: 'end' },
+  ];
+  definition.junctions = [{
+    junctionId: 'j1', name: 'Shared junction', controlId: 'junction-control',
+    pathwayRelationships: [
+      { pathwayId: 'p1', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+      { pathwayId: 'p3', endpoint: 'start' },
+    ],
+  }];
+  definition.wireGroups = [{
+    wireGroupId: 'g1', connectionIds: ['a', 'b', 'c'], routeLegs: [{
+      routeId: 'leg-1', label: 'Group 1 Leg 1', startConnectionId: 'a',
+      endConnectionId: 'b', pathwayIds: ['p1', 'p2'],
+      controlSteps: [{ controlId: 'junction-control', reversed: false }],
+    }, {
+      routeId: 'leg-2', label: 'Group 1 Leg 2', startConnectionId: null,
+      endConnectionId: 'c', pathwayIds: ['p3'],
+      controlSteps: [{ controlId: 'junction-control', reversed: false }],
+    }],
+  }];
+  definition.wireGroupRouteError = null;
+
+  context.openWireGroupDetails(definition, 'g1', 'a');
+  const dialog = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('connection'),
+  ).length, 3);
+  assert.equal(descendants(
+    dialog, (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.className.split(' ').includes('junction'),
+  ).length, 1);
+  assert.equal(descendants(dialog, (node) => node.className === 'wire-group-route-link').length, 6);
+});
+
 asyncTest('junction popup matches pathway styling and shows traversing wire members', async () => {
   const { context, calls } = palette();
   const definition = harness();
@@ -817,7 +943,7 @@ asyncTest('pathway context menu segments eligible controls and renders its junct
   assert.equal(calls.at(-1).payload.memberId, 'j1');
 });
 
-test('Wire Editor selects only reachable pathway-end headers and cancels elsewhere', () => {
+test('Connection Editor selects only reachable pathway-end headers and cancels elsewhere', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways = [
@@ -871,7 +997,7 @@ test('Wire Editor selects only reachable pathway-end headers and cancels elsewhe
   };
 
   empty.events.contextmenu(contextEvent);
-  assert.equal(menu.children[0].textContent, 'Wire Editor');
+  assert.equal(menu.children[0].textContent, 'Connection Editor');
   assert.equal(menu.children[0].disabled, true);
   assert.equal(menu.children[0].title, 'Requires at least one end');
 
@@ -933,7 +1059,7 @@ test('Wire Editor selects only reachable pathway-end headers and cancels elsewhe
   assert.equal(staleListenerPrevented, false);
 });
 
-asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', async () => {
+asyncTest('Connection Editor popup interacts with loose ends and survives refreshes', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -999,7 +1125,7 @@ asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', 
 
   let dialog = context.document.body.querySelector('.create-wires-popup');
   const heading = descendants(dialog, (node) => node.id === 'create-wires-title')[0];
-  assert.equal(heading.textContent, 'Wire Editor');
+  assert.equal(heading.textContent, 'Connection Editor');
   let columns = descendants(
     dialog, (node) => node.className?.split(' ').includes('create-wires-column'),
   );
@@ -1103,7 +1229,7 @@ asyncTest('Wire Editor popup interacts with loose ends and survives refreshes', 
   assert.equal(context.document.body.querySelector('.create-wires-popup'), undefined);
 });
 
-asyncTest('Wire Editor visually pairs dragged ends without mutating the harness', async () => {
+asyncTest('Connection Editor visually pairs dragged ends without mutating the harness', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1370,7 +1496,7 @@ asyncTest('Wire Editor visually pairs dragged ends without mutating the harness'
   assert.equal(cards().every((item) => item.dataset.assignmentLocation === 'pool'), true);
 });
 
-test('Wire Editor retains only the newly exposed pending row when a pair is broken', () => {
+test('Connection Editor retains only the newly exposed pending row when a pair is broken', () => {
   const { context } = palette();
   const assignments = {
     pools: { left: [], right: [] },
@@ -1391,7 +1517,7 @@ test('Wire Editor retains only the newly exposed pending row when a pair is brok
   ]);
 });
 
-test('Wire Editor opens persisted cross-boundary groups as center rows', () => {
+test('Connection Editor opens persisted cross-boundary groups as center rows', () => {
   const { context } = palette();
   const assignments = context.initialWireCreationAssignments({
     left: [
@@ -1415,7 +1541,7 @@ test('Wire Editor opens persisted cross-boundary groups as center rows', () => {
   assert.equal(assignments.initialPartners['right-paired'], 'left-paired');
 });
 
-asyncTest('Wire Editor Save submits complete staged changes in one transaction', async () => {
+asyncTest('Connection Editor Save submits complete staged changes in one transaction', async () => {
   const { context, calls } = palette();
   context.send = (action, payload) => {
     calls.push({ action, payload });
@@ -1460,7 +1586,7 @@ asyncTest('Wire Editor Save submits complete staged changes in one transaction',
   });
 });
 
-test('Wire Editor swaps occupied same-side members while partners stay in place', () => {
+test('Connection Editor swaps occupied same-side members while partners stay in place', () => {
   const { context } = palette();
   const leftA = { connectionId: 'left-a', returnIndex: 0 };
   const leftB = { connectionId: 'left-b', returnIndex: 1 };

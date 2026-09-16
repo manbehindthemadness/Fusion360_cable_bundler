@@ -149,22 +149,22 @@ def _apply_palette_edit(
         raw_renames = payload.get("renames")
         raw_deleted = payload.get("deletedConnectionIds")
         if not isinstance(left_boundary, dict) or not isinstance(right_boundary, dict):
-            raise ValueError("Wire Editor boundaries must be objects.")
+            raise ValueError("Connection Editor boundaries must be objects.")
         if not all(
             isinstance(value, list)
             for value in (raw_pairings, raw_detached, raw_renames, raw_deleted)
         ):
-            raise ValueError("Wire Editor changes must be lists.")
+            raise ValueError("Connection Editor changes must be lists.")
         left_endpoint = left_boundary.get("endpoint")
         right_endpoint = right_boundary.get("endpoint")
         if left_endpoint not in {member.value for member in PathwayEndpoint}:
-            raise ValueError("Wire Editor left boundary has an invalid endpoint.")
+            raise ValueError("Connection Editor left boundary has an invalid endpoint.")
         if right_endpoint not in {member.value for member in PathwayEndpoint}:
-            raise ValueError("Wire Editor right boundary has an invalid endpoint.")
+            raise ValueError("Connection Editor right boundary has an invalid endpoint.")
         pairings: list[WireEditorPairing] = []
         for index, raw_pairing in enumerate(raw_pairings):
             if not isinstance(raw_pairing, dict):
-                raise ValueError(f"Wire Editor pairing {index + 1} must be an object.")
+                raise ValueError(f"Connection Editor pairing {index + 1} must be an object.")
             pairings.append(
                 WireEditorPairing(
                     _read_payload_uuid(raw_pairing, "leftConnectionId", "left wire end"),
@@ -174,7 +174,7 @@ def _apply_palette_edit(
         renames: list[WireEditorRename] = []
         for index, raw_rename in enumerate(raw_renames):
             if not isinstance(raw_rename, dict) or not isinstance(raw_rename.get("name"), str):
-                raise ValueError(f"Wire Editor rename {index + 1} must contain a text name.")
+                raise ValueError(f"Connection Editor rename {index + 1} must contain a text name.")
             renames.append(
                 WireEditorRename(
                     _read_payload_uuid(raw_rename, "connectionId", "renamed wire end"),
@@ -203,7 +203,7 @@ def _apply_palette_edit(
             ),
             gateway,
         )
-        return "Saved Wire Editor changes."
+        return "Saved Connection Editor changes."
     if action == "rename_standalone_end":
         name = payload.get("name")
         if not isinstance(name, str):

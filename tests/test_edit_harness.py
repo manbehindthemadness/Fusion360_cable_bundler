@@ -91,7 +91,7 @@ EDITOR_RIGHT_2_ID = UUID("62000000-0000-0000-0000-000000000006")
 
 def _wire_editor_definition(valid_harness: HarnessDefinition) -> HarnessDefinition:
     """
-    Add deterministic standalone ends on three Wire Editor boundaries.
+    Add deterministic standalone ends on three Connection Editor boundaries.
     """
     pathways = tuple(
         PathwayDefinition(

@@ -100,14 +100,26 @@ def test_palette_state_contains_complete_editor_definition(
             "endpoint": "start",
         }
     ]
-    assert harness["wireGroups"] == [
+    wire_group = harness["wireGroups"][0]
+    assert wire_group["wireGroupId"] == "60000000-0000-0000-0000-000000000001"
+    assert wire_group["connectionIds"] == [
+        str(connection.connection_id) for connection in valid_harness.connections
+    ]
+    assert len(wire_group["routeLegs"]) == 1
+    route_leg = wire_group["routeLegs"][0]
+    assert route_leg["routeId"]
+    assert route_leg["label"] == "Group 1 Leg 1"
+    assert {route_leg["startConnectionId"], route_leg["endConnectionId"]} == {
+        str(connection.connection_id) for connection in valid_harness.connections
+    }
+    assert route_leg["controlSteps"] == [
         {
-            "wireGroupId": "60000000-0000-0000-0000-000000000001",
-            "connectionIds": [
-                str(connection.connection_id) for connection in valid_harness.connections
-            ],
+            "controlId": str(valid_harness.controls[0].control_id),
+            "reversed": True,
         }
     ]
+    assert route_leg["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+    assert harness["wireGroupRouteError"] is None
     relationship_map = harness["relationshipMap"]
     assert relationship_map["routes"][0]["nodeIds"] == [
         f"connection:{valid_harness.connections[0].connection_id}",

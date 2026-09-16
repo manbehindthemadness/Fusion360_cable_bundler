@@ -3,6 +3,7 @@
 
 function openJunctionRelationships(harness, junction) {
   closePathwayPopup();
+  closeWireGroupDetails();
   const prior = document.body.querySelector(".junction-relationships-popup");
   if (prior) {
     prior.remove();
@@ -306,7 +307,7 @@ function renderRelationshipEndList(
   summary.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
     showContextMenu(event, [{
-      label: "Wire Editor",
+      label: "Connection Editor",
       action: () => wireCreationController.begin(wireCreationBoundary),
       disabled: !groups.length,
       title: groups.length ? "" : "Requires at least one end",
@@ -356,7 +357,7 @@ function renderRelationshipEndList(
       );
       button.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
-        showContextMenu(event, [
+        const items = [
           {
             label: "Rename",
             action: () => renameRelationshipEnd(harness, group, button, name, meta),
@@ -368,7 +369,16 @@ function renderRelationshipEndList(
               connectionId: group.connectionId,
             }, `Deleting ${group.label}…`),
           },
-        ]);
+        ];
+        if (group.wireGroupId) {
+          items.unshift({
+            label: "Details",
+            action: () => openWireGroupDetails(
+              harness, group.wireGroupId, group.connectionId,
+            ),
+          });
+        }
+        showContextMenu(event, items);
       });
     }
     items.append(button);

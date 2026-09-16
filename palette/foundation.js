@@ -53,6 +53,7 @@ let currentState = { harnesses: [], notice: "" };
 let selectedHarnessKey = readSession("wireBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";
+let openWireGroupDetailsState = null;
 let openCreateWiresPopupState = null;
 const routeFilters = new Map();
 const relationshipFilters = new Map();
@@ -578,6 +579,7 @@ function closePathwayPopup() {
 
 function openPathwayPopup(harness, pathwayId) {
   closeJunctionRelationships();
+  closeWireGroupDetails();
   const pathway = harness.pathways.find((candidate) => candidate.pathwayId === pathwayId);
   const existing = document.body.querySelector(".pathway-popup");
   if (existing) {

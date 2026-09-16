@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from typing import Any, Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -18,12 +18,15 @@ import adsk.fusion
 from ...application import (
     HarnessLoadResult,
     RelationshipMap,
+    WireGroupRouteLeg,
     build_relationship_map,
     delete_damaged_harness,
     load_harnesses,
     load_wire_material_catalog,
+    plan_wire_group_routes,
 )
 from ...domain import (
+    HarnessDefinition,
     WireAppearanceReference,
     WireColor,
     WireMaterialOverrides,
@@ -79,6 +82,7 @@ def serialize_palette_state(
             )
             continue
         relationship_map = build_relationship_map(definition)
+        wire_groups, wire_group_route_error = _wire_group_payloads(definition)
         harnesses.append(
             {
                 "componentName": result.component_name,
@@ -176,15 +180,8 @@ def serialize_palette_state(
                     }
                     for end in definition.standalone_ends
                 ],
-                "wireGroups": [
-                    {
-                        "wireGroupId": str(group.wire_group_id),
-                        "connectionIds": [
-                            str(connection_id) for connection_id in group.connection_ids
-                        ],
-                    }
-                    for group in definition.wire_groups
-                ],
+                "wireGroups": wire_groups,
+                "wireGroupRouteError": wire_group_route_error,
                 "wires": [
                     {
                         "wireId": str(wire.wire_id),
@@ -223,6 +220,54 @@ def serialize_palette_state(
         "ok": True,
     }
     return json.dumps(payload, sort_keys=True)
+
+
+def _wire_group_payloads(
+    definition: HarnessDefinition,
+) -> tuple[list[dict[str, object]], Optional[str]]:
+    """
+    Project persistent wire groups and their planned route legs for the palette.
+
+    A route-planning failure must not make the harness editor unavailable. The
+    palette can still show group membership and explain why its graphic is absent.
+    """
+    try:
+        planned_legs = plan_wire_group_routes(definition)
+        route_error = None
+    except ValueError as error:
+        planned_legs = ()
+        route_error = str(error)
+    legs_by_group: dict[UUID, list[WireGroupRouteLeg]] = {}
+    for leg in planned_legs:
+        legs_by_group.setdefault(leg.wire_group_id, []).append(leg)
+    payloads = [
+        {
+            "wireGroupId": str(group.wire_group_id),
+            "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
+            "routeLegs": [
+                {
+                    "routeId": str(leg.route_id),
+                    "label": leg.label,
+                    "startConnectionId": (
+                        str(leg.start_connection_id)
+                        if leg.start_connection_id is not None
+                        else None
+                    ),
+                    "endConnectionId": (
+                        str(leg.end_connection_id) if leg.end_connection_id is not None else None
+                    ),
+                    "controlSteps": [
+                        {"controlId": str(step.control_id), "reversed": step.reversed}
+                        for step in leg.control_steps
+                    ],
+                    "pathwayIds": [str(pathway_id) for pathway_id in leg.pathway_ids],
+                }
+                for leg in legs_by_group.get(group.wire_group_id, ())
+            ],
+        }
+        for group in definition.wire_groups
+    ]
+    return payloads, route_error
 
 
 def _register_damaged_harness(result: HarnessLoadResult) -> Optional[str]:

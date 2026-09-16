@@ -22,6 +22,7 @@ body {
 .wire-options { border: 1px solid var(--border); border-radius: 6px; width: 320px; max-width: 90vw; }
 .pathway-popup,
 .junction-relationships-popup,
+.wire-group-details-popup,
 .create-wires-popup {
   width: 620px;
   max-width: 92vw;
@@ -35,6 +36,7 @@ body {
 }
 .pathway-popup::backdrop,
 .junction-relationships-popup::backdrop,
+.wire-group-details-popup::backdrop,
 .create-wires-popup::backdrop { background: #0005; }
 .pathway-popup > .pathway-popup-entry,
 .junction-relationships-popup > .pathway-popup-entry { margin: 0; }
@@ -42,6 +44,52 @@ body {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+}
+.wire-group-details-popup {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 90vw;
+  max-width: 90vw;
+  height: 90vh;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.wire-group-details-content {
+  display: grid;
+  grid-template-rows: auto minmax(240px, 1fr) auto auto;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wire-group-details-heading { display: grid; gap: 3px; }
+.wire-group-details-heading p { margin: 0; color: var(--muted); }
+.wire-group-details-graphic {
+  min-height: 0;
+  border: 1px solid #d9e1e7;
+  border-radius: 5px;
+  background: var(--surface);
+}
+.wire-group-details-graphic .block-diagram-viewport { height: 100%; min-height: 240px; }
+.wire-group-details-svg { display: block; }
+.wire-group-route-link {
+  fill: none;
+  stroke: #7b9ab2;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.wire-group-details-node { cursor: pointer; outline: none; }
+.wire-group-details-node.focused .relationship-node {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.wire-group-details-node.junction .relationship-node { fill: #f3edff; stroke: #76569d; }
+.wire-group-details-member.focused { border-color: var(--accent); background: #edf6fd; }
+.wire-group-route-error {
+  border: 1px solid #d9a4a4;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: #fff7f7;
+  color: var(--danger);
 }
 .material-options { width: 430px; max-height: 88vh; overflow-x: hidden; overflow-y: auto; }
 .wire-options::backdrop { background: #0005; }
@@ -409,15 +457,18 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 }
 .relationship-audit.findings::before { content: "!"; }
 .relationship-map { display: grid; gap: 9px; }
-.relationship-map > .block-diagram-workspace {
+.block-diagram-workspace {
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: #dfe5ea;
 }
-.relationship-map > .block-diagram-workspace .block-diagram-toolbar {
+.block-diagram-workspace .block-diagram-toolbar {
   position: relative;
   z-index: 2;
   display: flex;
@@ -428,28 +479,29 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
-.relationship-map > .block-diagram-workspace .block-diagram-toolbar button {
+.block-diagram-workspace .block-diagram-toolbar button {
   min-width: 30px;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 3px 7px;
   background: var(--surface);
 }
-.relationship-map > .block-diagram-workspace .block-diagram-zoom {
+.block-diagram-workspace .block-diagram-zoom {
   min-width: 46px;
   color: var(--muted);
   text-align: center;
 }
-.relationship-map > .block-diagram-workspace .block-diagram-viewport {
+.block-diagram-workspace .block-diagram-viewport {
   position: relative;
-  height: 390px;
+  min-height: 0;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
-.relationship-map > .block-diagram-workspace .block-diagram-viewport.panning { cursor: grabbing; }
-.relationship-map > .block-diagram-workspace .block-diagram-stage {
+.relationship-map > .block-diagram-workspace .block-diagram-viewport { height: 390px; }
+.block-diagram-workspace .block-diagram-viewport.panning { cursor: grabbing; }
+.block-diagram-workspace .block-diagram-stage {
   position: absolute;
   top: 0;
   left: 0;

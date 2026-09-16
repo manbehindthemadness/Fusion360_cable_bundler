@@ -309,7 +309,7 @@ def test_palette_edit_saves_wire_editor_transaction(
         addin_module.PathwayEndpoint.END,
     )
     assert arguments[-1] is gateway
-    assert notice == "Saved Wire Editor changes."
+    assert notice == "Saved Connection Editor changes."
 
 
 def test_palette_edit_deletes_pathway_by_identity(

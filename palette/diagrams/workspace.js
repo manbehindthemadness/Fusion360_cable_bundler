@@ -15,8 +15,11 @@ function createBlockDiagramWorkspace(label, options = {}) {
   const viewport = document.createElement("div");
   const stage = document.createElement("div");
   const initialView = options.initialView || {};
+  const minimumScale = Number.isFinite(options.minScale)
+    ? Math.max(Number.EPSILON, options.minScale)
+    : BLOCK_DIAGRAM_MIN_SCALE;
   let scale = Number.isFinite(initialView.scale)
-    ? Math.min(BLOCK_DIAGRAM_MAX_SCALE, Math.max(BLOCK_DIAGRAM_MIN_SCALE, initialView.scale))
+    ? Math.min(BLOCK_DIAGRAM_MAX_SCALE, Math.max(minimumScale, initialView.scale))
     : 1;
   let offsetX = Number.isFinite(initialView.offsetX) ? initialView.offsetX : 0;
   let offsetY = Number.isFinite(initialView.offsetY) ? initialView.offsetY : 0;
@@ -51,7 +54,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
   const setScale = (nextScale, anchorX = viewport.clientWidth / 2,
     anchorY = viewport.clientHeight / 2) => {
     const clamped = Math.min(BLOCK_DIAGRAM_MAX_SCALE, Math.max(
-      BLOCK_DIAGRAM_MIN_SCALE, nextScale,
+      minimumScale, nextScale,
     ));
     const localX = (anchorX - offsetX) / scale;
     const localY = (anchorY - offsetY) / scale;
@@ -61,12 +64,14 @@ function createBlockDiagramWorkspace(label, options = {}) {
     renderTransform();
   };
   const fitDiagram = () => {
-    const width = Math.max(1, stage.scrollWidth);
-    const height = Math.max(1, stage.scrollHeight);
+    const width = Math.max(1, Number.isFinite(options.contentSize?.width)
+      ? options.contentSize.width : stage.scrollWidth);
+    const height = Math.max(1, Number.isFinite(options.contentSize?.height)
+      ? options.contentSize.height : stage.scrollHeight);
     const availableWidth = Math.max(1, viewport.clientWidth - 24);
     const availableHeight = Math.max(1, viewport.clientHeight - 24);
     scale = Math.min(1, Math.max(
-      BLOCK_DIAGRAM_MIN_SCALE,
+      minimumScale,
       Math.min(availableWidth / width, availableHeight / height),
     ));
     offsetX = Math.max(12, (viewport.clientWidth - width * scale) / 2);

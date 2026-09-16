@@ -7,7 +7,19 @@ test('master relationship viewport uses a distinct darker backdrop', () => {
   assert.match(styles, /\.relationship-map-viewport \{[^}]*background: #dfe5ea;/s);
 });
 
-test('Wire Editor uses three independently scrollable columns', () => {
+test('Wire Details fills most of the window and uses the shared diagram workspace', () => {
+  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  assert.match(styles, /\.wire-group-details-popup \{[^}]*width: 90vw;[^}]*height: 90vh;/s);
+  assert.match(
+    styles,
+    /\.block-diagram-workspace \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s,
+  );
+  assert.match(styles, /\.block-diagram-viewport \{[^}]*overflow: hidden;/s);
+  assert.match(styles, /\.block-diagram-stage \{[^}]*transform-origin: 0 0;/s);
+  assert.match(styles, /\.wire-group-route-link \{[^}]*fill: none;[^}]*stroke-linecap: round;/s);
+});
+
+test('Connection Editor uses three independently scrollable columns', () => {
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   const columnPattern = [
     String.raw`\.create-wires-layout \{[^}]*grid-template-columns: `,

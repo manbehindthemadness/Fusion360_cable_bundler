@@ -147,6 +147,133 @@ test('relationship diagrams zoom and pan exclusively with middle mouse dragging'
     assert.equal(viewport.className.includes('panning'), false);
   }
 });
+
+test('diagram Fit honors explicit content bounds below the default zoom floor', () => {
+  const { context } = palette();
+  const workspace = context.createBlockDiagramWorkspace('Large route', {
+    contentSize: { width: 6000, height: 3000 },
+    minScale: 0.01,
+  });
+  workspace.viewport.clientWidth = 600;
+  workspace.viewport.clientHeight = 300;
+
+  workspace.fit();
+
+  const scale = Number.parseFloat(
+    workspace.stage.style.transform.match(/scale\(([^)]+)\)/)[1],
+  );
+  assert.ok(scale < 0.3);
+  assert.ok(6000 * scale <= workspace.viewport.clientWidth - 24);
+  assert.ok(3000 * scale <= workspace.viewport.clientHeight - 24);
+  assert.equal(workspace.zoomValue.textContent, `${Math.round(scale * 100)}%`);
+});
+
+test('Wire Details deterministically reduces avoidable route crossings', () => {
+  const { context } = palette();
+  const topology = (reverse = false) => {
+    const specifications = [
+      ['connection:root', 'connection', 'Root'],
+      ['pathway:a', 'pathway', 'Alpha'],
+      ['pathway:b', 'pathway', 'Beta'],
+      ['junction:c', 'junction', 'Charlie'],
+      ['junction:d', 'junction', 'Delta'],
+    ];
+    if (reverse) specifications.reverse();
+    const nodes = specifications.map(([id, kind, label]) => ({
+      id, kind, label, item: {}, neighbors: new Set(),
+    }));
+    const nodesById = new Map(nodes.map((node) => [node.id, node]));
+    const pairs = [
+      ['connection:root', 'pathway:a'],
+      ['connection:root', 'pathway:b'],
+      ['pathway:a', 'junction:d'],
+      ['pathway:b', 'junction:c'],
+    ];
+    const edges = (reverse ? pairs.slice().reverse() : pairs).map(([leftId, rightId]) => {
+      nodesById.get(leftId).neighbors.add(rightId);
+      nodesById.get(rightId).neighbors.add(leftId);
+      return { id: [leftId, rightId].sort().join('|'), leftId, rightId };
+    });
+    return { nodes, edges };
+  };
+
+  const first = context.layoutWireGroupDetailsTopology(topology(), 'root');
+  const second = context.layoutWireGroupDetailsTopology(topology(true), 'root');
+  const rows = (layout) => Object.fromEntries(
+    layout.nodes.map((node) => [node.id, [node.depth, node.row]]),
+  );
+
+  assert.equal(first.orderingScore.crossings, 0);
+  assert.deepEqual(rows(first), rows(second));
+  assert.ok(first.nodes.find((node) => node.id === 'junction:d').row
+    < first.nodes.find((node) => node.id === 'junction:c').row);
+});
+
+test('Wire Details expands full labels and sorts separated route ports', () => {
+  const { context } = palette();
+  const definition = harness();
+  const longLabel = 'Path to the battery ground distribution block';
+  definition.wires = [];
+  definition.pathways = ['p1', 'p2', 'p3'].map((pathwayId, index) => ({
+    pathwayId,
+    name: index === 0 ? longLabel : `Path ${index + 1}`,
+    startName: '',
+    endName: '',
+    orderedControlIds: [],
+  }));
+  definition.connections = ['a', 'b', 'c'].map((connectionId) => ({
+    connectionId, name: `End ${connectionId.toUpperCase()}`, hasLinkedGeometry: true,
+  }));
+  definition.standaloneEnds = [
+    { connectionId: 'a', pathwayId: 'p1', endpoint: 'start' },
+    { connectionId: 'b', pathwayId: 'p2', endpoint: 'end' },
+    { connectionId: 'c', pathwayId: 'p3', endpoint: 'end' },
+  ];
+  definition.junctions = [{
+    junctionId: 'j1', name: 'Shared junction', controlId: 'junction-control',
+    pathwayRelationships: ['p1', 'p2', 'p3'].map((pathwayId, index) => ({
+      pathwayId, endpoint: index ? 'start' : 'end',
+    })),
+  }];
+  const group = {
+    wireGroupId: 'g1', connectionIds: ['a', 'b', 'c'], routeLegs: [{
+      routeId: 'leg-1', startConnectionId: 'a', endConnectionId: 'b',
+      pathwayIds: ['p1', 'p2'], controlSteps: [{ controlId: 'junction-control' }],
+    }, {
+      routeId: 'leg-2', startConnectionId: null, endConnectionId: 'c',
+      pathwayIds: ['p3'], controlSteps: [{ controlId: 'junction-control' }],
+    }],
+  };
+
+  const workspace = context.renderWireGroupDetailsGraphic(definition, group, 'a');
+  const svg = descendants(workspace.root, (node) => node.className === 'wire-group-details-svg')[0];
+  const pathwayNode = descendants(svg, (node) => node.dataset.nodeId === 'pathway:p1')[0];
+  const label = descendants(
+    pathwayNode, (node) => node.className === 'relationship-node-label',
+  )[0];
+  const rectangle = descendants(
+    pathwayNode, (node) => node.className?.split(' ').includes('relationship-node'),
+  )[0];
+  const junctionLinks = descendants(svg, (node) => (
+    node.className === 'wire-group-route-link'
+      && (node.attributes['data-start-node-id'] === 'junction:j1'
+        || node.attributes['data-end-node-id'] === 'junction:j1')
+  ));
+  const junctionPorts = junctionLinks.map((link) => (
+    link.attributes['data-start-node-id'] === 'junction:j1'
+      ? link.attributes['data-start-y'] : link.attributes['data-end-y']
+  ));
+
+  assert.equal(label.textContent, longLabel);
+  const rectangleX = Number(rectangle.attributes.x);
+  const rectangleWidth = Number(rectangle.attributes.width);
+  assert.ok(rectangleWidth > 150);
+  assert.ok(rectangleX >= 0);
+  assert.ok(rectangleX + rectangleWidth <= Number(svg.attributes.width));
+  assert.equal(junctionLinks.every((link) => link.tag === 'path'), true);
+  assert.equal(new Set(junctionPorts).size, junctionPorts.length);
+});
+
 test('master relationship graphic is last and independently cross-checked', () => {
   const { context } = palette();
   const definition = harness();
@@ -252,6 +379,7 @@ test('palette entry point loads organized local style and script resources', () 
       'palette/wire-graphic.js',
       'palette/diagrams/master-model.js',
       'palette/diagrams/master-layout.js',
+      'palette/wire-group-details.js',
       'palette/diagrams/create-wires.js',
       'palette/diagrams/master-components.js',
       'palette/master-graphic.js',

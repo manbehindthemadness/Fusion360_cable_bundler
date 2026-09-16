@@ -21,6 +21,7 @@ function renderEditor(harness) {
     closeCreateWiresPopup();
     closePathwayPopup();
     closeJunctionRelationships();
+    closeWireGroupDetails();
     const error = document.createElement("div");
     const actions = document.createElement("div");
     const remove = document.createElement("button");
@@ -136,6 +137,13 @@ function renderEditor(harness) {
     );
     if (junction) openJunctionRelationships(harness, junction);
     else closeJunctionRelationships();
+  }
+  if (openWireGroupDetailsState) {
+    openWireGroupDetails(
+      harness,
+      openWireGroupDetailsState.wireGroupId,
+      openWireGroupDetailsState.connectionId,
+    );
   }
   restoreCreateWiresPopup(harness);
 }
