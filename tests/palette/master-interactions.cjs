@@ -28,6 +28,14 @@ test('master context menu fits its labels and remains inside its surface', () =>
     styles,
     /\.block-diagram-viewport > \.relationship-map-context-menu button \{[^}]*width: auto;/s,
   );
+  assert.match(
+    styles,
+    /\.relationship-map-context-menu button:hover \{[^}]*background: var\(--surface-subtle\);/s,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.relationship-map-context-menu button:focus(?:-visible)?[^{]*\{[^}]*background:/s,
+  );
 });
 
 asyncTest('empty master graphic owns ordered harness commands', async () => {

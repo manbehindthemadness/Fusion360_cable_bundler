@@ -537,8 +537,7 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.relationship-map-context-menu button:hover,
-.relationship-map-context-menu button:focus { background: var(--surface-subtle); }
+.relationship-map-context-menu button:hover { background: var(--surface-subtle); }
 .relationship-map-context-menu button:disabled {
   color: var(--muted);
   cursor: not-allowed;
