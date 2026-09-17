@@ -17,6 +17,11 @@ test('damaged harness editor offers confirmed component deletion', () => {
     (node) => node.textContent === 'Delete damaged harness',
   )[0];
   assert.ok(remove);
+  assert.equal(descendants(
+    context.ui.editor, (node) => node.className === 'editor-heading',
+  ).length, 0);
+  assert.equal(context.ui.validationOutput.hidden, true);
+  assert.equal(context.ui.validationEventsStatus.textContent, '');
   remove.events.click();
   assert.equal(calls.length, 1);
   assert.equal(calls[0].action, 'delete_damaged_harness');

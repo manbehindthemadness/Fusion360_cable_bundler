@@ -1,17 +1,8 @@
 function renderEditor(harness) {
   suspendCreateWiresPopup();
+  resetMasterDiagramSizing();
   ui.editor.replaceChildren();
-  const heading = document.createElement("div");
-  const title = document.createElement("h2");
-  const meta = document.createElement("div");
-  heading.className = "editor-heading";
-  meta.className = "meta";
-  title.textContent = harness.componentName;
-  meta.textContent = harness.status === "damaged"
-    ? "Damaged harness metadata"
-    : `${harness.routingMode} · ${harness.status}`;
-  heading.append(title, meta);
-  ui.editor.append(heading);
+  clearValidationDisplay();
 
   if (harness.status === "damaged") {
     closeCreateWiresPopup();
@@ -86,23 +77,22 @@ function renderEditor(harness) {
   }
 
   const findingCount = harness.validationMessages.length + auditIssues.length;
+  ui.validationOutput.replaceChildren(...validation.children);
+  ui.validationOutput.hidden = false;
+  ui.validationEventsStatus.textContent = findingCount
+    ? `${findingCount} ${findingCount === 1 ? "finding" : "findings"}`
+    : "Clear";
 
-  ui.editor.append(
-    editorSection(
-      "master-relationship-graphic",
-      "Master Relationship Graphic",
-      auditIssues.length ? `${auditIssues.length} findings` : `${harness.pathways.length} pathways`,
-      renderRelationshipMap(harness, auditIssues),
-      true,
-    ),
-    editorSection(
-      "validation",
-      "Validation",
-      findingCount ? `${findingCount} findings` : "Clear",
-      validation,
-      false,
-    ),
+  const relationshipMap = renderRelationshipMap(harness, auditIssues);
+  const masterSection = editorSection(
+    "master-relationship-graphic",
+    "Master Relationship Graphic",
+    auditIssues.length ? `${auditIssues.length} findings` : `${harness.pathways.length} pathways`,
+    relationshipMap,
+    true,
   );
+  ui.editor.append(masterSection);
+  observeMasterDiagramSize(masterSection, relationshipMap);
   if (openPathwayPopupId) openPathwayPopup(harness, openPathwayPopupId);
   if (openJunctionPopupId) {
     const junction = (harness.junctions || []).find(
@@ -121,4 +111,35 @@ function renderEditor(harness) {
     );
   }
   restoreCreateWiresPopup(harness);
+}
+
+function clearValidationDisplay() {
+  ui.validationOutput.replaceChildren();
+  ui.validationOutput.hidden = true;
+  ui.validationEventsStatus.textContent = "";
+}
+
+function resetMasterDiagramSizing() {
+  masterDiagramResizeObserver?.disconnect();
+  masterDiagramResizeObserver = null;
+}
+
+function observeMasterDiagramSize(section, relationshipMap) {
+  let initialFitPending = relationshipMap.dataset.hasSavedDiagramView !== "true";
+  const resize = () => {
+    if (!section.open) return;
+    const summaryHeight = section.children[0]?.getBoundingClientRect().height || 0;
+    const availableHeight = Math.floor(section.clientHeight - summaryHeight);
+    if (availableHeight <= 0) return;
+    relationshipMap.style.height = `${availableHeight}px`;
+    if (!initialFitPending) return;
+    initialFitPending = false;
+    window.requestAnimationFrame(() => relationshipMap.fitDiagram());
+  };
+  section.addEventListener("toggle", () => window.requestAnimationFrame(resize));
+  if (typeof window.ResizeObserver === "function") {
+    masterDiagramResizeObserver = new window.ResizeObserver(resize);
+    masterDiagramResizeObserver.observe(section);
+  }
+  window.requestAnimationFrame(resize);
 }

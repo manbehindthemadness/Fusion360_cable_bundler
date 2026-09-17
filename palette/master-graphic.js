@@ -28,6 +28,8 @@ function renderRelationshipMap(harness, auditIssues) {
   container.className = "section-content relationship-map";
   container.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
   container.dataset.diagramLayout = RELATIONSHIP_DIAGRAM_LAYOUT;
+  container.dataset.hasSavedDiagramView = `${savedDiagramView !== undefined}`;
+  container.fitDiagram = workspace.fit;
   toolbar.className = "relationship-map-toolbar";
   filter.className = "filter";
   filter.type = "search";

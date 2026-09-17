@@ -291,17 +291,21 @@ test('Wire Details expands full labels and sorts separated route ports', () => {
   assert.equal(new Set(junctionPorts).size, junctionPorts.length);
 });
 
-test('master relationship graphic leads validation and omits redundant editor panels', () => {
+test('master relationship graphic fills the editor above merged validation and events', () => {
   const { context } = palette();
   const definition = harness();
   context.renderEditor(definition);
   const sections = Array.from(context.ui.editor.children).filter((node) => node.tag === 'details');
   assert.deepEqual(
     sections.map((section) => section.dataset.section),
-    ['master-relationship-graphic', 'validation'],
+    ['master-relationship-graphic'],
   );
-  const audit = descendants(sections[1], (node) => node.className === 'relationship-audit')[0];
+  const audit = descendants(
+    context.ui.validationOutput, (node) => node.className === 'relationship-audit',
+  )[0];
   assert.match(audit.textContent, /agrees with wire routes/);
+  assert.equal(context.ui.validationOutput.hidden, false);
+  assert.equal(context.ui.validationEventsStatus.textContent, 'Clear');
   const pathwayCards = descendants(
     sections[0], (node) => node.className === 'relationship-pathway-group',
   );
@@ -318,9 +322,53 @@ test('master relationship graphic leads validation and omits redundant editor pa
   endLists[0].events.toggle();
   assert.equal(descendants(connectors[0], (node) => node.tag === 'path').length, 1);
   assert.equal(sections[0].open, true);
-  assert.equal(sections[1].open, false);
   assert.equal(context.ui.editor.querySelector('[data-section="wire-routes"]'), undefined);
   assert.equal(descendants(context.ui.editor, (node) => node.className === 'overview').length, 0);
+  assert.equal(descendants(context.ui.editor, (node) => node.className === 'editor-heading').length, 0);
+});
+
+test('master diagram measures stable height once and preserves its saved view on refresh', () => {
+  const { context } = palette();
+  const observers = [];
+  context.window.ResizeObserver = class ResizeObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.disconnected = false;
+      observers.push(this);
+    }
+
+    observe(target) { this.target = target; }
+
+    disconnect() { this.disconnected = true; }
+  };
+  const definition = harness();
+  context.renderEditor(definition);
+  let section = context.ui.editor.querySelector('[data-section="master-relationship-graphic"]');
+  let relationshipMap = section.querySelector('.relationship-map');
+  section.clientHeight = 700;
+  section.children[0].clientHeight = 40;
+  let fitCount = 0;
+  relationshipMap.fitDiagram = () => { fitCount += 1; };
+
+  observers[0].callback();
+  assert.equal(relationshipMap.style.height, '660px');
+  assert.equal(fitCount, 1);
+
+  section.clientHeight = 560;
+  observers[0].callback();
+  assert.equal(relationshipMap.style.height, '520px');
+  assert.equal(fitCount, 1);
+
+  context.renderEditor(definition);
+  assert.equal(observers[0].disconnected, true);
+  section = context.ui.editor.querySelector('[data-section="master-relationship-graphic"]');
+  relationshipMap = section.querySelector('.relationship-map');
+  section.clientHeight = 640;
+  section.children[0].clientHeight = 40;
+  relationshipMap.fitDiagram = () => { fitCount += 1; };
+  observers[1].callback();
+  assert.equal(relationshipMap.style.height, '600px');
+  assert.equal(fitCount, 1);
 });
 
 test('master topology traces leave adaptive ports normally and avoid measured nodes', () => {
@@ -519,9 +567,10 @@ test('master relationship filtering, hover, and mismatch reporting work', () => 
   assert.equal(entries.length, 2);
   entries[0].events.mouseenter();
   assert.deepEqual(calls[calls.length - 1], { type: 'connection', id: 'a2' });
-  const validation = context.ui.editor.querySelector('[data-section="validation"]');
-  assert.ok(descendants(validation, (node) => node.textContent?.includes('does not match')).length);
-  assert.equal(validation.open, false);
+  assert.ok(descendants(
+    context.ui.validationOutput, (node) => node.textContent?.includes('does not match'),
+  ).length);
+  assert.equal(context.ui.validationEventsStatus.textContent, '1 finding');
 });
 
 test('expanded master traces use wire colors and pathway hubs open their popup', () => {

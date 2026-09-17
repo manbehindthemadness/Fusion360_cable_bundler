@@ -379,14 +379,23 @@ test('developer disclosure explains capture scope and separate opt-in', () => {
   assert.match(html, /I have read and understand this disclosure and agree/);
 });
 
-test('event console exposes a bounded vertical resize control', () => {
+test('validation and events share one collapsed bottom panel with a resizable console', () => {
   const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
   const libraryIndex = html.indexOf('id="library-view"');
   const editorIndex = html.indexOf('id="editor-view"');
-  const consoleIndex = html.indexOf('class="event-console"');
-  assert.ok(consoleIndex > libraryIndex && consoleIndex > editorIndex);
-  assert.match(html, /<details class="event-console">\s*<summary>Event Console<\/summary>/);
-  assert.doesNotMatch(html, /<details class="event-console"[^>]*\bopen\b/);
+  const panelIndex = html.indexOf('class="validation-events"');
+  const validationIndex = html.indexOf('id="validation-output"');
+  const developerModeIndex = html.indexOf('id="developer-mode"');
+  const verboseIndex = html.indexOf('id="verbose-diagnostics"');
+  const consoleIndex = html.indexOf('id="notice"');
+  assert.ok(panelIndex > libraryIndex && panelIndex > editorIndex);
+  assert.ok(validationIndex > panelIndex && developerModeIndex > validationIndex);
+  assert.ok(verboseIndex > developerModeIndex && consoleIndex > verboseIndex);
+  assert.match(html, /<details class="validation-events">[\s\S]*Validation &amp; Events/);
+  assert.doesNotMatch(html, /<details class="validation-events"[^>]*\bopen\b/);
+  assert.doesNotMatch(html, /<header\b|class="app-header"|id="refresh"/);
   assert.match(styles, /#notice \{[^}]*min-height: 72px;[^}]*max-height: 60vh;[^}]*resize: vertical;/s);
+  assert.match(styles, /body \{[^}]*grid-template-rows: minmax\(0, 1fr\);/s);
+  assert.match(styles, /#editor-view:not\(\[hidden\]\) \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s);
 });

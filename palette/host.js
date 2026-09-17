@@ -11,6 +11,7 @@ function openHarness(key) {
 
 function closeEditor() {
   send("clear_highlight").catch(() => {});
+  resetMasterDiagramSizing();
   closePathwayPopup();
   closeJunctionRelationships();
   closeWireGroupDetails();
@@ -20,6 +21,7 @@ function closeEditor() {
   ui.editorView.hidden = true;
   ui.libraryView.hidden = false;
   ui.editor.replaceChildren();
+  clearValidationDisplay();
   ui.harnessFilter.focus();
 }
 
@@ -36,6 +38,7 @@ function render(state) {
     ui.editorView.hidden = false;
     renderEditor(selected);
   } else {
+    resetMasterDiagramSizing();
     closePathwayPopup();
     closeJunctionRelationships();
     closeCreateWiresPopup();
@@ -43,6 +46,7 @@ function render(state) {
     removeSession("wireBundler.selectedHarness");
     ui.editorView.hidden = true;
     ui.libraryView.hidden = false;
+    clearValidationDisplay();
   }
   window.requestAnimationFrame(() => window.scrollTo(0, scrollTop));
 }
@@ -803,7 +807,6 @@ async function clearPreview() {
 ui.back.addEventListener("click", closeEditor);
 ui.create.addEventListener("click", createHarness);
 ui.harnessFilter.addEventListener("input", renderLibrary);
-ui.refresh.addEventListener("click", refresh);
 ui.developerMode.addEventListener("change", () => {
   if (ui.developerMode.checked) {
     openDeveloperConsent();

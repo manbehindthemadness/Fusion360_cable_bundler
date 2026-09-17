@@ -7,6 +7,8 @@ const ui = {
   libraryView: document.getElementById("library-view"),
   list: document.getElementById("harnesses"),
   notice: document.getElementById("notice"),
+  validationOutput: document.getElementById("validation-output"),
+  validationEventsStatus: document.getElementById("validation-events-status"),
   developerMode: document.getElementById("developer-mode"),
   developerConsent: document.getElementById("developer-consent"),
   developerConsentForm: document.getElementById("developer-consent-form"),
@@ -14,7 +16,6 @@ const ui = {
   developerConsentCancel: document.getElementById("developer-consent-cancel"),
   developerConsentEnable: document.getElementById("developer-consent-enable"),
   verboseDiagnostics: document.getElementById("verbose-diagnostics"),
-  refresh: document.getElementById("refresh"),
 };
 
 function readSession(key) {
@@ -48,6 +49,7 @@ let openPathwayPopupId = "";
 let openJunctionPopupId = "";
 let openWireGroupDetailsState = null;
 let openCreateWiresPopupState = null;
+let masterDiagramResizeObserver = null;
 const routeFilters = new Map();
 const relationshipFilters = new Map();
 const relationshipDiagramViews = new Map();
@@ -75,6 +77,7 @@ ui.developerMode.checked = developerModeEnabled;
 ui.verboseDiagnostics.checked = developerModeEnabled
   && readPreference("wireBundler.verboseDiagnostics") === "true";
 ui.verboseDiagnostics.disabled = !developerModeEnabled;
+ui.validationOutput.hidden = true;
 const storedNoticeHeight = Number(readSession("wireBundler.noticeHeight"));
 if (Number.isFinite(storedNoticeHeight) && storedNoticeHeight >= 72) {
   ui.notice.style.height = `${Math.min(600, storedNoticeHeight)}px`;

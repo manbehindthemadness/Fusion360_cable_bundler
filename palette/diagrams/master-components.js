@@ -420,6 +420,7 @@ function addRelationshipMapContextMenu(workspace, harness) {
         title: harness.wires?.length ? "" : "Requires at least one wire",
       },
       { label: "Clear Solids", action: clearSolids },
+      { label: "Refresh", action: refresh },
       { label: "Add Pathway", action: addPathway },
       { label: "Add Junction", action: addJunction },
       { label: "Add End", action: addEnd },

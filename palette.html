@@ -9,16 +9,6 @@
   <link rel="stylesheet" href="palette/styles.css">
 </head>
 <body>
-  <header class="app-header">
-    <h1>Harness Builder</h1>
-    <div class="header-actions">
-      <label class="developer-mode-toggle">
-        <input id="developer-mode" type="checkbox">
-        Developer mode
-      </label>
-      <button id="refresh" class="button compact" type="button">Refresh</button>
-    </div>
-  </header>
   <main>
     <section id="library-view" aria-label="Harness library">
       <div class="library-actions">
@@ -36,10 +26,18 @@
       </div>
       <div id="editor"></div>
     </section>
-    <details class="event-console">
-      <summary>Event Console</summary>
-      <div class="event-console-content">
+    <details class="validation-events">
+      <summary>
+        <span>Validation &amp; Events</span>
+        <span id="validation-events-status" class="count"></span>
+      </summary>
+      <div class="validation-events-content">
+        <div id="validation-output" hidden></div>
         <div class="notice-toolbar">
+          <label class="developer-mode-toggle">
+            <input id="developer-mode" type="checkbox">
+            Developer mode
+          </label>
           <label>
             <input id="verbose-diagnostics" type="checkbox">
             Verbose diagnostics

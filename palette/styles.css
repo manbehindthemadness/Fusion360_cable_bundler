@@ -11,10 +11,14 @@
   --success: #287d28;
 }
 * { box-sizing: border-box; }
+html { height: 100%; }
 body {
   margin: 0;
   border: 4px solid var(--surface-subtle);
-  min-height: 100vh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
   background: var(--surface-subtle);
   color: var(--text);
 }
@@ -106,30 +110,8 @@ textarea:focus-visible, summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.app-header {
-  position: sticky;
-  z-index: 10;
-  top: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 50px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-h1 { margin: 0; font-size: 17px; }
 h2 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
 h3 { margin: 0; font-size: 13px; }
-.header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
 .developer-mode-toggle {
   display: flex;
   align-items: center;
@@ -183,7 +165,13 @@ h3 { margin: 0; font-size: 13px; }
 .button:disabled { cursor: default; opacity: .5; }
 .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .button.compact { padding: 5px 8px; }
-main { padding: 14px; }
+main {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 14px;
+  overflow: hidden;
+}
 .notice-toolbar {
   display: flex;
   align-items: center;
@@ -223,8 +211,29 @@ main { padding: 14px; }
 #notice:empty::before { content: "Events will appear here."; color: var(--muted); }
 .notice-entry + .notice-entry { margin-top: 5px; }
 .notice-entry.error { color: var(--danger); }
-.event-console { margin-top: 12px; }
-.event-console-content { padding: 0 11px 11px; }
+.validation-events {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  overflow: hidden;
+}
+.validation-events[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 60%;
+}
+.validation-events-content {
+  min-height: 0;
+  padding: 0 11px 11px;
+  overflow-y: auto;
+}
+#validation-output {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+#validation-output[hidden] { display: none; }
 .library-actions { display: grid; gap: 10px; }
 #create { width: 100%; }
 .filter {
@@ -279,8 +288,22 @@ main { padding: 14px; }
   gap: 8px;
   margin-bottom: 12px;
 }
-.editor-heading { display: grid; gap: 5px; margin-bottom: 14px; }
-.editor-heading .meta { color: var(--muted); }
+#library-view:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+#editor-view:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#editor {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
 .damaged-harness-actions { margin-top: 12px; }
 .button.danger {
   border-color: var(--danger);
@@ -448,6 +471,18 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 }
 .relationship-audit.findings::before { content: "!"; }
 .relationship-map { display: grid; gap: 9px; }
+#editor > details[data-section="master-relationship-graphic"] { margin-top: 0; }
+#editor > details[data-section="master-relationship-graphic"][open] {
+  min-height: 0;
+  overflow: hidden;
+}
+#editor > details[data-section="master-relationship-graphic"][open] > .relationship-map {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+#editor > details[data-section="master-relationship-graphic"]:not([open]) {
+  align-self: start;
+}
 .block-diagram-workspace {
   position: relative;
   display: grid;
@@ -490,7 +525,7 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   touch-action: none;
   user-select: none;
 }
-.relationship-map > .block-diagram-workspace .block-diagram-viewport { height: 390px; }
+.relationship-map > .block-diagram-workspace .block-diagram-viewport { height: 100%; }
 .block-diagram-workspace .block-diagram-viewport.panning,
 .block-diagram-workspace .block-diagram-viewport.panning * { cursor: grabbing; }
 .block-diagram-workspace .block-diagram-stage {

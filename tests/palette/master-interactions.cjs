@@ -47,6 +47,7 @@ asyncTest('empty master graphic owns ordered harness commands', async () => {
     calls.push({ action, payload });
     return { ok: true };
   };
+  context.refresh = () => calls.push({ action: 'refresh' });
   runInNewContext(
     'currentState = { harnesses: [definition] }; selectedHarnessKey = "h";',
     Object.assign(context, { definition }),
@@ -82,23 +83,27 @@ asyncTest('empty master graphic owns ordered harness commands', async () => {
     menu.children.map((item) => item.textContent),
     [
       'Preview Routes', 'Clear Preview', 'Generate Solids', 'Clear Solids',
-      'Add Pathway', 'Add Junction', 'Add End', 'Materials', 'Defaults', 'Properties',
+      'Refresh', 'Add Pathway', 'Add Junction', 'Add End', 'Materials', 'Defaults', 'Properties',
     ],
   );
   assert.equal(menu.children[0].disabled, true);
   assert.equal(menu.children[2].disabled, true);
   menu.children[4].events.click();
-  await Promise.resolve();
-  assert.equal(menu.hidden, true);
-  assert.equal(calls[0].action, 'add_pathway');
-  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].action, 'refresh');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
   menu.children[5].events.click();
   await Promise.resolve();
   assert.equal(menu.hidden, true);
-  assert.equal(calls[1].action, 'add_junction');
+  assert.equal(calls[1].action, 'add_pathway');
   assert.equal(calls[1].payload.harnessId, 'h');
+
+  viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
+  menu.children[6].events.click();
+  await Promise.resolve();
+  assert.equal(menu.hidden, true);
+  assert.equal(calls[2].action, 'add_junction');
+  assert.equal(calls[2].payload.harnessId, 'h');
 
   const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
   assert.doesNotMatch(
@@ -109,8 +114,11 @@ asyncTest('empty master graphic owns ordered harness commands', async () => {
   assert.match(html, /id="create"[^>]*>Create New Harness</);
   assert.doesNotMatch(html, /id="add-wires"/);
   assert.doesNotMatch(html, /id="create-from-editor"/);
+  assert.doesNotMatch(html, /id="refresh"/);
+  assert.doesNotMatch(html, /<header\b/);
   const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
-  assert.match(styles, /\.relationship-map > \.block-diagram-workspace \.block-diagram-viewport \{[^}]*height: 390px;/s);
+  assert.match(styles, /\.relationship-map > \.block-diagram-workspace \.block-diagram-viewport \{[^}]*height: 100%;/s);
+  assert.doesNotMatch(styles, /height: 390px/);
 });
 
 asyncTest('empty-space context menu previews grouped wire ends', async () => {
@@ -182,12 +190,12 @@ asyncTest('existing master background menu runs moved toolbar commands', async (
   assert.equal(calls[2].action, 'clear_solids');
   assert.equal(calls[2].payload.harnessId, 'h');
 
-  choose(6);
+  choose(7);
   await Promise.resolve();
   assert.equal(calls[3].action, 'add_end');
   assert.equal(calls[3].payload.harnessId, 'h');
 
-  choose(7);
+  choose(8);
   const materials = descendants(
     context.document.body,
     (node) => node.className?.split(' ').includes('material-options'),
@@ -198,7 +206,7 @@ asyncTest('existing master background menu runs moved toolbar commands', async (
     'Harness Materials',
   );
 
-  choose(8);
+  choose(9);
   const defaults = descendants(
     context.document.body,
     (node) => node.className === 'wire-options'
@@ -206,7 +214,7 @@ asyncTest('existing master background menu runs moved toolbar commands', async (
   )[0];
   assert.equal(defaults.open, true);
 
-  choose(9);
+  choose(10);
   const properties = descendants(
     context.document.body,
     (node) => node.className?.split(' ').includes('harness-properties'),
