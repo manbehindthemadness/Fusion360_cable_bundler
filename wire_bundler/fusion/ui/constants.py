@@ -18,8 +18,6 @@ APPEND_GATES_COMMAND_ID = "kev0_wire_bundler_append_pathway_gates"
 ADD_REFINE_COMMAND_ID = "kev0_wire_bundler_add_pathway_refine"
 SEGMENT_PATHWAY_COMMAND_ID = "kev0_wire_bundler_segment_pathway"
 EDIT_REFINE_COMMAND_ID = "kev0_wire_bundler_edit_pathway_refine"
-EDIT_END_COMMAND_ID = "kev0_wire_bundler_edit_end_members"
-ADD_WIRES_COMMAND_ID = "kev0_wire_bundler_add_wires"
 
 COMMAND_NAME = "Harness Builder"
 COMMAND_DESCRIPTION = "Create and edit wire, ribbon, and harness assemblies."
@@ -32,7 +30,6 @@ APPEND_GATES_COMMAND_NAME = "Add Gates"
 ADD_REFINE_COMMAND_NAME = "Add Refine Point"
 SEGMENT_PATHWAY_COMMAND_NAME = "Segment Pathway"
 EDIT_REFINE_COMMAND_NAME = "Edit Refine Point"
-ADD_WIRES_COMMAND_NAME = "Add Wires"
 
 PALETTE_ID = "kev0_wire_bundler_harness_builder_palette"
 PALETTE_HTML_URL = "palette.html"
@@ -55,27 +52,21 @@ REFINE_RADIUS_INPUT_ID = "refine_radius"
 REFINE_TRANSFORM_INPUT_ID = "refine_transform"
 SEGMENT_CONTROL_INPUT_ID = "segment_control"
 SEGMENT_PATHWAY_NAME_INPUT_ID = "segment_pathway_name"
-WIRE_PATHWAY_INPUT_ID = "wire_pathway"
-WIRE_DIAMETER_INPUT_ID = "wire_diameter"
-SOURCE_CONNECTIONS_INPUT_ID = "source_connections"
-DESTINATION_CONNECTIONS_INPUT_ID = "destination_connections"
 ROUTING_MODE_INPUT_ID = "routing_mode"
 DEFAULT_HARNESS_NAME = "Harness_001"
 
 ADDIN_ROOT = Path(__file__).resolve().parents[3]
 COMMAND_RESOURCE_FOLDER = str(ADDIN_ROOT / "resources" / "open_harness_builder")
 ADD_PATHWAY_RESOURCE_FOLDER = str(ADDIN_ROOT / "resources" / "add_routing_gate")
-ADD_WIRES_RESOURCE_FOLDER = str(ADDIN_ROOT / "resources" / "add_harness_wire")
+ADD_END_RESOURCE_FOLDER = str(ADDIN_ROOT / "resources" / "add_harness_wire")
 PALETTE_HTML_FILE = ADDIN_ROOT / "palette.html"
 PALETTE_RESOURCE_FILES = (
     PALETTE_HTML_FILE,
     ADDIN_ROOT / "palette" / "styles.css",
     ADDIN_ROOT / "palette" / "foundation.js",
-    ADDIN_ROOT / "palette" / "route-editors.js",
+    ADDIN_ROOT / "palette" / "pathway-editors.js",
     ADDIN_ROOT / "palette" / "materials.js",
-    ADDIN_ROOT / "palette" / "relationship-audit.js",
     ADDIN_ROOT / "palette" / "diagrams" / "workspace.js",
-    ADDIN_ROOT / "palette" / "wire-graphic.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-model.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout.js",
     ADDIN_ROOT / "palette" / "wire-group-details.js",
@@ -100,22 +91,14 @@ PALETTE_EDIT_NAMES = {
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_standalone_end": "Delete Standalone End",
     "save_wire_editor": "Save Route Editor",
-    "move_wire_endpoint": "Reorder Wire Ends",
-    "remove_wire": "Delete Wire",
     "rename_junction": "Rename Junction",
-    "rename_route_end": "Rename Wire End",
     "rename_standalone_end": "Rename Standalone End",
     "rename_pathway": "Rename Pathway",
-    "rename_wire": "Rename Wire",
-    "set_wire_diameter": "Change Wire Diameter",
     "set_wire_group_properties": "Change Connected Wire Properties",
     "set_wire_group_material_overrides": "Change Connected Wire Materials",
     "set_harness_material_defaults": "Change Harness Wire Materials",
     "set_harness_properties": "Change Harness Properties",
-    "set_wire_material_overrides": "Change Wire Materials",
     "set_interpolation": "Change Interpolation Options",
-    "remove_end_member": "Remove End Member",
-    "move_end_member": "Reorder End Members",
     "preview_routes": "Preview Wire Routes",
     "generate_solids": "Generate Wire Solids",
     "clear_solids": "Clear Wire Solids",

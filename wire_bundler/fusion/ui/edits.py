@@ -14,31 +14,24 @@ from ...application import (
     WireEditorPairing,
     WireEditorRename,
     move_pathway_gate,
-    move_wire_endpoint,
     remove_junction,
     remove_junction_relationship,
     remove_pathway,
     remove_pathway_gate,
     remove_standalone_end,
-    remove_wire,
     rename_junction,
     rename_pathway,
-    rename_route_end,
     rename_standalone_end,
-    rename_wire,
     save_wire_editor,
     set_harness_material_defaults,
     set_harness_properties,
-    set_wire_diameter,
     set_wire_group_material_overrides,
     set_wire_group_properties,
-    set_wire_material_overrides,
     update_junction_relationships,
 )
 from ...application.edit_harness import set_interpolation
 from ...domain import JunctionPathwayRelationship, PathwayEndpoint
 from ...domain.codec import parse_interpolation
-from .commands.ends import apply_end_member_edit
 from .payloads import (
     _read_harness_properties,
     _read_material_overrides,
@@ -63,12 +56,6 @@ def _apply_palette_edit(
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     gateway = _create_harness_gateway(application)
-    if action == "remove_end_member":
-        apply_end_member_edit(application, {**payload, "editAction": "remove"})
-        return "Removed end member."
-    if action == "move_end_member":
-        apply_end_member_edit(application, {**payload, "editAction": "reorder"})
-        return "Reordered end member."
     if action == "move_pathway_gate":
         move_pathway_gate(
             harness_id,
@@ -250,14 +237,6 @@ def _apply_palette_edit(
             ),
         )
         return "Saved interpolation options."
-    if action == "set_wire_diameter":
-        diameter = payload.get("diameterMm")
-        if isinstance(diameter, bool) or not isinstance(diameter, (int, float)):
-            raise ValueError("Wire diameter must be a number in millimeters.")
-        set_wire_diameter(
-            harness_id, _read_payload_uuid(payload, "wireId", "wire"), diameter, gateway
-        )
-        return "Saved wire diameter."
     if action == "set_wire_group_properties":
         diameter = payload.get("diameterMm")
         if isinstance(diameter, bool) or not isinstance(diameter, (int, float)):
@@ -308,14 +287,6 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved harness properties."
-    if action == "set_wire_material_overrides":
-        set_wire_material_overrides(
-            harness_id,
-            _read_payload_uuid(payload, "wireId", "wire"),
-            _read_material_overrides(payload.get("overrides")),
-            gateway,
-        )
-        return "Saved wire-material overrides."
     if action == "set_wire_group_material_overrides":
         set_wire_group_material_overrides(
             harness_id,
@@ -324,13 +295,11 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved connected-wire material overrides."
-    if action in {"rename_junction", "rename_pathway", "rename_wire"}:
+    if action in {"rename_junction", "rename_pathway"}:
         name = payload.get("name")
         if not isinstance(name, str):
             raise ValueError("Rename request requires a text name.")
-        if action == "rename_wire":
-            rename_wire(harness_id, _read_payload_uuid(payload, "wireId", "wire"), name, gateway)
-        elif action == "rename_junction":
+        if action == "rename_junction":
             rename_junction(
                 harness_id,
                 _read_payload_uuid(payload, "junctionId", "junction"),
@@ -349,36 +318,4 @@ def _apply_palette_edit(
                 gateway,
             )
         return "Saved name."
-    if action == "rename_route_end":
-        endpoint = payload.get("endpoint")
-        name = payload.get("name")
-        if not isinstance(endpoint, str) or not isinstance(name, str):
-            raise ValueError("End name request requires an endpoint and a text name.")
-        rename_route_end(
-            harness_id,
-            _read_payload_uuid(payload, "wireId", "wire"),
-            endpoint,
-            name,
-            gateway,
-        )
-        return "Saved end name."
-    if action == "move_wire_endpoint":
-        endpoint = payload.get("endpoint")
-        if not isinstance(endpoint, str):
-            raise ValueError("Wire endpoint request is missing an endpoint sequence.")
-        move_wire_endpoint(
-            harness_id,
-            _read_payload_uuid(payload, "wireId", "wire"),
-            endpoint,
-            _read_payload_offset(payload),
-            gateway,
-        )
-        return f"Reordered {endpoint} connection sequence."
-    if action == "remove_wire":
-        remove_wire(
-            harness_id,
-            _read_payload_uuid(payload, "wireId", "wire"),
-            gateway,
-        )
-        return "Removed wire pair."
     raise ValueError(f"Unsupported harness edit: {action}")

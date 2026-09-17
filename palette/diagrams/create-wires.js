@@ -44,34 +44,11 @@ function wireCreationReachableBoundaries(harness, sourceKey) {
   return reachable;
 }
 
-/** Return the two master-graphic boundaries terminated by one complete wire. */
-function wireCreationTerminalBoundaries(wire) {
-  const pathwayIds = wire.orderedPathwayIds || [];
-  if (!pathwayIds.length) return null;
-  return {
-    start: wireCreationBoundaryKey(pathwayIds[0], "start"),
-    end: wireCreationBoundaryKey(pathwayIds[pathwayIds.length - 1], "end"),
-  };
-}
-
-/** Remove ends already joined by a wire across the two selected boundaries. */
+/** Return ends at the two selected boundaries for group assignment. */
 function wireCreationDisconnectedGroups(harness, left, right) {
-  const connectedLeft = new Set();
-  const connectedRight = new Set();
-  harness.wires.forEach((wire) => {
-    const boundaries = wireCreationTerminalBoundaries(wire);
-    if (!boundaries) return;
-    if (boundaries.start === left.key && boundaries.end === right.key) {
-      connectedLeft.add(wire.startConnectionId);
-      connectedRight.add(wire.endConnectionId);
-    } else if (boundaries.start === right.key && boundaries.end === left.key) {
-      connectedLeft.add(wire.endConnectionId);
-      connectedRight.add(wire.startConnectionId);
-    }
-  });
   return {
-    left: left.groups.filter((group) => !connectedLeft.has(group.connectionId)),
-    right: right.groups.filter((group) => !connectedRight.has(group.connectionId)),
+    left: left.groups,
+    right: right.groups,
   };
 }
 
@@ -105,11 +82,12 @@ function resolveWireCreationBoundary(harness, state) {
 
 /** Highlight the geometry represented by one popup end group. */
 function highlightWireCreationEnd(harness, group) {
+  if (group.wireGroupId) {
+    return highlightMember(harness, "wire_group", group.wireGroupId);
+  }
   if (group.connectionId) {
     return highlightMember(harness, "connection", group.connectionId);
   }
-  const wire = group.wires[0];
-  if (wire) return highlightMember(harness, "preview_wire", wire.wireId);
   return undefined;
 }
 
@@ -364,7 +342,7 @@ function renderWireCreationEndCard(
   card.dataset.connectionId = group.connectionId;
   card.dataset.pathwayId = boundary.pathway.pathwayId;
   card.dataset.endpoint = boundary.endpoint;
-  card.dataset.wireIds = relationshipWireIds(group.wires);
+  card.dataset.wireGroupIds = relationshipGroupIds(group.groups);
   card.setAttribute("role", "listitem");
   name.textContent = assignments.renames[group.connectionId] ?? group.label;
   status.textContent = connected ? "Connected" : "Disconnected";

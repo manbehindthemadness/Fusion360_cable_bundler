@@ -79,12 +79,11 @@ def add_standalone_end(
     connection_id = id_factory()
     existing_ids = {definition.harness_id}
     identity_groups = (
-        (profile.profile_id for profile in definition.profiles),
         (connection.connection_id for connection in definition.connections),
         (control.control_id for control in definition.controls),
         (pathway.pathway_id for pathway in definition.pathways),
         (junction.junction_id for junction in definition.junctions),
-        (wire.wire_id for wire in definition.wires),
+        (group.wire_group_id for group in definition.wire_groups),
     )
     for identities in identity_groups:
         existing_ids.update(identities)

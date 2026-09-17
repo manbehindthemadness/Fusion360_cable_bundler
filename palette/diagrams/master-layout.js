@@ -10,21 +10,11 @@ const TOPOLOGY_ESCAPE_LENGTH = 14;
 const TOPOLOGY_ROUTE_CHANNEL_SPACING = 10;
 const TOPOLOGY_SIDES = ["right", "bottom", "top", "left"];
 
-function relationshipEndpointWires(harness, junction, relationship) {
-  const relationships = junction.pathwayRelationships || [];
-  const preceding = new Set(
-    relationships.filter((item) => item.endpoint === "end").map((item) => item.pathwayId),
-  );
-  const following = new Set(
-    relationships.filter((item) => item.endpoint === "start").map((item) => item.pathwayId),
-  );
-  return harness.wires.filter((wire) => wire.orderedPathwayIds.some((pathwayId, index) => {
-    const nextPathwayId = wire.orderedPathwayIds[index + 1];
-    if (!preceding.has(pathwayId) || !following.has(nextPathwayId)) return false;
-    return relationship.endpoint === "end"
-      ? relationship.pathwayId === pathwayId
-      : relationship.pathwayId === nextPathwayId;
-  }));
+function relationshipEndpointGroups(harness, junction, relationship) {
+  return (harness.wireGroups || []).filter((group) => (group.routeLegs || []).some((leg) => (
+    (leg.pathwayIds || []).includes(relationship.pathwayId)
+      && (leg.controlSteps || []).some((step) => step.controlId === junction.controlId)
+  )));
 }
 
 /** Count inversions between edges joining the same pair of topology layers. */
@@ -525,20 +515,20 @@ function routeRelationshipEdges(component, ports) {
   return best?.routes || new Map();
 }
 
-function topologyWireMode(wires) {
-  if (!wires.length) return "structure";
-  return wires.length <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
+function topologyGroupMode(groups) {
+  if (!groups.length) return "structure";
+  return groups.length <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
 }
 
-/** Render one routed topology edge using bounded, deterministic wire detail. */
-function renderTopologyEdge(edge, route, wires) {
+/** Render one routed topology edge using bounded, deterministic group detail. */
+function renderTopologyEdge(edge, route, groups) {
   const group = svgElement("g", {
     class: "relationship-topology-edge",
     "data-source-id": edge.sourceId,
     "data-target-id": edge.targetId,
-    "data-wire-ids": relationshipWireIds(wires),
-    "data-wire-count": wires.length,
-    "data-render-mode": topologyWireMode(wires),
+    "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
+    "data-wire-group-count": groups.length,
+    "data-render-mode": topologyGroupMode(groups),
     "data-source-port-id": route.sourcePort.id,
     "data-target-port-id": route.targetPort.id,
     "data-source-side": route.sourcePort.side,
@@ -558,25 +548,25 @@ function renderTopologyEdge(edge, route, wires) {
     "data-route-points": JSON.stringify(route.points),
   });
   group.append(structural);
-  if (wires.length <= TOPOLOGY_LANE_LIMIT) {
-    wires.forEach((wire, index) => {
-      const offset = (index - (wires.length - 1) / 2) * TOPOLOGY_LANE_SPACING;
+  if (groups.length <= TOPOLOGY_LANE_LIMIT) {
+    groups.forEach((wireGroup, index) => {
+      const offset = (index - (groups.length - 1) / 2) * TOPOLOGY_LANE_SPACING;
       const lanePoints = offsetTopologyRoute(route.points, offset);
       group.append(svgElement("path", {
         class: "wire-trace relationship-wire-lane",
         d: roundedTopologyRoute(lanePoints),
-        stroke: wire.materials?.mainColor?.hex || "#1777c8",
+        stroke: wireGroup.materials?.mainColor?.hex || "#1777c8",
         "data-lane-offset": `${offset}`,
         "data-source-x": `${lanePoints[0].x}`,
         "data-source-y": `${lanePoints[0].y}`,
         "data-target-x": `${lanePoints[lanePoints.length - 1].x}`,
         "data-target-y": `${lanePoints[lanePoints.length - 1].y}`,
-        "data-wire-id": wire.wireId,
+        "data-wire-group-id": wireGroup.wireGroupId,
       }));
     });
   } else {
     const colors = new Set(
-      wires.map((wire) => wire.materials?.mainColor?.hex || "#1777c8"),
+      groups.map((wireGroup) => wireGroup.materials?.mainColor?.hex || "#1777c8"),
     );
     const midpoint = topologyRouteMidpoint(route);
     const badge = svgElement("g", {
@@ -587,13 +577,13 @@ function renderTopologyEdge(edge, route, wires) {
       svgElement("rect", { x: -14, y: -9, width: 28, height: 18, rx: 9 }),
       svgElement("text", { x: 0, y: 4, "text-anchor": "middle" }),
     );
-    badge.children[1].textContent = `×${wires.length}`;
+    badge.children[1].textContent = `×${groups.length}`;
     group.append(
       svgElement("path", {
         class: "wire-trace relationship-wire-bundle",
         d: route.d,
         stroke: colors.size === 1 ? [...colors][0] : "#526f85",
-        "data-wire-ids": relationshipWireIds(wires),
+        "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
       }),
       badge,
     );
@@ -602,8 +592,8 @@ function renderTopologyEdge(edge, route, wires) {
 }
 
 function renderTopologyPort(port) {
-  const wires = port.wires || [];
-  const laneCount = wires.length <= TOPOLOGY_LANE_LIMIT ? wires.length : 1;
+  const groups = port.groups || [];
+  const laneCount = groups.length <= TOPOLOGY_LANE_LIMIT ? groups.length : 1;
   const extent = laneCount > 1
     ? (laneCount - 1) * TOPOLOGY_LANE_SPACING + 8
     : 8;
@@ -617,7 +607,7 @@ function renderTopologyPort(port) {
     "data-port-id": port.id,
     "data-node-id": port.nodeId,
     "data-side": port.side,
-    "data-wire-ids": relationshipWireIds(wires),
+    "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
   });
 }
 
@@ -692,14 +682,14 @@ function layoutRelationshipGraph(stack, components, harness) {
       const edgeId = relationshipEdgeId(edge);
       const route = routes.get(edgeId);
       if (!route) return;
-      const wires = relationshipEndpointWires(
+      const groups = relationshipEndpointGroups(
         harness,
         edge.junction,
         edge.relationship,
       );
-      overlay.append(renderTopologyEdge(edge, route, wires));
-      portsById.get(`${edgeId}:source`).wires = wires;
-      portsById.get(`${edgeId}:target`).wires = wires;
+      overlay.append(renderTopologyEdge(edge, route, groups));
+      portsById.get(`${edgeId}:source`).groups = groups;
+      portsById.get(`${edgeId}:target`).groups = groups;
     });
     ports.forEach((port) => overlay.append(renderTopologyPort(port)));
   });

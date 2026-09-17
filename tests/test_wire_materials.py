@@ -14,9 +14,11 @@ from wire_bundler.domain import (
 )
 
 
-def test_wire_resolves_each_override_independently(valid_harness: HarnessDefinition) -> None:
+def test_wire_group_resolves_each_override_independently(
+    valid_harness: HarnessDefinition,
+) -> None:
     """
-    Inherit parent fields unless that field has an explicit wire value.
+    Inherit parent fields unless that field has an explicit group value.
     """
     defaults = WireMaterialSettings(
         insulation_material="PTFE",
@@ -29,9 +31,9 @@ def test_wire_resolves_each_override_independently(valid_harness: HarnessDefinit
         manufacturer="",
     )
     definition = replace(valid_harness, material_defaults=defaults)
-    wire = replace(valid_harness.wires[0], material_overrides=overrides)
+    wire_group = replace(valid_harness.wire_groups[0], material_overrides=overrides)
 
-    resolved = definition.wire_materials(wire)
+    resolved = definition.wire_group_materials(wire_group)
 
     assert resolved.insulation_material == "PTFE"
     assert resolved.main_color.name == "Red"

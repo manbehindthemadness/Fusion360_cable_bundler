@@ -37,9 +37,7 @@ from .launchers import (
     _open_add_junction_command,
     _open_add_junction_relationship_command,
     _open_add_pathway_command,
-    _open_add_wires_command,
     _open_append_gates_command,
-    _open_end_member_edit,
     _open_palette_edit,
     _open_refine_command,
     _open_refine_edit_command,
@@ -96,7 +94,6 @@ _MATERIAL_EDIT_POLICY = PaletteEditPolicy(
     ensure_preview_visible=True,
 )
 _PALETTE_EDIT_POLICIES["set_harness_material_defaults"] = _MATERIAL_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["set_wire_material_overrides"] = _MATERIAL_EDIT_POLICY
 _GROUP_APPEARANCE_EDIT_POLICY = PaletteEditPolicy(ensure_preview_visible=True)
 _PALETTE_EDIT_POLICIES["set_wire_group_properties"] = _GROUP_APPEARANCE_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["set_wire_group_material_overrides"] = _GROUP_APPEARANCE_EDIT_POLICY
@@ -134,12 +131,10 @@ _NATIVE_DIALOG_ACTIONS: dict[
         application, data
     ),
     "add_end": lambda application, data: _open_add_end_command(application, data),
-    "edit_end_members": lambda application, data: _open_end_member_edit(application, data),
     "append_pathway_gates": lambda application, data: _open_append_gates_command(application, data),
     "add_pathway_refine": lambda application, data: _open_refine_command(application, data),
     "segment_pathway": lambda application, data: _open_segment_command(application, data),
     "edit_pathway_refine": _launch_refine_edit,
-    "add_wires": lambda application, data: _open_add_wires_command(application, data),
 }
 
 

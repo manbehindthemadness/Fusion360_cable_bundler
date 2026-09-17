@@ -137,12 +137,10 @@ def save_wire_editor(
 
     used_ids = {
         definition.harness_id,
-        *(profile.profile_id for profile in definition.profiles),
         *(connection.connection_id for connection in definition.connections),
         *(control.control_id for control in definition.controls),
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
-        *(wire.wire_id for wire in definition.wires),
         *(group.wire_group_id for group in definition.wire_groups),
     }
     for pairing in pairings:
@@ -159,11 +157,7 @@ def save_wire_editor(
                 _MutableWireGroup(
                     group_id,
                     [pairing.left_connection_id, pairing.right_connection_id],
-                    (
-                        definition.profiles[0].diameter_mm
-                        if definition.profiles
-                        else DEFAULT_WIRE_DIAMETER_MM
-                    ),
+                    DEFAULT_WIRE_DIAMETER_MM,
                     WireMaterialOverrides(),
                 )
             )
@@ -296,21 +290,7 @@ def wire_end_locations(
     """
     Resolve every physical wire end to its authoritative pathway boundary.
     """
-    locations = {
-        end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends
-    }
-    for wire in definition.wires:
-        if not wire.ordered_pathway_ids:
-            continue
-        locations[wire.start_connection_id] = (
-            wire.ordered_pathway_ids[0],
-            PathwayEndpoint.START,
-        )
-        locations[wire.end_connection_id] = (
-            wire.ordered_pathway_ids[-1],
-            PathwayEndpoint.END,
-        )
-    return locations
+    return {end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends}
 
 
 def _wire_group_member_index(

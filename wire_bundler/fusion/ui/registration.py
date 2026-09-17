@@ -10,7 +10,7 @@ from typing import Callable
 # noinspection PyUnresolvedReferences
 import adsk.core
 
-from .commands.ends import AddStandaloneEndCreatedHandler, EditEndCreatedHandler
+from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
 from .commands.junctions import (
     AddJunctionCreatedHandler,
@@ -22,10 +22,10 @@ from .commands.pathways import (
     SegmentCreatedHandler,
 )
 from .commands.refines import EditRefineCreatedHandler, RefineCreatedHandler
-from .commands.wires import AddWiresCreatedHandler
 from .constants import (
     ADD_END_COMMAND_ID,
     ADD_END_COMMAND_NAME,
+    ADD_END_RESOURCE_FOLDER,
     ADD_JUNCTION_COMMAND_ID,
     ADD_JUNCTION_COMMAND_NAME,
     ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
@@ -35,9 +35,6 @@ from .constants import (
     ADD_PATHWAY_RESOURCE_FOLDER,
     ADD_REFINE_COMMAND_ID,
     ADD_REFINE_COMMAND_NAME,
-    ADD_WIRES_COMMAND_ID,
-    ADD_WIRES_COMMAND_NAME,
-    ADD_WIRES_RESOURCE_FOLDER,
     APPEND_GATES_COMMAND_ID,
     APPEND_GATES_COMMAND_NAME,
     COMMAND_DESCRIPTION,
@@ -46,7 +43,6 @@ from .constants import (
     COMMAND_RESOURCE_FOLDER,
     CREATE_COMMAND_ID,
     CREATE_COMMAND_NAME,
-    EDIT_END_COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     EDIT_REFINE_COMMAND_NAME,
     SEGMENT_PATHWAY_COMMAND_ID,
@@ -108,7 +104,7 @@ COMMAND_SPECS = (
         ADD_END_COMMAND_ID,
         ADD_END_COMMAND_NAME,
         "Create a disconnected end at an existing pathway boundary.",
-        ADD_WIRES_RESOURCE_FOLDER,
+        ADD_END_RESOURCE_FOLDER,
         AddStandaloneEndCreatedHandler,
     ),
     CommandSpec(
@@ -138,20 +134,6 @@ COMMAND_SPECS = (
         "Move, rotate, or resize an existing refine point.",
         ADD_PATHWAY_RESOURCE_FOLDER,
         EditRefineCreatedHandler,
-    ),
-    CommandSpec(
-        EDIT_END_COMMAND_ID,
-        "Edit End Members",
-        "Add or replace connection profiles.",
-        ADD_WIRES_RESOURCE_FOLDER,
-        EditEndCreatedHandler,
-    ),
-    CommandSpec(
-        ADD_WIRES_COMMAND_ID,
-        ADD_WIRES_COMMAND_NAME,
-        "Assign ordered End A and End B profiles to an existing pathway.",
-        ADD_WIRES_RESOURCE_FOLDER,
-        AddWiresCreatedHandler,
     ),
 )
 

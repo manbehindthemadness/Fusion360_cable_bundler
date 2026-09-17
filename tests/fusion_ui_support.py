@@ -91,7 +91,7 @@ class _PaletteLifecycleModule(Protocol):
     """
 
     _runtime: Any
-    ADD_WIRES_COMMAND_ID: str
+    ADD_END_COMMAND_ID: str
     COMMAND_ID: str
     COMMAND_SPECS: tuple[Any, ...]
     PendingSlot: type
@@ -141,6 +141,7 @@ class _PaletteLifecycleModule(Protocol):
     _read_junction_relationship_candidate: Callable[[object, object], Any]
     _update_junction_relationship_choices: Callable[[object, object], None]
     _read_standalone_end_inputs: Callable[[object, object], tuple[tuple[str, ...], Any]]
+    _harness_profile_entities: Callable[[HarnessDefinition, object], tuple[object, ...]]
     _open_add_junction_command: Callable[[object, str], None]
     _open_add_junction_relationship_command: Callable[[object, str], None]
     _update_refine_placement: Callable[..., None]
@@ -175,7 +176,6 @@ class _PaletteLifecycleModule(Protocol):
     clear_route_previews: Callable[[object], int]
     clear_refine_spine: Callable[[object], None]
     clear_wire_solids: Callable[[object], int]
-    generated_wire_bodies: Callable[..., tuple[object, ...]]
     generated_wire_group_bodies: Callable[..., tuple[object, ...]]
     has_refine_graphics: Callable[[object], bool]
     has_route_previews: Callable[[object], bool]
@@ -257,7 +257,6 @@ def addin_module(
         "wire_bundler.fusion.ui.commands.junctions",
         "wire_bundler.fusion.ui.commands.ends",
         "wire_bundler.fusion.ui.commands.refines",
-        "wire_bundler.fusion.ui.commands.wires",
     )
     modules = tuple(importlib.import_module(name) for name in module_names)
     requested_names = _nested_code_names(request.function.__code__)

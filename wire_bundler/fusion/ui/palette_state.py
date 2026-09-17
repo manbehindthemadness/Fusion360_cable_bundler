@@ -17,9 +17,7 @@ import adsk.fusion
 
 from ...application import (
     HarnessLoadResult,
-    RelationshipMap,
     WireGroupRouteLeg,
-    build_relationship_map,
     delete_damaged_harness,
     load_harnesses,
     load_wire_material_catalog,
@@ -81,7 +79,6 @@ def serialize_palette_state(
                 }
             )
             continue
-        relationship_map = build_relationship_map(definition)
         wire_groups, wire_group_route_error = _wire_group_payloads(definition)
         harnesses.append(
             {
@@ -93,14 +90,6 @@ def serialize_palette_state(
                 "gateDefaults": asdict(definition.gate_defaults),
                 "endDefaults": asdict(definition.end_defaults),
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
-                "profiles": [
-                    {
-                        "profileId": str(profile.profile_id),
-                        "name": profile.name,
-                        "diameterMm": profile.diameter_mm,
-                    }
-                    for profile in definition.profiles
-                ],
                 "connections": [
                     {
                         "interpolation": asdict(connection.interpolation),
@@ -182,28 +171,6 @@ def serialize_palette_state(
                 ],
                 "wireGroups": wire_groups,
                 "wireGroupRouteError": wire_group_route_error,
-                "wires": [
-                    {
-                        "wireId": str(wire.wire_id),
-                        "wireNumber": wire.wire_number,
-                        "displayName": wire.display_name,
-                        "startConnectionId": str(wire.start_connection_id),
-                        "endConnectionId": str(wire.end_connection_id),
-                        "startEndName": wire.start_end_name,
-                        "endEndName": wire.end_end_name,
-                        "profileId": str(wire.profile_id),
-                        "orderedPathwayIds": [
-                            str(pathway_id) for pathway_id in wire.ordered_pathway_ids
-                        ],
-                        "orderedControlIds": [
-                            str(control_id) for control_id in wire.ordered_control_ids
-                        ],
-                        "materials": _material_settings_payload(definition.wire_materials(wire)),
-                        "materialOverrides": _material_overrides_payload(wire.material_overrides),
-                    }
-                    for wire in definition.wires
-                ],
-                "relationshipMap": _relationship_map_payload(relationship_map),
                 "status": "draft" if result.validation_messages else "valid",
                 "validationMessages": result.validation_messages,
             }
@@ -308,79 +275,6 @@ def _delete_damaged_harness(
     delete_damaged_harness(result, gateway)
     del _runtime.damaged_harness_results[deletion_token]
     return f"Deleted damaged harness {result.component_name}."
-
-
-def _relationship_map_payload(relationship_map: RelationshipMap) -> dict[str, object]:
-    """
-    Convert the host-independent relationship projection for the HTML palette.
-    """
-    return {
-        "nodes": [
-            {
-                "nodeId": node.node_id,
-                "kind": node.kind.value,
-                "memberId": str(node.member_id),
-                "label": node.label,
-                "missing": node.missing,
-            }
-            for node in relationship_map.nodes
-        ],
-        "structuralEdges": [
-            {
-                "edgeId": edge.edge_id,
-                "sourceNodeId": edge.source_node_id,
-                "targetNodeId": edge.target_node_id,
-            }
-            for edge in relationship_map.structural_edges
-        ],
-        "edges": [
-            {
-                "edgeId": edge.edge_id,
-                "wireId": str(edge.wire_id),
-                "sourceNodeId": edge.source_node_id,
-                "targetNodeId": edge.target_node_id,
-                "sequence": edge.sequence,
-            }
-            for edge in relationship_map.edges
-        ],
-        "routes": [
-            {
-                "routeId": route.route_id,
-                "wireId": str(route.wire_id),
-                "wireNumber": route.wire_number,
-                "label": route.label,
-                "nodeIds": list(route.node_ids),
-                "edgeIds": list(route.edge_ids),
-            }
-            for route in relationship_map.routes
-        ],
-        "pathwayOccupancy": [
-            {
-                "pathwayId": str(occupancy.pathway_id),
-                "wireIds": [str(wire_id) for wire_id in occupancy.wire_ids],
-            }
-            for occupancy in relationship_map.pathway_occupancy
-        ],
-        "connectionUsage": [
-            {
-                "connectionId": str(usage.connection_id),
-                "endpoints": [
-                    {"wireId": str(wire_id), "end": endpoint}
-                    for wire_id, endpoint in usage.endpoints
-                ],
-            }
-            for usage in relationship_map.connection_usage
-        ],
-        "auditIssues": [
-            {
-                "code": issue.code,
-                "message": issue.message,
-                "memberType": issue.member_type,
-                "memberId": issue.member_id,
-            }
-            for issue in relationship_map.audit_issues
-        ],
-    }
 
 
 def _color_payload(color: WireColor) -> dict[str, object]:

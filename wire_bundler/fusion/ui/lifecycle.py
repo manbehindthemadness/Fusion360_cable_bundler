@@ -26,12 +26,10 @@ from .constants import (
     ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
     ADD_REFINE_COMMAND_ID,
-    ADD_WIRES_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
     COMMAND_ID,
     COMMAND_RESOURCE_FOLDER,
     CREATE_COMMAND_ID,
-    EDIT_END_COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     PALETTE_ID,
     PANEL_IDS,
@@ -299,8 +297,6 @@ def _remove_user_interface(user_interface: adsk.core.UserInterface) -> None:
         ADD_REFINE_COMMAND_ID,
         SEGMENT_PATHWAY_COMMAND_ID,
         EDIT_REFINE_COMMAND_ID,
-        EDIT_END_COMMAND_ID,
-        ADD_WIRES_COMMAND_ID,
     ):
         command_definition = user_interface.commandDefinitions.itemById(command_id)
         if command_definition:

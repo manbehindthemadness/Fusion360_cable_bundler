@@ -13,10 +13,8 @@ from .model import (
     ControlKind,
     HarnessDefinition,
     JunctionDefinition,
-    PathwayDefinition,
     PathwayEndpoint,
     RoutingMode,
-    route_control_ids,
 )
 
 
@@ -46,23 +44,21 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
         )
     if not definition.name.strip():
         issues.append(ValidationIssue("missing_name", "name", "Harness name is required."))
-    if not definition.wires and not definition.wire_groups:
+    if not definition.wire_groups:
         issues.append(
             ValidationIssue(
-                "missing_wires",
-                "wires",
-                "At least one wire or wire group is required.",
+                "missing_wire_groups",
+                "wire_groups",
+                "At least one wire group is required.",
             )
         )
 
     _validate_unique_ids(definition, issues)
-    _validate_profiles(definition, issues)
     _validate_connections(definition, issues)
     _validate_controls(definition, issues)
     _validate_pathways(definition, issues)
     _validate_junctions(definition, issues)
     _validate_standalone_ends(definition, issues)
-    _validate_wires(definition, issues)
     _validate_wire_groups(definition, issues)
     return tuple(issues)
 
@@ -76,10 +72,6 @@ def _validate_unique_ids(
     """
     seen: dict[UUID, str] = {definition.harness_id: "harness_id"}
     identities = [
-        *(
-            (profile.profile_id, f"profiles[{index}].profile_id")
-            for index, profile in enumerate(definition.profiles)
-        ),
         *(
             (connection.connection_id, f"connections[{index}].connection_id")
             for index, connection in enumerate(definition.connections)
@@ -96,7 +88,6 @@ def _validate_unique_ids(
             (junction.junction_id, f"junctions[{index}].junction_id")
             for index, junction in enumerate(definition.junctions)
         ),
-        *((wire.wire_id, f"wires[{index}].wire_id") for index, wire in enumerate(definition.wires)),
         *(
             (group.wire_group_id, f"wire_groups[{index}].wire_group_id")
             for index, group in enumerate(definition.wire_groups)
@@ -114,29 +105,6 @@ def _validate_unique_ids(
             )
         else:
             seen[identity] = path
-
-
-def _validate_profiles(
-    definition: HarnessDefinition,
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Validate conductor profile fields.
-    """
-    for index, profile in enumerate(definition.profiles):
-        path = f"profiles[{index}]"
-        if not profile.name.strip():
-            issues.append(
-                ValidationIssue("missing_profile_name", f"{path}.name", "Profile name is required.")
-            )
-        if not math.isfinite(profile.diameter_mm) or profile.diameter_mm <= 0:
-            issues.append(
-                ValidationIssue(
-                    "invalid_profile_diameter",
-                    f"{path}.diameter_mm",
-                    "Diameter must be a finite positive value.",
-                )
-            )
 
 
 def _validate_connections(
@@ -414,142 +382,6 @@ def _validate_junction_cycles(
             parents[pathway_root] = junction_root
 
 
-def _validate_wires(
-    definition: HarnessDefinition,
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Validate conductor mappings and ordered references.
-    """
-    profile_ids = {profile.profile_id for profile in definition.profiles}
-    connection_ids = {connection.connection_id for connection in definition.connections}
-    control_ids = {control.control_id for control in definition.controls}
-    pathways_by_id = {pathway.pathway_id: pathway for pathway in definition.pathways}
-    seen_numbers: dict[str, str] = {}
-    seen_endpoints: dict[UUID, str] = {
-        end.connection_id: f"standalone_ends[{index}].connection_id"
-        for index, end in enumerate(definition.standalone_ends)
-    }
-
-    for index, wire in enumerate(definition.wires):
-        path = f"wires[{index}]"
-        _validate_wire_number(wire.wire_number, path, seen_numbers, issues)
-        _validate_reference(
-            wire.profile_id,
-            profile_ids,
-            "missing_profile_reference",
-            f"{path}.profile_id",
-            issues,
-        )
-        _validate_endpoint(
-            wire.start_connection_id,
-            connection_ids,
-            f"{path}.start_connection_id",
-            seen_endpoints,
-            issues,
-        )
-        _validate_endpoint(
-            wire.end_connection_id,
-            connection_ids,
-            f"{path}.end_connection_id",
-            seen_endpoints,
-            issues,
-        )
-        if wire.start_connection_id == wire.end_connection_id:
-            issues.append(
-                ValidationIssue(
-                    "identical_wire_endpoints",
-                    f"{path}.end_connection_id",
-                    "End A and End B connections must differ.",
-                )
-            )
-        if not wire.ordered_control_ids:
-            issues.append(
-                ValidationIssue(
-                    "missing_wire_controls",
-                    f"{path}.ordered_control_ids",
-                    "At least one ordered control is required.",
-                )
-            )
-
-        if not wire.ordered_pathway_ids:
-            issues.append(
-                ValidationIssue(
-                    "missing_wire_pathways",
-                    f"{path}.ordered_pathway_ids",
-                    "At least one ordered pathway is required.",
-                )
-            )
-
-        resolved_pathways: list[PathwayDefinition] = []
-        seen_wire_pathways: set[UUID] = set()
-        for pathway_index, pathway_id in enumerate(wire.ordered_pathway_ids):
-            pathway_path = f"{path}.ordered_pathway_ids[{pathway_index}]"
-            pathway = pathways_by_id.get(pathway_id)
-            if pathway is None:
-                issues.append(
-                    ValidationIssue(
-                        "missing_pathway_reference",
-                        pathway_path,
-                        "Referenced pathway does not exist.",
-                    )
-                )
-            else:
-                resolved_pathways.append(pathway)
-            if pathway_id in seen_wire_pathways:
-                issues.append(
-                    ValidationIssue(
-                        "duplicate_wire_pathway",
-                        pathway_path,
-                        "A pathway may appear only once in a wire route.",
-                    )
-                )
-            else:
-                seen_wire_pathways.add(pathway_id)
-
-        controls_are_resolvable = all(
-            control_id in control_ids for control_id in wire.ordered_control_ids
-        )
-        if (
-            wire.ordered_control_ids
-            and controls_are_resolvable
-            and len(resolved_pathways) == len(wire.ordered_pathway_ids)
-        ):
-            try:
-                expected_control_ids = route_control_ids(definition, wire.ordered_pathway_ids)
-            except ValueError:
-                expected_control_ids = ()
-            if expected_control_ids != wire.ordered_control_ids:
-                issues.append(
-                    ValidationIssue(
-                        "wire_pathway_controls_mismatch",
-                        f"{path}.ordered_control_ids",
-                        "Wire control order must match its ordered pathways.",
-                    )
-                )
-
-        seen_wire_controls: set[UUID] = set()
-        for control_index, control_id in enumerate(wire.ordered_control_ids):
-            control_path = f"{path}.ordered_control_ids[{control_index}]"
-            _validate_reference(
-                control_id,
-                control_ids,
-                "missing_control_reference",
-                control_path,
-                issues,
-            )
-            if control_id in seen_wire_controls:
-                issues.append(
-                    ValidationIssue(
-                        "duplicate_wire_control",
-                        control_path,
-                        "A control may appear only once in a wire route.",
-                    )
-                )
-            else:
-                seen_wire_controls.add(control_id)
-
-
 def _validate_standalone_ends(
     definition: HarnessDefinition,
     issues: list[ValidationIssue],
@@ -600,17 +432,6 @@ def _validate_wire_groups(
     locations: dict[UUID, tuple[UUID, PathwayEndpoint]] = {
         end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends
     }
-    for wire in definition.wires:
-        if wire.ordered_pathway_ids:
-            locations[wire.start_connection_id] = (
-                wire.ordered_pathway_ids[0],
-                PathwayEndpoint.START,
-            )
-            locations[wire.end_connection_id] = (
-                wire.ordered_pathway_ids[-1],
-                PathwayEndpoint.END,
-            )
-
     memberships: dict[UUID, str] = {}
     for group_index, group in enumerate(definition.wire_groups):
         group_path = f"wire_groups[{group_index}]"
@@ -677,67 +498,6 @@ def _validate_wire_groups(
                 )
             else:
                 boundaries[location] = member_path
-
-
-def _validate_wire_number(
-    wire_number: str,
-    path: str,
-    seen_numbers: dict[str, str],
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Validate one stable user-facing wire number.
-    """
-    number_path = f"{path}.wire_number"
-    if not wire_number.isdecimal() or int(wire_number) <= 0:
-        issues.append(
-            ValidationIssue(
-                "invalid_wire_number",
-                number_path,
-                "Wire number must be a positive decimal string.",
-            )
-        )
-    previous_path = seen_numbers.get(wire_number)
-    if previous_path is not None:
-        issues.append(
-            ValidationIssue(
-                "duplicate_wire_number",
-                number_path,
-                f"Wire number duplicates {previous_path}.",
-            )
-        )
-    else:
-        seen_numbers[wire_number] = number_path
-
-
-def _validate_endpoint(
-    endpoint_id: UUID,
-    connection_ids: set[UUID],
-    path: str,
-    seen_endpoints: dict[UUID, str],
-    issues: list[ValidationIssue],
-) -> None:
-    """
-    Validate one endpoint reference and require unique physical use.
-    """
-    _validate_reference(
-        endpoint_id,
-        connection_ids,
-        "missing_connection_reference",
-        path,
-        issues,
-    )
-    previous_path = seen_endpoints.get(endpoint_id)
-    if previous_path is not None:
-        issues.append(
-            ValidationIssue(
-                "duplicate_endpoint",
-                path,
-                f"Connection is already assigned at {previous_path}.",
-            )
-        )
-    else:
-        seen_endpoints[endpoint_id] = path
 
 
 def _validate_reference(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from tests.fusion_ui_support import (
     REFINE_ID,
     UUID,
+    Any,
     GateFrame,
     HarnessDefinition,
     JunctionPathwayRelationship,
@@ -167,13 +168,18 @@ def test_standalone_end_selector_reads_guides_and_one_pathway_boundary(
     _configure_relationship_selector_casts()
     guide = SimpleNamespace(entityToken="guide", nativeObject=None)
     boundary = SimpleNamespace(entityToken="boundary", nativeObject=None)
+    registered_end = SimpleNamespace(entityToken="registered-end", nativeObject=None)
     candidate = addin_module._JunctionRelationshipCandidate(
         JunctionPathwayRelationship(UUID(int=10), PathwayEndpoint.END),
         "Main · End B",
         UUID(int=11),
         boundary,
     )
-    state = addin_module._AddStandaloneEndCommandState(UUID(int=1), (candidate,))
+    state = addin_module._AddStandaloneEndCommandState(
+        UUID(int=1),
+        (candidate,),
+        (boundary, registered_end),
+    )
     guide_input = SimpleNamespace(
         selectionCount=1,
         selection=lambda _index: SimpleNamespace(entity=guide),
@@ -200,9 +206,62 @@ def test_standalone_end_selector_reads_guides_and_one_pathway_boundary(
     addin_module._AddStandaloneEndPreSelectHandler(state).notify(selection_args)
     assert selection_args.isSelectable is False
 
+    guide_handler = addin_module._AddStandaloneEndPreSelectHandler(state)
+    unused_guide_args = SimpleNamespace(
+        activeInput=SimpleNamespace(id=addin_module.STANDALONE_END_GUIDES_INPUT_ID),
+        selection=SimpleNamespace(entity=guide),
+        isSelectable=False,
+    )
+    pathway_guide_args = SimpleNamespace(
+        activeInput=SimpleNamespace(id=addin_module.STANDALONE_END_GUIDES_INPUT_ID),
+        selection=SimpleNamespace(entity=boundary),
+        isSelectable=True,
+    )
+    existing_end_args = SimpleNamespace(
+        activeInput=SimpleNamespace(id=addin_module.STANDALONE_END_GUIDES_INPUT_ID),
+        selection=SimpleNamespace(entity=registered_end),
+        isSelectable=True,
+    )
+    guide_handler.notify(unused_guide_args)
+    guide_handler.notify(pathway_guide_args)
+    guide_handler.notify(existing_end_args)
+    assert unused_guide_args.isSelectable is True
+    assert pathway_guide_args.isSelectable is False
+    assert existing_end_args.isSelectable is False
+
     guide_input.selection = lambda _index: SimpleNamespace(entity=boundary)
-    with pytest.raises(ValueError, match="cannot also"):
+    with pytest.raises(ValueError, match="already registered"):
         addin_module._read_standalone_end_inputs(inputs, state)
+
+
+def test_standalone_end_resolves_all_harness_owned_profiles(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Reserve both existing end members and routing-control profiles from guide reuse.
+    """
+    fusion_module = sys.modules["adsk.fusion"]
+    connection_native = object()
+    control_native = object()
+    profiles = {
+        "connection": SimpleNamespace(nativeObject=connection_native),
+        "control": SimpleNamespace(nativeObject=control_native),
+    }
+    fusion_module.Profile = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    definition: Any = SimpleNamespace(
+        connections=(SimpleNamespace(member_tokens=("connection",)),),
+        controls=(
+            SimpleNamespace(entity_token="control"),
+            SimpleNamespace(entity_token=""),
+        ),
+    )
+    design = SimpleNamespace(
+        findEntityByToken=lambda token: (profiles[token],),
+    )
+
+    registered = addin_module._harness_profile_entities(definition, design)
+
+    assert set(registered) == {connection_native, control_native}
 
 
 def test_relationship_selector_refreshes_only_for_geometry_input_changes(
@@ -826,7 +885,6 @@ def test_refine_control_hover_highlights_persistent_marker(
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "highlight_refine_graphics", marker_highlight)
     monkeypatch.setattr(addin_module, "highlight_route_members", lambda _design, _ids, **_kwargs: 0)
-    monkeypatch.setattr(addin_module, "generated_wire_bodies", lambda *_args: ())
     payload = json.dumps(
         {
             "harnessId": str(definition.harness_id),

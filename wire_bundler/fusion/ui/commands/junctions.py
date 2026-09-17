@@ -38,6 +38,7 @@ from ..support import (
 )
 from .pathways import (
     _native_fusion_entity,
+    _native_profile_entities,
 )
 
 
@@ -174,13 +175,8 @@ class _AddJunctionCreatedHandler(adsk.core.CommandCreatedEventHandler):
             registered_tokens = {
                 token for connection in definition.connections for token in connection.member_tokens
             } | {control.entity_token for control in definition.controls if control.entity_token}
-            registered_profiles: list[object] = []
-            for token in registered_tokens:
-                for entity in design.findEntityByToken(token) or ():
-                    profile = adsk.fusion.Profile.cast(entity)
-                    if profile is not None:
-                        registered_profiles.append(_native_fusion_entity(profile))
-            state = _AddJunctionCommandState(harness_id, tuple(registered_profiles))
+            registered_profiles = _native_profile_entities(design, registered_tokens)
+            state = _AddJunctionCommandState(harness_id, registered_profiles)
             selection_input = args.command.commandInputs.addSelectionInput(
                 JUNCTION_PROFILE_INPUT_ID,
                 "Junction Profile",

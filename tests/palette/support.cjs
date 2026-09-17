@@ -198,62 +198,38 @@ function descendants(root, predicate) {
     ? [...(predicate(child) ? [child] : []), ...descendants(child, predicate)] : []);
 }
 
-/** Return three wires sharing one pathway and distinct endpoint profiles. */
+/** Return three wire groups sharing one pathway. */
 function harness() {
   const materialDefaults = {
     insulationMaterial: 'PVC', conductorMaterial: 'Copper',
     mainColor: { name: 'Black', hex: '#202020' }, appearance: null, stripes: [],
     manufacturer: '', partNumber: '', notes: '',
   };
-  const definition = {
-    harnessId: 'h', profiles: [{ profileId: 'profile', name: 'Profile', diameterMm: 1.5 }], controls: [],
-    componentName: 'Harness_001', definitionName: 'Harness_001', schemaVersion: 3,
-    routingMode: 'Routing Gates', status: 'valid', validationMessages: [],
-    materialDefaults,
+  const connections = [1, 2, 3].flatMap((i) => ['a', 'b'].map((end) => ({
+    connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true,
+  })));
+  const standaloneEnds = [1, 2, 3].flatMap((i) => [
+    { connectionId: `a${i}`, pathwayId: 'p', endpoint: 'start' },
+    { connectionId: `b${i}`, pathwayId: 'p', endpoint: 'end' },
+  ]);
+  const wireGroups = [1, 2, 3].map((i) => ({
+    wireGroupId: `g${i}`, connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
+    materials: materialDefaults,
+    materialOverrides: { insulationMaterial: null, conductorMaterial: null,
+      mainColor: null, appearance: null, stripes: null, manufacturer: null,
+      partNumber: null, notes: null },
+    routeLegs: [{ routeId: `r${i}`, label: `Group ${i} Leg 1`,
+      startConnectionId: `a${i}`, endConnectionId: `b${i}`,
+      pathwayIds: ['p'], controlSteps: [] }],
+  }));
+  return {
+    harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
+    schemaVersion: 12, routingMode: 'Routing Gates', status: 'valid',
+    validationMessages: [], materialDefaults, controls: [], connections,
     pathways: [{ pathwayId: 'p', name: 'lower fuse box path', startName: 'O2-sensor',
       endName: 'CAN_BUS-ctrl', orderedControlIds: [] }],
-    connections: [1, 2, 3].flatMap((i) => ['a', 'b'].map((end) => ({
-      connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true,
-    }))),
-    wires: [1, 2, 3].map((i) => ({ wireId: `w${i}`, wireNumber: `00${i}`,
-      profileId: 'profile',
-      materials: materialDefaults,
-      materialOverrides: { insulationMaterial: null, conductorMaterial: null,
-        mainColor: null, appearance: null, stripes: null, manufacturer: null,
-        partNumber: null, notes: null },
-      startConnectionId: `a${i}`, endConnectionId: `b${i}`, orderedPathwayIds: ['p'],
-      startEndName: i === 1 ? 'Data input' : '', endEndName: i === 1 ? 'Data output' : '',
-    })),
+    junctions: [], standaloneEnds, wireGroups, wireGroupRouteError: null,
   };
-  definition.relationshipMap = {
-    nodes: [
-      ...definition.connections.map((connection) => ({
-        nodeId: `connection:${connection.connectionId}`, kind: 'connection',
-        memberId: connection.connectionId, label: connection.name, missing: false,
-      })),
-      { nodeId: 'pathway:p', kind: 'pathway', memberId: 'p',
-        label: 'lower fuse box path', missing: false },
-    ],
-    edges: definition.wires.flatMap((wire) => [0, 1].map((sequence) => ({
-      edgeId: `wire:${wire.wireId}:segment:${sequence}`, wireId: wire.wireId, sequence,
-    }))),
-    routes: definition.wires.map((wire) => ({
-      routeId: `wire:${wire.wireId}`, wireId: wire.wireId,
-      wireNumber: wire.wireNumber, label: `Wire ${wire.wireNumber}`,
-      nodeIds: [`connection:${wire.startConnectionId}`, 'pathway:p', `connection:${wire.endConnectionId}`],
-      edgeIds: [0, 1].map((sequence) => `wire:${wire.wireId}:segment:${sequence}`),
-    })),
-    pathwayOccupancy: [{ pathwayId: 'p', wireIds: ['w1', 'w2', 'w3'] }],
-    connectionUsage: definition.connections.map((connection) => ({
-      connectionId: connection.connectionId,
-      endpoints: definition.wires.flatMap((wire) => [
-        ...(wire.startConnectionId === connection.connectionId ? [{ end: 'start', wireId: wire.wireId }] : []),
-        ...(wire.endConnectionId === connection.connectionId ? [{ end: 'end', wireId: wire.wireId }] : []),
-      ]),
-    })),
-    auditIssues: [],
-  };
-  return definition;
 }
 
 module.exports = {

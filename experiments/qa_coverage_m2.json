@@ -99,7 +99,7 @@
       "behavior": "Relationship-diagram contract version 1 fixes the top-level and per-wire views as zoomable, pannable rounded-node graphs with preserved wire styling, navigation, collapse controls, filtering, and highlighting. Independently drawn end and pathway nodes remain in transparent positional groups, and compact empty ends use short neutral placeholder traces. Diagram operations migrate one at a time with focused QA while the stacked controls remain the QA surface.",
       "status": "partial",
       "layers": ["pytest", "palette", "fusion-api", "mcp", "os-window"],
-      "evidence": ["tests/test_relationship_map.py", "tests/test_palette.cjs", "tests/test_qa_orchestrator.py", "tests/test_fusion_ui_palette.py"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_palette.py"],
       "capabilities": ["versioned-diagram-contract", "zoomable-diagram-workspace", "incremental-diagram-edit-migration", "exact-window-pixel-capture"]
     },
     {

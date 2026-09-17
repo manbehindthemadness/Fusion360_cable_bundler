@@ -120,8 +120,6 @@ class UiRuntime:
     pending_refine: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_segment: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_refine_edit: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
-    pending_end_edit: PendingSlot[dict[str, object]] = field(default_factory=PendingSlot)
-    pending_add_wires: PendingSlot[tuple[UUID, Optional[UUID]]] = field(default_factory=PendingSlot)
     pending_palette_edit: PendingSlot[tuple[str, str, object]] = field(default_factory=PendingSlot)
     last_command_error: str = ""
     last_diagram_qa_observation: Optional[dict[str, object]] = None
@@ -152,8 +150,6 @@ class UiRuntime:
         self.pending_refine.clear()
         self.pending_segment.clear()
         self.pending_refine_edit.clear()
-        self.pending_end_edit.clear()
-        self.pending_add_wires.clear()
         self.pending_palette_edit.clear()
 
     def capture_graphics_cache_preference(self, value: bool) -> None:

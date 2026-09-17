@@ -104,66 +104,12 @@ function persistNoticeHeight() {
   if (Number.isFinite(height)) writeSession("wireBundler.noticeHeight", String(height));
 }
 
-let qaHoverTarget = null;
-
 function qaHasReadableBox(node) {
   if (!node?.getBoundingClientRect) return false;
   if (node.getClientRects && node.getClientRects().length === 0) return false;
   const rect = node.getBoundingClientRect();
   return [rect.left, rect.top, rect.right, rect.bottom, rect.width, rect.height]
     .every(Number.isFinite) && rect.width >= 16 && rect.height >= 12;
-}
-
-function qaWireDialogFitsViewport(card) {
-  const trigger = card.querySelector(".wire-options-button");
-  if (!trigger?.dispatchEvent) return false;
-  trigger.dispatchEvent(new window.Event("click"));
-  const dialog = Array.from(document.body.children).reverse().find(
-    (candidate) => candidate.open
-      && candidate.className?.split(" ").includes("material-options"),
-  );
-  if (!dialog) return false;
-  try {
-    const rect = dialog.getBoundingClientRect();
-    const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
-    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
-    const heading = dialog.querySelector("h2");
-    const buttons = Array.from(dialog.querySelectorAll("button"));
-    const actions = ["Cancel", "Apply", "Save"].map(
-      (label) => buttons.find((button) => button.textContent === label),
-    );
-    const visibleControls = Array.from(
-      dialog.querySelectorAll("input, select, textarea, button"),
-    ).filter(qaHasReadableBox);
-    return dialog.open
-      && qaHasReadableBox(dialog)
-      && viewportWidth > 0
-      && viewportHeight > 0
-      && rect.left >= -1
-      && rect.top >= -1
-      && rect.right <= viewportWidth + 1
-      && rect.bottom <= viewportHeight + 1
-      && dialog.scrollWidth <= dialog.clientWidth + 1
-      && qaHasReadableBox(heading)
-      && heading.textContent.startsWith("Wire options · ")
-      && actions.every(qaHasReadableBox)
-      && visibleControls.length >= 6;
-  } finally {
-    dialog.close();
-  }
-}
-
-function qaWireCard(harnessId, wireId) {
-  const harness = currentState.harnesses.find(
-    (candidate) => harnessKey(candidate) === harnessId,
-  );
-  const wire = harness?.wires?.find((candidate) => candidate.wireId === wireId);
-  if (!harness || !wire) return {};
-  openHarness(harnessId);
-  const routes = renderWireRoutes(harness);
-  const card = Array.from(routes.querySelectorAll("div"))
-    .find((candidate) => candidate.dataset.wireId === wireId);
-  return { harness, wire, card };
 }
 
 function qaRelationshipEdgeGap(edge) {
@@ -282,23 +228,23 @@ function qaInvalidTraceGroupCount(diagram) {
   );
   const portFor = (portId) => ports.find((port) => port.dataset.portId === portId);
   const invalidEdges = edges.filter((edge) => {
-    const wireCount = Number.parseInt(edge.dataset.wireCount, 10);
+    const groupCount = Number.parseInt(edge.dataset.wireGroupCount, 10);
     const mode = edge.dataset.renderMode;
     const lanes = Array.from(edge.querySelectorAll?.(".relationship-wire-lane") || []);
     const bundles = Array.from(edge.querySelectorAll?.(".relationship-wire-bundle") || []);
     const badges = Array.from(edge.querySelectorAll?.(".relationship-wire-count") || []);
-    const wireIds = relationshipElementWireIds(edge);
-    const expectedMode = wireCount === 0
-      ? "structure" : wireCount <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
-    if (!Number.isInteger(wireCount) || wireCount < 0 || wireIds.size !== wireCount
+    const groupIds = relationshipElementGroupIds(edge);
+    const expectedMode = groupCount === 0
+      ? "structure" : groupCount <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";
+    if (!Number.isInteger(groupCount) || groupCount < 0 || groupIds.size !== groupCount
         || mode !== expectedMode) return true;
     if (mode === "structure" && (lanes.length || bundles.length || badges.length)) return true;
     if (mode === "lanes") {
       const offsets = lanes.map((lane) => Number.parseFloat(lane.dataset.laneOffset));
       const expectedOffsets = lanes.map((_lane, index) => (
-        (index - (wireCount - 1) / 2) * TOPOLOGY_LANE_SPACING
+        (index - (groupCount - 1) / 2) * TOPOLOGY_LANE_SPACING
       ));
-      if (lanes.length !== wireCount || bundles.length || badges.length
+      if (lanes.length !== groupCount || bundles.length || badges.length
           || offsets.some((offset) => !Number.isFinite(offset))
           || offsets.some((offset, index) => offset !== expectedOffsets[index])) return true;
     }
@@ -442,51 +388,10 @@ function handleQaProbe(data) {
   } catch (_error) {
     return "INVALID";
   }
-  const validText = (value) => typeof value === "string" && value.length > 0
-    && value.length <= 160;
-  if (payload?.operation === "leave_hover") {
-    if (!qaHoverTarget) return "MISMATCH";
-    qaHoverTarget.dispatchEvent(new window.Event("mouseleave"));
-    qaHoverTarget = null;
-    return "OK";
-  }
   if (payload?.operation === "observe_relationship_diagram") {
     return qaObserveRelationshipDiagram();
   }
-  if (!validText(payload?.harnessId) || !validText(payload?.wireId)) return "INVALID";
-  const { wire, card } = qaWireCard(payload.harnessId, payload.wireId);
-  if (!wire || !card) return "MISMATCH";
-  if (payload.operation === "observe_wire") {
-    if (!validText(payload.expectedLabel)
-        || wireLabel(wire) !== payload.expectedLabel) return "MISMATCH";
-    const label = card.querySelector(".member-reference");
-    if (ui.editorView.hidden || !ui.libraryView.hidden
-        || label?.textContent !== payload.expectedLabel) return "MISMATCH";
-    void send("clear_highlight").catch(() => {});
-    return "OK";
-  }
-  if (payload.operation === "observe_wire_dialog") {
-    if (!qaWireDialogFitsViewport(card)) return "MISMATCH";
-    void send("clear_highlight").catch(() => {});
-    return "OK";
-  }
-  let target = null;
-  if (payload.operation === "hover_wire") {
-    target = card.children[0];
-  } else if (payload.operation === "hover_connection"
-      && ["start", "end"].includes(payload.endpoint)) {
-    target = Array.from(card.querySelectorAll("g"))
-      .find((candidate) => candidate.dataset.endpoint === payload.endpoint);
-  } else if (payload.operation === "hover_pathway" && validText(payload.pathwayId)) {
-    target = Array.from(card.querySelectorAll("g"))
-      .find((candidate) => candidate.dataset.pathwayId === payload.pathwayId);
-  } else {
-    return "INVALID";
-  }
-  if (!target?.dispatchEvent) return "MISMATCH";
-  qaHoverTarget = target;
-  target.dispatchEvent(new window.Event("mouseenter"));
-  return "OK";
+  return "INVALID";
 }
 
 function waitForFusionHost() {
@@ -647,17 +552,19 @@ function removeGate(harness, pathway, controlId, name) {
 
 function removePathway(harness, pathway) {
   const deletedPathwayIds = relationshipPathwayDeletionIds(harness, pathway.pathwayId);
-  const deletedWires = harness.wires.filter((wire) => wire.orderedPathwayIds.some(
-    (pathwayId) => deletedPathwayIds.has(pathwayId),
-  ));
   const deletedEnds = (harness.standaloneEnds || []).filter(
     (end) => deletedPathwayIds.has(end.pathwayId),
   );
+  const affectedGroups = (harness.wireGroups || []).filter((group) => (
+    (group.routeLegs || []).some((leg) => (
+      (leg.pathwayIds || []).some((pathwayId) => deletedPathwayIds.has(pathwayId))
+    ))
+  ));
   const descendantCount = deletedPathwayIds.size - 1;
   const pathwayLabel = pathway.name || "this pathway";
   const warning = [
     `Delete ${pathwayLabel} and ${descendantCount} descendant ${descendantCount === 1 ? "pathway" : "pathways"}?`,
-    `This also deletes ${deletedWires.length} ${deletedWires.length === 1 ? "wire" : "wires"} and ${deletedEnds.length} standalone ${deletedEnds.length === 1 ? "end" : "ends"}.`,
+    `This also deletes ${deletedEnds.length} standalone ${deletedEnds.length === 1 ? "end" : "ends"} and updates ${affectedGroups.length} wire ${affectedGroups.length === 1 ? "group" : "groups"}.`,
     "This action can be undone in Fusion.",
   ].join(" ");
   if (!window.confirm(warning)) return;
@@ -672,7 +579,7 @@ function removeJunction(harness, junction) {
   const junctionLabel = junction.name || "this junction";
   const warning = [
     `Delete ${junctionLabel}?`,
-    "Connected pathways, wires, and neighboring junctions will be kept.",
+    "Connected pathways, wire groups, and neighboring junctions will be kept.",
     "This action can be undone in Fusion.",
   ].join(" ");
   if (!window.confirm(warning)) return;
@@ -680,15 +587,6 @@ function removeJunction(harness, junction) {
     "remove_junction",
     { harnessId: harness.harnessId, junctionId: junction.junctionId },
     `Deleting ${junctionLabel}…`,
-  );
-}
-
-function removeWirePair(harness, wire) {
-  if (!window.confirm(`Remove wire #${wire.wireNumber} and both connection assignments?`)) return;
-  void mutate(
-    "remove_wire",
-    { harnessId: harness.harnessId, wireId: wire.wireId },
-    `Removing wire #${wire.wireNumber}…`,
   );
 }
 
@@ -753,22 +651,6 @@ async function addJunctionRelationship(junctionId) {
     });
     if (!response.ok) {
       appendNotice(response.error || "Add Relationship could not be opened.", true);
-    }
-  } catch (error) {
-    appendNotice(error.message, true);
-  }
-}
-
-async function addWires(pathwayId = null) {
-  const harness = currentState.harnesses.find(
-    (candidate) => harnessKey(candidate) === selectedHarnessKey,
-  );
-  if (!harness || harness.status === "damaged" || !harness.pathways.length) return;
-  appendNotice("Opening Add Wires…");
-  try {
-    const response = await send("add_wires", { harnessId: harness.harnessId, pathwayId });
-    if (!response.ok) {
-      appendNotice(response.error || "Add Wires could not be opened.", true);
     }
   } catch (error) {
     appendNotice(error.message, true);

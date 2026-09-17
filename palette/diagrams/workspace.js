@@ -1,6 +1,21 @@
 const BLOCK_DIAGRAM_MIN_SCALE = 0.3;
 const BLOCK_DIAGRAM_MAX_SCALE = 2.5;
 
+/** Create an SVG node while mirroring data attributes into its dataset. */
+function svgElement(tag, attributes = {}) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.entries(attributes).forEach(([name, value]) => {
+    node.setAttribute(name, `${value}`);
+    if (name.startsWith("data-")) {
+      const datasetName = name.slice(5).replace(/-([a-z])/g, (_match, letter) => (
+        letter.toUpperCase()
+      ));
+      node.dataset[datasetName] = `${value}`;
+    }
+  });
+  return node;
+}
+
 /**
  * Create a zoomable diagram workspace whose panning matches Fusion navigation.
  */

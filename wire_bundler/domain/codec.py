@@ -12,7 +12,6 @@ from typing import Any, Optional, Type, TypeVar, cast
 from uuid import UUID
 
 from .model import (
-    DEFAULT_WIRE_DIAMETER_MM,
     SCHEMA_VERSION,
     Connection,
     ControlKind,
@@ -29,11 +28,9 @@ from .model import (
     StripePattern,
     WireAppearanceReference,
     WireColor,
-    WireDefinition,
     WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
-    WireProfile,
     WireStripe,
 )
 
@@ -77,19 +74,15 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in range(1, SCHEMA_VERSION + 1):
+    if schema_version != SCHEMA_VERSION:
         raise DefinitionParseError(
             "$.schema_version",
-            f"unsupported version {schema_version}; expected 1 through {SCHEMA_VERSION}",
+            f"unsupported version {schema_version}; expected {SCHEMA_VERSION}",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
     name = _require_str(payload, "name", "$.name")
     routing_mode = _require_enum(RoutingMode, payload, "routing_mode", "$.routing_mode")
-    profiles = tuple(
-        _parse_profile(item, f"$.profiles[{index}]")
-        for index, item in enumerate(_require_list(payload, "profiles", "$.profiles"))
-    )
     connections = tuple(
         _parse_connection(item, f"$.connections[{index}]")
         for index, item in enumerate(_require_list(payload, "connections", "$.connections"))
@@ -98,68 +91,37 @@ def loads(serialized: str) -> HarnessDefinition:
         _parse_control(item, f"$.controls[{index}]")
         for index, item in enumerate(_require_list(payload, "controls", "$.controls"))
     )
-    pathways = (
-        tuple(
-            _parse_pathway(item, f"$.pathways[{index}]")
-            for index, item in enumerate(_require_list(payload, "pathways", "$.pathways"))
-        )
-        if schema_version >= 2
-        else ()
+    pathways = tuple(
+        _parse_pathway(item, f"$.pathways[{index}]")
+        for index, item in enumerate(_require_list(payload, "pathways", "$.pathways"))
     )
-    junctions = (
-        tuple(
-            _parse_junction(item, f"$.junctions[{index}]", schema_version)
-            for index, item in enumerate(_require_list(payload, "junctions", "$.junctions"))
-        )
-        if schema_version >= 6
-        else ()
+    junctions = tuple(
+        _parse_junction(item, f"$.junctions[{index}]")
+        for index, item in enumerate(_require_list(payload, "junctions", "$.junctions"))
     )
-    standalone_ends = (
-        tuple(
-            _parse_standalone_end(item, f"$.standalone_ends[{index}]")
-            for index, item in enumerate(
-                _require_list(payload, "standalone_ends", "$.standalone_ends")
-            )
-        )
-        if schema_version >= 9
-        else ()
+    standalone_ends = tuple(
+        _parse_standalone_end(item, f"$.standalone_ends[{index}]")
+        for index, item in enumerate(_require_list(payload, "standalone_ends", "$.standalone_ends"))
     )
-    wire_groups = (
-        tuple(
-            _parse_wire_group(
-                item,
-                f"$.wire_groups[{index}]",
-                schema_version,
-                profiles[0].diameter_mm if profiles else DEFAULT_WIRE_DIAMETER_MM,
-            )
-            for index, item in enumerate(_require_list(payload, "wire_groups", "$.wire_groups"))
-        )
-        if schema_version >= 10
-        else ()
-    )
-    wires = tuple(
-        _parse_wire(item, f"$.wires[{index}]", schema_version, pathways)
-        for index, item in enumerate(_require_list(payload, "wires", "$.wires"))
+    wire_groups = tuple(
+        _parse_wire_group(item, f"$.wire_groups[{index}]")
+        for index, item in enumerate(_require_list(payload, "wire_groups", "$.wire_groups"))
     )
     definition = HarnessDefinition(
         schema_version=SCHEMA_VERSION,
         harness_id=harness_id,
         name=name,
         routing_mode=routing_mode,
-        profiles=profiles,
         connections=connections,
         controls=controls,
         pathways=pathways,
-        wires=wires,
         junctions=junctions,
         standalone_ends=standalone_ends,
         wire_groups=wire_groups,
         gate_defaults=parse_interpolation(payload.get("gate_defaults", {}), "$.gate_defaults"),
         end_defaults=parse_interpolation(payload.get("end_defaults", {}), "$.end_defaults"),
-        material_defaults=(
-            parse_material_settings(payload.get("material_defaults"), "$.material_defaults")
-            if schema_version >= 4
-            else WireMaterialSettings()
+        material_defaults=parse_material_settings(
+            payload.get("material_defaults"), "$.material_defaults"
         ),
     )
     return definition
@@ -177,14 +139,6 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         "gate_defaults": asdict(definition.gate_defaults),
         "end_defaults": asdict(definition.end_defaults),
         "material_defaults": _materials_to_dict(definition.material_defaults),
-        "profiles": [
-            {
-                "profile_id": str(profile.profile_id),
-                "name": profile.name,
-                "diameter_mm": profile.diameter_mm,
-            }
-            for profile in definition.profiles
-        ],
         "connections": [
             {
                 "interpolation": asdict(connection.interpolation),
@@ -269,37 +223,8 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
             }
             for group in definition.wire_groups
         ],
-        "wires": [
-            {
-                "wire_id": str(wire.wire_id),
-                "wire_number": wire.wire_number,
-                "display_name": wire.display_name,
-                "start_end_name": wire.start_end_name,
-                "end_end_name": wire.end_end_name,
-                "start_connection_id": str(wire.start_connection_id),
-                "end_connection_id": str(wire.end_connection_id),
-                "profile_id": str(wire.profile_id),
-                "ordered_pathway_ids": [str(pathway_id) for pathway_id in wire.ordered_pathway_ids],
-                "ordered_control_ids": [str(control_id) for control_id in wire.ordered_control_ids],
-                "material_overrides": _material_overrides_to_dict(wire.material_overrides),
-            }
-            for wire in definition.wires
-        ],
     }
     return payload
-
-
-def _parse_profile(raw_value: object, path: str) -> WireProfile:
-    """
-    Parse one conductor profile.
-    """
-    value = _require_mapping(raw_value, path)
-    profile = WireProfile(
-        profile_id=_require_uuid(value, "profile_id", f"{path}.profile_id"),
-        name=_require_str(value, "name", f"{path}.name"),
-        diameter_mm=_require_float(value, "diameter_mm", f"{path}.diameter_mm"),
-    )
-    return profile
 
 
 def _color_to_dict(color: WireColor) -> dict[str, object]:
@@ -345,7 +270,7 @@ def _materials_to_dict(settings: WireMaterialSettings) -> dict[str, object]:
 
 def _material_overrides_to_dict(overrides: WireMaterialOverrides) -> dict[str, object]:
     """
-    Preserve null inheritance markers while serializing per-wire overrides.
+    Preserve null inheritance markers while serializing per-group overrides.
     """
     return {
         "insulation_material": overrides.insulation_material,
@@ -648,50 +573,20 @@ def _parse_pathway(raw_value: object, path: str) -> PathwayDefinition:
 def _parse_junction(
     raw_value: object,
     path: str,
-    schema_version: int,
 ) -> JunctionDefinition:
     """
-    Parse one junction and migrate legacy directed pathway relationships.
+    Parse one junction and its endpoint-qualified pathway relationships.
     """
     value = _require_mapping(raw_value, path)
-    relationships: tuple[JunctionPathwayRelationship, ...]
-    if schema_version >= 8:
-        relationships = tuple(
-            _parse_junction_relationship(
-                item,
-                f"{path}.pathway_relationships[{index}]",
-            )
-            for index, item in enumerate(
-                _require_list(value, "pathway_relationships", f"{path}.pathway_relationships")
-            )
+    relationships = tuple(
+        _parse_junction_relationship(
+            item,
+            f"{path}.pathway_relationships[{index}]",
         )
-    else:
-        if schema_version >= 7:
-            preceding_pathway_id = _require_optional_uuid(
-                value, "preceding_pathway_id", f"{path}.preceding_pathway_id"
-            )
-            following_pathway_id = _require_optional_uuid(
-                value, "following_pathway_id", f"{path}.following_pathway_id"
-            )
-        else:
-            preceding_pathway_id = _require_uuid(
-                value, "preceding_pathway_id", f"{path}.preceding_pathway_id"
-            )
-            following_pathway_id = _require_uuid(
-                value, "following_pathway_id", f"{path}.following_pathway_id"
-            )
-        relationships = tuple(
-            relationship
-            for relationship in (
-                JunctionPathwayRelationship(preceding_pathway_id, PathwayEndpoint.END)
-                if preceding_pathway_id is not None
-                else None,
-                JunctionPathwayRelationship(following_pathway_id, PathwayEndpoint.START)
-                if following_pathway_id is not None
-                else None,
-            )
-            if relationship is not None
+        for index, item in enumerate(
+            _require_list(value, "pathway_relationships", f"{path}.pathway_relationships")
         )
+    )
     return JunctionDefinition(
         junction_id=_require_uuid(value, "junction_id", f"{path}.junction_id"),
         name=_require_str(value, "name", f"{path}.name"),
@@ -729,8 +624,6 @@ def _parse_standalone_end(raw_value: object, path: str) -> StandaloneEndDefiniti
 def _parse_wire_group(
     raw_value: object,
     path: str,
-    schema_version: int,
-    legacy_diameter_mm: float,
 ) -> WireGroupDefinition:
     """
     Parse one persistent collection of electrically connected wire ends.
@@ -743,85 +636,11 @@ def _parse_wire_group(
             _parse_uuid(raw_id, f"{path}.connection_ids[{index}]")
             for index, raw_id in enumerate(raw_connection_ids)
         ),
-        diameter_mm=(
-            _require_float(value, "diameter_mm", f"{path}.diameter_mm")
-            if schema_version >= 11
-            else legacy_diameter_mm
-        ),
-        material_overrides=(
-            parse_material_overrides(value.get("material_overrides"), f"{path}.material_overrides")
-            if schema_version >= 11
-            else WireMaterialOverrides()
+        diameter_mm=_require_float(value, "diameter_mm", f"{path}.diameter_mm"),
+        material_overrides=parse_material_overrides(
+            value.get("material_overrides"), f"{path}.material_overrides"
         ),
     )
-
-
-def _parse_wire(
-    raw_value: object,
-    path: str,
-    schema_version: int,
-    pathways: tuple[PathwayDefinition, ...],
-) -> WireDefinition:
-    """
-    Parse one authoritative conductor mapping.
-    """
-    value = _require_mapping(raw_value, path)
-    raw_control_ids = _require_list(
-        value,
-        "ordered_control_ids",
-        f"{path}.ordered_control_ids",
-    )
-    control_ids = tuple(
-        _parse_uuid(raw_id, f"{path}.ordered_control_ids[{index}]")
-        for index, raw_id in enumerate(raw_control_ids)
-    )
-    if schema_version >= 3:
-        raw_pathway_ids = _require_list(
-            value,
-            "ordered_pathway_ids",
-            f"{path}.ordered_pathway_ids",
-        )
-        pathway_ids = tuple(
-            _parse_uuid(raw_id, f"{path}.ordered_pathway_ids[{index}]")
-            for index, raw_id in enumerate(raw_pathway_ids)
-        )
-    else:
-        matching_pathways = tuple(
-            pathway.pathway_id for pathway in pathways if pathway.ordered_control_ids == control_ids
-        )
-        pathway_ids = matching_pathways if len(matching_pathways) == 1 else ()
-    wire = WireDefinition(
-        wire_id=_require_uuid(value, "wire_id", f"{path}.wire_id"),
-        wire_number=_require_str(value, "wire_number", f"{path}.wire_number"),
-        display_name=_require_str(
-            {"display_name": "", **value}, "display_name", f"{path}.display_name"
-        ),
-        start_connection_id=_require_uuid(
-            value,
-            "start_connection_id",
-            f"{path}.start_connection_id",
-        ),
-        end_connection_id=_require_uuid(
-            value,
-            "end_connection_id",
-            f"{path}.end_connection_id",
-        ),
-        profile_id=_require_uuid(value, "profile_id", f"{path}.profile_id"),
-        ordered_pathway_ids=pathway_ids,
-        ordered_control_ids=control_ids,
-        start_end_name=_require_str(
-            {"start_end_name": "", **value}, "start_end_name", f"{path}.start_end_name"
-        ),
-        end_end_name=_require_str(
-            {"end_end_name": "", **value}, "end_end_name", f"{path}.end_end_name"
-        ),
-        material_overrides=(
-            parse_material_overrides(value.get("material_overrides"), f"{path}.material_overrides")
-            if schema_version >= 4
-            else WireMaterialOverrides()
-        ),
-    )
-    return wire
 
 
 def _require_mapping(raw_value: object, path: str) -> Mapping[str, Any]:
@@ -852,18 +671,6 @@ def _require_str(value: Mapping[str, Any], key: str, path: str) -> str:
     if not isinstance(raw_value, str):
         raise DefinitionParseError(path, "expected a string")
     return raw_value
-
-
-def _require_optional_uuid(
-    value: Mapping[str, Any],
-    key: str,
-    path: str,
-) -> Optional[UUID]:
-    """
-    Require a UUID field whose explicit value may be null.
-    """
-    raw_value = _require_value(value, key, path)
-    return None if raw_value is None else _parse_uuid(raw_value, path)
 
 
 def _require_int(value: Mapping[str, Any], key: str, path: str) -> int:

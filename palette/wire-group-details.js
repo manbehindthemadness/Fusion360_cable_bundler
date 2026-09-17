@@ -7,7 +7,7 @@ const WIRE_GROUP_DETAILS_COLUMN_GAP = 80;
 const WIRE_GROUP_DETAILS_PADDING = 40;
 let wireGroupDetailsTextContext;
 
-/** Return the authoritative pathway boundary occupied by every known wire end. */
+/** Return the authoritative pathway boundary occupied by every standalone end. */
 function wireGroupEndLocations(harness) {
   const locations = new Map();
   (harness.standaloneEnds || []).forEach((end) => {
@@ -15,21 +15,6 @@ function wireGroupEndLocations(harness) {
       pathwayId: end.pathwayId,
       endpoint: end.endpoint,
     });
-  });
-  (harness.wires || []).forEach((wire) => {
-    if (!wire.orderedPathwayIds?.length) return;
-    if (!locations.has(wire.startConnectionId)) {
-      locations.set(wire.startConnectionId, {
-        pathwayId: wire.orderedPathwayIds[0],
-        endpoint: "start",
-      });
-    }
-    if (!locations.has(wire.endConnectionId)) {
-      locations.set(wire.endConnectionId, {
-        pathwayId: wire.orderedPathwayIds[wire.orderedPathwayIds.length - 1],
-        endpoint: "end",
-      });
-    }
   });
   return locations;
 }
@@ -566,7 +551,7 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
   dialog.addEventListener("contextmenu", (event) => {
     if (wireGroupDetailsContextTargetIsInteractive(event.target, dialog)) return;
     showContextMenu(event, [
-      { label: "Materials", action: () => openMaterialOptions(harness, null, group) },
+      { label: "Materials", action: () => openMaterialOptions(harness, group) },
       { label: "Properties", action: () => openWireGroupProperties(harness, group) },
     ]);
   });

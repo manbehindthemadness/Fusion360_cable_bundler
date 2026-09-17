@@ -15,7 +15,6 @@ import adsk.core
 import adsk.fusion
 
 from ....application import add_standalone_end
-from ....application.edit_harness import edit_end_members
 from ....domain import (
     ControlKind,
     HarnessDefinition,
@@ -24,13 +23,11 @@ from ....domain import (
     loads,
 )
 from ..constants import (
-    PATHWAY_GATES_INPUT_ID,
     STANDALONE_END_BOUNDARY_INPUT_ID,
     STANDALONE_END_CHOICE_INPUT_ID,
     STANDALONE_END_GUIDES_INPUT_ID,
 )
 from ..palette_state import _send_palette_state
-from ..payloads import _read_payload_uuid
 from ..runtime import runtime as _runtime
 from ..support import (
     _create_harness_gateway,
@@ -38,19 +35,59 @@ from ..support import (
     _report_failure,
     _require_active_design,
 )
-from ..viewport import _refresh_active_preview
 from .junctions import (
     _JunctionRelationshipCandidate,
 )
 from .pathways import (
-    _AppendGatesValidateInputsHandler,
     _native_fusion_entity,
-    _read_pathway_gate_tokens,
+    _native_profile_entities,
 )
-from .wires import (
-    _add_profile_selection_input,
-    _read_profile_tokens,
-)
+
+
+def _add_profile_selection_input(
+    command_inputs: adsk.core.CommandInputs,
+    input_id: str,
+    name: str,
+    prompt: str,
+) -> adsk.core.SelectionCommandInput:
+    """
+    Add a required multi-profile selection input.
+    """
+    selection_input = command_inputs.addSelectionInput(input_id, name, prompt)
+    if selection_input is None:
+        raise RuntimeError(f"Fusion did not create the {name} input.")
+    if not selection_input.addSelectionFilter("Profiles"):
+        raise RuntimeError(f"Fusion did not apply the sketch-profile filter to {name}.")
+    if not selection_input.setSelectionLimits(1, 0):
+        raise RuntimeError(f"Fusion did not configure the selection limits for {name}.")
+    return selection_input
+
+
+def _read_profile_tokens(
+    command_inputs: adsk.core.CommandInputs,
+    input_id: str,
+    role: str,
+    unavailable_profiles: tuple[object, ...] = (),
+) -> tuple[str, ...]:
+    """
+    Return unused Fusion profile tokens in user selection order.
+    """
+    selection_input = adsk.core.SelectionCommandInput.cast(command_inputs.itemById(input_id))
+    if selection_input is None or selection_input.selectionCount < 1:
+        raise ValueError(f"Select at least one {role} profile.")
+    tokens: list[str] = []
+    for index in range(selection_input.selectionCount):
+        selection = selection_input.selection(index)
+        profile = adsk.fusion.Profile.cast(selection.entity if selection is not None else None)
+        if profile is None or not profile.entityToken.strip():
+            raise ValueError(f"{role.title()} selection {index + 1} is not a valid sketch profile.")
+        selected = _native_fusion_entity(profile)
+        if any(selected == registered for registered in unavailable_profiles):
+            raise ValueError(
+                f"{role.title()} selection {index + 1} is already registered in this harness."
+            )
+        tokens.append(profile.entityToken)
+    return tuple(tokens)
 
 
 @dataclass(frozen=True)
@@ -61,6 +98,23 @@ class _AddStandaloneEndCommandState:
 
     harness_id: UUID
     candidates: tuple[_JunctionRelationshipCandidate, ...]
+    unavailable_guide_profiles: tuple[object, ...]
+
+
+def _harness_profile_entities(
+    definition: HarnessDefinition,
+    design: adsk.fusion.Design,
+) -> tuple[object, ...]:
+    """
+    Resolve native profiles already owned by controls or connection members.
+    """
+    registered_tokens = (
+        token for connection in definition.connections for token in connection.member_tokens
+    )
+    control_tokens = (
+        control.entity_token for control in definition.controls if control.entity_token
+    )
+    return _native_profile_entities(design, (*registered_tokens, *control_tokens))
 
 
 def _standalone_end_candidates(
@@ -193,6 +247,7 @@ def _read_standalone_end_inputs(
         command_inputs,
         STANDALONE_END_GUIDES_INPUT_ID,
         "end guide",
+        state.unavailable_guide_profiles,
     )
     candidate = _read_standalone_end_candidate(command_inputs, state)
     boundary_token = getattr(candidate.profile, "entityToken", "")
@@ -203,7 +258,7 @@ def _read_standalone_end_inputs(
 
 class _AddStandaloneEndPreSelectHandler(adsk.core.SelectionEventHandler):
     """
-    Restrict the boundary input to existing profile-backed pathway ends.
+    Enforce distinct geometry ownership for both standalone-end selectors.
     """
 
     def __init__(self, state: _AddStandaloneEndCommandState) -> None:
@@ -215,14 +270,21 @@ class _AddStandaloneEndPreSelectHandler(adsk.core.SelectionEventHandler):
 
     def notify(self, args: adsk.core.SelectionEventArgs) -> None:
         """
-        Filter only while Fusion is selecting the boundary input.
+        Filter guides to unused profiles and boundaries to pathway ends.
         """
         active_input = getattr(args, "activeInput", None)
-        if getattr(active_input, "id", None) != STANDALONE_END_BOUNDARY_INPUT_ID:
-            return
+        input_id = getattr(active_input, "id", None)
         selection = args.selection
         entity = selection.entity if selection is not None else None
-        args.isSelectable = bool(_matching_standalone_end_candidates(entity, self._state))
+        if input_id == STANDALONE_END_GUIDES_INPUT_ID:
+            profile = adsk.fusion.Profile.cast(entity)
+            selected = _native_fusion_entity(profile) if profile is not None else None
+            args.isSelectable = profile is not None and all(
+                selected != registered for registered in self._state.unavailable_guide_profiles
+            )
+            return
+        if input_id == STANDALONE_END_BOUNDARY_INPUT_ID:
+            args.isSelectable = bool(_matching_standalone_end_candidates(entity, self._state))
 
 
 class _AddStandaloneEndInputChangedHandler(adsk.core.InputChangedEventHandler):
@@ -327,6 +389,7 @@ class _AddStandaloneEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         state = _AddStandaloneEndCommandState(
             harness_id,
             _standalone_end_candidates(definition, design),
+            _harness_profile_entities(definition, design),
         )
         if not state.candidates:
             raise ValueError("No profile-backed pathway ends are available.")
@@ -375,106 +438,4 @@ class _AddStandaloneEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         )
 
 
-class _EditEndExecuteHandler(adsk.core.CommandEventHandler):
-    """
-    Persist profiles selected for a connection-member edit.
-    """
-
-    def __init__(self, payload: dict[str, object]) -> None:
-        """
-        Retain the selected end and member identity for the native command.
-        """
-        super().__init__()
-        self._payload = payload
-
-    def notify(self, args: adsk.core.CommandEventArgs) -> None:
-        """
-        Apply the profile selection and refresh the palette after success.
-        """
-        try:
-            application = adsk.core.Application.get()
-            tokens = _read_pathway_gate_tokens(args.command.commandInputs)
-            _apply_end_member_edit(application, self._payload, tokens)
-            warning = _refresh_active_preview(
-                application, _read_payload_uuid(self._payload, "harnessId", "harness")
-            )
-            application.activeViewport.refresh()
-            _send_palette_state(application, f"Updated end members. {warning}".strip())
-        except (AttributeError, RuntimeError, TypeError, ValueError):
-            _report_failure("edit end members")
-
-
-class _EditEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
-    """
-    Open native profile selection for adding or replacing end members.
-    """
-
-    # noinspection PyMethodMayBeStatic
-    def notify(self, args: adsk.core.CommandCreatedEventArgs) -> None:
-        """
-        Configure ordered profile selection and retain execution handlers.
-        """
-        payload = _runtime.pending_end_edit.consume()
-        if payload is None:
-            raise RuntimeError("No end was selected.")
-        selection = _add_profile_selection_input(
-            args.command.commandInputs,
-            PATHWAY_GATES_INPUT_ID,
-            "Connection Profiles",
-            "Select profiles for this end sequence",
-        )
-        if not selection.setSelectionLimits(1, 1 if payload.get("editAction") == "replace" else 0):
-            raise RuntimeError("Fusion could not set end-member selection limits.")
-        execute_handler = _EditEndExecuteHandler(payload)
-        validate_handler = _AppendGatesValidateInputsHandler()
-        if not args.command.execute.add(execute_handler):
-            raise RuntimeError("Fusion could not register the end edit handler.")
-        if not args.command.validateInputs.add(validate_handler):
-            raise RuntimeError("Fusion could not register end edit validation.")
-        _runtime.retain_command_handlers(
-            args.command,
-            execute_handler,
-            validate_handler,
-        )
-
-
-def _apply_end_member_edit(
-    application: adsk.core.Application,
-    payload: dict[str, object],
-    tokens: tuple[str, ...] = (),
-) -> None:
-    """
-    Validate member indices and persist a connection edit through its gateway.
-    """
-    endpoint = payload.get("endpoint")
-    action = payload.get("editAction")
-    index = payload.get("memberIndex", 0)
-    count = payload.get("expectedMembers")
-    target = payload.get("targetIndex", 0)
-    if not isinstance(endpoint, str) or not isinstance(action, str):
-        raise ValueError("End edit requires an endpoint and action.")
-    if (
-        isinstance(index, bool)
-        or not isinstance(index, int)
-        or isinstance(count, bool)
-        or not isinstance(count, int)
-        or isinstance(target, bool)
-        or not isinstance(target, int)
-    ):
-        raise ValueError("End edit requires integer member indices and counts.")
-    edit_end_members(
-        _read_payload_uuid(payload, "harnessId", "harness"),
-        _read_payload_uuid(payload, "wireId", "wire"),
-        endpoint,
-        action,
-        _create_harness_gateway(application),
-        tokens,
-        index,
-        count,
-        target,
-    )
-
-
 AddStandaloneEndCreatedHandler = _AddStandaloneEndCreatedHandler
-EditEndCreatedHandler = _EditEndCreatedHandler
-apply_end_member_edit = _apply_end_member_edit

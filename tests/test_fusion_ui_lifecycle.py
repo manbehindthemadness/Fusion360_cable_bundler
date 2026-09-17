@@ -132,4 +132,4 @@ def test_registered_command_specs_have_unique_stable_ids(
 
     assert len(command_ids) == len(set(command_ids))
     assert addin_module.COMMAND_ID in command_ids
-    assert addin_module.ADD_WIRES_COMMAND_ID in command_ids
+    assert addin_module.ADD_END_COMMAND_ID in command_ids

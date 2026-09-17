@@ -93,11 +93,10 @@ def test_creates_and_persists_normalized_empty_harness() -> None:
     assert loads(gateway.serialized_definition) == definition
     assert definition.harness_id == HARNESS_ID
     assert definition.routing_mode is RoutingMode.PROFILE_GATES
-    assert definition.profiles == ()
     assert definition.connections == ()
     assert definition.controls == ()
     assert definition.pathways == ()
-    assert definition.wires == ()
+    assert definition.wire_groups == ()
     assert gateway.deleted_components == []
 
 

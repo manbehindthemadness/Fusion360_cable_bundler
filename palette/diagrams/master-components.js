@@ -23,7 +23,7 @@ function openJunctionRelationships(harness, junction) {
     harness.pathways.map((pathway) => [pathway.pathwayId, pathway]),
   );
   const existingRelationships = junction.pathwayRelationships || [];
-  const memberWires = relationshipJunctionWires(harness, junction);
+  const memberGroups = relationshipJunctionGroups(harness, junction);
   const junctionName = junction.name || "Unnamed junction";
   dialog.className = "junction-relationships-popup";
   dialog.setAttribute("aria-label", `Junction configuration: ${junctionName}`);
@@ -35,13 +35,13 @@ function openJunctionRelationships(harness, junction) {
   existingRelationships.forEach((relationship) => {
     const pathway = pathways.get(relationship.pathwayId);
     const endpointLabel = relationship.endpoint === "start" ? "End A" : "End B";
-    const childWires = relationshipEndpointWires(harness, junction, relationship);
+    const childGroups = relationshipEndpointGroups(harness, junction, relationship);
     const row = memberRow(
       `${pathway?.name || "Missing pathway"} · ${endpointLabel}`,
       () => highlightMember(harness, "pathway_gates", relationship.pathwayId),
       [actionButton("×", `Remove ${endpointLabel} relationship`, () => {
-        if (childWires.length && !window.confirm(
-          `${childWires.length} ${childWires.length === 1 ? "wire pathway traverses" : "wire pathways traverse"} this relationship. Remove it?`,
+        if (childGroups.length && !window.confirm(
+          `${childGroups.length} ${childGroups.length === 1 ? "wire group traverses" : "wire groups traverse"} this relationship. Remove it?`,
         )) return;
         void mutate("remove_junction_relationship", {
           harnessId: harness.harnessId,
@@ -64,15 +64,15 @@ function openJunctionRelationships(harness, junction) {
   add.textContent = "+ Add Relationship";
   add.addEventListener("click", () => addJunctionRelationship(junction.junctionId));
   relationshipContent.append(relationshipSequence, add);
-  if (!memberWires.length) {
-    occupancy.append(emptyMessage("No wires traverse this junction."));
+  if (!memberGroups.length) {
+    occupancy.append(emptyMessage("No wire groups traverse this junction."));
   }
-  memberWires.forEach((wire) => {
+  memberGroups.forEach((group) => {
     const row = memberRow(
-      wireLabel(wire),
-      () => highlightMember(harness, "preview_wire", wire.wireId),
+      wireGroupLabel(harness, group),
+      () => highlightMember(harness, "wire_group", group.wireGroupId),
     );
-    row.dataset.wireId = wire.wireId;
+    row.dataset.wireGroupId = group.wireGroupId;
     occupancy.append(row);
   });
   occupancyContent.append(occupancy);
@@ -106,8 +106,8 @@ function openJunctionRelationships(harness, junction) {
     ),
     nestedSection(
       `junction:${junction.junctionId}:occupancy`,
-      "Wire Occupancy",
-      `${memberWires.length}`,
+      "Wire Group Occupancy",
+      `${memberGroups.length}`,
       occupancyContent,
       () => highlightMember(harness, "junction", junction.junctionId),
     ),
@@ -115,7 +115,7 @@ function openJunctionRelationships(harness, junction) {
   const entry = nestedSection(
     `junction:${junction.junctionId}`,
     junctionName,
-    `${existingRelationships.length} pathway ${existingRelationships.length === 1 ? "endpoint" : "endpoints"} · ${memberWires.length} ${memberWires.length === 1 ? "wire" : "wires"}`,
+    `${existingRelationships.length} pathway ${existingRelationships.length === 1 ? "endpoint" : "endpoints"} · ${memberGroups.length} wire groups`,
     content,
     () => highlightMember(harness, "junction", junction.junctionId),
   );
@@ -149,7 +149,7 @@ function renderRelationshipJunctionHub(
     : "Unconnected junction";
   hoverHighlight(hub, () => highlightMember(harness, "junction", junction.junctionId));
   focusController.bind(hub, {
-    wires: relationshipJunctionWires(harness, junction),
+    groups: relationshipJunctionGroups(harness, junction),
     nodeIds,
   });
   hub.addEventListener("click", () => openJunctionRelationships(harness, junction));
@@ -165,7 +165,7 @@ function renderRelationshipJunctionHub(
 }
 
 function renderRelationshipConnector(
-  groups, wires, fromEndList, expanded, showPlaceholder = false,
+  endGroups, routeGroups, fromEndList, expanded, showPlaceholder = false,
 ) {
   const svg = svgElement("svg", {
     class: "relationship-connector",
@@ -178,56 +178,46 @@ function renderRelationshipConnector(
     : `M 0 ${hubY} C 24 ${hubY}, 30 ${listY}, 54 ${listY}`;
   const redraw = (isExpanded) => {
     svg.replaceChildren();
-    if (!wires.length && showPlaceholder) {
-      svg.append(svgElement("path", {
-        class: "placeholder-trace",
-        d: curvePath(50, 50),
-      }));
+    if (!routeGroups.length && showPlaceholder) {
+      svg.append(svgElement("path", { class: "placeholder-trace", d: curvePath(50, 50) }));
       return;
     }
-    if (!wires.length) return;
-    const groupedWireIds = new Set(
-      groups.flatMap((group) => group.wires.map((wire) => wire.wireId)),
+    if (!routeGroups.length) return;
+    const listedGroupIds = new Set(
+      endGroups.flatMap((group) => group.groups.map((member) => member.wireGroupId)),
     );
-    if (!isExpanded && wires.every((wire) => groupedWireIds.has(wire.wireId))) {
+    if (!isExpanded && routeGroups.every((group) => listedGroupIds.has(group.wireGroupId))) {
       svg.append(svgElement("path", {
         class: "aggregate-trace",
         d: curvePath(50, 50),
-        "data-wire-ids": relationshipWireIds(wires),
+        "data-wire-group-ids": relationshipGroupIds(routeGroups),
       }));
       return;
     }
-    const groupPositions = new Map();
-    groups.forEach((group, groupIndex) => {
-      const groupY = 20 + 75 * ((groupIndex + 0.5) / groups.length);
-      const spacing = Math.min(6, 14 / Math.max(1, group.wires.length - 1));
-      group.wires.forEach((wire, wireIndex) => {
-        groupPositions.set(
-          wire.wireId,
-          groupY + (wireIndex - (group.wires.length - 1) / 2) * spacing,
-        );
+    const endPositions = new Map();
+    endGroups.forEach((group, index) => {
+      group.groups.forEach((member) => {
+        endPositions.set(member.wireGroupId, 20 + 75 * ((index + 0.5) / endGroups.length));
       });
     });
-    const hubSpacing = Math.min(2.5, 14 / Math.max(1, wires.length - 1));
-    wires.forEach((wire, wireIndex) => {
-      const hubY = 50 + (wireIndex - (wires.length - 1) / 2) * hubSpacing;
-      const listY = groupPositions.get(wire.wireId) ?? hubY;
-      const pathData = curvePath(listY, hubY);
+    const hubSpacing = Math.min(2.5, 14 / Math.max(1, routeGroups.length - 1));
+    routeGroups.forEach((group, index) => {
+      const hubY = 50 + (index - (routeGroups.length - 1) / 2) * hubSpacing;
+      const listY = endPositions.get(group.wireGroupId) ?? hubY;
       svg.append(svgElement("path", {
         class: "wire-trace",
-        d: pathData,
-        stroke: wire.materials?.mainColor?.hex || "#1777c8",
-        "data-wire-id": wire.wireId,
+        d: curvePath(listY, hubY),
+        stroke: group.materials?.mainColor?.hex || "#1777c8",
+        "data-wire-group-id": group.wireGroupId,
       }));
-      const stripes = (wire.materials?.stripes || []).slice(0, 3);
-      stripes.forEach((stripe, stripeIndex) => {
+      (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
         const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
         svg.append(svgElement("path", {
           class: "stripe-trace",
           d: curvePath(listY + stripeOffset, hubY + stripeOffset),
           stroke: stripe.color?.hex || "#fff",
           "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
-          "data-wire-id": wire.wireId,
+          "data-wire-group-id": group.wireGroupId,
         }));
       });
     });
@@ -237,37 +227,34 @@ function renderRelationshipConnector(
   return svg;
 }
 
-function renderRelationshipBridge(wires) {
+function renderRelationshipBridge(groups) {
   const svg = svgElement("svg", {
     class: "relationship-chain-link",
     viewBox: "0 0 22 100",
     preserveAspectRatio: "none",
     "aria-hidden": "true",
   });
-  if (!wires.length) {
-    svg.append(svgElement("path", {
-      class: "structural-trace",
-      d: "M 0 50 L 22 50",
-    }));
+  if (!groups.length) {
+    svg.append(svgElement("path", { class: "structural-trace", d: "M 0 50 L 22 50" }));
     return svg;
   }
-  const spacing = Math.min(2.5, 14 / Math.max(1, wires.length - 1));
-  wires.forEach((wire, wireIndex) => {
-    const y = 50 + (wireIndex - (wires.length - 1) / 2) * spacing;
+  const spacing = Math.min(2.5, 14 / Math.max(1, groups.length - 1));
+  groups.forEach((group, index) => {
+    const y = 50 + (index - (groups.length - 1) / 2) * spacing;
     svg.append(svgElement("path", {
       class: "wire-trace",
       d: `M 0 ${y} L 22 ${y}`,
-      stroke: wire.materials?.mainColor?.hex || "#1777c8",
-      "data-wire-id": wire.wireId,
+      stroke: group.materials?.mainColor?.hex || "#1777c8",
+      "data-wire-group-id": group.wireGroupId,
     }));
-    (wire.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
+    (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
       const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
       svg.append(svgElement("path", {
         class: "stripe-trace",
         d: `M 0 ${y + stripeOffset} L 22 ${y + stripeOffset}`,
         stroke: stripe.color?.hex || "#fff",
         "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
-        "data-wire-id": wire.wireId,
+        "data-wire-group-id": group.wireGroupId,
       }));
     });
   });
@@ -296,9 +283,9 @@ function renderRelationshipEndList(
   count.textContent = query && visibleGroups.length !== groups.length
     ? `${visibleGroups.length} of ${groups.length}`
     : `${groups.length}`;
-  hoverHighlight(summary, () => highlightMember(harness, "pathway_wires", pathway.pathwayId));
+  hoverHighlight(summary, () => highlightMember(harness, "pathway", pathway.pathwayId));
   focusController.bind(summary, {
-    wires: groups.flatMap((group) => group.wires),
+    groups: groups.flatMap((group) => group.groups),
     nodeIds: [`pathway:${pathway.pathwayId}`],
   });
   const wireCreationBoundary = wireCreationController.bind(
@@ -318,7 +305,7 @@ function renderRelationshipEndList(
     summary.append(label);
     summary.addEventListener("click", (event) => {
       event.preventDefault();
-      navigateToPathway(pathway.pathwayId);
+      openPathwayPopup(harness, pathway.pathwayId);
     });
     details.append(summary);
     return details;
@@ -326,71 +313,59 @@ function renderRelationshipEndList(
   summary.append(label, count);
   items.className = "relationship-end-items";
   visibleGroups.forEach((group) => {
-    const button = document.createElement(group.standalone ? "div" : "button");
+    const button = document.createElement("div");
     const name = document.createElement("strong");
     const meta = document.createElement("small");
-    if (!group.standalone) button.type = "button";
     button.className = "relationship-end-entry";
     button.dataset.connectionId = group.connectionId;
-    button.dataset.wireIds = relationshipWireIds(group.wires);
+    button.dataset.wireGroupIds = relationshipGroupIds(group.groups);
     name.textContent = group.label;
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
-    meta.textContent = group.standalone
-      ? `${connectionContext}${group.wireGroupId ? "Connected" : "Disconnected"}`
-      : `${connectionContext}${group.wires.length} ${group.wires.length === 1 ? "wire" : "wires"}`;
+    meta.textContent = `${connectionContext}${group.wireGroupId ? "Connected" : "Disconnected"}`;
     button.append(name, meta);
-    hoverHighlight(button, () => group.connectionId
-      ? highlightMember(harness, "connection", group.connectionId)
-      : highlightMember(harness, "preview_wire", group.wires[0].wireId));
+    hoverHighlight(button, () => highlightMember(harness, "connection", group.connectionId));
     focusController.bind(button, {
-      wires: group.wires,
+      groups: group.groups,
       nodeIds: [`pathway:${pathway.pathwayId}`],
     });
     const openDetails = () => openWireGroupDetails(
       harness, group.wireGroupId, group.connectionId,
     );
     if (group.wireGroupId) button.addEventListener("click", openDetails);
-    if (group.standalone) {
-      if (!group.wireGroupId) button.dataset.disconnected = "true";
-      button.tabIndex = 0;
-      button.setAttribute(
-        "aria-label", `${group.label}, ${group.wireGroupId ? "connected" : "disconnected"} end`,
-      );
-      if (group.wireGroupId) {
-        button.setAttribute("role", "button");
-        button.addEventListener("keydown", (event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          openDetails();
-        });
-      }
-      button.addEventListener("contextmenu", (event) => {
-        event.stopPropagation();
-        const items = [
-          {
-            label: "Rename",
-            action: () => renameRelationshipEnd(harness, group, button, name, meta),
-          },
-          {
-            label: "Delete",
-            action: () => mutate("remove_standalone_end", {
-              harnessId: harness.harnessId,
-              connectionId: group.connectionId,
-            }, `Deleting ${group.label}…`),
-          },
-        ];
-        if (group.wireGroupId) {
-          items.unshift({
-            label: "Details",
-            action: () => openWireGroupDetails(
-              harness, group.wireGroupId, group.connectionId,
-            ),
-          });
-        }
-        showContextMenu(event, items);
+    if (!group.wireGroupId) button.dataset.disconnected = "true";
+    button.tabIndex = 0;
+    button.setAttribute(
+      "aria-label", `${group.label}, ${group.wireGroupId ? "connected" : "disconnected"} end`,
+    );
+    if (group.wireGroupId) {
+      button.setAttribute("role", "button");
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openDetails();
       });
     }
+    button.addEventListener("contextmenu", (event) => {
+      event.stopPropagation();
+      const contextItems = [
+        {
+          label: "Rename",
+          action: () => renameRelationshipEnd(harness, group, button, name, meta),
+        },
+        {
+          label: "Delete",
+          action: () => mutate("remove_standalone_end", {
+            harnessId: harness.harnessId,
+            connectionId: group.connectionId,
+          }, `Deleting ${group.label}…`),
+        },
+      ];
+      if (group.wireGroupId) {
+        contextItems.unshift({ label: "Details", action: openDetails });
+      }
+      showContextMenu(event, contextItems);
+    });
     items.append(button);
   });
   if (!visibleGroups.length) items.append(emptyMessage(`No matching End ${side} connections.`));
@@ -448,12 +423,14 @@ function renderRelationshipPathwayNode(
     ? groups.start : groups.start.filter((group) => group.searchable.includes(query));
   const visibleEnd = pathwayMatches
     ? groups.end : groups.end.filter((group) => group.searchable.includes(query));
-  const matchingWireIds = new Set(
-    [...visibleStart, ...visibleEnd].flatMap((group) => group.wires.map((wire) => wire.wireId)),
+  const matchingGroupIds = new Set(
+    [...visibleStart, ...visibleEnd].flatMap(
+      (group) => group.groups.map((member) => member.wireGroupId),
+    ),
   );
-  const allPathwayWires = relationshipPathwayWires(harness, candidate.pathwayId);
-  const pathwayWires = allPathwayWires
-    .filter((wire) => pathwayMatches || matchingWireIds.has(wire.wireId));
+  const allPathwayGroups = relationshipPathwayGroups(harness, candidate.pathwayId);
+  const pathwayGroups = allPathwayGroups
+    .filter((group) => pathwayMatches || matchingGroupIds.has(group.wireGroupId));
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
@@ -464,10 +441,10 @@ function renderRelationshipPathwayNode(
     showContextMenu, focusController, wireCreationController,
   );
   const startConnector = renderRelationshipConnector(
-    visibleStart, pathwayWires, true, startList.open, pathwayWires.length === 0,
+    visibleStart, pathwayGroups, true, startList.open, pathwayGroups.length === 0,
   );
   const endConnector = renderRelationshipConnector(
-    visibleEnd, pathwayWires, false, endList.open, pathwayWires.length === 0,
+    visibleEnd, pathwayGroups, false, endList.open, pathwayGroups.length === 0,
   );
   const hub = document.createElement("button");
   const hubName = document.createElement("strong");
@@ -492,7 +469,7 @@ function renderRelationshipPathwayNode(
   hubName.textContent = candidate.name || "Unnamed pathway";
   hubDirection.textContent = pathwayDirection(candidate);
   hoverHighlight(hub, () => highlightMember(harness, "pathway_gates", candidate.pathwayId));
-  focusController.bind(hub, { wires: allPathwayWires, nodeIds });
+  focusController.bind(hub, { groups: allPathwayGroups, nodeIds });
   hub.addEventListener("click", () => openPathwayPopup(harness, candidate.pathwayId));
   hub.addEventListener("contextmenu", (event) => {
     event.stopPropagation();

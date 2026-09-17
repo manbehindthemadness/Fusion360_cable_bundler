@@ -22,7 +22,6 @@ from ..wire_solids import (
     apply_wire_group_materials,
     clear_wire_solids,
     generate_wire_group_solids,
-    generated_wire_bodies,
     generated_wire_group_bodies,
 )
 from .palette_state import (
@@ -92,7 +91,6 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     design = _require_active_design(application)
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
-    wire_ids: tuple[UUID, ...] = ()
     refine_ids: tuple[UUID, ...] = ()
     preview_connection_ids: tuple[UUID, ...] = ()
     preview_pathway_ids: tuple[UUID, ...] = ()
@@ -114,20 +112,13 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         refine_ids = (control.control_id,) if control.kind is ControlKind.REFINE else ()
         preview_control_ids = (control.control_id,)
         tokens = (control.entity_token,) if control.entity_token else ()
-    elif member_type in {"pathway", "pathway_gates", "pathway_wires"}:
+    elif member_type in {"pathway", "pathway_gates"}:
         pathway = next((item for item in definition.pathways if item.pathway_id == member_id), None)
         if pathway is None:
             raise ValueError("Selected pathway no longer exists.")
-        wire_ids = (
-            tuple(
-                wire.wire_id for wire in definition.wires if member_id in wire.ordered_pathway_ids
-            )
-            if member_type != "pathway_gates"
-            else ()
-        )
         preview_pathway_ids = (member_id,)
         generated_group_ids = _wire_group_ids_for_member(definition, "pathway", member_id)
-        control_ids = pathway.ordered_control_ids if member_type != "pathway_wires" else ()
+        control_ids = pathway.ordered_control_ids
         controls = {control.control_id: control for control in definition.controls}
         refine_ids = tuple(
             control_id
@@ -144,33 +135,18 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             raise ValueError("Selected wire group no longer exists.")
         generated_group_ids = (member_id,)
         tokens = ()
-    elif member_type == "preview_wire":
-        if all(wire.wire_id != member_id for wire in definition.wires):
-            raise ValueError("Selected wire no longer exists.")
-        wire_ids = (member_id,)
-        tokens = ()
     else:
         tokens = _member_entity_tokens(definition, member_type, member_id)
-        if member_type == "wire":
-            wire_ids = (member_id,)
-        elif member_type == "connection":
+        if member_type == "connection":
             preview_connection_ids = (member_id,)
             generated_group_ids = tuple(
                 group.wire_group_id
                 for group in definition.wire_groups
                 if member_id in group.connection_ids
             )
-            wire_ids = tuple(
-                wire.wire_id
-                for wire in definition.wires
-                if member_id in {wire.start_connection_id, wire.end_connection_id}
-            )
         elif member_type == "control":
             preview_control_ids = (member_id,)
             generated_group_ids = _wire_group_ids_for_member(definition, "control", member_id)
-            wire_ids = tuple(
-                wire.wire_id for wire in definition.wires if member_id in wire.ordered_control_ids
-            )
             control = next(
                 (item for item in definition.controls if item.control_id == member_id),
                 None,
@@ -188,7 +164,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             tokens = (tokens[index],)
     preview_count = highlight_route_members(
         design,
-        wire_ids,
+        generated_group_ids,
         connection_ids=preview_connection_ids,
         pathway_ids=preview_pathway_ids,
         control_ids=preview_control_ids,
@@ -205,11 +181,6 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     selections = application.userInterface.activeSelections
     if not selections.clear():
         raise RuntimeError("Fusion could not clear the prior viewport selection.")
-    bodies = generated_wire_bodies(
-        design.rootComponent,
-        gateway.harness_component(harness_id),
-        wire_ids,
-    )
     group_bodies = (
         generated_wire_group_bodies(
             design.rootComponent,
@@ -219,13 +190,13 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if generated_group_ids
         else ()
     )
-    for entity in (*profiles, *bodies, *group_bodies):
+    for entity in (*profiles, *group_bodies):
         if not selections.add(entity):
             selections.clear()
             highlight_route_preview(design, None)
             raise RuntimeError("Fusion could not highlight the selected harness geometry.")
     application.activeViewport.refresh()
-    return preview_count + refine_count + len(profiles) + len(bodies) + len(group_bodies)
+    return preview_count + refine_count + len(profiles) + len(group_bodies)
 
 
 def _wire_group_ids_for_member(
@@ -267,7 +238,7 @@ def _member_entity_tokens(
     """
     Resolve a stable palette member identity to persisted entity tokens.
 
-    Controls and connections yield their members; wires yield both endpoint stacks.
+    Controls and connections yield their linked profile members.
     """
     if member_type == "control":
         control = next(
@@ -283,16 +254,6 @@ def _member_entity_tokens(
         if connection is None:
             raise ValueError("Selected connection no longer exists.")
         return connection.member_tokens
-    if member_type == "wire":
-        wire = next((item for item in definition.wires if item.wire_id == member_id), None)
-        if wire is None:
-            raise ValueError("Selected wire no longer exists.")
-        start_connection = connections.get(wire.start_connection_id)
-        end_connection = connections.get(wire.end_connection_id)
-        if start_connection is None or end_connection is None:
-            raise ValueError("Selected wire has a missing connection reference.")
-        tokens = (*start_connection.member_tokens, *end_connection.member_tokens)
-        return tokens
     raise ValueError(f"Unsupported highlight member type: {member_type}")
 
 
@@ -330,7 +291,7 @@ def _clear_preview(application: adsk.core.Application) -> int:
 
 def _generate_solids(application: adsk.core.Application, serialized_data: str) -> int:
     """
-    Generate persistent wire bodies inside the palette command transaction.
+    Generate persistent wire-group bodies inside the palette command transaction.
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")

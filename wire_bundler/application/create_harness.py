@@ -70,7 +70,7 @@ def create_empty_harness(
     Create an empty draft definition and persist it on a new host component.
 
     The empty definition is intentionally a draft and is not generation-valid until
-    connections, profiles, controls, and wires are added. If metadata persistence
+    pathways, ends, and wire groups are added. If metadata persistence
     fails after component creation, the component is deleted before the original
     error is re-raised.
 
@@ -85,11 +85,9 @@ def create_empty_harness(
         harness_id=id_factory(),
         name=resolved_name,
         routing_mode=routing_mode,
-        profiles=(),
         connections=(),
         controls=(),
         pathways=(),
-        wires=(),
     )
     serialized_definition = dumps(definition)
     component = gateway.create_harness_component(resolved_name)

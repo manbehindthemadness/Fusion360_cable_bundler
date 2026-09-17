@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
@@ -199,7 +199,7 @@ class WireMaterialSettings:
 @dataclass(frozen=True)
 class WireMaterialOverrides:
     """
-    Override selected harness material defaults for one persistent wire.
+    Override selected harness material defaults for one persistent wire group.
 
     A null stripes value inherits the harness stripe collection. An explicit
     empty tuple suppresses every inherited stripe.
@@ -336,17 +336,6 @@ class RefineGeometry:
 
 
 @dataclass(frozen=True)
-class WireProfile:
-    """
-    Describe the initial circular profile assigned to a conductor.
-    """
-
-    profile_id: UUID
-    name: str
-    diameter_mm: float
-
-
-@dataclass(frozen=True)
 class Connection:
     """
     Reference a physical connection profile in a Fusion design.
@@ -457,7 +446,7 @@ class StandaloneEndDefinition:
 @dataclass(frozen=True)
 class WireGroupDefinition:
     """
-    Connect two or more physical wire ends without creating routed conductors.
+    Connect two or more physical ends as one routed conductor group.
 
     Member order is stable metadata order and has no electrical precedence.
     """
@@ -465,25 +454,6 @@ class WireGroupDefinition:
     wire_group_id: UUID
     connection_ids: tuple[UUID, ...]
     diameter_mm: float = DEFAULT_WIRE_DIAMETER_MM
-    material_overrides: WireMaterialOverrides = WireMaterialOverrides()
-
-
-@dataclass(frozen=True)
-class WireDefinition:
-    """
-    Map one persistent conductor from a start to a destination.
-    """
-
-    wire_id: UUID
-    wire_number: str
-    start_connection_id: UUID
-    end_connection_id: UUID
-    profile_id: UUID
-    ordered_pathway_ids: tuple[UUID, ...]
-    ordered_control_ids: tuple[UUID, ...]
-    start_end_name: str = ""
-    end_end_name: str = ""
-    display_name: str = ""
     material_overrides: WireMaterialOverrides = WireMaterialOverrides()
 
 
@@ -499,11 +469,9 @@ class HarnessDefinition:
     harness_id: UUID
     name: str
     routing_mode: RoutingMode
-    profiles: tuple[WireProfile, ...]
     connections: tuple[Connection, ...]
     controls: tuple[ControlStructure, ...]
     pathways: tuple[PathwayDefinition, ...]
-    wires: tuple[WireDefinition, ...]
     junctions: tuple[JunctionDefinition, ...] = ()
     standalone_ends: tuple[StandaloneEndDefinition, ...] = ()
     wire_groups: tuple[WireGroupDefinition, ...] = ()
@@ -511,57 +479,8 @@ class HarnessDefinition:
     end_defaults: InterpolationSettings = InterpolationSettings()
     material_defaults: WireMaterialSettings = WireMaterialSettings()
 
-    def wire_materials(self, wire: WireDefinition) -> WireMaterialSettings:
-        """
-        Resolve one wire's effective material settings from parent defaults.
-        """
-        return wire.material_overrides.resolve(self.material_defaults)
-
     def wire_group_materials(self, group: WireGroupDefinition) -> WireMaterialSettings:
         """
         Resolve one connected wire group's material settings from parent defaults.
         """
         return group.material_overrides.resolve(self.material_defaults)
-
-
-def route_control_ids(
-    definition: HarnessDefinition,
-    pathway_ids: tuple[UUID, ...],
-) -> tuple[UUID, ...]:
-    """
-    Expand ordered pathways and their intervening junctions into routing controls.
-
-    Raises:
-        ValueError: If a pathway is missing or an adjacency has multiple junctions.
-    """
-    pathways = {pathway.pathway_id: pathway for pathway in definition.pathways}
-    junctions: dict[tuple[UUID, UUID], UUID] = {}
-    for junction in definition.junctions:
-        preceding_ids = tuple(
-            relationship.pathway_id
-            for relationship in junction.pathway_relationships
-            if relationship.endpoint is PathwayEndpoint.END
-        )
-        following_ids = tuple(
-            relationship.pathway_id
-            for relationship in junction.pathway_relationships
-            if relationship.endpoint is PathwayEndpoint.START
-        )
-        for preceding_id in preceding_ids:
-            for following_id in following_ids:
-                key = (preceding_id, following_id)
-                if key in junctions:
-                    raise ValueError("A pathway adjacency has more than one junction.")
-                junctions[key] = junction.control_id
-
-    controls: list[UUID] = []
-    for index, pathway_id in enumerate(pathway_ids):
-        pathway = pathways.get(pathway_id)
-        if pathway is None:
-            raise ValueError("A wire references a missing pathway.")
-        controls.extend(pathway.ordered_control_ids)
-        if index + 1 < len(pathway_ids):
-            junction_control_id = junctions.get((pathway_id, pathway_ids[index + 1]))
-            if junction_control_id is not None:
-                controls.append(junction_control_id)
-    return tuple(controls)

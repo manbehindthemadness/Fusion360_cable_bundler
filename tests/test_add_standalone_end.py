@@ -79,9 +79,8 @@ def test_adds_one_ordered_disconnected_end(valid_harness: HarnessDefinition) -> 
     assert result.connection.name == "End B 001"
     assert result.connection.member_tokens == ("terminal", "guide-1", "guide-2")
     assert stored.connections[-1] == result.connection
-    assert stored.standalone_ends == (result.standalone_end,)
-    assert stored.wires == valid_harness.wires
-    assert stored.profiles == valid_harness.profiles
+    assert stored.standalone_ends == (*valid_harness.standalone_ends, result.standalone_end)
+    assert stored.wire_groups == valid_harness.wire_groups
 
 
 @pytest.mark.parametrize("tokens", [(), ("",), ("valid", " ")])

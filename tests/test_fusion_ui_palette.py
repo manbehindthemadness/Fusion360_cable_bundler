@@ -445,7 +445,7 @@ def test_palette_edit_deletes_junction_by_identity(
     assert notice == "Deleted junction."
 
 
-@pytest.mark.parametrize("action", ["rename_wire", "set_interpolation"])
+@pytest.mark.parametrize("action", ["rename_pathway", "set_interpolation"])
 def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str
 ) -> None:
@@ -652,8 +652,8 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
             WireGroupDefinition(
                 UUID(int=9902),
                 (
-                    valid_harness.wires[0].start_connection_id,
-                    valid_harness.wires[0].end_connection_id,
+                    valid_harness.connections[0].connection_id,
+                    valid_harness.connections[1].connection_id,
                 ),
             ),
         ),
@@ -695,7 +695,7 @@ def test_palette_edit_rejects_document_switch(
     monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
     monkeypatch.setattr(addin_module, "_log_to_fusion", Mock())
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
-    addin_module._PaletteEditExecuteHandler(("remove_wire", "{}", object())).notify(args)
+    addin_module._PaletteEditExecuteHandler(("remove_pathway", "{}", object())).notify(args)
     assert args.executeFailed
     assert "document changed" in args.executeFailedMessage
     applied.assert_not_called()
@@ -716,7 +716,7 @@ def test_palette_command_launch_failure_releases_request(
     )
     addin_module._runtime.pending_palette_edit.clear()
     with pytest.raises(RuntimeError, match="could not execute"):
-        addin_module._open_palette_edit(application, "rename_wire", "{}")
+        addin_module._open_palette_edit(application, "rename_pathway", "{}")
     assert addin_module._runtime.pending_palette_edit.value is None
 
 
@@ -757,7 +757,7 @@ def test_interpolation_bridge_persists_selected_target(
     )
     assert actual.approach_mm == 2
     assert actual.departure_mm is None
-    assert saved.wires == valid_harness.wires
+    assert saved.wire_groups == valid_harness.wire_groups
     if target == "defaults":
         assert saved.end_defaults.departure_mm == 3
         assert saved.connections == valid_harness.connections

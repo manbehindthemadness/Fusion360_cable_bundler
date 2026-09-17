@@ -45,7 +45,7 @@
       "behavior": "Wire routes, pathway occupancy, connection use, and diagram projections cross-check by stable identity.",
       "status": "automated",
       "layers": ["pytest", "palette"],
-      "evidence": ["tests/test_relationship_map.py", "tests/test_palette.cjs"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_wire_group_routes.py"],
       "capabilities": []
     },
     {
@@ -63,7 +63,7 @@
       "behavior": "Fusion creates, persists, rediscovers, previews, and generates the deterministic reference harness.",
       "status": "automated",
       "layers": ["fusion-script", "fusion-api", "mcp"],
-      "evidence": ["experiments/experiment_reference_harness.py", "experiments/fusion_qa_suite.py", "experiments/qa_orchestrator.py"],
+      "evidence": ["tests/test_wire_group_routes.py", "experiments/fusion_qa_suite.py"],
       "capabilities": []
     },
     {
@@ -72,7 +72,7 @@
       "behavior": "Every feasible routing fixture produces one native solid Sweep and infeasible fixtures fail preflight.",
       "status": "automated",
       "layers": ["pytest", "fusion-script", "fusion-api", "mcp"],
-      "evidence": ["tests/test_sweep_scenarios.py", "experiments/experiment_sweep_matrix.py", "experiments/fusion_qa_suite.py", "experiments/qa_orchestrator.py"],
+      "evidence": ["tests/test_sweep_scenarios.py", "experiments/qa_orchestrator.py"],
       "capabilities": []
     },
     {
@@ -81,7 +81,7 @@
       "behavior": "Preview, clear, save, close, reopen, and clear again leave no cached or orphaned Custom Graphics.",
       "status": "automated",
       "layers": ["fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_incremental_preview.py", "tests/test_png_oracle.py", "experiments/experiment_preview_reload.py", "experiments/experiment_preview_visual.py", "experiments/png_oracle.py", "experiments/fusion_qa_suite.py", "experiments/qa_orchestrator.py"],
+      "evidence": ["tests/test_wire_group_routes.py", "tests/test_fusion_ui_viewport.py", "experiments/fusion_qa_suite.py"],
       "capabilities": []
     },
     {
@@ -90,7 +90,7 @@
       "behavior": "Generate, rebuild, transform, and clear preserve wire identity and keep stripes owned by their generated components.",
       "status": "automated",
       "layers": ["pytest", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_wire_solids.py", "experiments/experiment_reference_harness.py", "experiments/experiment_generated_solids.py", "experiments/fusion_qa_suite.py", "experiments/qa_orchestrator.py"],
+      "evidence": ["tests/test_fusion_ui_palette.py", "experiments/fusion_qa_suite.py"],
       "capabilities": []
     },
     {
@@ -99,7 +99,7 @@
       "behavior": "Every persistent edit, Preview, Generate, Rebuild, and Clear Solids operation creates one reversible Fusion history action with stable Undo/Redo results; transient Clear Preview removes graphics immediately.",
       "status": "automated",
       "layers": ["palette", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_fusion_ui_palette.py", "tests/test_palette.cjs", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_fusion_ui_palette.py", "tests/test_palette.cjs", "palette/host.js"],
       "capabilities": []
     },
     {
@@ -119,7 +119,7 @@
       "behavior": "Deleted or invalid profile references survive reload as repairable findings without damaging healthy definitions.",
       "status": "automated",
       "layers": ["pytest", "fusion-api", "mcp"],
-      "evidence": ["tests/test_load_harnesses.py", "tests/test_fusion_harness_gateway.py", "experiments/experiment_linked_geometry.py", "experiments/fusion_qa_suite.py", "experiments/qa_orchestrator.py"],
+      "evidence": ["tests/test_load_harnesses.py", "tests/test_fusion_harness_gateway.py"],
       "capabilities": []
     },
     {
@@ -128,7 +128,7 @@
       "behavior": "Palette hover and diagram scopes select the intended root-context profiles, gates, and generated wire bodies.",
       "status": "automated",
       "layers": ["pytest", "palette", "fusion-api", "mcp"],
-      "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_viewport.py", "palette/host.js", "experiments/experiment_command_history.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_viewport.py", "palette/host.js"],
       "capabilities": []
     },
     {
@@ -137,7 +137,7 @@
       "behavior": "Wire stripes conform to curved solids, remain centered, and retain useful contrast at representative viewpoints.",
       "status": "automated",
       "layers": ["pytest", "palette", "fusion-api", "mcp"],
-      "evidence": ["tests/test_wire_solids.py", "tests/test_palette.cjs", "tests/test_png_oracle.py", "experiments/experiment_generated_visual.py", "experiments/png_oracle.py", "experiments/qa_orchestrator.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_png_oracle.py", "experiments/png_oracle.py"],
       "capabilities": []
     },
     {
@@ -146,7 +146,7 @@
       "behavior": "Native and HTML dialogs open within their bounds with readable controls and no unintended scrollbars.",
       "status": "automated",
       "layers": ["palette", "fusion-api", "mcp", "os-window"],
-      "evidence": ["tests/test_palette.cjs", "tests/test_desktop_ui_capture.py", "tests/test_qa_orchestrator.py", "palette/host.js", "experiments/experiment_command_history.py", "experiments/experiment_native_dialog_capture.py", "experiments/desktop_ui_capture.py", "experiments/macos_fusion_windows.swift", "experiments/macos_fusion_window_capture.swift", "experiments/qa_orchestrator.py", "experiments/fusion_mcp_capabilities.json"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_desktop_ui_capture.py", "palette/host.js", "experiments/desktop_ui_capture.py", "experiments/macos_fusion_windows.swift", "experiments/macos_fusion_window_capture.swift"],
       "capabilities": []
     },
     {
@@ -155,7 +155,7 @@
       "behavior": "Assembly-mode creation places and persists one external harness component in the selected cloud folder.",
       "status": "automated",
       "layers": ["pytest", "fusion-api", "mcp"],
-      "evidence": ["tests/test_create_harness.py", "tests/test_fusion_harness_gateway.py", "experiments/experiment_assembly_placement.py", "experiments/fusion_qa_suite.py"],
+      "evidence": ["tests/test_create_harness.py", "tests/test_fusion_harness_gateway.py"],
       "capabilities": []
     },
     {

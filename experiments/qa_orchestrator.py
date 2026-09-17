@@ -15,35 +15,28 @@ Orchestrate local checks and cleanup-safe Fusion scenarios into one QA report.
 from __future__ import annotations
 
 import argparse
-import base64
 import http.client
 import json
 import math
-import os
 import platform
-import shutil
 import subprocess
 import sys
-import threading
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from time import monotonic, perf_counter, sleep
+from time import perf_counter
 from typing import Optional
 from urllib.parse import urlparse
-from uuid import uuid4
 
 from experiments.desktop_ui_capture import (
-    DesktopCapture,
     DesktopCaptureSafetyError,
     DesktopCaptureUnavailable,
     PaletteBounds,
-    capture_fusion_main_window,
     capture_harness_builder_window,
     desktop_capture_observation,
 )
-from experiments.png_oracle import PNG_SIGNATURE, compare_pngs
+from experiments.png_oracle import compare_pngs
 from experiments.qa_coverage import load_coverage_ledger
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -62,16 +55,7 @@ MINIMUM_NATIVE_DIALOG_CHANGE = 0.00001
 VISUAL_WIDTH = 640
 VISUAL_HEIGHT = 480
 LOCAL_CHECK_NAMES = ("pytest", "palette", "ruff-lint", "ruff-format", "diff-check")
-FUSION_SCENARIO_NAMES = (
-    "fusion_capabilities",
-    "command_history",
-    "sweep_matrix",
-    "reference_harness",
-    "preview_reload",
-    "assembly_placement",
-    "linked_geometry",
-    "generated_solids",
-)
+FUSION_SCENARIO_NAMES = ("fusion_capabilities",)
 
 
 @dataclass(frozen=True)
@@ -261,13 +245,10 @@ def run_qa(
             if desktop_result.get("status") == "failed":
                 fusion_result["status"] = "failed"
             elif desktop_result.get("status") == "passed":
-                native_result = _run_native_dialog_ui_oracle(
-                    mcp_url,
-                    fusion_timeout_seconds,
-                )
-                fusion_result["nativeDialogUiOracle"] = native_result
-                if native_result.get("status") == "failed":
-                    fusion_result["status"] = "failed"
+                fusion_result["nativeDialogUiOracle"] = {
+                    "status": "skipped",
+                    "detail": "Legacy persistent-wire dialog fixture removed.",
+                }
     else:
         fusion_result = {"status": "skipped", "detail": "Disabled by command option."}
 
@@ -469,22 +450,12 @@ def _run_fusion_suite(
         )
         suite_result = _parse_fusion_tool_result(tool_result)
         suite_result["server"] = server
-        if selected_scenarios is None:
-            visual_result = _run_preview_visual_oracle(client)
-            suite_result["visualOracle"] = visual_result
-            if visual_result.get("status") != "passed":
-                suite_result["status"] = "failed"
-            generated_visual_result = _run_generated_visual_oracle(client)
-            suite_result["generatedVisualOracle"] = generated_visual_result
-            if generated_visual_result.get("status") != "passed":
-                suite_result["status"] = "failed"
-        else:
-            skipped = {
-                "status": "skipped",
-                "detail": "Focused structural Fusion scenario selection.",
-            }
-            suite_result["visualOracle"] = skipped
-            suite_result["generatedVisualOracle"] = skipped
+        skipped = {
+            "status": "skipped",
+            "detail": "Legacy persistent-wire visual fixtures removed.",
+        }
+        suite_result["visualOracle"] = skipped
+        suite_result["generatedVisualOracle"] = skipped
     except (ConnectionError, OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
         suite_result = {"status": "failed", "error": str(error)}
     finally:
@@ -676,209 +647,6 @@ def run(_context: str):
 '''
 
 
-def _run_native_dialog_ui_oracle(
-    endpoint: str,
-    timeout_seconds: float,
-) -> dict[str, object]:
-    """
-    Compare Fusion's main window before and during one safely bounded native dialog.
-
-    The external capture worker and Fusion coordinate through two private, token-scoped
-    acknowledgements while a single MCP request owns the command from open through
-    termination.
-    """
-    token = uuid4().hex
-    handshake_directory = NATIVE_DIALOG_HANDSHAKE_ROOT / token
-    handshake_directory.mkdir(parents=True)
-    os.chmod(handshake_directory, 0o700)
-    captures: list[DesktopCapture] = []
-    worker_errors: list[BaseException] = []
-    stop_requested = threading.Event()
-    worker = threading.Thread(
-        target=_capture_native_dialog_phases,
-        args=(handshake_directory, token, captures, worker_errors, stop_requested),
-        name="wire-bundler-native-dialog-capture",
-        daemon=True,
-    )
-    client = McpClient(endpoint, timeout_seconds)
-    host_result: dict[str, object] = {}
-    host_error: Optional[BaseException] = None
-    try:
-        client.initialize()
-        worker.start()
-        tool_result = client.call_tool(
-            "fusion_mcp_execute",
-            {
-                "featureType": "script",
-                "object": {"script": _native_dialog_capture_script(token)},
-            },
-        )
-        host_result = _parse_execute_result(tool_result, NATIVE_DIALOG_RESULT_PREFIX)
-    except (
-        ConnectionError,
-        OSError,
-        RuntimeError,
-        ValueError,
-        json.JSONDecodeError,
-    ) as error:
-        host_error = error
-    finally:
-        try:
-            client.close()
-        except (ConnectionError, OSError, RuntimeError):
-            pass
-        if worker.ident is not None:
-            worker.join(timeout=32.0)
-        if worker.is_alive():
-            stop_requested.set()
-            worker.join(timeout=3.0)
-        shutil.rmtree(handshake_directory, ignore_errors=True)
-
-    if worker.is_alive():
-        return {
-            "status": "failed",
-            "error": "Native-dialog capture worker did not terminate.",
-            "capturesPurged": True,
-        }
-    if worker_errors:
-        error = worker_errors[0]
-        status = "failed" if isinstance(error, DesktopCaptureSafetyError) else "deferred"
-        key = "error" if status == "failed" else "reason"
-        return {"status": status, key: str(error), "capturesPurged": True}
-    if host_error is not None:
-        return {"status": "failed", "error": str(host_error), "capturesPurged": True}
-    if len(captures) != 2:
-        return {
-            "status": "failed",
-            "error": f"Expected two native-dialog captures, received {len(captures)}.",
-            "capturesPurged": True,
-        }
-    baseline = captures[0]
-    dialog = captures[1]
-    try:
-        difference = asdict(compare_pngs(baseline.png, dialog.png))
-    except (AttributeError, ValueError) as error:
-        return {"status": "failed", "error": str(error), "capturesPurged": True}
-    window_stable = _same_desktop_window(baseline.window, dialog.window)
-    changed_fraction = float(difference["changed_pixel_fraction"])
-    result = {
-        "status": "passed",
-        "host": host_result,
-        "observations": [
-            desktop_capture_observation(baseline),
-            desktop_capture_observation(dialog),
-        ],
-        "comparison": {
-            **difference,
-            "minimum_changed_pixel_fraction": MINIMUM_NATIVE_DIALOG_CHANGE,
-            "window_stable": window_stable,
-        },
-        "capturesPurged": True,
-    }
-    if host_result.get("terminated") is not True or host_result.get("documentRestored") is not True:
-        result["status"] = "failed"
-        result["error"] = "Fusion did not confirm native-command and document cleanup."
-    elif not window_stable:
-        result["status"] = "failed"
-        result["error"] = "Fusion's main window moved, resized, or changed identity during capture."
-    elif changed_fraction < MINIMUM_NATIVE_DIALOG_CHANGE:
-        result["status"] = "failed"
-        result["error"] = (
-            f"Native dialog changed only {changed_fraction:.4%} of pixels; minimum is "
-            f"{MINIMUM_NATIVE_DIALOG_CHANGE:.4%}."
-        )
-    return result
-
-
-def _capture_native_dialog_phases(
-    directory: Path,
-    token: str,
-    captures: list[DesktopCapture],
-    errors: list[BaseException],
-    stop_requested: threading.Event,
-) -> None:
-    """
-    Capture the fixed Fusion main window at both in-host handshake checkpoints.
-    """
-    for phase in ("baseline", "dialog"):
-        try:
-            _wait_for_capture_phase(
-                directory / f"{phase}-ready.json",
-                token,
-                phase,
-                stop_requested,
-            )
-            capture = capture_fusion_main_window()
-            captures.append(capture)
-            _write_capture_ack(directory, token, phase, "captured")
-        except (
-            DesktopCaptureSafetyError,
-            DesktopCaptureUnavailable,
-            OSError,
-            RuntimeError,
-            ValueError,
-            json.JSONDecodeError,
-        ) as error:
-            errors.append(error)
-            _write_capture_ack(directory, token, phase, "error", str(error))
-            return
-
-
-def _wait_for_capture_phase(
-    path: Path,
-    token: str,
-    phase: str,
-    stop_requested: threading.Event,
-) -> None:
-    """
-    Wait for one exact token and phase announcement from the in-host script.
-    """
-    deadline = monotonic() + 35.0
-    while monotonic() < deadline:
-        if stop_requested.is_set():
-            raise RuntimeError(f"Native-dialog {phase} capture was cancelled.")
-        if path.is_file():
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            expected_phase = f"{phase}-ready"
-            if (
-                not isinstance(payload, dict)
-                or payload.get("token") != token
-                or payload.get("phase") != expected_phase
-            ):
-                raise RuntimeError(f"Invalid native-dialog {phase} checkpoint.")
-            return
-        sleep(0.01)
-    raise RuntimeError(f"Timed out waiting for native-dialog {phase} checkpoint.")
-
-
-def _write_capture_ack(
-    directory: Path,
-    token: str,
-    phase: str,
-    status: str,
-    error: str = "",
-) -> None:
-    """
-    Atomically acknowledge one capture so Fusion can continue or clean up.
-    """
-    destination = directory / f"{phase}-ack.json"
-    temporary = directory / f".{phase}-ack.tmp"
-    payload = {"token": token, "phase": phase, "status": status}
-    if error:
-        payload["error"] = error
-    temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-    os.chmod(temporary, 0o600)
-    temporary.replace(destination)
-
-
-def _same_desktop_window(first: object, second: object) -> bool:
-    """
-    Require stable identity, ownership, and bounds across both main-window captures.
-    """
-    fields = ("window_id", "owner_pid", "owner_name", "x", "y", "width", "height")
-    return all(getattr(first, field, None) == getattr(second, field, None) for field in fields)
-
-
 def _read_palette_bounds(endpoint: str, timeout_seconds: float) -> PaletteBounds:
     """
     Read the fixed Harness Builder palette geometry through Fusion's API.
@@ -955,353 +723,6 @@ def _finite_number(value: object, label: str) -> float:
     return parsed
 
 
-def _run_preview_visual_oracle(client: McpClient) -> dict[str, object]:
-    """
-    Advance the preview lifecycle around normalized MCP screenshots.
-    """
-    images: dict[str, bytes] = {}
-    phases: list[dict[str, object]] = []
-    differences: dict[str, dict[str, object]] = {}
-    error = ""
-    try:
-        phases.append(_call_visual_phase(client, "begin", reload_module=True))
-        images["baseline"] = _capture_normalized_viewport(client, phases)
-        phases.append(_call_visual_phase(client, "show-preview"))
-        images["preview"] = _capture_normalized_viewport(client, phases)
-        phases.append(_call_visual_phase(client, "save-reload"))
-        images["reloaded"] = _capture_normalized_viewport(client, phases)
-        phases.append(_call_visual_phase(client, "show-fresh"))
-        images["freshPreview"] = _capture_normalized_viewport(client, phases)
-        phases.append(_call_visual_phase(client, "clear"))
-        images["cleared"] = _capture_normalized_viewport(client, phases)
-
-        differences = {
-            "baselineToPreview": asdict(compare_pngs(images["baseline"], images["preview"])),
-            "baselineToReloaded": asdict(compare_pngs(images["baseline"], images["reloaded"])),
-            "previewToFreshPreview": asdict(
-                compare_pngs(images["preview"], images["freshPreview"])
-            ),
-            "baselineToCleared": asdict(compare_pngs(images["baseline"], images["cleared"])),
-        }
-        _assert_visual_differences(differences)
-        status = "passed"
-    except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as failure:
-        status = "failed"
-        error = str(failure)
-    finally:
-        try:
-            cleanup = _call_visual_phase(client, "cleanup")
-        except (RuntimeError, ValueError, json.JSONDecodeError) as failure:
-            cleanup = {"clean": False, "error": str(failure)}
-            status = "failed"
-            error = f"{error} Cleanup failed: {failure}".strip()
-    return {
-        "status": status,
-        "dimensions": {"width": VISUAL_WIDTH, "height": VISUAL_HEIGHT},
-        "camera": "iso-top-right",
-        "captures": {"count": len(images), "storage": "memory-only", "purged": True},
-        "differences": differences,
-        "phases": phases,
-        "cleanup": cleanup,
-        "error": error,
-    }
-
-
-def _run_generated_visual_oracle(client: McpClient) -> dict[str, object]:
-    """
-    Compare striped-wire presentation across visibility, viewpoint, and lifecycle phases.
-    """
-    images: dict[str, bytes] = {}
-    phases: list[dict[str, object]] = []
-    differences: dict[str, dict[str, object]] = {}
-    error = ""
-    try:
-        phases.append(_call_generated_visual_phase(client, "begin", reload_module=True))
-        images["baseline"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "generate"))
-        images["stripedIso"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "hide-stripes"))
-        images["plainIso"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "show-stripes"))
-        images["stripedTop"] = _capture_generated_viewport(client, phases, "top")
-        phases.append(_call_generated_visual_phase(client, "rebuild"))
-        images["rebuiltIso"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "move"))
-        images["movedIso"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "reset-position"))
-        images["restoredIso"] = _capture_generated_viewport(client, phases, "iso-top-right")
-        phases.append(_call_generated_visual_phase(client, "clear"))
-        images["cleared"] = _capture_generated_viewport(client, phases, "iso-top-right")
-
-        differences = {
-            "baselineToStriped": asdict(compare_pngs(images["baseline"], images["stripedIso"])),
-            "stripedToPlain": asdict(compare_pngs(images["stripedIso"], images["plainIso"])),
-            "stripedIsoToTop": asdict(compare_pngs(images["stripedIso"], images["stripedTop"])),
-            "stripedToRebuilt": asdict(compare_pngs(images["stripedIso"], images["rebuiltIso"])),
-            "stripedToMoved": asdict(compare_pngs(images["stripedIso"], images["movedIso"])),
-            "stripedToRestored": asdict(compare_pngs(images["stripedIso"], images["restoredIso"])),
-            "stripedToCleared": asdict(compare_pngs(images["stripedIso"], images["cleared"])),
-        }
-        _assert_generated_visual_differences(differences)
-        status = "passed"
-    except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as failure:
-        status = "failed"
-        error = str(failure)
-    finally:
-        try:
-            cleanup = _call_generated_visual_phase(client, "cleanup")
-        except (RuntimeError, ValueError, json.JSONDecodeError) as failure:
-            cleanup = {"clean": False, "error": str(failure)}
-            status = "failed"
-            error = f"{error} Cleanup failed: {failure}".strip()
-    return {
-        "status": status,
-        "dimensions": {"width": VISUAL_WIDTH, "height": VISUAL_HEIGHT},
-        "cameras": ["iso-top-right", "top"],
-        "captures": {"count": len(images), "storage": "memory-only", "purged": True},
-        "differences": differences,
-        "phases": phases,
-        "cleanup": cleanup,
-        "error": error,
-    }
-
-
-def _capture_generated_viewport(
-    client: McpClient,
-    phases: list[dict[str, object]],
-    direction: str,
-) -> bytes:
-    """
-    Establish a requested camera, fit the generated fixture, and capture its viewport.
-    """
-    screenshot_arguments: dict[str, object] = {
-        "queryType": "screenshot",
-        "width": VISUAL_WIDTH,
-        "height": VISUAL_HEIGHT,
-        "antiAliasing": True,
-        "transparentBackground": False,
-    }
-    phases.append(_call_generated_visual_phase(client, "normalize"))
-    tool_result = client.call_tool(
-        "fusion_mcp_read",
-        {**screenshot_arguments, "direction": direction},
-    )
-    return _extract_screenshot_png(tool_result)
-
-
-def _call_generated_visual_phase(
-    client: McpClient,
-    action: str,
-    reload_module: bool = False,
-) -> dict[str, object]:
-    """
-    Execute one generated-wire visual fixture phase inside Fusion.
-    """
-    tool_result = client.call_tool(
-        "fusion_mcp_execute",
-        {
-            "featureType": "script",
-            "object": {"script": _generated_visual_phase_script(action, reload_module)},
-        },
-    )
-    return _parse_execute_result(tool_result, GENERATED_VISUAL_RESULT_PREFIX)
-
-
-def _generated_visual_phase_script(action: str, reload_module: bool = False) -> str:
-    """
-    Build the in-host bootstrap for one generated-wire visual fixture phase.
-    """
-    root = json.dumps(str(PROJECT_ROOT))
-    encoded_action = json.dumps(action)
-    reload_statement = "module = importlib.reload(module)" if reload_module else ""
-    return f'''import importlib
-import json
-import sys
-
-
-def run(_context: str):
-    root = {root}
-    if root not in sys.path:
-        sys.path.insert(0, root)
-    import experiments.experiment_generated_visual as module
-
-    {reload_statement}
-    result = module.dispatch({encoded_action})
-    print("{GENERATED_VISUAL_RESULT_PREFIX}" + json.dumps(result, sort_keys=True))
-'''
-
-
-def _assert_generated_visual_differences(
-    differences: dict[str, dict[str, object]],
-) -> None:
-    """
-    Enforce visible stripes/view changes and stable regenerated or cleared states.
-    """
-    minimum_visible_change = 0.0001
-    maximum_stable_change = 0.02
-    for name in (
-        "baselineToStriped",
-        "stripedToPlain",
-        "stripedIsoToTop",
-        "stripedToMoved",
-        "stripedToCleared",
-    ):
-        changed = _difference_fraction(differences, name)
-        if changed < minimum_visible_change:
-            raise RuntimeError(f"Generated visual comparison {name} changed only {changed:.6f}.")
-    for name in ("stripedToRebuilt", "stripedToRestored"):
-        changed = _difference_fraction(differences, name)
-        if changed > maximum_stable_change:
-            raise RuntimeError(
-                f"Generated visual comparison {name} changed {changed:.2%}; "
-                f"maximum is {maximum_stable_change:.2%}."
-            )
-
-
-def _difference_fraction(
-    differences: dict[str, dict[str, object]],
-    name: str,
-) -> float:
-    """
-    Validate and return one changed-pixel fraction from a comparison mapping.
-    """
-    value = differences[name].get("changed_pixel_fraction")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise RuntimeError(f"Visual comparison {name} has no numeric changed-pixel fraction.")
-    fraction = float(value)
-    if not math.isfinite(fraction):
-        raise RuntimeError(f"Visual comparison {name} has a non-finite changed-pixel fraction.")
-    return fraction
-
-
-def _capture_normalized_viewport(
-    client: McpClient,
-    phases: list[dict[str, object]],
-) -> bytes:
-    """
-    Establish a standard camera, fit the model, and capture the active viewport.
-    """
-    screenshot_arguments: dict[str, object] = {
-        "queryType": "screenshot",
-        "width": VISUAL_WIDTH,
-        "height": VISUAL_HEIGHT,
-        "antiAliasing": True,
-        "transparentBackground": False,
-    }
-    phases.append(_call_visual_phase(client, "normalize"))
-    tool_result = client.call_tool(
-        "fusion_mcp_read",
-        {**screenshot_arguments, "direction": "iso-top-right"},
-    )
-    return _extract_screenshot_png(tool_result)
-
-
-def _call_visual_phase(
-    client: McpClient,
-    action: str,
-    reload_module: bool = False,
-) -> dict[str, object]:
-    """
-    Execute one visual-fixture phase inside Fusion.
-    """
-    tool_result = client.call_tool(
-        "fusion_mcp_execute",
-        {
-            "featureType": "script",
-            "object": {"script": _visual_phase_script(action, reload_module)},
-        },
-    )
-    return _parse_execute_result(tool_result, VISUAL_RESULT_PREFIX)
-
-
-def _visual_phase_script(action: str, reload_module: bool = False) -> str:
-    """
-    Build the in-host bootstrap for one visual-fixture phase.
-    """
-    root = json.dumps(str(PROJECT_ROOT))
-    encoded_action = json.dumps(action)
-    reload_statement = "module = importlib.reload(module)" if reload_module else ""
-    return f'''import importlib
-import json
-import sys
-
-
-def run(_context: str):
-    root = {root}
-    if root not in sys.path:
-        sys.path.insert(0, root)
-    import experiments.experiment_preview_visual as module
-
-    {reload_statement}
-    result = module.dispatch({encoded_action})
-    print("{VISUAL_RESULT_PREFIX}" + json.dumps(result, sort_keys=True))
-'''
-
-
-def _extract_screenshot_png(tool_result: dict[str, object]) -> bytes:
-    """
-    Extract and validate PNG bytes from supported MCP content envelopes.
-    """
-    encoded = _find_encoded_png(tool_result)
-    if encoded is None:
-        raise RuntimeError("Fusion MCP screenshot result omitted PNG image data.")
-    try:
-        payload = base64.b64decode(encoded, validate=True)
-    except (ValueError, TypeError) as error:
-        raise RuntimeError("Fusion MCP screenshot returned invalid base64 data.") from error
-    if not payload.startswith(PNG_SIGNATURE):
-        raise RuntimeError("Fusion MCP screenshot did not return a PNG file.")
-    return payload
-
-
-def _find_encoded_png(value: object) -> Optional[str]:
-    """
-    Find base64 PNG data in native image blocks or JSON text blocks.
-    """
-    if isinstance(value, dict):
-        mime_type = value.get("mimeType") or value.get("mime_type")
-        if mime_type == "image/png":
-            for key in ("base64Data", "data"):
-                encoded = value.get(key)
-                if isinstance(encoded, str):
-                    return encoded
-        for nested in value.values():
-            found = _find_encoded_png(nested)
-            if found is not None:
-                return found
-    elif isinstance(value, list):
-        for nested in value:
-            found = _find_encoded_png(nested)
-            if found is not None:
-                return found
-    elif isinstance(value, str) and value.startswith(("{", "[")):
-        try:
-            decoded = json.loads(value)
-        except json.JSONDecodeError:
-            return None
-        return _find_encoded_png(decoded)
-    return None
-
-
-def _assert_visual_differences(differences: dict[str, dict[str, object]]) -> None:
-    """
-    Enforce tolerant preview visibility and cleared-state equivalence.
-    """
-    minimum_visible_change = 0.0001
-    maximum_stable_change = 0.02
-    for name in ("baselineToPreview",):
-        changed = _difference_fraction(differences, name)
-        if changed < minimum_visible_change:
-            raise RuntimeError(f"Visual oracle did not detect the route preview: {changed:.6f}.")
-    for name in ("baselineToReloaded", "previewToFreshPreview", "baselineToCleared"):
-        changed = _difference_fraction(differences, name)
-        if changed > maximum_stable_change:
-            raise RuntimeError(
-                f"Visual oracle comparison {name} changed {changed:.2%}; "
-                f"maximum is {maximum_stable_change:.2%}."
-            )
-
-
 def _fusion_suite_script(selected_scenarios: Optional[Sequence[str]] = None) -> str:
     """
     Build the small in-host bootstrap submitted to ``fusion_mcp_execute``.
@@ -1323,27 +744,9 @@ def run(_context: str):
         sys.path.insert(0, root)
     import experiments.scenario_report as scenario_report_module
     import experiments.experiment_fusion_capabilities as capabilities_module
-    import experiments.experiment_command_history as history_module
-    import experiments.experiment_sweep_matrix as sweep_module
-    import experiments.experiment_reference_harness as reference_module
 
     importlib.reload(scenario_report_module)
     importlib.reload(capabilities_module)
-    importlib.reload(history_module)
-    importlib.reload(sweep_module)
-    importlib.reload(reference_module)
-    import experiments.experiment_preview_reload as preview_reload_module
-
-    importlib.reload(preview_reload_module)
-    import experiments.experiment_assembly_placement as assembly_module
-
-    importlib.reload(assembly_module)
-    import experiments.experiment_linked_geometry as linked_geometry_module
-
-    importlib.reload(linked_geometry_module)
-    import experiments.experiment_generated_solids as generated_solids_module
-
-    importlib.reload(generated_solids_module)
     import experiments.fusion_qa_suite as suite_module
 
     suite_module = importlib.reload(suite_module)
@@ -1352,31 +755,6 @@ def run(_context: str):
         {scenario_selection},
     )
     print("{FUSION_RESULT_PREFIX}" + json.dumps(result, sort_keys=True))
-'''
-
-
-def _native_dialog_capture_script(token: str) -> str:
-    """
-    Build the single-request native-dialog capture and cleanup bootstrap.
-    """
-    root = json.dumps(str(PROJECT_ROOT))
-    encoded_token = json.dumps(token)
-    return f'''import importlib
-import json
-import sys
-
-import adsk.core
-
-
-def run(_context: str):
-    root = {root}
-    if root not in sys.path:
-        sys.path.insert(0, root)
-    import experiments.experiment_native_dialog_capture as module
-
-    module = importlib.reload(module)
-    result = module.run_capture_handshake(adsk.core.Application.get(), {encoded_token})
-    print("{NATIVE_DIALOG_RESULT_PREFIX}" + json.dumps(result, sort_keys=True))
 '''
 
 

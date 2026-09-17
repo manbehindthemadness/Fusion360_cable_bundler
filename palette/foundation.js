@@ -147,7 +147,7 @@ function renderLibrary() {
     summary.className = "summary";
     summary.textContent = harness.status === "damaged"
       ? "Metadata could not be loaded"
-      : `${harness.routingMode} · ${harness.wires.length} wires`;
+      : `${harness.routingMode} · ${(harness.wireGroups || []).length} wire groups`;
     button.append(name, statusBadge(harness), summary);
     button.addEventListener("click", () => openHarness(harnessKey(harness)));
     ui.list.append(button);
@@ -345,8 +345,11 @@ function addContextMenu(root, returnFocus = null) {
   return show;
 }
 
-function wireLabel(wire) {
-  return wire.displayName || `Wire #${wire.wireNumber}`;
+function wireGroupLabel(harness, group) {
+  const index = (harness.wireGroups || []).findIndex(
+    (candidate) => candidate.wireGroupId === group.wireGroupId,
+  );
+  return `Wire Group ${index >= 0 ? index + 1 : "?"}`;
 }
 
 function pathwayDirection(pathway) {
@@ -396,12 +399,6 @@ function renderPathways(harness, selectedPathwayId = null) {
   const controls = new Map(
     harness.controls.map((control) => [control.controlId, control]),
   );
-  const connections = new Map(
-    harness.connections.map((connection) => [connection.connectionId, connection]),
-  );
-  const pathways = new Map(
-    harness.pathways.map((pathway) => [pathway.pathwayId, pathway]),
-  );
   container.className = "section-content";
   if (!harness.pathways.length) {
     container.append(emptyMessage("No pathways defined yet."));
@@ -418,9 +415,7 @@ function renderPathways(harness, selectedPathwayId = null) {
     const occupancy = document.createElement("div");
     const addGates = document.createElement("button");
     const addRefine = document.createElement("button");
-    const members = harness.wires.filter(
-      (wire) => wire.orderedPathwayIds.includes(pathway.pathwayId),
-    );
+    const members = relationshipPathwayGroups(harness, pathway.pathwayId);
     pathwayContent.className = "section-content";
     gateContent.className = "section-content";
     sequence.className = "sequence";
@@ -445,7 +440,8 @@ function renderPathways(harness, selectedPathwayId = null) {
       const isRefine = control?.kind === "refine";
       const isLocked = lockedIndexes.has(index);
       const openOptions = () => openInterpolationOptions(
-        harness, "gate", controlId, control?.name || "Gate", control?.interpolation, null, control?.usesDefaults ?? true,
+        harness, "gate", controlId, control?.name || "Gate", control?.interpolation,
+        control?.usesDefaults ?? true,
       );
       const editControl = isRefine
         ? () => editPathwayRefine(harness, control)
@@ -483,28 +479,12 @@ function renderPathways(harness, selectedPathwayId = null) {
     occupancyContent.className = "section-content";
     occupancy.className = "occupancy";
     if (!members.length) {
-      occupancy.append(emptyMessage("No wires occupy this pathway."));
+      occupancy.append(emptyMessage("No wire groups traverse this pathway."));
     }
-    members.forEach((wire) => {
-      const pathwayIndex = wire.orderedPathwayIds.indexOf(pathway.pathwayId);
-      const previousPathway = pathways.get(wire.orderedPathwayIds[pathwayIndex - 1]);
-      const nextPathway = pathways.get(wire.orderedPathwayIds[pathwayIndex + 1]);
-      const startConnection = connections.get(wire.startConnectionId);
-      const endConnection = connections.get(wire.endConnectionId);
-      const entry = pathwayIndex === 0
-        ? `End A: ${wire.startEndName || startConnection?.name || "Missing connection"}`
-        : `From ${previousPathway?.name || "missing pathway"}`;
-      const exit = pathwayIndex === wire.orderedPathwayIds.length - 1
-        ? `End B: ${wire.endEndName || endConnection?.name || "Missing connection"}`
-        : `Continue to ${nextPathway?.name || "missing pathway"}`;
-      const hasMissingGeometry = (pathwayIndex === 0 && !startConnection?.hasLinkedGeometry)
-        || (pathwayIndex === wire.orderedPathwayIds.length - 1
-          && !endConnection?.hasLinkedGeometry);
+    members.forEach((group) => {
       occupancy.append(memberRow(
-        `${wireLabel(wire)} · ${entry} → ${exit}`,
-        () => highlightMember(harness, "preview_wire", wire.wireId),
-        [],
-        hasMissingGeometry,
+        wireGroupLabel(harness, group),
+        () => highlightMember(harness, "wire_group", group.wireGroupId),
       ));
     });
     addGates.type = "button";
@@ -552,16 +532,16 @@ function renderPathways(harness, selectedPathwayId = null) {
       ),
       nestedSection(
         `pathway:${pathway.pathwayId}:occupancy`,
-        "Wire Occupancy",
+        "Wire Group Occupancy",
         `${members.length}`,
         occupancyContent,
-        () => highlightMember(harness, "pathway_wires", pathway.pathwayId),
+        () => highlightMember(harness, "pathway", pathway.pathwayId),
       ),
     );
     container.append(nestedSection(
       `pathway:${pathway.pathwayId}`,
       pathway.name,
-      `${pathwayDirection(pathway)} · ${members.length} wires`,
+      `${pathwayDirection(pathway)} · ${members.length} wire groups`,
       pathwayContent,
       () => highlightMember(harness, "pathway", pathway.pathwayId),
     ));

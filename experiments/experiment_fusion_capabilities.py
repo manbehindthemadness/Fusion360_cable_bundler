@@ -26,12 +26,11 @@ import adsk.fusion  # noqa: E402
 
 from experiments.scenario_report import ScenarioReport  # noqa: E402
 from wire_bundler.addin import (  # noqa: E402
+    ADD_END_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
-    ADD_WIRES_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
     COMMAND_ID,
     CREATE_COMMAND_ID,
-    EDIT_END_COMMAND_ID,
     PALETTE_ID,
 )
 
@@ -42,8 +41,7 @@ EXPECTED_COMMAND_IDS = (
     CREATE_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
-    EDIT_END_COMMAND_ID,
-    ADD_WIRES_COMMAND_ID,
+    ADD_END_COMMAND_ID,
     "UndoCommand",
     "RedoCommand",
 )

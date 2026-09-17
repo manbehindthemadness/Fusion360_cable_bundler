@@ -114,7 +114,13 @@ def test_reports_draft_validation_findings(valid_harness: HarnessDefinition) -> 
     """
     Distinguish a parseable draft from a generation-ready harness.
     """
-    draft = replace(valid_harness, profiles=(), connections=(), controls=(), wires=())
+    draft = replace(
+        valid_harness,
+        connections=(),
+        controls=(),
+        standalone_ends=(),
+        wire_groups=(),
+    )
     gateway = _LibraryGateway((StoredHarness("Draft", dumps(draft)),))
 
     result = load_harnesses(gateway)[0]

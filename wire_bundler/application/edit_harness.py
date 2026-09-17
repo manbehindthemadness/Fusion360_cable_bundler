@@ -4,14 +4,12 @@ Edit ordered pathway gates and wire endpoint pairings transactionally.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Optional, Protocol
 from uuid import UUID, uuid4
 
 from ..domain import (
-    Connection,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -21,14 +19,11 @@ from ..domain import (
     PathwayEndpoint,
     RefineGeometry,
     RoutingMode,
-    WireDefinition,
     WireGroupDefinition,
-    WireMaterialOverrides,
     WireMaterialSettings,
     dumps,
     loads,
     next_available_name,
-    route_control_ids,
     validate_harness,
 )
 from ..domain.model import InterpolationSettings
@@ -90,7 +85,6 @@ def add_junction(
     junction_id = id_factory()
     existing_ids = {
         definition.harness_id,
-        *(profile.profile_id for profile in definition.profiles),
         *(connection.connection_id for connection in definition.connections),
         *(
             member_id
@@ -100,7 +94,7 @@ def add_junction(
         *(control.control_id for control in definition.controls),
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
-        *(wire.wire_id for wire in definition.wires),
+        *(group.wire_group_id for group in definition.wire_groups),
     }
     if control_id in existing_ids or junction_id in existing_ids | {control_id}:
         raise ValueError("Generated control or junction identity is already in use.")
@@ -300,7 +294,6 @@ def _replace_junction_relationships(
             for candidate in definition.junctions
         ),
     )
-    updated = _synchronize_wire_controls(updated)
     issues = tuple(
         issue for issue in validate_harness(updated) if issue.path.startswith("junctions[")
     )
@@ -378,12 +371,11 @@ def segment_pathway(
     junction_id = id_factory()
     existing_ids = {
         definition.harness_id,
-        *(profile.profile_id for profile in definition.profiles),
         *(connection.connection_id for connection in definition.connections),
         *(candidate.control_id for candidate in definition.controls),
         *(candidate.pathway_id for candidate in definition.pathways),
         *(candidate.junction_id for candidate in definition.junctions),
-        *(wire.wire_id for wire in definition.wires),
+        *(group.wire_group_id for group in definition.wire_groups),
     }
     if following_pathway_id in existing_ids or junction_id in existing_ids | {following_pathway_id}:
         raise ValueError("Generated pathway or junction identity is already in use.")
@@ -433,21 +425,6 @@ def segment_pathway(
         )
         for candidate in definition.junctions
     )
-    wires = tuple(
-        replace(
-            wire,
-            ordered_pathway_ids=tuple(
-                inserted_id
-                for candidate_id in wire.ordered_pathway_ids
-                for inserted_id in (
-                    (candidate_id, following_pathway.pathway_id)
-                    if candidate_id == pathway_id
-                    else (candidate_id,)
-                )
-            ),
-        )
-        for wire in definition.wires
-    )
     standalone_ends = tuple(
         replace(end, pathway_id=following_pathway.pathway_id)
         if end.pathway_id == pathway_id and end.endpoint is PathwayEndpoint.END
@@ -458,10 +435,8 @@ def segment_pathway(
         definition,
         pathways=tuple(pathways),
         junctions=(*prior_junctions, junction),
-        wires=wires,
         standalone_ends=standalone_ends,
     )
-    updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
     return PathwaySegmentResult(preceding_pathway, following_pathway, junction)
 
@@ -506,7 +481,6 @@ def add_pathway_refine(
         controls=(*definition.controls, control),
         pathways=_replace_pathway(definition, updated_pathway),
     )
-    updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
     return control
 
@@ -586,7 +560,6 @@ def append_pathway_gates(
         controls=(*definition.controls, *controls),
         pathways=_replace_pathway(definition, updated_pathway),
     )
-    updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
     return tuple(controls)
 
@@ -619,7 +592,6 @@ def move_pathway_gate(
     ordered_ids.insert(target_index, ordered_ids.pop(current_index))
     updated_pathway = replace(pathway, ordered_control_ids=tuple(ordered_ids))
     updated = replace(definition, pathways=_replace_pathway(definition, updated_pathway))
-    updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
     return updated_pathway
 
@@ -661,7 +633,6 @@ def remove_pathway_gate(
         ),
         pathways=pathways,
     )
-    updated = _synchronize_wire_controls(updated)
     _persist(harness_id, original, updated, gateway)
     return updated_pathway
 
@@ -694,20 +665,10 @@ def remove_pathway(
         )
         for junction in definition.junctions
     )
-    wires = tuple(
-        wire
-        for wire in definition.wires
-        if not any(pathway_id in deleted_pathway_ids for pathway_id in wire.ordered_pathway_ids)
-    )
     standalone_ends = tuple(
         end for end in definition.standalone_ends if end.pathway_id not in deleted_pathway_ids
     )
-    referenced_connection_ids = {
-        connection_id
-        for wire in wires
-        for connection_id in (wire.start_connection_id, wire.end_connection_id)
-    } | {end.connection_id for end in standalone_ends}
-    referenced_profile_ids = {wire.profile_id for wire in wires}
+    referenced_connection_ids = {end.connection_id for end in standalone_ends}
     referenced_control_ids = {
         control_id for pathway in pathways for control_id in pathway.ordered_control_ids
     } | {junction.control_id for junction in junctions}
@@ -725,13 +686,7 @@ def remove_pathway(
         ),
         junctions=junctions,
         pathways=pathways,
-        profiles=tuple(
-            profile
-            for profile in definition.profiles
-            if profile.profile_id in referenced_profile_ids
-        ),
         standalone_ends=standalone_ends,
-        wires=wires,
         wire_groups=_prune_wire_groups(definition.wire_groups, referenced_connection_ids),
     )
     _persist(harness_id, original, updated, gateway)
@@ -759,259 +714,13 @@ def remove_junction(
     _persist(harness_id, original, updated, gateway)
 
 
-def move_wire_endpoint(
-    harness_id: UUID,
-    wire_id: UUID,
-    endpoint: str,
-    offset: int,
-    gateway: HarnessEditGateway,
-) -> tuple[WireDefinition, ...]:
-    """
-    Reorder one endpoint within wires sharing the same pathway sequence.
-    """
-    if endpoint not in {"start", "end"}:
-        raise ValueError("Endpoint must be 'start' or 'end'.")
-    _validate_offset(offset)
-    original, definition = _read_definition(harness_id, gateway)
-    selected = next((wire for wire in definition.wires if wire.wire_id == wire_id), None)
-    if selected is None:
-        raise ValueError("Selected wire does not exist in this harness.")
-    group = [
-        wire
-        for wire in definition.wires
-        if wire.ordered_pathway_ids == selected.ordered_pathway_ids
-    ]
-    current_index = next(index for index, wire in enumerate(group) if wire.wire_id == wire_id)
-    target_index = current_index + offset
-    if target_index < 0 or target_index >= len(group):
-        raise ValueError("Selected endpoint is already at that end of its sequence.")
-
-    current_wire = group[current_index]
-    target_wire = group[target_index]
-    attribute = "start_connection_id" if endpoint == "start" else "end_connection_id"
-    replacements = {
-        current_wire.wire_id: replace(
-            current_wire,
-            **{attribute: getattr(target_wire, attribute)},
-        ),
-        target_wire.wire_id: replace(
-            target_wire,
-            **{attribute: getattr(current_wire, attribute)},
-        ),
-    }
-    updated_wires = tuple(replacements.get(wire.wire_id, wire) for wire in definition.wires)
-    updated = replace(definition, wires=updated_wires)
-    _persist(harness_id, original, updated, gateway)
-    return updated_wires
-
-
-def edit_end_members(
-    harness_id: UUID,
-    wire_id: UUID,
-    endpoint: str,
-    action: str,
-    gateway: HarnessEditGateway,
-    tokens: tuple[str, ...] = (),
-    member_index: int = 0,
-    expected_members: int = 0,
-    target_index: int = 0,
-) -> None:
-    """
-    Insert, replace, reorder, or remove profiles without creating wires.
-
-    Removing the final member deletes the connection and leaves a repairable
-    missing end reference. The expected count rejects stale member edits.
-    """
-    if endpoint not in {"start", "end"} or action not in {
-        "add",
-        "replace",
-        "remove",
-        "reorder",
-    }:
-        raise ValueError("Unsupported end-member edit.")
-    normalized = tuple(token.strip() for token in tokens)
-    if action in {"add", "replace"} and (not normalized or any(not token for token in normalized)):
-        raise ValueError("Select at least one connection profile.")
-    if action == "replace" and len(normalized) != 1:
-        raise ValueError("Select exactly one replacement profile.")
-    original, definition = _read_definition(harness_id, gateway)
-    wire = next((item for item in definition.wires if item.wire_id == wire_id), None)
-    if wire is None:
-        raise ValueError("Selected wire no longer exists.")
-    connection_id = wire.start_connection_id if endpoint == "start" else wire.end_connection_id
-    connection = next(
-        (item for item in definition.connections if item.connection_id == connection_id), None
-    )
-    members = list(connection.member_tokens) if connection else []
-    identities = list(connection.member_identities) if connection else []
-    settings = (
-        list(connection.member_interpolations or (None,) * len(members)) if connection else []
-    )
-    if len(members) != expected_members:
-        raise ValueError("End members changed; refresh the palette and try again.")
-    if action == "add":
-        if members and not 0 <= member_index < len(members):
-            raise ValueError("Selected end member no longer exists.")
-        members[member_index + 1 : member_index + 1] = normalized
-        identities[member_index + 1 : member_index + 1] = [uuid4() for _ in normalized]
-        settings[member_index + 1 : member_index + 1] = [None for _ in normalized]
-    else:
-        if member_index < 0 or member_index >= len(members):
-            raise ValueError("Selected end member no longer exists.")
-        if action == "replace":
-            members[member_index] = normalized[0]
-        elif action == "reorder":
-            if not 0 <= target_index < len(members):
-                raise ValueError("Cannot move an end member beyond the sequence.")
-            members.insert(target_index, members.pop(member_index))
-            identities.insert(target_index, identities.pop(member_index))
-            settings.insert(target_index, settings.pop(member_index))
-        else:
-            members.pop(member_index)
-            identities.pop(member_index)
-            settings.pop(member_index)
-    remaining = tuple(
-        item for item in definition.connections if item.connection_id != connection_id
-    )
-    if members:
-        name = (
-            connection.name
-            if connection
-            else next_available_name(
-                "End A 001" if endpoint == "start" else "End B 001",
-                (item.name for item in remaining),
-            )
-        )
-        updated = Connection(
-            connection_id,
-            name,
-            members[0],
-            tuple(members[1:]),
-            tuple(identities),
-            connection.interpolation if connection else definition.end_defaults,
-            tuple(settings),
-        )
-        connections = (
-            tuple(
-                updated if item.connection_id == connection_id else item
-                for item in definition.connections
-            )
-            if connection
-            else (*remaining, updated)
-        )
-    else:
-        connections = remaining
-    _persist(harness_id, original, replace(definition, connections=connections), gateway)
-
-
-def rename_route_end(
-    harness_id: UUID,
-    wire_id: UUID,
-    endpoint: str,
-    name: str,
-    gateway: HarnessEditGateway,
-) -> None:
-    """
-    Save organizational end metadata for the selected wire only.
-
-    Empty names clear the label; connection names and conductor identities remain intact.
-    """
-    if endpoint not in {"start", "end"}:
-        raise ValueError("Endpoint must be 'start' or 'end'.")
-    if not isinstance(name, str):
-        raise ValueError("End name must be a string.")
-    original, definition = _read_definition(harness_id, gateway)
-    selected = next((wire for wire in definition.wires if wire.wire_id == wire_id), None)
-    if selected is None:
-        raise ValueError("Selected wire does not exist in this harness.")
-    attribute = "start_end_name" if endpoint == "start" else "end_end_name"
-    wires = tuple(
-        replace(wire, **{attribute: name.strip()}) if wire.wire_id == selected.wire_id else wire
-        for wire in definition.wires
-    )
-    _persist(harness_id, original, replace(definition, wires=wires), gateway)
-
-
-def rename_wire(
-    harness_id: UUID,
-    wire_id: UUID,
-    name: str,
-    gateway: HarnessEditGateway,
-) -> None:
-    """
-    Set an optional display name while retaining the wire's number and UUID.
-    """
-    if not isinstance(name, str):
-        raise ValueError("Wire name must be a string.")
-    original, definition = _read_definition(harness_id, gateway)
-    if all(wire.wire_id != wire_id for wire in definition.wires):
-        raise ValueError("Selected wire does not exist in this harness.")
-    normalized = name.strip()
-    if normalized:
-        normalized = next_available_name(
-            normalized,
-            (wire.display_name for wire in definition.wires if wire.wire_id != wire_id),
-        )
-    wires = tuple(
-        replace(wire, display_name=normalized) if wire.wire_id == wire_id else wire
-        for wire in definition.wires
-    )
-    _persist(harness_id, original, replace(definition, wires=wires), gateway)
-
-
-def set_wire_diameter(
-    harness_id: UUID,
-    wire_id: UUID,
-    diameter_mm: float,
-    gateway: HarnessEditGateway,
-    id_factory: Callable[[], UUID] = uuid4,
-) -> None:
-    """
-    Update one wire's diameter, copying a shared profile before changing it.
-    """
-    if not math.isfinite(diameter_mm) or diameter_mm <= 0:
-        raise ValueError("Wire diameter must be a finite positive value.")
-    original, definition = _read_definition(harness_id, gateway)
-    wire = next((item for item in definition.wires if item.wire_id == wire_id), None)
-    if wire is None:
-        raise ValueError("Selected wire does not exist in this harness.")
-    profile = next(
-        (item for item in definition.profiles if item.profile_id == wire.profile_id), None
-    )
-    if profile is None:
-        raise ValueError("Selected wire has a missing profile.")
-    shared = any(
-        item.wire_id != wire_id and item.profile_id == profile.profile_id
-        for item in definition.wires
-    )
-    if shared:
-        updated_profile = replace(
-            profile,
-            profile_id=id_factory(),
-            diameter_mm=diameter_mm,
-            name=next_available_name(profile.name, (item.name for item in definition.profiles)),
-        )
-        profiles = (*definition.profiles, updated_profile)
-    else:
-        updated_profile = replace(profile, diameter_mm=diameter_mm)
-        profiles = tuple(
-            updated_profile if item.profile_id == profile.profile_id else item
-            for item in definition.profiles
-        )
-    wires = tuple(
-        replace(item, profile_id=updated_profile.profile_id) if item.wire_id == wire_id else item
-        for item in definition.wires
-    )
-    _persist(harness_id, original, replace(definition, profiles=profiles, wires=wires), gateway)
-
-
 def set_harness_material_defaults(
     harness_id: UUID,
     settings: WireMaterialSettings,
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Replace the parent material settings inherited by wires without overrides.
+    Replace the parent material settings inherited by wire groups without overrides.
     """
     if not isinstance(settings, WireMaterialSettings):
         raise ValueError("Harness material defaults are invalid.")
@@ -1053,27 +762,6 @@ def set_harness_properties(
     )
 
 
-def set_wire_material_overrides(
-    harness_id: UUID,
-    wire_id: UUID,
-    overrides: WireMaterialOverrides,
-    gateway: HarnessEditGateway,
-) -> None:
-    """
-    Replace one wire's field-level overrides while retaining parent inheritance.
-    """
-    if not isinstance(overrides, WireMaterialOverrides):
-        raise ValueError("Wire material overrides are invalid.")
-    original, definition = _read_definition(harness_id, gateway)
-    if not any(wire.wire_id == wire_id for wire in definition.wires):
-        raise ValueError("Selected wire does not exist in this harness.")
-    wires = tuple(
-        replace(wire, material_overrides=overrides) if wire.wire_id == wire_id else wire
-        for wire in definition.wires
-    )
-    _persist(harness_id, original, replace(definition, wires=wires), gateway)
-
-
 def rename_pathway(
     harness_id: UUID,
     pathway_id: UUID,
@@ -1105,50 +793,6 @@ def rename_pathway(
         replace(definition, pathways=_replace_pathway(definition, updated)),
         gateway,
     )
-
-
-def remove_wire(
-    harness_id: UUID,
-    wire_id: UUID,
-    gateway: HarnessEditGateway,
-) -> None:
-    """
-    Remove one complete wire pair and prune its unused connections and profile.
-    """
-    original, definition = _read_definition(harness_id, gateway)
-    removed = next((wire for wire in definition.wires if wire.wire_id == wire_id), None)
-    if removed is None:
-        raise ValueError("Selected wire does not exist in this harness.")
-    wires = tuple(wire for wire in definition.wires if wire.wire_id != wire_id)
-    referenced_connection_ids = {
-        connection_id
-        for wire in wires
-        for connection_id in (wire.start_connection_id, wire.end_connection_id)
-    }
-    referenced_profile_ids = {wire.profile_id for wire in wires}
-    removed_connection_ids = {removed.start_connection_id, removed.end_connection_id}
-    updated = replace(
-        definition,
-        connections=tuple(
-            connection
-            for connection in definition.connections
-            if connection.connection_id not in removed_connection_ids
-            or connection.connection_id in referenced_connection_ids
-        ),
-        profiles=tuple(
-            profile
-            for profile in definition.profiles
-            if profile.profile_id != removed.profile_id
-            or profile.profile_id in referenced_profile_ids
-        ),
-        wires=wires,
-        wire_groups=_prune_wire_groups(
-            definition.wire_groups,
-            {connection.connection_id for connection in definition.connections}
-            - removed_connection_ids,
-        ),
-    )
-    _persist(harness_id, original, updated, gateway)
 
 
 def remove_standalone_end(
@@ -1403,26 +1047,6 @@ def _clamp_pathway_insertion_index(
             "A one-control pathway related at both ends has no interior insertion position."
         )
     return min(max(requested_index, minimum), maximum)
-
-
-def _synchronize_wire_controls(definition: HarnessDefinition) -> HarnessDefinition:
-    """
-    Rebuild every wire's flattened controls from its ordered pathways.
-    """
-    wires: list[WireDefinition] = []
-    for wire in definition.wires:
-        try:
-            control_ids = route_control_ids(definition, wire.ordered_pathway_ids)
-        except ValueError as error:
-            if "missing pathway" in str(error):
-                raise ValueError(
-                    f"Wire {wire.wire_number} references a missing pathway and cannot be updated."
-                ) from error
-            raise ValueError(
-                f"Wire {wire.wire_number} references an invalid pathway route and cannot be updated."
-            ) from error
-        wires.append(replace(wire, ordered_control_ids=control_ids))
-    return replace(definition, wires=tuple(wires))
 
 
 def _persist(

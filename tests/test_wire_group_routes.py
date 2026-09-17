@@ -29,27 +29,26 @@ def test_plans_one_deterministic_leg_for_two_grouped_ends(
     """
     Traverse one pathway exactly once regardless of group member insertion order.
     """
-    wire = valid_harness.wires[0]
+    group = valid_harness.wire_groups[0]
+    pathway = valid_harness.pathways[0]
     group_id = UUID("60000000-0000-0000-0000-000000000001")
     forward = replace(
         valid_harness,
-        wire_groups=(
-            WireGroupDefinition(group_id, (wire.start_connection_id, wire.end_connection_id)),
-        ),
+        wire_groups=(WireGroupDefinition(group_id, group.connection_ids),),
     )
     reverse = replace(
         forward,
-        wire_groups=(
-            WireGroupDefinition(group_id, (wire.end_connection_id, wire.start_connection_id)),
-        ),
+        wire_groups=(WireGroupDefinition(group_id, tuple(reversed(group.connection_ids))),),
     )
 
     forward_leg = plan_wire_group_routes(forward)[0]
     reverse_leg = plan_wire_group_routes(reverse)[0]
 
-    assert forward_leg.pathway_ids == wire.ordered_pathway_ids
-    assert [step.control_id for step in forward_leg.control_steps] == list(wire.ordered_control_ids)
-    expected_reverse = forward_leg.start_connection_id == wire.end_connection_id
+    assert forward_leg.pathway_ids == (pathway.pathway_id,)
+    assert [step.control_id for step in forward_leg.control_steps] == list(
+        pathway.ordered_control_ids
+    )
+    expected_reverse = forward_leg.start_connection_id == group.connection_ids[1]
     assert all(step.reversed is expected_reverse for step in forward_leg.control_steps)
     assert reverse_leg == forward_leg
 
@@ -267,7 +266,6 @@ def _y_harness(
         connections=connections,
         controls=controls,
         pathways=pathways,
-        wires=(),
         junctions=(
             JunctionDefinition(UUID(int=960), "Junction", junction_control_id, relationships),
         ),

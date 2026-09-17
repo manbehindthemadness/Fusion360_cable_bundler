@@ -38,14 +38,7 @@ function renderEditor(harness) {
   }
 
   const validation = document.createElement("div");
-  const auditIssues = relationshipAuditIssues(harness);
-  const audit = document.createElement("div");
   validation.className = "section-content";
-  audit.className = `relationship-audit${auditIssues.length ? " findings" : ""}`;
-  audit.textContent = auditIssues.length
-    ? `Relationship cross-check found ${auditIssues.length} ${auditIssues.length === 1 ? "inconsistency" : "inconsistencies"}.`
-    : "Relationship cross-check agrees with wire routes, pathway occupancy, and connection usage.";
-  validation.append(audit);
   if (harness.validationMessages.length) {
     const list = document.createElement("ul");
     list.className = "validation-list errors";
@@ -58,36 +51,18 @@ function renderEditor(harness) {
   } else {
     validation.append(emptyMessage("No logical validation findings."));
   }
-  if (auditIssues.length) {
-    const list = document.createElement("ul");
-    list.className = "validation-list errors";
-    auditIssues.forEach((issue) => {
-      const item = document.createElement("li");
-      item.textContent = issue.message;
-      if (issue.memberType && issue.memberId) {
-        hoverHighlight(item, () => highlightMember(
-          harness,
-          issue.memberType === "wire" ? "preview_wire" : issue.memberType,
-          issue.memberId,
-        ));
-      }
-      list.append(item);
-    });
-    validation.append(list);
-  }
-
-  const findingCount = harness.validationMessages.length + auditIssues.length;
+  const findingCount = harness.validationMessages.length;
   ui.validationOutput.replaceChildren(...validation.children);
   ui.validationOutput.hidden = false;
   ui.validationEventsStatus.textContent = findingCount
     ? `${findingCount} ${findingCount === 1 ? "finding" : "findings"}`
     : "Clear";
 
-  const relationshipMap = renderRelationshipMap(harness, auditIssues);
+  const relationshipMap = renderRelationshipMap(harness);
   const masterSection = editorSection(
     "master-relationship-graphic",
     "Master Relationship Graphic",
-    auditIssues.length ? `${auditIssues.length} findings` : `${harness.pathways.length} pathways`,
+    `${harness.pathways.length} pathways`,
     relationshipMap,
     true,
   );

@@ -15,9 +15,10 @@ from wire_bundler.domain import (
     ControlStructure,
     HarnessDefinition,
     PathwayDefinition,
+    PathwayEndpoint,
     RoutingMode,
-    WireDefinition,
-    WireProfile,
+    StandaloneEndDefinition,
+    WireGroupDefinition,
 )
 
 pytest_plugins = ("tests.fusion_ui_support",)
@@ -26,9 +27,8 @@ pytest_plugins = ("tests.fusion_ui_support",)
 @pytest.fixture
 def valid_harness() -> HarnessDefinition:
     """
-    Create a deterministic, logically valid one-wire harness.
+    Create a deterministic, logically valid one-group harness.
     """
-    profile_id = UUID("10000000-0000-0000-0000-000000000001")
     start_id = UUID("20000000-0000-0000-0000-000000000001")
     end_id = UUID("20000000-0000-0000-0000-000000000002")
     control_id = UUID("30000000-0000-0000-0000-000000000001")
@@ -38,7 +38,6 @@ def valid_harness() -> HarnessDefinition:
         harness_id=UUID("40000000-0000-0000-0000-000000000001"),
         name="Harness_001",
         routing_mode=RoutingMode.ROUTING_GATES,
-        profiles=(WireProfile(profile_id, "Primary wire", 1.2),),
         connections=(
             Connection(start_id, "J1 / Pin 1", "fusion-start-token"),
             Connection(end_id, "J2 / Pin 4", "fusion-end-token"),
@@ -59,15 +58,15 @@ def valid_harness() -> HarnessDefinition:
                 (control_id,),
             ),
         ),
-        wires=(
-            WireDefinition(
-                wire_id=UUID("50000000-0000-0000-0000-000000000001"),
-                wire_number="001",
-                start_connection_id=start_id,
-                end_connection_id=end_id,
-                profile_id=profile_id,
-                ordered_pathway_ids=(pathway_id,),
-                ordered_control_ids=(control_id,),
+        standalone_ends=(
+            StandaloneEndDefinition(start_id, pathway_id, PathwayEndpoint.START),
+            StandaloneEndDefinition(end_id, pathway_id, PathwayEndpoint.END),
+        ),
+        wire_groups=(
+            WireGroupDefinition(
+                wire_group_id=UUID("50000000-0000-0000-0000-000000000001"),
+                connection_ids=(start_id, end_id),
+                diameter_mm=1.2,
             ),
         ),
     )

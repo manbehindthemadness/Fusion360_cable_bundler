@@ -19,10 +19,8 @@ from .constants import (
     ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
     ADD_REFINE_COMMAND_ID,
-    ADD_WIRES_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
     COMMAND_ID,
-    EDIT_END_COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
 )
@@ -133,25 +131,6 @@ def _open_add_junction_relationship_command(
         raise
 
 
-def _open_end_member_edit(application: adsk.core.Application, serialized_data: str) -> None:
-    """
-    Open the native member picker for a validated palette request.
-    """
-    payload = _read_palette_payload(serialized_data)
-    if payload.get("editAction") not in {"add", "replace"}:
-        raise ValueError("Unsupported profile selection action.")
-    command = application.userInterface.commandDefinitions.itemById(EDIT_END_COMMAND_ID)
-    if command is None:
-        raise RuntimeError("End-member selection is unavailable.")
-    _runtime.pending_end_edit.prepare(payload)
-    try:
-        if not command.execute():
-            raise RuntimeError("Fusion could not open profile selection.")
-    except (AttributeError, RuntimeError, TypeError, ValueError):
-        _runtime.pending_end_edit.clear()
-        raise
-
-
 def _open_append_gates_command(application: adsk.core.Application, serialized_data: str) -> None:
     """
     Open native profile selection for the palette-selected pathway.
@@ -254,37 +233,4 @@ def _open_add_end_command(application: adsk.core.Application, serialized_data: s
             raise RuntimeError("Fusion did not open the Add End command.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_standalone_end.clear()
-        raise
-
-
-def _open_add_wires_command(application: adsk.core.Application, serialized_data: str) -> None:
-    """
-    Open the native wire-assignment command for the selected harness.
-
-    Raises:
-        RuntimeError: If Fusion cannot open the command.
-        ValueError: If the palette payload is malformed.
-    """
-
-    payload = json.loads(serialized_data)
-    if not isinstance(payload, dict):
-        raise ValueError("Add Wires request must be a JSON object.")
-    raw_harness_id = payload.get("harnessId")
-    if not isinstance(raw_harness_id, str):
-        raise ValueError("Add Wires request is missing a harness identity.")
-    harness_id = UUID(raw_harness_id)
-    raw_pathway_id = payload.get("pathwayId")
-    if raw_pathway_id is not None and not isinstance(raw_pathway_id, str):
-        raise ValueError("Add Wires request has an invalid pathway identity.")
-    pathway_id = UUID(raw_pathway_id) if raw_pathway_id else None
-    command_definition = application.userInterface.commandDefinitions.itemById(ADD_WIRES_COMMAND_ID)
-    if command_definition is None:
-        raise RuntimeError("Fusion Add Wires command is unavailable.")
-
-    _runtime.pending_add_wires.prepare((harness_id, pathway_id))
-    try:
-        if not command_definition.execute():
-            raise RuntimeError("Fusion did not open the Add Wires command.")
-    except Exception:
-        _runtime.pending_add_wires.clear()
         raise

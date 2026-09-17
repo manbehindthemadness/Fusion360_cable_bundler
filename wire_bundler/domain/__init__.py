@@ -20,13 +20,10 @@ from .model import (
     StripePattern,
     WireAppearanceReference,
     WireColor,
-    WireDefinition,
     WireGroupDefinition,
     WireMaterialOverrides,
     WireMaterialSettings,
-    WireProfile,
     WireStripe,
-    route_control_ids,
 )
 from .naming import next_available_name
 from .validation import ValidationIssue, validate_harness
@@ -49,16 +46,13 @@ __all__ = [
     "StripePattern",
     "ValidationIssue",
     "WireAppearanceReference",
-    "WireDefinition",
     "WireGroupDefinition",
     "WireColor",
     "WireMaterialOverrides",
     "WireMaterialSettings",
-    "WireProfile",
     "WireStripe",
     "dumps",
     "loads",
     "next_available_name",
-    "route_control_ids",
     "validate_harness",
 ]

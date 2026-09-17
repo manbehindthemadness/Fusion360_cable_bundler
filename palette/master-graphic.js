@@ -2,7 +2,7 @@ const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "4";
 const RELATIONSHIP_DIAGRAM_LAYOUT = "endpoint-junction-forest";
 
 /** Assemble the filterable master relationship diagram from focused components. */
-function renderRelationshipMap(harness, auditIssues) {
+function renderRelationshipMap(harness) {
   const diagramViewKey = harnessKey(harness);
   const savedDiagramView = relationshipDiagramViews.get(diagramViewKey);
   let restoreInitialView = savedDiagramView !== undefined;
@@ -33,12 +33,12 @@ function renderRelationshipMap(harness, auditIssues) {
   toolbar.className = "relationship-map-toolbar";
   filter.className = "filter";
   filter.type = "search";
-  filter.placeholder = "Find a wire, connection, or pathway…";
+  filter.placeholder = "Find a wire group, connection, or pathway…";
   filter.setAttribute("aria-label", "Filter master relationship graphic");
   filter.autocomplete = "off";
   filter.value = relationshipFilters.get(harnessKey(harness)) || "";
   summary.className = "relationship-map-summary";
-  summary.textContent = auditIssues.length ? `${auditIssues.length} cross-check findings` : "Cross-check clear";
+  summary.textContent = `${(harness.wireGroups || []).length} wire groups`;
   toolbar.append(filter, summary);
   settings.className = "relationship-map-settings";
   settings.textContent = "Collapse end lists above";
@@ -64,24 +64,27 @@ function renderRelationshipMap(harness, auditIssues) {
     relationshipTopology(harness).forEach((component) => {
       const searchable = component.nodes.map((node) => {
         if (node.kind === "junction") return node.item.name || "";
-        const wires = relationshipPathwayWires(harness, node.item.pathwayId);
+        const groups = relationshipPathwayGroups(harness, node.item.pathwayId);
         const endpointSearch = ["start", "end"].flatMap((endpoint) => (
           relationshipEndGroups(harness, node.item.pathwayId, endpoint, connections)
             .map((group) => group.searchable)
         )).join(" ");
-        const wireSearch = wires.reduce((search, wire) => `${search} ${wireLabel(wire)}`, "");
-        return `${node.item.name} ${node.item.startName || ""} ${node.item.endName || ""} ${wireSearch} ${endpointSearch}`;
+        const groupSearch = groups.reduce(
+          (search, group) => `${search} ${wireGroupLabel(harness, group)}`,
+          "",
+        );
+        return `${node.item.name} ${node.item.startName || ""} ${node.item.endName || ""} ${groupSearch} ${endpointSearch}`;
       }).join(" ").toLocaleLowerCase();
       if (query && !searchable.includes(query)) return;
       component.nodes.forEach((node) => {
         const wrapper = document.createElement("div");
-        const memberWires = node.kind === "junction"
-          ? relationshipJunctionWires(harness, node.item)
-          : relationshipPathwayWires(harness, node.item.pathwayId);
+        const memberGroups = node.kind === "junction"
+          ? relationshipJunctionGroups(harness, node.item)
+          : relationshipPathwayGroups(harness, node.item.pathwayId);
         const focusNodeIds = [node.id, ...node.neighbors];
         wrapper.className = `relationship-topology-node relationship-topology-${node.kind}`;
         wrapper.dataset.nodeId = node.id;
-        wrapper.dataset.wireIds = relationshipWireIds(memberWires);
+        wrapper.dataset.wireGroupIds = relationshipGroupIds(memberGroups);
         if (node.kind === "junction") {
           wrapper.dataset.junctionId = node.item.junctionId;
           wrapper.append(renderRelationshipJunctionHub(

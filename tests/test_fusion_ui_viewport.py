@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from tests.fusion_ui_support import (
+    UUID,
     HarnessDefinition,
     Mock,
     SimpleNamespace,
@@ -20,7 +21,6 @@ from tests.fusion_ui_support import (
     [
         ("control", "control_id", ("fusion-gate-token",)),
         ("connection", "connection_id", ("fusion-start-token",)),
-        ("wire", "wire_id", ("fusion-start-token", "fusion-end-token")),
     ],
 )
 def test_resolves_palette_members_to_linked_geometry_tokens(
@@ -31,79 +31,17 @@ def test_resolves_palette_members_to_linked_geometry_tokens(
     expected_tokens: tuple[str, ...],
 ) -> None:
     """
-    Resolve stable UI identities without exposing opaque Fusion tokens to HTML.
+    Resolve stable group-era UI identities without exposing Fusion tokens to HTML.
     """
     collections = {
         "control": valid_harness.controls,
         "connection": valid_harness.connections,
-        "wire": valid_harness.wires,
     }
     member_id = getattr(collections[member_type][0], identity_attribute)
 
-    tokens = addin_module._member_entity_tokens(valid_harness, member_type, member_id)
-
-    assert tokens == expected_tokens
-
-
-def test_highlights_both_wire_endpoint_profiles(
-    addin_module: _PaletteLifecycleModule,
-    monkeypatch: pytest.MonkeyPatch,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Highlight a wire's generated body together with both endpoint profiles.
-    """
-    start_profile = object()
-    end_profile = object()
-    profiles_by_token = {
-        "fusion-start-token": [start_profile],
-        "fusion-end-token": [end_profile],
-    }
-    design = SimpleNamespace(
-        findEntityByToken=profiles_by_token.get,
-        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0)),
+    assert (
+        addin_module._member_entity_tokens(valid_harness, member_type, member_id) == expected_tokens
     )
-    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
-    viewport = SimpleNamespace(refresh=Mock())
-    generated_body = object()
-    harness_component = object()
-    application = SimpleNamespace(
-        userInterface=SimpleNamespace(activeSelections=selections),
-        activeViewport=viewport,
-    )
-    gateway = SimpleNamespace(
-        read_harness_definition=lambda _harness_id: dumps(valid_harness),
-        harness_component=Mock(return_value=harness_component),
-    )
-    fusion_module = sys.modules["adsk.fusion"]
-    fusion_module.Profile = SimpleNamespace(cast=lambda entity: entity)  # type: ignore[attr-defined]
-    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
-    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    generated_bodies = Mock(return_value=(generated_body,))
-    monkeypatch.setattr(addin_module, "generated_wire_bodies", generated_bodies)
-    payload = json.dumps(
-        {
-            "harnessId": str(valid_harness.harness_id),
-            "memberType": "wire",
-            "memberId": str(valid_harness.wires[0].wire_id),
-        }
-    )
-
-    count = addin_module._highlight_member(application, payload)
-
-    assert count == 3
-    selections.clear.assert_called_once_with()
-    assert [call.args[0] for call in selections.add.call_args_list] == [
-        start_profile,
-        end_profile,
-        generated_body,
-    ]
-    generated_bodies.assert_called_once_with(
-        design.rootComponent,
-        harness_component,
-        (valid_harness.wires[0].wire_id,),
-    )
-    viewport.refresh.assert_called_once_with()
 
 
 def test_connection_highlights_its_generated_wire_group_body(
@@ -146,7 +84,6 @@ def test_connection_highlights_its_generated_wire_group_body(
     )
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "generated_wire_bodies", lambda *_args: ())
     grouped_bodies = Mock(return_value=(group_body,))
     monkeypatch.setattr(addin_module, "generated_wire_group_bodies", grouped_bodies)
     payload = json.dumps(
@@ -173,7 +110,7 @@ def test_preview_hover_emphasizes_only_matching_centerline(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Emphasize an existing wire preview and clear it without selecting sketch profiles.
+    Emphasize one group route leg and clear it without selecting sketch profiles.
     """
     from wire_bundler.fusion import route_preview
 
@@ -187,26 +124,42 @@ def test_preview_hover_emphasizes_only_matching_centerline(
     )
     selected = SimpleNamespace(weight=1.0)
     other = SimpleNamespace(weight=1.0)
+    route_id = UUID(int=777)
     child_groups = [
-        SimpleNamespace(id=str(valid_harness.wires[0].wire_id), count=1, item=lambda _i: selected),
+        SimpleNamespace(
+            id=str(route_id),
+            count=1,
+            item=lambda _i: selected,
+        ),
         SimpleNamespace(id="other-wire", count=1, item=lambda _i: other),
     ]
     group = SimpleNamespace(
         id=route_preview.PREVIEW_GROUP_ID, count=2, item=child_groups.__getitem__
+    )
+    group_id = valid_harness.wire_groups[0].wire_group_id
+    monkeypatch.setitem(
+        route_preview._preview_states,
+        group.id,
+        SimpleNamespace(
+            route_group_ids={route_id: group_id},
+            route_connection_ids={},
+            route_pathway_ids={},
+            route_control_ids={},
+        ),
     )
     design = SimpleNamespace(
         rootComponent=SimpleNamespace(
             customGraphicsGroups=SimpleNamespace(count=1, item=lambda _i: group)
         )
     )
-    count = addin_module.highlight_route_preview(design, valid_harness.wires[0].wire_id)
+    count = addin_module.highlight_route_preview(design, group_id)
     assert count == 1
     assert selected.weight == 5.0
     assert other.weight == 1.0
     assert addin_module.highlight_route_preview(design, None) == 0
     assert selected.weight == 1.0
     design.rootComponent.customGraphicsGroups.count = 0
-    assert addin_module.highlight_route_preview(design, valid_harness.wires[0].wire_id) == 0
+    assert addin_module.highlight_route_preview(design, group_id) == 0
 
 
 def test_preview_reports_dynamic_transition_adjustment_as_information(

@@ -1,11 +1,11 @@
-/** Derive stable relationship membership and topology for the master diagram. */
+/** Derive stable wire-group membership and topology for the master diagram. */
 
-function relationshipWireIds(wires) {
-  return wires.map((wire) => wire.wireId).join(" ");
+function relationshipGroupIds(groups) {
+  return groups.map((group) => group.wireGroupId).filter(Boolean).join(" ");
 }
 
-function relationshipElementWireIds(element) {
-  const value = element.dataset?.wireIds || element.dataset?.wireId || "";
+function relationshipElementGroupIds(element) {
+  const value = element.dataset?.wireGroupIds || element.dataset?.wireGroupId || "";
   return new Set(value.split(" ").filter(Boolean));
 }
 
@@ -13,7 +13,7 @@ function relationshipSetsIntersect(left, right) {
   return [...left].some((value) => right.has(value));
 }
 
-/** Apply transient focus to every master-diagram element sharing route membership. */
+/** Apply transient focus to every master-diagram element sharing group membership. */
 function createRelationshipFocusController(container) {
   const itemClasses = [
     "relationship-topology-node",
@@ -45,17 +45,17 @@ function createRelationshipFocusController(container) {
     const focus = keyboardFocus || pointerFocus;
     if (!focus) return;
     container.classList.add("relationship-focus-active");
-    const wireIds = new Set(focus.wireIds);
+    const groupIds = new Set(focus.groupIds);
     const nodeIds = new Set(focus.nodeIds);
     items().forEach((item) => {
-      const itemWireIds = relationshipElementWireIds(item);
+      const itemGroupIds = relationshipElementGroupIds(item);
       const itemNodeIds = new Set([
         item.dataset?.nodeId,
         item.dataset?.sourceId,
         item.dataset?.targetId,
       ].filter(Boolean));
-      const matches = wireIds.size
-        ? relationshipSetsIntersect(wireIds, itemWireIds)
+      const matches = groupIds.size
+        ? relationshipSetsIntersect(groupIds, itemGroupIds)
         : relationshipSetsIntersect(nodeIds, itemNodeIds);
       item.classList.add(matches ? "relationship-focus-match" : "relationship-focus-dimmed");
     });
@@ -66,7 +66,7 @@ function createRelationshipFocusController(container) {
     sources.add(source);
     const focus = {
       source,
-      wireIds: descriptor.wires.map((wire) => wire.wireId),
+      groupIds: descriptor.groups.map((group) => group.wireGroupId),
       nodeIds: descriptor.nodeIds || [],
     };
     source.addEventListener("mouseenter", () => {
@@ -93,65 +93,32 @@ function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
   const wireGroupByConnection = new Map();
   (harness.wireGroups || []).forEach((wireGroup) => {
     (wireGroup.connectionIds || []).forEach((connectionId) => {
-      wireGroupByConnection.set(connectionId, wireGroup.wireGroupId);
+      wireGroupByConnection.set(connectionId, wireGroup);
     });
   });
-  const connectionField = endpoint === "start" ? "startConnectionId" : "endConnectionId";
-  const endpointNameField = endpoint === "start" ? "startEndName" : "endEndName";
-  const groups = new Map();
-  harness.wires
-    .filter((wire) => {
-      const pathwayIndex = endpoint === "start" ? 0 : wire.orderedPathwayIds.length - 1;
-      return wire.orderedPathwayIds[pathwayIndex] === pathwayId;
-    })
-    .forEach((wire) => {
-      const connectionId = wire[connectionField] || "";
-      const groupKey = connectionId || `missing:${wire.wireId}`;
-      if (!groups.has(groupKey)) {
-        groups.set(groupKey, {
-          connectionId,
-          connectionName: connections.get(connectionId)?.name || "",
-          endpointNames: new Set(),
-          wires: [],
-          standalone: false,
-        });
-      }
-      const group = groups.get(groupKey);
-      if (wire[endpointNameField]) group.endpointNames.add(wire[endpointNameField]);
-      group.wires.push(wire);
-    });
-  (harness.standaloneEnds || [])
+  return (harness.standaloneEnds || [])
     .filter((end) => end.pathwayId === pathwayId && end.endpoint === endpoint)
-    .forEach((end) => {
+    .map((end) => {
       const connection = connections.get(end.connectionId);
-      groups.set(end.connectionId, {
+      const wireGroup = wireGroupByConnection.get(end.connectionId) || null;
+      const label = connection?.name || `Missing End ${endpoint === "start" ? "A" : "B"}`;
+      return {
         connectionId: end.connectionId,
         connectionName: connection?.name || "",
-        endpointNames: new Set(),
-        wires: [],
+        groups: wireGroup ? [wireGroup] : [],
         standalone: true,
-      });
+        wireGroupId: wireGroup?.wireGroupId || "",
+        label,
+        searchable: `${label} ${connection?.name || ""} ${wireGroup?.materials?.insulationMaterial || ""} ${wireGroup?.materials?.mainColor?.name || ""}`
+          .toLocaleLowerCase(),
+      };
     });
-  return [...groups.values()].map((group) => {
-    const endpointNames = [...group.endpointNames];
-    const label = endpointNames.length === 1
-      ? endpointNames[0]
-      : group.connectionName || `Missing End ${endpoint === "start" ? "A" : "B"}`;
-    const wireSearch = group.wires.map((wire) => (
-      `${wireLabel(wire)} ${wire.wireNumber} ${wire.materials?.insulationMaterial || ""} ${wire.materials?.mainColor?.name || ""}`
-    )).join(" ");
-    return {
-      ...group,
-      wireGroupId: wireGroupByConnection.get(group.connectionId) || "",
-      label,
-      searchable: `${label} ${group.connectionName} ${endpointNames.join(" ")} ${wireSearch}`
-        .toLocaleLowerCase(),
-    };
-  });
 }
 
-function relationshipPathwayWires(harness, pathwayId) {
-  return harness.wires.filter((wire) => wire.orderedPathwayIds.includes(pathwayId));
+function relationshipPathwayGroups(harness, pathwayId) {
+  return (harness.wireGroups || []).filter((group) => (
+    (group.routeLegs || []).some((leg) => (leg.pathwayIds || []).includes(pathwayId))
+  ));
 }
 
 /** Return the selected pathway and its exclusively downstream pathway branch. */
@@ -185,17 +152,12 @@ function relationshipBranchDeletionIds(harness, rootPathwayIds) {
   return deletedPathwayIds;
 }
 
-function relationshipJunctionWires(harness, junction) {
-  const relationships = junction.pathwayRelationships || [];
-  const preceding = new Set(
-    relationships.filter((item) => item.endpoint === "end").map((item) => item.pathwayId),
-  );
-  const following = new Set(
-    relationships.filter((item) => item.endpoint === "start").map((item) => item.pathwayId),
-  );
-  return harness.wires.filter((wire) => wire.orderedPathwayIds.some((pathwayId, index) => (
-    preceding.has(pathwayId) && following.has(wire.orderedPathwayIds[index + 1])
-  )));
+function relationshipJunctionGroups(harness, junction) {
+  return (harness.wireGroups || []).filter((group) => (
+    (group.routeLegs || []).some((leg) => (
+      (leg.controlSteps || []).some((step) => step.controlId === junction.controlId)
+    ))
+  ));
 }
 
 function relationshipTopology(harness) {

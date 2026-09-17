@@ -5,6 +5,7 @@ Fusion command controllers for pathways.
 from __future__ import annotations
 
 import traceback
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
@@ -460,6 +461,22 @@ def _native_fusion_entity(entity: object) -> object:
     """
     native = getattr(entity, "nativeObject", None)
     return native if native is not None else entity
+
+
+def _native_profile_entities(
+    design: adsk.fusion.Design,
+    entity_tokens: Iterable[str],
+) -> tuple[object, ...]:
+    """
+    Resolve persisted entity tokens to native Fusion profiles.
+    """
+    profiles: list[object] = []
+    for token in set(entity_tokens):
+        for entity in design.findEntityByToken(token) or ():
+            profile = adsk.fusion.Profile.cast(entity)
+            if profile is not None:
+                profiles.append(_native_fusion_entity(profile))
+    return tuple(profiles)
 
 
 def _segment_entity_control_id(
