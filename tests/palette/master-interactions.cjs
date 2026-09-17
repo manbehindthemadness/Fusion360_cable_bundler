@@ -126,9 +126,14 @@ asyncTest('empty-space context menu previews grouped wire ends', async () => {
   const definition = harness();
   definition.wires = [];
   definition.wireGroups = [{ wireGroupId: 'g1', connectionIds: ['a1', 'b1'] }];
+  context.window.confirm = () => true;
   context.send = async (action, payload) => {
     calls.push({ action, payload });
     return { ok: true };
+  };
+  context.mutate = (action, payload, progress) => {
+    context.appendNotice(progress);
+    calls.push({ action, payload });
   };
   runInNewContext(
     'currentState = { harnesses: [definition] }; selectedHarnessKey = "h";',
@@ -146,10 +151,24 @@ asyncTest('empty-space context menu previews grouped wire ends', async () => {
 
   assert.equal(menu.children[0].textContent, 'Preview Routes');
   assert.equal(menu.children[0].disabled, false);
+  assert.equal(menu.children[2].textContent, 'Generate Solids');
+  assert.equal(menu.children[2].disabled, false);
+  assert.equal(menu.children[2].title, '');
   menu.children[0].events.click();
   await Promise.resolve();
   assert.equal(calls[0].action, 'preview_routes');
   assert.equal(calls[0].payload.harnessId, 'h');
+
+  viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
+  menu.children[2].events.click();
+  await Promise.resolve();
+  assert.equal(calls[1].action, 'generate_solids');
+  assert.equal(calls[1].payload.harnessId, 'h');
+  assert.equal(calls[1].payload.replaceExisting, true);
+  assert.ok(
+    Array.from(context.ui.notice.children)
+      .some((entry) => entry.textContent === 'Generating wire solids…'),
+  );
 });
 
 asyncTest('existing master background menu runs moved toolbar commands', async () => {
@@ -394,7 +413,7 @@ asyncTest('master graphic adds and renders one disconnected pathway end', async 
   assert.equal(calls[2].payload.connectionId, 'loose-end');
 
   viewport.events.contextmenu({ clientX: 80, clientY: 90, preventDefault: () => {} });
-  menu.children[2].events.click();
+  menu.children[7].events.click();
   await Promise.resolve();
   assert.equal(calls[3].action, 'add_end');
   assert.equal(calls[3].payload.harnessId, 'h');

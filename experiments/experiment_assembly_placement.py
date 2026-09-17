@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import traceback
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
@@ -23,18 +24,39 @@ import adsk.core  # noqa: E402
 # noinspection PyUnresolvedReferences
 import adsk.fusion  # noqa: E402
 
+from experiments.experiment_command_history import _create_circular_profile  # noqa: E402
 from experiments.experiment_preview_reload import (  # noqa: E402
     _delete_temporary_data_file,
     _wait_for_cloud_processing,
 )
 from experiments.scenario_report import ScenarioReport  # noqa: E402
-from wire_bundler.application import create_empty_harness  # noqa: E402
-from wire_bundler.domain import RoutingMode, loads  # noqa: E402
+from wire_bundler.application import (  # noqa: E402
+    add_pathway,
+    add_wire_batch,
+    create_empty_harness,
+)
+from wire_bundler.domain import (  # noqa: E402
+    RoutingMode,
+    WireGroupDefinition,
+    dumps,
+    loads,
+)
 from wire_bundler.fusion import FusionHarnessGateway  # noqa: E402
+from wire_bundler.fusion.wire_solids import (  # noqa: E402
+    generate_wire_group_solids,
+    generated_wire_group_occurrences,
+)
 
 SCENARIO_NAME = "assembly_placement"
 ARTIFACT_ROOT = ADDIN_ROOT / "artifacts" / "verification"
 HARNESS_ID = UUID("7a000000-0000-0000-0000-000000000001")
+CONTROL_ID = UUID("7a000000-0000-0000-0000-000000000011")
+PATHWAY_ID = UUID("7a000000-0000-0000-0000-000000000012")
+PROFILE_ID = UUID("7a000000-0000-0000-0000-000000000013")
+SOURCE_CONNECTION_ID = UUID("7a000000-0000-0000-0000-000000000014")
+DESTINATION_CONNECTION_ID = UUID("7a000000-0000-0000-0000-000000000015")
+WIRE_ID = UUID("7a000000-0000-0000-0000-000000000016")
+WIRE_GROUP_ID = UUID("7a000000-0000-0000-0000-000000000017")
 
 
 def run(_context: object) -> None:
@@ -113,6 +135,62 @@ def verify_assembly_placement(
             if len(stored) != 1 or loads(stored[0].serialized_definition).harness_id != HARNESS_ID:
                 raise AssertionError("External harness metadata was not discoverable before save.")
 
+        with report.step("Generate grouped geometry inside external harness"):
+            harness_component = gateway.harness_component(HARNESS_ID)
+            source = _create_circular_profile(
+                harness_component, 0.0, 0.0, 0.0, 0.12, "QA External Source"
+            )
+            gate = _create_circular_profile(
+                harness_component, 5.0, 0.0, 0.0, 0.8, "QA External Gate"
+            )
+            destination = _create_circular_profile(
+                harness_component, 10.0, 0.0, 0.0, 0.12, "QA External Destination"
+            )
+            pathway_ids = iter((CONTROL_ID, PATHWAY_ID))
+            add_pathway(
+                HARNESS_ID,
+                "QA External Pathway",
+                RoutingMode.ROUTING_GATES,
+                (gate.entityToken,),
+                gateway,
+                id_factory=lambda: next(pathway_ids),
+            )
+            wire_ids = iter((PROFILE_ID, SOURCE_CONNECTION_ID, DESTINATION_CONNECTION_ID, WIRE_ID))
+            add_wire_batch(
+                HARNESS_ID,
+                PATHWAY_ID,
+                (source.entityToken,),
+                (destination.entityToken,),
+                1.0,
+                gateway,
+                id_factory=lambda: next(wire_ids),
+            )
+            routed_definition = loads(gateway.read_harness_definition(HARNESS_ID))
+            wire = routed_definition.wires[0]
+            grouped_definition = replace(
+                routed_definition,
+                wire_groups=(
+                    WireGroupDefinition(
+                        WIRE_GROUP_ID,
+                        (wire.start_connection_id, wire.end_connection_id),
+                        routed_definition.profiles[0].diameter_mm,
+                    ),
+                ),
+            )
+            gateway.replace_harness_definition(HARNESS_ID, dumps(grouped_definition))
+            if (
+                generate_wire_group_solids(
+                    design,
+                    harness_component,
+                    grouped_definition,
+                )
+                != 1
+            ):
+                raise AssertionError("Assembly harness did not generate one grouped solid.")
+            generated = generated_wire_group_occurrences(harness_component)
+            if len(generated) != 1 or generated[0].component.bRepBodies.count != 1:
+                raise AssertionError("Assembly harness did not own its single routed body.")
+
         with report.step("Save parent and external harness files"):
             if not parent_document.saveAs(
                 parent_name,
@@ -173,6 +251,10 @@ def verify_assembly_placement(
             reopened_definition = loads(reopened_stored[0].serialized_definition)
             if reopened_definition.harness_id != HARNESS_ID:
                 raise AssertionError("Reopened external harness identity changed.")
+            reopened_harness = reopened_gateway.harness_component(HARNESS_ID)
+            reopened_generated = generated_wire_group_occurrences(reopened_harness)
+            if len(reopened_generated) != 1:
+                raise AssertionError("Reopened external harness lost grouped geometry.")
 
         report.record_observation(
             "fusion.assemblyPlacement",
@@ -180,6 +262,7 @@ def verify_assembly_placement(
                 "assemblyIntentPersisted": True,
                 "externalOccurrencePersisted": True,
                 "externalHarnessIdentityPersisted": True,
+                "externalGroupedGeometryPersisted": True,
                 "parentChildReferenceCount": 1,
             },
         )

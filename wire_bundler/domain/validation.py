@@ -46,8 +46,14 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
         )
     if not definition.name.strip():
         issues.append(ValidationIssue("missing_name", "name", "Harness name is required."))
-    if not definition.wires:
-        issues.append(ValidationIssue("missing_wires", "wires", "At least one wire is required."))
+    if not definition.wires and not definition.wire_groups:
+        issues.append(
+            ValidationIssue(
+                "missing_wires",
+                "wires",
+                "At least one wire or wire group is required.",
+            )
+        )
 
     _validate_unique_ids(definition, issues)
     _validate_profiles(definition, issues)

@@ -416,8 +416,8 @@ function addRelationshipMapContextMenu(workspace, harness) {
       {
         label: "Generate Solids",
         action: generateSolids,
-        disabled: !harness.wires?.length,
-        title: harness.wires?.length ? "" : "Requires at least one wire",
+        disabled: !(harness.wireGroups || []).length,
+        title: (harness.wireGroups || []).length ? "" : "Requires at least one wire group",
       },
       { label: "Clear Solids", action: clearSolids },
       { label: "Refresh", action: refresh },

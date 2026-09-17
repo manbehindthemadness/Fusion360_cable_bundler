@@ -18,13 +18,27 @@ import pytest
 
 from wire_bundler.domain import (
     HarnessDefinition,
+    PathwayEndpoint,
+    StandaloneEndDefinition,
     WireAppearanceReference,
     WireColor,
     WireDefinition,
+    WireGroupDefinition,
     WireMaterialSettings,
     WireStripe,
 )
 from wire_bundler.routing import CubicBezier, RoutePreview, Vector3
+
+
+class _SweepSegment(Protocol):
+    """
+    Describe construction ownership returned by the Fusion adapter.
+    """
+
+    route: RoutePreview
+    source_route_index: int
+    segment_index: int
+    segment_count: int
 
 
 class _SolidsModule(Protocol):
@@ -33,12 +47,28 @@ class _SolidsModule(Protocol):
     """
 
     generate_wire_solids: Callable[..., int]
+    generate_wire_group_solids: Callable[..., int]
     generated_wire_bodies: Callable[..., tuple[object, ...]]
+    generated_wire_group_bodies: Callable[..., tuple[object, ...]]
     clear_wire_solids: Callable[..., int]
     solve_route_centerlines: Callable[..., tuple[RoutePreview, ...]]
+    solve_wire_group_centerlines: Callable[..., tuple[tuple[RoutePreview, ...], tuple[object, ...]]]
     build_wire_sweep: Callable[..., None]
+    build_wire_group_solid: Callable[..., None]
     apply_wire_materials: Callable[..., int]
+    apply_wire_group_materials: Callable[..., int]
+    validate_harness: Callable[..., tuple[object, ...]]
     GENERATED_STRIPE_GROUP_ID: str
+    _build_route_sweep: Callable[..., tuple[object, float, RoutePreview, object]]
+    _orient_group_routes: Callable[
+        [tuple[RoutePreview, ...]], tuple[tuple[RoutePreview, ...], tuple[Optional[int], ...]]
+    ]
+    _prepare_group_sweep_segments: Callable[
+        [tuple[RoutePreview, ...]], tuple[tuple[_SweepSegment, ...], tuple[Optional[int], ...]]
+    ]
+    _reverse_route: Callable[[RoutePreview], RoutePreview]
+    _shared_route_endpoints: Callable[..., tuple[tuple[Vector3, tuple[int, ...]], ...]]
+    _replace_group_stripe_graphics: Callable[..., int]
     _replace_stripe_graphics: Callable[..., int]
     _route_from_metadata: Callable[..., Optional[RoutePreview]]
     _route_in_component_space: Callable[..., RoutePreview]
@@ -69,7 +99,9 @@ def solids(monkeypatch: pytest.MonkeyPatch) -> _SolidsModule:
         Path=SimpleNamespace(create=Mock(side_effect=RuntimeError("Utils::getObjectPath"))),
         ChainedCurveOptions=SimpleNamespace(noChainedCurves=0),
         SplineDegrees=SimpleNamespace(SplineDegreeThree=3),
-        FeatureOperations=SimpleNamespace(NewBodyFeatureOperation=0),
+        FeatureOperations=SimpleNamespace(
+            NewBodyFeatureOperation=0,
+        ),
     )
     for name, value in (("adsk", adsk), ("adsk.core", core), ("adsk.fusion", fusion)):
         monkeypatch.setitem(sys.modules, name, value)
@@ -92,6 +124,53 @@ def _route(wire: WireDefinition) -> RoutePreview:
             CubicBezier(b, Vector3(2, 0, 3), Vector3(2, 0, 4), c),
         ),
     )
+
+
+def _straight_route(identity: int, label: str, start: Vector3, end: Vector3) -> RoutePreview:
+    """
+    Provide one straight route for junction-topology regressions.
+    """
+    delta = Vector3(
+        (end.x - start.x) / 3.0,
+        (end.y - start.y) / 3.0,
+        (end.z - start.z) / 3.0,
+    )
+    curve = CubicBezier(
+        start,
+        Vector3(start.x + delta.x, start.y + delta.y, start.z + delta.z),
+        Vector3(end.x - delta.x, end.y - delta.y, end.z - delta.z),
+        end,
+    )
+    return RoutePreview(UUID(int=identity), label, (start, end), (curve,))
+
+
+def _pass_through_route(
+    identity: int,
+    label: str,
+    start: Vector3,
+    junction: Vector3,
+    end: Vector3,
+) -> RoutePreview:
+    """
+    Provide one logical route whose exact curves pass through a junction.
+    """
+    left = _straight_route(identity, label, start, junction).curves[0]
+    right = _straight_route(identity, label, junction, end).curves[0]
+    return RoutePreview(UUID(int=identity), label, (start, junction, end), (left, right))
+
+
+def _terminal_lead(identity: int, label: str, junction: Vector3) -> RoutePreview:
+    """
+    Provide one curved lead with a terminal tangent parallel to the pass-through route.
+    """
+    start = Vector3(junction.x - 5.0, junction.y - 5.0, junction.z)
+    curve = CubicBezier(
+        start,
+        Vector3(start.x, junction.y - 3.0, junction.z),
+        Vector3(junction.x - 2.0, junction.y, junction.z),
+        junction,
+    )
+    return RoutePreview(UUID(int=identity), label, (start, junction), (curve,))
 
 
 @pytest.mark.parametrize("fail_second", [False, True])
@@ -174,6 +253,321 @@ def test_requires_confirmation_before_replacing_output(
     with pytest.raises(ValueError, match="confirm rebuilding"):
         solids.generate_wire_solids(object(), harness, valid_harness)
     harness.occurrences.addNewComponent.assert_not_called()
+
+
+@pytest.mark.parametrize("fail_build", [False, True])
+def test_group_generation_stages_components_before_replacing_all_managed_output(
+    solids: _SolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    fail_build: bool,
+) -> None:
+    """
+    Preserve old legacy output until every grouped component has been built.
+    """
+    wire = valid_harness.wires[0]
+    group = WireGroupDefinition(
+        UUID(int=850),
+        (wire.start_connection_id, wire.end_connection_id),
+        1.8,
+    )
+    pathway_id = valid_harness.pathways[0].pathway_id
+    definition = replace(
+        valid_harness,
+        wires=(),
+        standalone_ends=(
+            StandaloneEndDefinition(
+                wire.start_connection_id,
+                pathway_id,
+                PathwayEndpoint.START,
+            ),
+            StandaloneEndDefinition(
+                wire.end_connection_id,
+                pathway_id,
+                PathwayEndpoint.END,
+            ),
+        ),
+        wire_groups=(group,),
+    )
+    route = _route(wire)
+    route = replace(route, wire_id=UUID(int=851), wire_number="Group 1 Leg 1")
+    leg = SimpleNamespace(route_id=route.wire_id, wire_group_id=group.wire_group_id)
+    old_attribute = object()
+    old_component = SimpleNamespace(
+        attributes=SimpleNamespace(
+            itemByName=lambda _group, name: old_attribute if name == "generated_wire" else None
+        )
+    )
+    old = Mock(component=old_component, deleteMe=Mock(return_value=True))
+    created = Mock(isValid=True, deleteMe=Mock(return_value=True))
+    harness = Mock(occurrences=MagicMock())
+    harness.occurrences.__iter__.return_value = iter((old,))
+    harness.occurrences.addNewComponent.return_value = created
+    design = SimpleNamespace(rootComponent=harness)
+    monkeypatch.setattr(
+        solids,
+        "solve_wire_group_centerlines",
+        lambda *_args: ((route,), (leg,)),
+    )
+    builds: list[UUID] = []
+
+    def build(_component: object, built_group: WireGroupDefinition, *_args: object) -> None:
+        """
+        Record staged ownership and optionally reproduce a Fusion failure.
+        """
+        old.deleteMe.assert_not_called()
+        builds.append(built_group.wire_group_id)
+        if fail_build:
+            raise RuntimeError("sweep rejected")
+
+    monkeypatch.setattr(solids, "build_wire_group_solid", build)
+    if fail_build:
+        with pytest.raises(RuntimeError, match="Wire Group 1.*sweep rejected"):
+            solids.generate_wire_group_solids(design, harness, definition, True)
+        old.deleteMe.assert_not_called()
+        created.deleteMe.assert_called_once_with()
+    else:
+        assert solids.generate_wire_group_solids(design, harness, definition, True) == 1
+        old.deleteMe.assert_called_once_with()
+        created.deleteMe.assert_not_called()
+    assert builds == [group.wire_group_id]
+
+
+def test_builds_each_leg_from_one_shared_junction_profile(
+    solids: _SolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reuse one profile without changing metadata route direction or body ownership.
+    """
+    wire = valid_harness.wires[0]
+    group = WireGroupDefinition(
+        UUID(int=860),
+        (wire.start_connection_id, wire.end_connection_id),
+        2.0,
+    )
+    junction = Vector3(0.0, 0.0, 0.0)
+    routes = (
+        _pass_through_route(
+            861,
+            "Group 1 Leg 1",
+            Vector3(-10.0, 0.0, 0.0),
+            junction,
+            Vector3(10.0, 0.0, 0.0),
+        ),
+        _terminal_lead(862, "Group 1 Leg 2", junction),
+    )
+    bodies = [SimpleNamespace(name="", appearance=None) for _index in range(3)]
+    shared_profile = object()
+    supplied_profiles: list[object] = []
+
+    def build_route(*args: object) -> tuple[object, float, RoutePreview, object]:
+        """
+        Record shared-profile reuse while returning one body per sweep segment.
+        """
+        route = cast(RoutePreview, args[1])
+        profile = args[7]
+        supplied_profiles.append(profile)
+        sweep_index = len(supplied_profiles) - 1
+        return bodies[sweep_index], (10.0, 10.0, 5.0)[sweep_index], route, shared_profile
+
+    attributes = Mock()
+    attributes.add.return_value = object()
+    component = SimpleNamespace(
+        bRepBodies=SimpleNamespace(count=3),
+        attributes=attributes,
+        name="",
+    )
+    monkeypatch.setattr(solids, "_route_in_component_space", lambda route, _transform: route)
+    monkeypatch.setattr(solids, "_build_route_sweep", Mock(side_effect=build_route))
+    appearance = object()
+    monkeypatch.setattr(
+        solids, "_wire_appearance", lambda _design, _color, _reference=None: appearance
+    )
+    stripe_refresh = Mock(return_value=0)
+    monkeypatch.setattr(solids, "_replace_group_stripe_graphics", stripe_refresh)
+    materials = valid_harness.wire_group_materials(group)
+
+    solids.build_wire_group_solid(
+        component,
+        group,
+        0,
+        routes,
+        object(),
+        valid_harness.harness_id,
+        materials,
+        object(),
+    )
+
+    assert supplied_profiles == [None, shared_profile, shared_profile]
+    assert component.name == "Wire Group 1_25.00mm"
+    assert [body.name for body in bodies] == [
+        "Wire Group 1 Leg 1 Segment 1",
+        "Wire Group 1 Leg 1 Segment 2",
+        "Wire Group 1 Leg 2",
+    ]
+    assert all(body.appearance is appearance for body in bodies)
+    metadata = json.loads(attributes.add.call_args.args[2])
+    assert metadata["wire_group_id"] == str(group.wire_group_id)
+    assert metadata["length_mm"] == 25.0
+    assert [leg["route_id"] for leg in metadata["route_legs"]] == [
+        str(route.wire_id) for route in routes
+    ]
+    assert [leg["length_mm"] for leg in metadata["route_legs"]] == [20.0, 5.0]
+
+
+def test_splits_pass_through_route_without_changing_exact_cubics(
+    solids: _SolidsModule,
+) -> None:
+    """
+    Turn an interior terminal attachment into three junction-bounded sweeps.
+    """
+    junction = Vector3(0.0, 0.0, 0.0)
+    pass_through = _pass_through_route(
+        867,
+        "Pass Through",
+        Vector3(-10.0, 0.0, 0.0),
+        junction,
+        Vector3(10.0, 0.0, 0.0),
+    )
+    lead = _terminal_lead(868, "Internal Lead", junction)
+
+    segments, start_junctions = solids._prepare_group_sweep_segments((pass_through, lead))
+
+    assert start_junctions == (0, 0, 0)
+    assert [segment.source_route_index for segment in segments] == [0, 0, 1]
+    assert [segment.segment_index for segment in segments] == [0, 1, 0]
+    assert [segment.segment_count for segment in segments] == [2, 2, 1]
+    assert all(segment.route.curves[0].start == junction for segment in segments)
+    assert segments[0].route.curves[0] == CubicBezier(
+        pass_through.curves[0].end,
+        pass_through.curves[0].control_b,
+        pass_through.curves[0].control_a,
+        pass_through.curves[0].start,
+    )
+    assert segments[1].route.curves == (pass_through.curves[1],)
+    assert pass_through.curves[0].end == junction
+
+
+def test_splits_one_route_at_multiple_internal_terminal_leads(solids: _SolidsModule) -> None:
+    """
+    Preserve a connected tree when several internal ends attach to one logical leg.
+    """
+    start = Vector3(-15.0, 0.0, 0.0)
+    first_junction = Vector3(-5.0, 0.0, 0.0)
+    second_junction = Vector3(5.0, 0.0, 0.0)
+    end = Vector3(15.0, 0.0, 0.0)
+    spans = (
+        _straight_route(869, "Pass Through", start, first_junction).curves[0],
+        _straight_route(869, "Pass Through", first_junction, second_junction).curves[0],
+        _straight_route(869, "Pass Through", second_junction, end).curves[0],
+    )
+    pass_through = RoutePreview(
+        UUID(int=869),
+        "Pass Through",
+        (start, first_junction, second_junction, end),
+        spans,
+    )
+    routes = (
+        pass_through,
+        _terminal_lead(870, "First Lead", first_junction),
+        _terminal_lead(871, "Second Lead", second_junction),
+    )
+
+    segments, start_junctions = solids._prepare_group_sweep_segments(routes)
+
+    assert [segment.source_route_index for segment in segments] == [0, 0, 0, 1, 2]
+    assert start_junctions == (0, 0, 1, 0, 1)
+    assert all(start_junction is not None for start_junction in start_junctions)
+
+
+def test_detects_shared_route_endpoints_with_tolerance(solids: _SolidsModule) -> None:
+    """
+    Deduplicate one physical junction without treating free ends as hubs.
+    """
+    hub = Vector3(1.0, 2.0, 3.0)
+    routes = (
+        _straight_route(871, "Left", Vector3(-5.0, 2.0, 3.0), hub),
+        _straight_route(872, "Right", Vector3(7.0, 2.0, 3.0), hub),
+        _straight_route(
+            873,
+            "Branch",
+            Vector3(1.0, -4.0, 3.0),
+            Vector3(1.0 + 5e-7, 2.0, 3.0),
+        ),
+    )
+
+    assert solids._shared_route_endpoints(routes) == ((hub, (0, 1, 2)),)
+
+
+def test_orients_construction_routes_from_a_stable_shared_profile_root(
+    solids: _SolidsModule,
+) -> None:
+    """
+    Reverse exact cubics without changing persistent route identity or originals.
+    """
+    junction = Vector3(0.0, 0.0, 0.0)
+    routes = tuple(
+        _straight_route(
+            880 + index,
+            f"Leg {index + 1}",
+            Vector3(float(-10 - index * 5), 0.0, 0.0),
+            junction,
+        )
+        for index in range(3)
+    )
+    oriented, start_junctions = solids._orient_group_routes(routes)
+
+    assert start_junctions == (0, 0, 0)
+    assert all(route.curves[0].start == junction for route in oriented)
+    assert oriented[0].wire_id == routes[0].wire_id
+    assert oriented[0].curves[0].control_a == routes[0].curves[-1].control_b
+    assert routes[0].curves[-1].end == junction
+
+
+def test_rejects_group_routes_without_one_connected_junction_tree(solids: _SolidsModule) -> None:
+    """
+    Refuse unrelated visual bodies that cannot share a profile topology.
+    """
+    routes = (
+        _straight_route(890, "Left", Vector3(0.0, 0.0, 0.0), Vector3(5.0, 0.0, 0.0)),
+        _straight_route(891, "Right", Vector3(10.0, 0.0, 0.0), Vector3(15.0, 0.0, 0.0)),
+    )
+
+    with pytest.raises(RuntimeError, match="do not form one connected tree"):
+        solids._orient_group_routes(routes)
+
+
+def test_rejects_cyclic_group_sweep_segments(solids: _SolidsModule) -> None:
+    """
+    Refuse two distinct sweep segments joining the same pair of junctions.
+    """
+    start = Vector3(0.0, 0.0, 0.0)
+    end = Vector3(10.0, 0.0, 0.0)
+    routes = (
+        _straight_route(895, "First", start, end),
+        _straight_route(896, "Second", start, end),
+    )
+
+    with pytest.raises(RuntimeError, match="contain a cycle"):
+        solids._prepare_group_sweep_segments(routes)
+
+
+def test_rejects_junction_routes_without_one_profile_plane(
+    solids: _SolidsModule,
+) -> None:
+    """
+    Reject endpoints whose terminal tangents cannot reuse one circular profile.
+    """
+    junction = Vector3(0.0, 0.0, 0.0)
+    routes = (
+        _straight_route(900, "Horizontal", Vector3(-10.0, 0.0, 0.0), junction),
+        _straight_route(901, "Vertical", Vector3(0.0, -10.0, 0.0), junction),
+    )
+
+    with pytest.raises(RuntimeError, match="do not share one sweep profile plane"):
+        solids._orient_group_routes(routes)
 
 
 def test_clears_only_marked_generated_wire_components(solids: _SolidsModule) -> None:
@@ -508,6 +902,58 @@ def test_applies_saved_materials_to_existing_generated_body(
     assert stored["part_number"] == "WB-001"
 
 
+def test_applies_group_materials_and_rebuilds_stripes_from_saved_legs(
+    solids: _SolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reuse exact local leg curves and color every grouped solid body.
+    """
+    wire = valid_harness.wires[0]
+    group = WireGroupDefinition(
+        UUID(int=865),
+        (wire.start_connection_id, wire.end_connection_id),
+        1.6,
+    )
+    definition = replace(valid_harness, wire_groups=(group,))
+    route = replace(_route(wire), wire_id=UUID(int=866), wire_number="Group 1 Leg 1")
+    attribute = SimpleNamespace(
+        value=json.dumps(
+            {
+                "wire_group_id": str(group.wire_group_id),
+                "route_legs": [
+                    {
+                        "route_id": str(route.wire_id),
+                        "label": route.wire_number,
+                        "route_curves_mm": solids._route_metadata(route),
+                    }
+                ],
+            }
+        )
+    )
+    bodies = (SimpleNamespace(appearance=None), SimpleNamespace(appearance=None))
+    component = SimpleNamespace(
+        attributes=SimpleNamespace(itemByName=lambda *_args: attribute),
+        bRepBodies=SimpleNamespace(count=2, item=lambda index: bodies[index]),
+    )
+    harness = SimpleNamespace(occurrences=(SimpleNamespace(component=component),))
+    appearance = object()
+    monkeypatch.setattr(
+        solids, "_wire_appearance", lambda _design, _color, _reference=None: appearance
+    )
+    stripe_refresh = Mock(return_value=0)
+    monkeypatch.setattr(solids, "_replace_group_stripe_graphics", stripe_refresh)
+
+    assert solids.apply_wire_group_materials(object(), harness, definition) == 1
+
+    assert all(body.appearance is appearance for body in bodies)
+    assert stripe_refresh.call_args.args[1] == (route,)
+    assert stripe_refresh.call_args.args[4] == group.wire_group_id
+    stored = json.loads(attribute.value)
+    assert stored["main_color"] == definition.material_defaults.main_color.hex_rgb
+
+
 def test_resolves_generated_bodies_by_persistent_wire_identity(
     solids: _SolidsModule,
     valid_harness: HarnessDefinition,
@@ -553,3 +999,29 @@ def test_resolves_generated_bodies_by_persistent_wire_identity(
     )
 
     assert solids.generated_wire_bodies(root, harness, (selected_wire.wire_id,)) == (selected_body,)
+
+
+def test_resolves_generated_bodies_by_persistent_wire_group_identity(
+    solids: _SolidsModule,
+) -> None:
+    """
+    Return every visual body owned by a requested generated wire group.
+    """
+    selected_group_id = UUID(int=870)
+    selected_bodies = (object(), object(), object())
+    attribute = SimpleNamespace(value=json.dumps({"wire_group_id": str(selected_group_id)}))
+    component = SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
+    harness = SimpleNamespace(occurrences=(SimpleNamespace(component=component),))
+    root_occurrence = SimpleNamespace(
+        bRepBodies=SimpleNamespace(count=3, item=lambda index: selected_bodies[index])
+    )
+    root = SimpleNamespace(
+        allOccurrencesByComponent=lambda _component: SimpleNamespace(
+            count=1,
+            item=lambda _index: root_occurrence,
+        )
+    )
+
+    assert (
+        solids.generated_wire_group_bodies(root, harness, (selected_group_id,)) == selected_bodies
+    )

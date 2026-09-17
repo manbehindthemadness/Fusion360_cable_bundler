@@ -4,8 +4,11 @@ const { assert, asyncTest, harness, join, palette, readFileSync, runInNewContext
 
 test('solid generation requires confirmation and targets the selected harness', () => {
   const { context, calls } = palette();
+  const definition = harness();
+  definition.wires = [];
+  definition.wireGroups = [{ wireGroupId: 'g1', connectionIds: ['a1', 'b1'] }];
   runInNewContext('currentState = { harnesses: [definition] }; selectedHarnessKey = harnessKey(definition);',
-    Object.assign(context, { definition: harness() }));
+    Object.assign(context, { definition }));
   context.window.confirm = () => false;
   context.generateSolids();
   assert.equal(calls.length, 0);

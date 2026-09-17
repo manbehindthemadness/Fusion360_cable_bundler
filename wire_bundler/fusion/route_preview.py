@@ -1218,3 +1218,18 @@ def solve_route_centerlines(
     Resolve and fair centerlines in definition order without changing preview state.
     """
     return _solve_definition_routes(design, definition, 0.0, notices)
+
+
+def solve_wire_group_centerlines(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    notices: Optional[list[str]] = None,
+) -> tuple[tuple[RoutePreview, ...], tuple[WireGroupRouteLeg, ...]]:
+    """
+    Resolve grouped-wire legs without changing transient preview state.
+
+    The returned legs and routes share stable route identities and definition
+    order so persistent generation can consume exactly the geometry previewed
+    by the user.
+    """
+    return _solve_wire_group_routes(design, definition, 0.0, notices)

@@ -13,15 +13,17 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
+from ...application import plan_wire_group_routes
 from ...domain import ControlKind, HarnessDefinition, loads
 from .. import clear_route_previews, highlight_route_preview, show_route_previews
 from ..refine_graphics import highlight_refine_graphics
 from ..route_preview import highlight_route_members, refresh_route_previews
 from ..wire_solids import (
-    apply_wire_materials,
+    apply_wire_group_materials,
     clear_wire_solids,
-    generate_wire_solids,
+    generate_wire_group_solids,
     generated_wire_bodies,
+    generated_wire_group_bodies,
 )
 from .palette_state import (
     _send_palette_state,
@@ -69,12 +71,12 @@ def _apply_generated_materials(application: adsk.core.Application, harness_id: U
     design = _require_active_design(application)
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
-    count = apply_wire_materials(
+    count = apply_wire_group_materials(
         design,
         gateway.harness_component(harness_id),
         definition,
     )
-    return f"Applied materials to {count} generated wire{'s' if count != 1 else ''}."
+    return f"Applied materials to {count} generated wire group{'s' if count != 1 else ''}."
 
 
 def _highlight_member(application: adsk.core.Application, serialized_data: str) -> int:
@@ -95,6 +97,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     preview_connection_ids: tuple[UUID, ...] = ()
     preview_pathway_ids: tuple[UUID, ...] = ()
     preview_control_ids: tuple[UUID, ...] = ()
+    generated_group_ids: tuple[UUID, ...] = ()
     if member_type == "junction":
         junction = next(
             (item for item in definition.junctions if item.junction_id == member_id),
@@ -123,6 +126,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             else ()
         )
         preview_pathway_ids = (member_id,)
+        generated_group_ids = _wire_group_ids_for_member(definition, "pathway", member_id)
         control_ids = pathway.ordered_control_ids if member_type != "pathway_wires" else ()
         controls = {control.control_id: control for control in definition.controls}
         refine_ids = tuple(
@@ -135,6 +139,11 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             for control_id in control_ids
             if control_id in controls and controls[control_id].entity_token
         )
+    elif member_type == "wire_group":
+        if all(group.wire_group_id != member_id for group in definition.wire_groups):
+            raise ValueError("Selected wire group no longer exists.")
+        generated_group_ids = (member_id,)
+        tokens = ()
     elif member_type == "preview_wire":
         if all(wire.wire_id != member_id for wire in definition.wires):
             raise ValueError("Selected wire no longer exists.")
@@ -146,6 +155,11 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             wire_ids = (member_id,)
         elif member_type == "connection":
             preview_connection_ids = (member_id,)
+            generated_group_ids = tuple(
+                group.wire_group_id
+                for group in definition.wire_groups
+                if member_id in group.connection_ids
+            )
             wire_ids = tuple(
                 wire.wire_id
                 for wire in definition.wires
@@ -153,6 +167,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             )
         elif member_type == "control":
             preview_control_ids = (member_id,)
+            generated_group_ids = _wire_group_ids_for_member(definition, "control", member_id)
             wire_ids = tuple(
                 wire.wire_id for wire in definition.wires if member_id in wire.ordered_control_ids
             )
@@ -195,13 +210,42 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         gateway.harness_component(harness_id),
         wire_ids,
     )
-    for entity in (*profiles, *bodies):
+    group_bodies = (
+        generated_wire_group_bodies(
+            design.rootComponent,
+            gateway.harness_component(harness_id),
+            generated_group_ids,
+        )
+        if generated_group_ids
+        else ()
+    )
+    for entity in (*profiles, *bodies, *group_bodies):
         if not selections.add(entity):
             selections.clear()
             highlight_route_preview(design, None)
             raise RuntimeError("Fusion could not highlight the selected harness geometry.")
     application.activeViewport.refresh()
-    return preview_count + refine_count + len(profiles) + len(bodies)
+    return preview_count + refine_count + len(profiles) + len(bodies) + len(group_bodies)
+
+
+def _wire_group_ids_for_member(
+    definition: HarnessDefinition,
+    member_type: str,
+    member_id: UUID,
+) -> tuple[UUID, ...]:
+    """
+    Resolve groups whose planned legs traverse one pathway or control.
+    """
+    identities: list[UUID] = []
+    for leg in plan_wire_group_routes(definition):
+        matches = (
+            member_id in leg.pathway_ids
+            if member_type == "pathway"
+            else any(step.control_id == member_id for step in leg.control_steps)
+        )
+        if matches and leg.wire_group_id not in identities:
+            identities.append(leg.wire_group_id)
+    return tuple(identities)
 
 
 def _clear_highlight(application: adsk.core.Application) -> None:
@@ -296,7 +340,7 @@ def _generate_solids(application: adsk.core.Application, serialized_data: str) -
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
     notices: list[str] = []
-    count = generate_wire_solids(
+    count = generate_wire_group_solids(
         _require_active_design(application),
         gateway.harness_component(harness_id),
         definition,
@@ -304,7 +348,7 @@ def _generate_solids(application: adsk.core.Application, serialized_data: str) -
         notices,
     )
     application.activeViewport.refresh()
-    summary = f"Generated {count} wire solids."
+    summary = f"Generated {count} wire-group solids."
     _send_palette_state(application, "\n".join((summary, *notices)))
     return count
 

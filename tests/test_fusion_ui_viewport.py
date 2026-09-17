@@ -106,6 +106,67 @@ def test_highlights_both_wire_endpoint_profiles(
     viewport.refresh.assert_called_once_with()
 
 
+def test_connection_highlights_its_generated_wire_group_body(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Select a grouped body together with the physical connection profile.
+    """
+    from dataclasses import replace
+    from uuid import UUID
+
+    from wire_bundler.domain import WireGroupDefinition
+
+    connection = valid_harness.connections[0]
+    group = WireGroupDefinition(
+        UUID(int=880),
+        tuple(item.connection_id for item in valid_harness.connections),
+    )
+    definition = replace(valid_harness, wire_groups=(group,))
+    profile = object()
+    group_body = object()
+    design = SimpleNamespace(
+        findEntityByToken=lambda _token: [profile],
+        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0)),
+    )
+    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(activeSelections=selections),
+        activeViewport=SimpleNamespace(refresh=Mock()),
+    )
+    harness_component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _harness_id: dumps(definition),
+        harness_component=Mock(return_value=harness_component),
+    )
+    sys.modules["adsk.fusion"].Profile = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda entity: entity
+    )
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "generated_wire_bodies", lambda *_args: ())
+    grouped_bodies = Mock(return_value=(group_body,))
+    monkeypatch.setattr(addin_module, "generated_wire_group_bodies", grouped_bodies)
+    payload = json.dumps(
+        {
+            "harnessId": str(definition.harness_id),
+            "memberType": "connection",
+            "memberId": str(connection.connection_id),
+        }
+    )
+
+    assert addin_module._highlight_member(application, payload) == 2
+
+    assert [call.args[0] for call in selections.add.call_args_list] == [profile, group_body]
+    grouped_bodies.assert_called_once_with(
+        design.rootComponent,
+        harness_component,
+        (group.wire_group_id,),
+    )
+
+
 def test_preview_hover_emphasizes_only_matching_centerline(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -214,3 +275,36 @@ def test_clear_solids_targets_selected_harness_and_refreshes_viewport(
     clear.assert_called_once_with(component)
     viewport.refresh.assert_called_once()
     send_state.assert_called_once_with(application, "Cleared 3 wire solids.")
+
+
+def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Route the palette command to grouped generation with rebuild confirmation.
+    """
+    component = object()
+    design = object()
+    viewport = Mock()
+    application = SimpleNamespace(activeViewport=viewport)
+    gateway = SimpleNamespace(
+        read_harness_definition=Mock(return_value=dumps(valid_harness)),
+        harness_component=Mock(return_value=component),
+    )
+    generate = Mock(return_value=2)
+    send_state = Mock()
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "generate_wire_group_solids", generate)
+    monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
+    payload = json.dumps({"harnessId": str(valid_harness.harness_id), "replaceExisting": True})
+
+    assert addin_module._generate_solids(application, payload) == 2
+
+    notices = generate.call_args.args[4]
+    assert notices == []
+    generate.assert_called_once_with(design, component, valid_harness, True, notices)
+    viewport.refresh.assert_called_once_with()
+    send_state.assert_called_once_with(application, "Generated 2 wire-group solids.")

@@ -31,6 +31,49 @@ def test_accepts_complete_harness(valid_harness: HarnessDefinition) -> None:
     assert issues == ()
 
 
+def test_accepts_group_only_harness_and_rejects_an_empty_wire_system(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Treat connected wire groups as generation-ready without legacy wire records.
+    """
+    wire = valid_harness.wires[0]
+    pathway_id = valid_harness.pathways[0].pathway_id
+    grouped = replace(
+        valid_harness,
+        wires=(),
+        standalone_ends=(
+            StandaloneEndDefinition(
+                wire.start_connection_id,
+                pathway_id,
+                PathwayEndpoint.START,
+            ),
+            StandaloneEndDefinition(
+                wire.end_connection_id,
+                pathway_id,
+                PathwayEndpoint.END,
+            ),
+        ),
+        wire_groups=(
+            WireGroupDefinition(
+                UUID("60000000-0000-0000-0000-000000000020"),
+                (wire.start_connection_id, wire.end_connection_id),
+            ),
+        ),
+    )
+
+    assert validate_harness(grouped) == ()
+
+    empty = replace(grouped, wire_groups=())
+    issues = validate_harness(empty)
+
+    assert any(
+        issue.code == "missing_wires"
+        and issue.message == "At least one wire or wire group is required."
+        for issue in issues
+    )
+
+
 def test_validates_standalone_end_references_and_connection_ownership(
     valid_harness: HarnessDefinition,
 ) -> None:

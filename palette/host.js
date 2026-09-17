@@ -516,7 +516,7 @@ async function send(action, payload = {}) {
 
 function generateSolids() {
   const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
-  if (!harness || harness.status === "damaged" || !harness.wires?.length) return;
+  if (!harness || harness.status === "damaged" || !(harness.wireGroups || []).length) return;
   if (!window.confirm("Build wire solids? This replaces previous generated wire components, including manual edits inside them.")) return;
   return mutate("generate_solids", { harnessId: harness.harnessId, replaceExisting: true }, "Generating wire solids…");
 }
