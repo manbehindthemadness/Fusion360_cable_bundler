@@ -26,13 +26,18 @@ from ..domain import (
     WireStripe,
     validate_harness,
 )
-from ..routing import CubicBezier, RoutePreview, Vector3, tightest_bend
+from ..routing import (
+    CubicBezier,
+    RoutePreview,
+    StripeContinuation,
+    StripeMeshResult,
+    Vector3,
+    build_continuous_stripe_mesh,
+    tightest_bend,
+)
 from ..routing.geometry import cross, difference, dot, magnitude
 from .harness_gateway import ATTRIBUTE_GROUP
-from .route_preview import (
-    build_stripe_mesh,
-    solve_wire_group_centerlines,
-)
+from .route_preview import solve_wire_group_centerlines
 
 GENERATED_WIRE_GROUP_ATTRIBUTE = "generated_wire_group"
 GENERATED_STRIPE_GROUP_ID = "kev0.wire_bundler.generated_wire_stripes"
@@ -409,25 +414,36 @@ def _replace_group_stripe_graphics(
         raise RuntimeError("Fusion did not create stripe graphics for a wire group.")
     group.id = f"{GENERATED_STRIPE_GROUP_ID}:{wire_group_id}"
     group.name = "Wire Group Solid Stripes"
+    segments, start_junctions, end_junctions = _prepare_group_sweep_segments(routes)
     created = 0
-    for route_index, route in enumerate(routes):
-        for stripe_index, stripe in enumerate(stripes):
-            vertices, triangle_indices = build_stripe_mesh(route, stripe, wire_radius_mm)
-            if not vertices or not triangle_indices:
+    for stripe_index, stripe in enumerate(stripes):
+        decorated_segments = _build_continuous_segment_stripes(
+            segments,
+            start_junctions,
+            end_junctions,
+            stripe,
+            wire_radius_mm,
+        )
+        for segment, result in decorated_segments:
+            if not result.vertices or not result.triangle_indices:
                 continue
             coordinates = adsk.fusion.CustomGraphicsCoordinates.create(
                 [
                     coordinate / 10.0
-                    for point in vertices
+                    for point in result.vertices
                     for coordinate in (point.x, point.y, point.z)
                 ]
             )
             if coordinates is None:
                 raise RuntimeError("Fusion did not create wire-group stripe coordinates.")
-            stripe_mesh = group.addMesh(coordinates, triangle_indices, [], [])
+            stripe_mesh = group.addMesh(coordinates, list(result.triangle_indices), [], [])
             if stripe_mesh is None:
                 raise RuntimeError("Fusion did not draw a wire-group stripe.")
-            stripe_mesh.name = f"Wire Group Leg {route_index + 1} Stripe {stripe_index + 1}"
+            stripe_mesh.name = (
+                f"Wire Group Leg {segment.source_route_index + 1}"
+                + (f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else "")
+                + f" Stripe {stripe_index + 1}"
+            )
             stripe_mesh.cullMode = adsk.fusion.CustomGraphicsCullModes.CustomGraphicsCullNone
             stripe_color = adsk.core.Color.create(
                 stripe.color.red,
@@ -441,6 +457,62 @@ def _replace_group_stripe_graphics(
             stripe_mesh.color = stripe_effect
             created += 1
     return created
+
+
+def _build_continuous_segment_stripes(
+    segments: tuple[_RouteSweepSegment, ...],
+    start_junctions: tuple[Optional[int], ...],
+    end_junctions: tuple[Optional[int], ...],
+    stripe: WireStripe,
+    wire_radius_mm: float,
+) -> tuple[tuple[_RouteSweepSegment, StripeMeshResult], ...]:
+    """
+    Propagate one stripe's boundary state through an oriented segment tree.
+    """
+    if not (len(segments) == len(start_junctions) == len(end_junctions)):
+        raise RuntimeError("Wire-group stripe topology is inconsistent.")
+    roots = {
+        junction
+        for junction in start_junctions
+        if junction is not None and junction not in end_junctions
+    }
+    if len(segments) > 1 and len(roots) != 1:
+        raise RuntimeError("Wire-group stripe segments do not have one root junction.")
+    root_junction = next(iter(roots), None)
+    junction_states: dict[int, StripeContinuation] = {}
+    decorated: list[tuple[_RouteSweepSegment, StripeMeshResult]] = []
+    pending = list(range(len(segments)))
+    while pending:
+        progressed = False
+        for segment_index in pending:
+            start_junction = start_junctions[segment_index]
+            if (
+                start_junction is not None
+                and start_junction != root_junction
+                and start_junction not in junction_states
+            ):
+                continue
+            continuation = None if start_junction is None else junction_states.get(start_junction)
+            result = build_continuous_stripe_mesh(
+                segments[segment_index].route,
+                stripe,
+                wire_radius_mm,
+                continuation,
+            )
+            if result.start is None or result.end is None:
+                raise RuntimeError("Wire-group stripe segment has no continuation state.")
+            if start_junction is not None:
+                junction_states.setdefault(start_junction, result.start)
+            end_junction = end_junctions[segment_index]
+            if end_junction is not None:
+                junction_states[end_junction] = result.end
+            decorated.append((segments[segment_index], result))
+            pending.remove(segment_index)
+            progressed = True
+            break
+        if not progressed:
+            raise RuntimeError("Wire-group stripe segments do not form one connected tree.")
+    return tuple(decorated)
 
 
 def _is_straight(curve: CubicBezier) -> bool:
@@ -472,7 +544,7 @@ def build_wire_group_solid(
     """
     if not routes:
         raise ValueError("A wire group requires at least one routed leg.")
-    construction_segments, start_junctions = _prepare_group_sweep_segments(routes)
+    construction_segments, start_junctions, _end_junctions = _prepare_group_sweep_segments(routes)
     local_routes = tuple(_route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
     leg_lengths = [0.0] * len(routes)
@@ -579,12 +651,16 @@ def _shared_route_endpoints(
 
 def _prepare_group_sweep_segments(
     routes: tuple[RoutePreview, ...],
-) -> tuple[tuple[_RouteSweepSegment, ...], tuple[Optional[int], ...]]:
+) -> tuple[
+    tuple[_RouteSweepSegment, ...],
+    tuple[Optional[int], ...],
+    tuple[Optional[int], ...],
+]:
     """
     Split pass-through routes at attached leads and orient the resulting tree.
     """
     segments = _split_routes_at_interior_junctions(routes)
-    oriented_routes, start_junctions = _orient_group_routes(
+    oriented_routes, start_junctions, end_junctions = _orient_group_routes(
         tuple(segment.route for segment in segments)
     )
     oriented_segments = tuple(
@@ -596,7 +672,7 @@ def _prepare_group_sweep_segments(
         )
         for segment, route in zip(segments, oriented_routes)
     )
-    return oriented_segments, start_junctions
+    return oriented_segments, start_junctions, end_junctions
 
 
 def _split_routes_at_interior_junctions(
@@ -686,7 +762,11 @@ def _split_route_curves(
 
 def _orient_group_routes(
     routes: tuple[RoutePreview, ...],
-) -> tuple[tuple[RoutePreview, ...], tuple[Optional[int], ...]]:
+) -> tuple[
+    tuple[RoutePreview, ...],
+    tuple[Optional[int], ...],
+    tuple[Optional[int], ...],
+]:
     """
     Orient construction routes away from one stable shared-profile root.
     """
@@ -694,7 +774,7 @@ def _orient_group_routes(
     if not junctions:
         if len(routes) != 1:
             raise RuntimeError("Wire-group route legs do not form one connected tree.")
-        return routes, (None,)
+        return routes, (None,), (None,)
     endpoint_junctions = tuple(
         (
             _junction_at(route.curves[0].start, junctions),
@@ -706,6 +786,7 @@ def _orient_group_routes(
         _validate_junction_tangents(junction_index, point, route_indices, routes)
     oriented: list[Optional[RoutePreview]] = [None] * len(routes)
     start_junctions: list[Optional[int]] = [None] * len(routes)
+    end_junctions: list[Optional[int]] = [None] * len(routes)
     pending = [0]
     visited_junctions = {0}
     while pending:
@@ -723,6 +804,7 @@ def _orient_group_routes(
             else:
                 raise RuntimeError("Wire-group route topology changed during construction.")
             start_junctions[route_index] = junction_index
+            end_junctions[route_index] = next_junction
             if next_junction is not None:
                 if next_junction in visited_junctions:
                     raise RuntimeError("Wire-group route legs contain a cycle.")
@@ -730,7 +812,11 @@ def _orient_group_routes(
                 pending.append(next_junction)
     if any(route is None for route in oriented):
         raise RuntimeError("Wire-group route legs do not form one connected tree.")
-    return tuple(route for route in oriented if route is not None), tuple(start_junctions)
+    return (
+        tuple(route for route in oriented if route is not None),
+        tuple(start_junctions),
+        tuple(end_junctions),
+    )
 
 
 def _junction_at(

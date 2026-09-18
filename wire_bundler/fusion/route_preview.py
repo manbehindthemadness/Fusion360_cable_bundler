@@ -22,9 +22,7 @@ from ..domain import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
-    StripePattern,
     WireColor,
-    WireStripe,
 )
 from ..routing import (
     GateFrame,
@@ -41,7 +39,7 @@ from ..routing import (
     sample_centerline,
     separate_route_collisions,
 )
-from ..routing.geometry import cross, difference, dot, linear_combination, magnitude, unit
+from ..routing.geometry import cross, difference, dot, unit
 
 PREVIEW_GROUP_ID = "kev0.wire_bundler.route_preview"
 _PREVIEW_COLORS = (
@@ -928,190 +926,6 @@ def _add_route_graphics(
     if color_effect is None:
         raise RuntimeError(f"Fusion did not create a color for wire {route.wire_number}.")
     lines.color = color_effect
-
-
-def build_stripe_mesh(
-    route: RoutePreview,
-    stripe: WireStripe,
-    wire_radius_mm: float,
-) -> tuple[tuple[Vector3, ...], list[int]]:
-    """
-    Build a model-space surface band with physical width for one stripe.
-
-    Every sampled section follows the circular cross-section with angularly
-    subdivided vertices. Fusion renders the resulting triangles with ordinary
-    depth testing, so the wire body hides rear stripes and broad bands do not
-    chord through the insulation.
-    """
-    if wire_radius_mm <= 0:
-        return (), []
-    points, tangents, normals, distances = _stripe_frame_samples(route, stripe, wire_radius_mm)
-    if len(points) < 2:
-        return (), []
-    surface_radius = wire_radius_mm + max(0.02, wire_radius_mm * 0.01)
-    half_angle = min(stripe.width_mm / (2.0 * surface_radius), math.pi * 0.49)
-    width_segments = max(1, math.ceil(half_angle * 2.0 / math.radians(10.0)))
-    section_size = width_segments + 1
-    vertices: list[Vector3] = []
-    for point, tangent, frame_normal, distance in zip(points, tangents, normals, distances):
-        center_angle = math.radians(stripe.angle_deg)
-        if stripe.pattern is StripePattern.HELICAL and stripe.repeat_mm is not None:
-            center_angle += math.tau * distance / stripe.repeat_mm
-        for width_index in range(section_size):
-            angle = center_angle - half_angle + half_angle * 2.0 * width_index / width_segments
-            radial = _stripe_radial(tangent, frame_normal, angle)
-            vertices.append(point.translated(radial, surface_radius))
-    indices: list[int] = []
-    for index in range(len(points) - 1):
-        midpoint = (distances[index] + distances[index + 1]) / 2.0
-        if (
-            stripe.pattern is StripePattern.DASHED
-            and stripe.repeat_mm is not None
-            and midpoint % stripe.repeat_mm >= stripe.repeat_mm / 2.0
-        ):
-            continue
-        section_start = index * section_size
-        next_section = section_start + section_size
-        for width_index in range(width_segments):
-            left = section_start + width_index
-            next_left = next_section + width_index
-            indices.extend((left, left + 1, next_left, left + 1, next_left + 1, next_left))
-    return tuple(vertices), indices
-
-
-def _stripe_paths(
-    route: RoutePreview,
-    stripe: WireStripe,
-    wire_radius_mm: float,
-) -> tuple[tuple[Vector3, ...], ...]:
-    """
-    Build visible surface paths for one longitudinal, dashed, or helical stripe.
-
-    The frame is parallel-transported along the sampled centerline so a stripe
-    remains stable through three-dimensional bends without depending on Fusion.
-    """
-    points, tangents, normals, distances = _stripe_frame_samples(route, stripe, wire_radius_mm)
-    if len(points) < 2:
-        return ()
-    surface_radius = max(wire_radius_mm, 0.0) + 0.01
-    stripe_points: list[Vector3] = []
-    for point, tangent, frame_normal, distance in zip(points, tangents, normals, distances):
-        angle = math.radians(stripe.angle_deg)
-        if stripe.pattern is StripePattern.HELICAL and stripe.repeat_mm is not None:
-            angle += math.tau * distance / stripe.repeat_mm
-        radial = _stripe_radial(tangent, frame_normal, angle)
-        stripe_points.append(point.translated(radial, surface_radius))
-    if stripe.pattern is not StripePattern.DASHED or stripe.repeat_mm is None:
-        return (tuple(stripe_points),)
-    paths: list[tuple[Vector3, ...]] = []
-    current: list[Vector3] = []
-    for index in range(len(stripe_points) - 1):
-        midpoint = (distances[index] + distances[index + 1]) / 2.0
-        visible = midpoint % stripe.repeat_mm < stripe.repeat_mm / 2.0
-        if visible:
-            if not current:
-                current.append(stripe_points[index])
-            current.append(stripe_points[index + 1])
-        elif len(current) >= 2:
-            paths.append(tuple(current))
-            current = []
-    if len(current) >= 2:
-        paths.append(tuple(current))
-    return tuple(paths)
-
-
-def _stripe_radial(tangent: Vector3, frame_normal: Vector3, angle: float) -> Vector3:
-    """
-    Rotate one transported frame normal around its centerline tangent.
-    """
-    binormal = unit(cross(tangent, frame_normal))
-    return linear_combination(frame_normal, math.cos(angle), binormal, math.sin(angle))
-
-
-def _stripe_frame_samples(
-    route: RoutePreview,
-    stripe: WireStripe,
-    wire_radius_mm: float,
-) -> tuple[
-    tuple[Vector3, ...],
-    tuple[Vector3, ...],
-    tuple[Vector3, ...],
-    tuple[float, ...],
-]:
-    """
-    Densely sample the exact centerline and transport one circumferential frame.
-
-    Stripe meshes need a tighter chord tolerance than the lightweight centerline
-    graphic because any centerline error is magnified at the wire surface.
-    """
-    chord_tolerance_mm = min(0.005, max(0.0005, wire_radius_mm * 0.005))
-    points = sample_centerline(route, chord_tolerance_mm)
-    step_mm = 1.0
-    if stripe.pattern is StripePattern.HELICAL and stripe.repeat_mm is not None:
-        step_mm = min(step_mm, stripe.repeat_mm / 32.0)
-    elif stripe.repeat_mm is not None:
-        step_mm = min(step_mm, stripe.repeat_mm / 8.0)
-    points = _densify_polyline(points, max(step_mm, 0.01))
-    if len(points) < 2:
-        return (), (), (), ()
-    tangents = tuple(_polyline_tangent(points, index) for index in range(len(points)))
-    normal = _initial_stripe_normal(tangents[0])
-    normals = [normal]
-    for tangent in tangents[1:]:
-        projected = Vector3(
-            normal.x - tangent.x * dot(normal, tangent),
-            normal.y - tangent.y * dot(normal, tangent),
-            normal.z - tangent.z * dot(normal, tangent),
-        )
-        normal = unit(projected) if magnitude(projected) > 1e-9 else _initial_stripe_normal(tangent)
-        normals.append(normal)
-    distances = [0.0]
-    for start, end in zip(points, points[1:]):
-        distances.append(distances[-1] + magnitude(difference(end, start)))
-    return points, tangents, tuple(normals), tuple(distances)
-
-
-def _densify_polyline(points: tuple[Vector3, ...], step_mm: float) -> tuple[Vector3, ...]:
-    """
-    Insert linear samples so procedural repeats remain visible on straight spans.
-    """
-    dense = [points[0]]
-    for start, end in zip(points, points[1:]):
-        delta = difference(end, start)
-        length = magnitude(delta)
-        divisions = max(1, math.ceil(length / step_mm))
-        for index in range(1, divisions + 1):
-            fraction = index / divisions
-            dense.append(
-                Vector3(
-                    start.x + delta.x * fraction,
-                    start.y + delta.y * fraction,
-                    start.z + delta.z * fraction,
-                )
-            )
-    return tuple(dense)
-
-
-def _polyline_tangent(points: tuple[Vector3, ...], index: int) -> Vector3:
-    """
-    Return a centered tangent for one sampled centerline point.
-    """
-    if index == 0:
-        return unit(difference(points[1], points[0]))
-    if index == len(points) - 1:
-        return unit(difference(points[-1], points[-2]))
-    return unit(difference(points[index + 1], points[index - 1]))
-
-
-def _initial_stripe_normal(tangent: Vector3) -> Vector3:
-    """
-    Choose a deterministic perpendicular frame direction for a route start.
-    """
-    axis = min(
-        (Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, 1.0)),
-        key=lambda candidate: abs(dot(tangent, candidate)),
-    )
-    return unit(cross(tangent, axis))
 
 
 def _point_to_mm(point: adsk.core.Point3D) -> Vector3:
