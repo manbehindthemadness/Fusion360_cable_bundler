@@ -197,7 +197,9 @@ function allocateRelationshipPorts(component) {
         const node = nodes.get(nodeId);
         const other = nodes.get(otherId);
         if (!node || !other) return;
-        const side = chooseRelationshipPortSide(node, other, counts.get(nodeId));
+        const side = node.kind === "pathway"
+          ? (edge.relationship.endpoint === "start" ? "left" : "right")
+          : chooseRelationshipPortSide(node, other, counts.get(nodeId));
         counts.get(nodeId).set(side, counts.get(nodeId).get(side) + 1);
         const otherCenter = topologyNodeCenter(other);
         ports.push({
@@ -611,17 +613,15 @@ function renderTopologyPort(port) {
   });
 }
 
-/**
- * Position acyclic topology components in stable layers and draw their edges.
- */
-function layoutRelationshipGraph(stack, components, harness) {
+/** Return positions for one flow direction and the resulting canvas dimensions. */
+function relationshipLayoutCandidate(components, vertical) {
   const padding = 30;
   const layerGap = 54;
   const rowGap = 40;
-  let componentTop = padding;
-  let maximumRight = 760 - padding;
+  let componentOffset = padding;
+  let maximumFlowExtent = 0;
+  const positions = new Map();
   components.forEach((component) => {
-    component.nodes = optimizeRelationshipNodeOrder(component);
     const rowsByDepth = new Map();
     const nodesByDepth = new Map();
     component.nodes.forEach((node) => {
@@ -633,37 +633,85 @@ function layoutRelationshipGraph(stack, components, harness) {
       node.width = node.element.scrollWidth || (node.kind === "pathway" ? 278 : 154);
       node.height = node.element.scrollHeight || (node.kind === "pathway" ? 92 : 76);
     });
-    const rowHeight = Math.max(
+    const rowExtent = Math.max(
       112,
-      ...component.nodes.map((node) => node.height),
+      ...component.nodes.map((node) => vertical ? node.width : node.height),
     );
     const componentRows = Math.max(1, ...rowsByDepth.values());
-    const layerWidths = new Map(
+    const layerExtents = new Map(
       [...nodesByDepth].map(([depth, nodes]) => [
         depth,
-        Math.max(...nodes.map((node) => node.width)),
+        Math.max(...nodes.map((node) => vertical ? node.height : node.width)),
       ]),
     );
-    const layerLefts = new Map();
-    let nextLeft = padding;
-    [...layerWidths.keys()].sort((left, right) => left - right).forEach((depth) => {
-      layerLefts.set(depth, nextLeft);
-      nextLeft += layerWidths.get(depth) + layerGap;
+    const layerOffsets = new Map();
+    let nextLayerOffset = padding;
+    [...layerExtents.keys()].sort((left, right) => left - right).forEach((depth) => {
+      layerOffsets.set(depth, nextLayerOffset);
+      nextLayerOffset += layerExtents.get(depth) + layerGap;
     });
     component.nodes.forEach((node) => {
       const nodesAtDepth = rowsByDepth.get(node.depth);
       const centeredRow = node.row + (componentRows - nodesAtDepth) / 2;
-      node.left = layerLefts.get(node.depth)
-        + (layerWidths.get(node.depth) - node.width) / 2;
-      node.top = componentTop + centeredRow * (rowHeight + rowGap);
-      node.element.style.left = `${node.left}px`;
-      node.element.style.top = `${node.top}px`;
+      const flowPosition = layerOffsets.get(node.depth)
+        + (layerExtents.get(node.depth) - (vertical ? node.height : node.width)) / 2;
+      const rowPosition = componentOffset + centeredRow * (rowExtent + rowGap);
+      positions.set(node.id, vertical
+        ? { left: rowPosition, top: flowPosition }
+        : { left: flowPosition, top: rowPosition });
     });
-    maximumRight = Math.max(maximumRight, nextLeft - layerGap);
-    componentTop += componentRows * (rowHeight + rowGap) + layerGap;
+    maximumFlowExtent = Math.max(maximumFlowExtent, nextLayerOffset - layerGap);
+    componentOffset += componentRows * (rowExtent + rowGap) + layerGap;
   });
-  const canvasWidth = Math.max(760, maximumRight + padding);
-  const canvasHeight = Math.max(componentTop - layerGap + padding, 260);
+  const crossExtent = componentOffset - layerGap + padding;
+  return {
+    positions,
+    width: Math.max(vertical ? crossExtent : maximumFlowExtent + padding, 260),
+    height: Math.max(vertical ? maximumFlowExtent + padding : crossExtent, 260),
+    vertical,
+  };
+}
+
+/** Return the layout direction that displays largest in the current viewport. */
+function bestRelationshipLayout(components, viewportSize) {
+  const candidates = [
+    relationshipLayoutCandidate(components, false),
+    relationshipLayoutCandidate(components, true),
+  ];
+  const preferred = candidates.find((candidate) => (
+    (candidate.vertical ? "vertical" : "horizontal") === viewportSize?.flow
+  ));
+  if (preferred) return preferred;
+  const availableWidth = Math.max(1, viewportSize?.width || 760);
+  const availableHeight = Math.max(1, viewportSize?.height || 430);
+  const fitScale = (candidate) => Math.min(
+    1,
+    availableWidth / candidate.width,
+    availableHeight / candidate.height,
+  );
+  return candidates.sort((left, right) => (
+    fitScale(right) - fitScale(left) || Number(left.vertical) - Number(right.vertical)
+  ))[0];
+}
+
+/**
+ * Position acyclic topology components for the viewport and draw their edges.
+ */
+function layoutRelationshipGraph(stack, components, harness, viewportSize = {}) {
+  components.forEach((component) => {
+    component.nodes = optimizeRelationshipNodeOrder(component);
+  });
+  const layout = bestRelationshipLayout(components, viewportSize);
+  components.forEach((component) => component.nodes.forEach((node) => {
+    const position = layout.positions.get(node.id);
+    node.left = position.left;
+    node.top = position.top;
+    node.element.style.left = `${node.left}px`;
+    node.element.style.top = `${node.top}px`;
+  }));
+  stack.querySelector(".relationship-topology-edges")?.remove();
+  const canvasWidth = layout.width;
+  const canvasHeight = layout.height;
   const overlay = svgElement("svg", {
     class: "relationship-topology-edges",
     viewBox: `0 0 ${canvasWidth} ${canvasHeight}`,
@@ -696,4 +744,7 @@ function layoutRelationshipGraph(stack, components, harness) {
   stack.insertBefore(overlay, stack.children[0] || null);
   stack.style.width = `${canvasWidth}px`;
   stack.style.height = `${canvasHeight}px`;
+  const flow = layout.vertical ? "vertical" : "horizontal";
+  stack.dataset.diagramFlow = flow;
+  return flow;
 }

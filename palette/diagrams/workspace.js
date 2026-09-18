@@ -22,6 +22,7 @@ function svgElement(tag, attributes = {}) {
 function createBlockDiagramWorkspace(label, options = {}) {
   const root = document.createElement("div");
   const toolbar = document.createElement("div");
+  const reorganize = options.onReorganize ? document.createElement("button") : null;
   const zoomOut = document.createElement("button");
   const zoomValue = document.createElement("output");
   const zoomIn = document.createElement("button");
@@ -46,6 +47,12 @@ function createBlockDiagramWorkspace(label, options = {}) {
   viewport.tabIndex = 0;
   viewport.setAttribute("aria-label", label);
   stage.className = "block-diagram-stage";
+  if (reorganize) {
+    reorganize.type = "button";
+    reorganize.textContent = "Reorganize";
+    reorganize.title = "Reorganize and fit diagram";
+    reorganize.setAttribute("aria-label", reorganize.title);
+  }
   zoomOut.type = "button";
   zoomOut.textContent = "−";
   zoomOut.title = "Zoom out";
@@ -103,6 +110,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
     renderTransform();
   });
   fit.addEventListener("click", fitDiagram);
+  reorganize?.addEventListener("click", options.onReorganize);
   viewport.addEventListener("wheel", (event) => {
     event.preventDefault();
     const bounds = viewport.getBoundingClientRect();
@@ -135,6 +143,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
   viewport.addEventListener("pointerup", stopPan);
   viewport.addEventListener("pointercancel", stopPan);
 
+  if (reorganize) toolbar.append(reorganize);
   toolbar.append(zoomOut, zoomValue, zoomIn, actualSize, fit);
   viewport.append(stage);
   root.append(toolbar, viewport);

@@ -19,7 +19,11 @@ function renderRelationshipMap(harness) {
     "Zoomable master relationship diagram",
     {
       initialView: savedDiagramView,
-      onViewChange: (view) => relationshipDiagramViews.set(diagramViewKey, view),
+      onViewChange: (view) => relationshipDiagramViews.set(diagramViewKey, {
+        ...relationshipDiagramViews.get(diagramViewKey),
+        ...view,
+      }),
+      onReorganize: () => reorganize(),
     },
   );
   const focusController = createRelationshipFocusController(container);
@@ -50,6 +54,24 @@ function renderRelationshipMap(harness) {
   collapseInput.setAttribute("aria-label", "Connections before end lists collapse");
   settings.append(collapseInput, "connections");
 
+  let renderedStack = null;
+  let renderedComponents = [];
+  const reorganize = () => {
+    if (!renderedStack) {
+      workspace.fit();
+      return;
+    }
+    const flow = layoutRelationshipGraph(renderedStack, renderedComponents, harness, {
+      width: workspace.viewport.clientWidth,
+      height: workspace.viewport.clientHeight,
+    });
+    relationshipDiagramViews.set(diagramViewKey, {
+      ...relationshipDiagramViews.get(diagramViewKey),
+      flow,
+    });
+    workspace.fit();
+  };
+
   const draw = () => {
     wireCreationController.cancel();
     const query = filter.value.trim().toLocaleLowerCase();
@@ -57,7 +79,8 @@ function renderRelationshipMap(harness) {
     relationshipFilters.set(harnessKey(harness), query);
     workspace.stage.replaceChildren();
     const stack = document.createElement("div");
-    const renderedComponents = [];
+    renderedStack = null;
+    renderedComponents = [];
     stack.className = "relationship-pathway-stack";
     stack.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
     stack.dataset.diagramLayout = RELATIONSHIP_DIAGRAM_LAYOUT;
@@ -124,8 +147,13 @@ function renderRelationshipMap(harness) {
       return;
     }
     workspace.stage.append(stack);
+    renderedStack = stack;
     window.requestAnimationFrame(() => {
-      layoutRelationshipGraph(stack, renderedComponents, harness);
+      layoutRelationshipGraph(stack, renderedComponents, harness, {
+        width: workspace.viewport.clientWidth,
+        height: workspace.viewport.clientHeight,
+        flow: relationshipDiagramViews.get(diagramViewKey)?.flow,
+      });
       if (restoreInitialView) restoreInitialView = false;
       else workspace.fit();
     });

@@ -56,6 +56,84 @@ test('master diagram survives a host refresh that adds a pathway', () => {
   ).length, 1);
 });
 
+test('master diagram can reorganize and fit for its resized viewport', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways.push({
+    pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
+    orderedControlIds: [],
+  });
+  definition.junctions.push({
+    junctionId: 'j1', controlId: 'c1', name: 'Junction 001',
+    pathwayRelationships: [
+      { pathwayId: 'p', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ],
+  });
+
+  const diagram = context.renderRelationshipMap(definition);
+  const workspace = descendants(
+    diagram, (node) => node.className === 'block-diagram-workspace',
+  )[0];
+  const toolbar = descendants(
+    workspace, (node) => node.className === 'block-diagram-toolbar',
+  )[0];
+  const viewport = descendants(
+    workspace, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const stack = descendants(
+    workspace, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
+  const reorganize = toolbar.children[0];
+
+  assert.equal(reorganize.textContent, 'Reorganize');
+  assert.equal(reorganize.title, 'Reorganize and fit diagram');
+  viewport.clientWidth = 200;
+  viewport.clientHeight = 800;
+  reorganize.events.click();
+
+  assert.equal(stack.dataset.diagramFlow, 'vertical');
+  const organizedTransform = workspace.children[1].children[0].style.transform;
+  assert.match(organizedTransform, /scale\(/);
+
+  context.renderEditor(definition);
+  const refreshedStack = descendants(
+    context.ui.editor, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
+  const refreshedStage = descendants(
+    context.ui.editor, (node) => node.className === 'block-diagram-stage',
+  )[0];
+  assert.equal(refreshedStack.dataset.diagramFlow, 'vertical');
+  assert.equal(refreshedStage.style.transform, organizedTransform);
+});
+
+test('master relationship traces attach to visible pathway ends', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways.push({
+    pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
+    orderedControlIds: [],
+  });
+  definition.junctions.push({
+    junctionId: 'j1', controlId: 'c1', name: 'Junction 001',
+    pathwayRelationships: [
+      { pathwayId: 'p', endpoint: 'end' },
+      { pathwayId: 'p2', endpoint: 'start' },
+    ],
+  });
+
+  const diagram = context.renderRelationshipMap(definition);
+  const ports = descendants(
+    diagram, (node) => node.className === 'relationship-topology-port',
+  );
+  const pathwayPorts = ports.filter((port) => port.dataset.nodeId.startsWith('pathway:'));
+
+  assert.deepEqual(
+    Array.from(pathwayPorts, (port) => [port.dataset.nodeId, port.dataset.side]).sort(),
+    [['pathway:p', 'right'], ['pathway:p2', 'left']],
+  );
+});
+
 test('current pathway popup retains gate ordering and interpolation controls', () => {
   const { context } = palette();
   const definition = harness();
