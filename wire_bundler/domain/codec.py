@@ -74,10 +74,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version != SCHEMA_VERSION:
+    if schema_version not in (12, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
-            f"unsupported version {schema_version}; expected {SCHEMA_VERSION}",
+            f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
+            "(schema 12 is migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -123,6 +124,10 @@ def loads(serialized: str) -> HarnessDefinition:
         material_defaults=parse_material_settings(
             payload.get("material_defaults"), "$.material_defaults"
         ),
+        minimum_clearance_mm=_require_finite_nonnegative_float(
+            payload.get("minimum_clearance_mm", 0.0),
+            "$.minimum_clearance_mm",
+        ),
     )
     return definition
 
@@ -139,6 +144,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         "gate_defaults": asdict(definition.gate_defaults),
         "end_defaults": asdict(definition.end_defaults),
         "material_defaults": _materials_to_dict(definition.material_defaults),
+        "minimum_clearance_mm": definition.minimum_clearance_mm,
         "connections": [
             {
                 "interpolation": asdict(connection.interpolation),
@@ -691,6 +697,18 @@ def _require_float(value: Mapping[str, Any], key: str, path: str) -> float:
     if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
         raise DefinitionParseError(path, "expected a number")
     return float(raw_value)
+
+
+def _require_finite_nonnegative_float(raw_value: object, path: str) -> float:
+    """
+    Parse one persisted distance that may be zero but must remain finite.
+    """
+    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+        raise DefinitionParseError(path, "expected a number")
+    parsed = float(raw_value)
+    if not math.isfinite(parsed) or parsed < 0.0:
+        raise DefinitionParseError(path, "expected a finite nonnegative number")
+    return parsed
 
 
 def _optional_float(raw_value: object, path: str) -> Optional[float]:

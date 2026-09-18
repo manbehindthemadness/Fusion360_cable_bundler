@@ -6,7 +6,7 @@ test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
 
-  assert.equal(definition.schemaVersion, 12);
+  assert.equal(definition.schemaVersion, 13);
   assert.equal(Object.hasOwn(definition, 'wires'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(
@@ -84,6 +84,24 @@ test('current pathway popup retains gate ordering and interpolation controls', (
   const interpolation = context.document.body.querySelector('.wire-options');
   assert.equal(interpolation.open, true);
   assert.equal(interpolation.attributes['aria-label'], 'Interpolation · Gate 1');
+});
+
+test('generation defaults expose the persisted minimum member gap', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.gateDefaults = { approach_mm: null, departure_mm: null };
+  definition.endDefaults = { approach_mm: null, departure_mm: null };
+  definition.minimumClearanceMm = 0.35;
+
+  context.openInterpolationOptions(definition, 'defaults');
+
+  const dialog = context.document.body.querySelector('.wire-options');
+  const clearance = descendants(
+    dialog, (node) => node.attributes?.['aria-label'] === 'Minimum member gap (mm)',
+  )[0];
+  assert.equal(dialog.attributes['aria-label'], 'Generation defaults');
+  assert.equal(clearance.value, '0.35');
+  assert.equal(clearance.min, '0');
 });
 
 test('empty pathway end opens the current pathway popup', () => {

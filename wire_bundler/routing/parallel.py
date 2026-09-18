@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 
 from .geometry import CubicBezier, Vector3
@@ -135,6 +135,7 @@ def place_route_crossings(
     wires: tuple[WireRouteInput, ...],
     frame: Union[GateFrame, RefineFrame],
     clearance_mm: float = 0.0,
+    preferred_points: tuple[Optional[Vector3], ...] = (),
 ) -> tuple[Vector3, ...]:
     """
     Place a stable set of route identities at one shared routing frame.
@@ -149,7 +150,89 @@ def place_route_crossings(
     for wire in wires:
         if not math.isfinite(wire.diameter_mm) or wire.diameter_mm <= 0.0:
             raise ValueError(f"Wire {wire.wire_number} has an invalid diameter.")
-    return _place_crossings(wires, frame, clearance_mm)
+    if preferred_points and len(preferred_points) != len(wires):
+        raise ValueError("Preferred route crossings must align with the wire sequence.")
+    crossings = _place_crossings(wires, frame, clearance_mm)
+    if not preferred_points or not any(point is not None for point in preferred_points):
+        return crossings
+    assignment = _minimum_cost_assignment(crossings, preferred_points)
+    return tuple(crossings[index] for index in assignment)
+
+
+def _minimum_cost_assignment(
+    crossings: tuple[Vector3, ...],
+    preferred_points: tuple[Optional[Vector3], ...],
+) -> tuple[int, ...]:
+    """
+    Match bundle slots to transported prior crossings without greedy swaps.
+
+    This is the square Hungarian algorithm. Tiny deterministic tie costs retain
+    input order when a route has no preceding crossing or two costs are equal.
+    """
+    count = len(crossings)
+    costs = [
+        [
+            (_squared_distance(preferred, crossing) if preferred is not None else 0.0)
+            + abs(row_index - column_index) * 1e-12
+            + column_index * 1e-15
+            for column_index, crossing in enumerate(crossings)
+        ]
+        for row_index, preferred in enumerate(preferred_points)
+    ]
+    row_potentials = [0.0] * (count + 1)
+    column_potentials = [0.0] * (count + 1)
+    matched_row = [0] * (count + 1)
+    previous_column = [0] * (count + 1)
+    for row in range(1, count + 1):
+        matched_row[0] = row
+        minimums = [math.inf] * (count + 1)
+        used = [False] * (count + 1)
+        column = 0
+        while True:
+            used[column] = True
+            active_row = matched_row[column]
+            delta = math.inf
+            next_column = 0
+            for candidate_column in range(1, count + 1):
+                if used[candidate_column]:
+                    continue
+                reduced = (
+                    costs[active_row - 1][candidate_column - 1]
+                    - row_potentials[active_row]
+                    - column_potentials[candidate_column]
+                )
+                if reduced < minimums[candidate_column]:
+                    minimums[candidate_column] = reduced
+                    previous_column[candidate_column] = column
+                if minimums[candidate_column] < delta:
+                    delta = minimums[candidate_column]
+                    next_column = candidate_column
+            for candidate_column in range(count + 1):
+                if used[candidate_column]:
+                    row_potentials[matched_row[candidate_column]] += delta
+                    column_potentials[candidate_column] -= delta
+                else:
+                    minimums[candidate_column] -= delta
+            column = next_column
+            if matched_row[column] == 0:
+                break
+        while True:
+            prior = previous_column[column]
+            matched_row[column] = matched_row[prior]
+            column = prior
+            if column == 0:
+                break
+    assignment = [0] * count
+    for column in range(1, count + 1):
+        assignment[matched_row[column] - 1] = column - 1
+    return tuple(assignment)
+
+
+def _squared_distance(left: Vector3, right: Vector3) -> float:
+    """
+    Return squared model-space distance for lane-assignment costs.
+    """
+    return (left.x - right.x) ** 2 + (left.y - right.y) ** 2 + (left.z - right.z) ** 2
 
 
 def _place_crossings(

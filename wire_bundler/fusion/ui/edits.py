@@ -216,6 +216,12 @@ def _apply_palette_edit(
         apply_existing = payload.get("applyExisting", False)
         if not isinstance(apply_existing, bool):
             raise ValueError("Apply to existing sections must be a boolean.")
+        raw_minimum_clearance = payload.get("minimumClearanceMm")
+        if raw_minimum_clearance is not None and (
+            isinstance(raw_minimum_clearance, bool)
+            or not isinstance(raw_minimum_clearance, (int, float))
+        ):
+            raise ValueError("Minimum member gap must be a number in millimeters.")
         settings = parse_interpolation(payload.get("settings"), "settings")
         set_interpolation(
             harness_id,
@@ -233,6 +239,11 @@ def _apply_palette_edit(
             end_defaults=(
                 parse_interpolation(payload.get("endDefaults"), "endDefaults")
                 if target == "defaults"
+                else None
+            ),
+            minimum_clearance_mm=(
+                float(raw_minimum_clearance)
+                if target == "defaults" and raw_minimum_clearance is not None
                 else None
             ),
         )

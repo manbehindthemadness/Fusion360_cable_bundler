@@ -89,6 +89,7 @@ def serialize_palette_state(
                 "routingMode": _ROUTING_MODE_LABELS[definition.routing_mode],
                 "gateDefaults": asdict(definition.gate_defaults),
                 "endDefaults": asdict(definition.end_defaults),
+                "minimumClearanceMm": definition.minimum_clearance_mm,
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
                 "connections": [
                     {

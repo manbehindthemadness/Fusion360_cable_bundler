@@ -80,6 +80,34 @@ def test_places_network_crossings_without_synthesizing_complete_routes() -> None
     assert crossings == tuple(route.points[1] for route in routes)
 
 
+def test_assigns_lanes_toward_prior_world_space_crossings() -> None:
+    """
+    Transport bundle layout between differently oriented guide frames without swaps.
+    """
+    wires = tuple(_wire(index) for index in range(1, 4))
+    first = _gate(1)
+    second = GateFrame(
+        _gate(2).gate_id,
+        "Rotated Gate",
+        _gate(2).origin,
+        Vector3(0.0, 1.0, 0.0),
+        Vector3(-1.0, 0.0, 0.0),
+        8.0,
+    )
+    prior = place_route_crossings(wires, first)
+
+    transported = place_route_crossings(wires, second, preferred_points=prior)
+    unassigned = place_route_crossings(wires, second)
+
+    transported_cost = sum(
+        (left.x - right.x) ** 2 + (left.y - right.y) ** 2 for left, right in zip(prior, transported)
+    )
+    unassigned_cost = sum(
+        (left.x - right.x) ** 2 + (left.y - right.y) ** 2 for left, right in zip(prior, unassigned)
+    )
+    assert transported_cost <= unassigned_cost
+
+
 def test_refine_preserves_bundle_spacing_without_aperture_constraint() -> None:
     """
     Route every conductor through an oriented refine without capacity rejection.

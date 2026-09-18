@@ -37,8 +37,8 @@ def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> Non
     assert dumps(valid_harness) == dumps(valid_harness)
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 13])
-def test_rejects_every_noncurrent_schema_version(
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 14])
+def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
 ) -> None:
@@ -50,6 +50,22 @@ def test_rejects_every_noncurrent_schema_version(
 
     with pytest.raises(DefinitionParseError, match=f"expected {SCHEMA_VERSION}"):
         loads(json.dumps(payload))
+
+
+def test_migrates_schema_12_with_zero_minimum_clearance(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep current saved harnesses readable when collision-aware routing is introduced.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["schema_version"] = 12
+    del payload["minimum_clearance_mm"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.minimum_clearance_mm == 0.0
 
 
 @pytest.mark.parametrize(

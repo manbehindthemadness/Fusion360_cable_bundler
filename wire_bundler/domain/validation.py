@@ -44,6 +44,19 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
         )
     if not definition.name.strip():
         issues.append(ValidationIssue("missing_name", "name", "Harness name is required."))
+    if (
+        isinstance(definition.minimum_clearance_mm, bool)
+        or not isinstance(definition.minimum_clearance_mm, (int, float))
+        or not math.isfinite(definition.minimum_clearance_mm)
+        or definition.minimum_clearance_mm < 0.0
+    ):
+        issues.append(
+            ValidationIssue(
+                "invalid_minimum_clearance",
+                "minimum_clearance_mm",
+                "Minimum member clearance must be finite and nonnegative.",
+            )
+        )
     if not definition.wire_groups:
         issues.append(
             ValidationIssue(

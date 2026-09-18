@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
@@ -478,6 +478,19 @@ class HarnessDefinition:
     gate_defaults: InterpolationSettings = InterpolationSettings()
     end_defaults: InterpolationSettings = InterpolationSettings()
     material_defaults: WireMaterialSettings = WireMaterialSettings()
+    minimum_clearance_mm: float = 0.0
+
+    def __post_init__(self) -> None:
+        """
+        Require a finite nonnegative surface gap for generated members.
+        """
+        if (
+            isinstance(self.minimum_clearance_mm, bool)
+            or not isinstance(self.minimum_clearance_mm, (int, float))
+            or not math.isfinite(self.minimum_clearance_mm)
+            or self.minimum_clearance_mm < 0.0
+        ):
+            raise ValueError("Minimum member clearance must be finite and nonnegative.")
 
     def wire_group_materials(self, group: WireGroupDefinition) -> WireMaterialSettings:
         """

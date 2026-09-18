@@ -4,6 +4,7 @@ Edit ordered pathway gates and wire endpoint pairings transactionally.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Optional, Protocol
@@ -1081,6 +1082,7 @@ def set_interpolation(
     apply_existing: bool = False,
     member_id: Optional[UUID] = None,
     use_defaults: bool = False,
+    minimum_clearance_mm: Optional[float] = None,
 ) -> None:
     """
     Save section controls or creation defaults in one reversible metadata edit.
@@ -1091,7 +1093,24 @@ def set_interpolation(
     if target == "defaults":
         if end_defaults is None:
             raise ValueError("Both gate and end defaults are required.")
-        updated = replace(definition, gate_defaults=settings, end_defaults=end_defaults)
+        clearance = (
+            definition.minimum_clearance_mm
+            if minimum_clearance_mm is None
+            else minimum_clearance_mm
+        )
+        if (
+            isinstance(clearance, bool)
+            or not isinstance(clearance, (int, float))
+            or not math.isfinite(clearance)
+            or clearance < 0.0
+        ):
+            raise ValueError("Minimum member clearance must be finite and nonnegative.")
+        updated = replace(
+            definition,
+            gate_defaults=settings,
+            end_defaults=end_defaults,
+            minimum_clearance_mm=float(clearance),
+        )
         if apply_existing:
             updated = replace(
                 updated,

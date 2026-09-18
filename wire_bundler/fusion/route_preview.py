@@ -29,6 +29,7 @@ from ..domain import (
 from ..routing import (
     GateFrame,
     RefineFrame,
+    RouteCollision,
     RoutePreview,
     TransitionAdjustment,
     TransitionLengths,
@@ -38,6 +39,7 @@ from ..routing import (
     minimum_circular_bend_radius,
     place_route_crossings,
     sample_centerline,
+    separate_route_collisions,
 )
 from ..routing.geometry import cross, difference, dot, linear_combination, magnitude, unit
 
@@ -66,6 +68,19 @@ class _PreviewState:
     route_connection_ids: dict[UUID, tuple[UUID, ...]] = field(default_factory=dict)
     route_pathway_ids: dict[UUID, tuple[UUID, ...]] = field(default_factory=dict)
     route_control_ids: dict[UUID, tuple[UUID, ...]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _ProfileFrame:
+    """
+    Describe one end guide and any circular interior available to its route.
+    """
+
+    origin: Vector3
+    normal: Vector3
+    u_direction: Vector3
+    v_direction: Vector3
+    usable_radius_mm: Optional[float] = None
 
 
 _preview_states: dict[str, _PreviewState] = {}
@@ -167,7 +182,6 @@ def _has_wire_preview_children(group: adsk.fusion.CustomGraphicsGroup) -> bool:
 def show_route_previews(
     design: adsk.fusion.Design,
     definition: HarnessDefinition,
-    clearance_mm: float = 0.0,
     notices: Optional[list[str]] = None,
 ) -> tuple[RoutePreview, ...]:
     """
@@ -177,7 +191,7 @@ def show_route_previews(
         RuntimeError: If referenced geometry is unavailable or unsupported.
         ValueError: If route inputs or gate capacity are invalid.
     """
-    routes, legs = _solve_wire_group_routes(design, definition, clearance_mm, notices)
+    routes, legs = _solve_wire_group_routes(design, definition, notices)
     root_component = design.rootComponent
     clear_route_previews(design)
     preview_group = root_component.customGraphicsGroups.add()
@@ -206,7 +220,7 @@ def show_route_previews(
         definition,
         {route.wire_id: route for route in routes},
         {route.wire_id: index for index, route in enumerate(routes)},
-        clearance_mm,
+        definition.minimum_clearance_mm,
         route_group_ids=route_group_ids,
         route_connection_ids={leg.route_id: group_connections[leg.wire_group_id] for leg in legs},
         route_pathway_ids={leg.route_id: leg.pathway_ids for leg in legs},
@@ -309,7 +323,6 @@ def _wire_graphics(
 def _solve_wire_group_routes(
     design: adsk.fusion.Design,
     definition: HarnessDefinition,
-    clearance_mm: float,
     notices: Optional[list[str]] = None,
 ) -> tuple[tuple[RoutePreview, ...], tuple[WireGroupRouteLeg, ...]]:
     """
@@ -336,6 +349,7 @@ def _solve_wire_group_routes(
             if leg.wire_group_id not in control_groups[step.control_id]:
                 control_groups[step.control_id].append(leg.wire_group_id)
     crossings: dict[tuple[UUID, UUID], Vector3] = {}
+    prior_crossings: dict[UUID, Vector3] = {}
     origin = Vector3(0.0, 0.0, 0.0)
     for control_id, group_ids in control_groups.items():
         ordered_group_ids = sorted(group_ids, key=group_order.__getitem__)
@@ -349,25 +363,38 @@ def _solve_wire_group_routes(
             )
             for group_id in ordered_group_ids
         )
-        points = place_route_crossings(placement_inputs, frames[control_id], clearance_mm)
+        points = place_route_crossings(
+            placement_inputs,
+            frames[control_id],
+            definition.minimum_clearance_mm,
+            tuple(prior_crossings.get(group_id) for group_id in ordered_group_ids),
+        )
         crossings.update(
             ((control_id, group_id), point) for group_id, point in zip(ordered_group_ids, points)
         )
+        prior_crossings.update(zip(ordered_group_ids, points))
 
-    profile_frames: dict[str, tuple[Vector3, Vector3]] = {}
+    profile_frames: dict[str, _ProfileFrame] = {}
     routes: list[RoutePreview] = []
+    route_group_ids: list[UUID] = []
+    route_diameters: list[float] = []
+    route_normals: list[tuple[Vector3, ...]] = []
+    route_transitions: list[tuple[TransitionLengths, ...]] = []
+    minimum_bend_radii: list[float] = []
     for leg in legs:
         diameter_mm = groups_by_id[leg.wire_group_id].diameter_mm
         points: list[Vector3] = []
         normals: list[Vector3] = []
         transitions: list[TransitionLengths] = []
+        start_frames: tuple[_ProfileFrame, ...] = ()
         if leg.start_connection_id is not None:
             connection = connections.get(leg.start_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing start connection.")
             connection_frames = _connection_profile_frames(design, connection, profile_frames)
-            points.extend(frame[0] for frame in connection_frames)
-            normals.extend(frame[1] for frame in connection_frames)
+            start_frames = connection_frames
+            points.extend(frame.origin for frame in connection_frames)
+            normals.extend(frame.normal for frame in connection_frames)
             transitions.extend(
                 TransitionLengths(settings.approach_mm, settings.departure_mm)
                 for settings in connection.member_settings
@@ -386,13 +413,25 @@ def _solve_wire_group_routes(
                     settings.approach_mm if step.reversed else settings.departure_mm,
                 )
             )
+        if start_frames and len(points) > len(start_frames):
+            start_points = _connection_profile_points(
+                start_frames,
+                points[len(start_frames)],
+                diameter_mm,
+            )
+            points[: len(start_frames)] = start_points
         if leg.end_connection_id is not None:
             connection = connections.get(leg.end_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
             connection_frames = _connection_profile_frames(design, connection, profile_frames)
-            points.extend(frame[0] for frame in reversed(connection_frames))
-            normals.extend(frame[1] for frame in reversed(connection_frames))
+            end_points = _connection_profile_points(
+                connection_frames,
+                points[-1],
+                diameter_mm,
+            )
+            points.extend(reversed(end_points))
+            normals.extend(frame.normal for frame in reversed(connection_frames))
             transitions.extend(
                 TransitionLengths(settings.departure_mm, settings.approach_mm)
                 for settings in reversed(connection.member_settings)
@@ -401,24 +440,41 @@ def _solve_wire_group_routes(
             raise ValueError(f"{leg.label} does not contain enough route geometry.")
         route = RoutePreview(leg.route_id, leg.label, tuple(points))
         adjustments: list[TransitionAdjustment] = []
+        minimum_bend_radius = minimum_circular_bend_radius(diameter_mm)
         route = fair_route(
             route,
             tuple(normals),
             tuple(transitions),
-            minimum_bend_radius_mm=minimum_circular_bend_radius(diameter_mm),
+            minimum_bend_radius_mm=minimum_bend_radius,
             adjustments=adjustments,
         )
         routes.append(route)
+        route_group_ids.append(leg.wire_group_id)
+        route_diameters.append(diameter_mm)
+        route_normals.append(tuple(normals))
+        route_transitions.append(tuple(transitions))
+        minimum_bend_radii.append(minimum_bend_radius)
         if notices is not None:
             notices.extend(_adjustment_notice(item) for item in adjustments)
-    return tuple(routes), legs
+    separated_routes, collisions = separate_route_collisions(
+        tuple(routes),
+        tuple(route_group_ids),
+        tuple(route_diameters),
+        tuple(route_normals),
+        tuple(route_transitions),
+        tuple(minimum_bend_radii),
+        definition.minimum_clearance_mm,
+    )
+    if notices is not None:
+        notices.extend(_collision_notice(item) for item in collisions)
+    return separated_routes, legs
 
 
 def _connection_profile_frames(
     design: adsk.fusion.Design,
     connection: Connection,
-    cache: dict[str, tuple[Vector3, Vector3]],
-) -> tuple[tuple[Vector3, Vector3], ...]:
+    cache: dict[str, _ProfileFrame],
+) -> tuple[_ProfileFrame, ...]:
     """
     Resolve and cache every ordered profile frame owned by one connection.
     """
@@ -427,6 +483,43 @@ def _connection_profile_frames(
         if token not in cache:
             cache[token] = _profile_frame(design, token)
     return tuple(cache[token] for token in member_tokens)
+
+
+def _connection_profile_points(
+    frames: tuple[_ProfileFrame, ...],
+    pathway_target: Vector3,
+    diameter_mm: float,
+) -> list[Vector3]:
+    """
+    Use circular guide interiors to approach the pathway without slot swaps.
+
+    Frames are stored terminal-to-pathway, so placement propagates backward
+    from the known pathway crossing while preserving the authored guide order.
+    """
+    reversed_points: list[Vector3] = []
+    target = pathway_target
+    for frame in reversed(frames):
+        radius = frame.usable_radius_mm
+        if radius is None:
+            point = frame.origin
+        else:
+            available_radius = max(0.0, radius - diameter_mm / 2.0)
+            delta = difference(target, frame.origin)
+            u_offset = dot(delta, frame.u_direction)
+            v_offset = dot(delta, frame.v_direction)
+            distance = math.hypot(u_offset, v_offset)
+            scale = (
+                1.0
+                if distance <= available_radius or distance <= 1e-12
+                else available_radius / distance
+            )
+            point = frame.origin.translated(frame.u_direction, u_offset * scale).translated(
+                frame.v_direction,
+                v_offset * scale,
+            )
+        reversed_points.append(point)
+        target = point
+    return list(reversed(reversed_points))
 
 
 def refresh_route_previews(
@@ -475,8 +568,9 @@ def _refresh_wire_group_preview(
         state.route_control_ids.clear()
         _remember_preview(group.id, state)
         return ""
+    solve_notices: list[str] = []
     try:
-        routes, legs = _solve_wire_group_routes(design, definition, state.clearance_mm)
+        routes, legs = _solve_wire_group_routes(design, definition, solve_notices)
     except (AttributeError, RuntimeError, TypeError, ValueError) as error:
         return f"Preview update failed for a wire group: {error}"
     solved = {route.wire_id: route for route in routes}
@@ -488,7 +582,7 @@ def _refresh_wire_group_preview(
     old_groups = {item.wire_group_id: item for item in state.definition.wire_groups}
     new_groups = {item.wire_group_id: item for item in definition.wire_groups}
     route_group_ids = {leg.route_id: leg.wire_group_id for leg in legs}
-    warnings: list[str] = []
+    warnings: list[str] = solve_notices
     for route in routes:
         group_id = route_group_ids[route.wire_id]
         old_group = old_groups.get(group_id)
@@ -524,6 +618,7 @@ def _refresh_wire_group_preview(
     }
     drawn_leg_ids = set(state.routes)
     state.definition = definition
+    state.clearance_mm = definition.minimum_clearance_mm
     state.route_group_ids = {
         leg.route_id: leg.wire_group_id for leg in legs if leg.route_id in drawn_leg_ids
     }
@@ -616,6 +711,17 @@ def _adjustment_notice(adjustment: TransitionAdjustment) -> str:
     )
 
 
+def _collision_notice(collision: RouteCollision) -> str:
+    """
+    Format one best-effort residual member collision for the event console.
+    """
+    return (
+        f"{collision.left_label} and {collision.right_label} remain "
+        f"{collision.clearance_shortfall_mm:.3f} mm inside the requested separation; "
+        "generated geometry uses the best deterministic route found."
+    )
+
+
 def _routing_frame(
     design: adsk.fusion.Design,
     control: Optional[ControlStructure],
@@ -683,7 +789,7 @@ def _gate_frame(
     )
 
 
-def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> tuple[Vector3, Vector3]:
+def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> _ProfileFrame:
     """
     Return a millimeter-scale model centroid and dimensionless unit plane normal.
     """
@@ -691,10 +797,30 @@ def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> tuple[Vecto
     area_properties = profile.areaProperties()
     if area_properties is None:
         raise RuntimeError("Fusion could not calculate connection-profile area properties.")
-    model_centroid = profile.parentSketch.sketchToModelSpace(area_properties.centroid)
     sketch = profile.parentSketch
-    normal = unit(cross(_vector(sketch.xDirection), _vector(sketch.yDirection)))
-    return _point_to_mm(model_centroid), normal
+    u_direction = _vector(sketch.xDirection)
+    v_direction = _vector(sketch.yDirection)
+    normal = unit(cross(u_direction, v_direction))
+    usable_radius_mm: Optional[float] = None
+    origin = sketch.sketchToModelSpace(area_properties.centroid)
+    loops = profile.profileLoops
+    if loops.count == 1:
+        curves = loops.item(0).profileCurves
+        if curves.count == 1:
+            profile_curve = curves.item(0)
+            circle = adsk.fusion.SketchCircle.cast(
+                profile_curve.sketchEntity if profile_curve is not None else None
+            )
+            if circle is not None:
+                origin = sketch.sketchToModelSpace(circle.geometry.center)
+                usable_radius_mm = circle.geometry.radius * 10.0
+    return _ProfileFrame(
+        _point_to_mm(origin),
+        normal,
+        u_direction,
+        v_direction,
+        usable_radius_mm,
+    )
 
 
 def _resolve_profile(design: adsk.fusion.Design, entity_token: str) -> adsk.fusion.Profile:
@@ -959,4 +1085,4 @@ def solve_wire_group_centerlines(
     order so persistent generation can consume exactly the geometry previewed
     by the user.
     """
-    return _solve_wire_group_routes(design, definition, 0.0, notices)
+    return _solve_wire_group_routes(design, definition, notices)

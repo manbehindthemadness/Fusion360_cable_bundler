@@ -138,6 +138,22 @@ function openInterpolationOptions(
     false,
   );
   const ends = isDefaults ? addFields("Ends · ", harness.endDefaults, true) : null;
+  let minimumClearance = null;
+  if (isDefaults) {
+    const clearanceLabel = document.createElement("label");
+    minimumClearance = document.createElement("input");
+    clearanceLabel.textContent = "Minimum member gap (mm)";
+    minimumClearance.type = "number";
+    minimumClearance.className = "filter";
+    minimumClearance.step = "any";
+    minimumClearance.min = "0";
+    minimumClearance.required = true;
+    minimumClearance.value = `${harness.minimumClearanceMm ?? 0}`;
+    minimumClearance.setAttribute("aria-label", clearanceLabel.textContent);
+    clearanceLabel.append(minimumClearance);
+    form.append(clearanceLabel);
+    fields.push(minimumClearance);
+  }
   if (!isDefaults) {
     const reset = document.createElement("button");
     reset.type = "button";
@@ -172,6 +188,7 @@ function openInterpolationOptions(
         useDefaults,
         settings: values(primary),
         ...(ends ? { endDefaults: values(ends), applyExisting: applyExisting.checked } : {}),
+        ...(minimumClearance ? { minimumClearanceMm: Number(minimumClearance.value) } : {}),
       });
       if (response.ok) dialog.close();
       else error.textContent = response.error || "Could not save interpolation options.";
