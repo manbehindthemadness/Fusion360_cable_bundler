@@ -6,10 +6,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import pytest
+
 from wire_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
+    avoidance,
     fair_route,
     route_collisions,
     separate_route_collisions,
@@ -55,6 +58,42 @@ def test_repairs_crossing_members_with_a_bounded_free_detour() -> None:
     assert routes[1].points[-1] == vertical.points[-1]
     assert not collisions
     assert separate_route_collisions(*inputs) == (routes, collisions)
+
+
+def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Keep unchanged route samples cached while evaluating a detour.
+    """
+    horizontal = _straight_route(1, "Horizontal", Vector3(-10, 0, 0), Vector3(10, 0, 0))
+    vertical = _straight_route(2, "Vertical", Vector3(0, -10, 0), Vector3(0, 10, 0))
+    sample_counts = {horizontal.wire_id: 0, vertical.wire_id: 0}
+    original_sample_route = avoidance._sample_route
+
+    def counting_sample_route(route: RoutePreview) -> tuple[Vector3, ...]:
+        """
+        Count collision samples while delegating to the production sampler.
+        """
+        sample_counts[route.wire_id] += 1
+        return original_sample_route(route)
+
+    monkeypatch.setattr(avoidance, "_sample_route", counting_sample_route)
+    routes, collisions = separate_route_collisions(
+        (horizontal, vertical),
+        (UUID(int=101), UUID(int=102)),
+        (2.0, 2.0),
+        (
+            (Vector3(1, 0, 0), Vector3(1, 0, 0)),
+            (Vector3(0, 1, 0), Vector3(0, 1, 0)),
+        ),
+        ((TransitionLengths(),) * 2,) * 2,
+        (1.05, 1.05),
+        0.0,
+    )
+
+    assert not collisions
+    assert routes[0] == horizontal
+    assert sample_counts[horizontal.wire_id] == 1
+    assert sample_counts[vertical.wire_id] > 1
 
 
 def test_ignores_intentional_same_group_junction_contact() -> None:

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
+from typing import Iterator, Optional
 from uuid import UUID
 
 from .geometry import Vector3, cross, difference, dot, magnitude, unit
@@ -39,25 +40,133 @@ class _Capsule:
     Approximate one centerline interval with a conservatively expanded capsule.
     """
 
-    route_index: int
-    group_id: UUID
     start: Vector3
     end: Vector3
     radius_mm: float
+    minimum_x: float
+    maximum_x: float
+    minimum_y: float
+    maximum_y: float
+    minimum_z: float
+    maximum_z: float
+
+
+@dataclass(frozen=True)
+class _RouteGeometry:
+    """
+    Cache one route's sampled collision geometry and expanded bounds.
+    """
+
+    route: RoutePreview
+    group_id: UUID
+    capsules: tuple[_Capsule, ...]
+    minimum_x: float
+    maximum_x: float
+    minimum_y: float
+    maximum_y: float
+    minimum_z: float
+    maximum_z: float
+
+
+class _CollisionIndex:
+    """
+    Retain sampled routes and incrementally update pairwise collisions.
+    """
+
+    def __init__(
+        self,
+        routes: tuple[RoutePreview, ...],
+        group_ids: tuple[UUID, ...],
+        diameters_mm: tuple[float, ...],
+        clearance_mm: float,
+    ) -> None:
+        """
+        Sample all initial routes once and build the collision-pair map.
+        """
+        self._group_ids = group_ids
+        self._diameters_mm = diameters_mm
+        self._clearance_mm = clearance_mm
+        self._geometries = [
+            _route_geometry(route, group_id, diameter_mm, clearance_mm)
+            for route, group_id, diameter_mm in zip(routes, group_ids, diameters_mm)
+        ]
+        self._collisions: dict[tuple[int, int], RouteCollision] = {}
+        for left_index, right_index in _candidate_route_pairs(tuple(self._geometries)):
+            collision = _route_pair_collision(
+                self._geometries[left_index],
+                self._geometries[right_index],
+            )
+            if collision is not None:
+                self._collisions[left_index, right_index] = collision
 
     @property
-    def minimum_x(self) -> float:
+    def collisions(self) -> tuple[RouteCollision, ...]:
         """
-        Return the expanded lower X extent used by sweep-and-prune.
+        Return collisions in stable route-index order.
         """
-        return min(self.start.x, self.end.x) - self.radius_mm
+        return tuple(self._collisions[pair] for pair in sorted(self._collisions))
 
-    @property
-    def maximum_x(self) -> float:
+    def candidate_update(
+        self, route_index: int, route: RoutePreview
+    ) -> tuple[_RouteGeometry, dict[tuple[int, int], RouteCollision]]:
         """
-        Return the expanded upper X extent used by sweep-and-prune.
+        Evaluate one replacement route without mutating indexed state.
         """
-        return max(self.start.x, self.end.x) + self.radius_mm
+        geometry = _route_geometry(
+            route,
+            self._group_ids[route_index],
+            self._diameters_mm[route_index],
+            self._clearance_mm,
+        )
+        replacements: dict[tuple[int, int], RouteCollision] = {}
+        for other_index, other_geometry in enumerate(self._geometries):
+            if other_index == route_index or other_geometry.group_id == geometry.group_id:
+                continue
+            left_index, right_index = sorted((route_index, other_index))
+            left_geometry = geometry if left_index == route_index else other_geometry
+            right_geometry = geometry if right_index == route_index else other_geometry
+            if not _overlapping_route_bounds(left_geometry, right_geometry):
+                continue
+            collision = _route_pair_collision(
+                left_geometry,
+                right_geometry,
+            )
+            if collision is not None:
+                replacements[left_index, right_index] = collision
+        return geometry, replacements
+
+    def score_with(
+        self,
+        route_index: int,
+        replacements: dict[tuple[int, int], RouteCollision],
+    ) -> tuple[float, int]:
+        """
+        Score a candidate while retaining all unaffected route pairs.
+        """
+        collisions = (
+            collision for pair, collision in self._collisions.items() if route_index not in pair
+        )
+        shortfall = sum(collision.clearance_shortfall_mm for collision in collisions)
+        shortfall += sum(collision.clearance_shortfall_mm for collision in replacements.values())
+        count = sum(1 for pair in self._collisions if route_index not in pair) + len(replacements)
+        return shortfall, count
+
+    def accept(
+        self,
+        route_index: int,
+        geometry: _RouteGeometry,
+        replacements: dict[tuple[int, int], RouteCollision],
+    ) -> None:
+        """
+        Commit one evaluated route replacement and its changed pairs.
+        """
+        self._geometries[route_index] = geometry
+        self._collisions = {
+            pair: collision
+            for pair, collision in self._collisions.items()
+            if route_index not in pair
+        }
+        self._collisions.update(replacements)
 
 
 def separate_route_collisions(
@@ -89,7 +198,9 @@ def separate_route_collisions(
     route_normals = [list(items) for items in normals]
     route_transitions = [list(items) for items in transitions]
     detour_counts = [0] * count
-    collisions = _route_collisions(tuple(current), group_ids, diameters_mm, clearance_mm)
+    collision_index = _CollisionIndex(tuple(current), group_ids, diameters_mm, clearance_mm)
+    collisions = collision_index.collisions
+    route_indices = {route.wire_id: index for index, route in enumerate(routes)}
     for _pass_index in range(_MAX_REPAIR_PASSES):
         if not collisions:
             break
@@ -100,8 +211,8 @@ def separate_route_collisions(
         ):
             candidates = sorted(
                 (
-                    _route_index(current, collision.left_route_id),
-                    _route_index(current, collision.right_route_id),
+                    route_indices[collision.left_route_id],
+                    route_indices[collision.right_route_id],
                 ),
                 key=lambda index: str(routes[index].wire_id),
                 reverse=True,
@@ -128,18 +239,19 @@ def separate_route_collisions(
                     other_point,
                     collision.clearance_shortfall_mm,
                 ):
-                    trial = list(current)
-                    trial[route_index] = candidate_route
-                    trial_collisions = _route_collisions(
-                        tuple(trial), group_ids, diameters_mm, clearance_mm
+                    geometry, replacements = collision_index.candidate_update(
+                        route_index, candidate_route
                     )
-                    if _collision_score(trial_collisions) >= _collision_score(collisions):
+                    if collision_index.score_with(route_index, replacements) >= _collision_score(
+                        collisions
+                    ):
                         continue
-                    current = trial
+                    current[route_index] = candidate_route
                     route_normals[route_index] = list(candidate_normals)
                     route_transitions[route_index] = list(candidate_transitions)
                     detour_counts[route_index] += 1
-                    collisions = trial_collisions
+                    collision_index.accept(route_index, geometry, replacements)
+                    collisions = collision_index.collisions
                     repaired = True
                     break
                 if repaired:
@@ -173,7 +285,7 @@ def _detour_candidates(
     selected_point: Vector3,
     other_point: Vector3,
     shortfall_mm: float,
-) -> tuple[tuple[RoutePreview, tuple[Vector3, ...], tuple[TransitionLengths, ...]], ...]:
+) -> Iterator[tuple[RoutePreview, tuple[Vector3, ...], tuple[TransitionLengths, ...]]]:
     """
     Insert one free waypoint into the closest guide span and refair the route.
     """
@@ -184,7 +296,7 @@ def _detour_candidates(
     try:
         tangent = unit(chord)
     except ValueError:
-        return ()
+        return
     separation = difference(selected_point, other_point)
     if magnitude(separation) <= 1e-9:
         axis = min(
@@ -195,14 +307,13 @@ def _detour_candidates(
     try:
         direction = unit(separation)
     except ValueError:
-        return ()
+        return
     midpoint = Vector3(
         (start.x + end.x) / 2.0,
         (start.y + end.y) / 2.0,
         (start.z + end.z) / 2.0,
     )
     base_offset = max(shortfall_mm + _NUMERIC_MARGIN_MM, minimum_bend_radius_mm * 1.5)
-    candidates = []
     for multiplier in (1.0, 1.5, 2.0, 3.0):
         waypoint = midpoint.translated(direction, base_offset * multiplier)
         points = (*route.points[: span_index + 1], waypoint, *route.points[span_index + 1 :])
@@ -221,8 +332,7 @@ def _detour_candidates(
             )
         except ValueError:
             continue
-        candidates.append((candidate, candidate_normals, candidate_transitions))
-    return tuple(candidates)
+        yield candidate, candidate_normals, candidate_transitions
 
 
 def _route_collisions(
@@ -234,54 +344,128 @@ def _route_collisions(
     """
     Find the worst capsule overlap for every pair of logical route legs.
     """
-    capsules: list[_Capsule] = []
-    for route_index, (route, group_id, diameter_mm) in enumerate(
-        zip(routes, group_ids, diameters_mm)
-    ):
-        radius = diameter_mm / 2.0 + clearance_mm / 2.0 + _NUMERIC_MARGIN_MM
-        points = _sample_route(route)
-        capsules.extend(
-            _Capsule(route_index, group_id, start, end, radius)
-            for start, end in zip(points, points[1:])
-            if magnitude(difference(end, start)) > 1e-12
-        )
-    ordered = sorted(capsules, key=lambda item: item.minimum_x)
-    worst: dict[tuple[int, int], RouteCollision] = {}
-    for left_index, left in enumerate(ordered):
-        for right in ordered[left_index + 1 :]:
+    return _CollisionIndex(routes, group_ids, diameters_mm, clearance_mm).collisions
+
+
+def _route_geometry(
+    route: RoutePreview,
+    group_id: UUID,
+    diameter_mm: float,
+    clearance_mm: float,
+) -> _RouteGeometry:
+    """
+    Sample and bound one route for repeated collision queries.
+    """
+    radius = diameter_mm / 2.0 + clearance_mm / 2.0 + _NUMERIC_MARGIN_MM
+    points = _sample_route(route)
+    capsules = tuple(
+        _capsule(start, end, radius)
+        for start, end in zip(points, points[1:])
+        if magnitude(difference(end, start)) > 1e-12
+    )
+    if not capsules:
+        raise ValueError(f"Wire {route.wire_number} has no measurable collision geometry.")
+    return _RouteGeometry(
+        route,
+        group_id,
+        tuple(sorted(capsules, key=lambda item: item.minimum_x)),
+        min(item.minimum_x for item in capsules),
+        max(item.maximum_x for item in capsules),
+        min(item.minimum_y for item in capsules),
+        max(item.maximum_y for item in capsules),
+        min(item.minimum_z for item in capsules),
+        max(item.maximum_z for item in capsules),
+    )
+
+
+def _capsule(start: Vector3, end: Vector3, radius_mm: float) -> _Capsule:
+    """
+    Create a capsule with precomputed expanded axis-aligned bounds.
+    """
+    return _Capsule(
+        start,
+        end,
+        radius_mm,
+        min(start.x, end.x) - radius_mm,
+        max(start.x, end.x) + radius_mm,
+        min(start.y, end.y) - radius_mm,
+        max(start.y, end.y) + radius_mm,
+        min(start.z, end.z) - radius_mm,
+        max(start.z, end.z) + radius_mm,
+    )
+
+
+def _candidate_route_pairs(
+    geometries: tuple[_RouteGeometry, ...],
+) -> Iterator[tuple[int, int]]:
+    """
+    Yield only route pairs whose expanded bounds overlap on all axes.
+    """
+    ordered = sorted(range(len(geometries)), key=lambda index: geometries[index].minimum_x)
+    for position, left_index in enumerate(ordered):
+        left = geometries[left_index]
+        for right_index in ordered[position + 1 :]:
+            right = geometries[right_index]
             if right.minimum_x > left.maximum_x:
                 break
-            if left.route_index == right.route_index or left.group_id == right.group_id:
+            if left.group_id == right.group_id or not _overlapping_route_bounds(left, right):
                 continue
-            if not _overlapping_extents(left, right):
+            yield (
+                (left_index, right_index) if left_index < right_index else (right_index, left_index)
+            )
+
+
+def _overlapping_route_bounds(left: _RouteGeometry, right: _RouteGeometry) -> bool:
+    """
+    Return whether two expanded route boxes overlap on every axis.
+    """
+    return not (
+        right.minimum_x > left.maximum_x
+        or left.minimum_x > right.maximum_x
+        or right.minimum_y > left.maximum_y
+        or left.minimum_y > right.maximum_y
+        or right.minimum_z > left.maximum_z
+        or left.minimum_z > right.maximum_z
+    )
+
+
+def _route_pair_collision(
+    left: _RouteGeometry,
+    right: _RouteGeometry,
+) -> Optional[RouteCollision]:
+    """
+    Find the worst sampled capsule overlap for one ordered route pair.
+    """
+    worst: Optional[RouteCollision] = None
+    for left_capsule in left.capsules:
+        for right_capsule in right.capsules:
+            if right_capsule.minimum_x > left_capsule.maximum_x:
+                break
+            if right_capsule.maximum_x < left_capsule.minimum_x:
+                continue
+            if not _overlapping_extents(left_capsule, right_capsule):
                 continue
             distance, left_point, right_point = _segment_distance(
-                left.start, left.end, right.start, right.end
+                left_capsule.start,
+                left_capsule.end,
+                right_capsule.start,
+                right_capsule.end,
             )
-            required = left.radius_mm + right.radius_mm
-            shortfall = required - distance
+            shortfall = left_capsule.radius_mm + right_capsule.radius_mm - distance
             if shortfall <= 0.0:
                 continue
-            first_route_index, second_route_index = sorted((left.route_index, right.route_index))
-            pair = (first_route_index, second_route_index)
-            left_route = routes[pair[0]]
-            right_route = routes[pair[1]]
             candidate = RouteCollision(
-                left_route.wire_id,
-                right_route.wire_id,
-                left_route.wire_number,
-                right_route.wire_number,
+                left.route.wire_id,
+                right.route.wire_id,
+                left.route.wire_number,
+                right.route.wire_number,
                 shortfall,
-                left_point if pair[0] == left.route_index else right_point,
-                right_point if pair[1] == right.route_index else left_point,
+                left_point,
+                right_point,
             )
-            previous = worst.get(pair)
-            if (
-                previous is None
-                or candidate.clearance_shortfall_mm > previous.clearance_shortfall_mm
-            ):
-                worst[pair] = candidate
-    return tuple(worst[pair] for pair in sorted(worst))
+            if worst is None or shortfall > worst.clearance_shortfall_mm:
+                worst = candidate
+    return worst
 
 
 def _sample_route(route: RoutePreview) -> tuple[Vector3, ...]:
@@ -296,14 +480,10 @@ def _overlapping_extents(left: _Capsule, right: _Capsule) -> bool:
     Reject capsule pairs whose expanded Y or Z extents are disjoint.
     """
     return not (
-        min(right.start.y, right.end.y) - right.radius_mm
-        > max(left.start.y, left.end.y) + left.radius_mm
-        or min(left.start.y, left.end.y) - left.radius_mm
-        > max(right.start.y, right.end.y) + right.radius_mm
-        or min(right.start.z, right.end.z) - right.radius_mm
-        > max(left.start.z, left.end.z) + left.radius_mm
-        or min(left.start.z, left.end.z) - left.radius_mm
-        > max(right.start.z, right.end.z) + right.radius_mm
+        right.minimum_y > left.maximum_y
+        or left.minimum_y > right.maximum_y
+        or right.minimum_z > left.maximum_z
+        or left.minimum_z > right.maximum_z
     )
 
 
@@ -359,13 +539,6 @@ def _nearest_span(points: tuple[Vector3, ...], target: Vector3) -> int:
         range(len(points) - 1),
         key=lambda index: _segment_distance(points[index], points[index + 1], target, target)[0],
     )
-
-
-def _route_index(routes: list[RoutePreview], route_id: UUID) -> int:
-    """
-    Resolve a collision identity against the current deterministic route list.
-    """
-    return next(index for index, route in enumerate(routes) if route.wire_id == route_id)
 
 
 def _collision_score(collisions: tuple[RouteCollision, ...]) -> tuple[float, int]:

@@ -83,8 +83,24 @@ class _ProfileFrame:
     usable_radius_mm: Optional[float] = None
 
 
+@dataclass(frozen=True)
+class _RouteSolveCache:
+    """
+    Retain one geometry-validated route solution for immediate reuse.
+    """
+
+    design: adsk.fusion.Design
+    definition: HarnessDefinition
+    control_frames: tuple[tuple[UUID, Union[GateFrame, RefineFrame]], ...]
+    profile_frames: tuple[tuple[str, _ProfileFrame], ...]
+    routes: tuple[RoutePreview, ...]
+    legs: tuple[WireGroupRouteLeg, ...]
+    notices: tuple[str, ...]
+
+
 _preview_states: dict[str, _PreviewState] = {}
 _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
+_route_solve_cache: Optional[_RouteSolveCache] = None
 
 
 def _remember_preview(group_id: str, state: _PreviewState) -> None:
@@ -106,8 +122,11 @@ def reset_preview_history() -> None:
     """
     Release session-only snapshots when the add-in stops.
     """
+    global _route_solve_cache
+
     _preview_states.clear()
     _preview_history.clear()
+    _route_solve_cache = None
 
 
 def reconcile_preview_history(
@@ -331,6 +350,8 @@ def _solve_wire_group_routes(
     One group occupies one slot at each control regardless of how many legs
     meet there, preventing duplicated paths and split junction crossings.
     """
+    global _route_solve_cache
+
     if not definition.wire_groups:
         raise ValueError("Create at least one wire group before previewing routes.")
     legs = plan_wire_group_routes(definition)
@@ -348,6 +369,31 @@ def _solve_wire_group_routes(
                 )
             if leg.wire_group_id not in control_groups[step.control_id]:
                 control_groups[step.control_id].append(leg.wire_group_id)
+    profile_frames: dict[str, _ProfileFrame] = {}
+    for leg in legs:
+        for connection_id, position in (
+            (leg.start_connection_id, "start"),
+            (leg.end_connection_id, "end"),
+        ):
+            if connection_id is None:
+                continue
+            connection = connections.get(connection_id)
+            if connection is None:
+                raise RuntimeError(f"{leg.label} references a missing {position} connection.")
+            _connection_profile_frames(design, connection, profile_frames)
+    control_frame_snapshot = tuple(sorted(frames.items(), key=lambda item: str(item[0])))
+    profile_frame_snapshot = tuple(sorted(profile_frames.items()))
+    cached = _route_solve_cache
+    if (
+        cached is not None
+        and cached.design is design
+        and cached.definition == definition
+        and cached.control_frames == control_frame_snapshot
+        and cached.profile_frames == profile_frame_snapshot
+    ):
+        if notices is not None:
+            notices.extend(cached.notices)
+        return cached.routes, cached.legs
     crossings: dict[tuple[UUID, UUID], Vector3] = {}
     prior_crossings: dict[UUID, Vector3] = {}
     origin = Vector3(0.0, 0.0, 0.0)
@@ -374,13 +420,13 @@ def _solve_wire_group_routes(
         )
         prior_crossings.update(zip(ordered_group_ids, points))
 
-    profile_frames: dict[str, _ProfileFrame] = {}
     routes: list[RoutePreview] = []
     route_group_ids: list[UUID] = []
     route_diameters: list[float] = []
     route_normals: list[tuple[Vector3, ...]] = []
     route_transitions: list[tuple[TransitionLengths, ...]] = []
     minimum_bend_radii: list[float] = []
+    solve_notices: list[str] = []
     for leg in legs:
         diameter_mm = groups_by_id[leg.wire_group_id].diameter_mm
         points: list[Vector3] = []
@@ -454,8 +500,7 @@ def _solve_wire_group_routes(
         route_normals.append(tuple(normals))
         route_transitions.append(tuple(transitions))
         minimum_bend_radii.append(minimum_bend_radius)
-        if notices is not None:
-            notices.extend(_adjustment_notice(item) for item in adjustments)
+        solve_notices.extend(_adjustment_notice(item) for item in adjustments)
     separated_routes, collisions = separate_route_collisions(
         tuple(routes),
         tuple(route_group_ids),
@@ -465,8 +510,18 @@ def _solve_wire_group_routes(
         tuple(minimum_bend_radii),
         definition.minimum_clearance_mm,
     )
+    solve_notices.extend(_collision_notice(item) for item in collisions)
+    _route_solve_cache = _RouteSolveCache(
+        design,
+        definition,
+        control_frame_snapshot,
+        profile_frame_snapshot,
+        separated_routes,
+        legs,
+        tuple(solve_notices),
+    )
     if notices is not None:
-        notices.extend(_collision_notice(item) for item in collisions)
+        notices.extend(solve_notices)
     return separated_routes, legs
 
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from typing import Optional
 
 from .geometry import (
@@ -20,6 +21,8 @@ from .geometry import (
     unit,
 )
 from .parallel import RoutePreview
+
+_SAFETY_RADIUS_SAMPLES = 1024
 
 CIRCULAR_SWEEP_BEND_FACTOR = 1.05
 
@@ -171,6 +174,7 @@ def fair_route(
     return replace(route, curves=tuple(curves))
 
 
+@lru_cache(maxsize=2048)
 def _direct_span_transition(
     start: Vector3,
     end: Vector3,
@@ -189,7 +193,7 @@ def _direct_span_transition(
     delta = difference(end, start)
     distance = magnitude(delta)
     direction = unit(delta)
-    balanced_steps = tuple((step, step) for step in range(5, 101))
+    balanced_steps = tuple((step, step) for step in range(5, 101, 5))
     best_curve, best_radius, best_steps = _best_direct_span_candidate(
         start,
         end,
@@ -198,17 +202,20 @@ def _direct_span_transition(
         direction,
         distance,
         balanced_steps,
-        128,
+        32,
+        16,
     )
     if best_curve is not None:
-        best_radius = _minimum_sampled_radius(best_curve, 1024)
-        if best_radius + 1e-9 >= minimum_bend_radius_mm:
+        best_radius = _minimum_sampled_radius(best_curve, _SAFETY_RADIUS_SAMPLES)
+        if best_radius + 1e-9 >= minimum_bend_radius_mm and _moves_forward(
+            best_curve, direction, 64
+        ):
             return (best_curve,)
 
     coarse_steps = tuple(
         (departure_step, approach_step)
-        for departure_step in range(5, 101, 5)
-        for approach_step in range(5, 101, 5)
+        for departure_step in range(10, 101, 10)
+        for approach_step in range(10, 101, 10)
     )
     best_curve, best_radius, best_steps = _best_direct_span_candidate(
         start,
@@ -218,17 +225,18 @@ def _direct_span_transition(
         direction,
         distance,
         coarse_steps,
-        64,
+        16,
+        16,
     )
     if best_steps is not None:
         departure_step, approach_step = best_steps
         refined_steps = tuple(
             (refined_departure, refined_approach)
             for refined_departure in range(
-                max(5, departure_step - 5), min(100, departure_step + 5) + 1
+                max(5, departure_step - 10), min(100, departure_step + 10) + 1, 2
             )
             for refined_approach in range(
-                max(5, approach_step - 5), min(100, approach_step + 5) + 1
+                max(5, approach_step - 10), min(100, approach_step + 10) + 1, 2
             )
         )
         best_curve, best_radius, _ = _best_direct_span_candidate(
@@ -239,11 +247,16 @@ def _direct_span_transition(
             direction,
             distance,
             refined_steps,
-            256,
+            64,
+            32,
         )
     if best_curve is not None:
-        best_radius = _minimum_sampled_radius(best_curve, 1024)
-    if best_curve is not None and best_radius + 1e-9 >= minimum_bend_radius_mm:
+        best_radius = _minimum_sampled_radius(best_curve, _SAFETY_RADIUS_SAMPLES)
+    if (
+        best_curve is not None
+        and best_radius + 1e-9 >= minimum_bend_radius_mm
+        and _moves_forward(best_curve, direction, 64)
+    ):
         return (best_curve,)
     return _equal_tangent_span_transition(
         start,
@@ -308,7 +321,7 @@ def _equal_tangent_span_transition(
             end,
         ),
     )
-    if min(_minimum_sampled_radius(curve, 1024) for curve in curves) + 1e-9 < (
+    if min(_minimum_sampled_radius(curve, _SAFETY_RADIUS_SAMPLES) for curve in curves) + 1e-9 < (
         minimum_bend_radius_mm
     ):
         return None
@@ -331,6 +344,7 @@ def _best_direct_span_candidate(
     distance: float,
     handle_steps: tuple[tuple[int, int], ...],
     radius_samples: int,
+    forward_samples: int,
 ) -> tuple[Optional[CubicBezier], float, Optional[tuple[int, int]]]:
     """
     Find the safest forward-moving cubic over independent endpoint handles.
@@ -351,7 +365,7 @@ def _best_direct_span_candidate(
             end.translated(end_tangent, -approach_length),
             end,
         )
-        if any(dot(candidate.derivative(sample / 64.0), direction) < -1e-9 for sample in range(65)):
+        if not _moves_forward(candidate, direction, forward_samples):
             continue
         radius = _minimum_sampled_radius(candidate, radius_samples)
         if radius > best_radius:
@@ -359,6 +373,15 @@ def _best_direct_span_candidate(
             best_radius = radius
             best_steps = departure_step, approach_step
     return best_curve, best_radius, best_steps
+
+
+def _moves_forward(curve: CubicBezier, direction: Vector3, samples: int) -> bool:
+    """
+    Reject a candidate whose derivative backtracks along the span chord.
+    """
+    return all(
+        dot(curve.derivative(sample / samples), direction) >= -1e-9 for sample in range(samples + 1)
+    )
 
 
 def transition_limits(
@@ -445,18 +468,29 @@ def _minimum_transition_length(
         )
     if min(start_alignment, end_alignment) >= 1.0 - 1e-9:
         return 0.0
-    origin = Vector3(0.0, 0.0, 0.0)
-    end = chord_direction
-    curve = CubicBezier(
-        origin,
-        origin.translated(start_tangent, 1.0 / 3.0),
-        end.translated(end_tangent, -1.0 / 3.0),
-        end,
-    )
-    unit_radius = _minimum_sampled_radius(curve, 1024)
+    unit_radius = _unit_transition_radius(chord_direction, start_tangent, end_tangent)
     if not math.isfinite(unit_radius) or unit_radius <= 1e-12:
         raise ValueError(f"Wire {wire_number}: transition curvature cannot be bounded.")
     return minimum_bend_radius_mm / unit_radius
+
+
+@lru_cache(maxsize=8192)
+def _unit_transition_radius(
+    chord_direction: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+) -> float:
+    """
+    Cache the scale-independent curvature shared by repeated route candidates.
+    """
+    origin = Vector3(0.0, 0.0, 0.0)
+    curve = CubicBezier(
+        origin,
+        origin.translated(start_tangent, 1.0 / 3.0),
+        chord_direction.translated(end_tangent, -1.0 / 3.0),
+        chord_direction,
+    )
+    return _minimum_sampled_radius(curve, 1024)
 
 
 def _resolve_span_lengths(
@@ -591,7 +625,50 @@ def _minimum_sampled_radius(curve: CubicBezier, samples: int) -> float:
     """
     Return the tightest radius found on one exact cubic, including both endpoints.
     """
-    return min(_curvature_radius(curve, index / samples) for index in range(samples + 1))
+    first = difference(curve.control_a, curve.start)
+    second = difference(curve.control_b, curve.control_a)
+    third = difference(curve.end, curve.control_b)
+    first_acceleration = difference(second, first)
+    second_acceleration = difference(third, second)
+    minimum_radius = math.inf
+    for index in range(samples + 1):
+        parameter = index / samples
+        complement = 1.0 - parameter
+        first_weight = complement * complement
+        second_weight = 2.0 * complement * parameter
+        third_weight = parameter * parameter
+        tangent_x = 3.0 * (
+            first_weight * first.x + second_weight * second.x + third_weight * third.x
+        )
+        tangent_y = 3.0 * (
+            first_weight * first.y + second_weight * second.y + third_weight * third.y
+        )
+        tangent_z = 3.0 * (
+            first_weight * first.z + second_weight * second.z + third_weight * third.z
+        )
+        acceleration_x = 6.0 * (
+            complement * first_acceleration.x + parameter * second_acceleration.x
+        )
+        acceleration_y = 6.0 * (
+            complement * first_acceleration.y + parameter * second_acceleration.y
+        )
+        acceleration_z = 6.0 * (
+            complement * first_acceleration.z + parameter * second_acceleration.z
+        )
+        speed_squared = tangent_x * tangent_x + tangent_y * tangent_y + tangent_z * tangent_z
+        if speed_squared <= 1e-24:
+            return 0.0
+        cross_x = tangent_y * acceleration_z - tangent_z * acceleration_y
+        cross_y = tangent_z * acceleration_x - tangent_x * acceleration_z
+        cross_z = tangent_x * acceleration_y - tangent_y * acceleration_x
+        cross_squared = cross_x * cross_x + cross_y * cross_y + cross_z * cross_z
+        radius = (
+            math.inf
+            if cross_squared <= 1e-24
+            else speed_squared * math.sqrt(speed_squared / cross_squared)
+        )
+        minimum_radius = min(minimum_radius, radius)
+    return minimum_radius
 
 
 def _curvature_radius(curve: CubicBezier, parameter: float) -> float:

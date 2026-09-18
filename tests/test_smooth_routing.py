@@ -20,6 +20,7 @@ from wire_bundler.routing import (
     tightest_bend,
     transition_limits,
 )
+from wire_bundler.routing import smooth as smooth_routing
 from wire_bundler.routing.geometry import cross, difference, dot, magnitude, unit
 
 
@@ -384,3 +385,23 @@ def test_tightest_bend_handles_straight_curves_and_invalid_sampling() -> None:
     assert bend is not None and math.isinf(bend.radius_mm)
     with pytest.raises(ValueError, match="at least two"):
         tightest_bend(route, 1)
+
+
+def test_fast_minimum_radius_matches_independent_curvature_samples() -> None:
+    """
+    Preserve dense curvature results while avoiding temporary vector allocation.
+    """
+    curve = CubicBezier(
+        Vector3(-2.0, 1.0, 0.5),
+        Vector3(0.0, 8.0, -1.0),
+        Vector3(7.0, -3.0, 2.0),
+        Vector3(10.0, 0.0, 4.0),
+    )
+    samples = 1024
+    expected = min(
+        smooth_routing._curvature_radius(curve, index / samples) for index in range(samples + 1)
+    )
+
+    assert smooth_routing._minimum_sampled_radius(curve, samples) == pytest.approx(
+        expected, rel=1e-12
+    )
