@@ -224,8 +224,9 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 13, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 14, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
+    autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, controls: [], connections,
     pathways: [{ pathwayId: 'p', name: 'lower fuse box path', startName: 'O2-sensor',
       endName: 'CAN_BUS-ctrl', orderedControlIds: [] }],

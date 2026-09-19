@@ -6,7 +6,7 @@ test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
 
-  assert.equal(definition.schemaVersion, 13);
+  assert.equal(definition.schemaVersion, 14);
   assert.equal(Object.hasOwn(definition, 'wires'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(
@@ -164,12 +164,13 @@ test('current pathway popup retains gate ordering and interpolation controls', (
   assert.equal(interpolation.attributes['aria-label'], 'Interpolation · Gate 1');
 });
 
-test('generation defaults expose the persisted minimum member gap', () => {
+test('generation defaults expose persisted generation preferences', () => {
   const { context } = palette();
   const definition = harness();
   definition.gateDefaults = { approach_mm: null, departure_mm: null };
   definition.endDefaults = { approach_mm: null, departure_mm: null };
   definition.minimumClearanceMm = 0.35;
+  definition.autoTransitionPreset = 'relaxed';
 
   context.openInterpolationOptions(definition, 'defaults');
 
@@ -177,9 +178,28 @@ test('generation defaults expose the persisted minimum member gap', () => {
   const clearance = descendants(
     dialog, (node) => node.attributes?.['aria-label'] === 'Minimum member gap (mm)',
   )[0];
+  const relaxation = descendants(
+    dialog,
+    (node) => node.attributes?.['aria-label'] === 'Automatic transition relaxation',
+  )[0];
+  const relaxationHeading = descendants(
+    dialog, (node) => node.className === 'auto-transition-heading',
+  )[0];
+  const endpointLabels = descendants(
+    dialog, (node) => node.className === 'auto-transition-endpoints',
+  );
   assert.equal(dialog.attributes['aria-label'], 'Generation defaults');
   assert.equal(clearance.value, '0.35');
   assert.equal(clearance.min, '0');
+  assert.equal(relaxation.type, 'range');
+  assert.equal(relaxation.value, '3');
+  assert.equal(relaxation.min, '0');
+  assert.equal(relaxation.max, '4');
+  assert.equal(relaxation.step, '1');
+  assert.equal(relaxation.attributes['aria-valuetext'], 'Relaxed');
+  assert.equal(relaxationHeading.children[0].textContent, 'Automatic transition relaxation');
+  assert.equal(relaxationHeading.children[1].textContent, 'Relaxed');
+  assert.equal(endpointLabels.length, 0);
 });
 
 test('empty pathway end opens the current pathway popup', () => {

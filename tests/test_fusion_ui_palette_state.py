@@ -48,6 +48,7 @@ def test_palette_state_contains_complete_group_definition(
     assert "relationshipMap" not in harness
     assert harness["schemaVersion"] == valid_harness.schema_version
     assert harness["minimumClearanceMm"] == valid_harness.minimum_clearance_mm
+    assert harness["autoTransitionPreset"] == valid_harness.auto_transition_preset.value
     assert harness["standaloneEnds"] == [
         {
             "connectionId": str(end.connection_id),

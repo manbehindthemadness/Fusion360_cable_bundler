@@ -11,7 +11,7 @@ from uuid import UUID
 import pytest
 
 from tests.fusion_ui_support import _PaletteLifecycleModule
-from wire_bundler.domain import ControlStructure, HarnessDefinition
+from wire_bundler.domain import AutoTransitionPreset, ControlStructure, HarnessDefinition
 from wire_bundler.routing import RefineFrame, Vector3
 
 
@@ -70,8 +70,17 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
         design,
         replace(valid_harness, name="Renamed Harness"),
     )
+    relaxed = route_preview.solve_wire_group_centerlines(
+        design,
+        replace(
+            valid_harness,
+            auto_transition_preset=AutoTransitionPreset.LOOSE,
+        ),
+    )
 
     assert moved != first
     assert renamed == moved
     assert moved[0] is not first[0]
     assert renamed[0] is not moved[0]
+    assert relaxed != renamed
+    assert relaxed[0] is not renamed[0]

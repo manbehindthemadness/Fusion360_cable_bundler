@@ -491,6 +491,7 @@ def _solve_wire_group_routes(
             tuple(transitions),
             minimum_bend_radius_mm=minimum_bend_radius,
             adjustments=adjustments,
+            auto_transition_fraction=definition.auto_transition_preset.span_fraction,
         )
         routes.append(route)
         route_group_ids.append(leg.wire_group_id)
@@ -507,6 +508,7 @@ def _solve_wire_group_routes(
         tuple(route_transitions),
         tuple(minimum_bend_radii),
         definition.minimum_clearance_mm,
+        auto_transition_fraction=definition.auto_transition_preset.span_fraction,
     )
     solve_notices.extend(_collision_notice(item) for item in collisions)
     _route_solve_cache = _RouteSolveCache(

@@ -76,6 +76,72 @@ def test_default_transitions_leave_straight_middle_half() -> None:
         assert middle.point(parameter).y == 0.0
 
 
+@pytest.mark.parametrize(
+    ("fraction", "expected_departure", "expected_approach"),
+    [
+        (0.25, 10.0, 30.0),
+        (0.3125, 12.5, 27.5),
+        (0.375, 15.0, 25.0),
+        (0.4375, 17.5, 22.5),
+        (0.5, 20.0, 20.0),
+    ],
+)
+def test_auto_transition_fraction_relaxes_the_preferred_curve_extent(
+    fraction: float,
+    expected_departure: float,
+    expected_approach: float,
+) -> None:
+    """
+    Map each harness preset to a deterministic per-side span share.
+    """
+    route = _route((Vector3(0, 0, 0), Vector3(0, 0, 40)))
+
+    smooth = fair_route(
+        route,
+        (Vector3(1, 0, 1), Vector3(-1, 0, 1)),
+        auto_transition_fraction=fraction,
+    )
+
+    assert smooth.curves[0].end.z == pytest.approx(expected_departure)
+    assert smooth.curves[-1].start.z == pytest.approx(expected_approach)
+
+
+def test_explicit_transition_lengths_ignore_auto_relaxation() -> None:
+    """
+    Preserve user-entered millimeter distances at every preset position.
+    """
+    route = _route((Vector3(0, 0, 0), Vector3(0, 0, 40)))
+    transitions = (
+        TransitionLengths(departure_mm=8.0),
+        TransitionLengths(approach_mm=12.0),
+    )
+
+    smooth = fair_route(
+        route,
+        (Vector3(1, 0, 1), Vector3(-1, 0, 1)),
+        transitions,
+        auto_transition_fraction=0.5,
+    )
+
+    assert smooth.curves[0].end.z == pytest.approx(8.0)
+    assert smooth.curves[-1].start.z == pytest.approx(28.0)
+
+
+@pytest.mark.parametrize("fraction", [0.0, -0.1, 0.5001, math.inf, math.nan])
+def test_rejects_invalid_auto_transition_fraction(fraction: float) -> None:
+    """
+    Keep the public fairing policy inside its meaningful per-side range.
+    """
+    route = _route((Vector3(0, 0, 0), Vector3(0, 0, 40)))
+
+    with pytest.raises(ValueError, match="Auto transition fraction"):
+        fair_route(
+            route,
+            (Vector3(0, 0, 1), Vector3(0, 0, 1)),
+            auto_transition_fraction=fraction,
+        )
+
+
 def test_overlapping_explicit_transition_lengths_clamp_proportionally() -> None:
     """
     Project crowded explicit requests into the available span.

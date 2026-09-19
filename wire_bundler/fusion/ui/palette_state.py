@@ -90,6 +90,7 @@ def serialize_palette_state(
                 "gateDefaults": asdict(definition.gate_defaults),
                 "endDefaults": asdict(definition.end_defaults),
                 "minimumClearanceMm": definition.minimum_clearance_mm,
+                "autoTransitionPreset": definition.auto_transition_preset.value,
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
                 "connections": [
                     {

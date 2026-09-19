@@ -6,6 +6,7 @@ from .codec import DefinitionParseError, dumps, loads
 from .model import (
     DEFAULT_WIRE_DIAMETER_MM,
     SCHEMA_VERSION,
+    AutoTransitionPreset,
     Connection,
     ControlKind,
     ControlStructure,
@@ -31,6 +32,7 @@ from .validation import ValidationIssue, validate_harness
 __all__ = [
     "DEFAULT_WIRE_DIAMETER_MM",
     "SCHEMA_VERSION",
+    "AutoTransitionPreset",
     "Connection",
     "ControlKind",
     "ControlStructure",

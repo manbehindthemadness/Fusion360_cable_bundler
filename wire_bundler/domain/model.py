@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
@@ -40,6 +40,31 @@ class PathwayEndpoint(str, Enum):
 
     START = "start"
     END = "end"
+
+
+class AutoTransitionPreset(str, Enum):
+    """
+    Select the preferred span share used by automatic interpolation distances.
+    """
+
+    TIGHT = "tight"
+    COMPACT = "compact"
+    BALANCED = "balanced"
+    RELAXED = "relaxed"
+    LOOSE = "loose"
+
+    @property
+    def span_fraction(self) -> float:
+        """
+        Return the per-side share of a route span requested before safety limiting.
+        """
+        return {
+            AutoTransitionPreset.TIGHT: 0.25,
+            AutoTransitionPreset.COMPACT: 0.3125,
+            AutoTransitionPreset.BALANCED: 0.375,
+            AutoTransitionPreset.RELAXED: 0.4375,
+            AutoTransitionPreset.LOOSE: 0.5,
+        }[self]
 
 
 class StripePattern(str, Enum):
@@ -479,10 +504,11 @@ class HarnessDefinition:
     end_defaults: InterpolationSettings = InterpolationSettings()
     material_defaults: WireMaterialSettings = WireMaterialSettings()
     minimum_clearance_mm: float = 0.0
+    auto_transition_preset: AutoTransitionPreset = AutoTransitionPreset.TIGHT
 
     def __post_init__(self) -> None:
         """
-        Require a finite nonnegative surface gap for generated members.
+        Require valid harness-wide generation preferences.
         """
         if (
             isinstance(self.minimum_clearance_mm, bool)
@@ -491,6 +517,8 @@ class HarnessDefinition:
             or self.minimum_clearance_mm < 0.0
         ):
             raise ValueError("Minimum member clearance must be finite and nonnegative.")
+        if not isinstance(self.auto_transition_preset, AutoTransitionPreset):
+            raise ValueError("Auto transition preset must be a supported preset.")
 
     def wire_group_materials(self, group: WireGroupDefinition) -> WireMaterialSettings:
         """

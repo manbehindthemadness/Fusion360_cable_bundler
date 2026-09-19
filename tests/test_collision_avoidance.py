@@ -68,6 +68,8 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
     vertical = _straight_route(2, "Vertical", Vector3(0, -10, 0), Vector3(0, 10, 0))
     sample_counts = {horizontal.wire_id: 0, vertical.wire_id: 0}
     original_sample_route = avoidance._sample_route
+    original_fair_route = avoidance.fair_route
+    auto_fractions: list[float] = []
 
     def counting_sample_route(route: RoutePreview) -> tuple[Vector3, ...]:
         """
@@ -76,7 +78,20 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
         sample_counts[route.wire_id] += 1
         return original_sample_route(route)
 
+    def recording_fair_route(*args: object, **kwargs: object) -> RoutePreview:
+        """
+        Record the harness Auto policy used to refair collision detours.
+        """
+        fraction = kwargs["auto_transition_fraction"]
+        assert not isinstance(fraction, bool) and isinstance(fraction, (int, float))
+        auto_fractions.append(float(fraction))
+        return original_fair_route(*args, **kwargs)
+
     monkeypatch.setattr(avoidance, "_sample_route", counting_sample_route)
+    monkeypatch.setattr(
+        "wire_bundler.routing.avoidance.fair_route",
+        recording_fair_route,
+    )
     routes, collisions = separate_route_collisions(
         (horizontal, vertical),
         (UUID(int=101), UUID(int=102)),
@@ -88,12 +103,15 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
         ((TransitionLengths(),) * 2,) * 2,
         (1.05, 1.05),
         0.0,
+        auto_transition_fraction=0.5,
     )
 
     assert not collisions
     assert routes[0] == horizontal
     assert sample_counts[horizontal.wire_id] == 1
     assert sample_counts[vertical.wire_id] > 1
+    assert auto_fractions
+    assert set(auto_fractions) == {0.5}
 
 
 def test_ignores_intentional_same_group_junction_contact() -> None:

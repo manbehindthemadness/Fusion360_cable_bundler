@@ -11,6 +11,7 @@ from typing import Optional, Protocol
 from uuid import UUID, uuid4
 
 from ..domain import (
+    AutoTransitionPreset,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -1083,6 +1084,7 @@ def set_interpolation(
     member_id: Optional[UUID] = None,
     use_defaults: bool = False,
     minimum_clearance_mm: Optional[float] = None,
+    auto_transition_preset: Optional[AutoTransitionPreset] = None,
 ) -> None:
     """
     Save section controls or creation defaults in one reversible metadata edit.
@@ -1110,6 +1112,11 @@ def set_interpolation(
             gate_defaults=settings,
             end_defaults=end_defaults,
             minimum_clearance_mm=float(clearance),
+            auto_transition_preset=(
+                definition.auto_transition_preset
+                if auto_transition_preset is None
+                else auto_transition_preset
+            ),
         )
         if apply_existing:
             updated = replace(

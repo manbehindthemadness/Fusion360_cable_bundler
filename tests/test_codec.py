@@ -10,6 +10,7 @@ import pytest
 
 from wire_bundler.domain import (
     SCHEMA_VERSION,
+    AutoTransitionPreset,
     DefinitionParseError,
     HarnessDefinition,
     dumps,
@@ -26,6 +27,7 @@ def test_round_trip_preserves_group_only_definition(valid_harness: HarnessDefini
     assert loads(serialized) == valid_harness
     payload = json.loads(serialized)
     assert payload["schema_version"] == SCHEMA_VERSION
+    assert payload["auto_transition_preset"] == "tight"
     assert "profiles" not in payload
     assert "wires" not in payload
 
@@ -37,7 +39,20 @@ def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> Non
     assert dumps(valid_harness) == dumps(valid_harness)
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 14])
+def test_auto_transition_presets_expose_approved_span_fractions() -> None:
+    """
+    Keep persisted semantic choices aligned with routing policy values.
+    """
+    assert {preset.value: preset.span_fraction for preset in AutoTransitionPreset} == {
+        "tight": 0.25,
+        "compact": 0.3125,
+        "balanced": 0.375,
+        "relaxed": 0.4375,
+        "loose": 0.5,
+    }
+
+
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 15])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -61,11 +76,46 @@ def test_migrates_schema_12_with_zero_minimum_clearance(
     payload = json.loads(dumps(valid_harness))
     payload["schema_version"] = 12
     del payload["minimum_clearance_mm"]
+    del payload["auto_transition_preset"]
 
     migrated = loads(json.dumps(payload))
 
     assert migrated.schema_version == SCHEMA_VERSION
     assert migrated.minimum_clearance_mm == 0.0
+    assert migrated.auto_transition_preset is AutoTransitionPreset.TIGHT
+
+
+def test_migrates_schema_13_with_tight_auto_transitions(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve current generated geometry when adding harness relaxation presets.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["schema_version"] = 13
+    del payload["auto_transition_preset"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.auto_transition_preset is AutoTransitionPreset.TIGHT
+
+
+@pytest.mark.parametrize("preset", ["", "very_loose", 4, None])
+def test_rejects_invalid_current_auto_transition_preset(
+    valid_harness: HarnessDefinition,
+    preset: object,
+) -> None:
+    """
+    Reject malformed preset values at the persisted-data boundary.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["auto_transition_preset"] = preset
+
+    with pytest.raises(DefinitionParseError) as captured:
+        loads(json.dumps(payload))
+
+    assert captured.value.path == "$.auto_transition_preset"
 
 
 @pytest.mark.parametrize(

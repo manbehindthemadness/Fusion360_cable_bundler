@@ -30,7 +30,7 @@ from ...application import (
     update_junction_relationships,
 )
 from ...application.edit_harness import set_interpolation
-from ...domain import JunctionPathwayRelationship, PathwayEndpoint
+from ...domain import AutoTransitionPreset, JunctionPathwayRelationship, PathwayEndpoint
 from ...domain.codec import parse_interpolation
 from .payloads import (
     _read_harness_properties,
@@ -222,6 +222,19 @@ def _apply_palette_edit(
             or not isinstance(raw_minimum_clearance, (int, float))
         ):
             raise ValueError("Minimum member gap must be a number in millimeters.")
+        raw_auto_transition_preset = payload.get("autoTransitionPreset")
+        if raw_auto_transition_preset is not None and not isinstance(
+            raw_auto_transition_preset, str
+        ):
+            raise ValueError("Auto transition preset must be text.")
+        try:
+            auto_transition_preset = (
+                AutoTransitionPreset(raw_auto_transition_preset)
+                if raw_auto_transition_preset is not None
+                else None
+            )
+        except ValueError as error:
+            raise ValueError("Auto transition preset is not supported.") from error
         settings = parse_interpolation(payload.get("settings"), "settings")
         set_interpolation(
             harness_id,
@@ -246,6 +259,7 @@ def _apply_palette_edit(
                 if target == "defaults" and raw_minimum_clearance is not None
                 else None
             ),
+            auto_transition_preset=(auto_transition_preset if target == "defaults" else None),
         )
         return "Saved interpolation options."
     if action == "set_wire_group_properties":

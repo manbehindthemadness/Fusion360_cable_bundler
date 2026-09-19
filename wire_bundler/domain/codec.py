@@ -13,6 +13,7 @@ from uuid import UUID
 
 from .model import (
     SCHEMA_VERSION,
+    AutoTransitionPreset,
     Connection,
     ControlKind,
     ControlStructure,
@@ -34,7 +35,14 @@ from .model import (
     WireStripe,
 )
 
-EnumType = TypeVar("EnumType", RoutingMode, ControlKind, PathwayEndpoint, StripePattern)
+EnumType = TypeVar(
+    "EnumType",
+    RoutingMode,
+    ControlKind,
+    PathwayEndpoint,
+    StripePattern,
+    AutoTransitionPreset,
+)
 
 
 class DefinitionParseError(ValueError):
@@ -74,11 +82,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, SCHEMA_VERSION):
+    if schema_version not in (12, 13, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schema 12 is migratable)",
+            "(schemas 12 and 13 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -128,6 +136,16 @@ def loads(serialized: str) -> HarnessDefinition:
             payload.get("minimum_clearance_mm", 0.0),
             "$.minimum_clearance_mm",
         ),
+        auto_transition_preset=(
+            _require_enum(
+                AutoTransitionPreset,
+                payload,
+                "auto_transition_preset",
+                "$.auto_transition_preset",
+            )
+            if schema_version == SCHEMA_VERSION
+            else AutoTransitionPreset.TIGHT
+        ),
     )
     return definition
 
@@ -145,6 +163,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         "end_defaults": asdict(definition.end_defaults),
         "material_defaults": _materials_to_dict(definition.material_defaults),
         "minimum_clearance_mm": definition.minimum_clearance_mm,
+        "auto_transition_preset": definition.auto_transition_preset.value,
         "connections": [
             {
                 "interpolation": asdict(connection.interpolation),

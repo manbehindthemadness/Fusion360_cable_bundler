@@ -87,14 +87,14 @@ def fair_route(
     transitions: tuple[TransitionLengths, ...] = (),
     minimum_bend_radius_mm: float = 0.0,
     adjustments: Optional[list[TransitionAdjustment]] = None,
+    auto_transition_fraction: float = 0.25,
 ) -> RoutePreview:
     """
     Preserve crossings and connect them with tangent-continuous local transitions.
 
     Normal signs follow stored traversal, never reorder points. Automatic
-    transitions each occupy a quarter-span, retaining a straight middle half.
-    All lengths clamp to the nearest proportional fit above their safe minima
-    when a span is crowded.
+    transitions occupy the requested share of each span. All lengths clamp to
+    the nearest proportional fit above their safe minima when a span is crowded.
     """
     points = route.points
     if len(points) < 2 or len(normals) != len(points):
@@ -106,6 +106,12 @@ def fair_route(
         raise ValueError("Every crossing needs one pair of transition lengths.")
     if not math.isfinite(minimum_bend_radius_mm) or minimum_bend_radius_mm < 0.0:
         raise ValueError("Minimum bend radius must be finite and non-negative.")
+    if (
+        not math.isfinite(auto_transition_fraction)
+        or auto_transition_fraction <= 0.0
+        or auto_transition_fraction > 0.5
+    ):
+        raise ValueError("Auto transition fraction must be finite and greater than 0 through 0.5.")
     lengths = transitions or tuple(TransitionLengths() for _ in points)
     for requested in lengths:
         for value in (requested.approach_mm, requested.departure_mm):
@@ -156,6 +162,7 @@ def fair_route(
             lengths[index + 1].approach_mm,
             minimum_departure,
             minimum_approach,
+            auto_transition_fraction,
         )
         left = start.translated(direction, departure)
         right = end.translated(direction, -approach)
@@ -501,6 +508,7 @@ def _resolve_span_lengths(
     requested_approach: Optional[float],
     minimum_departure: float,
     minimum_approach: float,
+    auto_transition_fraction: float,
 ) -> tuple[float, float]:
     """
     Project requested distances into a span without reducing physical safety floors.
@@ -516,7 +524,9 @@ def _resolve_span_lengths(
     minima = (minimum_departure, minimum_approach)
     resolved: list[float] = []
     for value, minimum in zip(requested, minima):
-        resolved.append(max(distance * 0.25 if value is None else value, minimum))
+        resolved.append(
+            max(distance * auto_transition_fraction if value is None else value, minimum)
+        )
     total = sum(resolved)
     if total <= distance + 1e-9:
         return resolved[0], resolved[1]

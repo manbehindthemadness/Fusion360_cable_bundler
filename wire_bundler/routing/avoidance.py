@@ -177,6 +177,7 @@ def separate_route_collisions(
     transitions: tuple[tuple[TransitionLengths, ...], ...],
     minimum_bend_radii_mm: tuple[float, ...],
     clearance_mm: float,
+    auto_transition_fraction: float = 0.25,
 ) -> tuple[tuple[RoutePreview, ...], tuple[RouteCollision, ...]]:
     """
     Repair inter-group overlaps with bounded ephemeral between-guide detours.
@@ -193,6 +194,12 @@ def separate_route_collisions(
         raise ValueError("Collision routing inputs must align with the route sequence.")
     if not math.isfinite(clearance_mm) or clearance_mm < 0.0:
         raise ValueError("Minimum member clearance must be finite and nonnegative.")
+    if (
+        not math.isfinite(auto_transition_fraction)
+        or auto_transition_fraction <= 0.0
+        or auto_transition_fraction > 0.5
+    ):
+        raise ValueError("Auto transition fraction must be finite and greater than 0 through 0.5.")
 
     current = list(routes)
     route_normals = [list(items) for items in normals]
@@ -238,6 +245,7 @@ def separate_route_collisions(
                     selected_point,
                     other_point,
                     collision.clearance_shortfall_mm,
+                    auto_transition_fraction,
                 ):
                     geometry, replacements = collision_index.candidate_update(
                         route_index, candidate_route
@@ -285,6 +293,7 @@ def _detour_candidates(
     selected_point: Vector3,
     other_point: Vector3,
     shortfall_mm: float,
+    auto_transition_fraction: float,
 ) -> Iterator[tuple[RoutePreview, tuple[Vector3, ...], tuple[TransitionLengths, ...]]]:
     """
     Insert one free waypoint into the closest guide span and refair the route.
@@ -329,6 +338,7 @@ def _detour_candidates(
                 candidate_normals,
                 candidate_transitions,
                 minimum_bend_radius_mm=minimum_bend_radius_mm,
+                auto_transition_fraction=auto_transition_fraction,
             )
         except ValueError:
             continue

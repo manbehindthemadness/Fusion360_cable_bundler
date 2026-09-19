@@ -79,9 +79,9 @@ function openInterpolationOptions(
   const isDefaults = target === "defaults";
   heading.textContent = isDefaults ? "Generation defaults" : `Interpolation · ${name}`;
   dialog.setAttribute("aria-label", heading.textContent);
-  note.textContent = "Leave a distance blank for Auto. Auto expands toward the safe bend minimum; crowded values are reduced to the feasible range, and crowded spans use a direct profile-to-profile curve when it preserves that radius. "
+  note.textContent = "Leave a distance blank for Auto. The harness relaxation preset sets Auto's preferred curve extent; safe bend minimums may expand it, crowded values are reduced to the feasible range, and crowded spans use a direct profile-to-profile curve when it preserves that radius. "
     + (isDefaults
-      ? "Presets are used for new controls. Existing controls follow defaults unless individually customized."
+      ? "Distance presets are used for new controls. Existing controls follow defaults unless individually customized. The relaxation preset applies to every Auto distance in this harness."
       : "Approach and departure follow the gate traversal order. Changes affect all wire groups through this gate.");
   form.append(heading, note);
   const applyExisting = document.createElement("input");
@@ -139,7 +139,39 @@ function openInterpolationOptions(
   );
   const ends = isDefaults ? addFields("Ends · ", harness.endDefaults, true) : null;
   let minimumClearance = null;
+  let autoTransitionPreset = null;
+  const autoTransitionPresets = ["tight", "compact", "balanced", "relaxed", "loose"];
   if (isDefaults) {
+    const presetField = document.createElement("div");
+    const presetLabel = document.createElement("label");
+    const presetHeading = document.createElement("span");
+    const presetTitle = document.createElement("span");
+    const presetValue = document.createElement("output");
+    autoTransitionPreset = document.createElement("input");
+    presetField.className = "auto-transition-preset";
+    presetHeading.className = "auto-transition-heading";
+    presetTitle.textContent = "Automatic transition relaxation";
+    autoTransitionPreset.type = "range";
+    autoTransitionPreset.min = "0";
+    autoTransitionPreset.max = `${autoTransitionPresets.length - 1}`;
+    autoTransitionPreset.step = "1";
+    autoTransitionPreset.value = `${Math.max(
+      0, autoTransitionPresets.indexOf(harness.autoTransitionPreset || "tight"),
+    )}`;
+    autoTransitionPreset.setAttribute("aria-label", presetTitle.textContent);
+    const updatePresetValue = () => {
+      const preset = autoTransitionPresets[Number(autoTransitionPreset.value)];
+      const display = `${preset.charAt(0).toUpperCase()}${preset.slice(1)}`;
+      presetValue.textContent = display;
+      autoTransitionPreset.setAttribute("aria-valuetext", display);
+    };
+    autoTransitionPreset.addEventListener("input", updatePresetValue);
+    presetHeading.append(presetTitle, presetValue);
+    presetLabel.append(presetHeading, autoTransitionPreset);
+    presetField.append(presetLabel);
+    form.append(presetField);
+    updatePresetValue();
+
     const clearanceLabel = document.createElement("label");
     minimumClearance = document.createElement("input");
     clearanceLabel.textContent = "Minimum member gap (mm)";
@@ -189,6 +221,9 @@ function openInterpolationOptions(
         settings: values(primary),
         ...(ends ? { endDefaults: values(ends), applyExisting: applyExisting.checked } : {}),
         ...(minimumClearance ? { minimumClearanceMm: Number(minimumClearance.value) } : {}),
+        ...(autoTransitionPreset ? {
+          autoTransitionPreset: autoTransitionPresets[Number(autoTransitionPreset.value)],
+        } : {}),
       });
       if (response.ok) dialog.close();
       else error.textContent = response.error || "Could not save interpolation options.";

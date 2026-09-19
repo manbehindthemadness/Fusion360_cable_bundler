@@ -745,6 +745,7 @@ def test_interpolation_bridge_persists_selected_target(
         "settings": {"approach_mm": 2, "departure_mm": None},
         "endDefaults": {"approach_mm": 1, "departure_mm": 3},
         "minimumClearanceMm": 0.35,
+        "autoTransitionPreset": "loose",
     }
     addin_module._apply_palette_edit(object(), "set_interpolation", json.dumps(request))
     gateway.replace_harness_definition.assert_called_once()
@@ -762,6 +763,7 @@ def test_interpolation_bridge_persists_selected_target(
     if target == "defaults":
         assert saved.end_defaults.departure_mm == 3
         assert saved.minimum_clearance_mm == 0.35
+        assert saved.auto_transition_preset.value == "loose"
         assert saved.connections == valid_harness.connections
         assert saved.controls == valid_harness.controls
 

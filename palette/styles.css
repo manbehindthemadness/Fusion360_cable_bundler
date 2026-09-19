@@ -101,6 +101,13 @@ body {
 .wire-options form { display: grid; gap: 12px; }
 .wire-options label { display: grid; gap: 8px; }
 .wire-options label.apply-existing { display: flex; align-items: center; gap: 8px; }
+.auto-transition-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.auto-transition-heading output { color: inherit; font: inherit; }
 .icon-button.options-button { width: auto; padding: 0 6px; }
 .wire-options .actions { display: flex; justify-content: flex-end; gap: 8px; }
 button, input, select, textarea { font: inherit; }

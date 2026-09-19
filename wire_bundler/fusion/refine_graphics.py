@@ -100,7 +100,12 @@ def build_pathway_spine(
         )
         for control_id in pathway.ordered_control_ids
     )
-    smooth = fair_route(route, normals, transitions)
+    smooth = fair_route(
+        route,
+        normals,
+        transitions,
+        auto_transition_fraction=definition.auto_transition_preset.span_fraction,
+    )
     return PathwaySpine(sample_centerline(smooth), frames)
 
 
