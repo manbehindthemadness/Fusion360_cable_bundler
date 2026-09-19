@@ -1,10 +1,58 @@
 const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "10";
 const RELATIONSHIP_DIAGRAM_LAYOUT = "layered-cardinal-topology";
 
+function relationshipDiagramViewStorageKey(diagramViewKey) {
+  return `wireBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
+}
+
+/** Read a complete, current diagram view from palette-session storage. */
+function readRelationshipDiagramView(diagramViewKey) {
+  const storageKey = relationshipDiagramViewStorageKey(diagramViewKey);
+  try {
+    const stored = JSON.parse(readSession(storageKey) || "null");
+    const valid = stored && !Array.isArray(stored)
+      && stored.contractVersion === RELATIONSHIP_DIAGRAM_CONTRACT_VERSION
+      && typeof stored.layoutKey === "string" && stored.layoutKey.length > 0
+      && Number.isFinite(stored.scale) && stored.scale > 0
+      && Number.isFinite(stored.offsetX) && Number.isFinite(stored.offsetY);
+    if (!valid) {
+      removeSession(storageKey);
+      return undefined;
+    }
+    return {
+      layoutKey: stored.layoutKey,
+      scale: stored.scale,
+      offsetX: stored.offsetX,
+      offsetY: stored.offsetY,
+    };
+  } catch (_error) {
+    removeSession(storageKey);
+    return undefined;
+  }
+}
+
+/** Merge and persist a complete diagram view for the current palette session. */
+function rememberRelationshipDiagramView(diagramViewKey, update) {
+  const view = { ...relationshipDiagramViews.get(diagramViewKey), ...update };
+  relationshipDiagramViews.set(diagramViewKey, view);
+  if (typeof view.layoutKey !== "string" || !view.layoutKey
+      || !Number.isFinite(view.scale) || view.scale <= 0
+      || !Number.isFinite(view.offsetX) || !Number.isFinite(view.offsetY)) return;
+  writeSession(relationshipDiagramViewStorageKey(diagramViewKey), JSON.stringify({
+    contractVersion: RELATIONSHIP_DIAGRAM_CONTRACT_VERSION,
+    layoutKey: view.layoutKey,
+    scale: view.scale,
+    offsetX: view.offsetX,
+    offsetY: view.offsetY,
+  }));
+}
+
 /** Assemble the filterable master relationship diagram from focused components. */
 function renderRelationshipMap(harness) {
   const diagramViewKey = harnessKey(harness);
-  const savedDiagramView = relationshipDiagramViews.get(diagramViewKey);
+  const savedDiagramView = relationshipDiagramViews.get(diagramViewKey)
+    || readRelationshipDiagramView(diagramViewKey);
+  if (savedDiagramView) relationshipDiagramViews.set(diagramViewKey, savedDiagramView);
   let restoreInitialView = savedDiagramView !== undefined;
   const connections = new Map(
     harness.connections.map((connection) => [connection.connectionId, connection]),
@@ -19,10 +67,7 @@ function renderRelationshipMap(harness) {
     "Zoomable master relationship diagram",
     {
       initialView: savedDiagramView,
-      onViewChange: (view) => relationshipDiagramViews.set(diagramViewKey, {
-        ...relationshipDiagramViews.get(diagramViewKey),
-        ...view,
-      }),
+      onViewChange: (view) => rememberRelationshipDiagramView(diagramViewKey, view),
       onRedraw: () => redraw(),
     },
   );
@@ -66,10 +111,7 @@ function renderRelationshipMap(harness) {
       height: workspace.viewport.clientHeight,
     });
     if (!selectedLayout) return;
-    relationshipDiagramViews.set(diagramViewKey, {
-      ...relationshipDiagramViews.get(diagramViewKey),
-      ...selectedLayout,
-    });
+    rememberRelationshipDiagramView(diagramViewKey, selectedLayout);
     workspace.fit();
   };
 
@@ -156,10 +198,7 @@ function renderRelationshipMap(harness) {
         layoutKey: relationshipDiagramViews.get(diagramViewKey)?.layoutKey,
       });
       if (!selectedLayout) return;
-      relationshipDiagramViews.set(diagramViewKey, {
-        ...relationshipDiagramViews.get(diagramViewKey),
-        ...selectedLayout,
-      });
+      rememberRelationshipDiagramView(diagramViewKey, selectedLayout);
       if (restoreInitialView) restoreInitialView = false;
       else workspace.fit();
     });

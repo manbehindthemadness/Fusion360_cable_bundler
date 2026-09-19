@@ -1666,17 +1666,19 @@ function compareRelationshipLayoutGeometry(left, right) {
     || left.layoutKey.localeCompare(right.layoutKey);
 }
 
-/** Route the compact shortlist first, widening only when it has no viable layout. */
-function routeRelationshipLayoutPool(layouts, routeLayout, shortlistSize) {
+/** Route the compact shortlist plus any requested previously committed layout. */
+function routeRelationshipLayoutPool(layouts, routeLayout, shortlistSize, preferredKey = "") {
   const candidates = [];
   const attempt = (items) => items.forEach((layout) => {
     const candidate = routeLayout(layout);
     if (candidate) candidates.push(candidate);
   });
   const preliminary = layouts.slice(0, shortlistSize);
+  const preferred = layouts.find((layout) => layout.layoutKey === preferredKey);
+  if (preferred && !preliminary.includes(preferred)) preliminary.push(preferred);
   attempt(preliminary);
   if (!candidates.length && preliminary.length < layouts.length) {
-    attempt(layouts.slice(preliminary.length));
+    attempt(layouts.filter((layout) => !preliminary.includes(layout)));
   }
   return candidates;
 }
@@ -1702,7 +1704,7 @@ function relationshipLayoutCandidates(components, harness, options = {}) {
     const routes = new Map(layout.routeSets.flatMap((routeSet) => [...routeSet.routes]));
     layout.routeQuality = topologyRouteSetQuality(routes);
     return layout;
-  }, shortlistSize);
+  }, shortlistSize, options.layoutKey);
   if (!candidates.length) throw new Error("Unable to produce a routed relationship layout.");
   const safe = candidates.filter((candidate) => (
     candidate.routeQuality.overlaps === 0
@@ -1719,7 +1721,8 @@ function relationshipLayoutCandidates(components, harness, options = {}) {
   const maximumArea = best.width * best.height * 1.15;
   const minimumFitScale = best.fitScale * 0.95;
   const signatures = new Set();
-  return safe.filter((candidate) => {
+  const preferred = safe.find((candidate) => candidate.layoutKey === options.layoutKey);
+  const filtered = safe.filter((candidate) => {
     if (candidate.width * candidate.height > maximumArea
       || candidate.fitScale < minimumFitScale) return false;
     const signature = components.flatMap((component) => component.nodes.map((node) => {
@@ -1733,6 +1736,8 @@ function relationshipLayoutCandidates(components, harness, options = {}) {
     signatures.add(signature);
     return true;
   });
+  if (preferred && !filtered.includes(preferred)) filtered.push(preferred);
+  return filtered;
 }
 
 /** Select the best routed packing from genuinely different deterministic layouts. */

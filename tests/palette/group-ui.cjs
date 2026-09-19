@@ -191,6 +191,77 @@ test('master diagram can redraw and fit for its resized viewport', () => {
   assert.equal(refreshedStage.style.transform, organizedTransform);
 });
 
+test('master diagram restores its complete view across palette reopen', () => {
+  const storage = new Map();
+  const definition = harness();
+  for (let index = 2; index <= 6; index += 1) {
+    definition.pathways.push({
+      pathwayId: `p${index}`, name: `Pathway ${index}`, startName: 'A', endName: 'B',
+      orderedControlIds: [],
+    });
+  }
+  const first = palette(storage).context;
+  const diagram = first.renderRelationshipMap(definition);
+  sizeRelationshipNodes(diagram);
+  const { workspace, toolbar, viewport, stack } = relationshipWorkspaceParts(diagram);
+  viewport.clientWidth = 420;
+  viewport.clientHeight = 1800;
+  toolbar.children[0].events.click();
+  toolbar.children[3].events.click();
+  const layoutKey = stack.dataset.diagramLayoutKey;
+  const transform = workspace.children[1].children[0].style.transform;
+  assert.match(layoutKey, /^horizontal\|/);
+
+  const second = palette(storage).context;
+  const reopened = second.renderRelationshipMap(definition);
+  const reopenedParts = relationshipWorkspaceParts(reopened);
+
+  assert.equal(reopened.dataset.hasSavedDiagramView, 'true');
+  assert.equal(reopenedParts.stack.dataset.diagramLayoutKey, layoutKey);
+  assert.equal(reopenedParts.workspace.children[1].children[0].style.transform, transform);
+  reopenedParts.toolbar.children[0].events.click();
+  assert.match(reopenedParts.stack.dataset.diagramLayoutKey, /^vertical\|/);
+  assert.equal(reopenedParts.stack.dataset.diagramLayoutCandidateIndex, '0');
+  assert.equal(
+    [...storage.keys()].filter((key) => key.startsWith(
+      'wireBundler.relationshipDiagramView:',
+    )).length,
+    1,
+  );
+
+  const otherDefinition = { ...harness(), harnessId: 'other-harness' };
+  const otherDiagram = second.renderRelationshipMap(otherDefinition);
+  assert.equal(otherDiagram.dataset.hasSavedDiagramView, 'false');
+  assert.equal(
+    [...storage.keys()].filter((key) => key.startsWith(
+      'wireBundler.relationshipDiagramView:',
+    )).length,
+    2,
+  );
+});
+
+test('master diagram rejects malformed or obsolete session views', () => {
+  const definition = harness();
+  const diagramViewKey = definition.harnessId;
+  const storageKey = `wireBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
+  const invalidViews = [
+    '{broken',
+    JSON.stringify({
+      contractVersion: '9', layoutKey: 'old', scale: 1, offsetX: 12, offsetY: 12,
+    }),
+    JSON.stringify({
+      contractVersion: '10', layoutKey: 'partial', scale: 1, offsetX: 12,
+    }),
+  ];
+
+  invalidViews.forEach((stored) => {
+    const storage = new Map([[storageKey, stored]]);
+    const { context } = palette(storage);
+    assert.equal(context.readRelationshipDiagramView(diagramViewKey), undefined);
+    assert.equal(storage.has(storageKey), false);
+  });
+});
+
 test('disconnected component packing remains compact and deterministic', () => {
   const { context } = palette();
   const definition = harness();
@@ -373,6 +444,21 @@ test('layout search widens when every compact routing candidate fails', () => {
 
   assert.equal(attempts, 30);
   assert.equal(JSON.stringify(candidates), JSON.stringify([24, 25, 26, 27, 28, 29]));
+});
+
+test('layout search routes a requested layout beyond the compact shortlist', () => {
+  const { context } = palette();
+  const attempts = [];
+  const layouts = Array.from({ length: 20 }, (_unused, index) => ({
+    layoutKey: `layout-${index}`,
+  }));
+  const candidates = context.routeRelationshipLayoutPool(layouts, (layout) => {
+    attempts.push(layout.layoutKey);
+    return layout;
+  }, 3, 'layout-17');
+
+  assert.deepEqual(attempts, ['layout-0', 'layout-1', 'layout-2', 'layout-17']);
+  assert.equal(candidates.at(-1).layoutKey, 'layout-17');
 });
 
 test('failed layout attempts can restore the last committed node geometry', () => {
