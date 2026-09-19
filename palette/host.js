@@ -491,7 +491,6 @@ function qaObserveRelationshipDiagram() {
       && layoutRevision > 0
       && !layoutError
       && redrawCompleted
-      && layoutChanged
       && visualOverlapCount === 0
       && visibleOverflowCount === 0
       && contractVersion === RELATIONSHIP_DIAGRAM_CONTRACT_VERSION

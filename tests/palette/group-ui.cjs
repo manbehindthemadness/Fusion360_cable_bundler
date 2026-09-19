@@ -227,22 +227,92 @@ test('disconnected component packing remains compact and deterministic', () => {
   }));
 });
 
-test('master diagram cycles deterministic compact layouts and wraps', () => {
+test('master diagram redraw selects the deterministic best fit instead of cycling', () => {
   const { context } = palette();
   const definition = branchingHarness();
   const diagram = context.renderRelationshipMap(definition);
   sizeRelationshipNodes(diagram);
-  const { toolbar, stack } = relationshipWorkspaceParts(diagram);
+  const { toolbar, viewport, stack } = relationshipWorkspaceParts(diagram);
 
-  const layoutKey = stack.dataset.diagramLayoutKey;
-  const candidateCount = Number(stack.dataset.diagramLayoutCandidateCount);
-  assert.ok(candidateCount >= 1);
+  viewport.clientWidth = 1900;
+  viewport.clientHeight = 850;
   toolbar.children[0].events.click();
-  if (candidateCount > 1) assert.notEqual(stack.dataset.diagramLayoutKey, layoutKey);
-  for (let index = 1; index < candidateCount; index += 1) {
-    toolbar.children[0].events.click();
-  }
+  const layoutKey = stack.dataset.diagramLayoutKey;
+  const geometry = descendants(
+    stack, (node) => node.className?.split(' ').includes('relationship-topology-node'),
+  ).map((node) => [node.dataset.nodeId, node.style.left, node.style.top]);
+
+  assert.ok(Number(stack.dataset.diagramLayoutCandidateCount) >= 1);
+  assert.equal(stack.dataset.diagramLayoutCandidateIndex, '0');
+  toolbar.children[0].events.click();
   assert.equal(stack.dataset.diagramLayoutKey, layoutKey);
+  assert.deepEqual(descendants(
+    stack, (node) => node.className?.split(' ').includes('relationship-topology-node'),
+  ).map((node) => [node.dataset.nodeId, node.style.left, node.style.top]), geometry);
+});
+
+test('master diagram redraw adapts to viewport aspect and maximizes contained zoom', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways.push(
+    { pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p3', name: 'Pathway 003', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p4', name: 'Pathway 004', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+  );
+  const diagram = context.renderRelationshipMap(definition);
+  sizeRelationshipNodes(diagram);
+  const { workspace, toolbar, viewport, stack } = relationshipWorkspaceParts(diagram);
+  const stage = workspace.children[1].children[0];
+
+  viewport.clientWidth = 1300;
+  viewport.clientHeight = 300;
+  toolbar.children[0].events.click();
+  const wideLayoutKey = stack.dataset.diagramLayoutKey;
+  const wideAspect = Number.parseFloat(stack.style.width)
+    / Number.parseFloat(stack.style.height);
+
+  viewport.clientWidth = 300;
+  viewport.clientHeight = 1300;
+  toolbar.children[0].events.click();
+  const tallLayoutKey = stack.dataset.diagramLayoutKey;
+  const tallAspect = Number.parseFloat(stack.style.width)
+    / Number.parseFloat(stack.style.height);
+  assert.ok(wideAspect > tallAspect, JSON.stringify({
+    wideAspect, tallAspect, wideLayoutKey, tallLayoutKey,
+  }));
+  assert.notEqual(tallLayoutKey, wideLayoutKey);
+  assert.equal(stack.dataset.diagramLayoutCandidateIndex, '0');
+
+  stage.scrollWidth = Number.parseFloat(stack.style.width);
+  stage.scrollHeight = Number.parseFloat(stack.style.height);
+  toolbar.children[0].events.click();
+  const expectedScale = Math.min(
+    1,
+    (viewport.clientWidth - 24) / stage.scrollWidth,
+    (viewport.clientHeight - 24) / stage.scrollHeight,
+  );
+  const transform = stage.style.transform;
+  const match = transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/);
+  assert.ok(match);
+  assert.equal(Number(match[3]), expectedScale);
+  assert.equal(Number(match[1]), Math.max(
+    12, (viewport.clientWidth - stage.scrollWidth * expectedScale) / 2,
+  ));
+  assert.equal(Number(match[2]), Math.max(
+    12, (viewport.clientHeight - stage.scrollHeight * expectedScale) / 2,
+  ));
+
+  viewport.clientWidth = 4000;
+  viewport.clientHeight = 3000;
+  toolbar.children[0].events.click();
+  stage.scrollWidth = Number.parseFloat(stack.style.width);
+  stage.scrollHeight = Number.parseFloat(stack.style.height);
+  toolbar.children[0].events.click();
+  assert.match(stage.style.transform, /scale\(1\)$/);
+  assert.equal(toolbar.children[2].textContent, '100%');
 });
 
 test('route-aware redraw packs branching topology without trace blips or crossovers', () => {

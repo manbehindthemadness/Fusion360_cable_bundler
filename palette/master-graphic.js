@@ -64,9 +64,6 @@ function renderRelationshipMap(harness) {
     const selectedLayout = layoutRelationshipGraph(renderedStack, renderedComponents, harness, {
       width: workspace.viewport.clientWidth,
       height: workspace.viewport.clientHeight,
-      layoutKey: relationshipDiagramViews.get(diagramViewKey)?.layoutKey,
-      advanceLayout: true,
-      reuseLayouts: true,
     });
     if (!selectedLayout) return;
     relationshipDiagramViews.set(diagramViewKey, {

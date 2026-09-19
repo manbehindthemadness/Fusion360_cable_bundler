@@ -1800,19 +1800,16 @@ function restoreRelationshipLayoutState(stack, state) {
 function layoutRelationshipGraph(stack, components, harness, options = {}) {
   const priorState = captureRelationshipLayoutState(stack, components);
   captureRelationshipIntrinsicSizes(components);
-  let layouts = options.reuseLayouts && Array.isArray(stack.relationshipLayoutCandidates)
-    ? stack.relationshipLayoutCandidates : null;
+  let layouts;
   try {
-    if (!layouts) layouts = relationshipLayoutCandidates(components, harness, options);
+    layouts = relationshipLayoutCandidates(components, harness, options);
   } catch (error) {
     restoreRelationshipLayoutState(stack, priorState);
     stack.dataset.diagramLayoutError = error.message;
     return null;
   }
   const currentIndex = layouts.findIndex((candidate) => candidate.layoutKey === options.layoutKey);
-  const selectedIndex = options.advanceLayout && layouts.length > 1
-    ? (currentIndex >= 0 ? (currentIndex + 1) % layouts.length : 0)
-    : Math.max(0, currentIndex);
+  const selectedIndex = Math.max(0, currentIndex);
   const layout = layouts[selectedIndex];
   stack.relationshipLayoutCandidates = layouts;
   applyRelationshipLayoutGeometry(components, layout);
