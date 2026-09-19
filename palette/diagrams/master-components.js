@@ -245,11 +245,31 @@ function renderRelationshipConnector(
   return svg;
 }
 
-/** Return the rendered footprint of one endpoint list. */
+/** Measure intrinsic list width without inheriting its allocated grid-track width. */
+function relationshipIntrinsicEndListWidth(list) {
+  const prior = {
+    width: list.style.width,
+    minWidth: list.style.minWidth,
+    maxWidth: list.style.maxWidth,
+    justifySelf: list.style.justifySelf,
+  };
+  Object.assign(list.style, {
+    width: "max-content",
+    minWidth: "0",
+    maxWidth: "none",
+    justifySelf: "start",
+  });
+  const layoutWidth = list.offsetWidth || list.getBoundingClientRect?.().width || 0;
+  const width = Math.ceil(layoutWidth || list.scrollWidth || 0);
+  Object.assign(list.style, prior);
+  return width;
+}
+
+/** Return the intrinsic visible footprint of one endpoint list. */
 function relationshipEndListSize(list) {
   const empty = list.className.split(" ").includes("empty");
   return {
-    width: Math.max(empty ? 64 : 210, list.scrollWidth || 0),
+    width: Math.max(empty ? 64 : 96, relationshipIntrinsicEndListWidth(list)),
     height: Math.max(34, list.scrollHeight || 0),
   };
 }

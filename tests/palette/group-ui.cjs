@@ -449,6 +449,29 @@ test('master relationship traces attach to distinct cardinal pathway ends', () =
   assert.ok(Number(fiveLanePort.attributes.width) >= 24);
 });
 
+test('endpoint list sizing ignores allocated horizontal track width', () => {
+  const { context } = palette();
+  const compact = new Element('details');
+  compact.className = 'relationship-end-list';
+  compact.clientWidth = 82;
+  compact.scrollWidth = 210;
+  compact.scrollHeight = 58;
+  compact.style.width = '210px';
+  const expanded = new Element('details');
+  expanded.className = 'relationship-end-list';
+  expanded.clientWidth = 286;
+  expanded.scrollWidth = 286;
+  expanded.scrollHeight = 92;
+
+  const compactSize = context.relationshipEndListSize(compact);
+  const expandedSize = context.relationshipEndListSize(expanded);
+
+  assert.equal(compactSize.width, 96);
+  assert.equal(compactSize.height, 58);
+  assert.equal(compact.style.width, '210px');
+  assert.equal(expandedSize.width, 286);
+});
+
 test('inset endpoint ports retain visible anchors and escape beyond their node', () => {
   const { context } = palette();
   const wrapper = new Element('div');
@@ -569,6 +592,28 @@ test('layered docking aligns sibling pathway ends toward their junction', () => 
     }
   }));
   assert.equal(compactUnrelatedPair, true);
+  const geometryComponents = context.relationshipTopology(definition);
+  const renderedNodes = new Map(nodes.map((node) => [node.dataset.nodeId, node]));
+  geometryComponents.forEach((component) => component.nodes.forEach((node) => {
+    node.element = renderedNodes.get(node.id);
+  }));
+  context.captureRelationshipIntrinsicSizes(geometryComponents);
+  const verticalSpecification = context.relationshipLayoutSpecifications(geometryComponents)
+    .find((specification) => specification.flow === 'vertical'
+      && specification.direction === 'forward'
+      && specification.orderMode === 'dense'
+      && specification.roots[0].id === 'junction:j1');
+  const verticalLayout = context.relationshipTopologyLayoutCandidate(
+    geometryComponents, verticalSpecification,
+  );
+  const pathwayRectangles = context.materializeRelationshipLayout(
+    geometryComponents, verticalLayout,
+  )[0].nodes.filter((node) => node.kind === 'pathway').map((node) => ({
+    left: node.left, right: node.left + node.width,
+  })).sort((left, right) => left.left - right.left);
+  pathwayRectangles.slice(1).forEach((rectangle, index) => {
+    assert.equal(rectangle.left - pathwayRectangles[index].right, 32);
+  });
   connectedPorts.forEach((port) => {
     const node = nodes.find((candidate) => candidate.dataset.nodeId === port.dataset.nodeId);
     const rectangle = relationshipNodeRectangle(node);
