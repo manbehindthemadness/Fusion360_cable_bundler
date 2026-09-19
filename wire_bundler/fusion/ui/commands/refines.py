@@ -20,7 +20,6 @@ from ....domain import ControlKind, RefineGeometry, loads
 from ....routing import Vector3
 from ....routing.geometry import cross, unit
 from ...refine_graphics import (
-    DEFAULT_REFINE_RADIUS_MM,
     REFINE_GRAPHICS_GROUP_ID,
     REFINE_SPINE_ENTITY_ID,
     PathwaySpine,
@@ -47,6 +46,8 @@ from ..support import (
     _require_active_design,
 )
 from ..viewport import _refresh_active_preview
+
+MINIMUM_REFINE_RADIUS_MM = 0.5
 
 
 @dataclass
@@ -287,13 +288,7 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 raise RuntimeError("Fusion could not configure refine-path selection.")
             if not selection_input.setSelectionLimits(1, 1):
                 raise RuntimeError("Fusion could not limit refine-path selection.")
-            radius_input = args.command.commandInputs.addDistanceValueCommandInput(
-                REFINE_RADIUS_INPUT_ID,
-                "Marker Radius",
-                adsk.core.ValueInput.createByString(f"{DEFAULT_REFINE_RADIUS_MM:g} mm"),
-            )
-            if radius_input is None:
-                raise RuntimeError("Fusion could not create the refine-radius input.")
+            radius_input = _add_refine_radius_input(args.command.commandInputs)
             radius_input.isVisible = False
             radius_input.isEnabled = False
             state = _RefineCommandState(harness_id, pathway_id, spine, group)
@@ -517,13 +512,10 @@ class _EditRefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             triad.setRotateVisibility(True)
             triad.isOriginTranslationVisible = True
             triad.isVisible = True
-            radius = args.command.commandInputs.addDistanceValueCommandInput(
-                REFINE_RADIUS_INPUT_ID,
-                "Marker Radius",
-                adsk.core.ValueInput.createByString(f"{geometry.display_radius_mm:g} mm"),
+            _add_refine_radius_input(
+                args.command.commandInputs,
+                geometry.display_radius_mm,
             )
-            if radius is None:
-                raise RuntimeError("Fusion could not create the refine-radius input.")
             state = _EditRefineCommandState(harness_id, control_id, group, geometry)
             input_handler = _EditRefineInputChangedHandler(state)
             preview_handler = _EditRefineExecutePreviewHandler(state)
@@ -613,8 +605,7 @@ def _read_refine_placement(
     )
     if selection_input is None or selection_input.selectionCount != 1:
         raise ValueError("Select one point on the pathway spine.")
-    if radius_input is None or not radius_input.isValidExpression or radius_input.value <= 0.0:
-        raise ValueError("Refine marker radius must be positive.")
+    radius_mm = _read_refine_radius_mm(radius_input)
     selection = selection_input.selection(0)
     if selection is None:
         raise ValueError("Select a point on the displayed pathway spine.")
@@ -629,7 +620,38 @@ def _read_refine_placement(
         point.y * 10.0,
         point.z * 10.0,
     )
-    return place_refine(spine, selected_point, radius_input.value * 10.0)
+    return place_refine(spine, selected_point, radius_mm)
+
+
+def _add_refine_radius_input(
+    command_inputs: adsk.core.CommandInputs,
+    initial_radius_mm: float = MINIMUM_REFINE_RADIUS_MM,
+) -> adsk.core.DistanceValueCommandInput:
+    """
+    Add a radius manipulator that starts at or above the supported minimum.
+    """
+    clamped_radius_mm = max(float(initial_radius_mm), MINIMUM_REFINE_RADIUS_MM)
+    radius_input = command_inputs.addDistanceValueCommandInput(
+        REFINE_RADIUS_INPUT_ID,
+        "Marker Radius",
+        adsk.core.ValueInput.createByString(f"{clamped_radius_mm:g} mm"),
+    )
+    if radius_input is None:
+        raise RuntimeError("Fusion could not create the refine-radius input.")
+    radius_input.minimumValue = MINIMUM_REFINE_RADIUS_MM / 10.0
+    radius_input.isMinimumValueInclusive = True
+    return radius_input
+
+
+def _read_refine_radius_mm(
+    radius_input: Optional[adsk.core.DistanceValueCommandInput],
+) -> float:
+    """
+    Read a valid Fusion distance and clamp transient subminimum values.
+    """
+    if radius_input is None or not radius_input.isValidExpression:
+        raise ValueError("Refine marker radius must be valid.")
+    return max(radius_input.value * 10.0, MINIMUM_REFINE_RADIUS_MM)
 
 
 def _refine_geometry_transform(geometry: RefineGeometry) -> adsk.core.Matrix3D:
@@ -682,14 +704,13 @@ def _read_edited_refine_geometry(command_inputs: adsk.core.CommandInputs) -> Ref
     )
     if triad is None or not triad.isValidExpressions:
         raise ValueError("Refine position and rotation must be valid.")
-    if radius is None or not radius.isValidExpression or radius.value <= 0.0:
-        raise ValueError("Refine marker radius must be positive.")
+    radius_mm = _read_refine_radius_mm(radius)
     origin, u_direction, v_direction, _tangent = triad.transform.getAsCoordinateSystem()
     return RefineGeometry(
         origin_mm=(origin.x * 10.0, origin.y * 10.0, origin.z * 10.0),
         u_direction=(u_direction.x, u_direction.y, u_direction.z),
         v_direction=(v_direction.x, v_direction.y, v_direction.z),
-        display_radius_mm=radius.value * 10.0,
+        display_radius_mm=radius_mm,
     )
 
 

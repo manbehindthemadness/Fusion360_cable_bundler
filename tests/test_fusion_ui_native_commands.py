@@ -373,11 +373,14 @@ def test_segment_selection_normalizes_profiles_and_accepts_refine_marker(
     assert not unrelated_args.isSelectable
 
 
-def test_refine_selection_uses_click_point_and_centimeter_radius(
+@pytest.mark.parametrize(("radius_cm", "expected_mm"), ((1.0, 10.0), (0.0, 0.5)))
+def test_refine_selection_uses_click_point_and_clamped_centimeter_radius(
     addin_module: _PaletteLifecycleModule,
+    radius_cm: float,
+    expected_mm: float,
 ) -> None:
     """
-    Project Fusion's root-space click while converting database units to millimeters.
+    Project the click while converting and clamping Fusion's centimeter radius.
     """
     core_module = sys.modules["adsk.core"]
     core_module.SelectionCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
@@ -389,7 +392,7 @@ def test_refine_selection_uses_click_point_and_centimeter_radius(
             point=SimpleNamespace(x=0.0, y=0.0, z=1.5),
         ),
     )
-    radius_input = SimpleNamespace(isValidExpression=True, value=1.0)
+    radius_input = SimpleNamespace(isValidExpression=True, value=radius_cm)
     inputs = SimpleNamespace(
         itemById=lambda identity: selection_input if identity == "refine_spine" else radius_input
     )
@@ -410,7 +413,73 @@ def test_refine_selection_uses_click_point_and_centimeter_radius(
 
     assert placement.insertion_index == 1
     assert placement.geometry.origin_mm == (0.0, 0.0, 15.0)
-    assert placement.geometry.display_radius_mm == 10.0
+    assert placement.geometry.display_radius_mm == expected_mm
+
+
+def test_refine_radius_input_starts_at_inclusive_half_millimeter_minimum(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Configure Fusion's manipulator to stop before its radius reaches zero.
+    """
+    core_module = sys.modules["adsk.core"]
+    initial_value = object()
+    create_value = Mock(return_value=initial_value)
+    core_module.ValueInput = SimpleNamespace(createByString=create_value)  # type: ignore[attr-defined]
+    radius = SimpleNamespace(minimumValue=None, isMinimumValueInclusive=False)
+    inputs = SimpleNamespace(addDistanceValueCommandInput=Mock(return_value=radius))
+
+    result = addin_module._add_refine_radius_input(inputs)
+
+    assert result is radius
+    create_value.assert_called_once_with("0.5 mm")
+    inputs.addDistanceValueCommandInput.assert_called_once_with(
+        "refine_radius",
+        "Marker Radius",
+        initial_value,
+    )
+    assert radius.minimumValue == pytest.approx(0.05)
+    assert radius.isMinimumValueInclusive
+
+
+def test_refine_radius_input_clamps_legacy_initial_radius(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Open a legacy subminimum refine at the supported editable radius.
+    """
+    core_module = sys.modules["adsk.core"]
+    create_value = Mock(return_value=object())
+    core_module.ValueInput = SimpleNamespace(createByString=create_value)  # type: ignore[attr-defined]
+    inputs = SimpleNamespace(
+        addDistanceValueCommandInput=Mock(
+            return_value=SimpleNamespace(
+                minimumValue=None,
+                isMinimumValueInclusive=False,
+            )
+        )
+    )
+
+    addin_module._add_refine_radius_input(inputs, 0.1)
+
+    create_value.assert_called_once_with("0.5 mm")
+
+
+@pytest.mark.parametrize(
+    ("radius_cm", "expected_mm"),
+    ((0.0, 0.5), (0.01, 0.5), (0.05, 0.5), (1.8, 18.0)),
+)
+def test_refine_radius_read_clamps_at_half_millimeter(
+    addin_module: _PaletteLifecycleModule,
+    radius_cm: float,
+    expected_mm: float,
+) -> None:
+    """
+    Keep transient drag values at a valid visible radius.
+    """
+    radius = SimpleNamespace(isValidExpression=True, value=radius_cm)
+
+    assert addin_module._read_refine_radius_mm(radius) == pytest.approx(expected_mm)
 
 
 def test_refine_placement_rejects_selected_entity_without_graphics_id(
@@ -585,6 +654,36 @@ def test_edited_refine_geometry_reads_triad_and_resized_radius(
     geometry = addin_module._read_edited_refine_geometry(inputs)
 
     assert geometry == RefineGeometry((10.0, 20.0, 30.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), 18.0)
+
+
+def test_edited_refine_geometry_clamps_zero_radius(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep an edited marker valid if Fusion reports zero during a drag event.
+    """
+    core_module = sys.modules["adsk.core"]
+    triad = SimpleNamespace(
+        isValidExpressions=True,
+        transform=SimpleNamespace(
+            getAsCoordinateSystem=lambda: (
+                SimpleNamespace(x=1.0, y=2.0, z=3.0),
+                SimpleNamespace(x=1.0, y=0.0, z=0.0),
+                SimpleNamespace(x=0.0, y=1.0, z=0.0),
+                SimpleNamespace(x=0.0, y=0.0, z=1.0),
+            )
+        ),
+    )
+    radius = SimpleNamespace(isValidExpression=True, value=0.0)
+    core_module.TriadCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    core_module.DistanceValueCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    inputs = SimpleNamespace(
+        itemById=lambda identity: triad if identity == "refine_transform" else radius
+    )
+
+    geometry = addin_module._read_edited_refine_geometry(inputs)
+
+    assert geometry.display_radius_mm == 0.5
 
 
 def test_refine_triad_reapplies_initial_world_transform(
