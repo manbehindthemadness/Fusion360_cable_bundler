@@ -2,6 +2,51 @@ const {
   assert, descendants, harness, palette, test,
 } = require('./support.cjs');
 
+/** Return a branching topology with three full-width pathways at its root depth. */
+function branchingHarness() {
+  const definition = harness();
+  definition.pathways.push(
+    { pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p3', name: 'Pathway 003', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p4', name: 'Pathway 004', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p5', name: 'Pathway 005', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+  );
+  definition.junctions.push(
+    {
+      junctionId: 'j1', controlId: 'c1', name: 'Junction 001',
+      pathwayRelationships: [
+        { pathwayId: 'p', endpoint: 'end' },
+        { pathwayId: 'p2', endpoint: 'end' },
+        { pathwayId: 'p3', endpoint: 'end' },
+        { pathwayId: 'p4', endpoint: 'start' },
+      ],
+    },
+    {
+      junctionId: 'j2', controlId: 'c2', name: 'Junction 002',
+      pathwayRelationships: [
+        { pathwayId: 'p4', endpoint: 'end' },
+        { pathwayId: 'p5', endpoint: 'start' },
+      ],
+    },
+  );
+  return definition;
+}
+
+/** Give topology wrappers dimensions representative of their rendered cards. */
+function sizeRelationshipNodes(diagram) {
+  descendants(
+    diagram, (node) => node.className?.split(' ').includes('relationship-topology-node'),
+  ).forEach((node) => {
+    const pathway = node.className.split(' ').includes('relationship-topology-pathway');
+    node.scrollWidth = pathway ? 638 : 154;
+    node.scrollHeight = pathway ? 160 : 76;
+  });
+}
+
 test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
@@ -58,20 +103,10 @@ test('master diagram survives a host refresh that adds a pathway', () => {
 
 test('master diagram can reorganize and fit for its resized viewport', () => {
   const { context } = palette();
-  const definition = harness();
-  definition.pathways.push({
-    pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
-    orderedControlIds: [],
-  });
-  definition.junctions.push({
-    junctionId: 'j1', controlId: 'c1', name: 'Junction 001',
-    pathwayRelationships: [
-      { pathwayId: 'p', endpoint: 'end' },
-      { pathwayId: 'p2', endpoint: 'start' },
-    ],
-  });
+  const definition = branchingHarness();
 
   const diagram = context.renderRelationshipMap(definition);
+  sizeRelationshipNodes(diagram);
   const workspace = descendants(
     diagram, (node) => node.className === 'block-diagram-workspace',
   )[0];
@@ -88,11 +123,25 @@ test('master diagram can reorganize and fit for its resized viewport', () => {
 
   assert.equal(reorganize.textContent, 'Reorganize');
   assert.equal(reorganize.title, 'Reorganize and fit diagram');
-  viewport.clientWidth = 200;
-  viewport.clientHeight = 800;
+  viewport.clientWidth = 900;
+  viewport.clientHeight = 1600;
   reorganize.events.click();
 
   assert.equal(stack.dataset.diagramFlow, 'vertical');
+  assert.ok(Number.parseFloat(stack.style.width) < viewport.clientWidth);
+  assert.ok(Number.parseFloat(stack.style.height) < viewport.clientHeight);
+  const rootPathways = ['p', 'p2', 'p3'].map((pathwayId) => descendants(
+    stack, (node) => node.className?.split(' ').includes('relationship-topology-node')
+      && node.dataset.nodeId === `pathway:${pathwayId}`,
+  )[0]);
+  assert.equal(new Set(rootPathways.map((node) => node.style.top)).size, 3);
+  const firstJunction = descendants(
+    stack, (node) => node.className?.split(' ').includes('relationship-topology-node')
+      && node.dataset.nodeId === 'junction:j1',
+  )[0];
+  assert.ok(Number.parseFloat(firstJunction.style.top) > Math.max(
+    ...rootPathways.map((node) => Number.parseFloat(node.style.top) + node.scrollHeight),
+  ));
   const organizedTransform = workspace.children[1].children[0].style.transform;
   assert.match(organizedTransform, /scale\(/);
 
@@ -105,6 +154,31 @@ test('master diagram can reorganize and fit for its resized viewport', () => {
   )[0];
   assert.equal(refreshedStack.dataset.diagramFlow, 'vertical');
   assert.equal(refreshedStage.style.transform, organizedTransform);
+});
+
+test('master diagram retains horizontal flow for a wide viewport', () => {
+  const { context } = palette();
+  const definition = branchingHarness();
+  const diagram = context.renderRelationshipMap(definition);
+  sizeRelationshipNodes(diagram);
+  const workspace = descendants(
+    diagram, (node) => node.className === 'block-diagram-workspace',
+  )[0];
+  const toolbar = descendants(
+    workspace, (node) => node.className === 'block-diagram-toolbar',
+  )[0];
+  const viewport = descendants(
+    workspace, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const stack = descendants(
+    workspace, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
+
+  viewport.clientWidth = 2200;
+  viewport.clientHeight = 500;
+  toolbar.children[0].events.click();
+
+  assert.equal(stack.dataset.diagramFlow, 'horizontal');
 });
 
 test('master relationship traces attach to visible pathway ends', () => {

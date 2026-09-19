@@ -613,8 +613,8 @@ function renderTopologyPort(port) {
   });
 }
 
-/** Return positions for one flow direction and the resulting canvas dimensions. */
-function relationshipLayoutCandidate(components, vertical) {
+/** Return positions for the existing left-to-right flow and its canvas dimensions. */
+function horizontalRelationshipLayoutCandidate(components) {
   const padding = 30;
   const layerGap = 54;
   const rowGap = 40;
@@ -635,13 +635,13 @@ function relationshipLayoutCandidate(components, vertical) {
     });
     const rowExtent = Math.max(
       112,
-      ...component.nodes.map((node) => vertical ? node.width : node.height),
+      ...component.nodes.map((node) => node.height),
     );
     const componentRows = Math.max(1, ...rowsByDepth.values());
     const layerExtents = new Map(
       [...nodesByDepth].map(([depth, nodes]) => [
         depth,
-        Math.max(...nodes.map((node) => vertical ? node.height : node.width)),
+        Math.max(...nodes.map((node) => node.width)),
       ]),
     );
     const layerOffsets = new Map();
@@ -654,11 +654,9 @@ function relationshipLayoutCandidate(components, vertical) {
       const nodesAtDepth = rowsByDepth.get(node.depth);
       const centeredRow = node.row + (componentRows - nodesAtDepth) / 2;
       const flowPosition = layerOffsets.get(node.depth)
-        + (layerExtents.get(node.depth) - (vertical ? node.height : node.width)) / 2;
+        + (layerExtents.get(node.depth) - node.width) / 2;
       const rowPosition = componentOffset + centeredRow * (rowExtent + rowGap);
-      positions.set(node.id, vertical
-        ? { left: rowPosition, top: flowPosition }
-        : { left: flowPosition, top: rowPosition });
+      positions.set(node.id, { left: flowPosition, top: rowPosition });
     });
     maximumFlowExtent = Math.max(maximumFlowExtent, nextLayerOffset - layerGap);
     componentOffset += componentRows * (rowExtent + rowGap) + layerGap;
@@ -666,31 +664,114 @@ function relationshipLayoutCandidate(components, vertical) {
   const crossExtent = componentOffset - layerGap + padding;
   return {
     positions,
-    width: Math.max(vertical ? crossExtent : maximumFlowExtent + padding, 260),
-    height: Math.max(vertical ? maximumFlowExtent + padding : crossExtent, 260),
-    vertical,
+    width: Math.max(maximumFlowExtent + padding, 260),
+    height: Math.max(crossExtent, 260),
+    vertical: false,
+  };
+}
+
+/** Return a top-to-bottom layout whose same-depth peers wrap into bounded rows. */
+function verticalRelationshipLayoutCandidate(components, columnLimit) {
+  const padding = 30;
+  const layerGap = 54;
+  const rowGap = 40;
+  let componentOffset = padding;
+  let maximumFlowExtent = 0;
+  const positions = new Map();
+  components.forEach((component) => {
+    const nodesByDepth = new Map();
+    component.nodes.forEach((node) => {
+      if (!nodesByDepth.has(node.depth)) nodesByDepth.set(node.depth, []);
+      nodesByDepth.get(node.depth).push(node);
+      node.width = node.element.scrollWidth || (node.kind === "pathway" ? 278 : 154);
+      node.height = node.element.scrollHeight || (node.kind === "pathway" ? 92 : 76);
+    });
+    const layers = [...nodesByDepth].sort(([left], [right]) => left - right)
+      .map(([, nodes]) => {
+        const rows = [];
+        for (let index = 0; index < nodes.length; index += columnLimit) {
+          const rowNodes = nodes.slice(index, index + columnLimit);
+          rows.push({
+            nodes: rowNodes,
+            width: rowNodes.reduce((total, node) => total + node.width, 0)
+              + Math.max(0, rowNodes.length - 1) * rowGap,
+            height: Math.max(...rowNodes.map((node) => node.height)),
+          });
+        }
+        return {
+          rows,
+          width: Math.max(...rows.map((row) => row.width)),
+          height: rows.reduce((total, row) => total + row.height, 0)
+            + Math.max(0, rows.length - 1) * rowGap,
+        };
+      });
+    const componentWidth = Math.max(112, ...layers.map((layer) => layer.width));
+    let nextLayerOffset = padding;
+    layers.forEach((layer) => {
+      let rowOffset = nextLayerOffset;
+      layer.rows.forEach((row) => {
+        let nodeOffset = componentOffset + (componentWidth - row.width) / 2;
+        row.nodes.forEach((node) => {
+          positions.set(node.id, {
+            left: nodeOffset,
+            top: rowOffset + (row.height - node.height) / 2,
+          });
+          nodeOffset += node.width + rowGap;
+        });
+        rowOffset += row.height + rowGap;
+      });
+      nextLayerOffset += layer.height + layerGap;
+    });
+    maximumFlowExtent = Math.max(maximumFlowExtent, nextLayerOffset - layerGap);
+    componentOffset += componentWidth + layerGap;
+  });
+  const crossExtent = componentOffset - layerGap + padding;
+  return {
+    positions,
+    width: Math.max(crossExtent, 260),
+    height: Math.max(maximumFlowExtent + padding, 260),
+    vertical: true,
   };
 }
 
 /** Return the layout direction that displays largest in the current viewport. */
 function bestRelationshipLayout(components, viewportSize) {
-  const candidates = [
-    relationshipLayoutCandidate(components, false),
-    relationshipLayoutCandidate(components, true),
-  ];
-  const preferred = candidates.find((candidate) => (
-    (candidate.vertical ? "vertical" : "horizontal") === viewportSize?.flow
-  ));
-  if (preferred) return preferred;
-  const availableWidth = Math.max(1, viewportSize?.width || 760);
-  const availableHeight = Math.max(1, viewportSize?.height || 430);
+  const maximumLayerSize = Math.max(
+    1,
+    ...components.flatMap((component) => {
+      const counts = new Map();
+      component.nodes.forEach((node) => counts.set(
+        node.depth,
+        (counts.get(node.depth) || 0) + 1,
+      ));
+      return [...counts.values()];
+    }),
+  );
+  const candidates = [horizontalRelationshipLayoutCandidate(components)];
+  for (let columnLimit = 1; columnLimit <= maximumLayerSize; columnLimit += 1) {
+    candidates.push(verticalRelationshipLayoutCandidate(components, columnLimit));
+  }
+  const preferredCandidates = viewportSize?.flow
+    ? candidates.filter((candidate) => (
+      (candidate.vertical ? "vertical" : "horizontal") === viewportSize.flow
+    ))
+    : candidates;
+  const availableWidth = Math.max(1, (viewportSize?.width || 760) - 24);
+  const availableHeight = Math.max(1, (viewportSize?.height || 430) - 24);
   const fitScale = (candidate) => Math.min(
     1,
     availableWidth / candidate.width,
     availableHeight / candidate.height,
   );
-  return candidates.sort((left, right) => (
-    fitScale(right) - fitScale(left) || Number(left.vertical) - Number(right.vertical)
+  const viewportAspect = availableWidth / availableHeight;
+  const aspectDifference = (candidate) => Math.abs(Math.log(
+    (candidate.width / candidate.height) / viewportAspect,
+  ));
+  return preferredCandidates.sort((left, right) => (
+    fitScale(right) - fitScale(left)
+    || aspectDifference(left) - aspectDifference(right)
+    || left.width * left.height - right.width * right.height
+    || Number(left.vertical) - Number(right.vertical)
   ))[0];
 }
 
