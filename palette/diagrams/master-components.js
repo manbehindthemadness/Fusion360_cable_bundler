@@ -390,6 +390,8 @@ function configureRelationshipPathwayDocking(
   pathwayGroup.relationshipHub.style.gridArea = "hub";
   Object.entries(metrics.sides).forEach(([endpoint, side]) => {
     const list = pathwayGroup.relationshipEndpointLists[endpoint];
+    list.style.width = ["left", "right"].includes(side)
+      ? `${metrics.sizes[endpoint].width}px` : "";
     alignRelationshipDockElement(list, side, list.className.split(" ").includes("empty"));
     overlapRelationshipConnector(pathwayGroup.relationshipConnectors[endpoint], side, metrics);
   });

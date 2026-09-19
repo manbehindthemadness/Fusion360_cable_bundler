@@ -553,6 +553,34 @@ test('endpoint list sizing ignores allocated horizontal track width', () => {
   assert.equal(expandedSize.width, 286);
 });
 
+test('horizontal endpoint lists fill their reserved dock width', () => {
+  const { context } = palette();
+  const group = new Element('div');
+  const startList = new Element('details');
+  const endList = new Element('details');
+  const startConnector = new Element('svg');
+  const endConnector = new Element('svg');
+  startList.className = 'relationship-end-list empty';
+  endList.className = 'relationship-end-list';
+  startConnector.setDockSide = (side) => { startConnector.dataset.side = side; };
+  endConnector.setDockSide = (side) => { endConnector.dataset.side = side; };
+  group.relationshipEndpointLists = { start: startList, end: endList };
+  group.relationshipConnectors = { start: startConnector, end: endConnector };
+  group.relationshipHub = new Element('div');
+  const sizes = {
+    start: { width: 96, height: 34 },
+    end: { width: 148, height: 72 },
+  };
+
+  context.configureRelationshipPathwayDocking(group, 'left', 'right', sizes);
+  assert.equal(startList.style.width, '96px');
+  assert.equal(endList.style.width, '148px');
+
+  context.configureRelationshipPathwayDocking(group, 'top', 'bottom', sizes);
+  assert.equal(startList.style.width, '');
+  assert.equal(endList.style.width, '');
+});
+
 test('inset endpoint ports retain visible anchors and escape beyond their node', () => {
   const { context } = palette();
   const wrapper = new Element('div');
