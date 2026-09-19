@@ -5,8 +5,8 @@ Fusion command controllers for refines.
 from __future__ import annotations
 
 import traceback
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, replace
+from typing import Optional, Protocol
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -25,15 +25,12 @@ from ...refine_graphics import (
     PathwaySpine,
     RefinePlacement,
     build_pathway_spine,
-    clear_candidate_refine,
     clear_refine_spine,
     draw_candidate_refine,
     draw_pathway_spine,
     draw_refine_editor,
     place_refine,
     reconcile_refine_graphics,
-    update_candidate_refine,
-    update_refine_editor,
 )
 from ..constants import REFINE_RADIUS_INPUT_ID, REFINE_SPINE_INPUT_ID, REFINE_TRANSFORM_INPUT_ID
 from ..launchers import _open_refine_edit_command
@@ -59,9 +56,30 @@ class _RefineCommandState:
     harness_id: UUID
     pathway_id: UUID
     spine: PathwaySpine
-    group: adsk.fusion.CustomGraphicsGroup
+    group: Optional[adsk.fusion.CustomGraphicsGroup] = None
     placement: Optional[RefinePlacement] = None
     candidate: Optional[adsk.fusion.CustomGraphicsLines] = None
+    preselected_point_mm: Optional[Vector3] = None
+
+
+class _SelectionInput(Protocol):
+    """
+    Expose selection operations needed around preview-backed graphics.
+    """
+
+    # noinspection PyPep8Naming
+    def setSelectionLimits(self, minimum: int, maximum: int = 0) -> bool:
+        """
+        Require a bounded number of selections.
+        """
+        ...
+
+    # noinspection PyPep8Naming
+    def clearSelection(self) -> bool:
+        """
+        Release the transient graphics selection before preview rollback.
+        """
+        ...
 
 
 class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
@@ -69,7 +87,13 @@ class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
     Restrict Custom Graphics selection to the command-owned pathway spine.
     """
 
-    # noinspection PyMethodMayBeStatic
+    def __init__(self, state: _RefineCommandState) -> None:
+        """
+        Retain the last valid spine point before preview rollback invalidates it.
+        """
+        super().__init__()
+        self._state = state
+
     def notify(self, args: adsk.core.SelectionEventArgs) -> None:
         """
         Reject persistent markers and unrelated selectable graphics.
@@ -77,6 +101,35 @@ class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
         selection = args.selection
         entity = selection.entity if selection is not None else None
         args.isSelectable = getattr(entity, "id", None) == REFINE_SPINE_ENTITY_ID
+        point_mm = _refine_spine_selection_point_mm(selection)
+        if point_mm is not None:
+            self._state.preselected_point_mm = point_mm
+
+
+def _refine_spine_selection_point_mm(selection: object) -> Optional[Vector3]:
+    """
+    Convert a valid Custom Graphics spine selection point to millimeters.
+    """
+    entity = getattr(selection, "entity", None)
+    point: Optional[adsk.core.Point3D] = getattr(selection, "point", None)
+    if getattr(entity, "id", None) != REFINE_SPINE_ENTITY_ID or point is None:
+        return None
+    return Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
+
+
+def _selected_refine_point_mm(
+    selection_input: Optional[adsk.core.SelectionCommandInput],
+) -> Optional[Vector3]:
+    """
+    Read a selected spine point, tolerating Fusion-invalidated preview entities.
+    """
+    if selection_input is None or selection_input.selectionCount != 1:
+        return None
+    try:
+        selection = selection_input.selection(0)
+    except (AttributeError, RuntimeError, TypeError):
+        return None
+    return _refine_spine_selection_point_mm(selection)
 
 
 def _update_refine_placement(
@@ -86,49 +139,196 @@ def _update_refine_placement(
     position_manipulator: bool = True,
 ) -> None:
     """
-    Synchronize selection, radius input, and the transformable candidate marker.
+    Capture selection and radius inputs without modifying document graphics.
     """
     radius_input = adsk.core.DistanceValueCommandInput.cast(
         command_inputs.itemById(REFINE_RADIUS_INPUT_ID)
     )
     if radius_input is None:
         raise RuntimeError("Refine radius input is unavailable.")
-    try:
-        placement = _read_refine_placement(command_inputs, state.spine)
-    except ValueError:
-        state.placement = None
-        state.candidate = None
+    selection_input = adsk.core.SelectionCommandInput.cast(
+        command_inputs.itemById(REFINE_SPINE_INPUT_ID)
+    )
+    if selection_input is not None and selection_input.selectionCount == 1:
+        selected_point_mm = _selected_refine_point_mm(selection_input)
+        if selected_point_mm is None:
+            selected_point_mm = state.preselected_point_mm
+        if selected_point_mm is None:
+            radius_input.isEnabled = False
+            radius_input.isVisible = False
+            return
+        state.placement = place_refine(
+            state.spine,
+            selected_point_mm,
+            _read_refine_radius_mm(radius_input),
+        )
+    elif state.placement is not None:
+        radius_mm = _read_refine_radius_mm(radius_input)
+        state.placement = replace(
+            state.placement,
+            geometry=replace(
+                state.placement.geometry,
+                display_radius_mm=radius_mm,
+            ),
+        )
+    else:
         radius_input.isEnabled = False
         radius_input.isVisible = False
-        clear_candidate_refine(state.group)
-        adsk.core.Application.get().activeViewport.refresh()
         return
-    state.placement = placement
+    placement = state.placement
+    if placement is None:
+        raise RuntimeError("Refine placement state was not captured.")
+    _show_refine_radius_input(radius_input, placement, position_manipulator=position_manipulator)
+
+
+def _show_refine_radius_input(
+    radius_input: adsk.core.DistanceValueCommandInput,
+    placement: RefinePlacement,
+    *,
+    position_manipulator: bool = True,
+) -> None:
+    """
+    Reveal the radius control and optionally position its canvas manipulator.
+    """
     radius_input.isEnabled = True
     radius_input.isVisible = True
-    if position_manipulator:
-        origin = placement.geometry.origin_mm
-        direction = placement.geometry.u_direction
-        if not radius_input.setManipulator(
-            adsk.core.Point3D.create(*(coordinate / 10.0 for coordinate in origin)),
-            adsk.core.Vector3D.create(*direction),
-        ):
-            raise RuntimeError("Fusion could not position the refine-radius manipulator.")
-    if state.candidate is None or not state.candidate.isValid:
-        state.candidate = draw_candidate_refine(state.group, placement.geometry)
-    else:
-        update_candidate_refine(state.candidate, placement.geometry)
-    adsk.core.Application.get().activeViewport.refresh()
+    if not position_manipulator:
+        return
+    origin = placement.geometry.origin_mm
+    direction = placement.geometry.u_direction
+    if not radius_input.setManipulator(
+        adsk.core.Point3D.create(*(coordinate / 10.0 for coordinate in origin)),
+        adsk.core.Vector3D.create(*direction),
+    ):
+        raise RuntimeError("Fusion could not position the refine-radius manipulator.")
 
 
-class _RefineInputChangedHandler(adsk.core.InputChangedEventHandler):
+def _draw_add_refine_preview(state: _RefineCommandState) -> None:
     """
-    Project the selected Custom Graphics point and redraw its marker.
+    Rebuild Add Refine graphics inside Fusion's preview transaction.
+    """
+    application = adsk.core.Application.get()
+    design = _require_active_design(application)
+    group, _lines = draw_pathway_spine(design, state.spine)
+    state.group = group
+    state.candidate = None
+    if state.placement is not None:
+        state.candidate = draw_candidate_refine(group, state.placement.geometry)
+    application.activeViewport.refresh()
+
+
+class _RefineActivateHandler(adsk.core.CommandEventHandler):
+    """
+    Request the initial preview after the command becomes interactive.
+    """
+
+    def __init__(
+        self,
+        selection_input: Optional[_SelectionInput] = None,
+    ) -> None:
+        """
+        Optionally require placement selection after the initial preview exists.
+        """
+        super().__init__()
+        self._selection_input = selection_input
+
+    def notify(self, args: adsk.core.CommandEventArgs) -> None:
+        """
+        Draw command graphics, then let Fusion disable OK until placement.
+        """
+        try:
+            if not args.command.doExecutePreview():
+                raise RuntimeError("Fusion could not start the refine preview.")
+            if self._selection_input is not None:
+                if not self._selection_input.setSelectionLimits(1, 1):
+                    raise RuntimeError("Fusion could not require refine-path selection.")
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            _report_failure("start refine preview")
+
+
+class _RefineSelectHandler(adsk.core.SelectionEventHandler):
+    """
+    Capture a spine click before Fusion invalidates its preview graphics.
+    """
+
+    def __init__(
+        self,
+        state: _RefineCommandState,
+        command: adsk.core.Command,
+        command_inputs: adsk.core.CommandInputs,
+        selection_input: _SelectionInput,
+    ) -> None:
+        """
+        Retain the placement state and command controls needed after selection.
+        """
+        super().__init__()
+        self._state = state
+        self._command = command
+        self._command_inputs = command_inputs
+        self._selection_input = selection_input
+
+    def notify(self, args: adsk.core.SelectionEventArgs) -> None:
+        """
+        Store the clicked point, release its transient entity, and redraw.
+        """
+        try:
+            selected_point_mm = _refine_spine_selection_point_mm(args.selection)
+            if selected_point_mm is None:
+                return
+            radius_input = adsk.core.DistanceValueCommandInput.cast(
+                self._command_inputs.itemById(REFINE_RADIUS_INPUT_ID)
+            )
+            if radius_input is None:
+                raise RuntimeError("Refine radius input is unavailable.")
+            placement = place_refine(
+                self._state.spine,
+                selected_point_mm,
+                _read_refine_radius_mm(radius_input),
+            )
+            self._state.preselected_point_mm = selected_point_mm
+            self._state.placement = placement
+            _show_refine_radius_input(radius_input, placement)
+            if not self._selection_input.setSelectionLimits(0, 1):
+                raise RuntimeError("Fusion could not release refine-path selection.")
+            if not self._selection_input.clearSelection():
+                raise RuntimeError("Fusion could not clear refine-path selection.")
+            if not self._command.doExecutePreview():
+                raise RuntimeError("Fusion could not redraw the refine preview.")
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            _report_failure("select refine point")
+
+
+class _RefineExecutePreviewHandler(adsk.core.CommandEventHandler):
+    """
+    Own all Add Refine document graphics inside a disposable transaction.
     """
 
     def __init__(self, state: _RefineCommandState) -> None:
         """
         Retain the command-local placement state.
+        """
+        super().__init__()
+        self._state = state
+
+    def notify(self, args: adsk.core.CommandEventArgs) -> None:
+        """
+        Recreate the selectable spine and current candidate marker.
+        """
+        try:
+            _draw_add_refine_preview(self._state)
+            args.isValidResult = False
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            _report_failure("preview refine point")
+
+
+class _RefineInputChangedHandler(adsk.core.InputChangedEventHandler):
+    """
+    Capture the selected Custom Graphics point and current radius.
+    """
+
+    def __init__(self, state: _RefineCommandState) -> None:
+        """
+        Retain placement state across input changes.
         """
         super().__init__()
         self._state = state
@@ -152,6 +352,7 @@ class _RefineMouseDragHandler(adsk.core.MouseEventHandler):
         self,
         state: _RefineCommandState,
         command_inputs: adsk.core.CommandInputs,
+        command: adsk.core.Command,
     ) -> None:
         """
         Retain placement state and its command inputs for drag notifications.
@@ -159,6 +360,7 @@ class _RefineMouseDragHandler(adsk.core.MouseEventHandler):
         super().__init__()
         self._state = state
         self._command_inputs = command_inputs
+        self._command = command
 
     def notify(self, _args: adsk.core.MouseEventArgs) -> None:
         """
@@ -170,6 +372,8 @@ class _RefineMouseDragHandler(adsk.core.MouseEventHandler):
                 self._command_inputs,
                 position_manipulator=False,
             )
+            if not self._command.doExecutePreview():
+                raise RuntimeError("Fusion could not refresh the refine preview.")
         except (AttributeError, RuntimeError, TypeError, ValueError):
             _report_failure("preview refine radius")
 
@@ -190,10 +394,17 @@ class _RefineValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         """
         Revalidate the selection and positive display radius.
         """
+        if self._state.placement is None:
+            args.areInputsValid = True
+            return
         try:
-            self._state.placement = _read_refine_placement(args.inputs, self._state.spine)
+            radius_input = adsk.core.DistanceValueCommandInput.cast(
+                args.inputs.itemById(REFINE_RADIUS_INPUT_ID)
+            )
+            _read_refine_radius_mm(radius_input)
         except (AttributeError, TypeError, ValueError):
-            self._state.placement = None
+            args.areInputsValid = False
+            return
         args.areInputsValid = self._state.placement is not None
 
 
@@ -215,7 +426,18 @@ class _RefineExecuteHandler(adsk.core.CommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
-            placement = _read_refine_placement(args.command.commandInputs, self._state.spine)
+            if self._state.placement is None:
+                raise ValueError("Select one point on the pathway spine.")
+            radius_input = adsk.core.DistanceValueCommandInput.cast(
+                args.command.commandInputs.itemById(REFINE_RADIUS_INPUT_ID)
+            )
+            placement = replace(
+                self._state.placement,
+                geometry=replace(
+                    self._state.placement.geometry,
+                    display_radius_mm=_read_refine_radius_mm(radius_input),
+                ),
+            )
             add_pathway_refine(
                 self._state.harness_id,
                 self._state.pathway_id,
@@ -224,8 +446,7 @@ class _RefineExecuteHandler(adsk.core.CommandEventHandler):
                 _create_harness_gateway(application),
             )
             warning = _refresh_active_preview(application, self._state.harness_id)
-            _reconcile_active_refines(application)
-            application.activeViewport.refresh()
+            _finalize_refine_graphics(application)
             _send_palette_state(application, f"Added refine point. {warning}".strip())
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
@@ -235,25 +456,20 @@ class _RefineExecuteHandler(adsk.core.CommandEventHandler):
 
 class _RefineDestroyedHandler(adsk.core.CommandEventHandler):
     """
-    Remove command-only graphics and release its short-lived handlers.
+    Release short-lived handlers after Fusion removes preview graphics.
     """
 
     def __init__(self, handlers: list[object]) -> None:
         """
-        Retain the handlers that must remain alive until destruction.
+        Retain handlers until command destruction.
         """
         super().__init__()
         self._command_handlers = handlers
 
     def notify(self, _args: adsk.core.CommandEventArgs) -> None:
         """
-        Clear the temporary spine for Save and Cancel alike.
+        Release handlers after Fusion rolls back command-preview graphics.
         """
-        application = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(application.activeProduct)
-        if design is not None:
-            clear_refine_spine(design)
-            application.activeViewport.refresh()
         _runtime.handler_registry.release(*self._command_handlers, self)
 
 
@@ -278,7 +494,6 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 _create_harness_gateway(application).read_harness_definition(harness_id)
             )
             spine = build_pathway_spine(design, definition, pathway_id)
-            group, _lines = draw_pathway_spine(design, spine)
             selection_input = args.command.commandInputs.addSelectionInput(
                 REFINE_SPINE_INPUT_ID,
                 "Pathway Point",
@@ -286,29 +501,50 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             if selection_input is None or not selection_input.addSelectionFilter("CustomGraphics"):
                 raise RuntimeError("Fusion could not configure refine-path selection.")
-            if not selection_input.setSelectionLimits(1, 1):
+            if not selection_input.setSelectionLimits(0, 1):
                 raise RuntimeError("Fusion could not limit refine-path selection.")
             radius_input = _add_refine_radius_input(args.command.commandInputs)
             radius_input.isVisible = False
             radius_input.isEnabled = False
-            state = _RefineCommandState(harness_id, pathway_id, spine, group)
-            preselect_handler = _RefinePreSelectHandler()
+            state = _RefineCommandState(harness_id, pathway_id, spine)
+            activate_handler = _RefineActivateHandler(selection_input)
+            preselect_handler = _RefinePreSelectHandler(state)
+            select_handler = _RefineSelectHandler(
+                state,
+                args.command,
+                args.command.commandInputs,
+                selection_input,
+            )
             input_handler = _RefineInputChangedHandler(state)
-            drag_handler = _RefineMouseDragHandler(state, args.command.commandInputs)
+            preview_handler = _RefineExecutePreviewHandler(state)
+            drag_handler = _RefineMouseDragHandler(
+                state,
+                args.command.commandInputs,
+                args.command,
+            )
             validate_handler = _RefineValidateInputsHandler(state)
             execute_handler = _RefineExecuteHandler(state)
             command_handlers: list[object] = [
+                activate_handler,
                 preselect_handler,
+                select_handler,
                 input_handler,
+                preview_handler,
                 drag_handler,
                 validate_handler,
                 execute_handler,
             ]
             destroyed = _RefineDestroyedHandler(command_handlers)
+            if not args.command.activate.add(activate_handler):
+                raise RuntimeError("Fusion could not start the refine preview.")
             if not args.command.preSelect.add(preselect_handler):
                 raise RuntimeError("Fusion could not filter refine-path selection.")
+            if not args.command.select.add(select_handler):
+                raise RuntimeError("Fusion could not capture refine-path selection.")
             if not args.command.inputChanged.add(input_handler):
                 raise RuntimeError("Fusion could not watch refine placement.")
+            if not args.command.executePreview.add(preview_handler):
+                raise RuntimeError("Fusion could not preview refine placement.")
             if not args.command.mouseDrag.add(drag_handler):
                 raise RuntimeError("Fusion could not watch refine radius dragging.")
             if not args.command.validateInputs.add(validate_handler):
@@ -336,8 +572,8 @@ class _EditRefineCommandState:
 
     harness_id: UUID
     control_id: UUID
-    group: adsk.fusion.CustomGraphicsGroup
     geometry: RefineGeometry
+    group: Optional[adsk.fusion.CustomGraphicsGroup] = None
 
 
 def _preview_edited_refine(
@@ -345,17 +581,15 @@ def _preview_edited_refine(
     command_inputs: adsk.core.CommandInputs,
 ) -> None:
     """
-    Apply current triad and radius values to the live editor marker.
+    Capture current triad and radius values without modifying document graphics.
     """
     geometry = _read_edited_refine_geometry(command_inputs)
     state.geometry = geometry
-    update_refine_editor(state.group, geometry)
-    adsk.core.Application.get().activeViewport.refresh()
 
 
 class _EditRefineInputChangedHandler(adsk.core.InputChangedEventHandler):
     """
-    Update the editor marker throughout graphical and typed manipulation.
+    Capture editor geometry throughout graphical and typed manipulation.
     """
 
     def __init__(self, state: _EditRefineCommandState) -> None:
@@ -367,7 +601,7 @@ class _EditRefineInputChangedHandler(adsk.core.InputChangedEventHandler):
 
     def notify(self, args: adsk.core.InputChangedEventArgs) -> None:
         """
-        Apply the changed command values directly to the existing marker.
+        Capture changed command values for the next preview transaction.
         """
         try:
             _preview_edited_refine(self._state, args.inputs)
@@ -389,10 +623,19 @@ class _EditRefineExecutePreviewHandler(adsk.core.CommandEventHandler):
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
-        Reapply current geometry when Fusion requests a command preview.
+        Recreate the editor marker inside Fusion's preview transaction.
         """
         try:
             _preview_edited_refine(self._state, args.command.commandInputs)
+            application = adsk.core.Application.get()
+            design = _require_active_design(application)
+            self._state.group = draw_refine_editor(
+                design,
+                self._state.control_id,
+                self._state.geometry,
+            )
+            application.activeViewport.refresh()
+            args.isValidResult = False
         except (AttributeError, RuntimeError, TypeError, ValueError):
             _report_failure("preview edited refine point")
 
@@ -441,6 +684,7 @@ class _EditRefineExecuteHandler(adsk.core.CommandEventHandler):
                 _create_harness_gateway(application),
             )
             warning = _refresh_active_preview(application, self._state.harness_id)
+            _finalize_refine_graphics(application)
             _send_palette_state(application, f"Updated refine point. {warning}".strip())
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
@@ -450,26 +694,20 @@ class _EditRefineExecuteHandler(adsk.core.CommandEventHandler):
 
 class _EditRefineDestroyedHandler(adsk.core.CommandEventHandler):
     """
-    Restore persistent refine graphics after Save or Cancel.
+    Release short-lived handlers after Save or Cancel.
     """
 
     def __init__(self, handlers: list[object]) -> None:
         """
-        Retain the command handlers until destruction.
+        Retain command handlers until destruction.
         """
         super().__init__()
         self._command_handlers = handlers
 
     def notify(self, _args: adsk.core.CommandEventArgs) -> None:
         """
-        Remove the editor marker and redraw all saved refine geometry.
+        Release handlers after Fusion rolls back command-preview graphics.
         """
-        application = adsk.core.Application.get()
-        design = adsk.fusion.Design.cast(application.activeProduct)
-        if design is not None:
-            clear_refine_spine(design)
-            _reconcile_active_refines(application)
-            application.activeViewport.refresh()
         _runtime.handler_registry.release(*self._command_handlers, self)
 
 
@@ -489,7 +727,7 @@ class _EditRefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 raise RuntimeError("No refine point was selected for editing.")
             harness_id, control_id = pending_ids
             application = adsk.core.Application.get()
-            design = _require_active_design(application)
+            _require_active_design(application)
             definition = loads(
                 _create_harness_gateway(application).read_harness_definition(harness_id)
             )
@@ -504,7 +742,6 @@ class _EditRefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             ):
                 raise ValueError("Selected refine point no longer exists.")
             geometry = control.refine_geometry
-            group = draw_refine_editor(design, control_id, geometry)
             triad = _add_refine_transform_input(args.command.commandInputs, geometry)
             triad.hideAllScaling()
             triad.setTranslateVisibility(True)
@@ -516,18 +753,22 @@ class _EditRefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 args.command.commandInputs,
                 geometry.display_radius_mm,
             )
-            state = _EditRefineCommandState(harness_id, control_id, group, geometry)
+            state = _EditRefineCommandState(harness_id, control_id, geometry)
+            activate_handler = _RefineActivateHandler()
             input_handler = _EditRefineInputChangedHandler(state)
             preview_handler = _EditRefineExecutePreviewHandler(state)
             validate_handler = _EditRefineValidateInputsHandler()
             execute_handler = _EditRefineExecuteHandler(state)
             command_handlers: list[object] = [
+                activate_handler,
                 input_handler,
                 preview_handler,
                 validate_handler,
                 execute_handler,
             ]
             destroyed = _EditRefineDestroyedHandler(command_handlers)
+            if not args.command.activate.add(activate_handler):
+                raise RuntimeError("Fusion could not start the refine edit preview.")
             if not args.command.inputChanged.add(input_handler):
                 raise RuntimeError("Fusion could not watch refine edits.")
             if not args.command.executePreview.add(preview_handler):
@@ -606,20 +847,9 @@ def _read_refine_placement(
     if selection_input is None or selection_input.selectionCount != 1:
         raise ValueError("Select one point on the pathway spine.")
     radius_mm = _read_refine_radius_mm(radius_input)
-    selection = selection_input.selection(0)
-    if selection is None:
+    selected_point = _selected_refine_point_mm(selection_input)
+    if selected_point is None:
         raise ValueError("Select a point on the displayed pathway spine.")
-    entity = selection.entity
-    point = selection.point
-    if getattr(entity, "id", None) != REFINE_SPINE_ENTITY_ID:
-        raise ValueError("Select a point on the displayed pathway spine.")
-    if point is None:
-        raise ValueError("Select a point on the displayed pathway spine.")
-    selected_point = Vector3(
-        point.x * 10.0,
-        point.y * 10.0,
-        point.z * 10.0,
-    )
     return place_refine(spine, selected_point, radius_mm)
 
 
@@ -722,6 +952,18 @@ def _reconcile_active_refines(application: adsk.core.Application) -> None:
     results = load_harnesses(_create_harness_gateway(application))
     definitions = tuple(result.definition for result in results if result.definition is not None)
     reconcile_refine_graphics(design, definitions)
+
+
+def _finalize_refine_graphics(application: adsk.core.Application) -> None:
+    """
+    Replace command-only graphics with persistent markers in the active design.
+    """
+    design = adsk.fusion.Design.cast(application.activeProduct)
+    if design is None:
+        return
+    clear_refine_spine(design)
+    _reconcile_active_refines(application)
+    application.activeViewport.refresh()
 
 
 EditRefineCreatedHandler = _EditRefineCreatedHandler

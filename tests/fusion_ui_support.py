@@ -120,6 +120,13 @@ class _PaletteLifecycleModule(Protocol):
     reconcile_preview_history: Callable[[object, tuple[HarnessDefinition, ...]], None]
     _ShowPaletteCreatedHandler: type
     _RefineCommandState: type
+    _RefineActivateHandler: type
+    _RefineSelectHandler: type
+    _RefineInputChangedHandler: type
+    _RefineExecuteHandler: type
+    _RefineExecutePreviewHandler: type
+    _RefineDestroyedHandler: type
+    _RefineValidateInputsHandler: type
     _AddJunctionCommandState: type
     _AddJunctionPreSelectHandler: type
     _AddJunctionRelationshipCommandState: type
@@ -133,6 +140,7 @@ class _PaletteLifecycleModule(Protocol):
     _RefineMouseDragHandler: type
     _RefineActiveSelectionHandler: type
     _EditRefineCommandState: type
+    _EditRefineExecuteHandler: type
     _EditRefineDestroyedHandler: type
     _EditRefineInputChangedHandler: type
     _EditRefineExecutePreviewHandler: type
@@ -151,10 +159,10 @@ class _PaletteLifecycleModule(Protocol):
     _read_edited_refine_geometry: Callable[[object], RefineGeometry]
     _read_refine_radius_mm: Callable[[object], float]
     _preview_edited_refine: Callable[[object, object], None]
+    _draw_add_refine_preview: Callable[[object], None]
+    _finalize_refine_graphics: Callable[[object], None]
     draw_candidate_refine: Callable[[object, RefineGeometry], object]
     draw_refine_editor: Callable[[object, UUID, RefineGeometry], object]
-    update_candidate_refine: Callable[[object, RefineGeometry], None]
-    update_refine_editor: Callable[[object, RefineGeometry], None]
     PathwaySpine: type
     REFINE_SPINE_ENTITY_ID: str
     REFINE_GRAPHICS_GROUP_ID: str
