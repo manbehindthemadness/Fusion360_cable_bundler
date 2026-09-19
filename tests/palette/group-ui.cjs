@@ -1003,3 +1003,56 @@ test('Wire Details Materials action opens group materials', () => {
     'Connected Wire Group Materials',
   );
 });
+
+test('material color context menus copy and paste between swatches', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.materialDefaults.stripes = [
+    {
+      color: { name: 'Red', hex: '#ff0000' }, widthMm: 0.4,
+      pattern: 'dashed', angleDeg: 0, repeatMm: 6,
+    },
+    {
+      color: { name: 'Gray', hex: '#c0c0c0' }, widthMm: 0.4,
+      pattern: 'dashed', angleDeg: 90, repeatMm: 6,
+    },
+  ];
+  context.openMaterialOptions(definition);
+  const dialog = context.document.body.querySelector('.material-options');
+  const swatches = descendants(dialog, (node) => node.type === 'color');
+  const contextMenu = (swatch) => descendants(
+    swatch.parentElement,
+    (node) => node.className?.split(' ').includes('relationship-map-context-menu'),
+  )[0];
+
+  swatches[2].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: swatches[2],
+  });
+  assert.equal(
+    contextMenu(swatches[2]).children.find((item) => item.textContent === 'Paste').disabled,
+    true,
+  );
+  swatches[0].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: swatches[0],
+  });
+  contextMenu(swatches[0]).children.find((item) => item.textContent === 'Copy').events.click();
+  swatches[2].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: swatches[2],
+  });
+  contextMenu(swatches[2]).children.find((item) => item.textContent === 'Paste').events.click();
+  assert.equal(swatches[2].value, '#202020');
+
+  swatches[1].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: swatches[1],
+  });
+  contextMenu(swatches[1]).children.find((item) => item.textContent === 'Copy').events.click();
+
+  swatches[2].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: swatches[2],
+  });
+  const paste = contextMenu(swatches[2]).children.find((item) => item.textContent === 'Paste');
+  assert.equal(paste.disabled, false);
+  paste.events.click();
+
+  assert.equal(swatches[2].value, '#ff0000');
+});

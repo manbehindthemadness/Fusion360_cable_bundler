@@ -8,6 +8,33 @@ function colorFromHex(name, hex) {
   };
 }
 
+let copiedMaterialColor = null;
+
+/** Add Copy and Paste actions to one editable material-color swatch. */
+function addMaterialColorContextMenu(root, picker, readName, pasteColor) {
+  root.classList.add("material-color-context");
+  const showMenu = addContextMenu(root, picker);
+  picker.addEventListener("contextmenu", (event) => {
+    showMenu(event, [
+      {
+        label: "Copy",
+        disabled: picker.disabled,
+        action: () => {
+          copiedMaterialColor = {
+            name: readName().trim() || "Custom",
+            hex: picker.value,
+          };
+        },
+      },
+      {
+        label: "Paste",
+        disabled: picker.disabled || copiedMaterialColor === null,
+        action: () => pasteColor(copiedMaterialColor),
+      },
+    ]);
+  });
+}
+
 /** Attach the controlled material-catalog suggestions used by text inputs. */
 function addMaterialAutocomplete(wrapper, input, values, onChoose = () => {}) {
   const menu = document.createElement("div");
@@ -341,6 +368,15 @@ function openMaterialOptions(harness, wireGroup = null) {
     );
     colorName.value = match?.name || "Custom";
   });
+  addMaterialColorContextMenu(
+    colorRow,
+    colorPicker,
+    () => colorName.value,
+    (color) => {
+      colorPicker.value = color.hex;
+      colorName.value = color.name;
+    },
+  );
   appearanceSource.addEventListener("change", async () => {
     updateColor();
     if (appearanceSource.value === "library" && librarySelect.value
@@ -411,6 +447,15 @@ function openMaterialOptions(harness, wireGroup = null) {
     row.className = "stripe-row";
     picker.type = "color";
     picker.value = value.color.hex;
+    repeat.className = "stripe-repeat";
+    addMaterialColorContextMenu(
+      row,
+      picker,
+      () => catalog.colors.find(
+        (item) => item.hex.toLocaleLowerCase() === picker.value.toLocaleLowerCase(),
+      )?.name || "Custom",
+      (color) => { picker.value = color.hex; },
+    );
     values.className = "stripe-values";
     (catalog.stripePatterns.length
       ? catalog.stripePatterns : ["longitudinal", "dashed", "helical"]
@@ -463,8 +508,9 @@ function openMaterialOptions(harness, wireGroup = null) {
       input.disabled = disabled;
     });
     if (!disabled) {
-      stripeList.querySelectorAll("select").forEach((pattern) => {
-        const repeat = pattern.closest(".stripe-values").querySelector("label:last-child input");
+      Array.from(stripeList.children).forEach((row) => {
+        const pattern = row.querySelector("select");
+        const repeat = row.querySelector(".stripe-repeat");
         repeat.disabled = pattern.value === "longitudinal";
       });
     }
