@@ -102,7 +102,7 @@ def _clear_routes_benchmark(group_count: int) -> BenchmarkResult:
                 route_normals,
                 (TransitionLengths(),) * GUIDE_COUNT,
                 frozenset(range(1, GUIDE_COUNT - 1)),
-                {},
+                frozenset(),
                 0.5,
             ),
             minimum_bend_radius_mm=0.525,

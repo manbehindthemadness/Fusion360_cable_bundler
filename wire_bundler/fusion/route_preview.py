@@ -43,7 +43,7 @@ from ..routing.conditioning import (
     condition_connection_points,
     condition_control_points,
     condition_route_normals,
-    junction_tangent_targets,
+    junction_normal_indices,
 )
 from ..routing.geometry import cross, unit
 
@@ -545,9 +545,8 @@ def _solve_wire_group_routes(
         auto_transition_fraction,
     )
     raw_routes = list(conditioned_routes)
-    junction_targets = junction_tangent_targets(
+    fixed_junction_indices = junction_normal_indices(
         conditioned_routes,
-        tuple(route_group_ids),
         tuple(route_control_ids),
         junction_control_ids,
     )
@@ -561,7 +560,7 @@ def _solve_wire_group_routes(
             original_normals,
             transitions,
             route_soft_guide_indices[route_index],
-            junction_targets[route_index],
+            fixed_junction_indices[route_index],
             auto_transition_fraction,
         )
         adjustments: list[TransitionAdjustment] = []

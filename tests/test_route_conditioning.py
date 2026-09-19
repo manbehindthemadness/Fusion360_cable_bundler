@@ -9,14 +9,14 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.routing import RoutePreview, TransitionLengths, Vector3
+from wire_bundler.routing import RoutePreview, TransitionLengths, Vector3, fair_route
 from wire_bundler.routing.conditioning import (
     CircularGuideConstraint,
     condition_connection_points,
     condition_control_points,
     condition_junction_points,
     condition_route_normals,
-    junction_tangent_targets,
+    junction_normal_indices,
 )
 from wire_bundler.routing.geometry import difference, dot, magnitude
 
@@ -75,7 +75,7 @@ def test_soft_guide_tangent_relaxes_without_changing_terminal_normal() -> None:
         normals,
         transitions,
         frozenset({1}),
-        {},
+        frozenset(),
         0.5,
     )
 
@@ -85,44 +85,49 @@ def test_soft_guide_tangent_relaxes_without_changing_terminal_normal() -> None:
     assert conditioned[1].z == pytest.approx(2.0 / 5.0**0.5)
 
 
-def test_three_way_junction_keeps_each_leg_on_its_own_guide_facing_side() -> None:
+def test_three_way_junction_keeps_every_leg_normal_to_its_shared_face() -> None:
     """
-    Aim every split leg at its immediate ordered neighbor without a shared trunk axis.
+    Preserve one face-normal axis while traversal selects the guide-facing side.
     """
     junction_id = UUID(int=100)
-    group_id = UUID(int=200)
     routes = (
         RoutePreview(UUID(int=1), "Right", (Vector3(0, 0, 0), Vector3(10, 0, 10))),
         RoutePreview(UUID(int=2), "Left", (Vector3(0, 0, 0), Vector3(-10, 0, 10))),
         RoutePreview(UUID(int=3), "Branch", (Vector3(0, 0, 0), Vector3(0, 10, 10))),
     )
     control_ids = ((junction_id, None),) * 3
-    targets = junction_tangent_targets(
+    fixed_indices = junction_normal_indices(
         routes,
-        (group_id,) * 3,
         control_ids,
         frozenset({junction_id}),
     )
 
-    expected_targets = (
+    outward_directions = (
         Vector3(10, 0, 10),
         Vector3(-10, 0, 10),
         Vector3(0, 10, 10),
     )
-    assert targets == tuple({0: target} for target in expected_targets)
-    for route, route_targets, expected_target in zip(routes, targets, expected_targets):
+    assert fixed_indices == (frozenset({0}),) * 3
+    for route, route_fixed_indices, outward in zip(routes, fixed_indices, outward_directions):
+        normals = (Vector3(0, 0, 1), Vector3(0, 0, 1))
         conditioned = condition_route_normals(
             route,
-            (Vector3(0, 0, 1), Vector3(0, 0, 1)),
+            normals,
             (TransitionLengths(), TransitionLengths()),
-            frozenset(),
-            route_targets,
+            frozenset({0}),
+            route_fixed_indices,
             0.5,
         )
-        assert dot(conditioned[0], expected_target) > 0.0
+        assert conditioned == normals
+        faired = fair_route(route, conditioned, auto_transition_fraction=0.5)
+        departure = difference(faired.curves[0].control_a, faired.curves[0].start)
+        assert departure.x == pytest.approx(0.0)
+        assert departure.y == pytest.approx(0.0)
+        assert departure.z > 0.0
+        assert dot(departure, outward) > 0.0
 
 
-def test_junction_leg_at_route_end_targets_its_previous_ordered_guide() -> None:
+def test_junction_leg_at_route_end_approaches_along_the_face_normal() -> None:
     """
     Preserve guide-facing direction when traversal reaches rather than leaves a junction.
     """
@@ -133,14 +138,30 @@ def test_junction_leg_at_route_end_targets_its_previous_ordered_guide() -> None:
         (Vector3(12, -4, 8), Vector3(0, 0, 0)),
     )
 
-    targets = junction_tangent_targets(
+    fixed_indices = junction_normal_indices(
         (route,),
-        (UUID(int=112),),
         ((None, junction_id),),
         frozenset({junction_id}),
     )
+    normals = (Vector3(0, 0, 1), Vector3(0, 0, 1))
+    conditioned = condition_route_normals(
+        route,
+        normals,
+        (TransitionLengths(), TransitionLengths()),
+        frozenset({1}),
+        fixed_indices[0],
+        0.5,
+    )
+    faired = fair_route(route, conditioned, auto_transition_fraction=0.5)
+    approach = difference(faired.curves[-1].end, faired.curves[-1].control_b)
+    traversal = difference(route.points[-1], route.points[-2])
 
-    assert targets == ({1: Vector3(12, -4, 8)},)
+    assert fixed_indices == (frozenset({1}),)
+    assert conditioned == normals
+    assert approach.x == pytest.approx(0.0)
+    assert approach.y == pytest.approx(0.0)
+    assert approach.z < 0.0
+    assert dot(approach, traversal) > 0.0
 
 
 def test_junction_cluster_translation_preserves_packing_inside_aperture() -> None:
@@ -175,6 +196,33 @@ def test_junction_cluster_translation_preserves_packing_inside_aperture() -> Non
         assert magnitude(difference(route.points[0], constraint.origin)) <= 9.0
 
 
+def test_junction_cluster_keeps_one_group_leg_crossing_exactly_shared() -> None:
+    """
+    Move branch legs as one group without separating their common face point.
+    """
+    junction_id = UUID(int=550)
+    group_id = UUID(int=551)
+    routes = (
+        RoutePreview(UUID(int=21), "First", (Vector3(0, 0, 0), Vector3(10, 0, 10))),
+        RoutePreview(UUID(int=22), "Second", (Vector3(0, 0, 0), Vector3(-10, 0, 10))),
+        RoutePreview(UUID(int=23), "Third", (Vector3(0, 0, 0), Vector3(0, 10, 10))),
+    )
+
+    conditioned = condition_junction_points(
+        routes,
+        (group_id,) * 3,
+        (2.0,) * 3,
+        ((junction_id, None),) * 3,
+        ((TransitionLengths(), TransitionLengths()),) * 3,
+        {junction_id: _guide(Vector3(0, 0, 0), 10.0)},
+        0.5,
+    )
+
+    crossings = tuple(route.points[0] for route in conditioned)
+    assert crossings == (crossings[0],) * 3
+    assert crossings[0].z == pytest.approx(0.0)
+
+
 def test_tight_junction_cluster_does_not_move() -> None:
     """
     Preserve packed crossings when the automatic interpolation preset is Tight.
@@ -199,7 +247,7 @@ def test_tight_junction_cluster_does_not_move() -> None:
     assert conditioned == (route,)
 
 
-def test_internal_junction_point_moves_to_and_follows_its_through_route() -> None:
+def test_internal_junction_point_moves_but_retains_its_face_normal() -> None:
     """
     Condition a degree-two junction retained inside one unsplit topology leg.
     """
@@ -226,15 +274,24 @@ def test_internal_junction_point_moves_to_and_follows_its_through_route() -> Non
         {junction_id: _guide(Vector3(0, 0, 0), 10.0)},
         0.5,
     )
-    targets = junction_tangent_targets(
+    fixed_indices = junction_normal_indices(
         conditioned,
-        (group_id,),
         control_ids,
         frozenset({junction_id}),
     )
+    normals = (Vector3(0, 0, 1),) * 3
+    conditioned_normals = condition_route_normals(
+        conditioned[0],
+        normals,
+        transitions[0],
+        frozenset({1}),
+        fixed_indices[0],
+        0.5,
+    )
 
     assert conditioned[0].points[1] == Vector3(0.0, 5.0, 0.0)
-    assert targets == ({1: Vector3(20.0, 0.0, 0.0)},)
+    assert fixed_indices == (frozenset({1}),)
+    assert conditioned_normals == normals
 
 
 def test_multiple_end_guides_relax_toward_one_feasible_passage() -> None:
@@ -333,7 +390,7 @@ def test_pathway_control_cluster_preserves_member_spacing() -> None:
     )
 
 
-def test_parallel_same_side_junction_retains_each_incident_span() -> None:
+def test_parallel_same_side_junction_marks_each_face_normal_as_fixed() -> None:
     """
     Preserve each leg's own magnitude and guide-facing direction on the same side.
     """
@@ -343,14 +400,13 @@ def test_parallel_same_side_junction_retains_each_incident_span() -> None:
         RoutePreview(UUID(int=5), "Second", (Vector3(0, 0, 0), Vector3(20, 0, 0))),
     )
 
-    targets = junction_tangent_targets(
+    fixed_indices = junction_normal_indices(
         routes,
-        (UUID(int=400),) * 2,
         ((junction_id, None),) * 2,
         frozenset({junction_id}),
     )
 
-    assert targets == ({0: Vector3(10, 0, 0)}, {0: Vector3(20, 0, 0)})
+    assert fixed_indices == (frozenset({0}), frozenset({0}))
 
 
 def test_coincident_neighbor_defers_to_route_validation() -> None:
@@ -369,7 +425,7 @@ def test_coincident_neighbor_defers_to_route_validation() -> None:
         normals,
         (TransitionLengths(),) * 3,
         frozenset({1}),
-        {},
+        frozenset(),
         0.5,
     )
 

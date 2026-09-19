@@ -320,41 +320,32 @@ def _neighbors_are_distinct(point: Vector3, neighbors: tuple[Vector3, ...]) -> b
     )
 
 
-def junction_tangent_targets(
+def junction_normal_indices(
     routes: tuple[RoutePreview, ...],
-    group_ids: tuple[UUID, ...],
     point_control_ids: tuple[tuple[Optional[UUID], ...], ...],
     junction_control_ids: frozenset[UUID],
-) -> tuple[dict[int, Vector3], ...]:
+) -> tuple[frozenset[int], ...]:
     """
-    Point each junction leg toward its immediate ordered pathway guide.
+    Locate route crossings whose authored junction-face normal must remain fixed.
 
-    Internal junction points follow their through-route secant. Every split leg
-    retains its own incident direction so fairing cannot send it through the
-    opposite side of the junction face before curling back toward its pathway.
+    Fairing later signs each fixed axis from local traversal, so an incident leg
+    uses the face side pointing toward its immediate ordered neighbor without
+    tilting the physical sweep cap away from the junction plane.
     """
-    if not (len(routes) == len(group_ids) == len(point_control_ids)):
+    if len(routes) != len(point_control_ids):
         raise ValueError("Junction conditioning inputs must align by route.")
-    targets: tuple[dict[int, Vector3], ...] = tuple({} for _ in routes)
-    for route_index, (route, control_ids) in enumerate(zip(routes, point_control_ids)):
+    indices: list[frozenset[int]] = []
+    for route, control_ids in zip(routes, point_control_ids):
         if len(route.points) != len(control_ids):
             raise ValueError("Every route point requires a matching control identity.")
-        for point_index, control_id in enumerate(control_ids):
-            if control_id not in junction_control_ids or len(route.points) < 2:
-                continue
-            if 0 < point_index < len(route.points) - 1:
-                through_direction = difference(
-                    route.points[point_index + 1],
-                    route.points[point_index - 1],
-                )
-                if magnitude(through_direction) > 1e-12:
-                    targets[route_index][point_index] = through_direction
-                continue
-            neighbor_index = 1 if point_index == 0 else point_index - 1
-            outward = difference(route.points[neighbor_index], route.points[point_index])
-            if magnitude(outward) > 1e-12:
-                targets[route_index][point_index] = outward
-    return targets
+        indices.append(
+            frozenset(
+                point_index
+                for point_index, control_id in enumerate(control_ids)
+                if control_id in junction_control_ids
+            )
+        )
+    return tuple(indices)
 
 
 def condition_route_normals(
@@ -362,29 +353,27 @@ def condition_route_normals(
     normals: tuple[Vector3, ...],
     transitions: tuple[TransitionLengths, ...],
     soft_guide_indices: frozenset[int],
-    junction_targets: dict[int, Vector3],
+    fixed_guide_indices: frozenset[int],
     auto_transition_fraction: float,
 ) -> tuple[Vector3, ...]:
     """
-    Relax selected guide normals toward natural or junction-coordinated tangents.
+    Relax soft guide normals while preserving fixed physical face normals.
 
     Tight or equivalently short transitions retain the authored normal. Longer
-    resolved transition shares progressively approach the conditioned tangent.
-    Physical terminal indices must not be included in ``soft_guide_indices``.
+    resolved transition shares progressively approach the through-route tangent.
+    Fixed indices take precedence over soft indices at junction faces.
     """
     if not (len(route.points) == len(normals) == len(transitions)):
         raise ValueError("Route conditioning inputs must align by point.")
     _validate_auto_transition_fraction(auto_transition_fraction)
     conditioned = list(normals)
-    indices = soft_guide_indices | junction_targets.keys()
-    for index in indices:
+    for index in soft_guide_indices | fixed_guide_indices:
         if not 0 <= index < len(route.points):
             raise ValueError("Conditioned guide index is outside the route.")
-        target = junction_targets.get(index)
-        if target is None:
-            if index == 0 or index == len(route.points) - 1:
-                continue
-            target = difference(route.points[index + 1], route.points[index - 1])
+    for index in soft_guide_indices - fixed_guide_indices:
+        if index == 0 or index == len(route.points) - 1:
+            continue
+        target = difference(route.points[index + 1], route.points[index - 1])
         strength = transition_relaxation_strength(
             route.points,
             index,

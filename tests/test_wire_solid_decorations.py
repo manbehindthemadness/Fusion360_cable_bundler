@@ -228,6 +228,13 @@ def test_continues_across_an_internally_split_pass_through_route(
     decorated = wire_solids._build_continuous_segment_stripes(segments, starts, ends, stripe, 0.5)
 
     assert len(segments) == 3
+    junction_boundaries = tuple(
+        boundary
+        for segment in segments
+        for boundary in (segment.route.curves[0].start, segment.route.curves[-1].end)
+        if boundary == junction
+    )
+    assert junction_boundaries == (junction,) * 3
     assert len(decorated) == 3
     start_radials = [_radial(result, "start") for _segment, result in decorated]
     assert start_radials[1] == pytest.approx(start_radials[0])
