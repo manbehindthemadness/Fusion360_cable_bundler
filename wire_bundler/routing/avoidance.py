@@ -469,9 +469,12 @@ def _route_geometry(
     clearance_mm: float,
 ) -> _RouteGeometry:
     """
-    Sample and bound one route for repeated collision queries.
+    Sample and conservatively bound one route for repeated collision queries.
+
+    Expanding by the sampling tolerance prevents the piecewise-linear collision
+    proxy from understating the swept centerline envelope between samples.
     """
-    radius = diameter_mm / 2.0 + clearance_mm / 2.0 + _NUMERIC_MARGIN_MM
+    radius = diameter_mm / 2.0 + clearance_mm / 2.0 + _SAMPLE_TOLERANCE_MM + _NUMERIC_MARGIN_MM
     points = _sample_route(route)
     capsules = tuple(
         _capsule(start, end, radius)

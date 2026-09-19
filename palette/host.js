@@ -335,6 +335,18 @@ function qaInvalidTraceGroupCount(diagram) {
   return Number(invalidEdges.length);
 }
 
+/** Parse a nonnegative QA dataset number, using a reload-safe fallback. */
+function qaNonnegativeNumber(value, fallback) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+/** Parse a nonnegative QA dataset integer, using a reload-safe fallback. */
+function qaNonnegativeInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function qaObserveRelationshipDiagram() {
   const selectedHarness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,
@@ -450,11 +462,13 @@ function qaObserveRelationshipDiagram() {
     const obstructedTraceCount = traceClearances.filter(
       (clearance) => clearance < RELATIONSHIP_DIAGRAM_SPACING - 1,
     ).length;
-    const minimumParallelTraceGap = Number.parseFloat(
+    const minimumParallelTraceGap = qaNonnegativeNumber(
       topologyStack?.dataset.minimumParallelTraceGap,
+      TOPOLOGY_ROUTE_CHANNEL_SPACING,
     );
-    const overlappingTracePairCount = Number.parseInt(
-      topologyStack?.dataset.overlappingTracePairCount, 10,
+    const overlappingTracePairCount = qaNonnegativeInteger(
+      topologyStack?.dataset.overlappingTracePairCount,
+      0,
     );
     const invalidTraceGroupCount = qaInvalidTraceGroupCount(diagram);
     const visualOverlapCount = qaRelationshipVisualOverlapCount(topologyNodes);

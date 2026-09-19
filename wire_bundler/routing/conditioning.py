@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from itertools import combinations
 from typing import Optional
 from uuid import UUID
 
@@ -29,18 +28,6 @@ class CircularGuideConstraint:
     u_direction: Vector3
     v_direction: Vector3
     usable_radius_mm: Optional[float]
-
-
-@dataclass(frozen=True)
-class _JunctionIncident:
-    """
-    Locate one route endpoint incident to a shared junction control.
-    """
-
-    route_index: int
-    point_index: int
-    route_id: UUID
-    outward_direction: Vector3
 
 
 @dataclass(frozen=True)
@@ -340,19 +327,16 @@ def junction_tangent_targets(
     junction_control_ids: frozenset[UUID],
 ) -> tuple[dict[int, Vector3], ...]:
     """
-    Choose a deterministic primary trunk axis at every occupied junction.
+    Point each junction leg toward its immediate ordered pathway guide.
 
-    Internal junction points follow their through-route secant. Split legs choose
-    the best-aligned pair as a continuous trunk, while every side branch approaches
-    directly along its own incident span.
+    Internal junction points follow their through-route secant. Every split leg
+    retains its own incident direction so fairing cannot send it through the
+    opposite side of the junction face before curling back toward its pathway.
     """
     if not (len(routes) == len(group_ids) == len(point_control_ids)):
         raise ValueError("Junction conditioning inputs must align by route.")
     targets: tuple[dict[int, Vector3], ...] = tuple({} for _ in routes)
-    incidents: dict[tuple[UUID, UUID], list[_JunctionIncident]] = {}
-    for route_index, (route, group_id, control_ids) in enumerate(
-        zip(routes, group_ids, point_control_ids)
-    ):
+    for route_index, (route, control_ids) in enumerate(zip(routes, point_control_ids)):
         if len(route.points) != len(control_ids):
             raise ValueError("Every route point requires a matching control identity.")
         for point_index, control_id in enumerate(control_ids):
@@ -367,33 +351,9 @@ def junction_tangent_targets(
                     targets[route_index][point_index] = through_direction
                 continue
             neighbor_index = 1 if point_index == 0 else point_index - 1
-            outward = unit(difference(route.points[neighbor_index], route.points[point_index]))
-            incidents.setdefault((group_id, control_id), []).append(
-                _JunctionIncident(route_index, point_index, route.wire_id, outward)
-            )
-
-    for members in incidents.values():
-        if len(members) < 2:
-            continue
-        ordered = tuple(sorted(members, key=lambda item: (str(item.route_id), item.point_index)))
-        trunk_left, trunk_right = min(
-            combinations(ordered, 2),
-            key=lambda pair: (
-                dot(pair[0].outward_direction, pair[1].outward_direction),
-                str(pair[0].route_id),
-                str(pair[1].route_id),
-            ),
-        )
-        axis_delta = difference(trunk_left.outward_direction, trunk_right.outward_direction)
-        axis = trunk_left.outward_direction if magnitude(axis_delta) <= 1e-12 else unit(axis_delta)
-        trunk_members = {
-            (trunk_left.route_index, trunk_left.point_index),
-            (trunk_right.route_index, trunk_right.point_index),
-        }
-        for incident in ordered:
-            incident_key = (incident.route_index, incident.point_index)
-            target = axis if incident_key in trunk_members else incident.outward_direction
-            targets[incident.route_index][incident.point_index] = target
+            outward = difference(route.points[neighbor_index], route.points[point_index])
+            if magnitude(outward) > 1e-12:
+                targets[route_index][point_index] = outward
     return targets
 
 

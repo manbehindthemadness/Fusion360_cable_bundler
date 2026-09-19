@@ -281,6 +281,17 @@ test('route-aware redraw packs branching topology without trace blips or crossov
   assert.equal(stack.dataset.overlappingTracePairCount, '0');
 });
 
+test('diagram QA metrics use reload-safe nonnegative fallbacks', () => {
+  const { context } = palette();
+
+  assert.equal(context.qaNonnegativeNumber(undefined, 10), 10);
+  assert.equal(context.qaNonnegativeNumber('-1', 10), 10);
+  assert.equal(context.qaNonnegativeNumber('12.5', 10), 12.5);
+  assert.equal(context.qaNonnegativeInteger(undefined, 0), 0);
+  assert.equal(context.qaNonnegativeInteger('-1', 0), 0);
+  assert.equal(context.qaNonnegativeInteger('3', 0), 3);
+});
+
 test('layout search widens when every compact routing candidate fails', () => {
   const { context } = palette();
   let attempts = 0;

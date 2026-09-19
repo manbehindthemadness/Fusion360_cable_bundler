@@ -196,6 +196,24 @@ def test_minimum_gap_is_surface_separation_not_an_avoidance_toggle() -> None:
     assert spaced[0].clearance_shortfall_mm > 0.0
 
 
+def test_collision_capsules_include_the_centerline_sampling_envelope() -> None:
+    """
+    Conservatively flag clearance inside the per-route sampling error bound.
+    """
+    first = _straight_route(1, "First", Vector3(0, 0, 0), Vector3(10, 0, 0))
+    second = _straight_route(2, "Second", Vector3(0, 2.04, 0), Vector3(10, 2.04, 0))
+
+    collisions = route_collisions(
+        (first, second),
+        (UUID(int=111), UUID(int=112)),
+        (2.0, 2.0),
+        0.0,
+    )
+
+    assert len(collisions) == 1
+    assert collisions[0].clearance_shortfall_mm == pytest.approx(0.03)
+
+
 def test_returns_residual_diagnostics_when_fixed_endpoints_make_contact_unavoidable() -> None:
     """
     Preserve best-effort output when two distinct groups share immovable endpoints.

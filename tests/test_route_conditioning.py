@@ -18,7 +18,7 @@ from wire_bundler.routing.conditioning import (
     condition_route_normals,
     junction_tangent_targets,
 )
-from wire_bundler.routing.geometry import difference, magnitude
+from wire_bundler.routing.geometry import difference, dot, magnitude
 
 
 def _guide(origin: Vector3, radius_mm: Optional[float]) -> CircularGuideConstraint:
@@ -85,16 +85,16 @@ def test_soft_guide_tangent_relaxes_without_changing_terminal_normal() -> None:
     assert conditioned[1].z == pytest.approx(2.0 / 5.0**0.5)
 
 
-def test_three_way_junction_selects_one_deterministic_trunk_axis() -> None:
+def test_three_way_junction_keeps_each_leg_on_its_own_guide_facing_side() -> None:
     """
-    Align the best-opposed pair while the branch follows its own incident direction.
+    Aim every split leg at its immediate ordered neighbor without a shared trunk axis.
     """
     junction_id = UUID(int=100)
     group_id = UUID(int=200)
     routes = (
-        RoutePreview(UUID(int=1), "Right", (Vector3(0, 0, 0), Vector3(10, 0, 0))),
-        RoutePreview(UUID(int=2), "Left", (Vector3(0, 0, 0), Vector3(-10, 0, 0))),
-        RoutePreview(UUID(int=3), "Branch", (Vector3(0, 0, 0), Vector3(0, 10, 0))),
+        RoutePreview(UUID(int=1), "Right", (Vector3(0, 0, 0), Vector3(10, 0, 10))),
+        RoutePreview(UUID(int=2), "Left", (Vector3(0, 0, 0), Vector3(-10, 0, 10))),
+        RoutePreview(UUID(int=3), "Branch", (Vector3(0, 0, 0), Vector3(0, 10, 10))),
     )
     control_ids = ((junction_id, None),) * 3
     targets = junction_tangent_targets(
@@ -104,7 +104,13 @@ def test_three_way_junction_selects_one_deterministic_trunk_axis() -> None:
         frozenset({junction_id}),
     )
 
-    for index, (route, route_targets) in enumerate(zip(routes, targets)):
+    expected_targets = (
+        Vector3(10, 0, 10),
+        Vector3(-10, 0, 10),
+        Vector3(0, 10, 10),
+    )
+    assert targets == tuple({0: target} for target in expected_targets)
+    for route, route_targets, expected_target in zip(routes, targets, expected_targets):
         conditioned = condition_route_normals(
             route,
             (Vector3(0, 0, 1), Vector3(0, 0, 1)),
@@ -113,13 +119,28 @@ def test_three_way_junction_selects_one_deterministic_trunk_axis() -> None:
             route_targets,
             0.5,
         )
-        if index < 2:
-            assert abs(conditioned[0].x) == pytest.approx(1.0)
-            assert conditioned[0].y == pytest.approx(0.0)
-        else:
-            assert conditioned[0].x == pytest.approx(0.0)
-            assert conditioned[0].y == pytest.approx(1.0)
-        assert conditioned[0].z == pytest.approx(0.0)
+        assert dot(conditioned[0], expected_target) > 0.0
+
+
+def test_junction_leg_at_route_end_targets_its_previous_ordered_guide() -> None:
+    """
+    Preserve guide-facing direction when traversal reaches rather than leaves a junction.
+    """
+    junction_id = UUID(int=110)
+    route = RoutePreview(
+        UUID(int=111),
+        "Arriving",
+        (Vector3(12, -4, 8), Vector3(0, 0, 0)),
+    )
+
+    targets = junction_tangent_targets(
+        (route,),
+        (UUID(int=112),),
+        ((None, junction_id),),
+        frozenset({junction_id}),
+    )
+
+    assert targets == ({1: Vector3(12, -4, 8)},)
 
 
 def test_junction_cluster_translation_preserves_packing_inside_aperture() -> None:
@@ -312,9 +333,9 @@ def test_pathway_control_cluster_preserves_member_spacing() -> None:
     )
 
 
-def test_parallel_same_side_junction_uses_a_stable_fallback_axis() -> None:
+def test_parallel_same_side_junction_retains_each_incident_span() -> None:
     """
-    Condition a degenerate two-branch junction without requiring opposed legs.
+    Preserve each leg's own magnitude and guide-facing direction on the same side.
     """
     junction_id = UUID(int=300)
     routes = (
@@ -329,7 +350,7 @@ def test_parallel_same_side_junction_uses_a_stable_fallback_axis() -> None:
         frozenset({junction_id}),
     )
 
-    assert targets == ({0: Vector3(1.0, 0.0, 0.0)}, {0: Vector3(1.0, 0.0, 0.0)})
+    assert targets == ({0: Vector3(10, 0, 0)}, {0: Vector3(20, 0, 0)})
 
 
 def test_coincident_neighbor_defers_to_route_validation() -> None:
