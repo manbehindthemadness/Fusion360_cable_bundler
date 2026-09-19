@@ -556,38 +556,63 @@ def test_junction_deletion_runs_in_one_native_transaction(
     assert not args.executeFailed
 
 
+@pytest.mark.parametrize(
+    ("action", "payload_values", "edit_notice", "geometry_notice"),
+    (
+        (
+            "set_harness_material_defaults",
+            {},
+            "Saved harness wire-material defaults.",
+            "Applied materials to 2 generated wire groups.",
+        ),
+        (
+            "set_wire_group_material_overrides",
+            {"wireGroupId": str(UUID(int=2)), "overrides": {}},
+            "Saved connected-wire material overrides.",
+            "Applied materials to 1 generated wire group.",
+        ),
+        (
+            "set_harness_material_defaults",
+            {},
+            "Saved harness wire-material defaults.",
+            "Applied materials to 0 generated wire groups.",
+        ),
+    ),
+)
 def test_material_save_applies_existing_bodies_and_preview(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    payload_values: dict[str, object],
+    edit_notice: str,
+    geometry_notice: str,
 ) -> None:
     """
-    Apply saved material settings to persistent solids and active graphics together.
+    Apply material settings to persistent solids and graphics, if geometry exists.
     """
     document = object()
     application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
     harness_id = UUID(int=1)
-    applied = Mock(return_value="Saved harness wire-material defaults.")
-    applied_bodies = Mock(return_value="Applied materials to 2 generated wires.")
+    applied = Mock(return_value=edit_notice)
+    applied_bodies = Mock(return_value=geometry_notice)
     refreshed = Mock(return_value="")
     sent = Mock()
     monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
     monkeypatch.setattr(addin_module, "_apply_generated_materials", applied_bodies)
     monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed)
     monkeypatch.setattr(addin_module, "_send_palette_state", sent)
-    payload = json.dumps({"harnessId": str(harness_id)})
+    payload = json.dumps({"harnessId": str(harness_id), **payload_values})
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
 
-    addin_module._PaletteEditExecuteHandler(
-        ("set_harness_material_defaults", payload, document)
-    ).notify(args)
+    addin_module._PaletteEditExecuteHandler((action, payload, document)).notify(args)
 
     applied_bodies.assert_called_once_with(application, harness_id)
     refreshed.assert_called_once_with(application, harness_id, ensure_visible=True)
     sent.assert_called_once_with(
         application,
-        "Saved harness wire-material defaults. Applied materials to 2 generated wires.",
+        f"{edit_notice} {geometry_notice}",
     )
     assert not args.executeFailed
 
