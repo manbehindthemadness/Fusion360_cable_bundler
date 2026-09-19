@@ -23,8 +23,12 @@ from wire_bundler.routing import (  # noqa: E402
     route_collisions,
     separate_route_collisions,
 )
+from wire_bundler.routing.conditioning import (  # noqa: E402
+    CircularGuideConstraint,
+    condition_control_points,
+    condition_route_normals,
+)
 
-GROUP_COUNT = 50
 GUIDE_COUNT = 20
 
 
@@ -47,38 +51,71 @@ class BenchmarkResult:
         return self.fairing_seconds + self.collision_seconds
 
 
-def run_benchmark() -> tuple[BenchmarkResult, BenchmarkResult]:
+def run_benchmark() -> tuple[BenchmarkResult, ...]:
     """
-    Measure both clear high-volume routing and collision-heavy repair.
+    Measure clear high-volume routing at two scales and collision-heavy repair.
     """
-    return _clear_routes_benchmark(), _crowded_routes_benchmark()
+    return _clear_routes_benchmark(50), _clear_routes_benchmark(200), _crowded_routes_benchmark()
 
 
-def _clear_routes_benchmark() -> BenchmarkResult:
+def _clear_routes_benchmark(group_count: int) -> BenchmarkResult:
     """
-    Fair and validate fifty distinct routes across twenty guide sections.
+    Condition, fair, and validate distinct routes across twenty guide sections.
     """
     raw_routes = []
     normals = []
     group_ids = []
-    for index in range(GROUP_COUNT):
+    for index in range(group_count):
         x = float(index % 10) * 2.0
         y = float(index // 10) * 2.0
         points = tuple(Vector3(x, y, float(guide) * 10.0) for guide in range(GUIDE_COUNT))
         raw_routes.append(RoutePreview(UUID(int=index + 1), f"Group {index + 1}", points))
         normals.append((Vector3(0.0, 0.0, 1.0),) * GUIDE_COUNT)
         group_ids.append(UUID(int=1000 + index))
+    control_ids = tuple(UUID(int=9000 + guide) for guide in range(GUIDE_COUNT))
+    transitions = ((TransitionLengths(),) * GUIDE_COUNT,) * group_count
+    route_control_ids = (control_ids,) * group_count
     started = perf_counter()
+    conditioned_routes = condition_control_points(
+        tuple(raw_routes),
+        tuple(group_ids),
+        (1.0,) * group_count,
+        route_control_ids,
+        transitions,
+        {
+            control_id: CircularGuideConstraint(
+                Vector3(0.0, 0.0, float(guide) * 10.0),
+                Vector3(0.0, 0.0, 1.0),
+                Vector3(1.0, 0.0, 0.0),
+                Vector3(0.0, 1.0, 0.0),
+                1000.0,
+            )
+            for guide, control_id in enumerate(control_ids)
+        },
+        0.5,
+    )
     routes = tuple(
-        fair_route(route, route_normals, minimum_bend_radius_mm=0.525)
-        for route, route_normals in zip(raw_routes, normals)
+        fair_route(
+            route,
+            condition_route_normals(
+                route,
+                route_normals,
+                (TransitionLengths(),) * GUIDE_COUNT,
+                frozenset(range(1, GUIDE_COUNT - 1)),
+                {},
+                0.5,
+            ),
+            minimum_bend_radius_mm=0.525,
+            auto_transition_fraction=0.5,
+        )
+        for route, route_normals in zip(conditioned_routes, normals)
     )
     fairing_seconds = perf_counter() - started
     started = perf_counter()
-    collisions = route_collisions(routes, tuple(group_ids), (1.0,) * GROUP_COUNT)
+    collisions = route_collisions(routes, tuple(group_ids), (1.0,) * group_count)
     collision_seconds = perf_counter() - started
     return BenchmarkResult(
-        "clear 50 routes x 20 guides",
+        f"clear {group_count} routes x {GUIDE_COUNT} guides",
         fairing_seconds,
         collision_seconds,
         len(collisions),

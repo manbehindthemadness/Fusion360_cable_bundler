@@ -4,7 +4,6 @@ Translate Fusion profiles into routing frames and transient centerline graphics.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from typing import Optional, Union
@@ -39,7 +38,14 @@ from ..routing import (
     sample_centerline,
     separate_route_collisions,
 )
-from ..routing.geometry import cross, difference, dot, unit
+from ..routing.conditioning import (
+    CircularGuideConstraint,
+    condition_connection_points,
+    condition_control_points,
+    condition_route_normals,
+    junction_tangent_targets,
+)
+from ..routing.geometry import cross, unit
 
 PREVIEW_GROUP_ID = "kev0.wire_bundler.route_preview"
 _PREVIEW_COLORS = (
@@ -418,19 +424,25 @@ def _solve_wire_group_routes(
         )
         prior_crossings.update(zip(ordered_group_ids, points))
 
-    routes: list[RoutePreview] = []
+    raw_routes: list[RoutePreview] = []
     route_group_ids: list[UUID] = []
     route_diameters: list[float] = []
-    route_normals: list[tuple[Vector3, ...]] = []
+    raw_route_normals: list[tuple[Vector3, ...]] = []
     route_transitions: list[tuple[TransitionLengths, ...]] = []
+    route_control_ids: list[tuple[Optional[UUID], ...]] = []
+    route_soft_guide_indices: list[frozenset[int]] = []
     minimum_bend_radii: list[float] = []
     solve_notices: list[str] = []
+    auto_transition_fraction = definition.auto_transition_preset.span_fraction
     for leg in legs:
         diameter_mm = groups_by_id[leg.wire_group_id].diameter_mm
         points: list[Vector3] = []
         normals: list[Vector3] = []
         transitions: list[TransitionLengths] = []
+        point_control_ids: list[Optional[UUID]] = []
+        soft_guide_indices: set[int] = set()
         start_frames: tuple[_ProfileFrame, ...] = ()
+        start_transitions: tuple[TransitionLengths, ...] = ()
         if leg.start_connection_id is not None:
             connection = connections.get(leg.start_connection_id)
             if connection is None:
@@ -439,17 +451,23 @@ def _solve_wire_group_routes(
             start_frames = connection_frames
             points.extend(frame.origin for frame in connection_frames)
             normals.extend(frame.normal for frame in connection_frames)
-            transitions.extend(
+            start_transitions = tuple(
                 TransitionLengths(settings.approach_mm, settings.departure_mm)
                 for settings in connection.member_settings
             )
+            transitions.extend(start_transitions)
+            point_control_ids.extend((None,) * len(connection_frames))
+            soft_guide_indices.update(range(1, len(connection_frames)))
         for step in leg.control_steps:
             control = controls.get(step.control_id)
             if control is None:
                 raise RuntimeError(f"{leg.label} references a missing routing control.")
             frame = frames[step.control_id]
+            control_point_index = len(points)
             points.append(crossings[step.control_id, leg.wire_group_id])
             normals.append(cross(frame.u_direction, frame.v_direction))
+            point_control_ids.append(step.control_id)
+            soft_guide_indices.add(control_point_index)
             settings = control.interpolation
             transitions.append(
                 TransitionLengths(
@@ -462,6 +480,8 @@ def _solve_wire_group_routes(
                 start_frames,
                 points[len(start_frames)],
                 diameter_mm,
+                start_transitions,
+                auto_transition_fraction,
             )
             points[: len(start_frames)] = start_points
         if leg.end_connection_id is not None:
@@ -469,13 +489,24 @@ def _solve_wire_group_routes(
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
             connection_frames = _connection_profile_frames(design, connection, profile_frames)
+            native_end_transitions = tuple(
+                TransitionLengths(settings.approach_mm, settings.departure_mm)
+                for settings in connection.member_settings
+            )
             end_points = _connection_profile_points(
                 connection_frames,
                 points[-1],
                 diameter_mm,
+                native_end_transitions,
+                auto_transition_fraction,
             )
+            end_start_index = len(points)
             points.extend(reversed(end_points))
             normals.extend(frame.normal for frame in reversed(connection_frames))
+            point_control_ids.extend((None,) * len(connection_frames))
+            soft_guide_indices.update(
+                range(end_start_index, end_start_index + max(0, len(connection_frames) - 1))
+            )
             transitions.extend(
                 TransitionLengths(settings.departure_mm, settings.approach_mm)
                 for settings in reversed(connection.member_settings)
@@ -483,22 +514,84 @@ def _solve_wire_group_routes(
         if len(points) < 2:
             raise ValueError(f"{leg.label} does not contain enough route geometry.")
         route = RoutePreview(leg.route_id, leg.label, tuple(points))
-        adjustments: list[TransitionAdjustment] = []
-        minimum_bend_radius = minimum_circular_bend_radius(diameter_mm)
-        route = fair_route(
-            route,
-            tuple(normals),
-            tuple(transitions),
-            minimum_bend_radius_mm=minimum_bend_radius,
-            adjustments=adjustments,
-            auto_transition_fraction=definition.auto_transition_preset.span_fraction,
-        )
-        routes.append(route)
+        raw_routes.append(route)
         route_group_ids.append(leg.wire_group_id)
         route_diameters.append(diameter_mm)
-        route_normals.append(tuple(normals))
+        raw_route_normals.append(tuple(normals))
         route_transitions.append(tuple(transitions))
-        minimum_bend_radii.append(minimum_bend_radius)
+        route_control_ids.append(tuple(point_control_ids))
+        route_soft_guide_indices.append(frozenset(soft_guide_indices))
+        minimum_bend_radii.append(minimum_circular_bend_radius(diameter_mm))
+
+    junction_control_ids = frozenset(junction.control_id for junction in definition.junctions)
+    control_constraints = {
+        control_id: CircularGuideConstraint(
+            frame.origin,
+            unit(cross(frame.u_direction, frame.v_direction)),
+            frame.u_direction,
+            frame.v_direction,
+            frame.usable_radius_mm,
+        )
+        for control_id, frame in frames.items()
+        if isinstance(frame, GateFrame)
+    }
+    conditioned_routes = condition_control_points(
+        tuple(raw_routes),
+        tuple(route_group_ids),
+        tuple(route_diameters),
+        tuple(route_control_ids),
+        tuple(route_transitions),
+        control_constraints,
+        auto_transition_fraction,
+    )
+    raw_routes = list(conditioned_routes)
+    junction_targets = junction_tangent_targets(
+        conditioned_routes,
+        tuple(route_group_ids),
+        tuple(route_control_ids),
+        junction_control_ids,
+    )
+    routes: list[RoutePreview] = []
+    route_normals: list[tuple[Vector3, ...]] = []
+    for route_index, route in enumerate(raw_routes):
+        original_normals = raw_route_normals[route_index]
+        transitions = route_transitions[route_index]
+        conditioned_normals = condition_route_normals(
+            route,
+            original_normals,
+            transitions,
+            route_soft_guide_indices[route_index],
+            junction_targets[route_index],
+            auto_transition_fraction,
+        )
+        adjustments: list[TransitionAdjustment] = []
+        try:
+            faired_route = fair_route(
+                route,
+                conditioned_normals,
+                transitions,
+                minimum_bend_radius_mm=minimum_bend_radii[route_index],
+                adjustments=adjustments,
+                auto_transition_fraction=auto_transition_fraction,
+            )
+            accepted_normals = conditioned_normals
+        except ValueError:
+            adjustments.clear()
+            faired_route = fair_route(
+                route,
+                original_normals,
+                transitions,
+                minimum_bend_radius_mm=minimum_bend_radii[route_index],
+                adjustments=adjustments,
+                auto_transition_fraction=auto_transition_fraction,
+            )
+            accepted_normals = original_normals
+            solve_notices.append(
+                f"{route.wire_number}: retained the original guide interpolation because "
+                "the relaxed guide shape was infeasible."
+            )
+        routes.append(faired_route)
+        route_normals.append(accepted_normals)
         solve_notices.extend(_adjustment_notice(item) for item in adjustments)
     separated_routes, collisions = separate_route_collisions(
         tuple(routes),
@@ -508,7 +601,7 @@ def _solve_wire_group_routes(
         tuple(route_transitions),
         tuple(minimum_bend_radii),
         definition.minimum_clearance_mm,
-        auto_transition_fraction=definition.auto_transition_preset.span_fraction,
+        auto_transition_fraction=auto_transition_fraction,
     )
     solve_notices.extend(_collision_notice(item) for item in collisions)
     _route_solve_cache = _RouteSolveCache(
@@ -544,37 +637,34 @@ def _connection_profile_points(
     frames: tuple[_ProfileFrame, ...],
     pathway_target: Vector3,
     diameter_mm: float,
+    transitions: tuple[TransitionLengths, ...],
+    auto_transition_fraction: float,
 ) -> list[Vector3]:
     """
-    Use circular guide interiors to approach the pathway without slot swaps.
+    Use bounded, transition-scaled guide conditioning to approach the pathway.
 
     Frames are stored terminal-to-pathway, so placement propagates backward
     from the known pathway crossing while preserving the authored guide order.
     """
-    reversed_points: list[Vector3] = []
-    target = pathway_target
-    for frame in reversed(frames):
-        radius = frame.usable_radius_mm
-        if radius is None:
-            point = frame.origin
-        else:
-            available_radius = max(0.0, radius - diameter_mm / 2.0)
-            delta = difference(target, frame.origin)
-            u_offset = dot(delta, frame.u_direction)
-            v_offset = dot(delta, frame.v_direction)
-            distance = math.hypot(u_offset, v_offset)
-            scale = (
-                1.0
-                if distance <= available_radius or distance <= 1e-12
-                else available_radius / distance
-            )
-            point = frame.origin.translated(frame.u_direction, u_offset * scale).translated(
-                frame.v_direction,
-                v_offset * scale,
-            )
-        reversed_points.append(point)
-        target = point
-    return list(reversed(reversed_points))
+    constraints = tuple(
+        CircularGuideConstraint(
+            frame.origin,
+            frame.normal,
+            frame.u_direction,
+            frame.v_direction,
+            frame.usable_radius_mm,
+        )
+        for frame in frames
+    )
+    return list(
+        condition_connection_points(
+            constraints,
+            pathway_target,
+            diameter_mm,
+            transitions,
+            auto_transition_fraction,
+        )
+    )
 
 
 def refresh_route_previews(

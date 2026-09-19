@@ -204,6 +204,7 @@ def separate_route_collisions(
     current = list(routes)
     route_normals = [list(items) for items in normals]
     route_transitions = [list(items) for items in transitions]
+    route_span_origins = [list(range(len(route.points) - 1)) for route in routes]
     detour_counts = [0] * count
     collision_index = _CollisionIndex(tuple(current), group_ids, diameters_mm, clearance_mm)
     collisions = collision_index.collisions
@@ -237,10 +238,28 @@ def separate_route_collisions(
                     if current[route_index].wire_id == collision.left_route_id
                     else collision.left_point
                 )
-                for candidate_route, candidate_normals, candidate_transitions in _detour_candidates(
+                baseline_score = _collision_score(collisions)
+                best_score: Optional[tuple[float, int, float]] = None
+                best_update: Optional[
+                    tuple[
+                        RoutePreview,
+                        tuple[Vector3, ...],
+                        tuple[TransitionLengths, ...],
+                        tuple[int, ...],
+                        _RouteGeometry,
+                        dict[tuple[int, int], RouteCollision],
+                    ]
+                ] = None
+                for (
+                    candidate_route,
+                    candidate_normals,
+                    candidate_transitions,
+                    candidate_span_origins,
+                ) in _detour_candidates(
                     current[route_index],
                     tuple(route_normals[route_index]),
                     tuple(route_transitions[route_index]),
+                    tuple(route_span_origins[route_index]),
                     minimum_bend_radii_mm[route_index],
                     selected_point,
                     other_point,
@@ -250,20 +269,40 @@ def separate_route_collisions(
                     geometry, replacements = collision_index.candidate_update(
                         route_index, candidate_route
                     )
-                    if collision_index.score_with(route_index, replacements) >= _collision_score(
-                        collisions
-                    ):
+                    collision_score = collision_index.score_with(route_index, replacements)
+                    if collision_score >= baseline_score:
                         continue
-                    current[route_index] = candidate_route
-                    route_normals[route_index] = list(candidate_normals)
-                    route_transitions[route_index] = list(candidate_transitions)
-                    detour_counts[route_index] += 1
-                    collision_index.accept(route_index, geometry, replacements)
-                    collisions = collision_index.collisions
-                    repaired = True
-                    break
-                if repaired:
-                    break
+                    score = (*collision_score, _route_excess_length(candidate_route))
+                    if best_score is not None and score >= best_score:
+                        continue
+                    best_score = score
+                    best_update = (
+                        candidate_route,
+                        candidate_normals,
+                        candidate_transitions,
+                        candidate_span_origins,
+                        geometry,
+                        replacements,
+                    )
+                if best_update is None:
+                    continue
+                (
+                    candidate_route,
+                    candidate_normals,
+                    candidate_transitions,
+                    candidate_span_origins,
+                    geometry,
+                    replacements,
+                ) = best_update
+                current[route_index] = candidate_route
+                route_normals[route_index] = list(candidate_normals)
+                route_transitions[route_index] = list(candidate_transitions)
+                route_span_origins[route_index] = list(candidate_span_origins)
+                detour_counts[route_index] += 1
+                collision_index.accept(route_index, geometry, replacements)
+                collisions = collision_index.collisions
+                repaired = True
+                break
             if repaired:
                 break
         if not repaired:
@@ -289,18 +328,36 @@ def _detour_candidates(
     route: RoutePreview,
     normals: tuple[Vector3, ...],
     transitions: tuple[TransitionLengths, ...],
+    span_origins: tuple[int, ...],
     minimum_bend_radius_mm: float,
     selected_point: Vector3,
     other_point: Vector3,
     shortfall_mm: float,
     auto_transition_fraction: float,
-) -> Iterator[tuple[RoutePreview, tuple[Vector3, ...], tuple[TransitionLengths, ...]]]:
+) -> Iterator[
+    tuple[
+        RoutePreview,
+        tuple[Vector3, ...],
+        tuple[TransitionLengths, ...],
+        tuple[int, ...],
+    ]
+]:
     """
-    Insert one free waypoint into the closest guide span and refair the route.
+    Add or enlarge one broad offset corridor in the closest original guide span.
     """
+    if len(span_origins) != len(route.points) - 1:
+        raise ValueError("Collision-repair span origins must align with route spans.")
     span_index = _nearest_span(route.points, selected_point)
-    start = route.points[span_index]
-    end = route.points[span_index + 1]
+    span_origin = span_origins[span_index]
+    matching_spans = tuple(
+        index
+        for index, candidate_origin in enumerate(span_origins)
+        if candidate_origin == span_origin
+    )
+    first_span = matching_spans[0]
+    last_span = matching_spans[-1]
+    start = route.points[first_span]
+    end = route.points[last_span + 1]
     chord = difference(end, start)
     try:
         tangent = unit(chord)
@@ -317,20 +374,68 @@ def _detour_candidates(
         direction = unit(separation)
     except ValueError:
         return
-    midpoint = Vector3(
-        (start.x + end.x) / 2.0,
-        (start.y + end.y) / 2.0,
-        (start.z + end.z) / 2.0,
+    chord_squared = dot(chord, chord)
+    selected_fraction = (
+        0.5
+        if chord_squared <= 1e-15
+        else dot(difference(selected_point, start), chord) / chord_squared
     )
+    selected_fraction = max(0.0, min(1.0, selected_fraction))
+    half_width = max(
+        0.15,
+        min(0.3, minimum_bend_radius_mm * 2.0 / max(magnitude(chord), 1e-9)),
+    )
+    first_fraction = max(0.1, selected_fraction - half_width)
+    second_fraction = min(0.9, selected_fraction + half_width)
+    if second_fraction - first_fraction < 0.2:
+        center_fraction = max(0.2, min(0.8, selected_fraction))
+        first_fraction = center_fraction - 0.1
+        second_fraction = center_fraction + 0.1
+    base_first = start.translated(chord, first_fraction)
+    base_second = start.translated(chord, second_fraction)
+    existing_points = route.points[first_span + 1 : last_span + 1]
+    existing_offset = 0.0
+    if existing_points:
+        existing_offset = max(
+            0.0,
+            sum(
+                dot(
+                    difference(point, base),
+                    direction,
+                )
+                for point, base in zip(existing_points[:2], (base_first, base_second))
+            )
+            / min(len(existing_points), 2),
+        )
     base_offset = max(shortfall_mm + _NUMERIC_MARGIN_MM, minimum_bend_radius_mm * 1.5)
-    for multiplier in (1.0, 1.5, 2.0, 3.0):
-        waypoint = midpoint.translated(direction, base_offset * multiplier)
-        points = (*route.points[: span_index + 1], waypoint, *route.points[span_index + 1 :])
-        candidate_normals = (*normals[: span_index + 1], tangent, *normals[span_index + 1 :])
+    for multiplier in (1.0, 2.0, 3.0):
+        offset = existing_offset + base_offset * multiplier
+        first_support = base_first.translated(direction, offset)
+        second_support = base_second.translated(direction, offset)
+        points = (
+            *route.points[: first_span + 1],
+            first_support,
+            second_support,
+            *route.points[last_span + 1 :],
+        )
+        candidate_normals = (
+            *normals[: first_span + 1],
+            tangent,
+            tangent,
+            *normals[last_span + 1 :],
+        )
         candidate_transitions = (
-            *transitions[: span_index + 1],
+            *transitions[: first_span + 1],
             TransitionLengths(),
-            *transitions[span_index + 1 :],
+            TransitionLengths(),
+            *transitions[last_span + 1 :],
+        )
+        candidate_span_origins = (
+            *span_origins[:first_span],
+            span_origin,
+            span_origin,
+            span_origin,
+            *span_origins[last_span + 1 :],
         )
         try:
             candidate = fair_route(
@@ -342,7 +447,7 @@ def _detour_candidates(
             )
         except ValueError:
             continue
-        yield candidate, candidate_normals, candidate_transitions
+        yield candidate, candidate_normals, candidate_transitions, candidate_span_origins
 
 
 def _route_collisions(
@@ -556,3 +661,14 @@ def _collision_score(collisions: tuple[RouteCollision, ...]) -> tuple[float, int
     Rank solutions by total penetration before the number of conflicting pairs.
     """
     return sum(item.clearance_shortfall_mm for item in collisions), len(collisions)
+
+
+def _route_excess_length(route: RoutePreview) -> float:
+    """
+    Return polyline length beyond the direct endpoint chord for tie-breaking.
+    """
+    polyline_length = sum(
+        magnitude(difference(end, start)) for start, end in zip(route.points, route.points[1:])
+    )
+    chord_length = magnitude(difference(route.points[-1], route.points[0]))
+    return polyline_length - chord_length

@@ -434,8 +434,20 @@ def test_diagram_observation_script_targets_only_harness_builder_palette() -> No
     assert "kev0_wire_bundler_harness_builder_palette" in script
     assert "_last_diagram_qa_observation" in script
     assert '"portCount": 0' in script
+    assert '"topologyEdgeCount": 0' in script
+    assert '"expectedTopologyEdgeCount": 0' in script
     assert '"invalidTraceGroupCount": 0' in script
-    assert '"contractVersion": "4"' in script
+    assert '"layoutRevision": 0' in script
+    assert '"layoutError": False' in script
+    assert '"redrawCompleted": True' in script
+    assert '"layoutChanged": True' in script
+    assert '"layoutCandidateCount": 0' in script
+    assert '"visualOverlapCount": 0' in script
+    assert '"visibleOverflowCount": 0' in script
+    assert '"minimumUnrelatedTraceGap": 32.0' in script
+    assert '"minimumParallelTraceGap": 10.0' in script
+    assert '"overlappingTracePairCount": 0' in script
+    assert '"contractVersion": "10"' in script
     assert "fusion_mcp_execute" not in script
 
 

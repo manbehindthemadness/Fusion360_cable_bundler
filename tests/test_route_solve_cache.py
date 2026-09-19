@@ -11,8 +11,15 @@ from uuid import UUID
 import pytest
 
 from tests.fusion_ui_support import _PaletteLifecycleModule
-from wire_bundler.domain import AutoTransitionPreset, ControlStructure, HarnessDefinition
-from wire_bundler.routing import RefineFrame, Vector3
+from wire_bundler.application import WireGroupControlStep, WireGroupRouteLeg
+from wire_bundler.domain import (
+    AutoTransitionPreset,
+    ControlStructure,
+    HarnessDefinition,
+    JunctionDefinition,
+)
+from wire_bundler.domain.model import InterpolationSettings
+from wire_bundler.routing import RefineFrame, RoutePreview, TransitionLengths, Vector3
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(
@@ -84,3 +91,140 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
     assert renamed[0] is not moved[0]
     assert relaxed != renamed
     assert relaxed[0] is not renamed[0]
+
+
+def test_end_and_junction_interpolation_reaches_every_fairing_stage(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve ordered end settings, reversed junction settings, and the global preset.
+    """
+    from wire_bundler.fusion import route_preview
+
+    del addin_module
+    start = replace(
+        valid_harness.connections[0],
+        additional_entity_tokens=("start-guide",),
+        interpolation=InterpolationSettings(1.0, 2.0),
+        member_interpolations=(InterpolationSettings(3.0, 4.0), None),
+    )
+    end = replace(
+        valid_harness.connections[1],
+        additional_entity_tokens=("end-guide",),
+        interpolation=InterpolationSettings(5.0, 6.0),
+        member_interpolations=(None, InterpolationSettings(7.0, 8.0)),
+    )
+    junction_control = replace(
+        valid_harness.controls[0],
+        interpolation=InterpolationSettings(9.0, 10.0),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(start, end),
+        controls=(junction_control,),
+        junctions=(JunctionDefinition(UUID(int=681), "Junction", junction_control.control_id),),
+        auto_transition_preset=AutoTransitionPreset.RELAXED,
+    )
+    leg = WireGroupRouteLeg(
+        UUID("68000000-0000-0000-0000-000000000001"),
+        definition.wire_groups[0].wire_group_id,
+        "Interpolation Leg",
+        start.connection_id,
+        end.connection_id,
+        (WireGroupControlStep(junction_control.control_id, reversed=True),),
+        (definition.pathways[0].pathway_id,),
+    )
+    profile_z = {
+        start.entity_token: 0.0,
+        "start-guide": 10.0,
+        "end-guide": 50.0,
+        end.entity_token: 60.0,
+    }
+    fairing_calls: list[tuple[tuple[TransitionLengths, ...], float]] = []
+    collision_calls: list[tuple[tuple[tuple[TransitionLengths, ...], ...], float]] = []
+
+    def routing_frame(
+        _design: object,
+        control: ControlStructure,
+        control_id: UUID,
+    ) -> RefineFrame:
+        """
+        Return one synthetic junction crossing.
+        """
+        return RefineFrame(
+            control_id,
+            control.name,
+            Vector3(0.0, 0.0, 30.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+        )
+
+    def profile_frame(_design: object, token: str) -> Any:
+        """
+        Return an ordered synthetic end-profile frame.
+        """
+        return route_preview._ProfileFrame(
+            Vector3(0.0, 0.0, profile_z[token]),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+        )
+
+    def capture_fair_route(
+        route: RoutePreview,
+        _normals: tuple[Vector3, ...],
+        transitions: tuple[TransitionLengths, ...],
+        **options: Any,
+    ) -> RoutePreview:
+        """
+        Record the complete transition sequence passed to initial fairing.
+        """
+        fairing_calls.append((transitions, options["auto_transition_fraction"]))
+        return route
+
+    def capture_collision_fairing(
+        routes: tuple[RoutePreview, ...],
+        _group_ids: tuple[UUID, ...],
+        _diameters_mm: tuple[float, ...],
+        _normals: tuple[tuple[Vector3, ...], ...],
+        transitions: tuple[tuple[TransitionLengths, ...], ...],
+        _minimum_bend_radii_mm: tuple[float, ...],
+        _clearance_mm: float,
+        **options: Any,
+    ) -> tuple[tuple[RoutePreview, ...], tuple[object, ...]]:
+        """
+        Record transition and preset inputs retained for collision repair.
+        """
+        collision_calls.append((transitions, options["auto_transition_fraction"]))
+        return routes, ()
+
+    monkeypatch.setattr(
+        "wire_bundler.fusion.route_preview.plan_wire_group_routes",
+        lambda _definition: (leg,),
+    )
+    monkeypatch.setattr(route_preview, "_routing_frame", routing_frame)
+    monkeypatch.setattr(route_preview, "_profile_frame", profile_frame)
+    monkeypatch.setattr("wire_bundler.fusion.route_preview.fair_route", capture_fair_route)
+    monkeypatch.setattr(
+        "wire_bundler.fusion.route_preview.separate_route_collisions",
+        capture_collision_fairing,
+    )
+    monkeypatch.setattr(route_preview, "_route_solve_cache", None)
+
+    routes, legs = route_preview.solve_wire_group_centerlines(object(), definition)
+
+    expected_transitions = (
+        TransitionLengths(3.0, 4.0),
+        TransitionLengths(1.0, 2.0),
+        TransitionLengths(10.0, 9.0),
+        TransitionLengths(8.0, 7.0),
+        TransitionLengths(6.0, 5.0),
+    )
+    assert legs == (leg,)
+    assert tuple(point.z for point in routes[0].points) == (0.0, 10.0, 30.0, 50.0, 60.0)
+    assert fairing_calls == [(expected_transitions, AutoTransitionPreset.RELAXED.span_fraction)]
+    assert collision_calls == [
+        ((expected_transitions,), AutoTransitionPreset.RELAXED.span_fraction)
+    ]

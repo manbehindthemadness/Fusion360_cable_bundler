@@ -28,9 +28,9 @@ def _straight_route(identity: int, label: str, start: Vector3, end: Vector3) -> 
     return fair_route(route, (direction, direction), minimum_bend_radius_mm=1.05)
 
 
-def test_repairs_crossing_members_with_a_bounded_free_detour() -> None:
+def test_repairs_crossing_members_with_a_broad_offset_corridor() -> None:
     """
-    Separate a common between-guide crossing without moving either guide endpoint.
+    Separate a crossing with two aligned supports and fixed guide endpoints.
     """
     horizontal = _straight_route(1, "Horizontal", Vector3(-10, 0, 0), Vector3(10, 0, 0))
     vertical = _straight_route(2, "Vertical", Vector3(0, -10, 0), Vector3(0, 10, 0))
@@ -56,6 +56,20 @@ def test_repairs_crossing_members_with_a_bounded_free_detour() -> None:
     assert routes[0].points[-1] == horizontal.points[-1]
     assert routes[1].points[0] == vertical.points[0]
     assert routes[1].points[-1] == vertical.points[-1]
+    changed_route = routes[0] if len(routes[0].points) > 2 else routes[1]
+    assert len(changed_route.points) == 4
+    first_support, second_support = changed_route.points[1:3]
+    chord = Vector3(
+        changed_route.points[-1].x - changed_route.points[0].x,
+        changed_route.points[-1].y - changed_route.points[0].y,
+        changed_route.points[-1].z - changed_route.points[0].z,
+    )
+    support_delta = Vector3(
+        second_support.x - first_support.x,
+        second_support.y - first_support.y,
+        second_support.z - first_support.z,
+    )
+    assert support_delta.x * chord.y == pytest.approx(support_delta.y * chord.x)
     assert not collisions
     assert separate_route_collisions(*inputs) == (routes, collisions)
 
@@ -112,6 +126,45 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
     assert sample_counts[vertical.wire_id] > 1
     assert auto_fractions
     assert set(auto_fractions) == {0.5}
+
+
+def test_repeated_span_repair_enlarges_one_existing_corridor() -> None:
+    """
+    Reuse two supports instead of accumulating independent mid-span waves.
+    """
+    route = _straight_route(20, "Reusable", Vector3(-10, 0, 0), Vector3(10, 0, 0))
+    normals = (Vector3(1, 0, 0), Vector3(1, 0, 0))
+    transitions = (TransitionLengths(), TransitionLengths())
+    first = next(
+        avoidance._detour_candidates(
+            route,
+            normals,
+            transitions,
+            (0,),
+            1.05,
+            Vector3(0, 0, 0),
+            Vector3(0, 1, 0),
+            2.0,
+            0.25,
+        )
+    )
+    second = next(
+        avoidance._detour_candidates(
+            first[0],
+            first[1],
+            first[2],
+            first[3],
+            1.05,
+            Vector3(0, -2, 0),
+            Vector3(0, 1, 0),
+            1.0,
+            0.25,
+        )
+    )
+
+    assert len(first[0].points) == 4
+    assert len(second[0].points) == 4
+    assert second[3] == (0, 0, 0)
 
 
 def test_ignores_intentional_same_group_junction_contact() -> None:

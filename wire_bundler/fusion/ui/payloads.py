@@ -33,27 +33,81 @@ def _read_nonnegative_int(
     return value
 
 
+# noinspection DuplicatedCode
 def read_diagram_qa_observation(serialized_data: str) -> dict[str, object]:
     """
     Validate and normalize one bounded relationship-diagram QA observation.
     """
     payload = _read_palette_payload(serialized_data)
+    contract_version = payload.get("contractVersion")
+    legacy_contract = contract_version in {"4", "8", "9"}
+    default_metric = 0 if legacy_contract else None
     status = payload.get("status")
     connector_count = _read_nonnegative_int(payload, "connectorCount", "connector count")
     maximum_gap = payload.get("maximumEndpointGap")
+    minimum_trace_gap = payload.get("minimumUnrelatedTraceGap", 32.0 if legacy_contract else None)
+    minimum_parallel_gap = payload.get("minimumParallelTraceGap", 10.0 if legacy_contract else None)
+    overlapping_trace_pair_count = _read_nonnegative_int(
+        {
+            **payload,
+            "overlappingTracePairCount": payload.get("overlappingTracePairCount", default_metric),
+        },
+        "overlappingTracePairCount",
+        "overlapping trace-pair count",
+    )
     obstructed_trace_count = _read_nonnegative_int(
         payload,
         "obstructedTraceCount",
         "obstruction count",
     )
     port_count = _read_nonnegative_int(payload, "portCount", "port count")
+    topology_edge_count = _read_nonnegative_int(
+        {**payload, "topologyEdgeCount": payload.get("topologyEdgeCount", default_metric)},
+        "topologyEdgeCount",
+        "topology edge count",
+    )
+    expected_topology_edge_count = _read_nonnegative_int(
+        {
+            **payload,
+            "expectedTopologyEdgeCount": payload.get("expectedTopologyEdgeCount", default_metric),
+        },
+        "expectedTopologyEdgeCount",
+        "expected topology edge count",
+    )
     invalid_trace_group_count = _read_nonnegative_int(
         payload,
         "invalidTraceGroupCount",
         "trace-group count",
     )
-    contract_version = payload.get("contractVersion")
     layout = payload.get("layout")
+    layout_revision = _read_nonnegative_int(
+        {**payload, "layoutRevision": payload.get("layoutRevision", default_metric)},
+        "layoutRevision",
+        "layout revision",
+    )
+    layout_error = payload.get("layoutError", False if legacy_contract else None)
+    redraw_completed = payload.get("redrawCompleted", False if legacy_contract else None)
+    layout_changed = payload.get("layoutChanged", False if legacy_contract else None)
+    layout_candidate_count = _read_nonnegative_int(
+        {**payload, "layoutCandidateCount": payload.get("layoutCandidateCount", default_metric)},
+        "layoutCandidateCount",
+        "layout candidate count",
+    )
+    layout_candidate_index = _read_nonnegative_int(
+        {**payload, "layoutCandidateIndex": payload.get("layoutCandidateIndex", default_metric)},
+        "layoutCandidateIndex",
+        "layout candidate index",
+    )
+    visual_overlap_count = _read_nonnegative_int(
+        {**payload, "visualOverlapCount": payload.get("visualOverlapCount", default_metric)},
+        "visualOverlapCount",
+        "visual overlap count",
+    )
+    visible_overflow_count = _read_nonnegative_int(
+        {**payload, "visibleOverflowCount": payload.get("visibleOverflowCount", default_metric)},
+        "visibleOverflowCount",
+        "visible overflow count",
+    )
     if status not in {"passed", "failed", "skipped"}:
         raise ValueError("Diagram QA observation has an invalid status.")
     if (
@@ -63,17 +117,59 @@ def read_diagram_qa_observation(serialized_data: str) -> dict[str, object]:
         or float(maximum_gap) < 0
     ):
         raise ValueError("Diagram QA endpoint gap must be finite and nonnegative.")
-    if contract_version != "4":
+    if (
+        isinstance(minimum_trace_gap, bool)
+        or not isinstance(minimum_trace_gap, (int, float))
+        or not math.isfinite(float(minimum_trace_gap))
+        or float(minimum_trace_gap) < 0
+    ):
+        raise ValueError("Diagram QA trace clearance must be finite and nonnegative.")
+    if (
+        isinstance(minimum_parallel_gap, bool)
+        or not isinstance(minimum_parallel_gap, (int, float))
+        or not math.isfinite(float(minimum_parallel_gap))
+        or float(minimum_parallel_gap) < 0
+    ):
+        raise ValueError("Diagram QA parallel trace gap must be finite and nonnegative.")
+    if not isinstance(layout_error, bool):
+        raise ValueError("Diagram QA layout error flag must be boolean.")
+    if not isinstance(redraw_completed, bool):
+        raise ValueError("Diagram QA redraw completion flag must be boolean.")
+    if not isinstance(layout_changed, bool):
+        raise ValueError("Diagram QA layout-change flag must be boolean.")
+    supported_layouts = {
+        "4": "endpoint-junction-forest",
+        "8": "route-aware-cardinal-topology",
+        "9": "route-aware-cardinal-topology",
+        "10": "layered-cardinal-topology",
+    }
+    expected_layout = (
+        supported_layouts.get(contract_version) if isinstance(contract_version, str) else None
+    )
+    if expected_layout is None:
         raise ValueError("Diagram QA contract version is unsupported.")
-    if layout != "endpoint-junction-forest":
+    if layout != expected_layout:
         raise ValueError("Diagram QA layout is unsupported.")
     return {
         "status": status,
         "connectorCount": connector_count,
         "maximumEndpointGap": float(maximum_gap),
+        "minimumUnrelatedTraceGap": float(minimum_trace_gap),
+        "minimumParallelTraceGap": float(minimum_parallel_gap),
+        "overlappingTracePairCount": overlapping_trace_pair_count,
         "obstructedTraceCount": obstructed_trace_count,
         "portCount": port_count,
+        "topologyEdgeCount": topology_edge_count,
+        "expectedTopologyEdgeCount": expected_topology_edge_count,
         "invalidTraceGroupCount": invalid_trace_group_count,
+        "layoutRevision": layout_revision,
+        "layoutError": layout_error,
+        "redrawCompleted": redraw_completed,
+        "layoutChanged": layout_changed,
+        "layoutCandidateCount": layout_candidate_count,
+        "layoutCandidateIndex": layout_candidate_index,
+        "visualOverlapCount": visual_overlap_count,
+        "visibleOverflowCount": visible_overflow_count,
         "contractVersion": contract_version,
         "layout": layout,
     }

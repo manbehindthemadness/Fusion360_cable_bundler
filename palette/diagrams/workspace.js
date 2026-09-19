@@ -22,7 +22,7 @@ function svgElement(tag, attributes = {}) {
 function createBlockDiagramWorkspace(label, options = {}) {
   const root = document.createElement("div");
   const toolbar = document.createElement("div");
-  const reorganize = options.onReorganize ? document.createElement("button") : null;
+  const redraw = options.onRedraw ? document.createElement("button") : null;
   const zoomOut = document.createElement("button");
   const zoomValue = document.createElement("output");
   const zoomIn = document.createElement("button");
@@ -47,11 +47,11 @@ function createBlockDiagramWorkspace(label, options = {}) {
   viewport.tabIndex = 0;
   viewport.setAttribute("aria-label", label);
   stage.className = "block-diagram-stage";
-  if (reorganize) {
-    reorganize.type = "button";
-    reorganize.textContent = "Reorganize";
-    reorganize.title = "Reorganize and fit diagram";
-    reorganize.setAttribute("aria-label", reorganize.title);
+  if (redraw) {
+    redraw.type = "button";
+    redraw.textContent = "Redraw";
+    redraw.title = "Redraw and fit diagram";
+    redraw.setAttribute("aria-label", redraw.title);
   }
   zoomOut.type = "button";
   zoomOut.textContent = "−";
@@ -110,7 +110,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
     renderTransform();
   });
   fit.addEventListener("click", fitDiagram);
-  reorganize?.addEventListener("click", options.onReorganize);
+  redraw?.addEventListener("click", options.onRedraw);
   viewport.addEventListener("wheel", (event) => {
     event.preventDefault();
     const bounds = viewport.getBoundingClientRect();
@@ -143,7 +143,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
   viewport.addEventListener("pointerup", stopPan);
   viewport.addEventListener("pointercancel", stopPan);
 
-  if (reorganize) toolbar.append(reorganize);
+  if (redraw) toolbar.append(redraw);
   toolbar.append(zoomOut, zoomValue, zoomIn, actualSize, fit);
   viewport.append(stage);
   root.append(toolbar, viewport);

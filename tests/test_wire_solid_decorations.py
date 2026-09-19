@@ -15,6 +15,7 @@ import pytest
 
 from wire_bundler.domain import StripePattern, WireColor, WireStripe
 from wire_bundler.routing import CubicBezier, RoutePreview, StripeMeshResult, Vector3
+from wire_bundler.routing.geometry import difference, dot, unit
 
 
 class _SweepSegment(Protocol):
@@ -139,6 +140,37 @@ def test_copies_root_decoration_position_to_every_branch(
     assert len(start_radials) == 3
     assert start_radials[1] == pytest.approx(start_radials[0])
     assert start_radials[2] == pytest.approx(start_radials[0])
+
+
+def test_projects_continuous_decoration_onto_an_angled_branch(
+    wire_solids: _WireSolidsModule,
+) -> None:
+    """
+    Accept non-collinear junction tangents and retain a valid stripe radial.
+    """
+    junction = Vector3(0.0, 0.0, 0.0)
+    routes = (
+        _straight_route(4, Vector3(-10.0, 0.0, 0.0), junction),
+        _straight_route(5, junction, Vector3(10.0, 0.0, 0.0)),
+        _straight_route(6, junction, Vector3(0.0, 10.0, 0.0)),
+    )
+    stripe = WireStripe(WireColor("Green", 0, 180, 80), 0.25, angle_deg=27.0)
+
+    segments, starts, ends = wire_solids._prepare_group_sweep_segments(routes)
+    decorated = wire_solids._build_continuous_segment_stripes(
+        segments,
+        starts,
+        ends,
+        stripe,
+        0.5,
+    )
+
+    assert len(segments) == len(decorated) == 3
+    for segment, result in decorated:
+        assert result.start is not None
+        tangent = unit(difference(segment.route.points[1], segment.route.points[0]))
+        assert dot(result.start.radial, tangent) == pytest.approx(0.0, abs=1e-9)
+        assert result.start.repeat_phase_mm == pytest.approx(0.0)
 
 
 def test_propagates_decoration_through_a_downstream_junction(

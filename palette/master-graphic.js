@@ -1,5 +1,5 @@
-const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "4";
-const RELATIONSHIP_DIAGRAM_LAYOUT = "endpoint-junction-forest";
+const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "10";
+const RELATIONSHIP_DIAGRAM_LAYOUT = "layered-cardinal-topology";
 
 /** Assemble the filterable master relationship diagram from focused components. */
 function renderRelationshipMap(harness) {
@@ -23,7 +23,7 @@ function renderRelationshipMap(harness) {
         ...relationshipDiagramViews.get(diagramViewKey),
         ...view,
       }),
-      onReorganize: () => reorganize(),
+      onRedraw: () => redraw(),
     },
   );
   const focusController = createRelationshipFocusController(container);
@@ -56,18 +56,22 @@ function renderRelationshipMap(harness) {
 
   let renderedStack = null;
   let renderedComponents = [];
-  const reorganize = () => {
+  const redraw = () => {
     if (!renderedStack) {
       workspace.fit();
       return;
     }
-    const flow = layoutRelationshipGraph(renderedStack, renderedComponents, harness, {
+    const selectedLayout = layoutRelationshipGraph(renderedStack, renderedComponents, harness, {
       width: workspace.viewport.clientWidth,
       height: workspace.viewport.clientHeight,
+      layoutKey: relationshipDiagramViews.get(diagramViewKey)?.layoutKey,
+      advanceLayout: true,
+      reuseLayouts: true,
     });
+    if (!selectedLayout) return;
     relationshipDiagramViews.set(diagramViewKey, {
       ...relationshipDiagramViews.get(diagramViewKey),
-      flow,
+      ...selectedLayout,
     });
     workspace.fit();
   };
@@ -149,10 +153,15 @@ function renderRelationshipMap(harness) {
     workspace.stage.append(stack);
     renderedStack = stack;
     window.requestAnimationFrame(() => {
-      layoutRelationshipGraph(stack, renderedComponents, harness, {
+      const selectedLayout = layoutRelationshipGraph(stack, renderedComponents, harness, {
         width: workspace.viewport.clientWidth,
         height: workspace.viewport.clientHeight,
-        flow: relationshipDiagramViews.get(diagramViewKey)?.flow,
+        layoutKey: relationshipDiagramViews.get(diagramViewKey)?.layoutKey,
+      });
+      if (!selectedLayout) return;
+      relationshipDiagramViews.set(diagramViewKey, {
+        ...relationshipDiagramViews.get(diagramViewKey),
+        ...selectedLayout,
       });
       if (restoreInitialView) restoreInitialView = false;
       else workspace.fit();

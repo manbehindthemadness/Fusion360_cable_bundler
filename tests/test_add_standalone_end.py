@@ -4,6 +4,7 @@ Tests for transactional disconnected-end creation.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Optional
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from wire_bundler.application import (
     add_standalone_end,
 )
 from wire_bundler.domain import HarnessDefinition, PathwayEndpoint, dumps, loads
+from wire_bundler.domain.model import InterpolationSettings
 
 END_ID = UUID("86000000-0000-0000-0000-000000000001")
 
@@ -81,6 +83,29 @@ def test_adds_one_ordered_disconnected_end(valid_harness: HarnessDefinition) -> 
     assert stored.connections[-1] == result.connection
     assert stored.standalone_ends == (*valid_harness.standalone_ends, result.standalone_end)
     assert stored.wire_groups == valid_harness.wire_groups
+
+
+def test_new_end_guides_inherit_end_interpolation_defaults(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Apply the harness end preset to every member of a newly created guide stack.
+    """
+    end_defaults = InterpolationSettings(approach_mm=2.5, departure_mm=4.0)
+    definition = replace(valid_harness, end_defaults=end_defaults)
+    gateway = _RecordingGateway(definition)
+
+    result = add_standalone_end(
+        definition.harness_id,
+        ("terminal", "guide-1", "guide-2"),
+        definition.pathways[0].pathway_id,
+        PathwayEndpoint.START,
+        gateway,
+        id_factory=lambda: END_ID,
+    )
+
+    assert result.connection.interpolation == end_defaults
+    assert result.connection.member_settings == (end_defaults, end_defaults, end_defaults)
 
 
 @pytest.mark.parametrize("tokens", [(), ("",), ("valid", " ")])

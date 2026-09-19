@@ -139,8 +139,11 @@ function qaTopologyEdgeGap(edge, diagram) {
     `.relationship-topology-junction[data-junction-id="${edge.dataset.junctionId}"]`,
   );
   if (!pathway || !junction) return Number.POSITIVE_INFINITY;
-  const source = endpoint === "end" ? pathway : junction;
-  const target = endpoint === "end" ? junction : pathway;
+  const pathwayEnd = pathway?.querySelector?.(
+    `.relationship-end-list[data-endpoint="${endpoint === "end" ? "end" : "start"}"]`,
+  ) || pathway;
+  const source = endpoint === "end" ? pathwayEnd : junction;
+  const target = endpoint === "end" ? junction : pathwayEnd;
   const matrix = edge.getScreenCTM();
   if (!matrix) return Number.POSITIVE_INFINITY;
   const project = (point) => ({
@@ -174,46 +177,96 @@ function qaTopologyEdgeGap(edge, diagram) {
   );
 }
 
-function qaTopologyTraceObstructed(edge, diagram) {
-  if (typeof edge.getTotalLength !== "function"
-      || typeof edge.getPointAtLength !== "function"
-      || typeof edge.getScreenCTM !== "function") return false;
-  const matrix = edge.getScreenCTM();
-  if (!matrix) return false;
+function qaTopologyTraceClearance(edge, diagram) {
   const nodes = Array.from(
     diagram.querySelectorAll?.(".relationship-topology-node") || [],
   ).filter((node) => {
     if (node.dataset.pathwayId === edge.dataset.pathwayId) return false;
     return node.dataset.junctionId !== edge.dataset.junctionId;
   });
-  const length = edge.getTotalLength();
-  const sampleCount = Math.max(2, Math.ceil(length / 4));
-  for (let index = 0; index <= sampleCount; index += 1) {
-    const point = edge.getPointAtLength(length * index / sampleCount);
-    const projected = {
-      x: matrix.a * point.x + matrix.c * point.y + matrix.e,
-      y: matrix.b * point.x + matrix.d * point.y + matrix.f,
-    };
-    if (nodes.some((node) => {
-      const rectangle = node.getBoundingClientRect();
-      return projected.x > rectangle.left + 1 && projected.x < rectangle.right - 1
-        && projected.y > rectangle.top + 1 && projected.y < rectangle.bottom - 1;
-    })) return true;
-  }
-  return false;
+  const wireTraces = Array.from(
+    edge.parentElement?.querySelectorAll?.(".wire-trace") || [],
+  );
+  const renderedPaths = wireTraces.length ? wireTraces : [edge];
+  let minimumClearance = Number.POSITIVE_INFINITY;
+  renderedPaths.forEach((path) => {
+    if (typeof path.getTotalLength !== "function"
+        || typeof path.getPointAtLength !== "function"
+        || typeof path.getScreenCTM !== "function") return;
+    const matrix = path.getScreenCTM();
+    if (!matrix) return;
+    const length = path.getTotalLength();
+    const sampleCount = Math.max(2, Math.ceil(length / 4));
+    const scale = Math.max(Math.hypot(matrix.a, matrix.b), Number.EPSILON);
+    const isBundle = path.className?.baseVal?.split(" ").includes(
+      "relationship-wire-bundle",
+    ) || path.className?.split?.(" ").includes("relationship-wire-bundle");
+    const traceHalfExtent = isBundle ? 4.5 : 1.5;
+    for (let index = 0; index <= sampleCount; index += 1) {
+      const point = path.getPointAtLength(length * index / sampleCount);
+      const projected = {
+        x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+        y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+      };
+      nodes.forEach((node) => {
+        const rectangle = node.getBoundingClientRect();
+        const horizontalDistance = Math.max(
+          rectangle.left - projected.x,
+          0,
+          projected.x - rectangle.right,
+        );
+        const verticalDistance = Math.max(
+          rectangle.top - projected.y,
+          0,
+          projected.y - rectangle.bottom,
+        );
+        const clearance = Math.hypot(horizontalDistance, verticalDistance) / scale
+          - traceHalfExtent;
+        minimumClearance = Math.min(minimumClearance, clearance);
+      });
+    }
+  });
+  return minimumClearance;
 }
 
-function qaRelationshipNodesOverlap(nodes) {
-  return nodes.some((node, index) => {
-    const rect = node.getBoundingClientRect();
-    return nodes.slice(index + 1).some((other) => {
-      const otherRect = other.getBoundingClientRect();
-      return rect.left < otherRect.right - 1
-        && rect.right > otherRect.left + 1
-        && rect.top < otherRect.bottom - 1
-        && rect.bottom > otherRect.top + 1;
-    });
-  });
+function qaTopologyTraceObstructed(edge, diagram) {
+  return qaTopologyTraceClearance(edge, diagram) < RELATIONSHIP_DIAGRAM_SPACING - 1;
+}
+
+function qaRelationshipVisualBounds(node) {
+  const descendants = [
+    ".relationship-pathway-hub", ".relationship-end-list", ".relationship-junction-hub",
+  ].flatMap((selector) => Array.from(node.querySelectorAll?.(selector) || []));
+  return [node, ...descendants].reduce((bounds, element) => {
+    const rectangle = element.getBoundingClientRect();
+    if (!rectangle.width || !rectangle.height) return bounds;
+    return {
+      left: Math.min(bounds.left, rectangle.left),
+      right: Math.max(bounds.right, rectangle.right),
+      top: Math.min(bounds.top, rectangle.top),
+      bottom: Math.max(bounds.bottom, rectangle.bottom),
+    };
+  }, { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+}
+
+function qaRelationshipVisualOverlapCount(nodes) {
+  const bounds = nodes.map(qaRelationshipVisualBounds);
+  return bounds.reduce((count, rectangle, index) => count + bounds.slice(index + 1)
+    .filter((other) => (
+      rectangle.left < other.right - 1
+      && rectangle.right > other.left + 1
+      && rectangle.top < other.bottom - 1
+      && rectangle.bottom > other.top + 1
+    )).length, 0);
+}
+
+function qaRelationshipVisibleOverflowCount(nodes) {
+  return nodes.filter((node) => {
+    const wrapper = node.getBoundingClientRect();
+    const visible = qaRelationshipVisualBounds(node);
+    return visible.left < wrapper.left - 1 || visible.right > wrapper.right + 1
+      || visible.top < wrapper.top - 1 || visible.bottom > wrapper.bottom + 1;
+  }).length;
 }
 
 function qaInvalidTraceGroupCount(diagram) {
@@ -296,9 +349,22 @@ function qaObserveRelationshipDiagram() {
       status: "skipped",
       connectorCount: 0,
       maximumEndpointGap: 0,
+      minimumUnrelatedTraceGap: RELATIONSHIP_DIAGRAM_SPACING,
+      minimumParallelTraceGap: TOPOLOGY_ROUTE_CHANNEL_SPACING,
+      overlappingTracePairCount: 0,
       obstructedTraceCount: 0,
       portCount: 0,
+      topologyEdgeCount: 0,
+      expectedTopologyEdgeCount: 0,
       invalidTraceGroupCount: 0,
+      layoutRevision: 0,
+      layoutError: false,
+      redrawCompleted: true,
+      layoutChanged: true,
+      layoutCandidateCount: 0,
+      layoutCandidateIndex: 0,
+      visualOverlapCount: 0,
+      visibleOverflowCount: 0,
       contractVersion: RELATIONSHIP_DIAGRAM_CONTRACT_VERSION,
       layout: RELATIONSHIP_DIAGRAM_LAYOUT,
     }).catch(() => {});
@@ -315,6 +381,15 @@ function qaObserveRelationshipDiagram() {
     filter.value = "";
     filter.dispatchEvent(new window.Event("input"));
   }
+  const stackBeforeRedraw = section?.querySelector?.(".relationship-pathway-stack");
+  const revisionBeforeRedraw = Number.parseInt(
+    stackBeforeRedraw?.dataset.diagramLayoutRevision || "0", 10,
+  );
+  const layoutKeyBeforeRedraw = stackBeforeRedraw?.dataset.diagramLayoutKey || "";
+  const redrawButton = Array.from(
+    section?.querySelectorAll?.(".block-diagram-toolbar button") || [],
+  ).find((candidate) => candidate.textContent === "Redraw");
+  redrawButton?.click();
   window.requestAnimationFrame(() => {
     const diagram = ui.editor.querySelector(".relationship-map");
     const workspace = diagram?.querySelector?.(".block-diagram-workspace");
@@ -340,6 +415,25 @@ function qaObserveRelationshipDiagram() {
     const topologyPorts = Array.from(
       diagram?.querySelectorAll?.(".relationship-topology-port") || [],
     );
+    const topologyStack = diagram?.querySelector?.(".relationship-pathway-stack");
+    const expectedTopologyEdgeCount = (harness.junctions || []).reduce(
+      (count, junction) => count + (junction.pathwayRelationships || []).length,
+      0,
+    );
+    const topologyEdgeCount = topologyEdges.length;
+    const layoutRevision = Number.parseInt(
+      topologyStack?.dataset.diagramLayoutRevision || "0", 10,
+    );
+    const layoutError = Boolean(topologyStack?.dataset.diagramLayoutError);
+    const redrawCompleted = Boolean(redrawButton) && layoutRevision > revisionBeforeRedraw;
+    const layoutCandidateCount = Number.parseInt(
+      topologyStack?.dataset.diagramLayoutCandidateCount || "0", 10,
+    );
+    const layoutCandidateIndex = Number.parseInt(
+      topologyStack?.dataset.diagramLayoutCandidateIndex || "0", 10,
+    );
+    const layoutChanged = layoutCandidateCount <= 1
+      || topologyStack?.dataset.diagramLayoutKey !== layoutKeyBeforeRedraw;
     const paths = Array.from(diagram?.querySelectorAll?.("path") || []);
     const connectorCount = paths.length;
     const endpointGaps = [
@@ -347,10 +441,24 @@ function qaObserveRelationshipDiagram() {
       ...topologyEdges.map((edge) => qaTopologyEdgeGap(edge, diagram)),
     ];
     const maximumEndpointGap = endpointGaps.length ? Math.max(...endpointGaps) : 0;
-    const obstructedTraceCount = topologyEdges.filter(
-      (edge) => qaTopologyTraceObstructed(edge, diagram),
+    const traceClearances = topologyEdges
+      .map((edge) => qaTopologyTraceClearance(edge, diagram))
+      .filter(Number.isFinite);
+    const minimumUnrelatedTraceGap = traceClearances.length
+      ? Math.max(0, Math.min(...traceClearances))
+      : RELATIONSHIP_DIAGRAM_SPACING;
+    const obstructedTraceCount = traceClearances.filter(
+      (clearance) => clearance < RELATIONSHIP_DIAGRAM_SPACING - 1,
     ).length;
+    const minimumParallelTraceGap = Number.parseFloat(
+      topologyStack?.dataset.minimumParallelTraceGap,
+    );
+    const overlappingTracePairCount = Number.parseInt(
+      topologyStack?.dataset.overlappingTracePairCount, 10,
+    );
     const invalidTraceGroupCount = qaInvalidTraceGroupCount(diagram);
+    const visualOverlapCount = qaRelationshipVisualOverlapCount(topologyNodes);
+    const visibleOverflowCount = qaRelationshipVisibleOverflowCount(topologyNodes);
     const contractVersion = diagram?.dataset.diagramContractVersion || "";
     const layout = diagram?.dataset.diagramLayout || "";
     const passed = Boolean(workspace)
@@ -360,9 +468,18 @@ function qaObserveRelationshipDiagram() {
       && (harness.pathways.length === 0 || connectorEdges.length > 0)
       && maximumEndpointGap <= 1
       && obstructedTraceCount === 0
-      && (topologyEdges.length === 0 || topologyPorts.length > 0)
+      && minimumParallelTraceGap >= TOPOLOGY_ROUTE_CHANNEL_SPACING - 1
+      && overlappingTracePairCount === 0
+      && topologyEdgeCount === expectedTopologyEdgeCount
+      && topologyPorts.length === topologyEdgeCount * 2
       && invalidTraceGroupCount === 0
-      && !qaRelationshipNodesOverlap(topologyNodes)
+      && Number.isFinite(layoutRevision)
+      && layoutRevision > 0
+      && !layoutError
+      && redrawCompleted
+      && layoutChanged
+      && visualOverlapCount === 0
+      && visibleOverflowCount === 0
       && contractVersion === RELATIONSHIP_DIAGRAM_CONTRACT_VERSION
       && layout === RELATIONSHIP_DIAGRAM_LAYOUT
       && paths.every((path) => Boolean(path.getAttribute?.("d") || path.attributes?.d));
@@ -371,9 +488,22 @@ function qaObserveRelationshipDiagram() {
       status: passed ? "passed" : "failed",
       connectorCount,
       maximumEndpointGap,
+      minimumUnrelatedTraceGap,
+      minimumParallelTraceGap,
+      overlappingTracePairCount,
       obstructedTraceCount,
       portCount: topologyPorts.length,
+      topologyEdgeCount,
+      expectedTopologyEdgeCount,
       invalidTraceGroupCount,
+      layoutRevision,
+      layoutError,
+      redrawCompleted,
+      layoutChanged,
+      layoutCandidateCount,
+      layoutCandidateIndex,
+      visualOverlapCount,
+      visibleOverflowCount,
       contractVersion,
       layout,
     }).catch(() => {});

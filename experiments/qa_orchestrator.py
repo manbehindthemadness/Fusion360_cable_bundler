@@ -532,6 +532,7 @@ def _run_desktop_ui_oracle(endpoint: str, timeout_seconds: float) -> dict[str, o
     return result
 
 
+# noinspection DuplicatedCode
 def _read_relationship_diagram_observation(
     endpoint: str,
     timeout_seconds: float,
@@ -559,9 +560,22 @@ def _read_relationship_diagram_observation(
     status = payload.get("status")
     connector_count = payload.get("connectorCount")
     maximum_gap = payload.get("maximumEndpointGap")
+    minimum_trace_gap = payload.get("minimumUnrelatedTraceGap")
+    minimum_parallel_gap = payload.get("minimumParallelTraceGap")
+    overlapping_trace_pair_count = payload.get("overlappingTracePairCount")
     obstructed_trace_count = payload.get("obstructedTraceCount")
     port_count = payload.get("portCount")
+    topology_edge_count = payload.get("topologyEdgeCount")
+    expected_topology_edge_count = payload.get("expectedTopologyEdgeCount")
     invalid_trace_group_count = payload.get("invalidTraceGroupCount")
+    layout_revision = payload.get("layoutRevision")
+    layout_error = payload.get("layoutError")
+    redraw_completed = payload.get("redrawCompleted")
+    layout_changed = payload.get("layoutChanged")
+    layout_candidate_count = payload.get("layoutCandidateCount")
+    layout_candidate_index = payload.get("layoutCandidateIndex")
+    visual_overlap_count = payload.get("visualOverlapCount")
+    visible_overflow_count = payload.get("visibleOverflowCount")
     contract_version = payload.get("contractVersion")
     layout = payload.get("layout")
     if status not in {"passed", "failed", "skipped"}:
@@ -571,6 +585,26 @@ def _read_relationship_diagram_observation(
     if isinstance(maximum_gap, bool) or not isinstance(maximum_gap, (int, float)):
         raise RuntimeError("Palette returned an invalid diagram endpoint gap.")
     if (
+        isinstance(minimum_trace_gap, bool)
+        or not isinstance(minimum_trace_gap, (int, float))
+        or not math.isfinite(float(minimum_trace_gap))
+        or float(minimum_trace_gap) < 0
+    ):
+        raise RuntimeError("Palette returned an invalid diagram trace clearance.")
+    if (
+        isinstance(minimum_parallel_gap, bool)
+        or not isinstance(minimum_parallel_gap, (int, float))
+        or not math.isfinite(float(minimum_parallel_gap))
+        or float(minimum_parallel_gap) < 0
+    ):
+        raise RuntimeError("Palette returned an invalid parallel trace gap.")
+    if (
+        isinstance(overlapping_trace_pair_count, bool)
+        or not isinstance(overlapping_trace_pair_count, int)
+        or overlapping_trace_pair_count < 0
+    ):
+        raise RuntimeError("Palette returned an invalid overlapping trace-pair count.")
+    if (
         isinstance(obstructed_trace_count, bool)
         or not isinstance(obstructed_trace_count, int)
         or obstructed_trace_count < 0
@@ -579,22 +613,67 @@ def _read_relationship_diagram_observation(
     if isinstance(port_count, bool) or not isinstance(port_count, int) or port_count < 0:
         raise RuntimeError("Palette returned an invalid diagram port count.")
     if (
+        isinstance(topology_edge_count, bool)
+        or not isinstance(topology_edge_count, int)
+        or topology_edge_count < 0
+    ):
+        raise RuntimeError("Palette returned an invalid topology edge count.")
+    if (
+        isinstance(expected_topology_edge_count, bool)
+        or not isinstance(expected_topology_edge_count, int)
+        or expected_topology_edge_count < 0
+    ):
+        raise RuntimeError("Palette returned an invalid expected topology edge count.")
+    if (
         isinstance(invalid_trace_group_count, bool)
         or not isinstance(invalid_trace_group_count, int)
         or invalid_trace_group_count < 0
     ):
         raise RuntimeError("Palette returned an invalid diagram trace-group count.")
-    if contract_version != "4":
+    if (
+        isinstance(layout_revision, bool)
+        or not isinstance(layout_revision, int)
+        or layout_revision < 0
+    ):
+        raise RuntimeError("Palette returned an invalid diagram layout revision.")
+    if not isinstance(layout_error, bool):
+        raise RuntimeError("Palette returned an invalid diagram layout error flag.")
+    if not isinstance(redraw_completed, bool):
+        raise RuntimeError("Palette returned an invalid diagram redraw completion flag.")
+    if not isinstance(layout_changed, bool):
+        raise RuntimeError("Palette returned an invalid diagram layout-change flag.")
+    for value, label in (
+        (layout_candidate_count, "layout candidate count"),
+        (layout_candidate_index, "layout candidate index"),
+        (visual_overlap_count, "visual overlap count"),
+        (visible_overflow_count, "visible overflow count"),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise RuntimeError(f"Palette returned an invalid diagram {label}.")
+    if contract_version != "10":
         raise RuntimeError("Palette returned an unsupported diagram contract version.")
-    if layout != "endpoint-junction-forest":
+    if layout != "layered-cardinal-topology":
         raise RuntimeError("Palette returned an unsupported diagram layout.")
     return {
         "status": status,
         "connectorCount": connector_count,
         "maximumEndpointGap": float(maximum_gap),
+        "minimumUnrelatedTraceGap": float(minimum_trace_gap),
+        "minimumParallelTraceGap": float(minimum_parallel_gap),
+        "overlappingTracePairCount": overlapping_trace_pair_count,
         "obstructedTraceCount": obstructed_trace_count,
         "portCount": port_count,
+        "topologyEdgeCount": topology_edge_count,
+        "expectedTopologyEdgeCount": expected_topology_edge_count,
         "invalidTraceGroupCount": invalid_trace_group_count,
+        "layoutRevision": layout_revision,
+        "layoutError": layout_error,
+        "redrawCompleted": redraw_completed,
+        "layoutChanged": layout_changed,
+        "layoutCandidateCount": layout_candidate_count,
+        "layoutCandidateIndex": layout_candidate_index,
+        "visualOverlapCount": visual_overlap_count,
+        "visibleOverflowCount": visible_overflow_count,
         "contractVersion": contract_version,
         "layout": layout,
     }
@@ -637,11 +716,24 @@ def run(_context: str):
         "status": "skipped",
         "connectorCount": 0,
         "maximumEndpointGap": 0.0,
+        "minimumUnrelatedTraceGap": 32.0,
+        "minimumParallelTraceGap": 10.0,
+        "overlappingTracePairCount": 0,
         "obstructedTraceCount": 0,
         "portCount": 0,
+        "topologyEdgeCount": 0,
+        "expectedTopologyEdgeCount": 0,
         "invalidTraceGroupCount": 0,
-        "contractVersion": "4",
-        "layout": "endpoint-junction-forest",
+        "layoutRevision": 0,
+        "layoutError": False,
+        "redrawCompleted": True,
+        "layoutChanged": True,
+        "layoutCandidateCount": 0,
+        "layoutCandidateIndex": 0,
+        "visualOverlapCount": 0,
+        "visibleOverflowCount": 0,
+        "contractVersion": "10",
+        "layout": "layered-cardinal-topology",
     }}
     print("{DIAGRAM_OBSERVATION_RESULT_PREFIX}" + json.dumps(observation, sort_keys=True))
 '''

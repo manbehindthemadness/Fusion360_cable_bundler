@@ -169,14 +169,26 @@ function renderRelationshipConnector(
 ) {
   const svg = svgElement("svg", {
     class: "relationship-connector",
-    viewBox: "0 0 54 100",
+    viewBox: "0 0 100 100",
     preserveAspectRatio: "none",
     "aria-hidden": "true",
   });
-  const curvePath = (listY, hubY) => fromEndList
-    ? `M 0 ${listY} C 24 ${listY}, 30 ${hubY}, 54 ${hubY}`
-    : `M 0 ${hubY} C 24 ${hubY}, 30 ${listY}, 54 ${listY}`;
+  let dockSide = fromEndList ? "left" : "right";
+  let currentExpanded = expanded;
+  const curvePath = (listPosition, hubPosition) => {
+    if (dockSide === "left") {
+      return `M 0 ${listPosition} C 44 ${listPosition}, 56 ${hubPosition}, 100 ${hubPosition}`;
+    }
+    if (dockSide === "right") {
+      return `M 0 ${hubPosition} C 44 ${hubPosition}, 56 ${listPosition}, 100 ${listPosition}`;
+    }
+    if (dockSide === "top") {
+      return `M ${listPosition} 0 C ${listPosition} 44, ${hubPosition} 56, ${hubPosition} 100`;
+    }
+    return `M ${hubPosition} 0 C ${hubPosition} 44, ${listPosition} 56, ${listPosition} 100`;
+  };
   const redraw = (isExpanded) => {
+    currentExpanded = isExpanded;
     svg.replaceChildren();
     if (!routeGroups.length && showPlaceholder) {
       svg.append(svgElement("path", { class: "placeholder-trace", d: curvePath(50, 50) }));
@@ -195,11 +207,12 @@ function renderRelationshipConnector(
       return;
     }
     const endPositions = new Map();
-    endGroups.forEach((group, index) => {
-      group.groups.forEach((member) => {
-        endPositions.set(member.wireGroupId, 20 + 75 * ((index + 0.5) / endGroups.length));
-      });
-    });
+    endGroups.forEach((group, index) => group.groups.forEach((member) => {
+      endPositions.set(
+        member.wireGroupId,
+        20 + 75 * ((index + 0.5) / endGroups.length),
+      );
+    }));
     const hubSpacing = Math.min(2.5, 14 / Math.max(1, routeGroups.length - 1));
     routeGroups.forEach((group, index) => {
       const hubY = 50 + (index - (routeGroups.length - 1) / 2) * hubSpacing;
@@ -222,9 +235,147 @@ function renderRelationshipConnector(
       });
     });
   };
+  svg.setDockSide = (side) => {
+    dockSide = side;
+    svg.dataset.side = side;
+    redraw(currentExpanded);
+  };
   svg.redraw = redraw;
   redraw(expanded);
   return svg;
+}
+
+/** Return the rendered footprint of one endpoint list. */
+function relationshipEndListSize(list) {
+  const empty = list.className.split(" ").includes("empty");
+  return {
+    width: Math.max(empty ? 64 : 210, list.scrollWidth || 0),
+    height: Math.max(34, list.scrollHeight || 0),
+  };
+}
+
+/** Return grid tracks and fallback dock points from the same rendered-list metrics. */
+function relationshipPathwayDockMetrics(
+  pathwayGroup, startSide, endSide, intrinsicSizes = null,
+) {
+  const sides = { start: startSide, end: endSide };
+  const sizes = intrinsicSizes || {
+    start: relationshipEndListSize(pathwayGroup.relationshipEndpointLists.start),
+    end: relationshipEndListSize(pathwayGroup.relationshipEndpointLists.end),
+  };
+  const endpointOn = (side) => Object.keys(sides).find(
+    (endpoint) => sides[endpoint] === side,
+  );
+  const sideSize = (side) => {
+    const endpoint = endpointOn(side);
+    return endpoint ? sizes[endpoint] : null;
+  };
+  const leftWidth = sideSize("left")?.width || 0;
+  const rightWidth = sideSize("right")?.width || 0;
+  const centerWidth = Math.max(
+    154,
+    sideSize("top")?.width || 0,
+    sideSize("bottom")?.width || 0,
+  );
+  const topHeight = sideSize("top")?.height || 0;
+  const bottomHeight = sideSize("bottom")?.height || 0;
+  const centerHeight = Math.max(
+    92,
+    sideSize("left")?.height || 0,
+    sideSize("right")?.height || 0,
+  );
+  const columns = [
+    leftWidth,
+    leftWidth ? RELATIONSHIP_DIAGRAM_SPACING : 0,
+    centerWidth,
+    rightWidth ? RELATIONSHIP_DIAGRAM_SPACING : 0,
+    rightWidth,
+  ];
+  const rows = [
+    topHeight,
+    topHeight ? RELATIONSHIP_DIAGRAM_SPACING : 0,
+    centerHeight,
+    bottomHeight ? RELATIONSHIP_DIAGRAM_SPACING : 0,
+    bottomHeight,
+  ];
+  const width = columns.reduce((total, value) => total + value, 0);
+  const height = rows.reduce((total, value) => total + value, 0);
+  const centerX = leftWidth
+    + (leftWidth ? RELATIONSHIP_DIAGRAM_SPACING : 0)
+    + centerWidth / 2;
+  const centerY = topHeight
+    + (topHeight ? RELATIONSHIP_DIAGRAM_SPACING : 0)
+    + centerHeight / 2;
+  const docks = Object.fromEntries(Object.entries(sides).map(([endpoint, side]) => {
+    const point = {
+      left: { x: 0, y: centerY },
+      right: { x: width, y: centerY },
+      top: { x: centerX, y: 0 },
+      bottom: { x: centerX, y: height },
+    }[side];
+    return [endpoint, point];
+  }));
+  return { sides, sizes, columns, rows, width, height, centerX, centerY, docks };
+}
+
+function alignRelationshipDockElement(element, side, empty) {
+  element.style.justifySelf = ["left", "right"].includes(side)
+    ? (side === "left" ? "end" : "start")
+    : (empty ? "center" : "stretch");
+  element.style.alignSelf = ["top", "bottom"].includes(side)
+    ? (side === "top" ? "end" : "start")
+    : "";
+}
+
+function overlapRelationshipConnector(connector, side, metrics) {
+  const horizontal = ["left", "right"].includes(side);
+  const centerPadding = horizontal
+    ? (metrics.columns[2] - 154) / 2
+    : (metrics.rows[2] - 92) / 2;
+  connector.style.width = horizontal
+    ? `calc(100% + ${centerPadding + 2}px)` : "100%";
+  connector.style.height = horizontal
+    ? "100%" : `calc(100% + ${centerPadding + 2}px)`;
+  connector.style.marginLeft = horizontal
+    ? (side === "right" ? `${-centerPadding - 1}px` : "-1px") : "0";
+  connector.style.marginRight = "0";
+  connector.style.marginTop = horizontal
+    ? "0" : (side === "bottom" ? `${-centerPadding - 1}px` : "-1px");
+  connector.style.marginBottom = "0";
+}
+
+/** Arrange one existing pathway card around two distinct cardinal endpoint docks. */
+function configureRelationshipPathwayDocking(
+  pathwayGroup, startSide, endSide, intrinsicSizes = null,
+) {
+  const metrics = relationshipPathwayDockMetrics(
+    pathwayGroup, startSide, endSide, intrinsicSizes,
+  );
+  pathwayGroup.dataset.startSide = startSide;
+  pathwayGroup.dataset.endSide = endSide;
+  pathwayGroup.style.gridTemplateColumns = metrics.columns.map((value) => `${value}px`).join(" ");
+  pathwayGroup.style.gridTemplateRows = metrics.rows.map((value) => `${value}px`).join(" ");
+  pathwayGroup.style.gridTemplateAreas = [
+    '". . top-end . ."',
+    '". . top-connector . ."',
+    '"left-end left-connector hub right-connector right-end"',
+    '". . bottom-connector . ."',
+    '". . bottom-end . ."',
+  ].join(" ");
+  const area = (side, suffix) => `${side}-${suffix}`;
+  pathwayGroup.relationshipEndpointLists.start.style.gridArea = area(startSide, "end");
+  pathwayGroup.relationshipEndpointLists.end.style.gridArea = area(endSide, "end");
+  pathwayGroup.relationshipConnectors.start.style.gridArea = area(startSide, "connector");
+  pathwayGroup.relationshipConnectors.end.style.gridArea = area(endSide, "connector");
+  pathwayGroup.relationshipHub.style.gridArea = "hub";
+  Object.entries(metrics.sides).forEach(([endpoint, side]) => {
+    const list = pathwayGroup.relationshipEndpointLists[endpoint];
+    alignRelationshipDockElement(list, side, list.className.split(" ").includes("empty"));
+    overlapRelationshipConnector(pathwayGroup.relationshipConnectors[endpoint], side, metrics);
+  });
+  pathwayGroup.relationshipConnectors.start.setDockSide(startSide);
+  pathwayGroup.relationshipConnectors.end.setDockSide(endSide);
+  pathwayGroup.relationshipDockMetrics = metrics;
 }
 
 function renderRelationshipBridge(groups) {
@@ -456,13 +607,6 @@ function renderRelationshipPathwayNode(
   });
   pathwayGroup.className = "relationship-pathway-group";
   pathwayGroup.dataset.pathwayId = candidate.pathwayId;
-  pathwayGroup.style.gridTemplateColumns = [
-    groups.start.length ? "210px" : "max-content",
-    "32px",
-    "154px",
-    "32px",
-    groups.end.length ? "210px" : "max-content",
-  ].join(" ");
   hub.type = "button";
   hub.className = "relationship-pathway-hub";
   hub.title = "Open pathway configuration";
@@ -488,5 +632,9 @@ function renderRelationshipPathwayNode(
   startList.redrawConnector = startConnector.redraw;
   endList.redrawConnector = endConnector.redraw;
   pathwayGroup.append(startList, startConnector, hub, endConnector, endList);
+  pathwayGroup.relationshipEndpointLists = { start: startList, end: endList };
+  pathwayGroup.relationshipConnectors = { start: startConnector, end: endConnector };
+  pathwayGroup.relationshipHub = hub;
+  configureRelationshipPathwayDocking(pathwayGroup, "left", "right");
   return pathwayGroup;
 }

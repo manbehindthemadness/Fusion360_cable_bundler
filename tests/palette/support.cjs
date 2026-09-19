@@ -83,10 +83,12 @@ class Element {
     const editorId = selector.match(/data-editor-id="([^"]+)"/);
     const sectionId = selector.match(/data-section="([^"]+)"/);
     const wireId = selector.match(/data-wire-id="([^"]+)"/);
+    const endpoint = selector.match(/data-endpoint="([^"]+)"/);
     return descendants(this, (child) => {
       if (editorId) return child.dataset.editorId === editorId[1];
       if (sectionId) return child.dataset.section === sectionId[1];
       if (wireId) return child.dataset.wireId === wireId[1];
+      if (endpoint) return child.dataset.endpoint === endpoint[1];
       if (selector.startsWith('.')) return child.className?.split(' ').includes(selector.slice(1));
       return child.tag === selector;
     })[0];
@@ -119,14 +121,14 @@ class Element {
   }
   scrollIntoView() { this.scrolledIntoView = true; }
   getBoundingClientRect() {
-    const width = this.clientWidth;
-    const height = this.clientHeight;
+    const width = Number.parseFloat(this.style.width) || this.clientWidth;
+    const height = Number.parseFloat(this.style.height) || this.clientHeight;
     let left = 10;
     let top = 10;
     let current = this;
     while (current) {
-      left += Number.parseFloat(current.style.left || 0);
-      top += Number.parseFloat(current.style.top || 0);
+      left += Number.parseFloat(current.style.left || '0');
+      top += Number.parseFloat(current.style.top || '0');
       current = current.parentElement;
     }
     return { left, top, right: left + width, bottom: top + height, width, height };

@@ -640,6 +640,9 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   stroke-linecap: round;
 }
 .relationship-topology-edges .structural-trace { stroke: #7b9ab2; stroke-width: 2; }
+.relationship-topology-edge:not([data-render-mode="structure"]) .structural-trace {
+  stroke: none;
+}
 .relationship-topology-edge,
 .relationship-topology-port,
 .relationship-topology-node,
@@ -806,7 +809,8 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   position: absolute;
   z-index: 1;
   display: grid;
-  grid-template-columns: max-content 32px 154px 32px max-content;
+  grid-template-columns: 210px 32px 154px 32px 210px;
+  grid-template-rows: 0 0 minmax(92px, max-content) 0 0;
   align-items: stretch;
   gap: 0;
   width: max-content;
@@ -869,6 +873,8 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   position: relative;
   z-index: 2;
   align-self: center;
+  justify-self: center;
+  width: 154px;
   min-height: 92px;
   display: grid;
   place-content: center;
@@ -896,7 +902,7 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   z-index: 2;
   align-self: center;
   width: 154px;
-  min-height: 76px;
+  min-height: 92px;
   display: grid;
   place-content: center;
   gap: 5px;
@@ -916,9 +922,11 @@ button.route-node:hover { border-color: var(--accent); color: var(--accent); }
   position: relative;
   z-index: 1;
   align-self: stretch;
-  width: calc(100% + 2px);
-  min-height: 92px;
-  margin-inline: -1px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   overflow: visible;
   pointer-events: none;
 }

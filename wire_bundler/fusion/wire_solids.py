@@ -35,14 +35,13 @@ from ..routing import (
     build_continuous_stripe_mesh,
     tightest_bend,
 )
-from ..routing.geometry import cross, difference, dot, magnitude
+from ..routing.geometry import cross, difference, magnitude
 from .harness_gateway import ATTRIBUTE_GROUP
 from .route_preview import solve_wire_group_centerlines
 
 GENERATED_WIRE_GROUP_ATTRIBUTE = "generated_wire_group"
 GENERATED_STRIPE_GROUP_ID = "kev0.wire_bundler.generated_wire_stripes"
 _JUNCTION_TOLERANCE_MM = 1e-6
-_JUNCTION_TANGENT_ALIGNMENT = 1.0 - 1e-6
 
 
 @dataclass(frozen=True)
@@ -540,24 +539,19 @@ def build_wire_group_solid(
     design: adsk.fusion.Design,
 ) -> None:
     """
-    Sweep every deterministic group leg from shared junction profiles.
+    Sweep every deterministic group leg from its own path-normal profile.
     """
     if not routes:
         raise ValueError("A wire group requires at least one routed leg.")
-    construction_segments, start_junctions, _end_junctions = _prepare_group_sweep_segments(routes)
+    construction_segments, _start_junctions, _end_junctions = _prepare_group_sweep_segments(routes)
     local_routes = tuple(_route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
     leg_lengths = [0.0] * len(routes)
-    junction_profiles: dict[int, adsk.fusion.Profile] = {}
-    for segment, start_junction in zip(construction_segments, start_junctions):
+    for segment in construction_segments:
         route = segment.route
         leg_number = segment.source_route_index + 1
-        section_name = (
-            f"Wire Group Leg {leg_number} Diameter"
-            if start_junction is None
-            else f"Wire Group Junction {start_junction + 1} Diameter"
-        )
-        body, length_mm, _construction_local_route, profile = _build_route_sweep(
+        section_name = f"Wire Group Leg {leg_number} Segment {segment.segment_index + 1} Diameter"
+        body, length_mm = _build_route_sweep(
             component,
             route,
             group.diameter_mm,
@@ -565,10 +559,7 @@ def build_wire_group_solid(
             f"Wire Group Leg {leg_number} Segment {segment.segment_index + 1} Centerline",
             section_name,
             f"Wire Group Leg {leg_number} Segment {segment.segment_index + 1} Sweep",
-            junction_profiles.get(start_junction) if start_junction is not None else None,
         )
-        if start_junction is not None:
-            junction_profiles.setdefault(start_junction, profile)
         body.name = f"Wire Group {group_index + 1} Leg {leg_number}"
         if segment.segment_count > 1:
             body.name += f" Segment {segment.segment_index + 1}"
@@ -768,7 +759,7 @@ def _orient_group_routes(
     tuple[Optional[int], ...],
 ]:
     """
-    Orient construction routes away from one stable shared-profile root.
+    Orient construction routes away from one stable junction root.
     """
     junctions = _shared_route_endpoints(routes)
     if not junctions:
@@ -782,8 +773,6 @@ def _orient_group_routes(
         )
         for route in routes
     )
-    for junction_index, (point, route_indices) in enumerate(junctions):
-        _validate_junction_tangents(junction_index, point, route_indices, routes)
     oriented: list[Optional[RoutePreview]] = [None] * len(routes)
     start_junctions: list[Optional[int]] = [None] * len(routes)
     end_junctions: list[Optional[int]] = [None] * len(routes)
@@ -836,42 +825,6 @@ def _junction_at(
     )
 
 
-def _validate_junction_tangents(
-    junction_index: int,
-    point: Vector3,
-    route_indices: tuple[int, ...],
-    routes: tuple[RoutePreview, ...],
-) -> None:
-    """
-    Require every incident leg to share one circular profile plane.
-    """
-    tangents = tuple(_route_endpoint_tangent(routes[index], point) for index in route_indices)
-    reference = tangents[0]
-    reference_length = magnitude(reference)
-    for tangent in tangents[1:]:
-        alignment = abs(dot(reference, tangent)) / (reference_length * magnitude(tangent))
-        if alignment < _JUNCTION_TANGENT_ALIGNMENT:
-            raise RuntimeError(
-                f"Wire-group junction {junction_index + 1} routes do not share "
-                "one sweep profile plane."
-            )
-
-
-def _route_endpoint_tangent(route: RoutePreview, point: Vector3) -> Vector3:
-    """
-    Return the nonzero terminal tangent at one shared route endpoint.
-    """
-    if magnitude(difference(point, route.curves[0].start)) <= _JUNCTION_TOLERANCE_MM:
-        tangent = difference(route.curves[0].control_a, route.curves[0].start)
-    elif magnitude(difference(point, route.curves[-1].end)) <= _JUNCTION_TOLERANCE_MM:
-        tangent = difference(route.curves[-1].end, route.curves[-1].control_b)
-    else:
-        raise RuntimeError(f"{route.wire_number} does not terminate at its shared junction.")
-    if magnitude(tangent) <= 1e-9:
-        raise RuntimeError(f"{route.wire_number} has no usable junction tangent.")
-    return tangent
-
-
 def _reverse_route(route: RoutePreview) -> RoutePreview:
     """
     Reverse only the construction traversal of one exact routed leg.
@@ -895,10 +848,9 @@ def _build_route_sweep(
     centerline_name: str,
     section_name: str,
     sweep_name: str,
-    profile: Optional[adsk.fusion.Profile] = None,
-) -> tuple[adsk.fusion.BRepBody, float, RoutePreview, adsk.fusion.Profile]:
+) -> tuple[adsk.fusion.BRepBody, float]:
     """
-    Create one route sweep, optionally reusing a shared junction profile.
+    Create one route sweep from a path-normal circular profile.
     """
     if not route.curves:
         raise ValueError("The smooth route contains no curves.")
@@ -929,31 +881,27 @@ def _build_route_sweep(
         path = component.features.createPath(curves, False)
         if path is None:
             raise RuntimeError("Fusion could not join the ordered centerline segments.")
-        plane = None
-        section = None
-        sweep_profile = profile
-        if sweep_profile is None:
-            stage = "define cross-section plane"
-            plane_input = component.constructionPlanes.createInput()
-            if not plane_input.setByDistanceOnPath(
-                curves.item(0), adsk.core.ValueInput.createByReal(0)
-            ):
-                raise RuntimeError("Fusion could not orient the wire cross-section.")
-            stage = "create cross-section plane"
-            plane = component.constructionPlanes.add(plane_input)
-            if plane is None:
-                raise RuntimeError("Fusion did not create the wire cross-section plane.")
-            plane.name = section_name
-            stage = "create diameter sketch"
-            section = component.sketches.add(plane)
-            if section is None:
-                raise RuntimeError("Fusion did not create the wire cross-section sketch.")
-            section.name = section_name
-            center = section.modelToSketchSpace(_point(route.curves[0].start, transform))
-            circle = section.sketchCurves.sketchCircles.addByCenterRadius(center, diameter_mm / 20)
-            if circle is None or section.profiles.count != 1:
-                raise RuntimeError("Fusion could not create one circular sweep profile.")
-            sweep_profile = section.profiles.item(0)
+        stage = "define cross-section plane"
+        plane_input = component.constructionPlanes.createInput()
+        if not plane_input.setByDistanceOnPath(
+            curves.item(0), adsk.core.ValueInput.createByReal(0)
+        ):
+            raise RuntimeError("Fusion could not orient the wire cross-section.")
+        stage = "create cross-section plane"
+        plane = component.constructionPlanes.add(plane_input)
+        if plane is None:
+            raise RuntimeError("Fusion did not create the wire cross-section plane.")
+        plane.name = section_name
+        stage = "create diameter sketch"
+        section = component.sketches.add(plane)
+        if section is None:
+            raise RuntimeError("Fusion did not create the wire cross-section sketch.")
+        section.name = section_name
+        center = section.modelToSketchSpace(_point(route.curves[0].start, transform))
+        circle = section.sketchCurves.sketchCircles.addByCenterRadius(center, diameter_mm / 20)
+        if circle is None or section.profiles.count != 1:
+            raise RuntimeError("Fusion could not create one circular sweep profile.")
+        sweep_profile = section.profiles.item(0)
         if sweep_profile is None:
             raise RuntimeError("Fusion did not retain the circular sweep profile.")
         sweeps = component.features.sweepFeatures
@@ -968,14 +916,11 @@ def _build_route_sweep(
         body = sweep.bodies.item(0)
         if not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
             raise RuntimeError("Fusion produced an invalid or empty wire solid.")
-        local_route = _route_in_component_space(route, transform)
         sweep.name = sweep_name
         sketch.isLightBulbOn = False
-        if section is not None:
-            section.isLightBulbOn = False
-        if plane is not None:
-            plane.isLightBulbOn = False
-        return body, length_mm, local_route, sweep_profile
+        section.isLightBulbOn = False
+        plane.isLightBulbOn = False
+        return body, length_mm
     except (AttributeError, RuntimeError, TypeError, ValueError) as error:
         if stage == "create solid sweep":
             bend = tightest_bend(route)
