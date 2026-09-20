@@ -666,7 +666,9 @@ def _vector(vector: adsk.core.Vector3D) -> Vector3:
 
 
 def reset_route_solve_cache() -> None:
-    """Release the session-only geometry solution cache."""
+    """
+    Release the session-only geometry solution cache.
+    """
     global _route_solve_cache
 
     _route_solve_cache = None

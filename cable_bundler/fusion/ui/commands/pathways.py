@@ -48,7 +48,7 @@ from .harness import (
     _read_routing_mode,
 )
 from .refines import (
-    _reconcile_active_refines,
+    reconcile_active_refines,
 )
 
 
@@ -376,7 +376,7 @@ class _SegmentExecuteHandler(adsk.core.CommandEventHandler):
                 _create_harness_gateway(application),
             )
             warning = _refresh_active_preview(application, self._state.harness_id)
-            _reconcile_active_refines(application)
+            reconcile_active_refines(application)
             application.activeViewport.refresh()
             _send_palette_state(
                 application,

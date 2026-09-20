@@ -89,7 +89,15 @@ from .refine_parts.types import (
 
 MINIMUM_REFINE_RADIUS_MM = 0.5
 
-__all__ = ["PathwaySpine", "RefinePlacement", "_read_refine_placement"]
+__all__ = [
+    "EditRefineCreatedHandler",
+    "PathwaySpine",
+    "RefineActiveSelectionHandler",
+    "RefineCreatedHandler",
+    "RefinePlacement",
+    "_read_refine_placement",
+    "reconcile_active_refines",
+]
 
 
 @dataclass

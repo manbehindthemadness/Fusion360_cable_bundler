@@ -110,53 +110,6 @@ body {
   justify-content: flex-end;
   margin-top: 12px;
 }
-.cable-group-details-popup {
-  position: relative;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  width: 90vw;
-  max-width: 90vw;
-  height: 90vh;
-  max-height: 90vh;
-  overflow: hidden;
-}
-.cable-group-details-content {
-  display: grid;
-  grid-template-rows: auto minmax(240px, 1fr) auto auto;
-  gap: 12px;
-  min-height: 0;
-  overflow-y: auto;
-}
-.cable-group-details-heading { display: grid; gap: 3px; }
-.cable-group-details-heading p { margin: 0; color: var(--muted); }
-.cable-group-details-graphic {
-  min-height: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--surface);
-}
-.cable-group-details-graphic .block-diagram-viewport { height: 100%; min-height: 240px; }
-.cable-group-details-svg { display: block; }
-.cable-group-route-link {
-  fill: none;
-  stroke: #7b9ab2;
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.cable-group-details-node { cursor: pointer; outline: none; }
-.cable-group-details-node.focused .relationship-node {
-  stroke: var(--accent);
-  stroke-width: 3;
-}
-.cable-group-details-node.junction .relationship-node { fill: var(--junction-surface); stroke: var(--junction-border); }
-.cable-group-details-member.focused { border-color: var(--accent); background: var(--focus-surface); }
-.cable-group-route-error {
-  border: 1px solid var(--danger-border);
-  border-radius: 5px;
-  padding: 8px 10px;
-  background: var(--danger-surface);
-  color: var(--danger);
-}
 .material-options { width: 430px; max-height: 88vh; overflow-x: hidden; overflow-y: auto; }
 .cable-options::backdrop { background: #0005; }
 .cable-options form { display: grid; gap: 12px; }
@@ -401,5 +354,3 @@ details[open] summary::after { content: "▾"; }
 summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .count { color: var(--muted); font-size: 11px; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
 .section-content { display: grid; gap: 8px; padding: 0 11px 11px; }
-.item-meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.cable-filter { margin-bottom: 2px; }

@@ -19,7 +19,7 @@ SOURCE_LIMITS = {
 EXCLUDED_DIRECTORIES = {
     ".git",
     ".venv",
-    "F360CableGenerator",
+    "F360WireGenerator",
     "artifacts",
     "experiments",
     "reference",

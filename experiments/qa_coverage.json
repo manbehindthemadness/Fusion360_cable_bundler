@@ -6,7 +6,7 @@
     {
       "id": "M0-DOM-001",
       "area": "persistence",
-      "behavior": "Schema-v4 definitions round-trip and versions 1 through 3 migrate deterministically.",
+      "behavior": "Schema-v15 group-only definitions round-trip deterministically, schemas 12 through 14 migrate in memory, and unsupported legacy or future versions fail explicitly.",
       "status": "automated",
       "layers": ["pytest"],
       "evidence": ["tests/test_codec.py"],
@@ -15,10 +15,10 @@
     {
       "id": "M0-DOM-002",
       "area": "validation",
-      "behavior": "Malformed definitions, missing geometry, invalid routes, and aperture failures are reported deterministically.",
+      "behavior": "Malformed definitions, missing geometry, and invalid routes are reported deterministically; strict routing rejects undersized apertures while product preview and generation warn and preserve cable spacing outside them.",
       "status": "automated",
       "layers": ["pytest"],
-      "evidence": ["tests/test_validation.py", "tests/test_parallel_routing.py"],
+      "evidence": ["tests/test_validation.py", "tests/test_parallel_routing.py", "tests/test_route_solve_cache.py"],
       "capabilities": []
     },
     {
@@ -90,7 +90,7 @@
       "behavior": "Generate, rebuild, transform, and clear preserve cable identity and keep stripes owned by their generated components.",
       "status": "automated",
       "layers": ["pytest", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_fusion_ui_palette.py", "experiments/fusion_qa_suite.py"],
+      "evidence": ["tests/test_fusion_ui_palette_previews.py", "tests/test_cable_solid_decorations.py", "tests/test_fusion_ui_viewport.py", "experiments/fusion_mcp_capabilities.json"],
       "capabilities": []
     },
     {
@@ -99,7 +99,7 @@
       "behavior": "Every persistent edit, Preview, Generate, Rebuild, and Clear Solids operation creates one reversible Fusion history action with stable Undo/Redo results; transient Clear Preview removes graphics immediately.",
       "status": "automated",
       "layers": ["palette", "fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_fusion_ui_palette.py", "tests/test_palette.cjs", "palette/host.js"],
+      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_fusion_ui_palette_lifecycle.py", "tests/test_fusion_ui_palette_previews.py", "tests/test_palette.cjs", "palette/host.js"],
       "capabilities": []
     },
     {

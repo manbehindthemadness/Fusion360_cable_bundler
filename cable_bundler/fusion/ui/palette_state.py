@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from typing import Any, Optional
+from typing import Any, Callable, Optional, cast
 from uuid import UUID, uuid4
 
 # noinspection PyUnresolvedReferences
@@ -73,10 +73,14 @@ def _harness_render_state(
     component_reader = getattr(gateway, "harness_component", None)
     if active_product is None or design_type is None or component_reader is None:
         return False, False
-    design = design_type.cast(active_product)
+    design = cast(Any, design_type).cast(active_product)
     if design is None:
         return False, False
-    harness_component = component_reader(definition.harness_id)
+    read_harness_component = cast(
+        Callable[[UUID], object],
+        component_reader,
+    )
+    harness_component = read_harness_component(definition.harness_id)
     has_solids = bool(generated_cable_group_occurrences(harness_component))
     has_preview = not has_solids and has_route_preview_for_harness(design, definition)
     return has_preview, has_solids

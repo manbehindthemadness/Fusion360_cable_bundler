@@ -16,7 +16,7 @@ M2_LEDGER_PATH = PROJECT_ROOT / "experiments" / "qa_coverage_m2.json"
 
 def test_repository_coverage_ledger_is_valid_and_references_existing_evidence() -> None:
     """
-    Keep the checked-in M0 inventory structurally valid and reviewable.
+    Keep the current M0 acceptance inventory structurally valid and reviewable.
     """
     ledger = load_coverage_ledger()
 
@@ -31,7 +31,7 @@ def test_repository_coverage_ledger_is_valid_and_references_existing_evidence() 
 
 def test_m2_coverage_ledger_preserves_completed_diagram_qa() -> None:
     """
-    Preserve the verified diagram slice while topology work remains planned.
+    Preserve the verified diagram slice in the historical M2 planning inventory.
     """
     ledger = load_coverage_ledger(M2_LEDGER_PATH)
 

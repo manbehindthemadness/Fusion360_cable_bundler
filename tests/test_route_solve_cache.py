@@ -13,15 +13,18 @@ import pytest
 from cable_bundler.application import CableGroupControlStep, CableGroupRouteLeg
 from cable_bundler.domain import (
     AutoTransitionPreset,
+    CableGroupDefinition,
+    Connection,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
     JunctionDefinition,
+    PathwayEndpoint,
     RefineGeometry,
+    StandaloneEndDefinition,
 )
 from cable_bundler.domain.model import InterpolationSettings
 from cable_bundler.routing import (
-    CableRouteInput,
     GateFrame,
     RefineFrame,
     RoutePreview,
@@ -31,43 +34,89 @@ from cable_bundler.routing import (
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
-def test_undersized_gate_warns_and_retains_route_crossings(
+def test_undersized_gate_warns_through_public_product_solver(
     addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Continue product routing when cable envelopes exceed an aperture.
+    Continue public product routing when cable envelopes exceed an aperture.
     """
+    from cable_bundler.fusion import route_preview
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
-    origin = Vector3(0.0, 0.0, 0.0)
-    cables = tuple(
-        CableRouteInput(
-            UUID(int=index),
-            f"Group {index}",
-            origin,
-            origin,
-            3.0,
+    pathway_id = valid_harness.pathways[0].pathway_id
+    start_ids = tuple(UUID(int=100 + index) for index in range(1, 4))
+    end_ids = tuple(UUID(int=200 + index) for index in range(1, 4))
+    group_ids = tuple(UUID(int=300 + index) for index in range(1, 4))
+    connections = tuple(
+        connection
+        for index, (start_id, end_id) in enumerate(zip(start_ids, end_ids), start=1)
+        for connection in (
+            Connection(start_id, f"Start {index}", f"start-{index}"),
+            Connection(end_id, f"End {index}", f"end-{index}"),
         )
-        for index in range(1, 4)
     )
-    gate = GateFrame(
-        UUID(int=10),
-        "Routing Gate 05",
-        origin,
-        Vector3(1.0, 0.0, 0.0),
-        Vector3(0.0, 1.0, 0.0),
-        2.98176,
+    definition = replace(
+        valid_harness,
+        connections=connections,
+        standalone_ends=tuple(
+            end
+            for start_id, end_id in zip(start_ids, end_ids)
+            for end in (
+                StandaloneEndDefinition(start_id, pathway_id, PathwayEndpoint.START),
+                StandaloneEndDefinition(end_id, pathway_id, PathwayEndpoint.END),
+            )
+        ),
+        cable_groups=tuple(
+            CableGroupDefinition(group_id, (start_id, end_id), diameter_mm=3.0)
+            for group_id, start_id, end_id in zip(group_ids, start_ids, end_ids)
+        ),
     )
+
+    def routing_frame(
+        _design: object,
+        _control: ControlStructure,
+        control_id: UUID,
+    ) -> GateFrame:
+        """
+        Return the exact undersized gate from the reported product regression.
+        """
+        return GateFrame(
+            control_id,
+            "Routing Gate 05",
+            Vector3(0.0, 0.0, 10.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+            2.98176,
+        )
+
+    def profile_frame(_design: object, token: str) -> route_solver.ProfileFrame:
+        """
+        Resolve deterministic synthetic terminal frames around the gate.
+        """
+        z = 0.0 if token.startswith("start-") else 20.0
+        return route_solver.ProfileFrame(
+            Vector3(0.0, 0.0, z),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+        )
+
+    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
+    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
     notices: list[str] = []
 
-    crossings = route_solver._place_control_crossings(cables, gate, 0.0, (), notices)
+    routes, legs = route_preview.solve_cable_group_centerlines(object(), definition, notices)
 
-    assert len(crossings) == 3
-    assert notices == [
+    assert len(routes) == 3
+    assert len(legs) == 3
+    assert notices[0] == (
         "Routing Gate 05 cannot fit 3 cables inside its 5.96352 mm usable diameter. "
         "Cable spacing is preserved, so routes may extend outside the aperture."
-    ]
+    )
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(

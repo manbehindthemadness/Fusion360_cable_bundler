@@ -51,8 +51,13 @@ __all__ = [
     "_prepare_group_sweep_segments",
     "_replace_group_stripe_graphics",
     "CableSolidVisibilityState",
+    "apply_cable_group_materials",
+    "clear_cable_solids",
+    "generate_cable_group_solids",
+    "generated_cable_group_bodies",
     "generated_cable_group_occurrences",
     "hide_generated_cable_group_solids",
+    "restore_cable_group_stripe_graphics",
     "restore_generated_cable_group_visibility",
 ]
 
