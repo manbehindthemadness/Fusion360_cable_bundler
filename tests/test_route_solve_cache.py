@@ -10,7 +10,6 @@ from uuid import UUID
 
 import pytest
 
-from tests.fusion_ui_support import _PaletteLifecycleModule
 from cable_bundler.application import CableGroupControlStep, CableGroupRouteLeg
 from cable_bundler.domain import (
     AutoTransitionPreset,
@@ -21,7 +20,54 @@ from cable_bundler.domain import (
     RefineGeometry,
 )
 from cable_bundler.domain.model import InterpolationSettings
-from cable_bundler.routing import RefineFrame, RoutePreview, TransitionLengths, Vector3
+from cable_bundler.routing import (
+    CableRouteInput,
+    GateFrame,
+    RefineFrame,
+    RoutePreview,
+    TransitionLengths,
+    Vector3,
+)
+from tests.fusion_ui_support import _PaletteLifecycleModule
+
+
+def test_undersized_gate_warns_and_retains_route_crossings(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Continue product routing when cable envelopes exceed an aperture.
+    """
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    origin = Vector3(0.0, 0.0, 0.0)
+    cables = tuple(
+        CableRouteInput(
+            UUID(int=index),
+            f"Group {index}",
+            origin,
+            origin,
+            3.0,
+        )
+        for index in range(1, 4)
+    )
+    gate = GateFrame(
+        UUID(int=10),
+        "Routing Gate 05",
+        origin,
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        2.98176,
+    )
+    notices: list[str] = []
+
+    crossings = route_solver._place_control_crossings(cables, gate, 0.0, (), notices)
+
+    assert len(crossings) == 3
+    assert notices == [
+        "Routing Gate 05 cannot fit 3 cables inside its 5.96352 mm usable diameter. "
+        "Cable spacing is preserved, so routes may extend outside the aperture."
+    ]
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(

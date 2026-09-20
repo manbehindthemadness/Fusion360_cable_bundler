@@ -22,6 +22,8 @@ from ...domain import (
 )
 from ...routing import (
     CableRouteInput,
+    GateCapacityError,
+    GateCapacityPolicy,
     GateFrame,
     RefineFrame,
     RouteCollision,
@@ -95,6 +97,31 @@ def leg_control_ids(
             else ()
         ),
     )
+
+
+def _place_control_crossings(
+    cables: tuple[CableRouteInput, ...],
+    frame: Union[GateFrame, RefineFrame],
+    clearance_mm: float,
+    preferred_points: tuple[Optional[Vector3], ...],
+    notices: list[str],
+) -> tuple[Vector3, ...]:
+    """
+    Preserve deterministic spacing and warn when it exceeds a gate aperture.
+    """
+    try:
+        return place_route_crossings(cables, frame, clearance_mm, preferred_points)
+    except GateCapacityError as error:
+        notices.append(
+            f"{error} Cable spacing is preserved, so routes may extend outside the aperture."
+        )
+        return place_route_crossings(
+            cables,
+            frame,
+            clearance_mm,
+            preferred_points,
+            capacity_policy=GateCapacityPolicy.ALLOW_OVERFLOW,
+        )
 
 
 def _append_route_control(
@@ -193,6 +220,7 @@ def solve_cable_group_routes(
         return cached.routes, cached.legs
     crossings: dict[tuple[UUID, UUID], Vector3] = {}
     prior_crossings: dict[UUID, Vector3] = {}
+    solve_notices: list[str] = []
     origin = Vector3(0.0, 0.0, 0.0)
     for control_id, group_ids in control_groups.items():
         ordered_group_ids = sorted(group_ids, key=group_order.__getitem__)
@@ -206,11 +234,12 @@ def solve_cable_group_routes(
             )
             for group_id in ordered_group_ids
         )
-        points = place_route_crossings(
+        points = _place_control_crossings(
             placement_inputs,
             frames[control_id],
             definition.minimum_clearance_mm,
             tuple(prior_crossings.get(group_id) for group_id in ordered_group_ids),
+            solve_notices,
         )
         crossings.update(
             ((control_id, group_id), point) for group_id, point in zip(ordered_group_ids, points)
@@ -225,7 +254,6 @@ def solve_cable_group_routes(
     route_control_ids: list[tuple[Optional[UUID], ...]] = []
     route_soft_guide_indices: list[frozenset[int]] = []
     minimum_bend_radii: list[float] = []
-    solve_notices: list[str] = []
     auto_transition_fraction = definition.auto_transition_preset.span_fraction
     for leg in legs:
         diameter_mm = groups_by_id[leg.cable_group_id].diameter_mm

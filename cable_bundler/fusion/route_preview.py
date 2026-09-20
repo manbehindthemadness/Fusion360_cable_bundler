@@ -168,7 +168,7 @@ def show_route_previews(
 
     Raises:
         RuntimeError: If referenced geometry is unavailable or unsupported.
-        ValueError: If route inputs or gate capacity are invalid.
+        ValueError: If route inputs are invalid.
     """
     routes, legs = solve_cable_group_routes(design, definition, notices)
     root_component = design.rootComponent

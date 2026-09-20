@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional, Union
 from uuid import UUID
 
@@ -88,6 +89,15 @@ class GateCapacityError(ValueError):
         )
 
 
+class GateCapacityPolicy(Enum):
+    """
+    Select whether undersized circular gates reject or retain packed routes.
+    """
+
+    REJECT = "reject"
+    ALLOW_OVERFLOW = "allow_overflow"
+
+
 def solve_parallel_routes(
     cables: tuple[CableRouteInput, ...],
     gates: tuple[Union[GateFrame, RefineFrame], ...],
@@ -136,6 +146,8 @@ def place_route_crossings(
     frame: Union[GateFrame, RefineFrame],
     clearance_mm: float = 0.0,
     preferred_points: tuple[Optional[Vector3], ...] = (),
+    *,
+    capacity_policy: GateCapacityPolicy = GateCapacityPolicy.REJECT,
 ) -> tuple[Vector3, ...]:
     """
     Place a stable set of route identities at one shared routing frame.
@@ -152,7 +164,7 @@ def place_route_crossings(
             raise ValueError(f"Cable {cable.cable_number} has an invalid diameter.")
     if preferred_points and len(preferred_points) != len(cables):
         raise ValueError("Preferred route crossings must align with the cable sequence.")
-    crossings = _place_crossings(cables, frame, clearance_mm)
+    crossings = _place_crossings(cables, frame, clearance_mm, capacity_policy)
     if not preferred_points or not any(point is not None for point in preferred_points):
         return crossings
     assignment = _minimum_cost_assignment(crossings, preferred_points)
@@ -239,12 +251,13 @@ def _place_crossings(
     cables: tuple[CableRouteInput, ...],
     frame: Union[GateFrame, RefineFrame],
     clearance_mm: float,
+    capacity_policy: GateCapacityPolicy = GateCapacityPolicy.REJECT,
 ) -> tuple[Vector3, ...]:
     """
     Place a stable bundle at one constrained gate or unconstrained refine.
     """
     if isinstance(frame, GateFrame):
-        return _pack_gate(cables, frame, clearance_mm)
+        return _pack_gate(cables, frame, clearance_mm, capacity_policy)
     _validate_frame(frame)
     largest_radius = max(cable.diameter_mm for cable in cables) / 2.0
     spacing = largest_radius * 2.0 + clearance_mm
@@ -259,6 +272,7 @@ def _pack_gate(
     cables: tuple[CableRouteInput, ...],
     gate: GateFrame,
     clearance_mm: float,
+    capacity_policy: GateCapacityPolicy,
 ) -> tuple[Vector3, ...]:
     """
     Place input-ordered cable centers on a deterministic hexagonal lattice.
@@ -270,7 +284,10 @@ def _pack_gate(
     crossings: list[Vector3] = []
     for cable, (u_offset, v_offset) in zip(cables, offsets):
         center_distance = math.hypot(u_offset, v_offset)
-        if center_distance + cable.diameter_mm / 2.0 > gate.usable_radius_mm + 1e-9:
+        if (
+            capacity_policy is GateCapacityPolicy.REJECT
+            and center_distance + cable.diameter_mm / 2.0 > gate.usable_radius_mm + 1e-9
+        ):
             raise GateCapacityError(gate, len(cables))
         crossing = gate.origin.translated(gate.u_direction, u_offset).translated(
             gate.v_direction,

@@ -10,11 +10,12 @@ from uuid import UUID
 import pytest
 
 from cable_bundler.routing import (
+    CableRouteInput,
     GateCapacityError,
+    GateCapacityPolicy,
     GateFrame,
     RefineFrame,
     Vector3,
-    CableRouteInput,
     place_route_crossings,
     solve_parallel_routes,
 )
@@ -159,6 +160,26 @@ def test_reports_gate_that_cannot_fit_bundle() -> None:
         solve_parallel_routes(tuple(_cable(index, 1.5) for index in range(1, 4)), (gate,))
 
     assert error_info.value.gate_id == gate.gate_id
+
+
+def test_can_preserve_spacing_outside_an_undersized_gate() -> None:
+    """
+    Produce deterministic crossings when a caller explicitly permits overflow.
+    """
+    cables = tuple(_cable(index, 3.0) for index in range(1, 4))
+    gate = _gate(5, 2.98176)
+
+    crossings = place_route_crossings(
+        cables,
+        gate,
+        capacity_policy=GateCapacityPolicy.ALLOW_OVERFLOW,
+    )
+
+    assert len(crossings) == 3
+    assert any(math.hypot(point.x, point.y) + 1.5 > gate.usable_radius_mm for point in crossings)
+    for left_index, left in enumerate(crossings):
+        for right in crossings[left_index + 1 :]:
+            assert math.hypot(left.x - right.x, left.y - right.y) >= 3.0 - 1e-9
 
 
 def test_centers_partial_hex_ring_for_exact_two_cable_fit() -> None:
