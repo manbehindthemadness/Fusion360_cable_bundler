@@ -558,25 +558,37 @@ function renderRelationshipEndList(
 function addRelationshipMapContextMenu(workspace, harness) {
   const show = addContextMenu(workspace.viewport, workspace.viewport);
   workspace.viewport.addEventListener("contextmenu", (event) => {
+    const hasWireGroups = Boolean((harness.wireGroups || []).length);
     show(event, [
       {
-        label: "Preview Routes",
-        action: previewRoutes,
-        disabled: !(harness.wireGroups || []).length,
-        title: (harness.wireGroups || []).length ? "" : "Requires at least one wire group",
+        label: "Render",
+        items: [
+          {
+            label: "Preview",
+            checked: Boolean(harness.hasRoutePreview),
+            action: activatePreview,
+            onToggle: setPreviewEnabled,
+            disabled: !hasWireGroups && !harness.hasRoutePreview,
+            title: hasWireGroups ? "" : "Requires at least one wire group",
+          },
+          {
+            label: "Solids",
+            checked: Boolean(harness.hasGeneratedSolids),
+            action: generateSolids,
+            onToggle: setSolidsEnabled,
+            disabled: !hasWireGroups && !harness.hasGeneratedSolids,
+            title: hasWireGroups ? "" : "Requires at least one wire group",
+          },
+        ],
       },
-      { label: "Clear Preview", action: clearPreview },
       {
-        label: "Generate Solids",
-        action: generateSolids,
-        disabled: !(harness.wireGroups || []).length,
-        title: (harness.wireGroups || []).length ? "" : "Requires at least one wire group",
+        label: "Add",
+        items: [
+          { label: "Pathway", action: addPathway },
+          { label: "Junction", action: addJunction },
+          { label: "Ending", action: addEnd },
+        ],
       },
-      { label: "Clear Solids", action: clearSolids },
-      { label: "Refresh", action: refresh },
-      { label: "Add Pathway", action: addPathway },
-      { label: "Add Junction", action: addJunction },
-      { label: "Add End", action: addEnd },
       { label: "Materials", action: () => openMaterialOptions(harness) },
       { label: "Defaults", action: () => openInterpolationOptions(harness, "defaults") },
       { label: "Properties", action: () => openHarnessProperties(harness) },

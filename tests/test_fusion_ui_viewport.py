@@ -173,8 +173,13 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     design = object()
     viewport = Mock()
     application = SimpleNamespace(activeViewport=viewport)
-    gateway = SimpleNamespace(read_harness_definition=Mock(return_value=dumps(valid_harness)))
+    component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=Mock(return_value=dumps(valid_harness)),
+        harness_component=Mock(return_value=component),
+    )
     send_state = Mock()
+    clear_solids = Mock(return_value=2)
 
     def show(
         _design: object, _definition: HarnessDefinition, **kwargs: object
@@ -192,14 +197,18 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "show_route_previews", show)
+    monkeypatch.setattr(addin_module, "clear_wire_solids", clear_solids)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id)})
 
     assert addin_module._preview_routes(application, payload) == 3
 
+    clear_solids.assert_called_once_with(component)
     viewport.refresh.assert_called_once()
     notice = send_state.call_args.args[1]
-    assert notice.startswith("Previewing 3 wire-group route legs.\nWire 001:")
+    assert notice.startswith(
+        "Previewing 3 wire-group route legs.\nCleared 2 wire solids.\nWire 001:"
+    )
     assert "from 5.063 mm to 4.563 mm" in notice
 
 

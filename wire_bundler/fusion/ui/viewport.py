@@ -272,9 +272,12 @@ def _preview_routes(application: adsk.core.Application, serialized_data: str) ->
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
     notices: list[str] = []
+    cleared_solids = clear_wire_solids(gateway.harness_component(harness_id))
     routes = show_route_previews(design, definition, notices=notices)
     application.activeViewport.refresh()
     summary = f"Previewing {len(routes)} wire-group route legs."
+    if cleared_solids:
+        notices.insert(0, f"Cleared {cleared_solids} wire solids.")
     _send_palette_state(application, "\n".join((summary, *notices)))
     return len(routes)
 

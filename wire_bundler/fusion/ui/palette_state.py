@@ -31,6 +31,8 @@ from ...domain import (
     WireMaterialSettings,
     WireStripe,
 )
+from ..route_preview import has_route_preview_for_harness
+from ..wire_solids import generated_wire_group_occurrences
 from .constants import PALETTE_ID
 from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
 from .payloads import (
@@ -53,6 +55,31 @@ def _send_palette_state(
     if palette is None:
         return
     palette.sendInfoToHTML("state", serialize_palette_state(application, notice))
+
+
+def _harness_render_state(
+    application: adsk.core.Application,
+    gateway: object,
+    definition: HarnessDefinition,
+) -> tuple[bool, bool]:
+    """
+    Discover mutually exclusive preview and solid output for one harness.
+
+    A solid wins during the brief interval before post-command preview cleanup,
+    preserving the Render menu's NAND contract throughout palette refreshes.
+    """
+    active_product = getattr(application, "activeProduct", None)
+    design_type = getattr(adsk.fusion, "Design", None)
+    component_reader = getattr(gateway, "harness_component", None)
+    if active_product is None or design_type is None or component_reader is None:
+        return False, False
+    design = design_type.cast(active_product)
+    if design is None:
+        return False, False
+    harness_component = component_reader(definition.harness_id)
+    has_solids = bool(generated_wire_group_occurrences(harness_component))
+    has_preview = not has_solids and has_route_preview_for_harness(design, definition)
+    return has_preview, has_solids
 
 
 def serialize_palette_state(
@@ -80,6 +107,11 @@ def serialize_palette_state(
             )
             continue
         wire_groups, wire_group_route_error = _wire_group_payloads(definition)
+        has_route_preview, has_generated_solids = _harness_render_state(
+            application,
+            gateway,
+            definition,
+        )
         harnesses.append(
             {
                 "componentName": result.component_name,
@@ -91,6 +123,8 @@ def serialize_palette_state(
                 "endDefaults": asdict(definition.end_defaults),
                 "minimumClearanceMm": definition.minimum_clearance_mm,
                 "autoTransitionPreset": definition.auto_transition_preset.value,
+                "hasRoutePreview": has_route_preview,
+                "hasGeneratedSolids": has_generated_solids,
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
                 "connections": [
                     {

@@ -203,23 +203,70 @@ function addContextMenu(root, returnFocus = null) {
       if (returnFocus) returnFocus.focus();
     }
   });
+  const appendItem = (parent, item, closeMenu) => {
+    if (item.items) {
+      const branch = document.createElement("div");
+      const trigger = document.createElement("button");
+      const submenu = document.createElement("div");
+      branch.className = "context-menu-branch";
+      trigger.type = "button";
+      trigger.className = "context-menu-branch-trigger";
+      trigger.setAttribute("role", "menuitem");
+      trigger.setAttribute("aria-haspopup", "menu");
+      trigger.textContent = item.label;
+      trigger.disabled = item.disabled || false;
+      trigger.title = item.title || "";
+      submenu.className = "context-menu-submenu";
+      submenu.setAttribute("role", "menu");
+      item.items.forEach((child) => appendItem(submenu, child, closeMenu));
+      branch.append(trigger, submenu);
+      parent.append(branch);
+      return;
+    }
+    if (typeof item.checked === "boolean") {
+      const row = document.createElement("div");
+      const button = document.createElement("button");
+      const checkbox = document.createElement("input");
+      row.className = "context-menu-toggle";
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.textContent = item.label;
+      button.disabled = item.disabled || false;
+      button.title = item.title || "";
+      checkbox.type = "checkbox";
+      checkbox.checked = item.checked;
+      checkbox.disabled = item.disabled || false;
+      checkbox.setAttribute("aria-label", `${item.label} enabled`);
+      checkbox.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeMenu();
+        void item.onToggle(checkbox.checked);
+      });
+      button.addEventListener("click", () => {
+        closeMenu();
+        void item.action();
+      });
+      row.append(button, checkbox);
+      parent.append(row);
+      return;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.textContent = item.label;
+    button.disabled = item.disabled || false;
+    button.title = item.title || "";
+    button.addEventListener("click", () => {
+      closeMenu();
+      void item.action();
+    });
+    parent.append(button);
+  };
   const show = (event, items) => {
     event.preventDefault();
     const bounds = root.getBoundingClientRect();
     menu.replaceChildren();
-    items.forEach(({ label, action, disabled = false, title = "" }) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("role", "menuitem");
-      button.textContent = label;
-      button.disabled = disabled;
-      button.title = title;
-      button.addEventListener("click", () => {
-        close();
-        void action();
-      });
-      menu.append(button);
-    });
+    items.forEach((item) => appendItem(menu, item, close));
     menu.style.left = "4px";
     menu.style.top = "4px";
     menu.hidden = false;
@@ -234,8 +281,13 @@ function addContextMenu(root, returnFocus = null) {
     );
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+    menu.dataset.submenuDirection = (
+      left + menuBounds.width + 140 > root.clientWidth ? "left" : "right"
+    );
     document.addEventListener("mousedown", dismissOnOutsideMouseDown, true);
-    const firstEnabled = Array.from(menu.children).find((button) => !button.disabled);
+    const firstEnabled = Array.from(menu.querySelectorAll("button")).find(
+      (button) => !button.disabled,
+    );
     if (firstEnabled) firstEnabled.focus();
   };
   root.append(menu);
@@ -318,5 +370,3 @@ function createOptionsDialog(className) {
   save.textContent = "Save";
   return { dialog, form, heading, note, error, actions, cancel, save };
 }
-
-

@@ -7,10 +7,12 @@ import re
 from tests.fusion_ui_support import (
     HarnessDefinition,
     HarnessLoadResult,
+    Mock,
     SimpleNamespace,
     _PaletteLifecycleModule,
     json,
     pytest,
+    sys,
 )
 
 
@@ -58,6 +60,8 @@ def test_palette_state_contains_complete_group_definition(
     assert "profiles" not in harness
     assert "relationshipMap" not in harness
     assert harness["schemaVersion"] == valid_harness.schema_version
+    assert harness["hasRoutePreview"] is False
+    assert harness["hasGeneratedSolids"] is False
     assert harness["minimumClearanceMm"] == valid_harness.minimum_clearance_mm
     assert harness["autoTransitionPreset"] == valid_harness.auto_transition_preset.value
     assert harness["standaloneEnds"] == [
@@ -77,6 +81,39 @@ def test_palette_state_contains_complete_group_definition(
     assert wire_group["diameterMm"] == valid_harness.wire_groups[0].diameter_mm
     assert len(wire_group["routeLegs"]) == 1
     assert wire_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+
+
+def test_palette_render_state_reports_preview_or_solids_but_never_both(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Project live Fusion output into the mutually exclusive Render menu checks.
+    """
+    design = object()
+    component = object()
+    application = SimpleNamespace(activeProduct=object())
+    gateway = SimpleNamespace(harness_component=Mock(return_value=component))
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda _product: design)  # type: ignore[attr-defined]
+    occurrences = Mock(return_value=())
+    has_preview = Mock(return_value=True)
+    monkeypatch.setattr(addin_module, "generated_wire_group_occurrences", occurrences)
+    monkeypatch.setattr(addin_module, "has_route_preview_for_harness", has_preview)
+
+    assert addin_module._harness_render_state(application, gateway, valid_harness) == (
+        True,
+        False,
+    )
+
+    occurrences.return_value = (object(),)
+    has_preview.reset_mock()
+    assert addin_module._harness_render_state(application, gateway, valid_harness) == (
+        False,
+        True,
+    )
+    has_preview.assert_not_called()
 
 
 def test_damaged_palette_entry_can_delete_its_exact_component(

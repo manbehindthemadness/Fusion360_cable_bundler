@@ -70,3 +70,24 @@ test('long wire-end names expand horizontally instead of wrapping', () => {
     /\.relationship-end-entry strong \{[^}]*white-space: nowrap;/s,
   );
 });
+
+test('master context submenus open only while their parent is hovered', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(
+    styles,
+    /\.context-menu-branch:hover > \.context-menu-submenu \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\);/s,
+  );
+  assert.doesNotMatch(styles, /context-menu-branch:focus-within/);
+});
+
+test('context menus size to their contents without fixed minimum widths', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(
+    styles,
+    /\.relationship-map-context-menu \{[^}]*width: max-content;/s,
+  );
+  assert.doesNotMatch(styles, /\.relationship-map-context-menu \{[^}]*min-width:/s);
+  assert.doesNotMatch(styles, /\.context-menu-submenu \{[^}]*min-width:/s);
+});

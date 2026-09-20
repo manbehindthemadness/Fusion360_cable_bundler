@@ -167,6 +167,54 @@ test('master diagram Materials action opens harness materials', () => {
   assert.equal(materialDialog.children[0].children[0].textContent, 'Harness Materials');
 });
 
+test('master diagram groups render and add actions into submenus', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.hasRoutePreview = true;
+  definition.hasGeneratedSolids = false;
+  const actions = [];
+  context.previewRoutes = () => actions.push('preview');
+  context.clearPreview = () => actions.push('clear-preview');
+  context.generateSolids = () => actions.push('solids');
+  context.clearSolids = () => actions.push('clear-solids');
+  const diagram = context.renderRelationshipMap(definition);
+  const viewport = descendants(
+    diagram, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  const menu = descendants(
+    viewport, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+
+  viewport.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, target: viewport,
+  });
+  const branches = menu.children.filter((item) => item.className === 'context-menu-branch');
+  const renderBranch = branches.find((item) => item.children[0].textContent === 'Render');
+  const addBranch = branches.find((item) => item.children[0].textContent === 'Add');
+  const renderRows = renderBranch.children[1].children;
+  const preview = renderRows.find((row) => row.children[0].textContent === 'Preview');
+  const solids = renderRows.find((row) => row.children[0].textContent === 'Solids');
+
+  assert.deepEqual(
+    addBranch.children[1].children.map((item) => item.textContent),
+    ['Pathway', 'Junction', 'Ending'],
+  );
+  assert.equal(preview.children[1].checked, true);
+  assert.equal(solids.children[1].checked, false);
+  preview.children[0].events.click();
+  preview.children[1].checked = false;
+  preview.children[1].events.click({ stopPropagation() {} });
+  solids.children[1].checked = true;
+  solids.children[1].events.click({ stopPropagation() {} });
+  solids.children[0].events.click();
+  solids.children[1].checked = false;
+  solids.children[1].events.click({ stopPropagation() {} });
+
+  assert.deepEqual(actions, [
+    'preview', 'clear-preview', 'solids', 'solids', 'clear-solids',
+  ]);
+});
+
 test('Wire Details Materials action opens group materials', () => {
   const { context } = palette();
   const definition = harness();
@@ -356,5 +404,4 @@ test('material color context menus copy and paste between swatches', () => {
 
   assert.equal(swatches[2].value, '#ff0000');
 });
-
 

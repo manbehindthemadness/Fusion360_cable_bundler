@@ -132,14 +132,12 @@ async function send(action, payload = {}) {
 function generateSolids() {
   const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
   if (!harness || harness.status === "damaged" || !(harness.wireGroups || []).length) return;
-  if (!window.confirm("Build wire solids? This replaces previous generated wire components, including manual edits inside them.")) return;
   return mutate("generate_solids", { harnessId: harness.harnessId, replaceExisting: true }, "Generating wire solids…");
 }
 
 function clearSolids() {
   const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
   if (!harness || harness.status === "damaged") return;
-  if (!window.confirm("Clear generated wire solids? This removes manual edits inside generated wire components.")) return;
   return mutate("clear_solids", { harnessId: harness.harnessId }, "Clearing wire solids…");
 }
 
@@ -420,10 +418,23 @@ async function clearPreview() {
       appendNotice(response.error || "Route preview could not be cleared.", true);
     } else {
       appendNotice(response.notice);
+      await refresh();
     }
   } catch (error) {
     appendNotice(error.message, true);
   }
+}
+
+function activatePreview() {
+  return previewRoutes();
+}
+
+function setPreviewEnabled(enabled) {
+  return enabled ? activatePreview() : clearPreview();
+}
+
+function setSolidsEnabled(enabled) {
+  return enabled ? generateSolids() : clearSolids();
 }
 
 ui.back.addEventListener("click", closeEditor);

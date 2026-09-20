@@ -89,7 +89,6 @@
   z-index: 4;
   box-sizing: border-box;
   width: max-content;
-  min-width: 150px;
   max-width: calc(100% - 8px);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -114,6 +113,43 @@
   color: var(--muted);
   cursor: not-allowed;
   opacity: 0.65;
+}
+.relationship-map-context-menu .context-menu-branch {
+  position: relative;
+}
+.relationship-map-context-menu .context-menu-branch-trigger::after {
+  content: "›";
+  float: right;
+  margin-left: 10px;
+}
+.relationship-map-context-menu .context-menu-submenu {
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  left: 100%;
+  display: none;
+  width: max-content;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px;
+  background: var(--surface);
+  box-shadow: 0 5px 14px #0003;
+}
+.relationship-map-context-menu[data-submenu-direction="left"] .context-menu-submenu {
+  right: 100%;
+  left: auto;
+}
+.relationship-map-context-menu .context-menu-branch:hover > .context-menu-submenu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.relationship-map-context-menu .context-menu-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.relationship-map-context-menu .context-menu-toggle input {
+  margin: 0 5px;
 }
 .block-diagram-viewport > .relationship-map-context-menu {
   display: inline-grid;
@@ -236,4 +272,3 @@
   opacity: 0.3;
   cursor: not-allowed;
 }
-

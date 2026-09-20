@@ -51,6 +51,7 @@ __all__ = [
     "_prepare_group_sweep_segments",
     "_replace_group_stripe_graphics",
     "WireSolidVisibilityState",
+    "generated_wire_group_occurrences",
     "hide_generated_wire_group_solids",
     "restore_generated_wire_group_visibility",
 ]

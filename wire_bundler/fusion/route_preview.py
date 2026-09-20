@@ -243,6 +243,33 @@ def has_route_previews(design: adsk.fusion.Design) -> bool:
     return False
 
 
+def has_route_preview_for_harness(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+) -> bool:
+    """
+    Report whether the live preview belongs to the specified harness.
+
+    Cached identity is authoritative. The assigned group name recovers identity
+    after a plugin reload, when Fusion can retain graphics but Python state is
+    no longer available.
+    """
+    expected_name = f"{definition.name} Route Preview"
+    for groups in _design_graphics_collections(design):
+        for index in range(groups.count):
+            group = groups.item(index)
+            if group is None or not _is_preview_group(group):
+                continue
+            state = _preview_states.get(group.id)
+            if state is not None:
+                if state.definition.harness_id == definition.harness_id:
+                    return True
+                continue
+            if group.name == expected_name:
+                return True
+    return False
+
+
 def _design_graphics_collections(
     design: adsk.fusion.Design,
 ) -> tuple[adsk.fusion.CustomGraphicsGroups, ...]:
