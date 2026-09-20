@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Protocol
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -42,6 +42,18 @@ from .route_preview import solve_wire_group_centerlines
 GENERATED_WIRE_GROUP_ATTRIBUTE = "generated_wire_group"
 GENERATED_STRIPE_GROUP_ID = "kev0.wire_bundler.generated_wire_stripes"
 _JUNCTION_TOLERANCE_MM = 1e-6
+
+
+class _VisibilityOccurrence(Protocol):
+    """
+    Expose the Fusion occurrence state needed for temporary solid hiding.
+    """
+
+    isLightBulbOn: bool
+    isValid: bool
+
+
+WireSolidVisibilityState = tuple[tuple[_VisibilityOccurrence, bool], ...]
 
 
 @dataclass(frozen=True)
@@ -140,6 +152,40 @@ def generated_wire_group_occurrences(
         )
         is not None
     )
+
+
+def hide_generated_wire_group_solids(
+    harness: adsk.fusion.Component,
+) -> WireSolidVisibilityState:
+    """
+    Hide managed wire-group occurrences and capture their exact prior visibility.
+
+    If Fusion rejects a visibility update, every occurrence changed so far is
+    restored before the error is propagated.
+    """
+    visibility = tuple(
+        (occurrence, occurrence.isLightBulbOn)
+        for occurrence in generated_wire_group_occurrences(harness)
+    )
+    try:
+        for occurrence, was_visible in visibility:
+            if was_visible:
+                occurrence.isLightBulbOn = False
+    except (AttributeError, RuntimeError) as error:
+        restore_generated_wire_group_visibility(visibility)
+        raise RuntimeError("Fusion could not hide generated wire solids.") from error
+    return visibility
+
+
+def restore_generated_wire_group_visibility(
+    visibility: WireSolidVisibilityState,
+) -> None:
+    """
+    Restore managed wire-group occurrences to their captured light-bulb states.
+    """
+    for occurrence, was_visible in visibility:
+        if occurrence.isValid:
+            occurrence.isLightBulbOn = was_visible
 
 
 def generated_wire_group_bodies(

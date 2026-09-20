@@ -38,6 +38,11 @@ from ...refine_graphics import (
     place_refine,
     reconcile_refine_graphics,
 )
+from ...wire_solids import (
+    WireSolidVisibilityState,
+    hide_generated_wire_group_solids,
+    restore_generated_wire_group_visibility,
+)
 from ..constants import REFINE_RADIUS_INPUT_ID, REFINE_SPINE_INPUT_ID, REFINE_TRANSFORM_INPUT_ID
 from ..launchers import _open_refine_edit_command
 from ..palette_state import _send_palette_state
@@ -67,6 +72,7 @@ class _RefineCommandState:
     placement: Optional[RefinePlacement] = None
     candidate: Optional[adsk.fusion.CustomGraphicsLines] = None
     preselected_point_mm: Optional[Vector3] = None
+    solid_visibility: WireSolidVisibilityState = ()
 
 
 class _SelectionInput(Protocol):
@@ -476,18 +482,26 @@ class _RefineDestroyedHandler(adsk.core.CommandEventHandler):
     Release short-lived handlers after Fusion removes preview graphics.
     """
 
-    def __init__(self, handlers: list[object]) -> None:
+    def __init__(self, state: _RefineCommandState, handlers: list[object]) -> None:
         """
-        Retain handlers until command destruction.
+        Retain command visibility state and handlers until destruction.
         """
         super().__init__()
+        self._state = state
         self._command_handlers = handlers
 
     def notify(self, _args: adsk.core.CommandEventArgs) -> None:
         """
-        Release handlers after Fusion rolls back command-preview graphics.
+        Restore generated solids and release handlers after preview rollback.
         """
-        _runtime.handler_registry.release(*self._command_handlers, self)
+        try:
+            restore_generated_wire_group_visibility(self._state.solid_visibility)
+            application = adsk.core.Application.get()
+            application.activeViewport.refresh()
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            _report_failure("restore generated wire solids after refine placement")
+        finally:
+            _runtime.handler_registry.release(*self._command_handlers, self)
 
 
 class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
@@ -501,15 +515,15 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
         Resolve the selected pathway and attach command-lifetime handlers.
         """
         pending_ids = _runtime.pending_refine.consume()
+        state: Optional[_RefineCommandState] = None
         try:
             if pending_ids is None:
                 raise RuntimeError("No routing span was selected for refine placement.")
             target_kind, harness_id, target_id = pending_ids
             application = adsk.core.Application.get()
             design = _require_active_design(application)
-            definition = loads(
-                _create_harness_gateway(application).read_harness_definition(harness_id)
-            )
+            gateway = _create_harness_gateway(application)
+            definition = loads(gateway.read_harness_definition(harness_id))
             spine = (
                 build_end_spine(design, definition, target_id)
                 if target_kind == "end"
@@ -527,24 +541,25 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             radius_input = _add_refine_radius_input(args.command.commandInputs)
             radius_input.isVisible = False
             radius_input.isEnabled = False
-            state = _RefineCommandState(harness_id, target_id, spine, target_kind)
+            command_state = _RefineCommandState(harness_id, target_id, spine, target_kind)
+            state = command_state
             activate_handler = _RefineActivateHandler(selection_input)
-            preselect_handler = _RefinePreSelectHandler(state)
+            preselect_handler = _RefinePreSelectHandler(command_state)
             select_handler = _RefineSelectHandler(
-                state,
+                command_state,
                 args.command,
                 args.command.commandInputs,
                 selection_input,
             )
-            input_handler = _RefineInputChangedHandler(state)
-            preview_handler = _RefineExecutePreviewHandler(state)
+            input_handler = _RefineInputChangedHandler(command_state)
+            preview_handler = _RefineExecutePreviewHandler(command_state)
             drag_handler = _RefineMouseDragHandler(
-                state,
+                command_state,
                 args.command.commandInputs,
                 args.command,
             )
-            validate_handler = _RefineValidateInputsHandler(state)
-            execute_handler = _RefineExecuteHandler(state)
+            validate_handler = _RefineValidateInputsHandler(command_state)
+            execute_handler = _RefineExecuteHandler(command_state)
             command_handlers: list[object] = [
                 activate_handler,
                 preselect_handler,
@@ -555,7 +570,7 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 validate_handler,
                 execute_handler,
             ]
-            destroyed = _RefineDestroyedHandler(command_handlers)
+            destroyed = _RefineDestroyedHandler(command_state, command_handlers)
             if not args.command.activate.add(activate_handler):
                 raise RuntimeError("Fusion could not start the refine preview.")
             if not args.command.preSelect.add(preselect_handler):
@@ -575,12 +590,17 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             if not args.command.destroy.add(destroyed):
                 raise RuntimeError("Fusion could not register refine cleanup.")
             _runtime.handler_registry.retain(*command_handlers, destroyed)
+            command_state.solid_visibility = hide_generated_wire_group_solids(
+                gateway.harness_component(harness_id)
+            )
             application.activeViewport.refresh()
         except (AttributeError, RuntimeError, TypeError, ValueError):
             application = adsk.core.Application.get()
             design = adsk.fusion.Design.cast(application.activeProduct)
             if design is not None:
                 clear_refine_spine(design)
+            if state is not None:
+                restore_generated_wire_group_visibility(state.solid_visibility)
             _report_failure("open Add Refine Point")
             raise
 

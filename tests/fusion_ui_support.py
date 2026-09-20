@@ -189,6 +189,8 @@ class _PaletteLifecycleModule(Protocol):
     clear_refine_spine: Callable[[object], None]
     clear_wire_solids: Callable[[object], int]
     generated_wire_group_bodies: Callable[..., tuple[object, ...]]
+    hide_generated_wire_group_solids: Callable[[object], tuple[tuple[object, bool], ...]]
+    restore_generated_wire_group_visibility: Callable[[tuple[tuple[object, bool], ...]], None]
     has_refine_graphics: Callable[[object], bool]
     has_route_previews: Callable[[object], bool]
     show_route_previews: Callable[..., tuple[object, ...]]

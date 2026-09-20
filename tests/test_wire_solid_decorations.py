@@ -57,6 +57,8 @@ class _WireSolidsModule(Protocol):
     ]
     restore_wire_group_stripe_graphics: Callable[[object, object], int]
     generated_wire_group_occurrences: Callable[[object], tuple[object, ...]]
+    hide_generated_wire_group_solids: Callable[[object], tuple[tuple[object, bool], ...]]
+    restore_generated_wire_group_visibility: Callable[[tuple[tuple[object, bool], ...]], None]
     _replace_group_stripe_graphics: Callable[..., int]
 
 
@@ -184,6 +186,33 @@ def test_restores_transient_stripes_from_generated_routes(
     assert restored_routes == (route,)
     assert replace_graphics.call_args.args[3] == group.diameter_mm / 2.0
     assert replace_graphics.call_args.args[4] == group.wire_group_id
+
+
+def test_generated_solids_visibility_round_trip_preserves_prior_state(
+    wire_solids: _WireSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Hide visible managed occurrences temporarily without revealing prior-hidden output.
+    """
+    visible = type("Occurrence", (), {"isLightBulbOn": True, "isValid": True})()
+    hidden = type("Occurrence", (), {"isLightBulbOn": False, "isValid": True})()
+    monkeypatch.setattr(
+        wire_solids,
+        "generated_wire_group_occurrences",
+        lambda _harness: (visible, hidden),
+    )
+
+    state = wire_solids.hide_generated_wire_group_solids(object())
+
+    assert state == ((visible, True), (hidden, False))
+    assert not visible.isLightBulbOn
+    assert not hidden.isLightBulbOn
+
+    wire_solids.restore_generated_wire_group_visibility(state)
+
+    assert visible.isLightBulbOn
+    assert not hidden.isLightBulbOn
 
 
 def test_copies_root_decoration_position_to_every_branch(
