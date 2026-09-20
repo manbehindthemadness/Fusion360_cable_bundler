@@ -102,6 +102,63 @@ class _RouteSolveCache:
     notices: tuple[str, ...]
 
 
+def _leg_control_ids(
+    leg: WireGroupRouteLeg,
+    end_control_ids: dict[UUID, tuple[UUID, ...]],
+) -> tuple[UUID, ...]:
+    """
+    Return end-owned and pathway controls in one leg's traversal order.
+    """
+    return (
+        *(
+            end_control_ids.get(leg.start_connection_id, ())
+            if leg.start_connection_id is not None
+            else ()
+        ),
+        *(step.control_id for step in leg.control_steps),
+        *(
+            reversed(end_control_ids.get(leg.end_connection_id, ()))
+            if leg.end_connection_id is not None
+            else ()
+        ),
+    )
+
+
+def _append_route_control(
+    leg_label: str,
+    wire_group_id: UUID,
+    control_id: UUID,
+    reversed_direction: bool,
+    controls: dict[UUID, ControlStructure],
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
+    crossings: dict[tuple[UUID, UUID], Vector3],
+    points: list[Vector3],
+    normals: list[Vector3],
+    transitions: list[TransitionLengths],
+    point_control_ids: list[Optional[UUID]],
+    soft_guide_indices: set[int],
+) -> None:
+    """
+    Append one shared or end-owned routing control in traversal order.
+    """
+    control = controls.get(control_id)
+    if control is None:
+        raise RuntimeError(f"{leg_label} references a missing routing control.")
+    frame = frames[control_id]
+    control_point_index = len(points)
+    points.append(crossings[control_id, wire_group_id])
+    normals.append(cross(frame.u_direction, frame.v_direction))
+    point_control_ids.append(control_id)
+    soft_guide_indices.add(control_point_index)
+    settings = control.interpolation
+    transitions.append(
+        TransitionLengths(
+            settings.departure_mm if reversed_direction else settings.approach_mm,
+            settings.approach_mm if reversed_direction else settings.departure_mm,
+        )
+    )
+
+
 _preview_states: dict[str, _PreviewState] = {}
 _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
 _route_solve_cache: Optional[_RouteSolveCache] = None
@@ -239,6 +296,9 @@ def show_route_previews(
     group_connections = {
         group.wire_group_id: group.connection_ids for group in definition.wire_groups
     }
+    end_control_ids = {
+        end.connection_id: end.ordered_control_ids for end in definition.standalone_ends
+    }
     _preview_states[preview_group.id] = _PreviewState(
         definition,
         {route.wire_id: route for route in routes},
@@ -247,9 +307,7 @@ def show_route_previews(
         route_group_ids=route_group_ids,
         route_connection_ids={leg.route_id: group_connections[leg.wire_group_id] for leg in legs},
         route_pathway_ids={leg.route_id: leg.pathway_ids for leg in legs},
-        route_control_ids={
-            leg.route_id: tuple(step.control_id for step in leg.control_steps) for leg in legs
-        },
+        route_control_ids={leg.route_id: _leg_control_ids(leg, end_control_ids) for leg in legs},
     )
     _remember_preview(preview_group.id, _preview_states[preview_group.id])
     return routes
@@ -362,17 +420,19 @@ def _solve_wire_group_routes(
     groups_by_id = {group.wire_group_id: group for group in definition.wire_groups}
     controls = {control.control_id: control for control in definition.controls}
     connections = {connection.connection_id: connection for connection in definition.connections}
+    end_control_ids = {
+        end.connection_id: end.ordered_control_ids for end in definition.standalone_ends
+    }
     frames: dict[UUID, Union[GateFrame, RefineFrame]] = {}
     group_order = {group.wire_group_id: index for index, group in enumerate(definition.wire_groups)}
     control_groups: dict[UUID, list[UUID]] = defaultdict(list)
     for leg in legs:
-        for step in leg.control_steps:
-            if step.control_id not in frames:
-                frames[step.control_id] = _routing_frame(
-                    design, controls.get(step.control_id), step.control_id
-                )
-            if leg.wire_group_id not in control_groups[step.control_id]:
-                control_groups[step.control_id].append(leg.wire_group_id)
+        leg_control_ids = _leg_control_ids(leg, end_control_ids)
+        for control_id in leg_control_ids:
+            if control_id not in frames:
+                frames[control_id] = _routing_frame(design, controls.get(control_id), control_id)
+            if leg.wire_group_id not in control_groups[control_id]:
+                control_groups[control_id].append(leg.wire_group_id)
     profile_frames: dict[str, _ProfileFrame] = {}
     for leg in legs:
         for connection_id, position in (
@@ -443,6 +503,7 @@ def _solve_wire_group_routes(
         soft_guide_indices: set[int] = set()
         start_frames: tuple[_ProfileFrame, ...] = ()
         start_transitions: tuple[TransitionLengths, ...] = ()
+
         if leg.start_connection_id is not None:
             connection = connections.get(leg.start_connection_id)
             if connection is None:
@@ -458,22 +519,35 @@ def _solve_wire_group_routes(
             transitions.extend(start_transitions)
             point_control_ids.extend((None,) * len(connection_frames))
             soft_guide_indices.update(range(1, len(connection_frames)))
-        for step in leg.control_steps:
-            control = controls.get(step.control_id)
-            if control is None:
-                raise RuntimeError(f"{leg.label} references a missing routing control.")
-            frame = frames[step.control_id]
-            control_point_index = len(points)
-            points.append(crossings[step.control_id, leg.wire_group_id])
-            normals.append(cross(frame.u_direction, frame.v_direction))
-            point_control_ids.append(step.control_id)
-            soft_guide_indices.add(control_point_index)
-            settings = control.interpolation
-            transitions.append(
-                TransitionLengths(
-                    settings.departure_mm if step.reversed else settings.approach_mm,
-                    settings.approach_mm if step.reversed else settings.departure_mm,
+            for control_id in end_control_ids.get(leg.start_connection_id, ()):
+                _append_route_control(
+                    leg.label,
+                    leg.wire_group_id,
+                    control_id,
+                    False,
+                    controls,
+                    frames,
+                    crossings,
+                    points,
+                    normals,
+                    transitions,
+                    point_control_ids,
+                    soft_guide_indices,
                 )
+        for step in leg.control_steps:
+            _append_route_control(
+                leg.label,
+                leg.wire_group_id,
+                step.control_id,
+                step.reversed,
+                controls,
+                frames,
+                crossings,
+                points,
+                normals,
+                transitions,
+                point_control_ids,
+                soft_guide_indices,
             )
         if start_frames and len(points) > len(start_frames):
             start_points = _connection_profile_points(
@@ -485,6 +559,21 @@ def _solve_wire_group_routes(
             )
             points[: len(start_frames)] = start_points
         if leg.end_connection_id is not None:
+            for control_id in reversed(end_control_ids.get(leg.end_connection_id, ())):
+                _append_route_control(
+                    leg.label,
+                    leg.wire_group_id,
+                    control_id,
+                    True,
+                    controls,
+                    frames,
+                    crossings,
+                    points,
+                    normals,
+                    transitions,
+                    point_control_ids,
+                    soft_guide_indices,
+                )
             connection = connections.get(leg.end_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
@@ -775,7 +864,10 @@ def _refresh_wire_group_preview(
         leg.route_id: leg.pathway_ids for leg in legs if leg.route_id in drawn_leg_ids
     }
     state.route_control_ids = {
-        leg.route_id: tuple(step.control_id for step in leg.control_steps)
+        leg.route_id: _leg_control_ids(
+            leg,
+            {end.connection_id: end.ordered_control_ids for end in definition.standalone_ends},
+        )
         for leg in legs
         if leg.route_id in drawn_leg_ids
     }

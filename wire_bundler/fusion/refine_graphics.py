@@ -15,7 +15,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ..domain import ControlKind, HarnessDefinition, RefineGeometry
+from ..domain import ControlKind, HarnessDefinition, PathwayEndpoint, RefineGeometry
 from ..routing import (
     GateFrame,
     RefineFrame,
@@ -26,7 +26,7 @@ from ..routing import (
     sample_centerline,
 )
 from ..routing.geometry import cross, difference, dot, magnitude, unit
-from .route_preview import _routing_frame
+from .route_preview import _connection_profile_frames, _ProfileFrame, _routing_frame
 
 REFINE_GRAPHICS_GROUP_ID = "kev0.wire_bundler.refines"
 REFINE_SPINE_GROUP_ID = "kev0.wire_bundler.refine_spine"
@@ -35,6 +35,7 @@ DEFAULT_REFINE_RADIUS_MM = 10.0
 _REFINE_COLOR = (232, 78, 180)
 _REFINE_HIGHLIGHT_COLOR = (255, 196, 62)
 _SPINE_COLOR = (42, 214, 226)
+RoutingFrame = Union[GateFrame, RefineFrame, _ProfileFrame]
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ class PathwaySpine:
     """
 
     points: tuple[Vector3, ...]
-    frames: tuple[Union[GateFrame, RefineFrame], ...]
+    frames: tuple[RoutingFrame, ...]
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,50 @@ def build_pathway_spine(
         auto_transition_fraction=definition.auto_transition_preset.span_fraction,
     )
     return PathwaySpine(sample_centerline(smooth), frames)
+
+
+def build_end_spine(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    connection_id: UUID,
+) -> PathwaySpine:
+    """
+    Build the end-owned span between its final guide and pathway boundary.
+    """
+    end = next(
+        (item for item in definition.standalone_ends if item.connection_id == connection_id),
+        None,
+    )
+    if end is None:
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    pathway = next(
+        (item for item in definition.pathways if item.pathway_id == end.pathway_id),
+        None,
+    )
+    if connection is None or pathway is None:
+        raise ValueError("Selected standalone end has missing routing data.")
+    if not pathway.ordered_control_ids:
+        raise ValueError("The parent pathway requires a routing gate before refining this end.")
+    controls = {control.control_id: control for control in definition.controls}
+    boundary_control_id = (
+        pathway.ordered_control_ids[0]
+        if end.endpoint is PathwayEndpoint.START
+        else pathway.ordered_control_ids[-1]
+    )
+    guide_frames = _connection_profile_frames(design, connection, {})
+    frames: tuple[RoutingFrame, ...] = (
+        guide_frames[-1],
+        *(
+            _routing_frame(design, controls.get(control_id), control_id)
+            for control_id in end.ordered_control_ids
+        ),
+        _routing_frame(design, controls.get(boundary_control_id), boundary_control_id),
+    )
+    return PathwaySpine(tuple(frame.origin for frame in frames), frames)
 
 
 def place_refine(
@@ -378,7 +423,7 @@ def _frame_display_radius(frame: Union[GateFrame, RefineFrame]) -> float:
     return frame.usable_radius_mm if isinstance(frame, GateFrame) else DEFAULT_REFINE_RADIUS_MM
 
 
-def _insertion_index(frames: tuple[Union[GateFrame, RefineFrame], ...], point: Vector3) -> int:
+def _insertion_index(frames: tuple[RoutingFrame, ...], point: Vector3) -> int:
     """
     Choose the ordered span nearest the selected pathway-center point.
     """

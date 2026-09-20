@@ -654,6 +654,36 @@ async function addPathwayRefine(harness, pathway) {
   }
 }
 
+async function appendEndGuides(harness, connectionId) {
+  appendNotice("Select additional guides for this end…");
+  try {
+    const response = await send("append_end_guides", {
+      harnessId: harness.harnessId,
+      connectionId,
+    });
+    if (!response.ok) {
+      appendNotice(response.error || "Add Guides could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
+async function addEndRefine(harness, connectionId) {
+  appendNotice("Select a refine location on this end’s routing span…");
+  try {
+    const response = await send("add_end_refine", {
+      harnessId: harness.harnessId,
+      connectionId,
+    });
+    if (!response.ok) {
+      appendNotice(response.error || "Add Refine Point could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
 async function segmentPathway(harness, pathway) {
   appendNotice(`Select an interior control on ${pathway.name}…`);
   try {

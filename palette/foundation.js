@@ -352,6 +352,34 @@ function wireGroupLabel(harness, group) {
   return `Wire Group ${index >= 0 ? index + 1 : "?"}`;
 }
 
+/** Return end-owned routing actions shared by every end representation. */
+function endRoutingContextItems(harness, connectionId) {
+  const end = (harness.standaloneEnds || []).find(
+    (candidate) => candidate.connectionId === connectionId,
+  );
+  const pathway = end && harness.pathways.find(
+    (candidate) => candidate.pathwayId === end.pathwayId,
+  );
+  const unavailable = !end || !pathway;
+  const refineUnavailable = unavailable || !(pathway.orderedControlIds || []).length;
+  return [
+    {
+      label: "Add Guides",
+      action: () => appendEndGuides(harness, connectionId),
+      disabled: unavailable,
+      title: unavailable ? "Requires an end attached to an existing pathway" : "",
+    },
+    {
+      label: "Add Refine Point",
+      action: () => addEndRefine(harness, connectionId),
+      disabled: refineUnavailable,
+      title: refineUnavailable
+        ? "Requires an end attached to a pathway with a routing gate"
+        : "",
+    },
+  ];
+}
+
 function pathwayDirection(pathway) {
   const start = pathway?.startName || "A";
   const end = pathway?.endName || "B";

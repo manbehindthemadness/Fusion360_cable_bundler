@@ -168,6 +168,9 @@ def serialize_palette_state(
                         "connectionId": str(end.connection_id),
                         "pathwayId": str(end.pathway_id),
                         "endpoint": end.endpoint.value,
+                        "orderedControlIds": [
+                            str(control_id) for control_id in end.ordered_control_ids
+                        ],
                     }
                     for end in definition.standalone_ends
                 ],

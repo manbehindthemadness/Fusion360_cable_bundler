@@ -404,6 +404,12 @@ def _validate_standalone_ends(
     """
     connection_ids = {connection.connection_id for connection in definition.connections}
     pathway_ids = {pathway.pathway_id for pathway in definition.pathways}
+    controls = {control.control_id: control for control in definition.controls}
+    pathway_control_ids = {
+        control_id for pathway in definition.pathways for control_id in pathway.ordered_control_ids
+    }
+    junction_control_ids = {junction.control_id for junction in definition.junctions}
+    owned_control_paths: dict[UUID, str] = {}
     seen_connections: dict[UUID, str] = {}
     for index, end in enumerate(definition.standalone_ends):
         path = f"standalone_ends[{index}]"
@@ -432,6 +438,46 @@ def _validate_standalone_ends(
             )
         else:
             seen_connections[end.connection_id] = f"{path}.connection_id"
+        seen_end_controls: set[UUID] = set()
+        for control_index, control_id in enumerate(end.ordered_control_ids):
+            control_path = f"{path}.ordered_control_ids[{control_index}]"
+            control = controls.get(control_id)
+            if control is None:
+                issues.append(
+                    ValidationIssue(
+                        "missing_end_control_reference",
+                        control_path,
+                        "Referenced end refine does not exist.",
+                    )
+                )
+            elif control.kind is not ControlKind.REFINE:
+                issues.append(
+                    ValidationIssue(
+                        "end_control_kind_mismatch",
+                        control_path,
+                        "End-owned controls must be refine points.",
+                    )
+                )
+            if control_id in pathway_control_ids or control_id in junction_control_ids:
+                issues.append(
+                    ValidationIssue(
+                        "shared_end_control",
+                        control_path,
+                        "An end-owned refine must not belong to a pathway or junction.",
+                    )
+                )
+            previous_path = owned_control_paths.get(control_id)
+            if control_id in seen_end_controls or previous_path is not None:
+                issues.append(
+                    ValidationIssue(
+                        "duplicate_end_control",
+                        control_path,
+                        "An end refine may appear only once.",
+                    )
+                )
+            else:
+                seen_end_controls.add(control_id)
+                owned_control_paths[control_id] = control_path
 
 
 def _validate_wire_groups(

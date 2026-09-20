@@ -211,8 +211,8 @@ function harness() {
     connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true,
   })));
   const standaloneEnds = [1, 2, 3].flatMap((i) => [
-    { connectionId: `a${i}`, pathwayId: 'p', endpoint: 'start' },
-    { connectionId: `b${i}`, pathwayId: 'p', endpoint: 'end' },
+    { connectionId: `a${i}`, pathwayId: 'p', endpoint: 'start', orderedControlIds: [] },
+    { connectionId: `b${i}`, pathwayId: 'p', endpoint: 'end', orderedControlIds: [] },
   ]);
   const wireGroups = [1, 2, 3].map((i) => ({
     wireGroupId: `g${i}`, connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
@@ -226,7 +226,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 14, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 15, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, controls: [], connections,

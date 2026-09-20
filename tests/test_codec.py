@@ -52,7 +52,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 15])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 16])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -99,6 +99,23 @@ def test_migrates_schema_13_with_tight_auto_transitions(
 
     assert migrated.schema_version == SCHEMA_VERSION
     assert migrated.auto_transition_preset is AutoTransitionPreset.TIGHT
+
+
+def test_migrates_schema_14_with_empty_end_controls(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve existing end guide stacks when end-owned refines are introduced.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["schema_version"] = 14
+    for end in payload["standalone_ends"]:
+        del end["ordered_control_ids"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert all(not end.ordered_control_ids for end in migrated.standalone_ends)
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

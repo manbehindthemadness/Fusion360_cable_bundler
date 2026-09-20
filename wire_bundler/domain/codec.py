@@ -82,11 +82,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 and 13 are migratable)",
+            "(schemas 12 through 14 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -109,7 +109,11 @@ def loads(serialized: str) -> HarnessDefinition:
         for index, item in enumerate(_require_list(payload, "junctions", "$.junctions"))
     )
     standalone_ends = tuple(
-        _parse_standalone_end(item, f"$.standalone_ends[{index}]")
+        _parse_standalone_end(
+            item,
+            f"$.standalone_ends[{index}]",
+            require_controls=schema_version == SCHEMA_VERSION,
+        )
         for index, item in enumerate(_require_list(payload, "standalone_ends", "$.standalone_ends"))
     )
     wire_groups = tuple(
@@ -143,7 +147,7 @@ def loads(serialized: str) -> HarnessDefinition:
                 "auto_transition_preset",
                 "$.auto_transition_preset",
             )
-            if schema_version == SCHEMA_VERSION
+            if schema_version >= 14
             else AutoTransitionPreset.TIGHT
         ),
     )
@@ -236,6 +240,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "connection_id": str(end.connection_id),
                 "pathway_id": str(end.pathway_id),
                 "endpoint": end.endpoint.value,
+                "ordered_control_ids": [str(control_id) for control_id in end.ordered_control_ids],
             }
             for end in definition.standalone_ends
         ],
@@ -634,15 +639,29 @@ def _parse_junction_relationship(
     )
 
 
-def _parse_standalone_end(raw_value: object, path: str) -> StandaloneEndDefinition:
+def _parse_standalone_end(
+    raw_value: object,
+    path: str,
+    *,
+    require_controls: bool,
+) -> StandaloneEndDefinition:
     """
     Parse one disconnected pathway-end assignment.
     """
     value = _require_mapping(raw_value, path)
+    raw_control_ids = _require_list(
+        value if require_controls else {"ordered_control_ids": [], **value},
+        "ordered_control_ids",
+        f"{path}.ordered_control_ids",
+    )
     return StandaloneEndDefinition(
         connection_id=_require_uuid(value, "connection_id", f"{path}.connection_id"),
         pathway_id=_require_uuid(value, "pathway_id", f"{path}.pathway_id"),
         endpoint=_require_enum(PathwayEndpoint, value, "endpoint", f"{path}.endpoint"),
+        ordered_control_ids=tuple(
+            _parse_uuid(control_id, f"{path}.ordered_control_ids[{index}]")
+            for index, control_id in enumerate(raw_control_ids)
+        ),
     )
 
 

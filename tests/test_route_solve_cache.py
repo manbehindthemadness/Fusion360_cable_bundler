@@ -14,9 +14,11 @@ from tests.fusion_ui_support import _PaletteLifecycleModule
 from wire_bundler.application import WireGroupControlStep, WireGroupRouteLeg
 from wire_bundler.domain import (
     AutoTransitionPreset,
+    ControlKind,
     ControlStructure,
     HarnessDefinition,
     JunctionDefinition,
+    RefineGeometry,
 )
 from wire_bundler.domain.model import InterpolationSettings
 from wire_bundler.routing import RefineFrame, RoutePreview, TransitionLengths, Vector3
@@ -120,11 +122,45 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         valid_harness.controls[0],
         interpolation=InterpolationSettings(9.0, 10.0),
     )
+    start_refine = replace(
+        junction_control,
+        control_id=UUID(int=682),
+        name="Start End Refine",
+        kind=ControlKind.REFINE,
+        entity_token="",
+        interpolation=InterpolationSettings(11.0, 12.0),
+        refine_geometry=RefineGeometry(
+            (0.0, 0.0, 20.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            1.0,
+        ),
+    )
+    end_refine = replace(
+        junction_control,
+        control_id=UUID(int=683),
+        name="End End Refine",
+        kind=ControlKind.REFINE,
+        entity_token="",
+        interpolation=InterpolationSettings(13.0, 14.0),
+        refine_geometry=RefineGeometry(
+            (0.0, 0.0, 40.0),
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            1.0,
+        ),
+    )
     definition = replace(
         valid_harness,
         connections=(start, end),
-        controls=(junction_control,),
+        controls=(junction_control, start_refine, end_refine),
         junctions=(JunctionDefinition(UUID(int=681), "Junction", junction_control.control_id),),
+        standalone_ends=(
+            replace(
+                valid_harness.standalone_ends[0], ordered_control_ids=(start_refine.control_id,)
+            ),
+            replace(valid_harness.standalone_ends[1], ordered_control_ids=(end_refine.control_id,)),
+        ),
         auto_transition_preset=AutoTransitionPreset.RELAXED,
     )
     leg = WireGroupRouteLeg(
@@ -151,12 +187,17 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         control_id: UUID,
     ) -> RefineFrame:
         """
-        Return one synthetic junction crossing.
+        Return one synthetic pathway or end-owned routing control.
         """
+        z = {
+            start_refine.control_id: 20.0,
+            junction_control.control_id: 30.0,
+            end_refine.control_id: 40.0,
+        }[control_id]
         return RefineFrame(
             control_id,
             control.name,
-            Vector3(0.0, 0.0, 30.0),
+            Vector3(0.0, 0.0, z),
             Vector3(1.0, 0.0, 0.0),
             Vector3(0.0, 1.0, 0.0),
         )
@@ -218,12 +259,22 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
     expected_transitions = (
         TransitionLengths(3.0, 4.0),
         TransitionLengths(1.0, 2.0),
+        TransitionLengths(11.0, 12.0),
         TransitionLengths(10.0, 9.0),
+        TransitionLengths(14.0, 13.0),
         TransitionLengths(8.0, 7.0),
         TransitionLengths(6.0, 5.0),
     )
     assert legs == (leg,)
-    assert tuple(point.z for point in routes[0].points) == (0.0, 10.0, 30.0, 50.0, 60.0)
+    assert tuple(point.z for point in routes[0].points) == (
+        0.0,
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+        50.0,
+        60.0,
+    )
     assert fairing_calls == [(expected_transitions, AutoTransitionPreset.RELAXED.span_fraction)]
     assert collision_calls == [
         ((expected_transitions,), AutoTransitionPreset.RELAXED.span_fraction)

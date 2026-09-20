@@ -144,7 +144,7 @@ def _open_append_gates_command(application: adsk.core.Application, serialized_da
     )
     if command_definition is None:
         raise RuntimeError("Fusion Add Gates command is unavailable.")
-    _runtime.pending_append_gates.prepare((harness_id, pathway_id))
+    _runtime.pending_append_gates.prepare(("pathway", harness_id, pathway_id))
     try:
         if not command_definition.execute():
             raise RuntimeError("Fusion did not open the Add Gates command.")
@@ -165,7 +165,55 @@ def _open_refine_command(application: adsk.core.Application, serialized_data: st
     )
     if command_definition is None:
         raise RuntimeError("Fusion Add Refine Point command is unavailable.")
-    _runtime.pending_refine.prepare((harness_id, pathway_id))
+    _runtime.pending_refine.prepare(("pathway", harness_id, pathway_id))
+    try:
+        if not command_definition.execute():
+            raise RuntimeError("Fusion did not open the Add Refine Point command.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_refine.clear()
+        raise
+
+
+def _open_append_end_guides_command(
+    application: adsk.core.Application,
+    serialized_data: str,
+) -> None:
+    """
+    Open native profile selection for one palette-selected end.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    connection_id = _read_payload_uuid(payload, "connectionId", "standalone end")
+    command_definition = application.userInterface.commandDefinitions.itemById(
+        APPEND_GATES_COMMAND_ID
+    )
+    if command_definition is None:
+        raise RuntimeError("Fusion Add Guides command is unavailable.")
+    _runtime.pending_append_gates.prepare(("end", harness_id, connection_id))
+    try:
+        if not command_definition.execute():
+            raise RuntimeError("Fusion did not open the Add Guides command.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_append_gates.clear()
+        raise
+
+
+def _open_end_refine_command(
+    application: adsk.core.Application,
+    serialized_data: str,
+) -> None:
+    """
+    Open interactive refine placement for one palette-selected end.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    connection_id = _read_payload_uuid(payload, "connectionId", "standalone end")
+    command_definition = application.userInterface.commandDefinitions.itemById(
+        ADD_REFINE_COMMAND_ID
+    )
+    if command_definition is None:
+        raise RuntimeError("Fusion Add Refine Point command is unavailable.")
+    _runtime.pending_refine.prepare(("end", harness_id, connection_id))
     try:
         if not command_definition.execute():
             raise RuntimeError("Fusion did not open the Add Refine Point command.")

@@ -37,7 +37,9 @@ from .launchers import (
     _open_add_junction_command,
     _open_add_junction_relationship_command,
     _open_add_pathway_command,
+    _open_append_end_guides_command,
     _open_append_gates_command,
+    _open_end_refine_command,
     _open_palette_edit,
     _open_refine_command,
     _open_refine_edit_command,
@@ -132,7 +134,11 @@ _NATIVE_DIALOG_ACTIONS: dict[
     ),
     "add_end": lambda application, data: _open_add_end_command(application, data),
     "append_pathway_gates": lambda application, data: _open_append_gates_command(application, data),
+    "append_end_guides": lambda application, data: _open_append_end_guides_command(
+        application, data
+    ),
     "add_pathway_refine": lambda application, data: _open_refine_command(application, data),
+    "add_end_refine": lambda application, data: _open_end_refine_command(application, data),
     "segment_pathway": lambda application, data: _open_segment_command(application, data),
     "edit_pathway_refine": _launch_refine_edit,
 }

@@ -116,8 +116,8 @@ class UiRuntime:
         default_factory=PendingSlot
     )
     pending_standalone_end: PendingSlot[UUID] = field(default_factory=PendingSlot)
-    pending_append_gates: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
-    pending_refine: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
+    pending_append_gates: PendingSlot[tuple[str, UUID, UUID]] = field(default_factory=PendingSlot)
+    pending_refine: PendingSlot[tuple[str, UUID, UUID]] = field(default_factory=PendingSlot)
     pending_segment: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_refine_edit: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_palette_edit: PendingSlot[tuple[str, str, object]] = field(default_factory=PendingSlot)

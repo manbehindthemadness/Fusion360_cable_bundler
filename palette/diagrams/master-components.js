@@ -522,6 +522,7 @@ function renderRelationshipEndList(
     button.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
       const contextItems = [
+        ...endRoutingContextItems(harness, group.connectionId),
         {
           label: "Rename",
           action: () => renameRelationshipEnd(harness, group, button, name, meta),

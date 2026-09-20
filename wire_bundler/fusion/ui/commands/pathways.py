@@ -18,6 +18,7 @@ import adsk.fusion
 
 from ....application import (
     add_pathway,
+    append_end_guides,
     append_pathway_gates,
     segment_pathway,
     suggest_pathway_extension_name,
@@ -180,13 +181,19 @@ class _AppendGatesExecuteHandler(adsk.core.CommandEventHandler):
     Append selected sketch profiles to an existing pathway.
     """
 
-    def __init__(self, harness_id: UUID, pathway_id: UUID) -> None:
+    def __init__(
+        self,
+        harness_id: UUID,
+        target_id: UUID,
+        target_kind: str = "pathway",
+    ) -> None:
         """
-        Bind the handler to the selected harness and pathway.
+        Bind the handler to the selected harness routing target.
         """
         super().__init__()
+        self._target_kind = target_kind
         self._harness_id = harness_id
-        self._pathway_id = pathway_id
+        self._target_id = target_id
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
@@ -194,15 +201,27 @@ class _AppendGatesExecuteHandler(adsk.core.CommandEventHandler):
         """
         try:
             application = adsk.core.Application.get()
-            controls = append_pathway_gates(
-                self._harness_id,
-                self._pathway_id,
-                _read_pathway_gate_tokens(args.command.commandInputs),
-                _create_harness_gateway(application),
-            )
+            tokens = _read_pathway_gate_tokens(args.command.commandInputs)
+            gateway = _create_harness_gateway(application)
+            if self._target_kind == "end":
+                append_end_guides(
+                    self._harness_id,
+                    self._target_id,
+                    tokens,
+                    gateway,
+                )
+                label = "guides"
+            else:
+                append_pathway_gates(
+                    self._harness_id,
+                    self._target_id,
+                    tokens,
+                    gateway,
+                )
+                label = "gates"
             warning = _refresh_active_preview(application, self._harness_id)
             application.activeViewport.refresh()
-            _send_palette_state(application, f"Added {len(controls)} gates. {warning}".strip())
+            _send_palette_state(application, f"Added {len(tokens)} {label}. {warning}".strip())
         except (AttributeError, RuntimeError, TypeError, ValueError):
             _report_failure("add pathway gates")
 
@@ -221,12 +240,16 @@ class _AppendGatesCreatedHandler(adsk.core.CommandCreatedEventHandler):
         pending_ids = _runtime.pending_append_gates.consume()
         try:
             if pending_ids is None:
-                raise RuntimeError("No pathway was selected for gate creation.")
-            harness_id, pathway_id = pending_ids
+                raise RuntimeError("No routing target was selected for guide creation.")
+            target_kind, harness_id, target_id = pending_ids
             gate_input = args.command.commandInputs.addSelectionInput(
                 PATHWAY_GATES_INPUT_ID,
-                "Additional Gate Profiles",
-                "Select additional sketch profiles in traversal order",
+                "Additional Guide Profiles" if target_kind == "end" else "Additional Gate Profiles",
+                (
+                    "Select additional profiles in terminal-to-pathway order"
+                    if target_kind == "end"
+                    else "Select additional sketch profiles in traversal order"
+                ),
             )
             if gate_input is None:
                 raise RuntimeError("Fusion did not create the gate selection input.")
@@ -235,7 +258,7 @@ class _AppendGatesCreatedHandler(adsk.core.CommandCreatedEventHandler):
             if not gate_input.setSelectionLimits(1, 0):
                 raise RuntimeError("Fusion did not configure the gate selection limits.")
 
-            execute_handler = _AppendGatesExecuteHandler(harness_id, pathway_id)
+            execute_handler = _AppendGatesExecuteHandler(harness_id, target_id, target_kind)
             validate_handler = _AppendGatesValidateInputsHandler()
             if not args.command.execute.add(execute_handler):
                 raise RuntimeError("Fusion did not register the add-gates execution handler.")

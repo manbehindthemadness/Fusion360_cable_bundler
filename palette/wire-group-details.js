@@ -340,7 +340,7 @@ function routeWireGroupDetailsEdges(topology) {
 }
 
 /** Render the routed pathways, junctions, and physical ends for one group. */
-function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId) {
+function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId, showContextMenu) {
   const topology = layoutWireGroupDetailsTopology(
     wireGroupDetailsTopology(harness, group), focusedConnectionId,
   );
@@ -399,6 +399,10 @@ function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId) {
       const connectionId = node.id.slice("connection:".length);
       groupNode.dataset.connectionId = connectionId;
       hoverHighlight(groupNode, () => highlightMember(harness, "connection", connectionId));
+      groupNode.addEventListener("contextmenu", (event) => {
+        event.stopPropagation();
+        showContextMenu(event, endRoutingContextItems(harness, connectionId));
+      });
     } else if (node.kind === "pathway") {
       const pathwayId = node.id.slice("pathway:".length);
       hoverHighlight(groupNode, () => highlightMember(harness, "pathway_gates", pathwayId));
@@ -437,7 +441,9 @@ function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId) {
 }
 
 /** Render the physical member list for one wire group. */
-function renderWireGroupDetailsMembers(harness, group, focusedConnectionId, onSelect) {
+function renderWireGroupDetailsMembers(
+  harness, group, focusedConnectionId, onSelect, showContextMenu,
+) {
   const connections = new Map(
     harness.connections.map((connection) => [connection.connectionId, connection]),
   );
@@ -469,6 +475,10 @@ function renderWireGroupDetailsMembers(harness, group, focusedConnectionId, onSe
     reference.setAttribute("aria-label", reference.title);
     reference.setAttribute("aria-pressed", isFocused ? "true" : "false");
     reference.addEventListener("click", () => onSelect(connectionId));
+    row.addEventListener("contextmenu", (event) => {
+      event.stopPropagation();
+      showContextMenu(event, endRoutingContextItems(harness, connectionId));
+    });
     if (isFocused) row.classList.add("focused");
     members.append(row);
   });
@@ -568,7 +578,9 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
     error.textContent = `Route graphic unavailable: ${harness.wireGroupRouteError}`;
     content.append(error);
   } else {
-    graphicWorkspace = renderWireGroupDetailsGraphic(harness, group, focusedConnectionId);
+    graphicWorkspace = renderWireGroupDetailsGraphic(
+      harness, group, focusedConnectionId, showContextMenu,
+    );
     content.append(graphicWorkspace.root);
   }
   memberHeading.textContent = "Connected Ends";
@@ -580,7 +592,7 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
     focusWireGroupDetailsMember(members, selectedConnectionId);
     if (harness.wireGroupRouteError || !graphicWorkspace) return;
     const replacement = renderWireGroupDetailsGraphic(
-      harness, group, selectedConnectionId,
+      harness, group, selectedConnectionId, showContextMenu,
     );
     graphicWorkspace.root.parentElement.insertBefore(replacement.root, graphicWorkspace.root);
     graphicWorkspace.root.remove();
@@ -588,7 +600,7 @@ function openWireGroupDetails(harness, wireGroupId, connectionId) {
     window.requestAnimationFrame(() => graphicWorkspace.fit());
   };
   members = renderWireGroupDetailsMembers(
-    harness, group, focusedConnectionId, selectConnection,
+    harness, group, focusedConnectionId, selectConnection, showContextMenu,
   );
   content.append(
     memberHeading,

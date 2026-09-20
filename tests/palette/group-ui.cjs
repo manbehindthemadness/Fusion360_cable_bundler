@@ -88,7 +88,7 @@ test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
 
-  assert.equal(definition.schemaVersion, 14);
+  assert.equal(definition.schemaVersion, 15);
   assert.equal(Object.hasOwn(definition, 'wires'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(
@@ -1002,6 +1002,67 @@ test('Wire Details Materials action opens group materials', () => {
     materialDialog.children[0].children[0].textContent,
     'Connected Wire Group Materials',
   );
+});
+
+test('master end menu exposes end-owned guide and refine actions', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways[0].orderedControlIds = ['c1'];
+  const actions = [];
+  context.appendEndGuides = (_harness, connectionId) => actions.push(['guides', connectionId]);
+  context.addEndRefine = (_harness, connectionId) => actions.push(['refine', connectionId]);
+  const diagram = context.renderRelationshipMap(definition);
+  const end = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a1',
+  )[0];
+
+  end.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
+  });
+  const menu = descendants(
+    diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
+  )[0];
+  menu.children.find((item) => item.textContent === 'Add Guides').events.click();
+  end.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
+  });
+  menu.children.find((item) => item.textContent === 'Add Refine Point').events.click();
+
+  assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
+});
+
+test('Wire Details end nodes and rows share end-owned routing actions', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways[0].orderedControlIds = ['c1'];
+  const actions = [];
+  context.appendEndGuides = (_harness, connectionId) => actions.push(['guides', connectionId]);
+  context.addEndRefine = (_harness, connectionId) => actions.push(['refine', connectionId]);
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.wire-group-details-popup');
+  const graphicEnd = descendants(
+    details,
+    (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.dataset.connectionId === 'a1',
+  )[0];
+  const member = descendants(
+    details,
+    (node) => node.className?.split(' ').includes('wire-group-details-member')
+      && node.dataset.connectionId === 'a1',
+  )[0];
+  const menu = details.querySelector('.relationship-map-context-menu');
+
+  graphicEnd.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: graphicEnd,
+  });
+  menu.children.find((item) => item.textContent === 'Add Guides').events.click();
+  member.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: member,
+  });
+  menu.children.find((item) => item.textContent === 'Add Refine Point').events.click();
+
+  assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
 test('material color context menus copy and paste between swatches', () => {

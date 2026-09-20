@@ -15,7 +15,12 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ....application import add_pathway_refine, load_harnesses, update_pathway_refine
+from ....application import (
+    add_end_refine,
+    add_pathway_refine,
+    load_harnesses,
+    update_pathway_refine,
+)
 from ....domain import ControlKind, RefineGeometry, loads
 from ....routing import Vector3
 from ....routing.geometry import cross, unit
@@ -24,6 +29,7 @@ from ...refine_graphics import (
     REFINE_SPINE_ENTITY_ID,
     PathwaySpine,
     RefinePlacement,
+    build_end_spine,
     build_pathway_spine,
     clear_refine_spine,
     draw_candidate_refine,
@@ -54,8 +60,9 @@ class _RefineCommandState:
     """
 
     harness_id: UUID
-    pathway_id: UUID
+    target_id: UUID
     spine: PathwaySpine
+    target_kind: str = "pathway"
     group: Optional[adsk.fusion.CustomGraphicsGroup] = None
     placement: Optional[RefinePlacement] = None
     candidate: Optional[adsk.fusion.CustomGraphicsLines] = None
@@ -438,13 +445,23 @@ class _RefineExecuteHandler(adsk.core.CommandEventHandler):
                     display_radius_mm=_read_refine_radius_mm(radius_input),
                 ),
             )
-            add_pathway_refine(
-                self._state.harness_id,
-                self._state.pathway_id,
-                placement.insertion_index,
-                placement.geometry,
-                _create_harness_gateway(application),
-            )
+            gateway = _create_harness_gateway(application)
+            if self._state.target_kind == "end":
+                add_end_refine(
+                    self._state.harness_id,
+                    self._state.target_id,
+                    placement.insertion_index - 1,
+                    placement.geometry,
+                    gateway,
+                )
+            else:
+                add_pathway_refine(
+                    self._state.harness_id,
+                    self._state.target_id,
+                    placement.insertion_index,
+                    placement.geometry,
+                    gateway,
+                )
             warning = _refresh_active_preview(application, self._state.harness_id)
             _finalize_refine_graphics(application)
             _send_palette_state(application, f"Added refine point. {warning}".strip())
@@ -486,18 +503,22 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
         pending_ids = _runtime.pending_refine.consume()
         try:
             if pending_ids is None:
-                raise RuntimeError("No pathway was selected for refine placement.")
-            harness_id, pathway_id = pending_ids
+                raise RuntimeError("No routing span was selected for refine placement.")
+            target_kind, harness_id, target_id = pending_ids
             application = adsk.core.Application.get()
             design = _require_active_design(application)
             definition = loads(
                 _create_harness_gateway(application).read_harness_definition(harness_id)
             )
-            spine = build_pathway_spine(design, definition, pathway_id)
+            spine = (
+                build_end_spine(design, definition, target_id)
+                if target_kind == "end"
+                else build_pathway_spine(design, definition, target_id)
+            )
             selection_input = args.command.commandInputs.addSelectionInput(
                 REFINE_SPINE_INPUT_ID,
-                "Pathway Point",
-                "Select a point on the cyan pathway spine",
+                "Routing Point",
+                "Select a point on the cyan routing spine",
             )
             if selection_input is None or not selection_input.addSelectionFilter("CustomGraphics"):
                 raise RuntimeError("Fusion could not configure refine-path selection.")
@@ -506,7 +527,7 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             radius_input = _add_refine_radius_input(args.command.commandInputs)
             radius_input.isVisible = False
             radius_input.isEnabled = False
-            state = _RefineCommandState(harness_id, pathway_id, spine)
+            state = _RefineCommandState(harness_id, target_id, spine, target_kind)
             activate_handler = _RefineActivateHandler(selection_input)
             preselect_handler = _RefinePreSelectHandler(state)
             select_handler = _RefineSelectHandler(

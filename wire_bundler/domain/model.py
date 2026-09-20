@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 DEFAULT_WIRE_DIAMETER_MM = 1.5
 
 
@@ -459,13 +459,14 @@ class StandaloneEndDefinition:
     """
     Attach one disconnected physical end to a pathway boundary.
 
-    The referenced connection owns the ordered guide profiles. No conductor or
-    route exists until a future workflow consumes the end.
+    The referenced connection owns ordered guide profiles. End-owned controls
+    extend that guide stack to the pathway without modifying the pathway.
     """
 
     connection_id: UUID
     pathway_id: UUID
     endpoint: PathwayEndpoint
+    ordered_control_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)

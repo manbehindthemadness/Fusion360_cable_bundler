@@ -12,7 +12,9 @@ from uuid import UUID
 from wire_bundler.application import (
     HarnessEditGateway,
     WireEditorPairing,
+    add_end_refine,
     add_junction,
+    append_end_guides,
     save_wire_editor,
     segment_pathway,
     set_harness_properties,
@@ -28,6 +30,7 @@ from wire_bundler.domain import (
     HarnessDefinition,
     JunctionDefinition,
     PathwayEndpoint,
+    RefineGeometry,
     StandaloneEndDefinition,
     WireColor,
     WireMaterialOverrides,
@@ -60,6 +63,70 @@ def _recording_gateway(definition: HarnessDefinition) -> _RecordingGateway:
     state.read_harness_definition = read_harness_definition
     state.replace_harness_definition = replace_harness_definition
     return cast(_RecordingGateway, cast(object, state))
+
+
+def test_appends_guides_to_end_without_mutating_parent_pathway(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Extend the selected connection's guide stack independently of its pathway.
+    """
+    gateway = _recording_gateway(valid_harness)
+    connection = valid_harness.connections[0]
+    new_member_id = UUID("21000000-0000-0000-0000-000000000001")
+
+    append_end_guides(
+        valid_harness.harness_id,
+        connection.connection_id,
+        ("new-end-guide",),
+        gateway,
+        id_factory=lambda: new_member_id,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    updated_connection = next(
+        item for item in stored.connections if item.connection_id == connection.connection_id
+    )
+    assert updated_connection.member_tokens == (connection.entity_token, "new-end-guide")
+    assert updated_connection.member_identities[-1] == new_member_id
+    assert stored.pathways == valid_harness.pathways
+
+
+def test_adds_end_owned_refine_without_mutating_parent_pathway(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist an end refine only in the selected standalone end's ordered stack.
+    """
+    gateway = _recording_gateway(valid_harness)
+    end = valid_harness.standalone_ends[0]
+    refine_id = UUID("31000000-0000-0000-0000-000000000001")
+    geometry = RefineGeometry(
+        origin_mm=(1.0, 2.0, 3.0),
+        u_direction=(1.0, 0.0, 0.0),
+        v_direction=(0.0, 1.0, 0.0),
+        display_radius_mm=2.0,
+    )
+
+    add_end_refine(
+        valid_harness.harness_id,
+        end.connection_id,
+        0,
+        geometry,
+        gateway,
+        id_factory=lambda: refine_id,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    updated_end = next(
+        item for item in stored.standalone_ends if item.connection_id == end.connection_id
+    )
+    assert updated_end.ordered_control_ids == (refine_id,)
+    assert (
+        next(item for item in stored.controls if item.control_id == refine_id).refine_geometry
+        == geometry
+    )
+    assert stored.pathways == valid_harness.pathways
 
 
 def test_edits_group_construction_and_visual_overrides(
