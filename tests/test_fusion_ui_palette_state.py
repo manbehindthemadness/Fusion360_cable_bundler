@@ -38,7 +38,7 @@ def test_palette_state_contains_complete_group_definition(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Include group identities and planned route legs without legacy wire payloads.
+    Include group identities and planned route legs without legacy cable payloads.
     """
     gateway = SimpleNamespace(
         is_entity_token_resolvable=lambda entity_token: entity_token == "fusion-gate-token"
@@ -57,7 +57,7 @@ def test_palette_state_contains_complete_group_definition(
     harness = payload["harnesses"][0]
     assert payload["notice"] == "Ready"
     assert payload["theme"] == {"active": "light", "mode": "fixed"}
-    assert "wires" not in harness
+    assert "cables" not in harness
     assert "profiles" not in harness
     assert "relationshipMap" not in harness
     assert harness["schemaVersion"] == valid_harness.schema_version
@@ -74,14 +74,14 @@ def test_palette_state_contains_complete_group_definition(
         }
         for end in valid_harness.standalone_ends
     ]
-    wire_group = harness["wireGroups"][0]
-    assert wire_group["wireGroupId"] == str(valid_harness.wire_groups[0].wire_group_id)
-    assert wire_group["connectionIds"] == [
-        str(connection_id) for connection_id in valid_harness.wire_groups[0].connection_ids
+    cable_group = harness["cableGroups"][0]
+    assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
+    assert cable_group["connectionIds"] == [
+        str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]
-    assert wire_group["diameterMm"] == valid_harness.wire_groups[0].diameter_mm
-    assert len(wire_group["routeLegs"]) == 1
-    assert wire_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+    assert cable_group["diameterMm"] == valid_harness.cable_groups[0].diameter_mm
+    assert len(cable_group["routeLegs"]) == 1
+    assert cable_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
 
 
 @pytest.mark.parametrize(
@@ -157,7 +157,7 @@ def test_palette_render_state_reports_preview_or_solids_but_never_both(
     fusion_module.Design = SimpleNamespace(cast=lambda _product: design)  # type: ignore[attr-defined]
     occurrences = Mock(return_value=())
     has_preview = Mock(return_value=True)
-    monkeypatch.setattr(addin_module, "generated_wire_group_occurrences", occurrences)
+    monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", occurrences)
     monkeypatch.setattr(addin_module, "has_route_preview_for_harness", has_preview)
 
     assert addin_module._harness_render_state(application, gateway, valid_harness) == (

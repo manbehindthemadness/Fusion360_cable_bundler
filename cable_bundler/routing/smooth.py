@@ -1,0 +1,729 @@
+"""
+Localized cubic transitions through explicitly ordered, oriented routing profiles.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, replace
+from functools import lru_cache
+from typing import Optional
+
+from .geometry import (
+    CubicBezier,
+    Vector3,
+    cross,
+    difference,
+    dot,
+    lerp,
+    linear_combination,
+    magnitude,
+    unit,
+)
+from .parallel import RoutePreview
+
+_SAFETY_RADIUS_SAMPLES = 1024
+
+CIRCULAR_SWEEP_BEND_FACTOR = 1.05
+
+
+@dataclass(frozen=True)
+class TransitionLengths:
+    """
+    Request independent approach/departure lengths; None starts at a quarter-span.
+    """
+
+    approach_mm: Optional[float] = None
+    departure_mm: Optional[float] = None
+
+
+@dataclass(frozen=True)
+class BendRadius:
+    """
+    Locate the tightest sampled bend on an exact centerline curve.
+    """
+
+    curve_index: int
+    parameter: float
+    radius_mm: float
+
+
+@dataclass(frozen=True)
+class TransitionLimits:
+    """
+    Store minimum safe interpolation distances at one ordered route crossing.
+    """
+
+    approach_mm: float = 0.0
+    departure_mm: float = 0.0
+
+
+@dataclass(frozen=True)
+class TransitionAdjustment:
+    """
+    Describe one geometry-specific transition reduced to fit its route span.
+    """
+
+    cable_number: str
+    start_profile: int
+    end_profile: int
+    required_mm: float
+    applied_mm: float
+    minimum_bend_radius_mm: float
+
+
+def minimum_circular_bend_radius(diameter_mm: float) -> float:
+    """
+    Return the guarded geometric radius required by a circular solid Sweep.
+    """
+    if not math.isfinite(diameter_mm) or diameter_mm <= 0.0:
+        raise ValueError("Cable diameter must be finite and positive.")
+    return diameter_mm * 0.5 * CIRCULAR_SWEEP_BEND_FACTOR
+
+
+def fair_route(
+    route: RoutePreview,
+    normals: tuple[Vector3, ...],
+    transitions: tuple[TransitionLengths, ...] = (),
+    minimum_bend_radius_mm: float = 0.0,
+    adjustments: Optional[list[TransitionAdjustment]] = None,
+    auto_transition_fraction: float = 0.25,
+) -> RoutePreview:
+    """
+    Preserve crossings and connect them with tangent-continuous local transitions.
+
+    Normal signs follow stored traversal, never reorder points. Automatic
+    transitions occupy the requested share of each span. All lengths clamp to
+    the nearest proportional fit above their safe minima when a span is crowded.
+    """
+    points = route.points
+    if len(points) < 2 or len(normals) != len(points):
+        raise ValueError("Every route crossing needs one profile normal.")
+    if any(not math.isfinite(value) for point in points for value in (point.x, point.y, point.z)):
+        raise ValueError("Route crossings must have finite coordinates.")
+    _validate_route_spans(route)
+    if transitions and len(transitions) != len(points):
+        raise ValueError("Every crossing needs one pair of transition lengths.")
+    if not math.isfinite(minimum_bend_radius_mm) or minimum_bend_radius_mm < 0.0:
+        raise ValueError("Minimum bend radius must be finite and non-negative.")
+    if (
+        not math.isfinite(auto_transition_fraction)
+        or auto_transition_fraction <= 0.0
+        or auto_transition_fraction > 0.5
+    ):
+        raise ValueError("Auto transition fraction must be finite and greater than 0 through 0.5.")
+    lengths = transitions or tuple(TransitionLengths() for _ in points)
+    for requested in lengths:
+        for value in (requested.approach_mm, requested.departure_mm):
+            if value is not None and (not math.isfinite(value) or value < 0.0):
+                raise ValueError("Transition lengths must be finite and non-negative.")
+    tangents = tuple(
+        _oriented_normal(points, index, normal) for index, normal in enumerate(normals)
+    )
+    limits = _transition_limits(route, tangents, minimum_bend_radius_mm)
+    curves: list[CubicBezier] = []
+    for index, (start, end) in enumerate(zip(points, points[1:])):
+        delta = difference(end, start)
+        distance = magnitude(delta)
+        if not math.isfinite(distance) or distance <= 1e-9:
+            raise ValueError(
+                f"Cable {route.cable_number}: consecutive profiles {index + 1} and {index + 2} coincide."
+            )
+        direction = unit(delta)
+        minimum_departure = limits[index].departure_mm
+        minimum_approach = limits[index + 1].approach_mm
+        if minimum_departure + minimum_approach > distance + 1e-9:
+            direct = _direct_span_transition(
+                start,
+                end,
+                tangents[index],
+                tangents[index + 1],
+                minimum_bend_radius_mm,
+            )
+            if direct is not None:
+                curves.extend(direct)
+                if adjustments is not None:
+                    adjustments.append(
+                        TransitionAdjustment(
+                            route.cable_number,
+                            index + 1,
+                            index + 2,
+                            minimum_departure + minimum_approach,
+                            distance,
+                            minimum_bend_radius_mm,
+                        )
+                    )
+                continue
+        departure, approach = _resolve_span_lengths(
+            route.cable_number,
+            index,
+            distance,
+            lengths[index].departure_mm,
+            lengths[index + 1].approach_mm,
+            minimum_departure,
+            minimum_approach,
+            auto_transition_fraction,
+        )
+        left = start.translated(direction, departure)
+        right = end.translated(direction, -approach)
+        if magnitude(difference(right, left)) <= 1e-9:
+            right = left
+        curves.extend(
+            _transition(start, left, tangents[index], direction, departure, route.cable_number)
+        )
+        if magnitude(difference(right, left)) > 1e-9:
+            curves.append(
+                CubicBezier(left, lerp(left, right, 1.0 / 3.0), lerp(left, right, 2.0 / 3.0), right)
+            )
+        curves.extend(
+            _transition(right, end, direction, tangents[index + 1], approach, route.cable_number)
+        )
+    return replace(route, curves=tuple(curves))
+
+
+@lru_cache(maxsize=2048)
+def _direct_span_transition(
+    start: Vector3,
+    end: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+    minimum_bend_radius_mm: float,
+) -> Optional[tuple[CubicBezier, ...]]:
+    """
+    Fit a crowded span without imposing an artificial chord tangent.
+
+    The localized construction normally turns each profile tangent toward the
+    span direction independently. Prefer one direct Hermite-style cubic across
+    the complete span; use a two-arc S-bend only for an equal-tangent offset
+    that one cubic cannot fit safely.
+    """
+    delta = difference(end, start)
+    distance = magnitude(delta)
+    direction = unit(delta)
+    balanced_steps = tuple((step, step) for step in range(5, 101, 5))
+    best_curve, best_radius, best_steps = _best_direct_span_candidate(
+        start,
+        end,
+        start_tangent,
+        end_tangent,
+        direction,
+        distance,
+        balanced_steps,
+        32,
+        16,
+    )
+    if best_curve is not None:
+        best_radius = _minimum_sampled_radius(best_curve, _SAFETY_RADIUS_SAMPLES)
+        if best_radius + 1e-9 >= minimum_bend_radius_mm and _moves_forward(
+            best_curve, direction, 64
+        ):
+            return (best_curve,)
+
+    coarse_steps = tuple(
+        (departure_step, approach_step)
+        for departure_step in range(10, 101, 10)
+        for approach_step in range(10, 101, 10)
+    )
+    best_curve, best_radius, best_steps = _best_direct_span_candidate(
+        start,
+        end,
+        start_tangent,
+        end_tangent,
+        direction,
+        distance,
+        coarse_steps,
+        16,
+        16,
+    )
+    if best_steps is not None:
+        departure_step, approach_step = best_steps
+        refined_steps = tuple(
+            (refined_departure, refined_approach)
+            for refined_departure in range(
+                max(5, departure_step - 10), min(100, departure_step + 10) + 1, 2
+            )
+            for refined_approach in range(
+                max(5, approach_step - 10), min(100, approach_step + 10) + 1, 2
+            )
+        )
+        best_curve, best_radius, _ = _best_direct_span_candidate(
+            start,
+            end,
+            start_tangent,
+            end_tangent,
+            direction,
+            distance,
+            refined_steps,
+            64,
+            32,
+        )
+    if best_curve is not None:
+        best_radius = _minimum_sampled_radius(best_curve, _SAFETY_RADIUS_SAMPLES)
+    if (
+        best_curve is not None
+        and best_radius + 1e-9 >= minimum_bend_radius_mm
+        and _moves_forward(best_curve, direction, 64)
+    ):
+        return (best_curve,)
+    return _equal_tangent_span_transition(
+        start,
+        end,
+        start_tangent,
+        end_tangent,
+        minimum_bend_radius_mm,
+    )
+
+
+def _equal_tangent_span_transition(
+    start: Vector3,
+    end: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+    minimum_bend_radius_mm: float,
+) -> Optional[tuple[CubicBezier, CubicBezier]]:
+    """
+    Join offset profiles with equal tangents using two opposing circular-arc cubics.
+
+    One cubic cannot efficiently translate sideways while leaving both profiles
+    with the same tangent. A symmetric S-bend uses the span midpoint and reverses
+    curvature there, preserving tangent continuity while using the full chord.
+    """
+    if dot(start_tangent, end_tangent) < 1.0 - 1e-9:
+        return None
+    delta = difference(end, start)
+    axial_distance = dot(delta, start_tangent)
+    lateral = Vector3(
+        delta.x - start_tangent.x * axial_distance,
+        delta.y - start_tangent.y * axial_distance,
+        delta.z - start_tangent.z * axial_distance,
+    )
+    lateral_distance = magnitude(lateral)
+    if axial_distance <= 1e-9 or lateral_distance <= 1e-9:
+        return None
+    lateral_direction = unit(lateral)
+    half_angle = math.atan2(lateral_distance, axial_distance)
+    angle = 2.0 * half_angle
+    radius = (axial_distance * axial_distance + lateral_distance * lateral_distance) / (
+        4.0 * lateral_distance
+    )
+    handle_length = 4.0 * radius * math.tan(angle / 4.0) / 3.0
+    middle = lerp(start, end, 0.5)
+    middle_tangent = linear_combination(
+        start_tangent,
+        math.cos(angle),
+        lateral_direction,
+        math.sin(angle),
+    )
+    curves = (
+        CubicBezier(
+            start,
+            start.translated(start_tangent, handle_length),
+            middle.translated(middle_tangent, -handle_length),
+            middle,
+        ),
+        CubicBezier(
+            middle,
+            middle.translated(middle_tangent, handle_length),
+            end.translated(end_tangent, -handle_length),
+            end,
+        ),
+    )
+    if min(_minimum_sampled_radius(curve, _SAFETY_RADIUS_SAMPLES) for curve in curves) + 1e-9 < (
+        minimum_bend_radius_mm
+    ):
+        return None
+    chord_direction = unit(delta)
+    if any(
+        dot(curve.derivative(sample / 64.0), chord_direction) < -1e-9
+        for curve in curves
+        for sample in range(65)
+    ):
+        return None
+    return curves
+
+
+def _best_direct_span_candidate(
+    start: Vector3,
+    end: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+    direction: Vector3,
+    distance: float,
+    handle_steps: tuple[tuple[int, int], ...],
+    radius_samples: int,
+    forward_samples: int,
+) -> tuple[Optional[CubicBezier], float, Optional[tuple[int, int]]]:
+    """
+    Find the safest forward-moving cubic over independent endpoint handles.
+
+    A coarse two-dimensional search finds the useful handle neighborhood, then
+    the caller refines it with denser radius sampling. Independent handles are
+    required when adjacent profile normals turn by different amounts.
+    """
+    best_curve: Optional[CubicBezier] = None
+    best_radius = -1.0
+    best_steps: Optional[tuple[int, int]] = None
+    for departure_step, approach_step in handle_steps:
+        departure_length = distance * departure_step / 100.0
+        approach_length = distance * approach_step / 100.0
+        candidate = CubicBezier(
+            start,
+            start.translated(start_tangent, departure_length),
+            end.translated(end_tangent, -approach_length),
+            end,
+        )
+        if not _moves_forward(candidate, direction, forward_samples):
+            continue
+        radius = _minimum_sampled_radius(candidate, radius_samples)
+        if radius > best_radius:
+            best_curve = candidate
+            best_radius = radius
+            best_steps = departure_step, approach_step
+    return best_curve, best_radius, best_steps
+
+
+def _moves_forward(curve: CubicBezier, direction: Vector3, samples: int) -> bool:
+    """
+    Reject a candidate whose derivative backtracks along the span chord.
+    """
+    return all(
+        dot(curve.derivative(sample / samples), direction) >= -1e-9 for sample in range(samples + 1)
+    )
+
+
+def transition_limits(
+    route: RoutePreview,
+    normals: tuple[Vector3, ...],
+    minimum_bend_radius_mm: float,
+) -> tuple[TransitionLimits, ...]:
+    """
+    Calculate per-crossing interpolation floors for one circular cable route.
+    """
+    if len(route.points) < 2 or len(normals) != len(route.points):
+        raise ValueError("Every route crossing needs one profile normal.")
+    if not math.isfinite(minimum_bend_radius_mm) or minimum_bend_radius_mm < 0.0:
+        raise ValueError("Minimum bend radius must be finite and non-negative.")
+    _validate_route_spans(route)
+    tangents = tuple(
+        _oriented_normal(route.points, index, normal) for index, normal in enumerate(normals)
+    )
+    return _transition_limits(route, tangents, minimum_bend_radius_mm)
+
+
+def _validate_route_spans(route: RoutePreview) -> None:
+    """
+    Reject non-finite or coincident crossings before tangent-dependent calculations.
+    """
+    for index, (start, end) in enumerate(zip(route.points, route.points[1:])):
+        distance = magnitude(difference(end, start))
+        if not math.isfinite(distance) or distance <= 1e-9:
+            raise ValueError(
+                f"Cable {route.cable_number}: consecutive profiles {index + 1} and "
+                f"{index + 2} coincide."
+            )
+
+
+def _transition_limits(
+    route: RoutePreview,
+    tangents: tuple[Vector3, ...],
+    minimum_bend_radius_mm: float,
+) -> tuple[TransitionLimits, ...]:
+    """
+    Resolve minimum approach and departure distances from local tangent changes.
+    """
+    approaches = [0.0] * len(route.points)
+    departures = [0.0] * len(route.points)
+    for index, (start, end) in enumerate(zip(route.points, route.points[1:])):
+        direction = unit(difference(end, start))
+        departures[index] = _minimum_transition_length(
+            direction,
+            tangents[index],
+            direction,
+            minimum_bend_radius_mm,
+            route.cable_number,
+        )
+        approaches[index + 1] = _minimum_transition_length(
+            direction,
+            direction,
+            tangents[index + 1],
+            minimum_bend_radius_mm,
+            route.cable_number,
+        )
+    return tuple(
+        TransitionLimits(approach, departure) for approach, departure in zip(approaches, departures)
+    )
+
+
+def _minimum_transition_length(
+    chord_direction: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+    minimum_bend_radius_mm: float,
+    cable_number: str,
+) -> float:
+    """
+    Scale the canonical cubic until its sampled minimum radius reaches the target.
+    """
+    start_alignment = dot(start_tangent, chord_direction)
+    end_alignment = dot(end_tangent, chord_direction)
+    if minimum_bend_radius_mm == 0.0:
+        return 0.0
+    if min(start_alignment, end_alignment) <= -1.0 + 1e-9:
+        raise ValueError(
+            f"Cable {cable_number}: profile order and normals force a reversal; "
+            "adjust their order or orientation."
+        )
+    if min(start_alignment, end_alignment) >= 1.0 - 1e-9:
+        return 0.0
+    unit_radius = _unit_transition_radius(chord_direction, start_tangent, end_tangent)
+    if not math.isfinite(unit_radius) or unit_radius <= 1e-12:
+        raise ValueError(f"Cable {cable_number}: transition curvature cannot be bounded.")
+    return minimum_bend_radius_mm / unit_radius
+
+
+@lru_cache(maxsize=8192)
+def _unit_transition_radius(
+    chord_direction: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+) -> float:
+    """
+    Cache the scale-independent curvature shared by repeated route candidates.
+    """
+    origin = Vector3(0.0, 0.0, 0.0)
+    curve = CubicBezier(
+        origin,
+        origin.translated(start_tangent, 1.0 / 3.0),
+        chord_direction.translated(end_tangent, -1.0 / 3.0),
+        chord_direction,
+    )
+    return _minimum_sampled_radius(curve, 1024)
+
+
+def _resolve_span_lengths(
+    cable_number: str,
+    span_index: int,
+    distance: float,
+    requested_departure: Optional[float],
+    requested_approach: Optional[float],
+    minimum_departure: float,
+    minimum_approach: float,
+    auto_transition_fraction: float,
+) -> tuple[float, float]:
+    """
+    Project requested distances into a span without reducing physical safety floors.
+    """
+    minimum_total = minimum_departure + minimum_approach
+    if minimum_total > distance + 1e-9:
+        raise ValueError(
+            f"Cable {cable_number}: transitions between profiles {span_index + 1} and "
+            f"{span_index + 2} require {minimum_total:.3f} mm but only "
+            f"{distance:.3f} mm is available."
+        )
+    requested = (requested_departure, requested_approach)
+    minima = (minimum_departure, minimum_approach)
+    resolved: list[float] = []
+    for value, minimum in zip(requested, minima):
+        resolved.append(
+            max(distance * auto_transition_fraction if value is None else value, minimum)
+        )
+    total = sum(resolved)
+    if total <= distance + 1e-9:
+        return resolved[0], resolved[1]
+    excess = total - distance
+    reducible = sum(resolved[index] - minima[index] for index in range(2))
+    if reducible > 0.0:
+        remaining_fraction = max(0.0, (reducible - excess) / reducible)
+        for index in range(2):
+            extra = resolved[index] - minima[index]
+            resolved[index] = minima[index] + extra * remaining_fraction
+    return resolved[0], resolved[1]
+
+
+def _oriented_normal(points: tuple[Vector3, ...], index: int, normal: Vector3) -> Vector3:
+    """
+    Choose the normal's sign along the stored local traversal without sorting it.
+    """
+    direction = unit(normal)
+    before = points[max(0, index - 1)]
+    after = points[min(len(points) - 1, index + 1)]
+    references = (
+        difference(after, before),
+        difference(after, points[index]),
+        difference(points[index], before),
+    )
+    for reference in references:
+        projection = dot(direction, reference)
+        if abs(projection) > 1e-9:
+            return (
+                direction if projection > 0.0 else Vector3(-direction.x, -direction.y, -direction.z)
+            )
+    for component in (direction.x, direction.y, direction.z):
+        if abs(component) > 1e-9:
+            return (
+                direction if component > 0.0 else Vector3(-direction.x, -direction.y, -direction.z)
+            )
+    raise ValueError("A route profile has no usable normal.")
+
+
+def _transition(
+    start: Vector3,
+    end: Vector3,
+    start_tangent: Vector3,
+    end_tangent: Vector3,
+    length: float,
+    cable_number: str,
+) -> tuple[CubicBezier, ...]:
+    """
+    Construct a bounded cubic or reject an unavoidable collinear reversal/cusp.
+    """
+    if length == 0.0:
+        if dot(start_tangent, end_tangent) < 1.0 - 1e-9:
+            raise ValueError(
+                f"Cable {cable_number}: a direction change needs a positive transition length."
+            )
+        return ()
+    direction = unit(difference(end, start))
+    if min(dot(start_tangent, direction), dot(end_tangent, direction)) <= -1.0 + 1e-9:
+        raise ValueError(
+            f"Cable {cable_number}: profile order and normals force a reversal; adjust their order or orientation."
+        )
+    curve = CubicBezier(
+        start,
+        start.translated(start_tangent, length / 3.0),
+        end.translated(end_tangent, -length / 3.0),
+        end,
+    )
+    return (curve,)
+
+
+def sample_centerline(route: RoutePreview, tolerance_mm: float = 0.05) -> tuple[Vector3, ...]:
+    """
+    Tessellate exact cubics to a bounded chord error for lightweight graphics.
+    """
+    if not math.isfinite(tolerance_mm) or tolerance_mm <= 0.0:
+        raise ValueError("Preview tolerance must be finite and positive.")
+    if not route.curves:
+        return route.points
+    points = [route.curves[0].start]
+    for curve in route.curves:
+        _sample_curve(curve, tolerance_mm, points, 0)
+    return tuple(points)
+
+
+def tightest_bend(route: RoutePreview, samples_per_curve: int = 256) -> Optional[BendRadius]:
+    """
+    Estimate the minimum spatial radius without invoking the Fusion kernel.
+
+    The diagnostic samples exact cubic derivatives uniformly. It does not certify
+    global tube clearance, but it locates local curvature likely to reject a sweep.
+    """
+    if samples_per_curve < 2:
+        raise ValueError("Bend diagnostics require at least two samples per curve.")
+    tightest: Optional[BendRadius] = None
+    for curve_index, curve in enumerate(route.curves):
+        for sample_index in range(samples_per_curve + 1):
+            parameter = sample_index / samples_per_curve
+            radius = _curvature_radius(curve, parameter)
+            candidate = BendRadius(curve_index, parameter, radius)
+            if tightest is None or candidate.radius_mm < tightest.radius_mm:
+                tightest = candidate
+    return tightest
+
+
+def _minimum_sampled_radius(curve: CubicBezier, samples: int) -> float:
+    """
+    Return the tightest radius found on one exact cubic, including both endpoints.
+    """
+    first = difference(curve.control_a, curve.start)
+    second = difference(curve.control_b, curve.control_a)
+    third = difference(curve.end, curve.control_b)
+    first_acceleration = difference(second, first)
+    second_acceleration = difference(third, second)
+    minimum_radius = math.inf
+    for index in range(samples + 1):
+        parameter = index / samples
+        complement = 1.0 - parameter
+        first_weight = complement * complement
+        second_weight = 2.0 * complement * parameter
+        third_weight = parameter * parameter
+        tangent_x = 3.0 * (
+            first_weight * first.x + second_weight * second.x + third_weight * third.x
+        )
+        tangent_y = 3.0 * (
+            first_weight * first.y + second_weight * second.y + third_weight * third.y
+        )
+        tangent_z = 3.0 * (
+            first_weight * first.z + second_weight * second.z + third_weight * third.z
+        )
+        acceleration_x = 6.0 * (
+            complement * first_acceleration.x + parameter * second_acceleration.x
+        )
+        acceleration_y = 6.0 * (
+            complement * first_acceleration.y + parameter * second_acceleration.y
+        )
+        acceleration_z = 6.0 * (
+            complement * first_acceleration.z + parameter * second_acceleration.z
+        )
+        speed_squared = tangent_x * tangent_x + tangent_y * tangent_y + tangent_z * tangent_z
+        if speed_squared <= 1e-24:
+            return 0.0
+        cross_x = tangent_y * acceleration_z - tangent_z * acceleration_y
+        cross_y = tangent_z * acceleration_x - tangent_x * acceleration_z
+        cross_z = tangent_x * acceleration_y - tangent_y * acceleration_x
+        cross_squared = cross_x * cross_x + cross_y * cross_y + cross_z * cross_z
+        radius = (
+            math.inf
+            if cross_squared <= 1e-24
+            else speed_squared * math.sqrt(speed_squared / cross_squared)
+        )
+        minimum_radius = min(minimum_radius, radius)
+    return minimum_radius
+
+
+def _curvature_radius(curve: CubicBezier, parameter: float) -> float:
+    """
+    Evaluate spatial radius of curvature at one cubic parameter.
+    """
+    tangent = curve.derivative(parameter)
+    speed = magnitude(tangent)
+    if speed <= 1e-12:
+        return 0.0
+    normal = cross(tangent, curve.second_derivative(parameter))
+    denominator = magnitude(normal)
+    return math.inf if denominator <= 1e-12 else speed * speed * speed / denominator
+
+
+def _sample_curve(curve: CubicBezier, tolerance: float, points: list[Vector3], depth: int) -> None:
+    """
+    Subdivide until the control hull lies within tolerance of the chord segment.
+    """
+    flatness = max(
+        _chord_distance(curve.control_a, curve.start, curve.end),
+        _chord_distance(curve.control_b, curve.start, curve.end),
+    )
+    if flatness <= tolerance:
+        points.append(curve.end)
+        return
+    if depth >= 16:
+        raise ValueError("Preview curve exceeds the subdivision budget; increase the tolerance.")
+    first = lerp(curve.start, curve.control_a, 0.5)
+    middle = lerp(curve.control_a, curve.control_b, 0.5)
+    last = lerp(curve.control_b, curve.end, 0.5)
+    left = lerp(first, middle, 0.5)
+    right = lerp(middle, last, 0.5)
+    center = lerp(left, right, 0.5)
+    _sample_curve(CubicBezier(curve.start, first, left, center), tolerance, points, depth + 1)
+    _sample_curve(CubicBezier(center, right, last, curve.end), tolerance, points, depth + 1)
+
+
+def _chord_distance(point: Vector3, start: Vector3, end: Vector3) -> float:
+    """
+    Measure distance to the finite chord, including degenerate endpoints.
+    """
+    delta = difference(end, start)
+    length_squared = dot(delta, delta)
+    if length_squared <= 1e-24:
+        return magnitude(difference(point, start))
+    fraction = max(0.0, min(1.0, dot(difference(point, start), delta) / length_squared))
+    return magnitude(difference(point, lerp(start, end, fraction)))

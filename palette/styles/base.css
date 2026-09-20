@@ -83,12 +83,12 @@ body {
   background: var(--surface-subtle);
   color: var(--text);
 }
-.wire-details { display: grid; gap: 8px; }
-.wire-options { border: 1px solid var(--border); border-radius: 6px; width: 320px; max-width: 90vw; }
+.cable-details { display: grid; gap: 8px; }
+.cable-options { border: 1px solid var(--border); border-radius: 6px; width: 320px; max-width: 90vw; }
 .pathway-popup,
 .junction-relationships-popup,
-.wire-group-details-popup,
-.create-wires-popup {
+.cable-group-details-popup,
+.create-cables-popup {
   width: 620px;
   max-width: 92vw;
   max-height: 88vh;
@@ -101,8 +101,8 @@ body {
 }
 .pathway-popup::backdrop,
 .junction-relationships-popup::backdrop,
-.wire-group-details-popup::backdrop,
-.create-wires-popup::backdrop { background: #0005; }
+.cable-group-details-popup::backdrop,
+.create-cables-popup::backdrop { background: #0005; }
 .pathway-popup > .pathway-popup-entry,
 .junction-relationships-popup > .pathway-popup-entry { margin: 0; }
 .pathway-popup-actions {
@@ -110,7 +110,7 @@ body {
   justify-content: flex-end;
   margin-top: 12px;
 }
-.wire-group-details-popup {
+.cable-group-details-popup {
   position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -120,37 +120,37 @@ body {
   max-height: 90vh;
   overflow: hidden;
 }
-.wire-group-details-content {
+.cable-group-details-content {
   display: grid;
   grid-template-rows: auto minmax(240px, 1fr) auto auto;
   gap: 12px;
   min-height: 0;
   overflow-y: auto;
 }
-.wire-group-details-heading { display: grid; gap: 3px; }
-.wire-group-details-heading p { margin: 0; color: var(--muted); }
-.wire-group-details-graphic {
+.cable-group-details-heading { display: grid; gap: 3px; }
+.cable-group-details-heading p { margin: 0; color: var(--muted); }
+.cable-group-details-graphic {
   min-height: 0;
   border: 1px solid var(--border-subtle);
   border-radius: 5px;
   background: var(--surface);
 }
-.wire-group-details-graphic .block-diagram-viewport { height: 100%; min-height: 240px; }
-.wire-group-details-svg { display: block; }
-.wire-group-route-link {
+.cable-group-details-graphic .block-diagram-viewport { height: 100%; min-height: 240px; }
+.cable-group-details-svg { display: block; }
+.cable-group-route-link {
   fill: none;
   stroke: #7b9ab2;
   stroke-width: 4;
   stroke-linecap: round;
 }
-.wire-group-details-node { cursor: pointer; outline: none; }
-.wire-group-details-node.focused .relationship-node {
+.cable-group-details-node { cursor: pointer; outline: none; }
+.cable-group-details-node.focused .relationship-node {
   stroke: var(--accent);
   stroke-width: 3;
 }
-.wire-group-details-node.junction .relationship-node { fill: var(--junction-surface); stroke: var(--junction-border); }
-.wire-group-details-member.focused { border-color: var(--accent); background: var(--focus-surface); }
-.wire-group-route-error {
+.cable-group-details-node.junction .relationship-node { fill: var(--junction-surface); stroke: var(--junction-border); }
+.cable-group-details-member.focused { border-color: var(--accent); background: var(--focus-surface); }
+.cable-group-route-error {
   border: 1px solid var(--danger-border);
   border-radius: 5px;
   padding: 8px 10px;
@@ -158,10 +158,10 @@ body {
   color: var(--danger);
 }
 .material-options { width: 430px; max-height: 88vh; overflow-x: hidden; overflow-y: auto; }
-.wire-options::backdrop { background: #0005; }
-.wire-options form { display: grid; gap: 12px; }
-.wire-options label { display: grid; gap: 8px; }
-.wire-options label.apply-existing { display: flex; align-items: center; gap: 8px; }
+.cable-options::backdrop { background: #0005; }
+.cable-options form { display: grid; gap: 12px; }
+.cable-options label { display: grid; gap: 8px; }
+.cable-options label.apply-existing { display: flex; align-items: center; gap: 8px; }
 .auto-transition-heading {
   display: flex;
   align-items: baseline;
@@ -170,7 +170,7 @@ body {
 }
 .auto-transition-heading output { color: inherit; font: inherit; }
 .icon-button.options-button { width: auto; padding: 0 6px; }
-.wire-options .actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cable-options .actions { display: flex; justify-content: flex-end; gap: 8px; }
 button, input, select, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible,
@@ -402,4 +402,4 @@ summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .count { color: var(--muted); font-size: 11px; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
 .section-content { display: grid; gap: 8px; padding: 0 11px 11px; }
 .item-meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.wire-filter { margin-bottom: 2px; }
+.cable-filter { margin-bottom: 2px; }

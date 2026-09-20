@@ -15,7 +15,7 @@ ADDIN_ROOT = Path(__file__).resolve().parent.parent
 if str(ADDIN_ROOT) not in sys.path:
     sys.path.insert(0, str(ADDIN_ROOT))
 
-from wire_bundler.routing import (  # noqa: E402
+from cable_bundler.routing import (  # noqa: E402
     RoutePreview,
     TransitionLengths,
     Vector3,
@@ -23,7 +23,7 @@ from wire_bundler.routing import (  # noqa: E402
     route_collisions,
     separate_route_collisions,
 )
-from wire_bundler.routing.conditioning import (  # noqa: E402
+from cable_bundler.routing.conditioning import (  # noqa: E402
     CircularGuideConstraint,
     condition_control_points,
     condition_route_normals,

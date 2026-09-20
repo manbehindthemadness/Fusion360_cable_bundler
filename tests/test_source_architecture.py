@@ -19,14 +19,14 @@ SOURCE_LIMITS = {
 EXCLUDED_DIRECTORIES = {
     ".git",
     ".venv",
-    "F360WireGenerator",
+    "F360CableGenerator",
     "artifacts",
     "experiments",
     "reference",
     "standards",
 }
 FILE_LIMIT_OVERRIDES = {
-    Path("wire_bundler/domain/codec.py"): 900,
+    Path("cable_bundler/domain/codec.py"): 900,
 }
 
 

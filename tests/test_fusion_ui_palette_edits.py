@@ -30,15 +30,15 @@ def test_route_capacity_error_fails_preview_command(
     monkeypatch.setattr(
         addin_module,
         "_preview_routes",
-        Mock(side_effect=ValueError("Gate 4 cannot fit 3 wires.")),
+        Mock(side_effect=ValueError("Gate 4 cannot fit 3 cables.")),
     )
     monkeypatch.setattr(addin_module, "_log_to_fusion", logged_messages.append)
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
     addin_module._PaletteEditExecuteHandler(("preview_routes", "{}", document)).notify(args)
     assert args.executeFailed
-    assert args.executeFailedMessage == "Gate 4 cannot fit 3 wires."
+    assert args.executeFailedMessage == "Gate 4 cannot fit 3 cables."
     assert len(logged_messages) == 1
-    assert logged_messages[0].startswith("Harness command failed: Gate 4 cannot fit 3 wires.")
+    assert logged_messages[0].startswith("Harness command failed: Gate 4 cannot fit 3 cables.")
     assert "Traceback (most recent call last)" in logged_messages[0]
 
 
@@ -124,7 +124,7 @@ def test_palette_edit_renames_standalone_end_by_connection_identity(
     assert notice == "Saved end name."
 
 
-def test_palette_edit_saves_wire_editor_transaction(
+def test_palette_edit_saves_cable_editor_transaction(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -140,11 +140,11 @@ def test_palette_edit_saves_wire_editor_transaction(
     gateway = object()
     save = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "save_wire_editor", save)
+    monkeypatch.setattr(addin_module, "save_cable_editor", save)
 
     notice = addin_module._apply_palette_edit(
         object(),
-        "save_wire_editor",
+        "save_cable_editor",
         json.dumps(
             {
                 "harnessId": str(harness_id),
@@ -176,7 +176,7 @@ def test_palette_edit_saves_wire_editor_transaction(
     assert notice == "Saved Route Editor changes."
 
 
-def test_palette_edit_saves_connected_wire_properties_atomically(
+def test_palette_edit_saves_connected_cable_properties_atomically(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -184,19 +184,19 @@ def test_palette_edit_saves_connected_wire_properties_atomically(
     Parse diameter and nullable construction-material overrides into one edit.
     """
     harness_id = UUID(int=1)
-    wire_group_id = UUID(int=2)
+    cable_group_id = UUID(int=2)
     gateway = object()
     save = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "set_wire_group_properties", save)
+    monkeypatch.setattr(addin_module, "set_cable_group_properties", save)
 
     notice = addin_module._apply_palette_edit(
         object(),
-        "set_wire_group_properties",
+        "set_cable_group_properties",
         json.dumps(
             {
                 "harnessId": str(harness_id),
-                "wireGroupId": str(wire_group_id),
+                "cableGroupId": str(cable_group_id),
                 "diameterMm": 2.75,
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
@@ -209,7 +209,7 @@ def test_palette_edit_saves_connected_wire_properties_atomically(
 
     save.assert_called_once_with(
         harness_id,
-        wire_group_id,
+        cable_group_id,
         2.75,
         "ETFE",
         None,
@@ -218,7 +218,7 @@ def test_palette_edit_saves_connected_wire_properties_atomically(
         "Install as matched stock",
         gateway,
     )
-    assert notice == "Saved connected-wire properties."
+    assert notice == "Saved connected-cable properties."
 
 
 def test_palette_edit_saves_harness_properties_without_visual_materials(
@@ -327,7 +327,7 @@ def test_palette_edit_waits_for_execute_and_releases_handlers(
     )
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    applied = Mock(return_value="Renamed wire.")
+    applied = Mock(return_value="Renamed cable.")
     refreshed = Mock(return_value="")
     sent = Mock()
     monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)

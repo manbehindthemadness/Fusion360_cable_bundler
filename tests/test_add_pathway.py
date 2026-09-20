@@ -10,13 +10,13 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.application import (
+from cable_bundler.application import (
     PathwayGateway,
     PathwayUpdateError,
     add_pathway,
     suggest_pathway_name,
 )
-from wire_bundler.domain import HarnessDefinition, RoutingMode, dumps, loads
+from cable_bundler.domain import HarnessDefinition, RoutingMode, dumps, loads
 
 PATHWAY_ID = UUID("60000000-0000-0000-0000-000000000001")
 GATE_1_ID = UUID("61000000-0000-0000-0000-000000000001")
@@ -68,7 +68,7 @@ def test_adds_ordered_pathway_to_existing_harness(valid_harness: HarnessDefiniti
     """
     Persist selected profile tokens in traversal order with stable identities.
     """
-    empty_harness = replace(valid_harness, controls=(), pathways=(), wires=())
+    empty_harness = replace(valid_harness, controls=(), pathways=(), cables=())
     gateway = _RecordingPathwayGateway(empty_harness)
     identifiers = iter((GATE_1_ID, GATE_2_ID, PATHWAY_ID))
 

@@ -3,7 +3,7 @@
 const paletteDeviceThemeQuery = typeof window.matchMedia === "function"
   ? window.matchMedia("(prefers-color-scheme: dark)")
   : null;
-const PALETTE_THEME_STORAGE_KEY = "wireBundler.paletteTheme";
+const PALETTE_THEME_STORAGE_KEY = "cableBundler.paletteTheme";
 let paletteThemeMode = "fixed";
 let paletteActiveTheme = "light";
 

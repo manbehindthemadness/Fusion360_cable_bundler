@@ -268,7 +268,7 @@ def test_relationship_selector_refreshes_only_for_geometry_input_changes(
         (),
     )
     update_choices = Mock()
-    junction_commands = importlib.import_module("wire_bundler.fusion.ui.commands.junctions")
+    junction_commands = importlib.import_module("cable_bundler.fusion.ui.commands.junctions")
     monkeypatch.setitem(
         vars(junction_commands),
         "_update_junction_relationship_choices",

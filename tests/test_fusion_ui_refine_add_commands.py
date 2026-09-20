@@ -39,7 +39,7 @@ def _refine_execute_context() -> tuple[SimpleNamespace, SimpleNamespace, Any]:
     application = SimpleNamespace()
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     return args, application, refine_commands
 
 
@@ -259,7 +259,7 @@ def test_refine_placement_drag_updates_captured_radius_without_graphics(
     """
     geometry = _refine_control(18.0).refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     placement = refine_commands.RefinePlacement(1, geometry)
     state = addin_module._RefineCommandState(
         UUID(int=1),
@@ -310,7 +310,7 @@ def test_refine_mouse_drag_reads_live_command_inputs(
     inputs = object()
     command = SimpleNamespace(doExecutePreview=Mock(return_value=True))
     update_placement = Mock()
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     monkeypatch.setitem(vars(refine_commands), "_update_refine_placement", update_placement)
 
     addin_module._RefineMouseDragHandler(state, inputs, command).notify(SimpleNamespace())
@@ -365,7 +365,7 @@ def test_add_refine_select_captures_click_before_preview_rollback(
     """
     geometry = _refine_control().refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     spine = object()
     placement = refine_commands.RefinePlacement(1, geometry)
     state = addin_module._RefineCommandState(UUID(int=1), UUID(int=2), spine)
@@ -434,7 +434,7 @@ def test_add_refine_selection_captures_placement(
     """
     geometry = _refine_control().refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     state = addin_module._RefineCommandState(
         UUID(int=1),
         UUID(int=2),
@@ -459,7 +459,7 @@ def test_add_refine_uses_preselection_after_preview_invalidates_selection(
     """
     geometry = _refine_control().refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     spine = object()
     clicked_point = Vector3(10.0, 20.0, 30.0)
     placement = refine_commands.RefinePlacement(1, geometry)
@@ -487,7 +487,7 @@ def test_add_refine_uses_preselection_after_preview_invalidates_selection(
     core_module.Vector3D = SimpleNamespace(create=Mock(return_value=object()))  # type: ignore[attr-defined]
     place = Mock(return_value=placement)
     monkeypatch.setattr(
-        "wire_bundler.fusion.ui.commands.refine_parts.placement.place_refine",
+        "cable_bundler.fusion.ui.commands.refine_parts.placement.place_refine",
         place,
     )
 
@@ -508,7 +508,7 @@ def test_add_refine_execute_finalizes_graphics_inside_transaction(
     """
     geometry = _refine_control().refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     placement = refine_commands.RefinePlacement(1, geometry)
     state = addin_module._RefineCommandState(
         UUID(int=1),
@@ -547,9 +547,9 @@ def test_add_refine_destroy_restores_solids_and_releases_handlers(
     """
     release = Mock()
     monkeypatch.setitem(vars(addin_module._runtime.handler_registry), "release", release)
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     restore = Mock()
-    monkeypatch.setitem(vars(refine_commands), "restore_generated_wire_group_visibility", restore)
+    monkeypatch.setitem(vars(refine_commands), "restore_generated_cable_group_visibility", restore)
     visibility = ((object(), True),)
     state = addin_module._RefineCommandState(
         UUID(int=1),
@@ -580,7 +580,7 @@ def test_add_refine_preview_rebuilds_transaction_owned_graphics(
     """
     geometry = _refine_control().refine_geometry
     assert geometry is not None
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     placement = refine_commands.RefinePlacement(1, geometry)
     state = addin_module._RefineCommandState(
         UUID(int=1),
@@ -598,15 +598,15 @@ def test_add_refine_preview_rebuilds_transaction_owned_graphics(
     draw_spine = Mock(return_value=(group, object()))
     draw_candidate = Mock(return_value=replacement)
     monkeypatch.setattr(
-        "wire_bundler.fusion.ui.commands.refine_parts.placement._require_active_design",
+        "cable_bundler.fusion.ui.commands.refine_parts.placement._require_active_design",
         lambda _app: design,
     )
     monkeypatch.setattr(
-        "wire_bundler.fusion.ui.commands.refine_parts.placement.draw_pathway_spine",
+        "cable_bundler.fusion.ui.commands.refine_parts.placement.draw_pathway_spine",
         draw_spine,
     )
     monkeypatch.setattr(
-        "wire_bundler.fusion.ui.commands.refine_parts.placement.draw_candidate_refine",
+        "cable_bundler.fusion.ui.commands.refine_parts.placement.draw_candidate_refine",
         draw_candidate,
     )
     args = SimpleNamespace(isValidResult=True)

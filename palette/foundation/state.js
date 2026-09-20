@@ -46,12 +46,12 @@ function writePreference(key, value) {
 }
 
 let currentState = { harnesses: [], notice: "" };
-let selectedHarnessKey = readSession("wireBundler.selectedHarness") || "";
+let selectedHarnessKey = readSession("cableBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";
-let openWireGroupDetailsState = null;
+let openCableGroupDetailsState = null;
 let configurationPopupParentState = null;
-let openCreateWiresPopupState = null;
+let openCreateCablesPopupState = null;
 let masterDiagramResizeObserver = null;
 const routeFilters = new Map();
 const relationshipFilters = new Map();
@@ -61,9 +61,9 @@ const DEFAULT_RELATIONSHIP_COLLAPSE_LIMIT = 7;
 const MIN_RELATIONSHIP_COLLAPSE_LIMIT = 1;
 const MAX_RELATIONSHIP_COLLAPSE_LIMIT = 999;
 const DEVELOPER_MODE_DISCLOSURE_VERSION = "1";
-const DEVELOPER_MODE_STORAGE_KEY = "wireBundler.developerMode";
-const DEVELOPER_CONSENT_STORAGE_KEY = "wireBundler.developerConsentVersion";
-const storedExpandedSections = readSession("wireBundler.expandedSections");
+const DEVELOPER_MODE_STORAGE_KEY = "cableBundler.developerMode";
+const DEVELOPER_CONSENT_STORAGE_KEY = "cableBundler.developerConsentVersion";
+const storedExpandedSections = readSession("cableBundler.expandedSections");
 let hasStoredExpansionState = storedExpandedSections !== null;
 let expandedSectionIds = [];
 try {
@@ -78,10 +78,10 @@ let developerModeEnabled = readPreference(DEVELOPER_MODE_STORAGE_KEY) === "true"
 if (!developerModeEnabled) writePreference(DEVELOPER_MODE_STORAGE_KEY, "false");
 ui.developerMode.checked = developerModeEnabled;
 ui.verboseDiagnostics.checked = developerModeEnabled
-  && readPreference("wireBundler.verboseDiagnostics") === "true";
+  && readPreference("cableBundler.verboseDiagnostics") === "true";
 ui.verboseDiagnostics.disabled = !developerModeEnabled;
 ui.validationOutput.hidden = true;
-const storedNoticeHeight = Number(readSession("wireBundler.noticeHeight"));
+const storedNoticeHeight = Number(readSession("cableBundler.noticeHeight"));
 if (Number.isFinite(storedNoticeHeight) && storedNoticeHeight >= 72) {
   ui.notice.style.height = `${Math.min(600, storedNoticeHeight)}px`;
 }
@@ -91,7 +91,7 @@ function harnessKey(harness) {
 }
 
 function relationshipCollapseStorageKey(harness) {
-  return `wireBundler.relationshipCollapseLimit:${harnessKey(harness)}`;
+  return `cableBundler.relationshipCollapseLimit:${harnessKey(harness)}`;
 }
 
 function clampRelationshipCollapseLimit(value) {

@@ -5,6 +5,7 @@ const { assert, readPaletteStyles, test } = require('./support.cjs');
 test('master relationship viewport uses a distinct darker backdrop', () => {
   const styles = readPaletteStyles();
   assert.match(styles, /\.relationship-map-viewport \{[^}]*background: var\(--canvas\);/s);
+  assert.doesNotMatch(styles, /\.relationship-pathway-stack \{[^}]*min-width:/s);
 });
 
 test('palette defines fixed light and dark semantic color sets', () => {
@@ -15,7 +16,7 @@ test('palette defines fixed light and dark semantic color sets', () => {
     styles,
     /:root\[data-theme="dark"\] \{[^}]*color-scheme: dark;[^}]*--surface: #2b3136;/s,
   );
-  assert.doesNotMatch(styles, /\.wire-trace[^,{]*\{[^}]*stroke:/s);
+  assert.doesNotMatch(styles, /\.cable-trace[^,{]*\{[^}]*stroke:/s);
 });
 
 test('low-contrast trace halos switch neutrally with the palette theme', () => {
@@ -33,62 +34,62 @@ test('low-contrast trace halos switch neutrally with the palette theme', () => {
   assert.doesNotMatch(styles, /trace-contrast-fixed|trace-fixed-halo/);
 });
 
-test('Wire Details fills most of the window and uses the shared diagram workspace', () => {
+test('Cable Details fills most of the window and uses the shared diagram workspace', () => {
   const styles = readPaletteStyles();
-  assert.match(styles, /\.wire-group-details-popup \{[^}]*width: 90vw;[^}]*height: 90vh;/s);
+  assert.match(styles, /\.cable-group-details-popup \{[^}]*width: 90vw;[^}]*height: 90vh;/s);
   assert.match(
     styles,
     /\.block-diagram-workspace \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s,
   );
   assert.match(styles, /\.block-diagram-viewport \{[^}]*overflow: hidden;/s);
   assert.match(styles, /\.block-diagram-stage \{[^}]*transform-origin: 0 0;/s);
-  assert.match(styles, /\.wire-group-route-link \{[^}]*fill: none;[^}]*stroke-linecap: round;/s);
+  assert.match(styles, /\.cable-group-route-link \{[^}]*fill: none;[^}]*stroke-linecap: round;/s);
 });
 
 test('Route Editor uses three independently scrollable columns', () => {
   const styles = readPaletteStyles();
   const columnPattern = [
-    String.raw`\.create-wires-layout \{[^}]*grid-template-columns: `,
+    String.raw`\.create-cables-layout \{[^}]*grid-template-columns: `,
     String.raw`minmax\(0, 1fr\) minmax\(0, 2fr\) minmax\(0, 1fr\);`,
   ].join('');
   assert.match(
     styles,
     new RegExp(columnPattern, 's'),
   );
-  assert.match(styles, /\.create-wires-column \{[^}]*overflow-y: auto;/s);
+  assert.match(styles, /\.create-cables-column \{[^}]*overflow-y: auto;/s);
   assert.match(
     styles,
-    /\.create-wires-end-pool \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s,
+    /\.create-cables-end-pool \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s,
   );
-  assert.match(styles, /\.create-wires-end-list \{[^}]*min-height: 0;/s);
-  assert.match(styles, /\.create-wires-assignment-content \{[^}]*min-height: 0;/s);
+  assert.match(styles, /\.create-cables-end-list \{[^}]*min-height: 0;/s);
+  assert.match(styles, /\.create-cables-assignment-content \{[^}]*min-height: 0;/s);
   assert.doesNotMatch(
     styles,
-    /\.create-wires-assignment-content \{[^}]*min-height: 100%;/s,
+    /\.create-cables-assignment-content \{[^}]*min-height: 100%;/s,
   );
   assert.match(
     styles,
-    /\.create-wires-assignment-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 12px minmax\(0, 1fr\);/s,
+    /\.create-cables-assignment-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 12px minmax\(0, 1fr\);/s,
   );
   assert.match(
     styles,
-    /\.create-wires-assignment-row\[data-complete="true"\][^{]*\{[^}]*background: var\(--accent\);/s,
+    /\.create-cables-assignment-row\[data-complete="true"\][^{]*\{[^}]*background: var\(--accent\);/s,
   );
   assert.match(
     styles,
-    /\.create-wires-assignment-slot\[data-drop="slot"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
+    /\.create-cables-assignment-slot\[data-drop="slot"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
   );
   assert.match(
     styles,
-    /\.create-wires-end-card\[data-drop="swap"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
+    /\.create-cables-end-card\[data-drop="swap"\][^{]*\{[^}]*outline: 2px solid var\(--accent\);/s,
   );
   assert.doesNotMatch(
     styles,
-    /\.create-wires-assignment-slot \.create-wires-end-card small \{[^}]*display: none;/s,
+    /\.create-cables-assignment-slot \.create-cables-end-card small \{[^}]*display: none;/s,
   );
 });
 
-test('long wire-end names expand horizontally instead of wrapping', () => {
+test('long cable-end names expand horizontally instead of wrapping', () => {
   const styles = readPaletteStyles();
 
   assert.match(

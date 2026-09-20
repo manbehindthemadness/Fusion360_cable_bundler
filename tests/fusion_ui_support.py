@@ -17,8 +17,8 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.application import HarnessLoadResult
-from wire_bundler.domain import (
+from cable_bundler.application import HarnessLoadResult
+from cable_bundler.domain import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -27,13 +27,13 @@ from wire_bundler.domain import (
     PathwayEndpoint,
     RefineGeometry,
     StandaloneEndDefinition,
-    WireColor,
-    WireGroupDefinition,
-    WireStripe,
+    CableColor,
+    CableGroupDefinition,
+    CableStripe,
     dumps,
     loads,
 )
-from wire_bundler.routing import GateFrame, Vector3
+from cable_bundler.routing import GateFrame, Vector3
 
 REFINE_ID = UUID("30000000-0000-0000-0000-000000000099")
 
@@ -58,9 +58,9 @@ __all__ = (
     "StandaloneEndDefinition",
     "UUID",
     "Vector3",
-    "WireColor",
-    "WireGroupDefinition",
-    "WireStripe",
+    "CableColor",
+    "CableGroupDefinition",
+    "CableStripe",
     "_PaletteLifecycleModule",
     "_configure_relationship_selector_casts",
     "_configure_save_test",
@@ -113,7 +113,7 @@ class _PaletteLifecycleModule(Protocol):
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type
     _restore_active_stripe_graphics: Callable[[object], int]
-    restore_wire_group_stripe_graphics: Callable[[object, HarnessDefinition], int]
+    restore_cable_group_stripe_graphics: Callable[[object, HarnessDefinition], int]
     _open_palette_edit: Callable[[object, str, str], None]
     _apply_palette_edit: Callable[[object, str, str], str]
     _refresh_active_preview: Callable[..., str]
@@ -177,9 +177,9 @@ class _PaletteLifecycleModule(Protocol):
     _create_harness_gateway: Callable[[object], object]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
-    save_wire_editor: Callable[..., None]
+    save_cable_editor: Callable[..., None]
     set_harness_properties: Callable[..., None]
-    set_wire_group_properties: Callable[..., None]
+    set_cable_group_properties: Callable[..., None]
     serialize_palette_state: Callable[[object, str], str]
     _palette_theme_payload: Callable[[object], dict[str, str]]
     _harness_render_state: Callable[[object, object, HarnessDefinition], tuple[bool, bool]]
@@ -188,18 +188,18 @@ class _PaletteLifecycleModule(Protocol):
     _library_appearances_payload: Callable[[object, str], list[dict[str, str]]]
     _preview_routes: Callable[[object, str], int]
     _generate_solids: Callable[[object, str], int]
-    generate_wire_group_solids: Callable[..., int]
+    generate_cable_group_solids: Callable[..., int]
     _clear_preview: Callable[[object], int]
     _clear_highlight: Callable[[object], None]
     _clear_solids: Callable[[object, str], int]
     clear_route_previews: Callable[[object], int]
     clear_refine_spine: Callable[[object], None]
-    clear_wire_solids: Callable[[object], int]
-    generated_wire_group_bodies: Callable[..., tuple[object, ...]]
-    generated_wire_group_occurrences: Callable[[object], tuple[object, ...]]
+    clear_cable_solids: Callable[[object], int]
+    generated_cable_group_bodies: Callable[..., tuple[object, ...]]
+    generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
     has_route_preview_for_harness: Callable[[object, HarnessDefinition], bool]
-    hide_generated_wire_group_solids: Callable[[object], Any]
-    restore_generated_wire_group_visibility: Callable[[Any], None]
+    hide_generated_cable_group_solids: Callable[[object], Any]
+    restore_generated_cable_group_visibility: Callable[[Any], None]
     has_refine_graphics: Callable[[object], bool]
     has_route_previews: Callable[[object], bool]
     show_route_previews: Callable[..., tuple[object, ...]]
@@ -264,23 +264,23 @@ def addin_module(
     monkeypatch.setitem(sys.modules, "adsk.core", core_module)
     monkeypatch.setitem(sys.modules, "adsk.fusion", fusion_module)
     for module_name in tuple(sys.modules):
-        if module_name.startswith("wire_bundler.fusion.ui"):
+        if module_name.startswith("cable_bundler.fusion.ui"):
             sys.modules.pop(module_name, None)
 
     module_names = (
-        "wire_bundler.fusion.ui.lifecycle",
-        "wire_bundler.fusion.ui.palette",
-        "wire_bundler.fusion.ui.palette_state",
-        "wire_bundler.fusion.ui.viewport",
-        "wire_bundler.fusion.ui.edits",
-        "wire_bundler.fusion.ui.launchers",
-        "wire_bundler.fusion.ui.registration",
-        "wire_bundler.fusion.ui.runtime",
-        "wire_bundler.fusion.ui.commands.harness",
-        "wire_bundler.fusion.ui.commands.pathways",
-        "wire_bundler.fusion.ui.commands.junctions",
-        "wire_bundler.fusion.ui.commands.ends",
-        "wire_bundler.fusion.ui.commands.refines",
+        "cable_bundler.fusion.ui.lifecycle",
+        "cable_bundler.fusion.ui.palette",
+        "cable_bundler.fusion.ui.palette_state",
+        "cable_bundler.fusion.ui.viewport",
+        "cable_bundler.fusion.ui.edits",
+        "cable_bundler.fusion.ui.launchers",
+        "cable_bundler.fusion.ui.registration",
+        "cable_bundler.fusion.ui.runtime",
+        "cable_bundler.fusion.ui.commands.harness",
+        "cable_bundler.fusion.ui.commands.pathways",
+        "cable_bundler.fusion.ui.commands.junctions",
+        "cable_bundler.fusion.ui.commands.ends",
+        "cable_bundler.fusion.ui.commands.refines",
     )
     modules = tuple(importlib.import_module(name) for name in module_names)
     requested_names = _nested_code_names(request.function.__code__)

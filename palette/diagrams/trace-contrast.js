@@ -54,7 +54,7 @@ function appendContrastTrace(parent, attributes, options) {
     "stroke-width": options.haloWidth,
     "aria-hidden": "true",
   };
-  ["data-wire-group-id", "data-wire-group-ids"].forEach((name) => {
+  ["data-cable-group-id", "data-cable-group-ids"].forEach((name) => {
     if (attributes[name]) haloAttributes[name] = attributes[name];
   });
   const halo = svgElement("path", haloAttributes);

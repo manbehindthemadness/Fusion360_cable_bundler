@@ -1,7 +1,7 @@
-/* Master and Wire Details topology nodes, traces, and endpoint cards. */
+/* Master and Cable Details topology nodes, traces, and endpoint cards. */
 
 .relationship-topology-edge.relationship-focus-match .structural-trace { stroke-width: 3; }
-.relationship-topology-edge.relationship-focus-match .relationship-wire-bundle {
+.relationship-topology-edge.relationship-focus-match .relationship-cable-bundle {
   stroke-width: 9;
 }
 .relationship-pathway-group {
@@ -139,20 +139,20 @@
 .relationship-connector .aggregate-trace { stroke: #7b9ab2; stroke-width: 1.5; }
 .relationship-connector .placeholder-trace { stroke: #9aaab6; stroke-width: 1.5; }
 .relationship-chain-link .structural-trace { stroke: #7b9ab2; stroke-width: 1.5; }
-.relationship-connector .wire-trace,
-.relationship-chain-link .wire-trace { stroke-width: 7; }
+.relationship-connector .cable-trace,
+.relationship-chain-link .cable-trace { stroke-width: 7; }
 .relationship-connector .stripe-trace,
 .relationship-chain-link .stripe-trace { stroke-width: 1.4; }
-.wire-relationship-graphic {
+.cable-relationship-graphic {
   border: 1px solid var(--border-subtle);
   border-radius: 5px;
   overflow-x: auto;
   background: var(--surface);
 }
-.wire-relationship-route { cursor: pointer; }
-.wire-relationship-node { cursor: pointer; outline: none; }
-.wire-relationship-node:focus .relationship-node,
-.wire-relationship-node:hover .relationship-node {
+.cable-relationship-route { cursor: pointer; }
+.cable-relationship-node { cursor: pointer; outline: none; }
+.cable-relationship-node:focus .relationship-node,
+.cable-relationship-node:hover .relationship-node {
   stroke: var(--accent);
   stroke-width: 2;
 }

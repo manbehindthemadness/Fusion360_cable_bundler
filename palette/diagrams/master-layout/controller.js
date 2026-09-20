@@ -233,6 +233,8 @@ function layoutRelationshipGraph(stack, components, harness, options = {}) {
     preserveAspectRatio: "none",
     "aria-hidden": "true",
   });
+  overlay.style.width = `${canvasWidth}px`;
+  overlay.style.height = `${canvasHeight}px`;
   layout.routeSets.forEach(({ component, ports, edgeGroups, routes }) => {
     const nodes = new Map(component.nodes.map((node) => [node.id, node]));
     const portsById = new Map(ports.map((port) => [port.id, port]));
@@ -273,4 +275,3 @@ function layoutRelationshipGraph(stack, components, harness, options = {}) {
     candidateIndex: selectedIndex,
   };
 }
-

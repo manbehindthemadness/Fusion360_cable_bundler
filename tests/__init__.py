@@ -1,3 +1,3 @@
 """
-Unit tests for application-owned Wire Bundler behavior.
+Unit tests for application-owned Cable Bundler behavior.
 """

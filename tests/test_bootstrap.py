@@ -44,12 +44,12 @@ def bootstrap_module(monkeypatch: pytest.MonkeyPatch) -> Iterator[_BootstrapModu
     adsk_module.core = core_module  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "adsk", adsk_module)
     monkeypatch.setitem(sys.modules, "adsk.core", core_module)
-    sys.modules.pop("Fusion360_wire_bundler", None)
+    sys.modules.pop("Fusion360_cable_bundler", None)
 
-    module = importlib.import_module("Fusion360_wire_bundler")
+    module = importlib.import_module("Fusion360_cable_bundler")
     yield cast(_BootstrapModule, cast(object, module))
 
-    sys.modules.pop("Fusion360_wire_bundler", None)
+    sys.modules.pop("Fusion360_cable_bundler", None)
 
 
 def test_successful_run_starts_loaded_addin_without_unloading_it(
@@ -59,7 +59,7 @@ def test_successful_run_starts_loaded_addin_without_unloading_it(
     """
     Forward Fusion's exact context and keep lifecycle modules loaded while running.
     """
-    package_name = "wire_bundler_running_test"
+    package_name = "cable_bundler_running_test"
     lifecycle_name = f"{package_name}.addin"
     lifecycle = ModuleType(lifecycle_name)
     context = object()
@@ -90,7 +90,7 @@ def test_successful_stop_evicts_only_the_loaded_addin_package(
     """
     Clean up lifecycle state before evicting package modules for the next run.
     """
-    package_name = "wire_bundler_reload_test"
+    package_name = "cable_bundler_reload_test"
     lifecycle_name = f"{package_name}.addin"
     package = ModuleType(package_name)
     lifecycle = ModuleType(lifecycle_name)
@@ -127,7 +127,7 @@ def test_failed_stop_keeps_package_loaded_for_diagnosis(
     """
     Preserve loaded modules when lifecycle cleanup does not complete.
     """
-    package_name = "wire_bundler_failed_stop_test"
+    package_name = "cable_bundler_failed_stop_test"
     lifecycle_name = f"{package_name}.addin"
     lifecycle = ModuleType(lifecycle_name)
 
@@ -193,6 +193,6 @@ def test_lifecycle_import_failure_is_reported_and_preserved(
     assert raised.value is failure
     assert len(message_box_calls) == 1
     message, title = message_box_calls[0]
-    assert message.startswith(f"Wire Bundler failed to {operation}:\n")
+    assert message.startswith(f"Cable Bundler failed to {operation}:\n")
     assert "LookupError: broken lifecycle import" in message
     assert title == "Harness Builder"

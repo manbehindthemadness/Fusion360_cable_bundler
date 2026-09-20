@@ -5,7 +5,7 @@ Tests for pure harness definition validation.
 from dataclasses import replace
 from uuid import UUID
 
-from wire_bundler.domain import (
+from cable_bundler.domain import (
     Connection,
     ControlKind,
     ControlStructure,
@@ -15,7 +15,7 @@ from wire_bundler.domain import (
     PathwayDefinition,
     PathwayEndpoint,
     StandaloneEndDefinition,
-    WireGroupDefinition,
+    CableGroupDefinition,
     validate_harness,
 )
 
@@ -29,18 +29,18 @@ def test_accepts_complete_harness(valid_harness: HarnessDefinition) -> None:
     assert issues == ()
 
 
-def test_rejects_an_empty_wire_group_system(
+def test_rejects_an_empty_cable_group_system(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Require at least one generation-ready wire group.
+    Require at least one generation-ready cable group.
     """
-    empty = replace(valid_harness, wire_groups=())
+    empty = replace(valid_harness, cable_groups=())
     issues = validate_harness(empty)
 
     assert any(
-        issue.code == "missing_wire_groups"
-        and issue.message == "At least one wire group is required."
+        issue.code == "missing_cable_groups"
+        and issue.message == "At least one cable group is required."
         for issue in issues
     )
 
@@ -66,51 +66,51 @@ def test_validates_standalone_end_references_and_connection_ownership(
     assert any(issue.code == "duplicate_endpoint" for issue in issues)
 
 
-def test_validates_wire_group_membership_and_pathway_boundaries(
+def test_validates_cable_group_membership_and_pathway_boundaries(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
     Require two located members and forbid repeated membership or boundaries.
     """
-    first = WireGroupDefinition(
+    first = CableGroupDefinition(
         UUID("60000000-0000-0000-0000-000000000001"),
         (valid_harness.connections[0].connection_id,),
     )
-    repeated = WireGroupDefinition(
+    repeated = CableGroupDefinition(
         UUID("60000000-0000-0000-0000-000000000002"),
         (
             valid_harness.connections[0].connection_id,
             valid_harness.connections[1].connection_id,
         ),
     )
-    issues = validate_harness(replace(valid_harness, wire_groups=(first, repeated)))
+    issues = validate_harness(replace(valid_harness, cable_groups=(first, repeated)))
 
-    assert any(issue.code == "undersized_wire_group" for issue in issues)
-    assert any(issue.code == "duplicate_wire_group_member" for issue in issues)
+    assert any(issue.code == "undersized_cable_group" for issue in issues)
+    assert any(issue.code == "duplicate_cable_group_member" for issue in issues)
 
 
-def test_rejects_nonpositive_wire_group_diameter(
+def test_rejects_nonpositive_cable_group_diameter(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Require connected-wire construction diameters to remain physically usable.
+    Require connected-cable construction diameters to remain physically usable.
     """
-    group = WireGroupDefinition(
+    group = CableGroupDefinition(
         UUID("60000000-0000-0000-0000-000000000010"),
         tuple(connection.connection_id for connection in valid_harness.connections),
         0.0,
     )
 
-    issues = validate_harness(replace(valid_harness, wire_groups=(group,)))
+    issues = validate_harness(replace(valid_harness, cable_groups=(group,)))
 
-    assert any(issue.code == "invalid_wire_group_diameter" for issue in issues)
+    assert any(issue.code == "invalid_cable_group_diameter" for issue in issues)
 
 
 def test_rejects_distinct_group_members_at_the_same_pathway_end(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Keep one wire group from containing two physical ends on one boundary.
+    Keep one cable group from containing two physical ends on one boundary.
     """
     first_id = UUID("63000000-0000-0000-0000-000000000001")
     second_id = UUID("63000000-0000-0000-0000-000000000002")
@@ -126,8 +126,8 @@ def test_rejects_distinct_group_members_at_the_same_pathway_end(
             StandaloneEndDefinition(first_id, pathway_id, PathwayEndpoint.START),
             StandaloneEndDefinition(second_id, pathway_id, PathwayEndpoint.START),
         ),
-        wire_groups=(
-            WireGroupDefinition(
+        cable_groups=(
+            CableGroupDefinition(
                 UUID("60000000-0000-0000-0000-000000000003"),
                 (first_id, second_id),
             ),
@@ -136,7 +136,7 @@ def test_rejects_distinct_group_members_at_the_same_pathway_end(
 
     issues = validate_harness(definition)
 
-    assert any(issue.code == "duplicate_wire_group_boundary" for issue in issues)
+    assert any(issue.code == "duplicate_cable_group_boundary" for issue in issues)
 
 
 def test_accepts_isolated_and_single_ended_junctions(

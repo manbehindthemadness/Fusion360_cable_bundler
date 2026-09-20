@@ -4,7 +4,7 @@
 function openJunctionRelationships(harness, junction) {
   retainConfigurationPopupParent(harness);
   closePathwayPopup(true);
-  closeWireGroupDetails();
+  closeCableGroupDetails();
   const prior = document.body.querySelector(".junction-relationships-popup");
   if (prior) {
     prior.remove();
@@ -42,7 +42,7 @@ function openJunctionRelationships(harness, junction) {
       () => highlightMember(harness, "pathway_gates", relationship.pathwayId),
       [actionButton("×", `Remove ${endpointLabel} relationship`, () => {
         if (childGroups.length && !window.confirm(
-          `${childGroups.length} ${childGroups.length === 1 ? "wire group traverses" : "wire groups traverse"} this relationship. Remove it?`,
+          `${childGroups.length} ${childGroups.length === 1 ? "cable group traverses" : "cable groups traverse"} this relationship. Remove it?`,
         )) return;
         void mutate("remove_junction_relationship", {
           harnessId: harness.harnessId,
@@ -66,14 +66,14 @@ function openJunctionRelationships(harness, junction) {
   add.addEventListener("click", () => addJunctionRelationship(junction.junctionId));
   relationshipContent.append(relationshipSequence, add);
   if (!memberGroups.length) {
-    occupancy.append(emptyMessage("No wire groups traverse this junction."));
+    occupancy.append(emptyMessage("No cable groups traverse this junction."));
   }
   memberGroups.forEach((group) => {
     const row = memberRow(
-      wireGroupLabel(harness, group),
-      () => highlightMember(harness, "wire_group", group.wireGroupId),
+      cableGroupLabel(harness, group),
+      () => highlightMember(harness, "cable_group", group.cableGroupId),
     );
-    row.dataset.wireGroupId = group.wireGroupId;
+    row.dataset.cableGroupId = group.cableGroupId;
     occupancy.append(row);
   });
   occupancyContent.append(occupancy);
@@ -109,7 +109,7 @@ function openJunctionRelationships(harness, junction) {
     ),
     nestedSection(
       `junction:${junction.junctionId}:occupancy`,
-      "Wire Group Occupancy",
+      "Cable Group Occupancy",
       `${memberGroups.length}`,
       occupancyContent,
       () => highlightMember(harness, "junction", junction.junctionId),
@@ -118,7 +118,7 @@ function openJunctionRelationships(harness, junction) {
   const entry = nestedSection(
     `junction:${junction.junctionId}`,
     junctionName,
-    `${existingRelationships.length} pathway ${existingRelationships.length === 1 ? "endpoint" : "endpoints"} · ${memberGroups.length} wire groups`,
+    `${existingRelationships.length} pathway ${existingRelationships.length === 1 ? "endpoint" : "endpoints"} · ${memberGroups.length} cable groups`,
     content,
     () => highlightMember(harness, "junction", junction.junctionId),
   );
@@ -197,33 +197,33 @@ function renderRelationshipConnector(
     }
     if (!routeGroups.length) return;
     const listedGroupIds = new Set(
-      endGroups.flatMap((group) => group.groups.map((member) => member.wireGroupId)),
+      endGroups.flatMap((group) => group.groups.map((member) => member.cableGroupId)),
     );
-    if (!isExpanded && routeGroups.every((group) => listedGroupIds.has(group.wireGroupId))) {
+    if (!isExpanded && routeGroups.every((group) => listedGroupIds.has(group.cableGroupId))) {
       svg.append(svgElement("path", {
         class: "aggregate-trace",
         d: curvePath(50, 50),
-        "data-wire-group-ids": relationshipGroupIds(routeGroups),
+        "data-cable-group-ids": relationshipGroupIds(routeGroups),
       }));
       return;
     }
     const endPositions = new Map();
     endGroups.forEach((group, index) => group.groups.forEach((member) => {
       endPositions.set(
-        member.wireGroupId,
+        member.cableGroupId,
         20 + 75 * ((index + 0.5) / endGroups.length),
       );
     }));
     const hubSpacing = Math.min(2.5, 14 / Math.max(1, routeGroups.length - 1));
     routeGroups.forEach((group, index) => {
       const hubY = 50 + (index - (routeGroups.length - 1) / 2) * hubSpacing;
-      const listY = endPositions.get(group.wireGroupId) ?? hubY;
+      const listY = endPositions.get(group.cableGroupId) ?? hubY;
       const mainColor = group.materials?.mainColor?.hex || "#1777c8";
       appendContrastTrace(svg, {
-        class: "wire-trace",
+        class: "cable-trace",
         d: curvePath(listY, hubY),
         stroke: mainColor,
-        "data-wire-group-id": group.wireGroupId,
+        "data-cable-group-id": group.cableGroupId,
       }, { haloWidth: 10 });
       (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
         const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
@@ -232,7 +232,7 @@ function renderRelationshipConnector(
           d: curvePath(listY + stripeOffset, hubY + stripeOffset),
           stroke: stripe.color?.hex || "#fff",
           "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
-          "data-wire-group-id": group.wireGroupId,
+          "data-cable-group-id": group.cableGroupId,
         }));
       });
     });
@@ -418,10 +418,10 @@ function renderRelationshipBridge(groups) {
     const y = 50 + (index - (groups.length - 1) / 2) * spacing;
     const mainColor = group.materials?.mainColor?.hex || "#1777c8";
     appendContrastTrace(svg, {
-      class: "wire-trace",
+      class: "cable-trace",
       d: `M 0 ${y} L 22 ${y}`,
       stroke: mainColor,
-      "data-wire-group-id": group.wireGroupId,
+      "data-cable-group-id": group.cableGroupId,
     }, { haloWidth: 10 });
     (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
       const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
@@ -430,7 +430,7 @@ function renderRelationshipBridge(groups) {
         d: `M 0 ${y + stripeOffset} L 22 ${y + stripeOffset}`,
         stroke: stripe.color?.hex || "#fff",
         "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
-        "data-wire-group-id": group.wireGroupId,
+        "data-cable-group-id": group.cableGroupId,
       }));
     });
   });
@@ -439,7 +439,7 @@ function renderRelationshipBridge(groups) {
 
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
-  showContextMenu, focusController, wireCreationController,
+  showContextMenu, focusController, cableCreationController,
 ) {
   const side = endpoint === "start" ? "A" : "B";
   const details = document.createElement("details");
@@ -464,14 +464,14 @@ function renderRelationshipEndList(
     groups: groups.flatMap((group) => group.groups),
     nodeIds: [`pathway:${pathway.pathwayId}`],
   });
-  const wireCreationBoundary = wireCreationController.bind(
+  const cableCreationBoundary = cableCreationController.bind(
     pathway, endpoint, groups, summary,
   );
   summary.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
     showContextMenu(event, [{
       label: "Route Editor",
-      action: () => wireCreationController.begin(wireCreationBoundary),
+      action: () => cableCreationController.begin(cableCreationBoundary),
       disabled: !groups.length,
       title: groups.length ? "" : "Requires at least one end",
     }]);
@@ -494,27 +494,27 @@ function renderRelationshipEndList(
     const meta = document.createElement("small");
     button.className = "relationship-end-entry";
     button.dataset.connectionId = group.connectionId;
-    button.dataset.wireGroupIds = relationshipGroupIds(group.groups);
+    button.dataset.cableGroupIds = relationshipGroupIds(group.groups);
     name.textContent = group.label;
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
-    meta.textContent = `${connectionContext}${group.wireGroupId ? "Connected" : "Disconnected"}`;
+    meta.textContent = `${connectionContext}${group.cableGroupId ? "Connected" : "Disconnected"}`;
     button.append(name, meta);
     hoverHighlight(button, () => highlightMember(harness, "connection", group.connectionId));
     focusController.bind(button, {
       groups: group.groups,
       nodeIds: [`pathway:${pathway.pathwayId}`],
     });
-    const openDetails = () => openWireGroupDetails(
-      harness, group.wireGroupId, group.connectionId,
+    const openDetails = () => openCableGroupDetails(
+      harness, group.cableGroupId, group.connectionId,
     );
-    if (group.wireGroupId) button.addEventListener("click", openDetails);
-    if (!group.wireGroupId) button.dataset.disconnected = "true";
+    if (group.cableGroupId) button.addEventListener("click", openDetails);
+    if (!group.cableGroupId) button.dataset.disconnected = "true";
     button.tabIndex = 0;
     button.setAttribute(
-      "aria-label", `${group.label}, ${group.wireGroupId ? "connected" : "disconnected"} end`,
+      "aria-label", `${group.label}, ${group.cableGroupId ? "connected" : "disconnected"} end`,
     );
-    if (group.wireGroupId) {
+    if (group.cableGroupId) {
       button.setAttribute("role", "button");
       button.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -538,7 +538,7 @@ function renderRelationshipEndList(
           }, `Deleting ${group.label}…`),
         },
       ];
-      if (group.wireGroupId) {
+      if (group.cableGroupId) {
         contextItems.unshift({ label: "Details", action: openDetails });
       }
       showContextMenu(event, contextItems);
@@ -557,7 +557,7 @@ function renderRelationshipEndList(
 function addRelationshipMapContextMenu(workspace, harness) {
   const show = addContextMenu(workspace.viewport, workspace.viewport);
   workspace.viewport.addEventListener("contextmenu", (event) => {
-    const hasWireGroups = Boolean((harness.wireGroups || []).length);
+    const hasCableGroups = Boolean((harness.cableGroups || []).length);
     show(event, [
       {
         label: "Render",
@@ -567,16 +567,16 @@ function addRelationshipMapContextMenu(workspace, harness) {
             checked: Boolean(harness.hasRoutePreview),
             action: activatePreview,
             onToggle: setPreviewEnabled,
-            disabled: !hasWireGroups && !harness.hasRoutePreview,
-            title: hasWireGroups ? "" : "Requires at least one wire group",
+            disabled: !hasCableGroups && !harness.hasRoutePreview,
+            title: hasCableGroups ? "" : "Requires at least one cable group",
           },
           {
             label: "Solids",
             checked: Boolean(harness.hasGeneratedSolids),
             action: generateSolids,
             onToggle: setSolidsEnabled,
-            disabled: !hasWireGroups && !harness.hasGeneratedSolids,
-            title: hasWireGroups ? "" : "Requires at least one wire group",
+            disabled: !hasCableGroups && !harness.hasGeneratedSolids,
+            title: hasCableGroups ? "" : "Requires at least one cable group",
           },
         ],
       },
@@ -598,7 +598,7 @@ function addRelationshipMapContextMenu(workspace, harness) {
 
 function renderRelationshipPathwayNode(
   harness, candidate, connections, query, collapseLimit, showContextMenu,
-  focusController, wireCreationController, nodeIds,
+  focusController, cableCreationController, nodeIds,
 ) {
   const groups = {
     start: relationshipEndGroups(harness, candidate.pathwayId, "start", connections),
@@ -614,20 +614,20 @@ function renderRelationshipPathwayNode(
     ? groups.end : groups.end.filter((group) => group.searchable.includes(query));
   const matchingGroupIds = new Set(
     [...visibleStart, ...visibleEnd].flatMap(
-      (group) => group.groups.map((member) => member.wireGroupId),
+      (group) => group.groups.map((member) => member.cableGroupId),
     ),
   );
   const allPathwayGroups = relationshipPathwayGroups(harness, candidate.pathwayId);
   const pathwayGroups = allPathwayGroups
-    .filter((group) => pathwayMatches || matchingGroupIds.has(group.wireGroupId));
+    .filter((group) => pathwayMatches || matchingGroupIds.has(group.cableGroupId));
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
-    showContextMenu, focusController, wireCreationController,
+    showContextMenu, focusController, cableCreationController,
   );
   const endList = renderRelationshipEndList(
     harness, candidate, "end", groups.end, visibleEnd, query, collapseLimit,
-    showContextMenu, focusController, wireCreationController,
+    showContextMenu, focusController, cableCreationController,
   );
   const startConnector = renderRelationshipConnector(
     visibleStart, pathwayGroups, true, startList.open, pathwayGroups.length === 0,

@@ -43,7 +43,7 @@ asyncTest('device mode polls Fusion without refreshing harness state', async () 
 
 test('palette restores its last Fusion theme before the host state arrives', () => {
   const storage = new Map([
-    ['wireBundler.paletteTheme', JSON.stringify({ mode: 'fixed', active: 'dark' })],
+    ['cableBundler.paletteTheme', JSON.stringify({ mode: 'fixed', active: 'dark' })],
   ]);
   const { context } = palette(storage);
 
@@ -51,17 +51,17 @@ test('palette restores its last Fusion theme before the host state arrives', () 
   assert.equal(context.document.documentElement.style.colorScheme, 'dark');
 });
 
-test('palette theme changes preserve master wire material strokes', () => {
+test('palette theme changes preserve master cable material strokes', () => {
   const { context } = palette();
   const definition = harness();
-  definition.wireGroups[0].materials = {
-    ...definition.wireGroups[0].materials,
+  definition.cableGroups[0].materials = {
+    ...definition.cableGroups[0].materials,
     mainColor: { name: 'Signal Red', hex: '#d72525' },
   };
   const diagram = context.renderRelationshipMap(definition);
   const trace = descendants(
     diagram,
-    (node) => node.className?.split(' ').includes('wire-trace')
+    (node) => node.className?.split(' ').includes('cable-trace')
       && node.attributes.stroke === '#d72525',
   )[0];
 
@@ -72,11 +72,11 @@ test('palette theme changes preserve master wire material strokes', () => {
   assert.equal(trace.attributes.stroke, '#d72525');
 });
 
-test('master halos wrap contrast-demanding wires but never stripes', () => {
+test('master halos wrap contrast-demanding cables but never stripes', () => {
   const { context } = palette();
   const definition = harness();
-  definition.wireGroups[0].materials = {
-    ...definition.wireGroups[0].materials,
+  definition.cableGroups[0].materials = {
+    ...definition.cableGroups[0].materials,
     mainColor: { name: 'Near Black', hex: '#101214' },
     stripes: [{
       color: { name: 'Black', hex: '#101214' }, pattern: 'solid', widthMm: 0.2,
@@ -87,26 +87,26 @@ test('master halos wrap contrast-demanding wires but never stripes', () => {
   const halos = descendants(
     diagram, (node) => node.className?.split(' ').includes('trace-contrast-halo'),
   );
-  const wireHalo = halos.find((node) => (
-    node.dataset.wireGroupId === 'g1'
+  const cableHalo = halos.find((node) => (
+    node.dataset.cableGroupId === 'g1'
       && node.className.split(' ').includes('trace-contrast-dark-theme')
   ));
-  const wireTraces = descendants(
-    diagram, (node) => node.className?.split(' ').includes('wire-trace'),
+  const cableTraces = descendants(
+    diagram, (node) => node.className?.split(' ').includes('cable-trace'),
   );
   const stripeTraces = descendants(
     diagram, (node) => node.className?.split(' ').includes('stripe-trace'),
   );
   const exactTrace = descendants(diagram, (node) => (
-    node.className?.split(' ').includes('wire-trace')
-      && node.dataset.wireGroupId === 'g1'
+    node.className?.split(' ').includes('cable-trace')
+      && node.dataset.cableGroupId === 'g1'
       && node.attributes.stroke === '#101214'
   ))[0];
 
-  assert.ok(wireHalo);
-  assert.equal(wireHalo.className.includes('trace-contrast-light-theme'), false);
-  assert.equal(halos.length, wireTraces.length);
-  assert.ok(stripeTraces.some((node) => node.dataset.wireGroupId === 'g1'));
+  assert.ok(cableHalo);
+  assert.equal(cableHalo.className.includes('trace-contrast-light-theme'), false);
+  assert.equal(halos.length, cableTraces.length);
+  assert.ok(stripeTraces.some((node) => node.dataset.cableGroupId === 'g1'));
   assert.ok(exactTrace);
   assert.equal(context.traceContrastRatio('#000', '#fff'), 21);
 });
@@ -136,25 +136,25 @@ test('current pathway popup retains gate ordering and interpolation controls', (
   assert.ok(gateRows.some((row) => row.dataset.reorder === 'true'));
 
   options.events.click();
-  const interpolation = context.document.body.querySelector('.wire-options');
+  const interpolation = context.document.body.querySelector('.cable-options');
   assert.equal(interpolation.open, true);
   assert.equal(interpolation.attributes['aria-label'], 'Interpolation · Gate 1');
 });
 
-test('closing pathway configuration returns to its Wire Details parent', () => {
+test('closing pathway configuration returns to its Cable Details parent', () => {
   const { context } = palette();
   const definition = harness();
 
-  context.openWireGroupDetails(definition, 'g1', 'a1');
-  const details = context.document.body.querySelector('.wire-group-details-popup');
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
   const pathway = descendants(
     details,
-    (node) => node.className?.split(' ').includes('wire-group-details-node')
+    (node) => node.className?.split(' ').includes('cable-group-details-node')
       && node.dataset.nodeId === 'pathway:p',
   )[0];
   pathway.events.click();
 
-  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
   let configuration = context.document.body.querySelector('.pathway-popup');
   assert.equal(configuration.open, true);
   context.renderEditor(definition);
@@ -165,17 +165,17 @@ test('closing pathway configuration returns to its Wire Details parent', () => {
   close.events.click();
 
   assert.equal(context.document.body.querySelector('.pathway-popup'), undefined);
-  const restored = context.document.body.querySelector('.wire-group-details-popup');
+  const restored = context.document.body.querySelector('.cable-group-details-popup');
   assert.equal(restored.open, true);
   const focused = descendants(
     restored,
-    (node) => node.className?.split(' ').includes('wire-group-details-member')
+    (node) => node.className?.split(' ').includes('cable-group-details-member')
       && node.className.split(' ').includes('focused'),
   )[0];
   assert.equal(focused.dataset.connectionId, 'a1');
 });
 
-test('closing junction configuration returns to its Wire Details parent', () => {
+test('closing junction configuration returns to its Cable Details parent', () => {
   const { context } = palette();
   const definition = harness();
   const junction = {
@@ -183,9 +183,9 @@ test('closing junction configuration returns to its Wire Details parent', () => 
   };
   definition.junctions = [junction];
 
-  context.openWireGroupDetails(definition, 'g1', 'a1');
+  context.openCableGroupDetails(definition, 'g1', 'a1');
   context.openJunctionRelationships(definition, junction);
-  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
   const configuration = context.document.body.querySelector('.junction-relationships-popup');
   const close = descendants(
     configuration, (node) => node.tag === 'button' && node.textContent === 'Close',
@@ -193,7 +193,7 @@ test('closing junction configuration returns to its Wire Details parent', () => 
   close.events.click();
 
   assert.equal(context.document.body.querySelector('.junction-relationships-popup'), undefined);
-  assert.equal(context.document.body.querySelector('.wire-group-details-popup').open, true);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup').open, true);
 });
 
 test('generation defaults expose persisted generation preferences', () => {
@@ -206,7 +206,7 @@ test('generation defaults expose persisted generation preferences', () => {
 
   context.openInterpolationOptions(definition, 'defaults');
 
-  const dialog = context.document.body.querySelector('.wire-options');
+  const dialog = context.document.body.querySelector('.cable-options');
   const clearance = descendants(
     dialog, (node) => node.attributes?.['aria-label'] === 'Minimum member gap (mm)',
   )[0];
@@ -323,11 +323,11 @@ test('master diagram groups render and add actions into submenus', () => {
   ]);
 });
 
-test('Wire Details Materials action opens group materials', () => {
+test('Cable Details Materials action opens group materials', () => {
   const { context } = palette();
   const definition = harness();
-  context.openWireGroupDetails(definition, 'g1', 'a1');
-  const details = context.document.body.querySelector('.wire-group-details-popup');
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
 
   details.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, target: details,
@@ -339,7 +339,7 @@ test('Wire Details Materials action opens group materials', () => {
   assert.equal(materialDialog.open, true);
   assert.equal(
     materialDialog.children[0].children[0].textContent,
-    'Connected Wire Group Materials',
+    'Connected Cable Group Materials',
   );
 });
 
@@ -371,7 +371,7 @@ test('master end menu exposes end-owned guide and refine actions', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
-test('editing a master end isolates keyboard and pointer events from Wire Details', () => {
+test('editing a master end isolates keyboard and pointer events from Cable Details', () => {
   const { context, calls } = palette();
   const definition = harness();
   const diagram = context.renderRelationshipMap(definition);
@@ -416,7 +416,7 @@ test('editing a master end isolates keyboard and pointer events from Wire Detail
 
   assert.equal(propagationStopped, true);
   assert.equal(defaultPrevented, false);
-  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
   assert.equal(end.querySelector('input'), input);
   input.value = 'Engine Bay End';
   input.events.blur();
@@ -427,23 +427,23 @@ test('editing a master end isolates keyboard and pointer events from Wire Detail
   assert.equal(calls[0].payload.name, 'Engine Bay End');
 });
 
-test('Wire Details end nodes and rows share end-owned routing actions', () => {
+test('Cable Details end nodes and rows share end-owned routing actions', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways[0].orderedControlIds = ['c1'];
   const actions = [];
   context.appendEndGuides = (_harness, connectionId) => actions.push(['guides', connectionId]);
   context.addEndRefine = (_harness, connectionId) => actions.push(['refine', connectionId]);
-  context.openWireGroupDetails(definition, 'g1', 'a1');
-  const details = context.document.body.querySelector('.wire-group-details-popup');
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
   const graphicEnd = descendants(
     details,
-    (node) => node.className?.split(' ').includes('wire-group-details-node')
+    (node) => node.className?.split(' ').includes('cable-group-details-node')
       && node.dataset.connectionId === 'a1',
   )[0];
   const member = descendants(
     details,
-    (node) => node.className?.split(' ').includes('wire-group-details-member')
+    (node) => node.className?.split(' ').includes('cable-group-details-member')
       && node.dataset.connectionId === 'a1',
   )[0];
   const menu = details.querySelector('.relationship-map-context-menu');
@@ -460,7 +460,7 @@ test('Wire Details end nodes and rows share end-owned routing actions', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
-test('Wire Details pathway and junction nodes share master diagram interactions', () => {
+test('Cable Details pathway and junction nodes share master diagram interactions', () => {
   const { context } = palette();
   const definition = harness();
   const junction = {
@@ -468,7 +468,7 @@ test('Wire Details pathway and junction nodes share master diagram interactions'
     pathwayRelationships: [{ pathwayId: 'p', endpoint: 'start' }],
   };
   definition.junctions = [junction];
-  definition.wireGroups[0].routeLegs[0].controlSteps = [{ controlId: 'cj' }];
+  definition.cableGroups[0].routeLegs[0].controlSteps = [{ controlId: 'cj' }];
   const actions = [];
   context.activatePathwayNode = (_harness, pathway) => (
     actions.push(['open-pathway', pathway.pathwayId])
@@ -482,10 +482,10 @@ test('Wire Details pathway and junction nodes share master diagram interactions'
   context.removeJunction = (_harness, item) => (
     actions.push(['delete-junction', item.junctionId])
   );
-  context.openWireGroupDetails(definition, 'g1', 'a1');
-  const details = context.document.body.querySelector('.wire-group-details-popup');
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
   const node = (nodeId) => descendants(details, (candidate) => (
-    candidate.className?.split(' ').includes('wire-group-details-node')
+    candidate.className?.split(' ').includes('cable-group-details-node')
       && candidate.dataset.nodeId === nodeId
   ))[0];
   const menu = details.querySelector('.relationship-map-context-menu');

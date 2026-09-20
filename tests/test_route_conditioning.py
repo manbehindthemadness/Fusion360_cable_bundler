@@ -9,8 +9,8 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.routing import RoutePreview, TransitionLengths, Vector3, fair_route
-from wire_bundler.routing.conditioning import (
+from cable_bundler.routing import RoutePreview, TransitionLengths, Vector3, fair_route
+from cable_bundler.routing.conditioning import (
     CircularGuideConstraint,
     condition_connection_points,
     condition_control_points,
@@ -18,7 +18,7 @@ from wire_bundler.routing.conditioning import (
     condition_route_normals,
     junction_normal_indices,
 )
-from wire_bundler.routing.geometry import difference, dot, magnitude
+from cable_bundler.routing.geometry import difference, dot, magnitude
 
 
 def _guide(origin: Vector3, radius_mm: Optional[float]) -> CircularGuideConstraint:

@@ -12,9 +12,9 @@ from tests.fusion_ui_support import (
     Mock,
     PathwayEndpoint,
     SimpleNamespace,
-    WireColor,
-    WireGroupDefinition,
-    WireStripe,
+    CableColor,
+    CableGroupDefinition,
+    CableStripe,
     _PaletteLifecycleModule,
     dumps,
     json,
@@ -31,20 +31,20 @@ from tests.fusion_ui_support import (
         (
             "set_harness_material_defaults",
             {},
-            "Saved harness wire-material defaults.",
-            "Applied materials to 2 generated wire groups.",
+            "Saved harness cable-material defaults.",
+            "Applied materials to 2 generated cable groups.",
         ),
         (
-            "set_wire_group_material_overrides",
-            {"wireGroupId": str(UUID(int=2)), "overrides": {}},
-            "Saved connected-wire material overrides.",
-            "Applied materials to 1 generated wire group.",
+            "set_cable_group_material_overrides",
+            {"cableGroupId": str(UUID(int=2)), "overrides": {}},
+            "Saved connected-cable material overrides.",
+            "Applied materials to 1 generated cable group.",
         ),
         (
             "set_harness_material_defaults",
             {},
-            "Saved harness wire-material defaults.",
-            "Applied materials to 0 generated wire groups.",
+            "Saved harness cable-material defaults.",
+            "Applied materials to 0 generated cable groups.",
         ),
     ),
 )
@@ -86,19 +86,19 @@ def test_material_save_applies_existing_bodies_and_preview(
     assert not args.executeFailed
 
 
-def test_connected_wire_property_save_refreshes_only_group_preview(
+def test_connected_cable_property_save_refreshes_only_group_preview(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Refresh transient group graphics without applying legacy generated-wire materials.
+    Refresh transient group graphics without applying legacy generated-cable materials.
     """
     document = object()
     application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
     harness_id = UUID(int=1)
-    applied = Mock(return_value="Saved connected-wire properties.")
+    applied = Mock(return_value="Saved connected-cable properties.")
     applied_bodies = Mock()
     refreshed = Mock(return_value="")
     sent = Mock()
@@ -109,7 +109,7 @@ def test_connected_wire_property_save_refreshes_only_group_preview(
     payload = json.dumps(
         {
             "harnessId": str(harness_id),
-            "wireGroupId": str(UUID(int=2)),
+            "cableGroupId": str(UUID(int=2)),
             "diameterMm": 2.75,
             "insulationMaterial": "ETFE",
             "conductorMaterial": None,
@@ -121,12 +121,12 @@ def test_connected_wire_property_save_refreshes_only_group_preview(
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
 
     addin_module._PaletteEditExecuteHandler(
-        ("set_wire_group_properties", payload, document)
+        ("set_cable_group_properties", payload, document)
     ).notify(args)
 
     applied_bodies.assert_not_called()
     refreshed.assert_called_once_with(application, harness_id, ensure_visible=True)
-    sent.assert_called_once_with(application, "Saved connected-wire properties.")
+    sent.assert_called_once_with(application, "Saved connected-cable properties.")
     assert not args.executeFailed
 
 
@@ -138,12 +138,12 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
     """
     Create visible stripe graphics as direct feedback for Apply and Save.
     """
-    stripe = WireStripe(WireColor("White", 245, 245, 245), 0.2)
+    stripe = CableStripe(CableColor("White", 245, 245, 245), 0.2)
     definition = replace(
         valid_harness,
         material_defaults=replace(valid_harness.material_defaults, stripes=(stripe,)),
-        wire_groups=(
-            WireGroupDefinition(
+        cable_groups=(
+            CableGroupDefinition(
                 UUID(int=9902),
                 (
                     valid_harness.connections[0].connection_id,
@@ -253,7 +253,7 @@ def test_interpolation_bridge_persists_selected_target(
     )
     assert actual.approach_mm == 2
     assert actual.departure_mm is None
-    assert saved.wire_groups == valid_harness.wire_groups
+    assert saved.cable_groups == valid_harness.cable_groups
     if target == "defaults":
         assert saved.end_defaults.departure_mm == 3
         assert saved.minimum_clearance_mm == 0.35

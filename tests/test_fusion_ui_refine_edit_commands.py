@@ -43,7 +43,7 @@ def _refine_execute_context() -> tuple[SimpleNamespace, SimpleNamespace, Any]:
     application = SimpleNamespace()
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     return args, application, refine_commands
 
 
@@ -120,7 +120,7 @@ def test_refine_triad_reapplies_initial_world_transform(
     triad = SimpleNamespace(transform=None)
     inputs = SimpleNamespace(addTriadCommandInput=Mock(return_value=triad))
     monkeypatch.setattr(
-        "wire_bundler.fusion.ui.commands.refine_parts.inputs._refine_geometry_transform",
+        "cable_bundler.fusion.ui.commands.refine_parts.inputs._refine_geometry_transform",
         lambda _geometry: transform,
     )
 
@@ -150,7 +150,7 @@ def test_edit_refine_preview_redraws_current_triad_geometry(
     application = SimpleNamespace(activeViewport=viewport)
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     monkeypatch.setitem(vars(refine_commands), "_read_edited_refine_geometry", read_geometry)
     monkeypatch.setitem(vars(refine_commands), "_require_active_design", lambda _app: design)
     monkeypatch.setitem(vars(refine_commands), "draw_refine_editor", draw_editor)
@@ -181,7 +181,7 @@ def test_edit_refine_input_change_updates_existing_marker(
     assert geometry is not None
     state = addin_module._EditRefineCommandState(UUID(int=1), REFINE_ID, geometry)
     preview = Mock()
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     monkeypatch.setitem(vars(refine_commands), "_preview_edited_refine", preview)
     command_inputs = object()
 
@@ -235,7 +235,7 @@ def test_refine_editor_updates_one_graphics_transform_in_place(
     """
     Encode world position, orientation, and radius in the live graphics transform.
     """
-    from wire_bundler.fusion import refine_graphics
+    from cable_bundler.fusion import refine_graphics
 
     core_module = refine_graphics.adsk.core
     transform = SimpleNamespace(setCell=Mock(return_value=True))
@@ -274,7 +274,7 @@ def test_refine_editor_hides_only_selected_persistent_marker(
     """
     Keep sibling refines visible while replacing the selected marker for editing.
     """
-    from wire_bundler.fusion import refine_graphics
+    from cable_bundler.fusion import refine_graphics
 
     geometry = _refine_control().refine_geometry
     assert geometry is not None
@@ -345,7 +345,7 @@ def test_finalize_refine_graphics_replaces_command_group(
     fusion_module.Design = SimpleNamespace(cast=lambda product: product)  # type: ignore[attr-defined]
     clear_spine = Mock()
     reconcile = Mock()
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     monkeypatch.setitem(vars(refine_commands), "clear_refine_spine", clear_spine)
     monkeypatch.setitem(vars(refine_commands), "_reconcile_active_refines", reconcile)
 
@@ -377,7 +377,7 @@ def test_selecting_persistent_refine_opens_transform_editor(
     )
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
-    refine_commands = importlib.import_module("wire_bundler.fusion.ui.commands.refines")
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
     monkeypatch.setitem(
         vars(refine_commands),
         "load_harnesses",
@@ -411,7 +411,7 @@ def test_refine_reconciliation_redraws_changed_geometry_with_same_identity(
     """
     Rebuild a marker even when a resize preserves its persistent control UUID.
     """
-    from wire_bundler.fusion import refine_graphics
+    from cable_bundler.fusion import refine_graphics
 
     refine_id = REFINE_ID
     refine = _refine_control(18.0)

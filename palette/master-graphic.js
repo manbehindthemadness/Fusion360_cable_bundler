@@ -2,7 +2,7 @@ const RELATIONSHIP_DIAGRAM_CONTRACT_VERSION = "10";
 const RELATIONSHIP_DIAGRAM_LAYOUT = "layered-cardinal-topology";
 
 function relationshipDiagramViewStorageKey(diagramViewKey) {
-  return `wireBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
+  return `cableBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
 }
 
 /** Read a complete, current diagram view from palette-session storage. */
@@ -72,7 +72,7 @@ function renderRelationshipMap(harness) {
     },
   );
   const focusController = createRelationshipFocusController(container);
-  const wireCreationController = createWireCreationController(harness, container);
+  const cableCreationController = createCableCreationController(harness, container);
   const showContextMenu = addRelationshipMapContextMenu(workspace, harness);
   container.className = "section-content relationship-map";
   container.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
@@ -82,12 +82,12 @@ function renderRelationshipMap(harness) {
   toolbar.className = "relationship-map-toolbar";
   filter.className = "filter";
   filter.type = "search";
-  filter.placeholder = "Find a wire group, connection, or pathway…";
+  filter.placeholder = "Find a cable group, connection, or pathway…";
   filter.setAttribute("aria-label", "Filter master relationship graphic");
   filter.autocomplete = "off";
   filter.value = relationshipFilters.get(harnessKey(harness)) || "";
   summary.className = "relationship-map-summary";
-  summary.textContent = `${(harness.wireGroups || []).length} wire groups`;
+  summary.textContent = `${(harness.cableGroups || []).length} cable groups`;
   toolbar.append(filter, summary);
   settings.className = "relationship-map-settings";
   settings.textContent = "Collapse end lists above";
@@ -116,7 +116,7 @@ function renderRelationshipMap(harness) {
   };
 
   const draw = () => {
-    wireCreationController.cancel();
+    cableCreationController.cancel();
     const query = filter.value.trim().toLocaleLowerCase();
     const collapseLimit = clampRelationshipCollapseLimit(collapseInput.value);
     relationshipFilters.set(harnessKey(harness), query);
@@ -136,7 +136,7 @@ function renderRelationshipMap(harness) {
             .map((group) => group.searchable)
         )).join(" ");
         const groupSearch = groups.reduce(
-          (search, group) => `${search} ${wireGroupLabel(harness, group)}`,
+          (search, group) => `${search} ${cableGroupLabel(harness, group)}`,
           "",
         );
         return `${node.item.name} ${node.item.startName || ""} ${node.item.endName || ""} ${groupSearch} ${endpointSearch}`;
@@ -150,7 +150,7 @@ function renderRelationshipMap(harness) {
         const focusNodeIds = [node.id, ...node.neighbors];
         wrapper.className = `relationship-topology-node relationship-topology-${node.kind}`;
         wrapper.dataset.nodeId = node.id;
-        wrapper.dataset.wireGroupIds = relationshipGroupIds(memberGroups);
+        wrapper.dataset.cableGroupIds = relationshipGroupIds(memberGroups);
         if (node.kind === "junction") {
           wrapper.dataset.junctionId = node.item.junctionId;
           wrapper.append(renderRelationshipJunctionHub(
@@ -166,7 +166,7 @@ function renderRelationshipMap(harness) {
             collapseLimit,
             showContextMenu,
             focusController,
-            wireCreationController,
+            cableCreationController,
             focusNodeIds,
           ));
         }

@@ -9,12 +9,12 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.application import (
+from cable_bundler.application import (
     HarnessCreationError,
     create_empty_harness,
     suggest_harness_name,
 )
-from wire_bundler.domain import RoutingMode, loads, next_available_name
+from cable_bundler.domain import RoutingMode, loads, next_available_name
 
 HARNESS_ID = UUID("40000000-0000-0000-0000-000000000002")
 
@@ -96,7 +96,7 @@ def test_creates_and_persists_normalized_empty_harness() -> None:
     assert definition.connections == ()
     assert definition.controls == ()
     assert definition.pathways == ()
-    assert definition.wire_groups == ()
+    assert definition.cable_groups == ()
     assert gateway.deleted_components == []
 
 

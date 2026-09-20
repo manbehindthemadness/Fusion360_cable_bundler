@@ -24,8 +24,7 @@ import adsk.core  # noqa: E402
 # noinspection PyUnresolvedReferences
 import adsk.fusion  # noqa: E402
 
-from experiments.scenario_report import ScenarioReport  # noqa: E402
-from wire_bundler.addin import (  # noqa: E402
+from cable_bundler.addin import (  # noqa: E402
     ADD_END_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
@@ -33,6 +32,7 @@ from wire_bundler.addin import (  # noqa: E402
     CREATE_COMMAND_ID,
     PALETTE_ID,
 )
+from experiments.scenario_report import ScenarioReport  # noqa: E402
 
 SCENARIO_NAME = "fusion_capabilities"
 ARTIFACT_ROOT = ADDIN_ROOT / "artifacts" / "verification"
@@ -61,7 +61,7 @@ def run(_context: object) -> None:
             "Fusion automation capability audit passed.\n\n"
             f"Log: {report.log_path}\n"
             f"Report: {report.json_path}",
-            "Wire Bundler QA Capability Audit",
+            "Cable Bundler QA Capability Audit",
         )
     except (AssertionError, AttributeError, OSError, RuntimeError, TypeError, ValueError):
         failure = traceback.format_exc()
@@ -72,7 +72,7 @@ def run(_context: object) -> None:
                 f"Log: {report.log_path}\n"
                 f"Report: {report.json_path}\n\n"
                 f"{failure}",
-                "Wire Bundler QA Capability Audit",
+                "Cable Bundler QA Capability Audit",
             )
 
 
@@ -209,7 +209,7 @@ def _log_to_fusion(message: str) -> None:
     Mirror capability-audit progress into Fusion's application log.
     """
     adsk.core.Application.log(
-        f"Wire Bundler QA capability audit: {message}",
+        f"Cable Bundler QA capability audit: {message}",
         adsk.core.LogLevels.InfoLogLevel,
         adsk.core.LogTypes.FileLogType,
     )

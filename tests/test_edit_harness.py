@@ -9,20 +9,20 @@ from types import SimpleNamespace
 from typing import Protocol, cast
 from uuid import UUID
 
-from wire_bundler.application import (
+from cable_bundler.application import (
     HarnessEditGateway,
-    WireEditorPairing,
+    CableEditorPairing,
     add_end_refine,
     add_junction,
     append_end_guides,
-    save_wire_editor,
+    save_cable_editor,
     segment_pathway,
     set_harness_properties,
-    set_wire_group_material_overrides,
-    set_wire_group_properties,
+    set_cable_group_material_overrides,
+    set_cable_group_properties,
 )
-from wire_bundler.application.edit_harness import set_interpolation
-from wire_bundler.domain import (
+from cable_bundler.application.edit_harness import set_interpolation
+from cable_bundler.domain import (
     AutoTransitionPreset,
     Connection,
     ControlKind,
@@ -32,12 +32,12 @@ from wire_bundler.domain import (
     PathwayEndpoint,
     RefineGeometry,
     StandaloneEndDefinition,
-    WireColor,
-    WireMaterialOverrides,
+    CableColor,
+    CableMaterialOverrides,
     dumps,
     loads,
 )
-from wire_bundler.domain.model import InterpolationSettings
+from cable_bundler.domain.model import InterpolationSettings
 
 
 class _RecordingGateway(HarnessEditGateway, Protocol):
@@ -136,19 +136,19 @@ def test_edits_group_construction_and_visual_overrides(
     Persist group-owned construction and appearance settings.
     """
     gateway = _recording_gateway(valid_harness)
-    group = valid_harness.wire_groups[0]
-    overrides = WireMaterialOverrides(
+    group = valid_harness.cable_groups[0]
+    overrides = CableMaterialOverrides(
         insulation_material="ETFE",
         conductor_material="Tinned Copper",
-        main_color=WireColor("Red", 255, 0, 0),
+        main_color=CableColor("Red", 255, 0, 0),
         manufacturer="Maker",
         part_number="WG-01",
         notes="Grouped conductor",
     )
 
-    set_wire_group_properties(
+    set_cable_group_properties(
         valid_harness.harness_id,
-        group.wire_group_id,
+        group.cable_group_id,
         2.4,
         "ETFE",
         "Tinned Copper",
@@ -157,17 +157,17 @@ def test_edits_group_construction_and_visual_overrides(
         "Grouped conductor",
         gateway,
     )
-    set_wire_group_material_overrides(
+    set_cable_group_material_overrides(
         valid_harness.harness_id,
-        group.wire_group_id,
+        group.cable_group_id,
         overrides,
         gateway,
     )
 
     stored = loads(gateway.serialized_definition)
-    assert stored.wire_groups[0].diameter_mm == 2.4
-    assert stored.wire_groups[0].material_overrides.main_color.name == "Red"
-    assert stored.wire_group_materials(stored.wire_groups[0]).part_number == "WG-01"
+    assert stored.cable_groups[0].diameter_mm == 2.4
+    assert stored.cable_groups[0].material_overrides.main_color.name == "Red"
+    assert stored.cable_group_materials(stored.cable_groups[0]).part_number == "WG-01"
 
 
 def test_harness_properties_flow_into_group_inheritance(
@@ -189,7 +189,7 @@ def test_harness_properties_flow_into_group_inheritance(
     )
 
     stored = loads(gateway.serialized_definition)
-    materials = stored.wire_group_materials(stored.wire_groups[0])
+    materials = stored.cable_group_materials(stored.cable_groups[0])
     assert materials.insulation_material == "PTFE"
     assert materials.part_number == "PARENT-1"
 
@@ -336,7 +336,7 @@ def test_apply_existing_defaults_updates_junctions_and_end_fallbacks(
     assert stored.auto_transition_preset is AutoTransitionPreset.RELAXED
 
 
-def test_wire_editor_creates_group_from_two_standalone_ends(
+def test_cable_editor_creates_group_from_two_standalone_ends(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
@@ -356,17 +356,17 @@ def test_wire_editor_creates_group_from_two_standalone_ends(
             StandaloneEndDefinition(left_id, pathway.pathway_id, PathwayEndpoint.START),
             StandaloneEndDefinition(right_id, pathway.pathway_id, PathwayEndpoint.END),
         ),
-        wire_groups=(),
+        cable_groups=(),
     )
     gateway = _recording_gateway(definition)
 
-    save_wire_editor(
+    save_cable_editor(
         definition.harness_id,
         pathway.pathway_id,
         PathwayEndpoint.START,
         pathway.pathway_id,
         PathwayEndpoint.END,
-        (WireEditorPairing(left_id, right_id),),
+        (CableEditorPairing(left_id, right_id),),
         (),
         (),
         (),
@@ -375,5 +375,5 @@ def test_wire_editor_creates_group_from_two_standalone_ends(
     )
 
     stored = loads(gateway.serialized_definition)
-    assert stored.wire_groups[0].wire_group_id == group_id
-    assert stored.wire_groups[0].connection_ids == (left_id, right_id)
+    assert stored.cable_groups[0].cable_group_id == group_id
+    assert stored.cable_groups[0].connection_ids == (left_id, right_id)

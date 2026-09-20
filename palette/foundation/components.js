@@ -40,7 +40,7 @@ function renderLibrary() {
     summary.className = "summary";
     summary.textContent = harness.status === "damaged"
       ? "Metadata could not be loaded"
-      : `${harness.routingMode} · ${(harness.wireGroups || []).length} wire groups`;
+      : `${harness.routingMode} · ${(harness.cableGroups || []).length} cable groups`;
     button.append(name, statusBadge(harness), summary);
     button.addEventListener("click", () => openHarness(harnessKey(harness)));
     ui.list.append(button);
@@ -64,7 +64,7 @@ function editorSection(id, title, count, content, openByDefault = false) {
     if (section.open) expandedSections.add(id);
     else expandedSections.delete(id);
     writeSession(
-      "wireBundler.expandedSections",
+      "cableBundler.expandedSections",
       JSON.stringify([...expandedSections]),
     );
   });
@@ -294,11 +294,11 @@ function addContextMenu(root, returnFocus = null) {
   return show;
 }
 
-function wireGroupLabel(harness, group) {
-  const index = (harness.wireGroups || []).findIndex(
-    (candidate) => candidate.wireGroupId === group.wireGroupId,
+function cableGroupLabel(harness, group) {
+  const index = (harness.cableGroups || []).findIndex(
+    (candidate) => candidate.cableGroupId === group.cableGroupId,
   );
-  return `Wire Group ${index >= 0 ? index + 1 : "?"}`;
+  return `Cable Group ${index >= 0 ? index + 1 : "?"}`;
 }
 
 /** Return end-owned routing actions shared by every end representation. */
@@ -334,7 +334,7 @@ function activatePathwayNode(harness, pathway) {
   if (pathway) openPathwayPopup(harness, pathway.pathwayId);
 }
 
-/** Return the pathway actions shared by master and Wire Details diagram nodes. */
+/** Return the pathway actions shared by master and Cable Details diagram nodes. */
 function pathwayNodeContextItems(harness, pathway) {
   const controls = new Map(harness.controls.map((control) => [control.controlId, control]));
   const canSegment = pathway.orderedControlIds.slice(1, -1).some((controlId) => {
@@ -358,7 +358,7 @@ function activateJunctionNode(harness, junction) {
   if (junction) openJunctionRelationships(harness, junction);
 }
 
-/** Return the junction actions shared by master and Wire Details diagram nodes. */
+/** Return the junction actions shared by master and Cable Details diagram nodes. */
 function junctionNodeContextItems(harness, junction) {
   return [
     {

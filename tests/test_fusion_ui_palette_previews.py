@@ -25,14 +25,14 @@ def test_solid_generation_fails_native_transaction_on_kernel_error(
     core_module = sys.modules["adsk.core"]
     vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
     monkeypatch.setitem(
-        vars(addin_module), "_generate_solids", Mock(side_effect=RuntimeError("Wire 002 failed"))
+        vars(addin_module), "_generate_solids", Mock(side_effect=RuntimeError("Cable 002 failed"))
     )
     monkeypatch.setattr(addin_module, "_log_to_fusion", Mock())
     args = SimpleNamespace(executeFailed=False)
     handler = addin_module._PaletteEditExecuteHandler(("generate_solids", "{}", document))
     handler.notify(args)
     assert args.executeFailed
-    assert args.executeFailedMessage == "Wire 002 failed"
+    assert args.executeFailedMessage == "Cable 002 failed"
     assert not handler.clear_preview_after_destroy
 
 

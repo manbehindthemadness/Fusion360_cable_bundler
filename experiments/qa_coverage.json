@@ -33,19 +33,19 @@
     {
       "id": "M0-MAT-001",
       "area": "materials",
-      "behavior": "Harness defaults and per-wire material, diameter, appearance, and stripe overrides resolve correctly.",
+      "behavior": "Harness defaults and per-cable material, diameter, appearance, and stripe overrides resolve correctly.",
       "status": "automated",
       "layers": ["pytest", "palette"],
-      "evidence": ["tests/test_wire_materials.py", "tests/test_palette.cjs"],
+      "evidence": ["tests/test_cable_materials.py", "tests/test_palette.cjs"],
       "capabilities": []
     },
     {
       "id": "M0-REL-001",
       "area": "relationships",
-      "behavior": "Wire routes, pathway occupancy, connection use, and diagram projections cross-check by stable identity.",
+      "behavior": "Cable routes, pathway occupancy, connection use, and diagram projections cross-check by stable identity.",
       "status": "automated",
       "layers": ["pytest", "palette"],
-      "evidence": ["tests/test_palette.cjs", "tests/test_wire_group_routes.py"],
+      "evidence": ["tests/test_palette.cjs", "tests/test_cable_group_routes.py"],
       "capabilities": []
     },
     {
@@ -63,7 +63,7 @@
       "behavior": "Fusion creates, persists, rediscovers, previews, and generates the deterministic reference harness.",
       "status": "automated",
       "layers": ["fusion-script", "fusion-api", "mcp"],
-      "evidence": ["tests/test_wire_group_routes.py", "experiments/fusion_qa_suite.py"],
+      "evidence": ["tests/test_cable_group_routes.py", "experiments/fusion_qa_suite.py"],
       "capabilities": []
     },
     {
@@ -81,13 +81,13 @@
       "behavior": "Preview, clear, save, close, reopen, and clear again leave no cached or orphaned Custom Graphics.",
       "status": "automated",
       "layers": ["fusion-command", "fusion-api", "mcp"],
-      "evidence": ["tests/test_wire_group_routes.py", "tests/test_fusion_ui_viewport.py", "experiments/fusion_qa_suite.py"],
+      "evidence": ["tests/test_cable_group_routes.py", "tests/test_fusion_ui_viewport.py", "experiments/fusion_qa_suite.py"],
       "capabilities": []
     },
     {
       "id": "M0-LIFE-002",
       "area": "generated-solids",
-      "behavior": "Generate, rebuild, transform, and clear preserve wire identity and keep stripes owned by their generated components.",
+      "behavior": "Generate, rebuild, transform, and clear preserve cable identity and keep stripes owned by their generated components.",
       "status": "automated",
       "layers": ["pytest", "fusion-command", "fusion-api", "mcp"],
       "evidence": ["tests/test_fusion_ui_palette.py", "experiments/fusion_qa_suite.py"],
@@ -125,7 +125,7 @@
     {
       "id": "M0-SEL-001",
       "area": "selection",
-      "behavior": "Palette hover and diagram scopes select the intended root-context profiles, gates, and generated wire bodies.",
+      "behavior": "Palette hover and diagram scopes select the intended root-context profiles, gates, and generated cable bodies.",
       "status": "automated",
       "layers": ["pytest", "palette", "fusion-api", "mcp"],
       "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_viewport.py", "palette/host.js"],
@@ -134,7 +134,7 @@
     {
       "id": "M0-VIS-001",
       "area": "visual-presentation",
-      "behavior": "Wire stripes conform to curved solids, remain centered, and retain useful contrast at representative viewpoints.",
+      "behavior": "Cable stripes conform to curved solids, remain centered, and retain useful contrast at representative viewpoints.",
       "status": "automated",
       "layers": ["pytest", "palette", "fusion-api", "mcp"],
       "evidence": ["tests/test_palette.cjs", "tests/test_png_oracle.py", "experiments/png_oracle.py"],

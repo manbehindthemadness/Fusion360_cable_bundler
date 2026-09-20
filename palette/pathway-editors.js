@@ -1,4 +1,4 @@
-/** Retain pathway interactions that are independent of legacy persistent wires. */
+/** Retain pathway interactions that are independent of legacy persistent cables. */
 
 function enableSequenceDrag(
   sequence, memberRows, row, memberIndex, onMove, onActivate = null,
@@ -74,7 +74,7 @@ function openInterpolationOptions(
     throw new TypeError(`Unsupported pathway interpolation target: ${target}`);
   }
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
-    "wire-options",
+    "cable-options",
   );
   const isDefaults = target === "defaults";
   heading.textContent = isDefaults ? "Generation defaults" : `Interpolation · ${name}`;
@@ -82,7 +82,7 @@ function openInterpolationOptions(
   note.textContent = "Leave a distance blank for Auto. The harness relaxation preset sets Auto's preferred curve extent; safe bend minimums may expand it, crowded values are reduced to the feasible range, and crowded spans use a direct profile-to-profile curve when it preserves that radius. "
     + (isDefaults
       ? "Distance presets are used for new controls. Existing controls follow defaults unless individually customized. The relaxation preset applies to every Auto distance in this harness."
-      : "Approach and departure follow the gate traversal order. Changes affect all wire groups through this gate.");
+      : "Approach and departure follow the gate traversal order. Changes affect all cable groups through this gate.");
   form.append(heading, note);
   const applyExisting = document.createElement("input");
   applyExisting.type = "checkbox";

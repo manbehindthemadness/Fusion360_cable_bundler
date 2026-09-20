@@ -9,8 +9,8 @@ import re
 import pytest
 
 from experiments.sweep_scenarios import SweepScenario, sweep_scenarios
-from wire_bundler.routing import fair_route, tightest_bend
-from wire_bundler.routing.geometry import difference, dot, magnitude, unit
+from cable_bundler.routing import fair_route, tightest_bend
+from cable_bundler.routing.geometry import difference, dot, magnitude, unit
 
 
 @pytest.mark.parametrize("scenario", sweep_scenarios(), ids=lambda scenario: scenario.name)
@@ -51,7 +51,7 @@ def test_sweep_scenario_names_and_identities_are_stable() -> None:
     """
     scenarios = sweep_scenarios()
     assert len({scenario.name for scenario in scenarios}) == len(scenarios)
-    assert len({scenario.wire_id for scenario in scenarios}) == len(scenarios)
+    assert len({scenario.cable_id for scenario in scenarios}) == len(scenarios)
     zigzag = next(scenario for scenario in scenarios if scenario.name == "three_stroke_180_zigzag")
     stroke_directions = tuple(
         unit(difference(zigzag.points[end], zigzag.points[start]))

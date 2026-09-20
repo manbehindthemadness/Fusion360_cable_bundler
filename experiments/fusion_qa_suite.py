@@ -105,7 +105,7 @@ def _log_to_fusion(message: str) -> None:
     Mirror automated-suite progress into Fusion's application log.
     """
     adsk.core.Application.log(
-        f"Wire Bundler automated QA: {message}",
+        f"Cable Bundler automated QA: {message}",
         adsk.core.LogLevels.InfoLogLevel,
         adsk.core.LogTypes.FileLogType,
     )

@@ -12,8 +12,8 @@ from typing import Optional
 
 import pytest
 
-from wire_bundler.application import create_empty_harness
-from wire_bundler.domain import HarnessDefinition, RoutingMode, dumps
+from cable_bundler.application import create_empty_harness
+from cable_bundler.domain import HarnessDefinition, RoutingMode, dumps
 
 
 class _IntentTypes:
@@ -382,14 +382,14 @@ def fusion_gateway_type(monkeypatch: pytest.MonkeyPatch) -> Iterator[type]:
     monkeypatch.setitem(sys.modules, "adsk", adsk_module)
     monkeypatch.setitem(sys.modules, "adsk.core", core_module)
     monkeypatch.setitem(sys.modules, "adsk.fusion", fusion_module)
-    sys.modules.pop("wire_bundler.fusion.harness_gateway", None)
-    sys.modules.pop("wire_bundler.fusion", None)
+    sys.modules.pop("cable_bundler.fusion.harness_gateway", None)
+    sys.modules.pop("cable_bundler.fusion", None)
 
-    gateway_module = importlib.import_module("wire_bundler.fusion.harness_gateway")
+    gateway_module = importlib.import_module("cable_bundler.fusion.harness_gateway")
     yield gateway_module.FusionHarnessGateway
 
-    sys.modules.pop("wire_bundler.fusion.harness_gateway", None)
-    sys.modules.pop("wire_bundler.fusion", None)
+    sys.modules.pop("cable_bundler.fusion.harness_gateway", None)
+    sys.modules.pop("cable_bundler.fusion", None)
 
 
 def test_converts_part_design_before_creating_internal_component(
@@ -409,7 +409,7 @@ def test_converts_part_design_before_creating_internal_component(
     assert design.designIntent is _IntentTypes.HybridDesignIntentType
     assert occurrence.component.name == "Harness_001"
     assert occurrence.component.attributes.values == [
-        ("kev0.wire_bundler", "harness_definition", "definition-json")
+        ("kev0.cable_bundler", "harness_definition", "definition-json")
     ]
 
 
@@ -498,7 +498,7 @@ def test_lists_only_components_with_harness_metadata(fusion_gateway_type: type) 
     harness_component = design.allComponents.item(1)
     assert harness_component is not None
     harness_component.attributes.add(
-        "kev0.wire_bundler",
+        "kev0.cable_bundler",
         "harness_definition",
         "definition-json",
     )
@@ -523,7 +523,7 @@ def test_deletes_exact_marked_harness_component(fusion_gateway_type: type) -> No
     harness_component = design.allComponents.item(1)
     assert harness_component is not None
     harness_component.attributes.add(
-        "kev0.wire_bundler",
+        "kev0.cable_bundler",
         "harness_definition",
         "{not-json",
     )
@@ -549,7 +549,7 @@ def test_reads_and_replaces_definition_by_stable_harness_id(
     assert harness_component is not None
     original = dumps(valid_harness)
     harness_component.attributes.add(
-        "kev0.wire_bundler",
+        "kev0.cable_bundler",
         "harness_definition",
         original,
     )

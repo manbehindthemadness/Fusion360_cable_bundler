@@ -87,7 +87,7 @@
     {
       "id": "M2-END-001",
       "area": "external-ends",
-      "behavior": "The per-wire diagram can add a stable external end and connect it to a selected pathway start or exit gate; a local end on a continuing trace becomes an ordinary pigtail branch, while junction memberships never inflate external end or connection counts.",
+      "behavior": "The per-cable diagram can add a stable external end and connect it to a selected pathway start or exit gate; a local end on a continuing trace becomes an ordinary pigtail branch, while junction memberships never inflate external end or connection counts.",
       "status": "candidate",
       "layers": ["pytest", "palette", "fusion-command", "fusion-api", "mcp"],
       "evidence": [],
@@ -96,7 +96,7 @@
     {
       "id": "M2-REL-001",
       "area": "relationship-diagrams",
-      "behavior": "Relationship-diagram contract version 1 fixes the top-level and per-wire views as zoomable, pannable rounded-node graphs with preserved wire styling, navigation, collapse controls, filtering, and highlighting. Independently drawn end and pathway nodes remain in transparent positional groups, and compact empty ends use short neutral placeholder traces. Diagram operations migrate one at a time with focused QA while the stacked controls remain the QA surface.",
+      "behavior": "Relationship-diagram contract version 1 fixes the top-level and per-cable views as zoomable, pannable rounded-node graphs with preserved cable styling, navigation, collapse controls, filtering, and highlighting. Independently drawn end and pathway nodes remain in transparent positional groups, and compact empty ends use short neutral placeholder traces. Diagram operations migrate one at a time with focused QA while the stacked controls remain the QA surface.",
       "status": "partial",
       "layers": ["pytest", "palette", "fusion-api", "mcp", "os-window"],
       "evidence": ["tests/test_palette.cjs", "tests/test_fusion_ui_palette.py"],

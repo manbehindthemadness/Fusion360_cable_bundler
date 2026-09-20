@@ -44,7 +44,7 @@ def test_resolves_palette_members_to_linked_geometry_tokens(
     )
 
 
-def test_connection_highlights_its_generated_wire_group_body(
+def test_connection_highlights_its_generated_cable_group_body(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
@@ -55,14 +55,14 @@ def test_connection_highlights_its_generated_wire_group_body(
     from dataclasses import replace
     from uuid import UUID
 
-    from wire_bundler.domain import WireGroupDefinition
+    from cable_bundler.domain import CableGroupDefinition
 
     connection = valid_harness.connections[0]
-    group = WireGroupDefinition(
+    group = CableGroupDefinition(
         UUID(int=880),
         tuple(item.connection_id for item in valid_harness.connections),
     )
-    definition = replace(valid_harness, wire_groups=(group,))
+    definition = replace(valid_harness, cable_groups=(group,))
     profile = object()
     group_body = object()
     design = SimpleNamespace(
@@ -85,7 +85,7 @@ def test_connection_highlights_its_generated_wire_group_body(
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     grouped_bodies = Mock(return_value=(group_body,))
-    monkeypatch.setattr(addin_module, "generated_wire_group_bodies", grouped_bodies)
+    monkeypatch.setattr(addin_module, "generated_cable_group_bodies", grouped_bodies)
     payload = json.dumps(
         {
             "harnessId": str(definition.harness_id),
@@ -100,7 +100,7 @@ def test_connection_highlights_its_generated_wire_group_body(
     grouped_bodies.assert_called_once_with(
         design.rootComponent,
         harness_component,
-        (group.wire_group_id,),
+        (group.cable_group_id,),
     )
 
 
@@ -112,7 +112,7 @@ def test_preview_hover_emphasizes_only_matching_centerline(
     """
     Emphasize one group route leg and clear it without selecting sketch profiles.
     """
-    from wire_bundler.fusion import route_preview
+    from cable_bundler.fusion import route_preview
 
     monkeypatch.setitem(vars(route_preview), "adsk", sys.modules["adsk"])
     fusion_module = sys.modules["adsk.fusion"]
@@ -131,12 +131,12 @@ def test_preview_hover_emphasizes_only_matching_centerline(
             count=1,
             item=lambda _i: selected,
         ),
-        SimpleNamespace(id="other-wire", count=1, item=lambda _i: other),
+        SimpleNamespace(id="other-cable", count=1, item=lambda _i: other),
     ]
     group = SimpleNamespace(
         id=route_preview.PREVIEW_GROUP_ID, count=2, item=child_groups.__getitem__
     )
-    group_id = valid_harness.wire_groups[0].wire_group_id
+    group_id = valid_harness.cable_groups[0].cable_group_id
     monkeypatch.setitem(
         route_preview._preview_states,
         group.id,
@@ -189,7 +189,7 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
         """
         notices = cast(list[str], kwargs["notices"])
         notices.append(
-            "Wire 001: dynamically adjusted transitions between profiles 2 and 3 "
+            "Cable 001: dynamically adjusted transitions between profiles 2 and 3 "
             "from 5.063 mm to 4.563 mm; the 0.525 mm sweep radius is preserved."
         )
         return object(), object(), object()
@@ -197,7 +197,7 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "show_route_previews", show)
-    monkeypatch.setattr(addin_module, "clear_wire_solids", clear_solids)
+    monkeypatch.setattr(addin_module, "clear_cable_solids", clear_solids)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id)})
 
@@ -207,7 +207,7 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     viewport.refresh.assert_called_once()
     notice = send_state.call_args.args[1]
     assert notice.startswith(
-        "Previewing 3 wire-group route legs.\nCleared 2 wire solids.\nWire 001:"
+        "Previewing 3 cable-group route legs.\nCleared 2 cable solids.\nCable 001:"
     )
     assert "from 5.063 mm to 4.563 mm" in notice
 
@@ -218,7 +218,7 @@ def test_clear_solids_targets_selected_harness_and_refreshes_viewport(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Delete marked output for one harness and report the affected wire count.
+    Delete marked output for one harness and report the affected cable count.
     """
     component = object()
     viewport = Mock()
@@ -227,7 +227,7 @@ def test_clear_solids_targets_selected_harness_and_refreshes_viewport(
     clear = Mock(return_value=3)
     send_state = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "clear_wire_solids", clear)
+    monkeypatch.setattr(addin_module, "clear_cable_solids", clear)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id)})
 
@@ -236,7 +236,7 @@ def test_clear_solids_targets_selected_harness_and_refreshes_viewport(
     gateway.harness_component.assert_called_once_with(valid_harness.harness_id)
     clear.assert_called_once_with(component)
     viewport.refresh.assert_called_once()
-    send_state.assert_called_once_with(application, "Cleared 3 wire solids.")
+    send_state.assert_called_once_with(application, "Cleared 3 cable solids.")
 
 
 def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
@@ -259,7 +259,7 @@ def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
     send_state = Mock()
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "generate_wire_group_solids", generate)
+    monkeypatch.setattr(addin_module, "generate_cable_group_solids", generate)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id), "replaceExisting": True})
 
@@ -269,4 +269,4 @@ def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
     assert notices == []
     generate.assert_called_once_with(design, component, valid_harness, True, notices)
     viewport.refresh.assert_called_once_with()
-    send_state.assert_called_once_with(application, "Generated 2 wire-group solids.")
+    send_state.assert_called_once_with(application, "Generated 2 cable-group solids.")

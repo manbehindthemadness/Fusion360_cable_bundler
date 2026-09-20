@@ -11,8 +11,8 @@ from uuid import UUID
 import pytest
 
 from tests.fusion_ui_support import _PaletteLifecycleModule
-from wire_bundler.application import WireGroupControlStep, WireGroupRouteLeg
-from wire_bundler.domain import (
+from cable_bundler.application import CableGroupControlStep, CableGroupRouteLeg
+from cable_bundler.domain import (
     AutoTransitionPreset,
     ControlKind,
     ControlStructure,
@@ -20,8 +20,8 @@ from wire_bundler.domain import (
     JunctionDefinition,
     RefineGeometry,
 )
-from wire_bundler.domain.model import InterpolationSettings
-from wire_bundler.routing import RefineFrame, RoutePreview, TransitionLengths, Vector3
+from cable_bundler.domain.model import InterpolationSettings
+from cable_bundler.routing import RefineFrame, RoutePreview, TransitionLengths, Vector3
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(
@@ -32,8 +32,8 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
     """
     Reuse Preview geometry for Generate while rejecting stale Fusion inputs.
     """
-    from wire_bundler.fusion import route_preview
-    from wire_bundler.fusion.route_preview_parts import solver as route_solver
+    from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
     design = object()
@@ -67,20 +67,20 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
     monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
-    first = route_preview.solve_wire_group_centerlines(design, valid_harness)
-    second = route_preview.solve_wire_group_centerlines(design, valid_harness)
+    first = route_preview.solve_cable_group_centerlines(design, valid_harness)
+    second = route_preview.solve_cable_group_centerlines(design, valid_harness)
 
     assert second == first
     assert second[0] is first[0]
     assert second[1] is first[1]
 
     gate_z[0] = 11.0
-    moved = route_preview.solve_wire_group_centerlines(design, valid_harness)
-    renamed = route_preview.solve_wire_group_centerlines(
+    moved = route_preview.solve_cable_group_centerlines(design, valid_harness)
+    renamed = route_preview.solve_cable_group_centerlines(
         design,
         replace(valid_harness, name="Renamed Harness"),
     )
-    relaxed = route_preview.solve_wire_group_centerlines(
+    relaxed = route_preview.solve_cable_group_centerlines(
         design,
         replace(
             valid_harness,
@@ -104,8 +104,8 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
     """
     Preserve ordered end settings, reversed junction settings, and the global preset.
     """
-    from wire_bundler.fusion import route_preview
-    from wire_bundler.fusion.route_preview_parts import solver as route_solver
+    from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
     start = replace(
@@ -165,13 +165,13 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         ),
         auto_transition_preset=AutoTransitionPreset.RELAXED,
     )
-    leg = WireGroupRouteLeg(
+    leg = CableGroupRouteLeg(
         UUID("68000000-0000-0000-0000-000000000001"),
-        definition.wire_groups[0].wire_group_id,
+        definition.cable_groups[0].cable_group_id,
         "Interpolation Leg",
         start.connection_id,
         end.connection_id,
-        (WireGroupControlStep(junction_control.control_id, reversed=True),),
+        (CableGroupControlStep(junction_control.control_id, reversed=True),),
         (definition.pathways[0].pathway_id,),
     )
     profile_z = {
@@ -244,22 +244,22 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         return route_items, ()
 
     monkeypatch.setattr(
-        "wire_bundler.fusion.route_preview_parts.solver.plan_wire_group_routes",
+        "cable_bundler.fusion.route_preview_parts.solver.plan_cable_group_routes",
         lambda _definition: (leg,),
     )
     monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
     monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
     monkeypatch.setattr(
-        "wire_bundler.fusion.route_preview_parts.solver.fair_route",
+        "cable_bundler.fusion.route_preview_parts.solver.fair_route",
         capture_fair_route,
     )
     monkeypatch.setattr(
-        "wire_bundler.fusion.route_preview_parts.solver.separate_route_collisions",
+        "cable_bundler.fusion.route_preview_parts.solver.separate_route_collisions",
         capture_collision_fairing,
     )
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
-    routes, legs = route_preview.solve_wire_group_centerlines(object(), definition)
+    routes, legs = route_preview.solve_cable_group_centerlines(object(), definition)
 
     expected_transitions = (
         TransitionLengths(3.0, 4.0),

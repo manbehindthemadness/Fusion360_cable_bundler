@@ -44,12 +44,12 @@ ARTIFACT_ROOT = PROJECT_ROOT / "artifacts" / "verification"
 DEFAULT_MCP_URL = "http://127.0.0.1:27182/mcp"
 MAXIMUM_STABLE_DESKTOP_CHANGE = 0.02
 MCP_PROTOCOL_VERSION = "2025-03-26"
-FUSION_RESULT_PREFIX = "WIRE_BUNDLER_QA_RESULT="
-VISUAL_RESULT_PREFIX = "WIRE_BUNDLER_VISUAL_RESULT="
-GENERATED_VISUAL_RESULT_PREFIX = "WIRE_BUNDLER_GENERATED_VISUAL_RESULT="
-PALETTE_BOUNDS_RESULT_PREFIX = "WIRE_BUNDLER_PALETTE_BOUNDS_RESULT="
-DIAGRAM_OBSERVATION_RESULT_PREFIX = "WIRE_BUNDLER_DIAGRAM_OBSERVATION_RESULT="
-NATIVE_DIALOG_RESULT_PREFIX = "WIRE_BUNDLER_NATIVE_DIALOG_RESULT="
+FUSION_RESULT_PREFIX = "CABLE_BUNDLER_QA_RESULT="
+VISUAL_RESULT_PREFIX = "CABLE_BUNDLER_VISUAL_RESULT="
+GENERATED_VISUAL_RESULT_PREFIX = "CABLE_BUNDLER_GENERATED_VISUAL_RESULT="
+PALETTE_BOUNDS_RESULT_PREFIX = "CABLE_BUNDLER_PALETTE_BOUNDS_RESULT="
+DIAGRAM_OBSERVATION_RESULT_PREFIX = "CABLE_BUNDLER_DIAGRAM_OBSERVATION_RESULT="
+NATIVE_DIALOG_RESULT_PREFIX = "CABLE_BUNDLER_NATIVE_DIALOG_RESULT="
 NATIVE_DIALOG_HANDSHAKE_ROOT = PROJECT_ROOT / "artifacts" / "native_dialog_handshake"
 MINIMUM_NATIVE_DIALOG_CHANGE = 0.00001
 VISUAL_WIDTH = 640
@@ -117,7 +117,7 @@ class McpClient:
                 "params": {
                     "protocolVersion": MCP_PROTOCOL_VERSION,
                     "capabilities": {},
-                    "clientInfo": {"name": "wire-bundler-qa", "version": "0.1.0"},
+                    "clientInfo": {"name": "cable-bundler-qa", "version": "0.1.0"},
                 },
                 "session": False,
             },
@@ -247,7 +247,7 @@ def run_qa(
             elif desktop_result.get("status") == "passed":
                 fusion_result["nativeDialogUiOracle"] = {
                     "status": "skipped",
-                    "detail": "Legacy persistent-wire dialog fixture removed.",
+                    "detail": "Legacy persistent-cable dialog fixture removed.",
                 }
     else:
         fusion_result = {"status": "skipped", "detail": "Disabled by command option."}
@@ -347,7 +347,7 @@ def main(arguments: Optional[Sequence[str]] = None) -> int:
         local_checks=options.local_checks,
         fusion_scenarios=options.fusion_scenarios,
     )
-    print(f"Wire Bundler QA: {'PASS' if exit_code == 0 else 'FAIL'}")
+    print(f"Cable Bundler QA: {'PASS' if exit_code == 0 else 'FAIL'}")
     print(f"Report: {report_path}")
     return exit_code
 
@@ -369,8 +369,8 @@ def _run_local_checks(
                 "-m",
                 "ruff",
                 "check",
-                "Fusion360_wire_bundler.py",
-                "wire_bundler",
+                "Fusion360_cable_bundler.py",
+                "cable_bundler",
                 "tests",
                 "experiments",
             ),
@@ -383,8 +383,8 @@ def _run_local_checks(
                 "ruff",
                 "format",
                 "--check",
-                "Fusion360_wire_bundler.py",
-                "wire_bundler",
+                "Fusion360_cable_bundler.py",
+                "cable_bundler",
                 "tests",
                 "experiments",
             ),
@@ -452,7 +452,7 @@ def _run_fusion_suite(
         suite_result["server"] = server
         skipped = {
             "status": "skipped",
-            "detail": "Legacy persistent-wire visual fixtures removed.",
+            "detail": "Legacy persistent-cable visual fixtures removed.",
         }
         suite_result["visualOracle"] = skipped
         suite_result["generatedVisualOracle"] = skipped
@@ -694,14 +694,14 @@ import adsk.core
 def run(_context: str):
     modules = [
         module for name, module in sys.modules.items()
-        if name.endswith("wire_bundler.addin")
+        if name.endswith("cable_bundler.addin")
     ]
     if len(modules) != 1:
         raise RuntimeError("Harness Builder add-in module is unavailable or ambiguous.")
     module = modules[0]
     module._last_diagram_qa_observation = None
     palette = adsk.core.Application.get().userInterface.palettes.itemById(
-        "kev0_wire_bundler_harness_builder_palette"
+        "kev0_cable_bundler_harness_builder_palette"
     )
     if palette is None or not palette.isVisible:
         raise RuntimeError("Harness Builder palette must be visible for diagram QA.")
@@ -758,7 +758,7 @@ def _read_palette_bounds(endpoint: str, timeout_seconds: float) -> PaletteBounds
         except (ConnectionError, OSError, RuntimeError):
             pass
     if (
-        payload.get("id") != "kev0_wire_bundler_harness_builder_palette"
+        payload.get("id") != "kev0_cable_bundler_harness_builder_palette"
         or payload.get("name") != "Harness Builder"
     ):
         raise DesktopCaptureSafetyError("Fusion returned an unexpected palette identity.")
@@ -785,7 +785,7 @@ import adsk.core
 def run(_context: str):
     application = adsk.core.Application.get()
     palette = application.userInterface.palettes.itemById(
-        "kev0_wire_bundler_harness_builder_palette"
+        "kev0_cable_bundler_harness_builder_palette"
     )
     if palette is None:
         raise RuntimeError("Harness Builder palette is not registered.")

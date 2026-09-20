@@ -28,7 +28,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fusion360-wire-bundler"
+name = "fusion360-cable-bundler"
 version = "0.1.0"
 source = { virtual = "." }
 

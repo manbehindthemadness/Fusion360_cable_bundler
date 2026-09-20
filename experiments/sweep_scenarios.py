@@ -1,5 +1,5 @@
 """
-Reusable round-wire geometry cases for local and live Fusion verification.
+Reusable round-cable geometry cases for local and live Fusion verification.
 """
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ import math
 from dataclasses import dataclass
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from wire_bundler.routing import (
+from cable_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
@@ -32,11 +32,11 @@ class SweepScenario:
     expects_minimum_expansion: bool = False
 
     @property
-    def wire_id(self) -> UUID:
+    def cable_id(self) -> UUID:
         """
         Return a stable identity shared by local and Fusion-hosted runs.
         """
-        return uuid5(NAMESPACE_URL, f"wire-bundler:sweep-scenario:{self.name}")
+        return uuid5(NAMESPACE_URL, f"cable-bundler:sweep-scenario:{self.name}")
 
     @property
     def minimum_bend_radius_mm(self) -> float:
@@ -49,7 +49,7 @@ class SweepScenario:
         """
         Build the unsmoothed route consumed by the production fairer.
         """
-        return RoutePreview(self.wire_id, self.name, self.points)
+        return RoutePreview(self.cable_id, self.name, self.points)
 
 
 def sweep_scenarios() -> tuple[SweepScenario, ...]:

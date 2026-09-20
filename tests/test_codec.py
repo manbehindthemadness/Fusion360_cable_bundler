@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from wire_bundler.domain import (
+from cable_bundler.domain import (
     SCHEMA_VERSION,
     AutoTransitionPreset,
     DefinitionParseError,
@@ -20,7 +20,7 @@ from wire_bundler.domain import (
 
 def test_round_trip_preserves_group_only_definition(valid_harness: HarnessDefinition) -> None:
     """
-    Preserve every current-schema field without emitting legacy wire collections.
+    Preserve every current-schema field without emitting legacy cable collections.
     """
     serialized = dumps(valid_harness)
 
@@ -29,7 +29,7 @@ def test_round_trip_preserves_group_only_definition(valid_harness: HarnessDefini
     assert payload["schema_version"] == SCHEMA_VERSION
     assert payload["auto_transition_preset"] == "tight"
     assert "profiles" not in payload
-    assert "wires" not in payload
+    assert "cables" not in payload
 
 
 def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> None:
@@ -159,9 +159,9 @@ def test_requires_current_group_collections(valid_harness: HarnessDefinition) ->
     Treat the group-only collections as explicit parts of the current schema.
     """
     payload = json.loads(dumps(valid_harness))
-    del payload["wire_groups"]
+    del payload["cable_groups"]
 
     with pytest.raises(DefinitionParseError) as captured:
         loads(json.dumps(payload))
 
-    assert captured.value.path == "$.wire_groups"
+    assert captured.value.path == "$.cable_groups"

@@ -6,8 +6,8 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.domain import StripePattern, WireColor, WireStripe
-from wire_bundler.routing import (
+from cable_bundler.domain import StripePattern, CableColor, CableStripe
+from cable_bundler.routing import (
     CubicBezier,
     RoutePreview,
     Vector3,
@@ -60,7 +60,7 @@ def test_builds_longitudinal_surface_band() -> None:
     """
     Produce stable vertices and triangle indices around a circular body.
     """
-    stripe = WireStripe(WireColor("Red", 255, 0, 0), 0.25)
+    stripe = CableStripe(CableColor("Red", 255, 0, 0), 0.25)
 
     vertices, indices = build_stripe_mesh(_straight_route(), stripe, 0.5)
 
@@ -73,12 +73,12 @@ def test_dashed_pattern_omits_repeat_segments() -> None:
     """
     Keep dashed stripe gaps in the host-independent mesh.
     """
-    continuous = WireStripe(
-        WireColor("White", 255, 255, 255),
+    continuous = CableStripe(
+        CableColor("White", 255, 255, 255),
         0.2,
         repeat_mm=2.0,
     )
-    dashed = WireStripe(
+    dashed = CableStripe(
         continuous.color,
         continuous.width_mm,
         StripePattern.DASHED,
@@ -98,7 +98,7 @@ def test_continues_radial_position_across_opposed_segment_tangents() -> None:
     junction = Vector3(0.0, 0.0, 0.0)
     parent = _straight_segment(1, Vector3(-3.0, 0.0, 0.0), junction)
     child = _straight_segment(2, junction, Vector3(-3.0, 0.0, 0.0))
-    stripe = WireStripe(WireColor("Red", 255, 0, 0), 0.25, angle_deg=37.0)
+    stripe = CableStripe(CableColor("Red", 255, 0, 0), 0.25, angle_deg=37.0)
 
     parent_mesh = build_continuous_stripe_mesh(parent, stripe, 0.5)
     assert parent_mesh.end is not None
@@ -116,8 +116,8 @@ def test_continues_helical_position_and_repeat_phase() -> None:
     junction = Vector3(2.5, 0.0, 0.0)
     parent = _straight_segment(3, Vector3(0.0, 0.0, 0.0), junction)
     child = _straight_segment(4, junction, Vector3(5.0, 0.0, 0.0))
-    stripe = WireStripe(
-        WireColor("White", 255, 255, 255),
+    stripe = CableStripe(
+        CableColor("White", 255, 255, 255),
         0.2,
         StripePattern.HELICAL,
         angle_deg=15.0,
@@ -144,8 +144,8 @@ def test_continues_dashed_gap_instead_of_restarting_repeat() -> None:
     junction = Vector3(3.0, 0.0, 0.0)
     parent = _straight_segment(5, Vector3(0.0, 0.0, 0.0), junction)
     child = _straight_segment(6, junction, Vector3(4.0, 0.0, 0.0))
-    stripe = WireStripe(
-        WireColor("White", 255, 255, 255),
+    stripe = CableStripe(
+        CableColor("White", 255, 255, 255),
         0.2,
         StripePattern.DASHED,
         repeat_mm=4.0,

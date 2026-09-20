@@ -142,7 +142,7 @@ def _capture_verified_window(window: FusionWindow) -> DesktopCapture:
     """
     Capture one internally selected and verified Fusion window by exact ID.
     """
-    with TemporaryDirectory(prefix="wire-bundler-ui-") as temporary_directory:
+    with TemporaryDirectory(prefix="cable-bundler-ui-") as temporary_directory:
         directory = Path(temporary_directory)
         os.chmod(directory, 0o700)
         image_path = directory / "fusion-window.png"

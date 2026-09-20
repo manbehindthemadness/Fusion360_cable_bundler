@@ -8,8 +8,8 @@ from dataclasses import replace
 
 import pytest
 
-from wire_bundler.application import StoredHarness, delete_damaged_harness, load_harnesses
-from wire_bundler.domain import HarnessDefinition, dumps
+from cable_bundler.application import StoredHarness, delete_damaged_harness, load_harnesses
+from cable_bundler.domain import HarnessDefinition, dumps
 
 
 class _LibraryGateway:
@@ -119,7 +119,7 @@ def test_reports_draft_validation_findings(valid_harness: HarnessDefinition) -> 
         connections=(),
         controls=(),
         standalone_ends=(),
-        wire_groups=(),
+        cable_groups=(),
     )
     gateway = _LibraryGateway((StoredHarness("Draft", dumps(draft)),))
 

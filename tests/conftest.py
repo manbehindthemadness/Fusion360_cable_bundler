@@ -8,7 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.domain import (
+from cable_bundler.domain import (
     SCHEMA_VERSION,
     Connection,
     ControlKind,
@@ -18,7 +18,7 @@ from wire_bundler.domain import (
     PathwayEndpoint,
     RoutingMode,
     StandaloneEndDefinition,
-    WireGroupDefinition,
+    CableGroupDefinition,
 )
 
 pytest_plugins = ("tests.fusion_ui_support",)
@@ -62,9 +62,9 @@ def valid_harness() -> HarnessDefinition:
             StandaloneEndDefinition(start_id, pathway_id, PathwayEndpoint.START),
             StandaloneEndDefinition(end_id, pathway_id, PathwayEndpoint.END),
         ),
-        wire_groups=(
-            WireGroupDefinition(
-                wire_group_id=UUID("50000000-0000-0000-0000-000000000001"),
+        cable_groups=(
+            CableGroupDefinition(
+                cable_group_id=UUID("50000000-0000-0000-0000-000000000001"),
                 connection_ids=(start_id, end_id),
                 diameter_mm=1.2,
             ),

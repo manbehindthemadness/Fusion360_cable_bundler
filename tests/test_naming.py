@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from wire_bundler.domain import next_available_name
+from cable_bundler.domain import next_available_name
 
 
 @pytest.mark.parametrize(

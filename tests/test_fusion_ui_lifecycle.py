@@ -90,9 +90,9 @@ def test_history_sync_defers_stripes_until_replaced_component_settles(
         ),
     )
     monkeypatch.setattr(addin_module, "reconcile_preview_history", reconcile)
-    monkeypatch.setattr(addin_module, "restore_wire_group_stripe_graphics", restore)
+    monkeypatch.setattr(addin_module, "restore_cable_group_stripe_graphics", restore)
     monkeypatch.setattr(addin_module, "_send_palette_state", sent)
-    viewport = importlib.import_module("wire_bundler.fusion.ui.viewport")
+    viewport = importlib.import_module("cable_bundler.fusion.ui.viewport")
     monkeypatch.setitem(vars(viewport), "_refresh_active_preview", refreshed)
     addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId=command_id))
     reconcile.assert_called_once_with(design, (valid_harness,))
@@ -165,7 +165,7 @@ def test_reload_restores_stripes_for_each_readable_harness(
     )
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: results)
-    monkeypatch.setattr(addin_module, "restore_wire_group_stripe_graphics", restore)
+    monkeypatch.setattr(addin_module, "restore_cable_group_stripe_graphics", restore)
 
     assert addin_module._restore_active_stripe_graphics(application) == 3
 

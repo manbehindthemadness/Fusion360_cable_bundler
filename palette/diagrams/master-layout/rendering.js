@@ -11,8 +11,8 @@ function renderTopologyEdge(edge, route, groups) {
     class: "relationship-topology-edge",
     "data-source-id": edge.sourceId,
     "data-target-id": edge.targetId,
-    "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
-    "data-wire-group-count": groups.length,
+    "data-cable-group-ids": groups.map((cableGroup) => cableGroup.cableGroupId).join(" "),
+    "data-cable-group-count": groups.length,
     "data-render-mode": topologyGroupMode(groups),
     "data-source-port-id": route.sourcePort.id,
     "data-target-port-id": route.targetPort.id,
@@ -34,28 +34,28 @@ function renderTopologyEdge(edge, route, groups) {
   });
   group.append(structural);
   if (groups.length <= TOPOLOGY_LANE_LIMIT) {
-    groups.forEach((wireGroup, index) => {
+    groups.forEach((cableGroup, index) => {
       const offset = (index - (groups.length - 1) / 2) * TOPOLOGY_LANE_SPACING;
       const lanePoints = offsetTopologyRoute(route.points, offset);
       appendContrastTrace(group, {
-        class: "wire-trace relationship-wire-lane",
+        class: "cable-trace relationship-cable-lane",
         d: roundedTopologyRoute(lanePoints),
-        stroke: wireGroup.materials?.mainColor?.hex || "#1777c8",
+        stroke: cableGroup.materials?.mainColor?.hex || "#1777c8",
         "data-lane-offset": `${offset}`,
         "data-source-x": `${lanePoints[0].x}`,
         "data-source-y": `${lanePoints[0].y}`,
         "data-target-x": `${lanePoints[lanePoints.length - 1].x}`,
         "data-target-y": `${lanePoints[lanePoints.length - 1].y}`,
-        "data-wire-group-id": wireGroup.wireGroupId,
+        "data-cable-group-id": cableGroup.cableGroupId,
       }, { haloWidth: 6 });
     });
   } else {
     const colors = new Set(
-      groups.map((wireGroup) => wireGroup.materials?.mainColor?.hex || "#1777c8"),
+      groups.map((cableGroup) => cableGroup.materials?.mainColor?.hex || "#1777c8"),
     );
     const midpoint = topologyRouteMidpoint(route);
     const badge = svgElement("g", {
-      class: "relationship-wire-count",
+      class: "relationship-cable-count",
       transform: `translate(${midpoint.x} ${midpoint.y})`,
     });
     badge.append(
@@ -64,10 +64,10 @@ function renderTopologyEdge(edge, route, groups) {
     );
     badge.children[1].textContent = `×${groups.length}`;
     appendContrastTrace(group, {
-      class: "wire-trace relationship-wire-bundle",
+      class: "cable-trace relationship-cable-bundle",
       d: route.d,
       stroke: colors.size === 1 ? [...colors][0] : "#526f85",
-      "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
+      "data-cable-group-ids": groups.map((cableGroup) => cableGroup.cableGroupId).join(" "),
     }, { haloWidth: 10 });
     group.append(badge);
   }
@@ -90,6 +90,6 @@ function renderTopologyPort(port) {
     "data-port-id": port.id,
     "data-node-id": port.nodeId,
     "data-side": port.side,
-    "data-wire-group-ids": groups.map((wireGroup) => wireGroup.wireGroupId).join(" "),
+    "data-cable-group-ids": groups.map((cableGroup) => cableGroup.cableGroupId).join(" "),
   });
 }

@@ -235,12 +235,12 @@ test('master relationship traces attach to distinct cardinal pathway ends', () =
       { pathwayId: 'p2', endpoint: 'start' },
     ],
   });
-  definition.wireGroups.forEach((group) => {
+  definition.cableGroups.forEach((group) => {
     group.routeLegs[0].controlSteps = [{ controlId: 'c1' }];
   });
-  definition.wireGroups.push(...[4, 5].map((index) => ({
-    ...definition.wireGroups[0],
-    wireGroupId: `g${index}`,
+  definition.cableGroups.push(...[4, 5].map((index) => ({
+    ...definition.cableGroups[0],
+    cableGroupId: `g${index}`,
     connectionIds: [`extra-a${index}`, `extra-b${index}`],
     routeLegs: [{
       routeId: `r${index}`, label: `Group ${index} Leg 1`,
@@ -269,12 +269,12 @@ test('master relationship traces attach to distinct cardinal pathway ends', () =
   });
   const fiveLaneEdge = descendants(
     diagram, (node) => node.className === 'relationship-topology-edge'
-      && node.dataset.wireGroupCount === '5',
+      && node.dataset.cableGroupCount === '5',
   )[0];
   const fiveLanePort = pathwayPorts.find((port) => port.dataset.nodeId === 'pathway:p');
   assert.equal(fiveLaneEdge.dataset.renderMode, 'lanes');
   assert.equal(descendants(
-    fiveLaneEdge, (node) => node.className === 'wire-trace relationship-wire-lane',
+    fiveLaneEdge, (node) => node.className === 'cable-trace relationship-cable-lane',
   ).length, 5);
   assert.ok(Number(fiveLanePort.attributes.width) >= 24);
 });
@@ -493,8 +493,8 @@ test('topology clearance includes the visible trace envelope', () => {
   const diagram = { querySelectorAll: () => [node] };
   const edge = {
     dataset: { pathwayId: 'p', junctionId: 'j' },
-    className: 'wire-trace relationship-wire-lane',
-    parentElement: { dataset: { wireGroupCount: '5' } },
+    className: 'cable-trace relationship-cable-lane',
+    parentElement: { dataset: { cableGroupCount: '5' } },
     getTotalLength: () => 40,
     getPointAtLength: (distance) => ({ x: 80 + distance, y: 65 }),
     getScreenCTM: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
@@ -537,5 +537,3 @@ test('protected layout corridors route around an unrelated junction', () => {
     ), true);
   });
 });
-
-

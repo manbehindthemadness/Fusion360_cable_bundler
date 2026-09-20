@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.routing import (
+from cable_bundler.routing import (
     CubicBezier,
     RoutePreview,
     TransitionAdjustment,
@@ -20,8 +20,8 @@ from wire_bundler.routing import (
     tightest_bend,
     transition_limits,
 )
-from wire_bundler.routing import smooth as smooth_routing
-from wire_bundler.routing.geometry import cross, difference, dot, magnitude, unit
+from cable_bundler.routing import smooth as smooth_routing
+from cable_bundler.routing.geometry import cross, difference, dot, magnitude, unit
 
 
 def _route(points: tuple[Vector3, ...]) -> RoutePreview:
@@ -45,7 +45,7 @@ def test_crossings_normals_and_tangent_continuity() -> None:
     route = _route((Vector3(0, 0, 0), Vector3(10, 0, 20), Vector3(20, 10, 40), Vector3(20, 10, 60)))
     normals = (Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(0, 1, 2), Vector3(0, 0, 1))
     smooth = fair_route(route, normals)
-    assert smooth.wire_id == route.wire_id
+    assert smooth.cable_id == route.cable_id
     assert smooth.points == route.points
     assert len(smooth.curves) == 9
     for index, normal in enumerate(normals):
@@ -178,7 +178,7 @@ def test_automatic_distance_contracts_only_to_safe_bend_floor() -> None:
 
 def test_crowded_profile_span_uses_direct_dynamic_transition() -> None:
     """
-    Fit the reported 1 mm wire case without splitting it at an artificial midpoint.
+    Fit the reported 1 mm cable case without splitting it at an artificial midpoint.
     """
     distance = 4.563
     angle = math.radians(64)
@@ -199,7 +199,7 @@ def test_crowded_profile_span_uses_direct_dynamic_transition() -> None:
     assert len(smooth.curves) == 1
     assert len(adjustments) == 1
     adjustment = adjustments[0]
-    assert adjustment.wire_number == "001"
+    assert adjustment.cable_number == "001"
     assert (adjustment.start_profile, adjustment.end_profile) == (1, 2)
     assert adjustment.required_mm == pytest.approx(5.062, abs=0.002)
     assert adjustment.applied_mm == distance
@@ -212,7 +212,7 @@ def test_crowded_profile_span_uses_direct_dynamic_transition() -> None:
 
 def test_asymmetric_crowded_span_optimizes_endpoint_handles_independently() -> None:
     """
-    Fit the reported 1.5 mm wire span when its profile turns are asymmetric.
+    Fit the reported 1.5 mm cable span when its profile turns are asymmetric.
     """
     distance = 4.912
     departure_angle = math.radians(45)
@@ -411,8 +411,8 @@ def test_tightest_bend_reports_exact_cubic_curvature_location() -> None:
     """
     route = _route((Vector3(0, 0, 0), Vector3(1, 0, 0)))
     route = RoutePreview(
-        route.wire_id,
-        route.wire_number,
+        route.cable_id,
+        route.cable_number,
         route.points,
         (
             CubicBezier(

@@ -85,12 +85,12 @@ function renderPathways(harness, selectedPathwayId = null) {
     occupancyContent.className = "section-content";
     occupancy.className = "occupancy";
     if (!members.length) {
-      occupancy.append(emptyMessage("No wire groups traverse this pathway."));
+      occupancy.append(emptyMessage("No cable groups traverse this pathway."));
     }
     members.forEach((group) => {
       occupancy.append(memberRow(
-        wireGroupLabel(harness, group),
-        () => highlightMember(harness, "wire_group", group.wireGroupId),
+        cableGroupLabel(harness, group),
+        () => highlightMember(harness, "cable_group", group.cableGroupId),
       ));
     });
     addGates.type = "button";
@@ -138,7 +138,7 @@ function renderPathways(harness, selectedPathwayId = null) {
       ),
       nestedSection(
         `pathway:${pathway.pathwayId}:occupancy`,
-        "Wire Group Occupancy",
+        "Cable Group Occupancy",
         `${members.length}`,
         occupancyContent,
         () => highlightMember(harness, "pathway", pathway.pathwayId),
@@ -147,7 +147,7 @@ function renderPathways(harness, selectedPathwayId = null) {
     container.append(nestedSection(
       `pathway:${pathway.pathwayId}`,
       pathway.name,
-      `${pathwayDirection(pathway)} · ${members.length} wire groups`,
+      `${pathwayDirection(pathway)} · ${members.length} cable groups`,
       pathwayContent,
       () => highlightMember(harness, "pathway", pathway.pathwayId),
     ));
@@ -163,12 +163,12 @@ function closePathwayPopup(preserveParent = false) {
   if (dialog?.open) dialog.close();
 }
 
-/** Retain Wire Details as the parent of a pathway or junction configuration popup. */
+/** Retain Cable Details as the parent of a pathway or junction configuration popup. */
 function retainConfigurationPopupParent(harness) {
   const replacingConfiguration = document.body.querySelector(".pathway-popup")
     || document.body.querySelector(".junction-relationships-popup");
-  if (openWireGroupDetailsState) {
-    configurationPopupParentState = { harness, ...openWireGroupDetailsState };
+  if (openCableGroupDetailsState) {
+    configurationPopupParentState = { harness, ...openCableGroupDetailsState };
   } else if (replacingConfiguration && configurationPopupParentState) {
     configurationPopupParentState.harness = harness;
   } else if (!replacingConfiguration) {
@@ -176,18 +176,18 @@ function retainConfigurationPopupParent(harness) {
   }
 }
 
-/** Reopen the immediate Wire Details parent after its child configuration closes. */
+/** Reopen the immediate Cable Details parent after its child configuration closes. */
 function restoreConfigurationPopupParent() {
   const parent = configurationPopupParentState;
   configurationPopupParentState = null;
   if (!parent) return;
-  openWireGroupDetails(parent.harness, parent.wireGroupId, parent.connectionId);
+  openCableGroupDetails(parent.harness, parent.cableGroupId, parent.connectionId);
 }
 
 function openPathwayPopup(harness, pathwayId) {
   retainConfigurationPopupParent(harness);
   closeJunctionRelationships(true);
-  closeWireGroupDetails();
+  closeCableGroupDetails();
   const pathway = harness.pathways.find((candidate) => candidate.pathwayId === pathwayId);
   const existing = document.body.querySelector(".pathway-popup");
   if (existing) {

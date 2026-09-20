@@ -88,26 +88,26 @@ function createMaterialTextField(settings, key, labelText, suggestions = [], mul
   return { wrapper, header, input };
 }
 
-/** Open inheritable harness properties or one connected wire group's overrides. */
-function openPropertiesDialog(harness, wireGroup = null) {
-  const isWireGroup = wireGroup !== null;
+/** Open inheritable harness properties or one connected cable group's overrides. */
+function openPropertiesDialog(harness, cableGroup = null) {
+  const isCableGroup = cableGroup !== null;
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
-    `wire-options ${isWireGroup ? "wire-group-properties" : "harness-properties"}`,
+    `cable-options ${isCableGroup ? "cable-group-properties" : "harness-properties"}`,
   );
-  const settings = isWireGroup ? wireGroup.materials : harness.materialDefaults;
-  const overrides = isWireGroup ? wireGroup.materialOverrides : null;
+  const settings = isCableGroup ? cableGroup.materials : harness.materialDefaults;
+  const overrides = isCableGroup ? cableGroup.materialOverrides : null;
   const controls = {};
   const catalog = currentState.catalog || {
     insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
   };
-  heading.textContent = isWireGroup ? "Connected Wire Properties" : "Harness Properties";
-  note.textContent = isWireGroup
-    ? "Checked property fields override this harness for the connected wire group."
-    : "These values are inherited by connected wire groups unless they override a field.";
+  heading.textContent = isCableGroup ? "Connected Cable Properties" : "Harness Properties";
+  note.textContent = isCableGroup
+    ? "Checked property fields override this harness for the connected cable group."
+    : "These values are inherited by connected cable groups unless they override a field.";
   form.append(heading, note);
 
   let diameter = null;
-  if (isWireGroup) {
+  if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
     diameterLabel.textContent = "Diameter (mm)";
@@ -115,7 +115,7 @@ function openPropertiesDialog(harness, wireGroup = null) {
     diameter.className = "filter";
     diameter.step = "any";
     diameter.required = true;
-    diameter.value = `${wireGroup.diameterMm}`;
+    diameter.value = `${cableGroup.diameterMm}`;
     diameterLabel.append(diameter);
     form.append(diameterLabel);
   }
@@ -125,7 +125,7 @@ function openPropertiesDialog(harness, wireGroup = null) {
       settings, key, labelText, suggestions, multiline,
     );
     let toggle = null;
-    if (isWireGroup) {
+    if (isCableGroup) {
       const toggleLabel = document.createElement("label");
       const toggleText = document.createElement("span");
       toggle = document.createElement("input");
@@ -152,12 +152,12 @@ function openPropertiesDialog(harness, wireGroup = null) {
   addMaterialField("notes", "Notes", [], true);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const diameterMm = isWireGroup ? Number(diameter.value) : null;
-    if (isWireGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
+    const diameterMm = isCableGroup ? Number(diameter.value) : null;
+    if (isCableGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
       error.textContent = "Enter a positive diameter in millimeters.";
       return;
     }
-    const fieldValue = (key) => isWireGroup && !controls[key].toggle.checked
+    const fieldValue = (key) => isCableGroup && !controls[key].toggle.checked
       ? null : controls[key].input.value;
     const insulationMaterial = fieldValue("insulationMaterial");
     const conductorMaterial = fieldValue("conductorMaterial");
@@ -176,11 +176,11 @@ function openPropertiesDialog(harness, wireGroup = null) {
     save.disabled = true;
     try {
       const response = await send(
-        isWireGroup ? "set_wire_group_properties" : "set_harness_properties",
-        isWireGroup
+        isCableGroup ? "set_cable_group_properties" : "set_harness_properties",
+        isCableGroup
           ? {
             harnessId: harness.harnessId,
-            wireGroupId: wireGroup.wireGroupId,
+            cableGroupId: cableGroup.cableGroupId,
             diameterMm,
             insulationMaterial,
             conductorMaterial,
@@ -199,7 +199,7 @@ function openPropertiesDialog(harness, wireGroup = null) {
       );
       if (response.ok) dialog.close();
       else error.textContent = response.error || `Could not save ${
-        isWireGroup ? "connected-wire" : "harness"
+        isCableGroup ? "connected-cable" : "harness"
       } properties.`;
     } catch (failure) {
       error.textContent = failure.message;
@@ -216,21 +216,21 @@ function openPropertiesDialog(harness, wireGroup = null) {
   dialog.showModal();
 }
 
-/** Open parent properties inherited by connected wire groups. */
+/** Open parent properties inherited by connected cable groups. */
 function openHarnessProperties(harness) {
   openPropertiesDialog(harness);
 }
 
-/** Open one connected wire group's inherited construction properties. */
-function openWireGroupProperties(harness, wireGroup) {
-  openPropertiesDialog(harness, wireGroup);
+/** Open one connected cable group's inherited construction properties. */
+function openCableGroupProperties(harness, cableGroup) {
+  openPropertiesDialog(harness, cableGroup);
 }
 
-function openMaterialOptions(harness, wireGroup = null) {
-  const isWireGroup = wireGroup !== null;
-  const hasOverrides = isWireGroup;
-  const settings = isWireGroup ? wireGroup.materials : harness.materialDefaults;
-  const overrides = isWireGroup ? wireGroup.materialOverrides : null;
+function openMaterialOptions(harness, cableGroup = null) {
+  const isCableGroup = cableGroup !== null;
+  const hasOverrides = isCableGroup;
+  const settings = isCableGroup ? cableGroup.materials : harness.materialDefaults;
+  const overrides = isCableGroup ? cableGroup.materialOverrides : null;
   const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
   let hasAppliedChanges = false;
   let cancelInProgress = false;
@@ -238,13 +238,13 @@ function openMaterialOptions(harness, wireGroup = null) {
     insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
   };
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
-    "wire-options material-options",
+    "cable-options material-options",
   );
   const apply = document.createElement("button");
-  heading.textContent = isWireGroup ? "Connected Wire Group Materials" : "Harness Materials";
-  note.textContent = isWireGroup
-    ? "Checked visual fields override this harness for the connected wire group."
-    : "These visual values are inherited by connected wire groups without overrides.";
+  heading.textContent = isCableGroup ? "Connected Cable Group Materials" : "Harness Materials";
+  note.textContent = isCableGroup
+    ? "Checked visual fields override this harness for the connected cable group."
+    : "These visual values are inherited by connected cable groups without overrides.";
   form.append(heading, note);
 
   const addOverrideToggle = (header, key, update) => {
@@ -565,28 +565,28 @@ function openMaterialOptions(harness, wireGroup = null) {
         };
       }
       const materials = {
-        insulationMaterial: isWireGroup
+        insulationMaterial: isCableGroup
           ? overrides.insulationMaterial : settings.insulationMaterial,
-        conductorMaterial: isWireGroup
+        conductorMaterial: isCableGroup
           ? overrides.conductorMaterial : settings.conductorMaterial,
         mainColor: hasOverrides && !colorToggle.checked ? null
           : colorFromHex(colorName.value, colorPicker.value),
         appearance: hasOverrides && !colorToggle.checked ? null : appearance,
         stripes: hasOverrides && !stripeToggle.checked ? null : readStripes(),
-        manufacturer: isWireGroup
+        manufacturer: isCableGroup
           ? overrides.manufacturer : settings.manufacturer,
-        partNumber: isWireGroup ? overrides.partNumber : settings.partNumber,
-        notes: isWireGroup ? overrides.notes : settings.notes,
+        partNumber: isCableGroup ? overrides.partNumber : settings.partNumber,
+        notes: isCableGroup ? overrides.notes : settings.notes,
       };
       apply.disabled = true;
       cancel.disabled = true;
       save.disabled = true;
       const response = await send(
-        isWireGroup ? "set_wire_group_material_overrides" : "set_harness_material_defaults",
-        isWireGroup
+        isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults",
+        isCableGroup
           ? {
             harnessId: harness.harnessId,
-            wireGroupId: wireGroup.wireGroupId,
+            cableGroupId: cableGroup.cableGroupId,
             overrides: materials,
           }
           : { harnessId: harness.harnessId, materials },
@@ -596,7 +596,7 @@ function openMaterialOptions(harness, wireGroup = null) {
         error.textContent = closeAfter ? "" : "Applied.";
         if (closeAfter) dialog.close();
       }
-      else error.textContent = response.error || "Could not save wire materials.";
+      else error.textContent = response.error || "Could not save cable materials.";
     } catch (failure) {
       error.textContent = failure.message;
     } finally {
@@ -618,17 +618,17 @@ function openMaterialOptions(harness, wireGroup = null) {
     error.textContent = "Restoring saved options…";
     try {
       const response = await send(
-        isWireGroup ? "set_wire_group_material_overrides" : "set_harness_material_defaults",
-        isWireGroup
+        isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults",
+        isCableGroup
           ? {
             harnessId: harness.harnessId,
-            wireGroupId: wireGroup.wireGroupId,
+            cableGroupId: cableGroup.cableGroupId,
             overrides: originalMaterials,
           }
           : { harnessId: harness.harnessId, materials: originalMaterials },
       );
       if (!response.ok) {
-        error.textContent = response.error || "Could not restore wire materials.";
+        error.textContent = response.error || "Could not restore cable materials.";
         return;
       }
       hasAppliedChanges = false;

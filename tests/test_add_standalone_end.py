@@ -10,13 +10,13 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.application import (
+from cable_bundler.application import (
     StandaloneEndGateway,
     StandaloneEndUpdateError,
     add_standalone_end,
 )
-from wire_bundler.domain import HarnessDefinition, PathwayEndpoint, dumps, loads
-from wire_bundler.domain.model import InterpolationSettings
+from cable_bundler.domain import HarnessDefinition, PathwayEndpoint, dumps, loads
+from cable_bundler.domain.model import InterpolationSettings
 
 END_ID = UUID("86000000-0000-0000-0000-000000000001")
 
@@ -64,7 +64,7 @@ class _RecordingGateway(StandaloneEndGateway):
 
 def test_adds_one_ordered_disconnected_end(valid_harness: HarnessDefinition) -> None:
     """
-    Persist guide order and placement without adding wire-owned data.
+    Persist guide order and placement without adding cable-owned data.
     """
     gateway = _RecordingGateway(valid_harness)
 
@@ -82,7 +82,7 @@ def test_adds_one_ordered_disconnected_end(valid_harness: HarnessDefinition) -> 
     assert result.connection.member_tokens == ("terminal", "guide-1", "guide-2")
     assert stored.connections[-1] == result.connection
     assert stored.standalone_ends == (*valid_harness.standalone_ends, result.standalone_end)
-    assert stored.wire_groups == valid_harness.wire_groups
+    assert stored.cable_groups == valid_harness.cable_groups
 
 
 def test_new_end_guides_inherit_end_interpolation_defaults(

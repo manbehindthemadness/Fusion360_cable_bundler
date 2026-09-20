@@ -90,10 +90,10 @@ test('group-only palette state drives pathway occupancy', () => {
   const definition = harness();
 
   assert.equal(definition.schemaVersion, 15);
-  assert.equal(Object.hasOwn(definition, 'wires'), false);
+  assert.equal(Object.hasOwn(definition, 'cables'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(
-    Array.from(context.relationshipPathwayGroups(definition, 'p'), (group) => group.wireGroupId),
+    Array.from(context.relationshipPathwayGroups(definition, 'p'), (group) => group.cableGroupId),
     ['g1', 'g2', 'g3'],
   );
 });
@@ -107,7 +107,7 @@ test('group-only palette resolves standalone ends to their groups', () => {
 
   const ends = context.relationshipEndGroups(definition, 'p', 'start', connections);
 
-  assert.deepEqual(Array.from(ends, (end) => end.wireGroupId), ['g1', 'g2', 'g3']);
+  assert.deepEqual(Array.from(ends, (end) => end.cableGroupId), ['g1', 'g2', 'g3']);
   assert.ok(ends.every((end) => end.groups.length === 1));
 });
 
@@ -163,6 +163,11 @@ test('master diagram can redraw and fit for its resized viewport', () => {
   assert.ok(stack.dataset.diagramLayoutKey.split('|').length >= 3);
   assert.ok(Number.parseFloat(stack.style.width) > 0);
   assert.ok(Number.parseFloat(stack.style.height) > 0);
+  const overlay = descendants(
+    stack, (node) => node.className === 'relationship-topology-edges',
+  )[0];
+  assert.equal(overlay.style.width, stack.style.width);
+  assert.equal(overlay.style.height, stack.style.height);
   viewport.clientWidth = 2200;
   viewport.clientHeight = 500;
   redraw.events.click();
@@ -225,7 +230,7 @@ test('master diagram restores its complete view across palette reopen', () => {
   assert.equal(reopenedParts.stack.dataset.diagramLayoutCandidateIndex, '0');
   assert.equal(
     [...storage.keys()].filter((key) => key.startsWith(
-      'wireBundler.relationshipDiagramView:',
+      'cableBundler.relationshipDiagramView:',
     )).length,
     1,
   );
@@ -235,7 +240,7 @@ test('master diagram restores its complete view across palette reopen', () => {
   assert.equal(otherDiagram.dataset.hasSavedDiagramView, 'false');
   assert.equal(
     [...storage.keys()].filter((key) => key.startsWith(
-      'wireBundler.relationshipDiagramView:',
+      'cableBundler.relationshipDiagramView:',
     )).length,
     2,
   );
@@ -244,7 +249,7 @@ test('master diagram restores its complete view across palette reopen', () => {
 test('master diagram rejects malformed or obsolete session views', () => {
   const definition = harness();
   const diagramViewKey = definition.harnessId;
-  const storageKey = `wireBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
+  const storageKey = `cableBundler.relationshipDiagramView:${encodeURIComponent(diagramViewKey)}`;
   const invalidViews = [
     '{broken',
     JSON.stringify({
@@ -402,7 +407,7 @@ test('route-aware redraw packs branching topology without trace blips or crossov
   ).map((path) => ({
     points: JSON.parse(path.dataset.routePoints),
     traceHalfExtent: context.topologyTraceHalfExtent(
-      Number(path.parentElement.dataset.wireGroupCount),
+      Number(path.parentElement.dataset.cableGroupCount),
     ),
   }));
   const quality = context.topologyRouteSetQuality(new Map(
@@ -422,6 +427,5 @@ test('route-aware redraw packs branching topology without trace blips or crossov
   assert.ok(Number(stack.dataset.minimumParallelTraceGap) >= 10);
   assert.equal(stack.dataset.overlappingTracePairCount, '0');
 });
-
 
 

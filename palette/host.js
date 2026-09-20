@@ -2,7 +2,7 @@ function openHarness(key) {
   const harness = currentState.harnesses.find((candidate) => harnessKey(candidate) === key);
   if (!harness) return;
   selectedHarnessKey = key;
-  writeSession("wireBundler.selectedHarness", key);
+  writeSession("cableBundler.selectedHarness", key);
   ui.libraryView.hidden = true;
   ui.editorView.hidden = false;
   renderEditor(harness);
@@ -14,10 +14,10 @@ function closeEditor() {
   resetMasterDiagramSizing();
   closePathwayPopup();
   closeJunctionRelationships();
-  closeWireGroupDetails();
-  closeCreateWiresPopup();
+  closeCableGroupDetails();
+  closeCreateCablesPopup();
   selectedHarnessKey = "";
-  removeSession("wireBundler.selectedHarness");
+  removeSession("cableBundler.selectedHarness");
   ui.editorView.hidden = true;
   ui.libraryView.hidden = false;
   ui.editor.replaceChildren();
@@ -42,9 +42,9 @@ function render(state) {
     resetMasterDiagramSizing();
     closePathwayPopup();
     closeJunctionRelationships();
-    closeCreateWiresPopup();
+    closeCreateCablesPopup();
     selectedHarnessKey = "";
-    removeSession("wireBundler.selectedHarness");
+    removeSession("cableBundler.selectedHarness");
     ui.editorView.hidden = true;
     ui.libraryView.hidden = false;
     clearValidationDisplay();
@@ -83,7 +83,7 @@ function setDeveloperMode(enabled) {
     writePreference(DEVELOPER_CONSENT_STORAGE_KEY, DEVELOPER_MODE_DISCLOSURE_VERSION);
   } else {
     ui.verboseDiagnostics.checked = false;
-    writePreference("wireBundler.verboseDiagnostics", "false");
+    writePreference("cableBundler.verboseDiagnostics", "false");
   }
   Array.from(ui.notice.children).forEach(updateNoticeEntry);
 }
@@ -102,7 +102,7 @@ function closeDeveloperConsent() {
 function persistNoticeHeight() {
   if (!ui.notice.getBoundingClientRect) return;
   const height = Math.round(ui.notice.getBoundingClientRect().height);
-  if (Number.isFinite(height)) writeSession("wireBundler.noticeHeight", String(height));
+  if (Number.isFinite(height)) writeSession("cableBundler.noticeHeight", String(height));
 }
 
 function waitForFusionHost() {
@@ -132,14 +132,14 @@ async function send(action, payload = {}) {
 
 function generateSolids() {
   const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
-  if (!harness || harness.status === "damaged" || !(harness.wireGroups || []).length) return;
-  return mutate("generate_solids", { harnessId: harness.harnessId, replaceExisting: true }, "Generating wire solids…");
+  if (!harness || harness.status === "damaged" || !(harness.cableGroups || []).length) return;
+  return mutate("generate_solids", { harnessId: harness.harnessId, replaceExisting: true }, "Generating cable solids…");
 }
 
 function clearSolids() {
   const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
   if (!harness || harness.status === "damaged") return;
-  return mutate("clear_solids", { harnessId: harness.harnessId }, "Clearing wire solids…");
+  return mutate("clear_solids", { harnessId: harness.harnessId }, "Clearing cable solids…");
 }
 
 async function refresh() {
@@ -309,7 +309,7 @@ function removePathway(harness, pathway) {
   const deletedEnds = (harness.standaloneEnds || []).filter(
     (end) => deletedPathwayIds.has(end.pathwayId),
   );
-  const affectedGroups = (harness.wireGroups || []).filter((group) => (
+  const affectedGroups = (harness.cableGroups || []).filter((group) => (
     (group.routeLegs || []).some((leg) => (
       (leg.pathwayIds || []).some((pathwayId) => deletedPathwayIds.has(pathwayId))
     ))
@@ -318,7 +318,7 @@ function removePathway(harness, pathway) {
   const pathwayLabel = pathway.name || "this pathway";
   const warning = [
     `Delete ${pathwayLabel} and ${descendantCount} descendant ${descendantCount === 1 ? "pathway" : "pathways"}?`,
-    `This also deletes ${deletedEnds.length} standalone ${deletedEnds.length === 1 ? "end" : "ends"} and updates ${affectedGroups.length} wire ${affectedGroups.length === 1 ? "group" : "groups"}.`,
+    `This also deletes ${deletedEnds.length} standalone ${deletedEnds.length === 1 ? "end" : "ends"} and updates ${affectedGroups.length} cable ${affectedGroups.length === 1 ? "group" : "groups"}.`,
     "This action can be undone in Fusion.",
   ].join(" ");
   if (!window.confirm(warning)) return;
@@ -333,7 +333,7 @@ function removeJunction(harness, junction) {
   const junctionLabel = junction.name || "this junction";
   const warning = [
     `Delete ${junctionLabel}?`,
-    "Connected pathways, wire groups, and neighboring junctions will be kept.",
+    "Connected pathways, cable groups, and neighboring junctions will be kept.",
     "This action can be undone in Fusion.",
   ].join(" ");
   if (!window.confirm(warning)) return;
@@ -415,7 +415,7 @@ async function previewRoutes() {
   const harness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,
   );
-  if (!harness || harness.status === "damaged" || !(harness.wireGroups || []).length) return;
+  if (!harness || harness.status === "damaged" || !(harness.cableGroups || []).length) return;
   appendNotice("Solving route preview…");
   try {
     const response = await send("preview_routes", { harnessId: harness.harnessId });
@@ -485,10 +485,10 @@ ui.developerConsent.addEventListener("close", () => {
 ui.verboseDiagnostics.addEventListener("change", () => {
   if (!developerModeEnabled) {
     ui.verboseDiagnostics.checked = false;
-    writePreference("wireBundler.verboseDiagnostics", "false");
+    writePreference("cableBundler.verboseDiagnostics", "false");
     return;
   }
-  writePreference("wireBundler.verboseDiagnostics", String(ui.verboseDiagnostics.checked));
+  writePreference("cableBundler.verboseDiagnostics", String(ui.verboseDiagnostics.checked));
   Array.from(ui.notice.children).forEach(updateNoticeEntry);
 });
 ui.notice.addEventListener("mouseup", persistNoticeHeight);

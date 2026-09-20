@@ -82,12 +82,12 @@ class Element {
   querySelector(selector) {
     const editorId = selector.match(/data-editor-id="([^"]+)"/);
     const sectionId = selector.match(/data-section="([^"]+)"/);
-    const wireId = selector.match(/data-wire-id="([^"]+)"/);
+    const cableId = selector.match(/data-cable-id="([^"]+)"/);
     const endpoint = selector.match(/data-endpoint="([^"]+)"/);
     return descendants(this, (child) => {
       if (editorId) return child.dataset.editorId === editorId[1];
       if (sectionId) return child.dataset.section === sectionId[1];
-      if (wireId) return child.dataset.wireId === wireId[1];
+      if (cableId) return child.dataset.cableId === cableId[1];
       if (endpoint) return child.dataset.endpoint === endpoint[1];
       if (selector.startsWith('.')) return child.className?.split(' ').includes(selector.slice(1));
       return child.tag === selector;
@@ -233,7 +233,7 @@ function descendants(root, predicate) {
     ? [...(predicate(child) ? [child] : []), ...descendants(child, predicate)] : []);
 }
 
-/** Return three wire groups sharing one pathway. */
+/** Return three cable groups sharing one pathway. */
 function harness() {
   const materialDefaults = {
     insulationMaterial: 'PVC', conductorMaterial: 'Copper',
@@ -247,8 +247,8 @@ function harness() {
     { connectionId: `a${i}`, pathwayId: 'p', endpoint: 'start', orderedControlIds: [] },
     { connectionId: `b${i}`, pathwayId: 'p', endpoint: 'end', orderedControlIds: [] },
   ]);
-  const wireGroups = [1, 2, 3].map((i) => ({
-    wireGroupId: `g${i}`, connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
+  const cableGroups = [1, 2, 3].map((i) => ({
+    cableGroupId: `g${i}`, connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
     materials: materialDefaults,
     materialOverrides: { insulationMaterial: null, conductorMaterial: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,
@@ -265,7 +265,7 @@ function harness() {
     validationMessages: [], materialDefaults, controls: [], connections,
     pathways: [{ pathwayId: 'p', name: 'lower fuse box path', startName: 'O2-sensor',
       endName: 'CAN_BUS-ctrl', orderedControlIds: [] }],
-    junctions: [], standaloneEnds, wireGroups, wireGroupRouteError: null,
+    junctions: [], standaloneEnds, cableGroups, cableGroupRouteError: null,
   };
 }
 

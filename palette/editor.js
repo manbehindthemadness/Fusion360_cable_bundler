@@ -1,14 +1,14 @@
 function renderEditor(harness) {
-  suspendCreateWiresPopup();
+  suspendCreateCablesPopup();
   resetMasterDiagramSizing();
   ui.editor.replaceChildren();
   clearValidationDisplay();
 
   if (harness.status === "damaged") {
-    closeCreateWiresPopup();
+    closeCreateCablesPopup();
     closePathwayPopup();
     closeJunctionRelationships();
-    closeWireGroupDetails();
+    closeCableGroupDetails();
     const error = document.createElement("div");
     const actions = document.createElement("div");
     const remove = document.createElement("button");
@@ -78,14 +78,14 @@ function renderEditor(harness) {
   }
   const materialOptions = document.body.querySelector(".material-options");
   // Keep the foreground material editor above its originating details dialog during refresh.
-  if (openWireGroupDetailsState && !materialOptions?.open) {
-    openWireGroupDetails(
+  if (openCableGroupDetailsState && !materialOptions?.open) {
+    openCableGroupDetails(
       harness,
-      openWireGroupDetailsState.wireGroupId,
-      openWireGroupDetailsState.connectionId,
+      openCableGroupDetailsState.cableGroupId,
+      openCableGroupDetailsState.connectionId,
     );
   }
-  restoreCreateWiresPopup(harness);
+  restoreCreateCablesPopup(harness);
 }
 
 function clearValidationDisplay() {

@@ -8,7 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from wire_bundler.routing import (
+from cable_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
@@ -80,7 +80,7 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
     """
     horizontal = _straight_route(1, "Horizontal", Vector3(-10, 0, 0), Vector3(10, 0, 0))
     vertical = _straight_route(2, "Vertical", Vector3(0, -10, 0), Vector3(0, 10, 0))
-    sample_counts = {horizontal.wire_id: 0, vertical.wire_id: 0}
+    sample_counts = {horizontal.cable_id: 0, vertical.cable_id: 0}
     original_sample_route = avoidance._sample_route
     original_fair_route = avoidance.fair_route
     auto_fractions: list[float] = []
@@ -89,7 +89,7 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
         """
         Count collision samples while delegating to the production sampler.
         """
-        sample_counts[route.wire_id] += 1
+        sample_counts[route.cable_id] += 1
         return original_sample_route(route)
 
     def recording_fair_route(*args: object, **kwargs: object) -> RoutePreview:
@@ -103,7 +103,7 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
 
     monkeypatch.setattr(avoidance, "_sample_route", counting_sample_route)
     monkeypatch.setattr(
-        "wire_bundler.routing.avoidance.fair_route",
+        "cable_bundler.routing.avoidance.fair_route",
         recording_fair_route,
     )
     routes, collisions = separate_route_collisions(
@@ -122,8 +122,8 @@ def test_repair_resamples_only_the_candidate_route(monkeypatch: pytest.MonkeyPat
 
     assert not collisions
     assert routes[0] == horizontal
-    assert sample_counts[horizontal.wire_id] == 1
-    assert sample_counts[vertical.wire_id] > 1
+    assert sample_counts[horizontal.cable_id] == 1
+    assert sample_counts[vertical.cable_id] > 1
     assert auto_fractions
     assert set(auto_fractions) == {0.5}
 

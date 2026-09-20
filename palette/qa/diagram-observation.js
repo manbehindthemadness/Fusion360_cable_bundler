@@ -80,10 +80,10 @@ function qaTopologyTraceClearance(edge, diagram) {
     if (node.dataset.pathwayId === edge.dataset.pathwayId) return false;
     return node.dataset.junctionId !== edge.dataset.junctionId;
   });
-  const wireTraces = Array.from(
-    edge.parentElement?.querySelectorAll?.(".wire-trace") || [],
+  const cableTraces = Array.from(
+    edge.parentElement?.querySelectorAll?.(".cable-trace") || [],
   );
-  const renderedPaths = wireTraces.length ? wireTraces : [edge];
+  const renderedPaths = cableTraces.length ? cableTraces : [edge];
   let minimumClearance = Number.POSITIVE_INFINITY;
   renderedPaths.forEach((path) => {
     if (typeof path.getTotalLength !== "function"
@@ -95,8 +95,8 @@ function qaTopologyTraceClearance(edge, diagram) {
     const sampleCount = Math.max(2, Math.ceil(length / 4));
     const scale = Math.max(Math.hypot(matrix.a, matrix.b), Number.EPSILON);
     const isBundle = path.className?.baseVal?.split(" ").includes(
-      "relationship-wire-bundle",
-    ) || path.className?.split?.(" ").includes("relationship-wire-bundle");
+      "relationship-cable-bundle",
+    ) || path.className?.split?.(" ").includes("relationship-cable-bundle");
     const traceHalfExtent = isBundle ? 5 : 3;
     for (let index = 0; index <= sampleCount; index += 1) {
       const point = path.getPointAtLength(length * index / sampleCount);
@@ -177,11 +177,11 @@ function qaInvalidTraceGroupCount(diagram) {
   );
   const portFor = (portId) => ports.find((port) => port.dataset.portId === portId);
   const invalidEdges = edges.filter((edge) => {
-    const groupCount = Number.parseInt(edge.dataset.wireGroupCount, 10);
+    const groupCount = Number.parseInt(edge.dataset.cableGroupCount, 10);
     const mode = edge.dataset.renderMode;
-    const lanes = Array.from(edge.querySelectorAll?.(".relationship-wire-lane") || []);
-    const bundles = Array.from(edge.querySelectorAll?.(".relationship-wire-bundle") || []);
-    const badges = Array.from(edge.querySelectorAll?.(".relationship-wire-count") || []);
+    const lanes = Array.from(edge.querySelectorAll?.(".relationship-cable-lane") || []);
+    const bundles = Array.from(edge.querySelectorAll?.(".relationship-cable-bundle") || []);
+    const badges = Array.from(edge.querySelectorAll?.(".relationship-cable-count") || []);
     const groupIds = relationshipElementGroupIds(edge);
     const expectedMode = groupCount === 0
       ? "structure" : groupCount <= TOPOLOGY_LANE_LIMIT ? "lanes" : "bundle";

@@ -1,11 +1,11 @@
-/** Derive stable wire-group membership and topology for the master diagram. */
+/** Derive stable cable-group membership and topology for the master diagram. */
 
 function relationshipGroupIds(groups) {
-  return groups.map((group) => group.wireGroupId).filter(Boolean).join(" ");
+  return groups.map((group) => group.cableGroupId).filter(Boolean).join(" ");
 }
 
 function relationshipElementGroupIds(element) {
-  const value = element.dataset?.wireGroupIds || element.dataset?.wireGroupId || "";
+  const value = element.dataset?.cableGroupIds || element.dataset?.cableGroupId || "";
   return new Set(value.split(" ").filter(Boolean));
 }
 
@@ -20,7 +20,7 @@ function createRelationshipFocusController(container) {
     "relationship-topology-edge",
     "relationship-topology-port",
     "relationship-end-entry",
-    "wire-trace",
+    "cable-trace",
     "stripe-trace",
     "trace-contrast-halo",
     "aggregate-trace",
@@ -67,7 +67,7 @@ function createRelationshipFocusController(container) {
     sources.add(source);
     const focus = {
       source,
-      groupIds: descriptor.groups.map((group) => group.wireGroupId),
+      groupIds: descriptor.groups.map((group) => group.cableGroupId),
       nodeIds: descriptor.nodeIds || [],
     };
     source.addEventListener("mouseenter", () => {
@@ -91,33 +91,33 @@ function createRelationshipFocusController(container) {
 }
 
 function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
-  const wireGroupByConnection = new Map();
-  (harness.wireGroups || []).forEach((wireGroup) => {
-    (wireGroup.connectionIds || []).forEach((connectionId) => {
-      wireGroupByConnection.set(connectionId, wireGroup);
+  const cableGroupByConnection = new Map();
+  (harness.cableGroups || []).forEach((cableGroup) => {
+    (cableGroup.connectionIds || []).forEach((connectionId) => {
+      cableGroupByConnection.set(connectionId, cableGroup);
     });
   });
   return (harness.standaloneEnds || [])
     .filter((end) => end.pathwayId === pathwayId && end.endpoint === endpoint)
     .map((end) => {
       const connection = connections.get(end.connectionId);
-      const wireGroup = wireGroupByConnection.get(end.connectionId) || null;
+      const cableGroup = cableGroupByConnection.get(end.connectionId) || null;
       const label = connection?.name || `Missing End ${endpoint === "start" ? "A" : "B"}`;
       return {
         connectionId: end.connectionId,
         connectionName: connection?.name || "",
-        groups: wireGroup ? [wireGroup] : [],
+        groups: cableGroup ? [cableGroup] : [],
         standalone: true,
-        wireGroupId: wireGroup?.wireGroupId || "",
+        cableGroupId: cableGroup?.cableGroupId || "",
         label,
-        searchable: `${label} ${connection?.name || ""} ${wireGroup?.materials?.insulationMaterial || ""} ${wireGroup?.materials?.mainColor?.name || ""}`
+        searchable: `${label} ${connection?.name || ""} ${cableGroup?.materials?.insulationMaterial || ""} ${cableGroup?.materials?.mainColor?.name || ""}`
           .toLocaleLowerCase(),
       };
     });
 }
 
 function relationshipPathwayGroups(harness, pathwayId) {
-  return (harness.wireGroups || []).filter((group) => (
+  return (harness.cableGroups || []).filter((group) => (
     (group.routeLegs || []).some((leg) => (leg.pathwayIds || []).includes(pathwayId))
   ));
 }
@@ -154,7 +154,7 @@ function relationshipBranchDeletionIds(harness, rootPathwayIds) {
 }
 
 function relationshipJunctionGroups(harness, junction) {
-  return (harness.wireGroups || []).filter((group) => (
+  return (harness.cableGroups || []).filter((group) => (
     (group.routeLegs || []).some((leg) => (
       (leg.controlSteps || []).some((step) => step.controlId === junction.controlId)
     ))

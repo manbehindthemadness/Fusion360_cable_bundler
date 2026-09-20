@@ -44,7 +44,7 @@
 }
 .icon-button:hover { border-color: var(--accent); }
 .icon-button.danger { color: var(--danger); }
-.wire-route {
+.cable-route {
   display: grid;
   gap: 8px;
   border: 1px solid var(--border-subtle);
@@ -52,7 +52,7 @@
   padding: 9px;
   background: var(--surface-subtle);
 }
-.wire-route + .wire-route { margin-top: 8px; }
+.cable-route + .cable-route { margin-top: 8px; }
 .route-node {
   flex: 0 0 auto;
   max-width: 170px;
@@ -66,7 +66,7 @@
 }
 button.route-node:hover { border-color: var(--accent); color: var(--accent); }
 .route-node.missing { border-color: var(--danger); background: var(--danger-surface); color: var(--danger); }
-.wire-options-button { align-self: start; max-width: 100%; }
+.cable-options-button { align-self: start; max-width: 100%; }
 .end-editor {
   display: grid;
   gap: 7px;

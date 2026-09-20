@@ -23,7 +23,7 @@ const TOPOLOGY_ROUTED_CANDIDATE_LIMIT = 12;
 const TOPOLOGY_SHORT_SEGMENT = TOPOLOGY_TRACE_CORNER_RADIUS * 2;
 
 function relationshipEndpointGroups(harness, junction, relationship) {
-  return (harness.wireGroups || []).filter((group) => (group.routeLegs || []).some((leg) => (
+  return (harness.cableGroups || []).filter((group) => (group.routeLegs || []).some((leg) => (
     (leg.pathwayIds || []).includes(relationship.pathwayId)
       && (leg.controlSteps || []).some((step) => step.controlId === junction.controlId)
   )));

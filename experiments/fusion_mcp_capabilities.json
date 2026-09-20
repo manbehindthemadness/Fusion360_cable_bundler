@@ -43,7 +43,7 @@
     "status": "passed",
     "scenario": "command_history",
     "report": "artifacts/verification/command_history_automated_20260908T143704.342557Z.json",
-    "verifiedCapabilities": ["all-dialog-free-palette-edits", "selection-backed-command-inputs", "selection-backed-create-edit-history", "native-dialog-input-identity-label-and-state", "single-transaction-undo-redo", "exact-definition-restoration", "serialized-palette-projection-restoration", "palette-dom-state-observation", "palette-dialog-viewport-geometry", "palette-event-injection", "exact-active-selection-inspection", "root-context-profile-selection", "root-context-gate-selection", "root-context-generated-body-selection", "stable-member-and-route-identity", "multi-wire-endpoint-order", "preview-undo-redo", "explicit-preview-clear", "generate-undo-redo", "rebuild-undo-redo", "clear-solids-undo-redo", "isolated-document-cleanup"],
+    "verifiedCapabilities": ["all-dialog-free-palette-edits", "selection-backed-command-inputs", "selection-backed-create-edit-history", "native-dialog-input-identity-label-and-state", "single-transaction-undo-redo", "exact-definition-restoration", "serialized-palette-projection-restoration", "palette-dom-state-observation", "palette-dialog-viewport-geometry", "palette-event-injection", "exact-active-selection-inspection", "root-context-profile-selection", "root-context-gate-selection", "root-context-generated-body-selection", "stable-member-and-route-identity", "multi-cable-endpoint-order", "preview-undo-redo", "explicit-preview-clear", "generate-undo-redo", "rebuild-undo-redo", "clear-solids-undo-redo", "isolated-document-cleanup"],
     "remainingCapabilities": []
   },
   "focusedRunAudit": {
@@ -76,7 +76,7 @@
   "generatedSolidsAudit": {
     "status": "passed",
     "report": "artifacts/verification/generated_solids_automated_20260907T232158.002676Z.json",
-    "verifiedCapabilities": ["solid-generation", "appearance-assignment", "stable-wire-identity", "component-owned-stripes", "parent-transform-following", "owned-presentation-cleanup"]
+    "verifiedCapabilities": ["solid-generation", "appearance-assignment", "stable-cable-identity", "component-owned-stripes", "parent-transform-following", "owned-presentation-cleanup"]
   },
   "generatedVisualAudit": {
     "status": "passed",
