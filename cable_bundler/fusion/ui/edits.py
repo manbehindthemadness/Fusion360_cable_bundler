@@ -27,6 +27,7 @@ from ...application import (
     set_cable_group_properties,
     set_harness_material_defaults,
     set_harness_properties,
+    switch_standalone_end,
     update_junction_relationships,
 )
 from ...application.edit_harness import set_interpolation
@@ -206,6 +207,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved end name."
+    if action == "switch_standalone_end":
+        switch_standalone_end(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "standalone end"),
+            gateway,
+        )
+        return "Switched standalone end."
     if action == "set_interpolation":
         target = payload.get("target")
         if target not in ("gate", "end", "defaults"):

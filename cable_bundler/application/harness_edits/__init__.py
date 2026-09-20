@@ -7,6 +7,7 @@ from .ends import (
     append_end_guides,
     remove_standalone_end,
     rename_standalone_end,
+    switch_standalone_end,
 )
 from .junctions import (
     add_junction,
@@ -58,6 +59,7 @@ __all__ = [
     "set_harness_properties",
     "set_interpolation",
     "suggest_pathway_extension_name",
+    "switch_standalone_end",
     "update_junction_relationships",
     "update_pathway_refine",
 ]

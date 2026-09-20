@@ -55,6 +55,7 @@ from .edit_harness import (
     set_harness_material_defaults,
     set_harness_properties,
     suggest_pathway_extension_name,
+    switch_standalone_end,
     update_junction_relationships,
     update_pathway_refine,
 )
@@ -121,4 +122,5 @@ __all__ = [
     "suggest_harness_name",
     "suggest_pathway_extension_name",
     "suggest_pathway_name",
+    "switch_standalone_end",
 ]

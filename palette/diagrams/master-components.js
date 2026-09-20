@@ -526,6 +526,13 @@ function renderRelationshipEndList(
       event.stopPropagation();
       const contextItems = [
         ...endRoutingContextItems(harness, group.connectionId),
+        ...(!group.cableGroupId ? [{
+          label: "Switch",
+          action: () => mutate("switch_standalone_end", {
+            harnessId: harness.harnessId,
+            connectionId: group.connectionId,
+          }, `Switching ${group.label} to End ${side === "A" ? "B" : "A"}…`),
+        }] : []),
         {
           label: "Rename",
           action: () => renameRelationshipEnd(harness, group, button, name, meta),

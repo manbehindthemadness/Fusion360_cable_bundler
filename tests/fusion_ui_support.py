@@ -19,6 +19,9 @@ import pytest
 
 from cable_bundler.application import HarnessLoadResult
 from cable_bundler.domain import (
+    CableColor,
+    CableGroupDefinition,
+    CableStripe,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -27,9 +30,6 @@ from cable_bundler.domain import (
     PathwayEndpoint,
     RefineGeometry,
     StandaloneEndDefinition,
-    CableColor,
-    CableGroupDefinition,
-    CableStripe,
     dumps,
     loads,
 )
@@ -177,6 +177,7 @@ class _PaletteLifecycleModule(Protocol):
     _create_harness_gateway: Callable[[object], object]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
+    switch_standalone_end: Callable[[UUID, UUID, object], None]
     save_cable_editor: Callable[..., None]
     set_harness_properties: Callable[..., None]
     set_cable_group_properties: Callable[..., None]

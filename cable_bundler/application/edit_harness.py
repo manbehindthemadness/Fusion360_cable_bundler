@@ -26,6 +26,7 @@ from .harness_edits import (
     set_harness_properties,
     set_interpolation,
     suggest_pathway_extension_name,
+    switch_standalone_end,
     update_junction_relationships,
     update_pathway_refine,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "set_harness_properties",
     "set_interpolation",
     "suggest_pathway_extension_name",
+    "switch_standalone_end",
     "update_junction_relationships",
     "update_pathway_refine",
 ]

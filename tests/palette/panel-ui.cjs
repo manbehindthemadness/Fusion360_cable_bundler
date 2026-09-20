@@ -371,6 +371,41 @@ test('master end menu exposes end-owned guide and refine actions', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
+test('master end menu switches only disconnected ends immediately above Rename', () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.cableGroups = definition.cableGroups.slice(1);
+  const diagram = context.renderRelationshipMap(definition);
+  const disconnected = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a1',
+  )[0];
+  const connected = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a2',
+  )[0];
+  const openMenu = (end) => {
+    end.events.contextmenu({
+      clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
+    });
+    return descendants(
+      diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
+    )[0];
+  };
+
+  let menu = openMenu(disconnected);
+  const labels = menu.children.map((item) => item.textContent);
+  assert.equal(labels.indexOf('Switch'), labels.indexOf('Rename') - 1);
+  menu.children.find((item) => item.textContent === 'Switch').events.click();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'switch_standalone_end');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+
+  menu = openMenu(connected);
+  assert.equal(menu.children.some((item) => item.textContent === 'Switch'), false);
+});
+
 test('editing a master end isolates keyboard and pointer events from Cable Details', () => {
   const { context, calls } = palette();
   const definition = harness();

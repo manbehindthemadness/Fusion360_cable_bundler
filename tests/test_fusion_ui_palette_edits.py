@@ -124,6 +124,30 @@ def test_palette_edit_renames_standalone_end_by_connection_identity(
     assert notice == "Saved end name."
 
 
+def test_palette_edit_switches_standalone_end_by_connection_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the disconnected-end identity and delegate its boundary swap.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    gateway = object()
+    switch = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "switch_standalone_end", switch)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "switch_standalone_end",
+        json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
+    )
+
+    switch.assert_called_once_with(harness_id, connection_id, gateway)
+    assert notice == "Switched standalone end."
+
+
 def test_palette_edit_saves_cable_editor_transaction(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

@@ -112,6 +112,7 @@ PALETTE_EDIT_NAMES = {
     "save_cable_editor": "Save Route Editor",
     "rename_junction": "Rename Junction",
     "rename_standalone_end": "Rename Standalone End",
+    "switch_standalone_end": "Switch Standalone End",
     "rename_pathway": "Rename Pathway",
     "set_cable_group_properties": "Change Connected Cable Properties",
     "set_cable_group_material_overrides": "Change Connected Cable Materials",

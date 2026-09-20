@@ -9,21 +9,26 @@ from types import SimpleNamespace
 from typing import Protocol, cast
 from uuid import UUID
 
+import pytest
+
 from cable_bundler.application import (
-    HarnessEditGateway,
     CableEditorPairing,
+    HarnessEditGateway,
     add_end_refine,
     add_junction,
     append_end_guides,
     save_cable_editor,
     segment_pathway,
-    set_harness_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
+    set_harness_properties,
+    switch_standalone_end,
 )
 from cable_bundler.application.edit_harness import set_interpolation
 from cable_bundler.domain import (
     AutoTransitionPreset,
+    CableColor,
+    CableMaterialOverrides,
     Connection,
     ControlKind,
     ControlStructure,
@@ -32,8 +37,6 @@ from cable_bundler.domain import (
     PathwayEndpoint,
     RefineGeometry,
     StandaloneEndDefinition,
-    CableColor,
-    CableMaterialOverrides,
     dumps,
     loads,
 )
@@ -127,6 +130,63 @@ def test_adds_end_owned_refine_without_mutating_parent_pathway(
         == geometry
     )
     assert stored.pathways == valid_harness.pathways
+
+
+def test_switches_disconnected_end_between_pathway_boundaries(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Swap only the selected end's A/B relationship while preserving its identity.
+    """
+    definition = replace(valid_harness, cable_groups=())
+    gateway = _recording_gateway(definition)
+    end = definition.standalone_ends[0]
+
+    switch_standalone_end(
+        definition.harness_id,
+        end.connection_id,
+        gateway,
+    )
+
+    switched = loads(gateway.serialized_definition)
+    switched_end = next(
+        item for item in switched.standalone_ends if item.connection_id == end.connection_id
+    )
+    assert switched_end == replace(end, endpoint=PathwayEndpoint.END)
+    assert switched.connections == definition.connections
+    assert switched.pathways == definition.pathways
+
+    switch_standalone_end(
+        definition.harness_id,
+        end.connection_id,
+        gateway,
+    )
+
+    restored = loads(gateway.serialized_definition)
+    assert (
+        next(item for item in restored.standalone_ends if item.connection_id == end.connection_id)
+        == end
+    )
+
+
+def test_rejects_switching_connected_end(valid_harness: HarnessDefinition) -> None:
+    """
+    Require detachment before an endpoint change can alter a routed group.
+    """
+    gateway = _recording_gateway(valid_harness)
+    end = valid_harness.standalone_ends[0]
+
+    with pytest.raises(
+        ValueError,
+        match="Only disconnected standalone ends can switch pathway boundaries",
+    ):
+        switch_standalone_end(
+            valid_harness.harness_id,
+            end.connection_id,
+            gateway,
+        )
+
+    assert loads(gateway.serialized_definition) == valid_harness
 
 
 def test_edits_group_construction_and_visual_overrides(

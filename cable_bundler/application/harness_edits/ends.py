@@ -10,6 +10,7 @@ from ...domain import (
     Connection,
     ControlKind,
     ControlStructure,
+    PathwayEndpoint,
     RefineGeometry,
     next_available_name,
 )
@@ -86,6 +87,44 @@ def append_end_guides(
     )
     persist_definition(harness_id, original, updated, gateway)
     return updated_connection
+
+
+def switch_standalone_end(
+    harness_id: UUID,
+    connection_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Move one disconnected end to the opposite boundary of its pathway.
+
+    Connected ends must first be detached so this edit cannot silently change
+    an existing cable group's route.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    end = next(
+        (
+            candidate
+            for candidate in definition.standalone_ends
+            if candidate.connection_id == connection_id
+        ),
+        None,
+    )
+    if end is None:
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    if any(connection_id in group.connection_ids for group in definition.cable_groups):
+        raise ValueError("Only disconnected standalone ends can switch pathway boundaries.")
+    switched_endpoint = (
+        PathwayEndpoint.END if end.endpoint is PathwayEndpoint.START else PathwayEndpoint.START
+    )
+    updated_end = replace(end, endpoint=switched_endpoint)
+    updated = replace(
+        definition,
+        standalone_ends=tuple(
+            updated_end if candidate.connection_id == connection_id else candidate
+            for candidate in definition.standalone_ends
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
 
 
 # noinspection DuplicatedCode
