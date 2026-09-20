@@ -2,7 +2,8 @@
 /* global openJunctionPopupId */
 
 function openJunctionRelationships(harness, junction) {
-  closePathwayPopup();
+  retainConfigurationPopupParent(harness);
+  closePathwayPopup(true);
   closeWireGroupDetails();
   const prior = document.body.querySelector(".junction-relationships-popup");
   if (prior) {
@@ -83,10 +84,12 @@ function openJunctionRelationships(harness, junction) {
   actions.className = "pathway-popup-actions";
   actions.append(close);
   dialog.addEventListener("close", () => {
-    if (document.body.querySelector(".junction-relationships-popup") === dialog) {
+    const isCurrent = document.body.querySelector(".junction-relationships-popup") === dialog;
+    if (isCurrent) {
       openJunctionPopupId = "";
     }
     dialog.remove();
+    if (isCurrent) restoreConfigurationPopupParent();
   });
   content.append(
     nameField(
@@ -126,11 +129,12 @@ function openJunctionRelationships(harness, junction) {
   dialog.showModal();
 }
 
-function closeJunctionRelationships() {
+function closeJunctionRelationships(preserveParent = false) {
   const dialog = document.body.querySelector(".junction-relationships-popup");
   openJunctionPopupId = "";
+  if (!preserveParent) configurationPopupParentState = null;
+  dialog?.remove();
   if (dialog?.open) dialog.close();
-  else dialog?.remove();
 }
 
 function renderRelationshipJunctionHub(

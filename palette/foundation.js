@@ -48,6 +48,7 @@ let selectedHarnessKey = readSession("wireBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";
 let openWireGroupDetailsState = null;
+let configurationPopupParentState = null;
 let openCreateWiresPopupState = null;
 let masterDiagramResizeObserver = null;
 const routeFilters = new Map();
@@ -581,15 +582,38 @@ function renderPathways(harness, selectedPathwayId = null) {
   return container;
 }
 
-function closePathwayPopup() {
+function closePathwayPopup(preserveParent = false) {
   const dialog = document.body.querySelector(".pathway-popup");
   openPathwayPopupId = "";
+  if (!preserveParent) configurationPopupParentState = null;
+  dialog?.remove();
   if (dialog?.open) dialog.close();
-  else dialog?.remove();
+}
+
+/** Retain Wire Details as the parent of a pathway or junction configuration popup. */
+function retainConfigurationPopupParent(harness) {
+  const replacingConfiguration = document.body.querySelector(".pathway-popup")
+    || document.body.querySelector(".junction-relationships-popup");
+  if (openWireGroupDetailsState) {
+    configurationPopupParentState = { harness, ...openWireGroupDetailsState };
+  } else if (replacingConfiguration && configurationPopupParentState) {
+    configurationPopupParentState.harness = harness;
+  } else if (!replacingConfiguration) {
+    configurationPopupParentState = null;
+  }
+}
+
+/** Reopen the immediate Wire Details parent after its child configuration closes. */
+function restoreConfigurationPopupParent() {
+  const parent = configurationPopupParentState;
+  configurationPopupParentState = null;
+  if (!parent) return;
+  openWireGroupDetails(parent.harness, parent.wireGroupId, parent.connectionId);
 }
 
 function openPathwayPopup(harness, pathwayId) {
-  closeJunctionRelationships();
+  retainConfigurationPopupParent(harness);
+  closeJunctionRelationships(true);
   closeWireGroupDetails();
   const pathway = harness.pathways.find((candidate) => candidate.pathwayId === pathwayId);
   const existing = document.body.querySelector(".pathway-popup");
@@ -599,6 +623,7 @@ function openPathwayPopup(harness, pathwayId) {
   }
   if (!pathway) {
     openPathwayPopupId = "";
+    restoreConfigurationPopupParent();
     return;
   }
   openPathwayPopupId = pathwayId;
@@ -615,12 +640,14 @@ function openPathwayPopup(harness, pathwayId) {
   close.type = "button";
   close.className = "button";
   close.textContent = "Close";
-  close.addEventListener("click", closePathwayPopup);
+  close.addEventListener("click", () => dialog.close());
   dialog.addEventListener("close", () => {
-    if (document.body.querySelector(".pathway-popup") === dialog) {
+    const isCurrent = document.body.querySelector(".pathway-popup") === dialog;
+    if (isCurrent) {
       openPathwayPopupId = "";
     }
     dialog.remove();
+    if (isCurrent) restoreConfigurationPopupParent();
   });
   actions.append(close);
   dialog.append(entry, actions);

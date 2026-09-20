@@ -905,6 +905,61 @@ test('current pathway popup retains gate ordering and interpolation controls', (
   assert.equal(interpolation.attributes['aria-label'], 'Interpolation · Gate 1');
 });
 
+test('closing pathway configuration returns to its Wire Details parent', () => {
+  const { context } = palette();
+  const definition = harness();
+
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.wire-group-details-popup');
+  const pathway = descendants(
+    details,
+    (node) => node.className?.split(' ').includes('wire-group-details-node')
+      && node.dataset.nodeId === 'pathway:p',
+  )[0];
+  pathway.events.click();
+
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  let configuration = context.document.body.querySelector('.pathway-popup');
+  assert.equal(configuration.open, true);
+  context.renderEditor(definition);
+  configuration = context.document.body.querySelector('.pathway-popup');
+  const close = descendants(
+    configuration, (node) => node.tag === 'button' && node.textContent === 'Close',
+  )[0];
+  close.events.click();
+
+  assert.equal(context.document.body.querySelector('.pathway-popup'), undefined);
+  const restored = context.document.body.querySelector('.wire-group-details-popup');
+  assert.equal(restored.open, true);
+  const focused = descendants(
+    restored,
+    (node) => node.className?.split(' ').includes('wire-group-details-member')
+      && node.className.split(' ').includes('focused'),
+  )[0];
+  assert.equal(focused.dataset.connectionId, 'a1');
+});
+
+test('closing junction configuration returns to its Wire Details parent', () => {
+  const { context } = palette();
+  const definition = harness();
+  const junction = {
+    junctionId: 'j1', controlId: 'c1', name: 'Junction 001', pathwayRelationships: [],
+  };
+  definition.junctions = [junction];
+
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  context.openJunctionRelationships(definition, junction);
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  const configuration = context.document.body.querySelector('.junction-relationships-popup');
+  const close = descendants(
+    configuration, (node) => node.tag === 'button' && node.textContent === 'Close',
+  )[0];
+  close.events.click();
+
+  assert.equal(context.document.body.querySelector('.junction-relationships-popup'), undefined);
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup').open, true);
+});
+
 test('generation defaults expose persisted generation preferences', () => {
   const { context } = palette();
   const definition = harness();
