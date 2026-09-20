@@ -505,6 +505,9 @@ function renderRelationshipEndList(
       groups: group.groups,
       nodeIds: [`pathway:${pathway.pathwayId}`],
     });
+    const setRenameEditing = (editing) => {
+      focusController.setPointerEnabled(!editing);
+    };
     const openDetails = () => openCableGroupDetails(
       harness, group.cableGroupId, group.connectionId,
     );
@@ -535,7 +538,9 @@ function renderRelationshipEndList(
         }] : []),
         {
           label: "Rename",
-          action: () => renameRelationshipEnd(harness, group, button, name, meta),
+          action: () => renameRelationshipEnd(
+            harness, group, button, name, meta, setRenameEditing,
+          ),
         },
         {
           label: "Delete",

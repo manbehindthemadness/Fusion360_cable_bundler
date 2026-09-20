@@ -97,8 +97,26 @@ function optionsButton(title, handler, disabled = false) {
 }
 
 function hoverHighlight(node, onHover) {
-  node.addEventListener("mouseenter", onHover);
-  node.addEventListener("mouseleave", () => send("clear_highlight").catch(() => {}));
+  let active = false;
+  const enabled = () => {
+    let ancestor = node;
+    while (ancestor) {
+      if (ancestor.dataset?.hoverDisabled === "true") return false;
+      ancestor = ancestor.parentElement;
+    }
+    return true;
+  };
+  const clear = () => {
+    if (!active) return;
+    active = false;
+    send("clear_highlight").catch(() => {});
+  };
+  node.addEventListener("mouseenter", () => {
+    if (!enabled()) return;
+    active = true;
+    onHover();
+  });
+  node.addEventListener("mouseleave", clear);
 }
 
 function memberRow(label, onReveal, actions = [], missing = false, clickToActivate = false) {
@@ -136,7 +154,7 @@ function nameField(
   return field;
 }
 
-/** Temporarily replace a label with an inline name editor. */
+/** Temporarily replace a label and report editing until any requested save settles. */
 function beginInlineNameEdit(container, label, before, options) {
   if (container.querySelector("input")) return;
   const input = document.createElement("input");
@@ -147,13 +165,25 @@ function beginInlineNameEdit(container, label, before, options) {
   input.setAttribute("aria-label", options.ariaLabel);
   label.hidden = true;
   container.insertBefore(input, before);
+  options.onEditingChange?.(true);
   let finished = false;
   const finish = (save) => {
     if (finished) return;
     finished = true;
     input.remove();
     label.hidden = false;
-    if (save) void options.onSave(input.value);
+    if (!save) {
+      options.onEditingChange?.(false);
+      return;
+    }
+    let saveResult;
+    try {
+      saveResult = options.onSave(input.value);
+    } catch (error) {
+      options.onEditingChange?.(false);
+      throw error;
+    }
+    void Promise.resolve(saveResult).finally(() => options.onEditingChange?.(false));
   };
   input.addEventListener("keydown", (event) => {
     event.stopPropagation();
@@ -171,11 +201,12 @@ function beginInlineNameEdit(container, label, before, options) {
 }
 
 /** Replace one standalone-end label with the shared inline rename editor. */
-function renameRelationshipEnd(harness, group, entry, name, metadata) {
+function renameRelationshipEnd(harness, group, entry, name, metadata, onEditingChange) {
   beginInlineNameEdit(entry, name, metadata, {
     value: group.connectionName || group.label,
     placeholder: group.label || "End name",
     ariaLabel: "End name",
+    onEditingChange,
     onSave: (value) => mutate("rename_standalone_end", {
       harnessId: harness.harnessId,
       connectionId: group.connectionId,

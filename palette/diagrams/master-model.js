@@ -27,6 +27,7 @@ function createRelationshipFocusController(container) {
   ];
   let pointerFocus = null;
   let keyboardFocus = null;
+  let pointerEnabled = true;
   const sources = new Set();
 
   const items = () => [...new Set(itemClasses.flatMap(
@@ -71,6 +72,7 @@ function createRelationshipFocusController(container) {
       nodeIds: descriptor.nodeIds || [],
     };
     source.addEventListener("mouseenter", () => {
+      if (!pointerEnabled) return;
       pointerFocus = focus;
       apply();
     });
@@ -87,7 +89,16 @@ function createRelationshipFocusController(container) {
       apply();
     });
   };
-  return { bind };
+  const setPointerEnabled = (value) => {
+    pointerEnabled = value;
+    container.dataset.hoverDisabled = `${!value}`;
+    if (!pointerEnabled) {
+      pointerFocus = null;
+      apply();
+      send("clear_highlight").catch(() => {});
+    }
+  };
+  return { bind, setPointerEnabled };
 }
 
 function relationshipEndGroups(harness, pathwayId, endpoint, connections) {

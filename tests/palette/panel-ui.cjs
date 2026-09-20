@@ -406,13 +406,26 @@ test('master end menu switches only disconnected ends immediately above Rename',
   assert.equal(menu.children.some((item) => item.textContent === 'Switch'), false);
 });
 
-test('editing a master end isolates keyboard and pointer events from Cable Details', () => {
+asyncTest('editing a master end isolates keyboard and pointer events until saved', async () => {
   const { context, calls } = palette();
   const definition = harness();
+  const highlights = [];
+  let finishSave;
+  context.highlightMember = (_harness, memberType, memberId) => {
+    highlights.push([memberType, memberId]);
+  };
+  context.mutate = (action, payload) => {
+    calls.push({ action, payload });
+    return new Promise((resolve) => { finishSave = resolve; });
+  };
   const diagram = context.renderRelationshipMap(definition);
   const end = descendants(
     diagram,
     (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a1',
+  )[0];
+  const otherEnd = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a2',
   )[0];
 
   end.events.contextmenu({
@@ -423,6 +436,9 @@ test('editing a master end isolates keyboard and pointer events from Cable Detai
   )[0];
   menu.children.find((item) => item.textContent === 'Rename').events.click();
   const input = end.querySelector('input');
+  otherEnd.events.mouseenter();
+  assert.deepEqual(highlights, []);
+  assert.equal(diagram.className.includes('relationship-focus-active'), false);
   ['mousedown', 'click'].forEach((eventName) => {
     let pointerPropagationStopped = false;
     input.events[eventName]({
@@ -460,6 +476,15 @@ test('editing a master end isolates keyboard and pointer events from Cable Detai
   assert.equal(calls[0].payload.harnessId, 'h');
   assert.equal(calls[0].payload.connectionId, 'a1');
   assert.equal(calls[0].payload.name, 'Engine Bay End');
+  otherEnd.events.mouseenter();
+  assert.deepEqual(highlights, []);
+  assert.equal(diagram.className.includes('relationship-focus-active'), false);
+
+  finishSave();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  otherEnd.events.mouseenter();
+  assert.deepEqual(highlights, [['connection', 'a2']]);
+  assert.equal(diagram.className.includes('relationship-focus-active'), true);
 });
 
 test('Cable Details end nodes and rows share end-owned routing actions', () => {
