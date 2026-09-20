@@ -10,7 +10,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import replace
 from types import ModuleType
-from typing import Iterator, Optional, Protocol, cast
+from typing import Any, Iterator, Optional, Protocol, cast
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -32,11 +32,21 @@ class _SweepSegment(Protocol):
     segment_count: int
 
 
+class _VisibilityState(Protocol):
+    """
+    Describe captured generated body and stripe visibility.
+    """
+
+    occurrences: tuple[tuple[object, bool], ...]
+    stripe_groups: tuple[tuple[object, bool], ...]
+
+
 class _WireSolidsModule(Protocol):
     """
     Describe the host adapter functions exercised without a live Fusion process.
     """
 
+    GENERATED_STRIPE_GROUP_ID: str
     _prepare_group_sweep_segments: Callable[
         [tuple[RoutePreview, ...]],
         tuple[
@@ -57,8 +67,8 @@ class _WireSolidsModule(Protocol):
     ]
     restore_wire_group_stripe_graphics: Callable[[object, object], int]
     generated_wire_group_occurrences: Callable[[object], tuple[object, ...]]
-    hide_generated_wire_group_solids: Callable[[object], tuple[tuple[object, bool], ...]]
-    restore_generated_wire_group_visibility: Callable[[tuple[tuple[object, bool], ...]], None]
+    hide_generated_wire_group_solids: Callable[[object], _VisibilityState]
+    restore_generated_wire_group_visibility: Callable[[_VisibilityState], None]
     _replace_group_stripe_graphics: Callable[..., int]
 
 
@@ -166,8 +176,17 @@ def test_restores_transient_stripes_from_generated_routes(
     }
     attribute = type("Attribute", (), {"value": json.dumps(metadata)})()
     attributes = type("Attributes", (), {"itemByName": lambda *_args: attribute})()
-    component = type("Component", (), {"attributes": attributes})()
-    occurrence = type("Occurrence", (), {"component": component})()
+    empty_graphics = type("GraphicsGroups", (), {"count": 0})()
+    component = type(
+        "Component",
+        (),
+        {"attributes": attributes, "customGraphicsGroups": empty_graphics},
+    )()
+    occurrence = type(
+        "Occurrence",
+        (),
+        {"component": component, "isLightBulbOn": False},
+    )()
     replace_graphics = Mock(return_value=4)
     monkeypatch.setattr(
         wire_solids,
@@ -180,12 +199,56 @@ def test_restores_transient_stripes_from_generated_routes(
         replace_graphics,
     )
 
-    assert wire_solids.restore_wire_group_stripe_graphics(object(), definition) == 4
+    harness = object()
 
+    assert wire_solids.restore_wire_group_stripe_graphics(harness, definition) == 4
+
+    assert replace_graphics.call_args.args[0] is harness
     restored_routes = replace_graphics.call_args.args[1]
     assert restored_routes == (route,)
     assert replace_graphics.call_args.args[3] == group.diameter_mm / 2.0
     assert replace_graphics.call_args.args[4] == group.wire_group_id
+    assert replace_graphics.call_args.kwargs == {"is_visible": False}
+
+
+def test_replacing_harness_owned_stripes_preserves_other_wire_groups(
+    wire_solids: _WireSolidsModule,
+) -> None:
+    """
+    Replace one stable harness overlay without deleting a neighboring group.
+    """
+    target_id = UUID(int=701)
+    other_id = UUID(int=702)
+
+    def graphics_group(identity: UUID) -> Any:
+        """
+        Build one empty deletable stripe-group test double.
+        """
+        return type(
+            "StripeGroup",
+            (),
+            {
+                "id": f"{wire_solids.GENERATED_STRIPE_GROUP_ID}:{identity}",
+                "name": "Wire Group Solid Stripes",
+                "count": 0,
+                "deleteMe": Mock(return_value=True),
+            },
+        )()
+
+    target = graphics_group(target_id)
+    other = graphics_group(other_id)
+    stored = (target, other)
+    groups = type(
+        "GraphicsGroups",
+        (),
+        {"count": len(stored), "item": lambda _self, index: stored[index]},
+    )()
+    harness = type("Harness", (), {"customGraphicsGroups": groups})()
+
+    assert wire_solids._replace_group_stripe_graphics(harness, (), (), 0.5, target_id) == 0
+
+    target.deleteMe.assert_called_once_with()
+    other.deleteMe.assert_not_called()
 
 
 def test_generated_solids_visibility_round_trip_preserves_prior_state(
@@ -197,22 +260,41 @@ def test_generated_solids_visibility_round_trip_preserves_prior_state(
     """
     visible = type("Occurrence", (), {"isLightBulbOn": True, "isValid": True})()
     hidden = type("Occurrence", (), {"isLightBulbOn": False, "isValid": True})()
+    stripe_group = type(
+        "StripeGroup",
+        (),
+        {
+            "id": f"{wire_solids.GENERATED_STRIPE_GROUP_ID}:{UUID(int=1)}",
+            "name": "Wire Group Solid Stripes",
+            "isVisible": True,
+            "isValid": True,
+        },
+    )()
+    groups = type(
+        "GraphicsGroups",
+        (),
+        {"count": 1, "item": lambda _self, _index: stripe_group},
+    )()
+    harness = type("Harness", (), {"customGraphicsGroups": groups})()
     monkeypatch.setattr(
         wire_solids,
         "generated_wire_group_occurrences",
         lambda _harness: (visible, hidden),
     )
 
-    state = wire_solids.hide_generated_wire_group_solids(object())
+    state = wire_solids.hide_generated_wire_group_solids(harness)
 
-    assert state == ((visible, True), (hidden, False))
+    assert state.occurrences == ((visible, True), (hidden, False))
+    assert state.stripe_groups == ((stripe_group, True),)
     assert not visible.isLightBulbOn
     assert not hidden.isLightBulbOn
+    assert not stripe_group.isVisible
 
     wire_solids.restore_generated_wire_group_visibility(state)
 
     assert visible.isLightBulbOn
     assert not hidden.isLightBulbOn
+    assert stripe_group.isVisible
 
 
 def test_copies_root_decoration_position_to_every_branch(

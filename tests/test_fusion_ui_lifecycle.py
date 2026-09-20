@@ -49,39 +49,93 @@ def test_save_without_active_preview_preserves_graphics_cache_setting(
     assert addin_module._runtime.graphics_cache_restore_value is None
 
 
-def test_history_sync_does_not_edit_model_or_redraw(
+@pytest.mark.parametrize("command_id", ("UndoCommand", "RedoCommand"))
+def test_history_sync_defers_stripes_until_replaced_component_settles(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    command_id: str,
 ) -> None:
     """
-    Reconcile restored caches and palette without starting an edit that clears Redo.
+    Reconcile restored state and recreate session-only stripes after history travel.
     """
     design = object()
-    application = SimpleNamespace(activeProduct=design)
+    application = SimpleNamespace(
+        activeProduct=design,
+        activeViewport=SimpleNamespace(refresh=Mock()),
+        fireCustomEvent=Mock(return_value=True),
+    )
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
     fusion_module = sys.modules["adsk.fusion"]
     fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
     gateway = Mock()
+    harness_component = object()
     reconcile = Mock()
     sent = Mock()
     refreshed = Mock()
+    restore = Mock(return_value=2)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(
         addin_module,
         "load_harnesses",
-        Mock(return_value=(SimpleNamespace(definition=valid_harness),)),
+        Mock(
+            return_value=(
+                SimpleNamespace(
+                    component_name="Harness A",
+                    definition=valid_harness,
+                    component_handle=harness_component,
+                ),
+            )
+        ),
     )
     monkeypatch.setattr(addin_module, "reconcile_preview_history", reconcile)
+    monkeypatch.setattr(addin_module, "restore_wire_group_stripe_graphics", restore)
     monkeypatch.setattr(addin_module, "_send_palette_state", sent)
     viewport = importlib.import_module("wire_bundler.fusion.ui.viewport")
     monkeypatch.setitem(vars(viewport), "_refresh_active_preview", refreshed)
-    addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId="UndoCommand"))
+    addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId=command_id))
     reconcile.assert_called_once_with(design, (valid_harness,))
+    application.fireCustomEvent.assert_called_once_with(
+        addin_module._DEFERRED_STRIPE_RESTORE_EVENT_ID
+    )
+    restore.assert_not_called()
     sent.assert_called_once_with(application)
     refreshed.assert_not_called()
+
+    addin_module._DeferredStripeRestoreHandler().notify(SimpleNamespace())
+
+    restore.assert_called_once_with(harness_component, valid_harness)
+    application.activeViewport.refresh.assert_called_once()
     assert gateway.mock_calls == []
+
+
+def test_deferred_stripe_restore_event_registers_and_releases(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Retain the idle callback for the add-in lifetime and unregister it on cleanup.
+    """
+    event = SimpleNamespace(add=Mock(return_value=True), remove=Mock(return_value=True))
+    application = SimpleNamespace(
+        registerCustomEvent=Mock(return_value=event),
+        unregisterCustomEvent=Mock(return_value=True),
+    )
+
+    addin_module._register_deferred_stripe_restore(application)
+
+    handler = addin_module._runtime.deferred_stripe_restore_handler
+    assert handler is not None
+    event.add.assert_called_once_with(handler)
+
+    addin_module._remove_deferred_stripe_restore(application)
+
+    event.remove.assert_called_once_with(handler)
+    application.unregisterCustomEvent.assert_called_once_with(
+        addin_module._DEFERRED_STRIPE_RESTORE_EVENT_ID
+    )
+    assert addin_module._runtime.deferred_stripe_restore_event is None
+    assert addin_module._runtime.deferred_stripe_restore_handler is None
 
 
 def test_reload_restores_stripes_for_each_readable_harness(

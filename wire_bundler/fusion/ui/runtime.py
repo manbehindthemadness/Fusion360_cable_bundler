@@ -125,6 +125,9 @@ class UiRuntime:
     last_diagram_qa_observation: Optional[dict[str, object]] = None
     damaged_harness_results: dict[str, HarnessLoadResult] = field(default_factory=dict)
     history_handler: Optional[object] = None
+    deferred_stripe_restore_event: Optional[object] = None
+    deferred_stripe_restore_handler: Optional[object] = None
+    stripe_restore_pending: bool = False
     active_selection_handler: Optional[object] = None
     document_saving_handler: Optional[object] = None
     document_saved_handler: Optional[object] = None

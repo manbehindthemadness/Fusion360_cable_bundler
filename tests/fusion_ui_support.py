@@ -91,6 +91,7 @@ class _PaletteLifecycleModule(Protocol):
     """
 
     _runtime: Any
+    _DEFERRED_STRIPE_RESTORE_EVENT_ID: str
     ADD_END_COMMAND_ID: str
     COMMAND_ID: str
     COMMAND_SPECS: tuple[Any, ...]
@@ -106,6 +107,9 @@ class _PaletteLifecycleModule(Protocol):
     _PaletteEditDestroyedHandler: type
     _PaletteEditCreatedHandler: type
     _HistoryChangedHandler: type
+    _DeferredStripeRestoreHandler: type
+    _register_deferred_stripe_restore: Callable[[object], None]
+    _remove_deferred_stripe_restore: Callable[[object], None]
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type
     _restore_active_stripe_graphics: Callable[[object], int]
@@ -189,8 +193,8 @@ class _PaletteLifecycleModule(Protocol):
     clear_refine_spine: Callable[[object], None]
     clear_wire_solids: Callable[[object], int]
     generated_wire_group_bodies: Callable[..., tuple[object, ...]]
-    hide_generated_wire_group_solids: Callable[[object], tuple[tuple[object, bool], ...]]
-    restore_generated_wire_group_visibility: Callable[[tuple[tuple[object, bool], ...]], None]
+    hide_generated_wire_group_solids: Callable[[object], Any]
+    restore_generated_wire_group_visibility: Callable[[Any], None]
     has_refine_graphics: Callable[[object], bool]
     has_route_previews: Callable[[object], bool]
     show_route_previews: Callable[..., tuple[object, ...]]
@@ -230,6 +234,7 @@ def addin_module(
     handler_names = (
         "CommandEventHandler",
         "ApplicationCommandEventHandler",
+        "CustomEventHandler",
         "ActiveSelectionEventHandler",
         "DocumentEventHandler",
         "InputChangedEventHandler",

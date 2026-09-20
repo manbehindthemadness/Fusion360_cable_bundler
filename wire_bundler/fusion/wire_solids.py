@@ -53,7 +53,23 @@ class _VisibilityOccurrence(Protocol):
     isValid: bool
 
 
-WireSolidVisibilityState = tuple[tuple[_VisibilityOccurrence, bool], ...]
+class _VisibilityGraphicsGroup(Protocol):
+    """
+    Expose the Fusion graphics state needed for temporary stripe hiding.
+    """
+
+    isVisible: bool
+    isValid: bool
+
+
+@dataclass(frozen=True)
+class WireSolidVisibilityState:
+    """
+    Capture generated body and stripe visibility for one harness.
+    """
+
+    occurrences: tuple[tuple[_VisibilityOccurrence, bool], ...]
+    stripe_groups: tuple[tuple[_VisibilityGraphicsGroup, bool], ...]
 
 
 @dataclass(frozen=True)
@@ -113,6 +129,7 @@ def generate_wire_group_solids(
             try:
                 build_wire_group_solid(
                     occurrence.component,
+                    harness,
                     group,
                     group_index,
                     tuple(route for _leg, route in group_legs),
@@ -129,11 +146,15 @@ def generate_wire_group_solids(
             if not occurrence.deleteMe():
                 raise RuntimeError("Fusion could not remove old generated wire-group geometry.")
     except Exception as error:
+        for group in definition.wire_groups:
+            _clear_group_stripe_graphics(harness, group.wire_group_id)
         for occurrence in reversed(created):
             if occurrence.isValid and not occurrence.deleteMe():
                 raise RuntimeError(
                     "Fusion could not clean incomplete grouped-wire geometry; undo this command."
                 ) from error
+        if previous:
+            restore_wire_group_stripe_graphics(harness, definition)
         raise
     return len(created)
 
@@ -163,14 +184,21 @@ def hide_generated_wire_group_solids(
     If Fusion rejects a visibility update, every occurrence changed so far is
     restored before the error is propagated.
     """
-    visibility = tuple(
+    occurrence_visibility = tuple(
         (occurrence, occurrence.isLightBulbOn)
         for occurrence in generated_wire_group_occurrences(harness)
     )
+    stripe_visibility = tuple(
+        (group, group.isVisible) for group in _generated_stripe_graphics_groups(harness)
+    )
+    visibility = WireSolidVisibilityState(occurrence_visibility, stripe_visibility)
     try:
-        for occurrence, was_visible in visibility:
+        for occurrence, was_visible in visibility.occurrences:
             if was_visible:
                 occurrence.isLightBulbOn = False
+        for group, was_visible in visibility.stripe_groups:
+            if was_visible:
+                group.isVisible = False
     except (AttributeError, RuntimeError) as error:
         restore_generated_wire_group_visibility(visibility)
         raise RuntimeError("Fusion could not hide generated wire solids.") from error
@@ -183,9 +211,12 @@ def restore_generated_wire_group_visibility(
     """
     Restore managed wire-group occurrences to their captured light-bulb states.
     """
-    for occurrence, was_visible in visibility:
+    for occurrence, was_visible in visibility.occurrences:
         if occurrence.isValid:
             occurrence.isLightBulbOn = was_visible
+    for group, was_visible in visibility.stripe_groups:
+        if group.isValid:
+            group.isVisible = was_visible
 
 
 def generated_wire_group_bodies(
@@ -247,6 +278,7 @@ def clear_wire_solids(harness: adsk.fusion.Component) -> int:
     for occurrence in occurrences:
         if not occurrence.deleteMe():
             raise RuntimeError("Fusion could not delete a generated wire component.")
+    _clear_all_stripe_graphics(harness)
     return len(occurrences)
 
 
@@ -290,12 +322,14 @@ def apply_wire_group_materials(
             raise RuntimeError(
                 "Generated wire-group metadata has no routes for applying stripe patterns."
             )
+        _clear_group_stripe_graphics(component, group_id, include_legacy=True)
         _replace_group_stripe_graphics(
-            component,
+            harness,
             routes,
             materials.stripes,
             group.diameter_mm / 2.0,
             group_id,
+            is_visible=occurrence.isLightBulbOn,
         )
         metadata.update(_material_metadata(materials))
         attribute.value = json.dumps(metadata, sort_keys=True)
@@ -335,12 +369,14 @@ def restore_wire_group_stripe_graphics(
             raise RuntimeError(
                 "Generated wire-group metadata has no routes for restoring stripe patterns."
             )
+        _clear_group_stripe_graphics(component, group_id, include_legacy=True)
         restored += _replace_group_stripe_graphics(
-            component,
+            harness,
             routes,
             stripes,
             group.diameter_mm / 2.0,
             group_id,
+            is_visible=occurrence.isLightBulbOn,
         )
     return restored
 
@@ -469,31 +505,75 @@ def _group_routes_from_metadata(metadata: dict[str, object]) -> tuple[RoutePrevi
     return tuple(routes)
 
 
+def _generated_stripe_graphics_groups(
+    graphics_owner: adsk.fusion.Component,
+) -> tuple[adsk.fusion.CustomGraphicsGroup, ...]:
+    """
+    Return every current or legacy stripe group owned by one component.
+    """
+    groups = graphics_owner.customGraphicsGroups
+    return tuple(
+        group
+        for group_index in range(groups.count)
+        if (group := groups.item(group_index)) is not None
+        and (
+            group.id == GENERATED_STRIPE_GROUP_ID
+            or group.id.startswith(f"{GENERATED_STRIPE_GROUP_ID}:")
+            or group.name.endswith(" Solid Stripes")
+        )
+    )
+
+
+def _delete_stripe_graphics_group(group: adsk.fusion.CustomGraphicsGroup) -> None:
+    """
+    Delete one stripe group and all children with checked Fusion results.
+    """
+    for child_index in range(group.count - 1, -1, -1):
+        child = group.item(child_index)
+        if child is not None and child.deleteMe() is False:
+            raise RuntimeError("Fusion could not delete an obsolete wire-group stripe.")
+    if group.deleteMe() is False:
+        raise RuntimeError("Fusion could not delete obsolete wire-group stripe graphics.")
+
+
+def _clear_group_stripe_graphics(
+    graphics_owner: adsk.fusion.Component,
+    wire_group_id: UUID,
+    *,
+    include_legacy: bool = False,
+) -> None:
+    """
+    Delete the stable overlay for one group and optional child-owned legacy data.
+    """
+    target_id = f"{GENERATED_STRIPE_GROUP_ID}:{wire_group_id}"
+    for group in reversed(_generated_stripe_graphics_groups(graphics_owner)):
+        if group.id != target_id and not include_legacy:
+            continue
+        _delete_stripe_graphics_group(group)
+
+
+def _clear_all_stripe_graphics(graphics_owner: adsk.fusion.Component) -> None:
+    """
+    Delete every managed stripe overlay from a harness component.
+    """
+    for group in reversed(_generated_stripe_graphics_groups(graphics_owner)):
+        _delete_stripe_graphics_group(group)
+
+
 def _replace_group_stripe_graphics(
-    component: adsk.fusion.Component,
+    graphics_owner: adsk.fusion.Component,
     routes: tuple[RoutePreview, ...],
     stripes: tuple[WireStripe, ...],
     wire_radius_mm: float,
     wire_group_id: UUID,
+    *,
+    is_visible: bool = True,
 ) -> int:
     """
     Replace all leg-owned stripe meshes for one multi-body wire group.
     """
-    groups = component.customGraphicsGroups
-    for group_index in range(groups.count - 1, -1, -1):
-        group = groups.item(group_index)
-        if group is None or (
-            group.id != GENERATED_STRIPE_GROUP_ID
-            and not group.id.startswith(f"{GENERATED_STRIPE_GROUP_ID}:")
-            and not group.name.endswith(" Solid Stripes")
-        ):
-            continue
-        for child_index in range(group.count - 1, -1, -1):
-            child = group.item(child_index)
-            if child is not None and child.deleteMe() is False:
-                raise RuntimeError("Fusion could not delete an obsolete wire-group stripe.")
-        if group.deleteMe() is False:
-            raise RuntimeError("Fusion could not delete obsolete wire-group stripe graphics.")
+    _clear_group_stripe_graphics(graphics_owner, wire_group_id)
+    groups = graphics_owner.customGraphicsGroups
     if not stripes:
         return 0
     group = groups.add()
@@ -501,6 +581,7 @@ def _replace_group_stripe_graphics(
         raise RuntimeError("Fusion did not create stripe graphics for a wire group.")
     group.id = f"{GENERATED_STRIPE_GROUP_ID}:{wire_group_id}"
     group.name = "Wire Group Solid Stripes"
+    group.isVisible = is_visible
     segments, start_junctions, end_junctions = _prepare_group_sweep_segments(routes)
     created = 0
     for stripe_index, stripe in enumerate(stripes):
@@ -618,6 +699,7 @@ def _is_straight(curve: CubicBezier) -> bool:
 
 def build_wire_group_solid(
     component: adsk.fusion.Component,
+    stripe_graphics_owner: adsk.fusion.Component,
     group: WireGroupDefinition,
     group_index: int,
     routes: tuple[RoutePreview, ...],
@@ -660,13 +742,6 @@ def build_wire_group_solid(
     appearance = _wire_appearance(design, materials.main_color, materials.appearance)
     for body in bodies:
         body.appearance = appearance
-    _replace_group_stripe_graphics(
-        component,
-        local_routes,
-        materials.stripes,
-        group.diameter_mm / 2.0,
-        group.wire_group_id,
-    )
     metadata = json.dumps(
         {
             "harness_id": str(harness_id),
@@ -695,6 +770,13 @@ def build_wire_group_solid(
         is None
     ):
         raise RuntimeError("Fusion could not store the generated wire-group identity.")
+    _replace_group_stripe_graphics(
+        stripe_graphics_owner,
+        local_routes,
+        materials.stripes,
+        group.diameter_mm / 2.0,
+        group.wire_group_id,
+    )
 
 
 def _shared_route_endpoints(

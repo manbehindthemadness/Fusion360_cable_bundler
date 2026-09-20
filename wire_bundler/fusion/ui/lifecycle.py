@@ -4,7 +4,7 @@ Fusion UI services for lifecycle.
 
 from __future__ import annotations
 
-from typing import Optional, cast
+from typing import Optional
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -12,7 +12,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ...application import load_harnesses
+from ...application import HarnessLoadResult, load_harnesses
 from .. import clear_route_previews
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import has_route_previews, reconcile_preview_history, reset_preview_history
@@ -54,6 +54,9 @@ from .support import (
     _report_failure,
 )
 
+_HISTORY_NAVIGATION_COMMAND_IDS = frozenset(("UndoCommand", "RedoCommand"))
+_DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
+
 
 class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
     """
@@ -61,9 +64,9 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
     """
 
     # noinspection PyMethodMayBeStatic
-    def notify(self, _args: adsk.core.ApplicationCommandEventArgs) -> None:
+    def notify(self, args: adsk.core.ApplicationCommandEventArgs) -> None:
         """
-        Synchronize only UI and Python caches so Redo history remains intact.
+        Synchronize caches and recreate session-only decorations after history travel.
         """
         application = adsk.core.Application.get()
         try:
@@ -75,9 +78,74 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                 result.definition for result in results if result.definition is not None
             )
             reconcile_preview_history(design, definitions)
+            if args.commandId in _HISTORY_NAVIGATION_COMMAND_IDS:
+                _request_deferred_stripe_restore(application)
             _send_palette_state(application)
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             _log_to_fusion(f"Could not synchronize harness history: {error}")
+
+
+class _DeferredStripeRestoreHandler(adsk.core.CustomEventHandler):
+    """
+    Recreate session-only stripes once Fusion has settled restored components.
+    """
+
+    # noinspection PyMethodMayBeStatic
+    def notify(self, _args: adsk.core.CustomEventArgs) -> None:
+        """
+        Restore the latest active history state on Fusion's next idle event turn.
+        """
+        _runtime.stripe_restore_pending = False
+        application = adsk.core.Application.get()
+        try:
+            design = adsk.fusion.Design.cast(application.activeProduct)
+            if design is not None:
+                _restore_active_stripe_graphics(application)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            _log_to_fusion(f"Could not restore stripe decorations after history change: {error}")
+
+
+def _request_deferred_stripe_restore(application: adsk.core.Application) -> None:
+    """
+    Queue one coalesced stripe rebuild after Fusion finishes history navigation.
+    """
+    if _runtime.stripe_restore_pending:
+        return
+    _runtime.stripe_restore_pending = True
+    if not application.fireCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID):
+        _runtime.stripe_restore_pending = False
+        raise RuntimeError("Fusion could not queue stripe restoration.")
+
+
+def _register_deferred_stripe_restore(application: adsk.core.Application) -> None:
+    """
+    Register the idle-queued event used to restore undo/redo decorations.
+    """
+    _remove_deferred_stripe_restore(application)
+    event = application.registerCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
+    if event is None:
+        raise RuntimeError("Fusion could not register deferred stripe restoration.")
+    handler = _DeferredStripeRestoreHandler()
+    if not event.add(handler):
+        application.unregisterCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
+        raise RuntimeError("Fusion could not attach deferred stripe restoration.")
+    _runtime.deferred_stripe_restore_event = event
+    _runtime.deferred_stripe_restore_handler = handler
+
+
+def _remove_deferred_stripe_restore(application: adsk.core.Application) -> None:
+    """
+    Remove the deferred restoration event and discard any queued request.
+    """
+    event = _runtime.deferred_stripe_restore_event
+    handler = _runtime.deferred_stripe_restore_handler
+    if event is not None and handler is not None:
+        event.remove(handler)
+    if event is not None:
+        application.unregisterCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
+    _runtime.deferred_stripe_restore_event = None
+    _runtime.deferred_stripe_restore_handler = None
+    _runtime.stripe_restore_pending = False
 
 
 class _DocumentSavingHandler(adsk.core.DocumentEventHandler):
@@ -167,23 +235,23 @@ def _remove_document_handlers(application: adsk.core.Application) -> None:
     _restore_graphics_cache_preference(application)
 
 
-def _restore_active_stripe_graphics(
+def _restore_loaded_stripe_graphics(
     application: adsk.core.Application,
+    results: tuple[HarnessLoadResult, ...],
 ) -> int:
     """
-    Restore transient decorations for every readable harness in the active design.
+    Restore transient decorations for the supplied readable harnesses.
 
     One damaged generated component must not prevent other harnesses or the add-in
     itself from loading.
     """
     restored = 0
-    results = load_harnesses(_create_harness_gateway(application))
     for result in results:
         if result.definition is None or result.component_handle is None:
             continue
         try:
             restored += restore_wire_group_stripe_graphics(
-                cast("adsk.fusion.Component", result.component_handle),
+                result.component_handle,
                 result.definition,
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
@@ -193,6 +261,16 @@ def _restore_active_stripe_graphics(
     if restored:
         application.activeViewport.refresh()
     return restored
+
+
+def _restore_active_stripe_graphics(
+    application: adsk.core.Application,
+) -> int:
+    """
+    Load active harnesses and restore their transient stripe decorations.
+    """
+    results = load_harnesses(_create_harness_gateway(application))
+    return _restore_loaded_stripe_graphics(application, results)
 
 
 def _register_palette_edit_commands(
@@ -225,6 +303,7 @@ def start(_context: object) -> None:
         user_interface = application.userInterface
         _remove_user_interface(user_interface)
         _register_palette_edit_commands(user_interface)
+        _register_deferred_stripe_restore(application)
 
         _runtime.history_handler = _HistoryChangedHandler()
         if not user_interface.commandTerminated.add(_runtime.history_handler):
@@ -263,6 +342,7 @@ def start(_context: object) -> None:
             try:
                 active_application = application
                 _remove_document_handlers(active_application)
+                _remove_deferred_stripe_restore(active_application)
                 if user_interface is not None:
                     _remove_user_interface(user_interface)
             except (AttributeError, RuntimeError, TypeError, ValueError) as cleanup_error:
@@ -286,6 +366,7 @@ def stop(_context: object) -> None:
             clear_refine_spine(design)
             clear_refine_graphics(design)
         _remove_document_handlers(application)
+        _remove_deferred_stripe_restore(application)
         _remove_user_interface(application.userInterface)
         _runtime.handler_registry.clear()
         reset_preview_history()
