@@ -1,5 +1,7 @@
 /** Candidate routing, selection, state restoration, and layout orchestration. */
 
+const RELATIONSHIP_ROUTE_CACHE_LIMIT = TOPOLOGY_ROUTED_CANDIDATE_LIMIT * 3;
+
 function applyRelationshipLayoutGeometry(components, layout) {
   const geometryById = new Map(layout.geometryComponents.flatMap(
     (component) => component.nodes.map((node) => [node.id, node]),
@@ -28,10 +30,8 @@ function applyRelationshipLayoutGeometry(components, layout) {
 
 function relationshipLayoutRouteSets(components, harness) {
   return components.map((component) => {
-    const edgeGroups = new Map(component.edges.map((edge) => [
-      relationshipEdgeId(edge),
-      relationshipEndpointGroups(harness, edge.junction, edge.relationship),
-    ]));
+    const routingContext = createRelationshipRoutingContext(component.nodes);
+    const edgeGroups = relationshipLayoutEdgeGroups(component, harness);
     const candidates = [
       { reverseOrder: false, portMode: "fan" },
       { reverseOrder: true, portMode: "fan" },
@@ -41,7 +41,7 @@ function relationshipLayoutRouteSets(components, harness) {
       { reverseOrder: true, portMode: "aligned" },
     ].map(({ reverseOrder, portMode }) => {
       const ports = allocateRelationshipPorts(component, reverseOrder, portMode);
-      const routes = routeRelationshipEdges(component, ports, edgeGroups);
+      const routes = routeRelationshipEdges(component, ports, edgeGroups, routingContext);
       return { component, ports, edgeGroups, routes,
         quality: topologyRouteSetQuality(routes) };
     }).sort((left, right) => (
@@ -49,6 +49,77 @@ function relationshipLayoutRouteSets(components, harness) {
     ));
     return candidates[0];
   });
+}
+
+function relationshipLayoutEdgeGroups(component, harness) {
+  return new Map(component.edges.map((edge) => [
+    relationshipEdgeId(edge),
+    relationshipEndpointGroups(harness, edge.junction, edge.relationship),
+  ]));
+}
+
+/** Describe every routing input that can change the exact path geometry. */
+function relationshipLayoutRouteFingerprint(components, harness, layoutKey) {
+  return JSON.stringify({
+    layoutKey,
+    components: components.map((component) => ({
+      nodes: component.nodes.map((node) => ({
+        id: node.id,
+        left: node.left,
+        top: node.top,
+        width: node.width,
+        height: node.height,
+        dockSides: node.dockSides || null,
+      })),
+      edges: component.edges.map((edge) => {
+        const edgeId = relationshipEdgeId(edge);
+        return [
+          edgeId,
+          relationshipEndpointGroups(harness, edge.junction, edge.relationship)
+            .map((group) => group.cableGroupId).sort(),
+        ];
+      }),
+    })),
+  });
+}
+
+/** Return exact route geometry from the per-view session cache when inputs match. */
+function cachedRelationshipLayoutRouteSets(cacheKey, components, harness, layoutKey) {
+  if (!cacheKey) return null;
+  const cache = relationshipLayoutRouteCache.get(cacheKey);
+  const fingerprint = relationshipLayoutRouteFingerprint(components, harness, layoutKey);
+  const cached = cache?.get(fingerprint);
+  if (!cached) return null;
+  cache.delete(fingerprint);
+  cache.set(fingerprint, cached);
+  return components.map((component, index) => ({
+    component,
+    edgeGroups: relationshipLayoutEdgeGroups(component, harness),
+    ports: cached.routeSets[index].ports,
+    routes: cached.routeSets[index].routes,
+    quality: cached.routeSets[index].quality,
+  }));
+}
+
+/** Retain an exact routed candidate in a small per-view least-recently-used cache. */
+function rememberRelationshipLayoutRoutes(cacheKey, layout, harness) {
+  if (!cacheKey) return;
+  if (!relationshipLayoutRouteCache.has(cacheKey)) {
+    relationshipLayoutRouteCache.set(cacheKey, new Map());
+  }
+  const cache = relationshipLayoutRouteCache.get(cacheKey);
+  const fingerprint = relationshipLayoutRouteFingerprint(
+    layout.geometryComponents, harness, layout.layoutKey,
+  );
+  cache.delete(fingerprint);
+  cache.set(fingerprint, {
+    routeSets: layout.routeSets.map(({ ports, routes, quality }) => ({
+      ports, routes, quality,
+    })),
+  });
+  while (cache.size > RELATIONSHIP_ROUTE_CACHE_LIMIT) {
+    cache.delete(cache.keys().next().value);
+  }
 }
 
 function compareRelationshipLayouts(left, right) {
@@ -71,6 +142,22 @@ function compareRelationshipLayoutGeometry(left, right) {
     || (left.width + left.height) - (right.width + right.height)
     || left.edgeLength - right.edgeLength
     || left.layoutKey.localeCompare(right.layoutKey);
+}
+
+function relationshipLayoutIsSafe(candidate) {
+  return candidate
+    && candidate.routeQuality.overlaps === 0
+    && candidate.routeQuality.parallelConflicts === 0
+    && candidate.routeQuality.crossings === 0;
+}
+
+/** Route a requested committed layout without exploring unrelated alternatives. */
+function preferredRelationshipLayoutCandidate(layouts, routeLayout, preferredKey) {
+  if (!preferredKey) return null;
+  const preferred = layouts.find((layout) => layout.layoutKey === preferredKey);
+  if (!preferred) return null;
+  const candidate = routeLayout(preferred);
+  return relationshipLayoutIsSafe(candidate) ? candidate : null;
 }
 
 /** Route the compact shortlist plus any requested previously committed layout. */
@@ -101,23 +188,34 @@ function relationshipLayoutCandidates(components, harness, options = {}) {
     return layout;
   }).sort(compareRelationshipLayoutGeometry);
   const shortlistSize = Math.min(TOPOLOGY_ROUTED_CANDIDATE_LIMIT, layouts.length);
-  const candidates = routeRelationshipLayoutPool(layouts, (layout) => {
+  const routeLayout = (layout) => {
     layout.geometryComponents = materializeRelationshipLayout(components, layout);
+    const cachedRouteSets = cachedRelationshipLayoutRouteSets(
+      options.routeCacheKey, layout.geometryComponents, harness, layout.layoutKey,
+    );
     try {
-      layout.routeSets = relationshipLayoutRouteSets(layout.geometryComponents, harness);
+      layout.routeSets = cachedRouteSets
+        || relationshipLayoutRouteSets(layout.geometryComponents, harness);
     } catch (_error) {
       return null;
+    }
+    layout.routeCacheHit = Boolean(cachedRouteSets);
+    if (!cachedRouteSets) {
+      rememberRelationshipLayoutRoutes(options.routeCacheKey, layout, harness);
     }
     const routes = new Map(layout.routeSets.flatMap((routeSet) => [...routeSet.routes]));
     layout.routeQuality = topologyRouteSetQuality(routes);
     return layout;
-  }, shortlistSize, options.layoutKey);
+  };
+  const preferredCandidate = preferredRelationshipLayoutCandidate(
+    layouts, routeLayout, options.layoutKey,
+  );
+  if (preferredCandidate) return [preferredCandidate];
+  const candidates = routeRelationshipLayoutPool(
+    layouts, routeLayout, shortlistSize, options.layoutKey,
+  );
   if (!candidates.length) throw new Error("Unable to produce a routed relationship layout.");
-  const safe = candidates.filter((candidate) => (
-    candidate.routeQuality.overlaps === 0
-    && candidate.routeQuality.parallelConflicts === 0
-    && candidate.routeQuality.crossings === 0
-  )).sort(compareRelationshipLayouts);
+  const safe = candidates.filter(relationshipLayoutIsSafe).sort(compareRelationshipLayouts);
   if (!safe.length) {
     const bestUnsafe = candidates.sort(compareRelationshipLayouts)[0];
     throw new Error(`No relationship layout satisfies trace safety rules (${JSON.stringify(
@@ -165,6 +263,7 @@ function captureRelationshipLayoutState(stack, components) {
       diagramLayoutError: stack.dataset.diagramLayoutError,
       diagramLayoutCandidateCount: stack.dataset.diagramLayoutCandidateCount,
       diagramLayoutCandidateIndex: stack.dataset.diagramLayoutCandidateIndex,
+      diagramRouteCacheHit: stack.dataset.diagramRouteCacheHit,
     },
     nodes: components.flatMap((component) => component.nodes).map((node) => ({
       node,
@@ -264,6 +363,7 @@ function layoutRelationshipGraph(stack, components, harness, options = {}) {
   stack.dataset.overlappingTracePairCount = `${layout.routeQuality.parallelConflicts}`;
   stack.dataset.diagramLayoutCandidateCount = `${layouts.length}`;
   stack.dataset.diagramLayoutCandidateIndex = `${selectedIndex}`;
+  stack.dataset.diagramRouteCacheHit = `${Boolean(layout.routeCacheHit)}`;
   stack.dataset.diagramLayoutRevision = `${
     Number.parseInt(priorState.stackDataset.diagramLayoutRevision || "0", 10) + 1
   }`;

@@ -109,6 +109,7 @@ function renderRelationshipMap(harness) {
     const selectedLayout = layoutRelationshipGraph(renderedStack, renderedComponents, harness, {
       width: workspace.viewport.clientWidth,
       height: workspace.viewport.clientHeight,
+      routeCacheKey: diagramViewKey,
     });
     if (!selectedLayout) return;
     rememberRelationshipDiagramView(diagramViewKey, selectedLayout);
@@ -196,6 +197,7 @@ function renderRelationshipMap(harness) {
         width: workspace.viewport.clientWidth,
         height: workspace.viewport.clientHeight,
         layoutKey: relationshipDiagramViews.get(diagramViewKey)?.layoutKey,
+        routeCacheKey: diagramViewKey,
       });
       if (!selectedLayout) return;
       rememberRelationshipDiagramView(diagramViewKey, selectedLayout);

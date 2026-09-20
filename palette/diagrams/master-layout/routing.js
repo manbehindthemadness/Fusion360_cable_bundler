@@ -136,10 +136,63 @@ function roundedTopologyRoute(points) {
   return `${path} L ${end.x} ${end.y}`;
 }
 
+function compareTopologySearchEntries(left, right) {
+  return left.cost - right.cost
+    || left.index - right.index
+    || left.direction.localeCompare(right.direction)
+    || left.order - right.order;
+}
+
+function pushTopologySearchEntry(queue, entry) {
+  queue.push(entry);
+  let index = queue.length - 1;
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (compareTopologySearchEntries(queue[parent], entry) <= 0) break;
+    queue[index] = queue[parent];
+    index = parent;
+  }
+  queue[index] = entry;
+}
+
+function popTopologySearchEntry(queue) {
+  const first = queue[0];
+  const last = queue.pop();
+  if (!queue.length) return first;
+  let index = 0;
+  queue[0] = last;
+  while (true) {
+    const left = index * 2 + 1;
+    const right = left + 1;
+    if (left >= queue.length) break;
+    const child = right < queue.length
+      && compareTopologySearchEntries(queue[right], queue[left]) < 0 ? right : left;
+    if (compareTopologySearchEntries(queue[index], queue[child]) <= 0) break;
+    [queue[index], queue[child]] = [queue[child], queue[index]];
+    index = child;
+  }
+  return first;
+}
+
+/** Return the uniquely optimal straight route only when it is fully conflict-free. */
+function topologyDirectRoute(
+  start, end, rectangles, occupiedSegments, traceHalfExtent,
+) {
+  if (start.x !== end.x && start.y !== end.y) return null;
+  const segment = { start, end };
+  if (!orthogonalSegmentClearsRectangles(start, end, rectangles)) return null;
+  if (topologySegmentConflictScore(segment, occupiedSegments, traceHalfExtent)) return null;
+  return [start, end];
+}
+
 /** Find a deterministic, bend-aware orthogonal route through measured node bounds. */
 function topologyVisibilityRoute(
   start, end, rectangles, occupiedSegments = [], traceHalfExtent = 0,
 ) {
+  const direct = topologyDirectRoute(
+    start, end, rectangles, occupiedSegments, traceHalfExtent,
+  );
+  if (direct) return direct;
   const occupiedVerticalXs = occupiedSegments.filter(
     (segment) => segment.start.x === segment.end.x,
   ).flatMap((segment) => {
@@ -206,13 +259,14 @@ function topologyVisibilityRoute(
   const startIndex = pointIndexes.get(`${start.x}:${start.y}`);
   const endIndex = pointIndexes.get(`${end.x}:${end.y}`);
   if (startIndex === undefined || endIndex === undefined) return null;
-  const queue = [{ cost: 0, index: startIndex, direction: "", route: [startIndex] }];
+  const queue = [];
+  let queueOrder = 0;
+  pushTopologySearchEntry(queue, {
+    cost: 0, index: startIndex, direction: "", route: [startIndex], order: queueOrder,
+  });
   const best = new Map([[`${startIndex}:`, 0]]);
   while (queue.length) {
-    queue.sort((left, right) => (
-      left.cost - right.cost || left.index - right.index || left.direction.localeCompare(right.direction)
-    ));
-    const current = queue.shift();
+    const current = popTopologySearchEntry(queue);
     if (current.index === endIndex) {
       return simplifyTopologyRoute(current.route.map((index) => points[index]));
     }
@@ -222,11 +276,13 @@ function topologyVisibilityRoute(
       const key = `${neighbor.index}:${neighbor.direction}`;
       if (cost >= (best.get(key) ?? Number.POSITIVE_INFINITY)) return;
       best.set(key, cost);
-      queue.push({
+      queueOrder += 1;
+      pushTopologySearchEntry(queue, {
         cost,
         index: neighbor.index,
         direction: neighbor.direction,
         route: [...current.route, neighbor.index],
+        order: queueOrder,
       });
     });
   }
@@ -277,20 +333,36 @@ function topologyTraceHalfExtent(groupCount) {
   return 5;
 }
 
+/** Cache node lookups and clearance rectangles shared by equivalent route searches. */
+function createRelationshipRoutingContext(nodes) {
+  return {
+    nodesById: new Map(nodes.map((node) => [node.id, node])),
+    rectanglesByClearance: new Map(),
+  };
+}
+
 /** Route one edge orthogonally through its assigned perimeter ports. */
 function routeRelationshipEdge(
   sourcePort, targetPort, nodes, occupiedSegments = [], traceHalfExtent = 0,
+  routingContext = null,
 ) {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const context = routingContext || createRelationshipRoutingContext(nodes);
   const clearance = RELATIONSHIP_DIAGRAM_SPACING + traceHalfExtent;
-  const start = topologyPortEscape(sourcePort, nodesById.get(sourcePort.nodeId), clearance);
-  const end = topologyPortEscape(targetPort, nodesById.get(targetPort.nodeId), clearance);
-  const rectangles = nodes.map((node) => ({
-    left: node.left - clearance,
-    right: node.left + node.width + clearance,
-    top: node.top - clearance,
-    bottom: node.top + node.height + clearance,
-  }));
+  const start = topologyPortEscape(
+    sourcePort, context.nodesById.get(sourcePort.nodeId), clearance,
+  );
+  const end = topologyPortEscape(
+    targetPort, context.nodesById.get(targetPort.nodeId), clearance,
+  );
+  if (!context.rectanglesByClearance.has(clearance)) {
+    context.rectanglesByClearance.set(clearance, nodes.map((node) => ({
+      left: node.left - clearance,
+      right: node.left + node.width + clearance,
+      top: node.top - clearance,
+      bottom: node.top + node.height + clearance,
+    })));
+  }
+  const rectangles = context.rectanglesByClearance.get(clearance);
   const visibleMiddle = topologyVisibilityRoute(
     start, end, rectangles, occupiedSegments, traceHalfExtent,
   );
@@ -447,15 +519,17 @@ function compareTopologyRouteQuality(left, right) {
     || left.totalLength - right.totalLength;
 }
 
-function routeRelationshipEdges(component, ports, edgeGroups) {
+function routeRelationshipEdges(
+  component, ports, edgeGroups, routingContext = createRelationshipRoutingContext(component.nodes),
+) {
   const portsById = new Map(ports.map((port) => [port.id, port]));
+  const nodesById = routingContext.nodesById;
   const stableEdges = component.edges.slice().sort((left, right) => (
     relationshipEdgeId(left).localeCompare(relationshipEdgeId(right))
   ));
   const edgeDistance = (edge) => {
-    const nodes = new Map(component.nodes.map((node) => [node.id, node]));
-    const source = topologyNodeCenter(nodes.get(edge.sourceId));
-    const target = topologyNodeCenter(nodes.get(edge.targetId));
+    const source = topologyNodeCenter(nodesById.get(edge.sourceId));
+    const target = topologyNodeCenter(nodesById.get(edge.targetId));
     return Math.abs(target.x - source.x) + Math.abs(target.y - source.y);
   };
   const edgeConstraint = (edge) => component.nodes.find(
@@ -484,6 +558,7 @@ function routeRelationshipEdges(component, ports, edgeGroups) {
         component.nodes,
         occupied,
         topologyTraceHalfExtent(edgeGroups.get(edgeId)?.length || 0),
+        routingContext,
       );
       if (!route) {
         complete = false;

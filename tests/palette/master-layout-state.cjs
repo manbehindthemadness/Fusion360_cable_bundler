@@ -167,10 +167,14 @@ test('master diagram survives a host refresh that adds a pathway', () => {
     context.ui.editor,
     (node) => node.className?.split(' ').includes('relationship-topology-node'),
   ).length, 2);
+  const refreshedStack = descendants(
+    context.ui.editor, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
   assert.equal(descendants(
     context.ui.editor,
     (node) => node.className === 'relationship-topology-edges',
   ).length, 1);
+  assert.equal(refreshedStack.dataset.diagramRouteCacheHit, 'false');
 });
 
 test('master diagram can redraw and fit for its resized viewport', () => {
@@ -217,6 +221,9 @@ test('master diagram can redraw and fit for its resized viewport', () => {
   assert.ok(rootPathways.every((node) => node.style.left && node.style.top));
   assert.ok(firstJunction.style.left && firstJunction.style.top);
   const organizedTransform = workspace.children[1].children[0].style.transform;
+  const organizedRoutes = descendants(
+    stack, (node) => node.className === 'structural-trace',
+  ).map((route) => [route.attributes.d, route.dataset.routePoints]);
   assert.match(organizedTransform, /scale\(/);
 
   context.renderEditor(definition);
@@ -228,6 +235,11 @@ test('master diagram can redraw and fit for its resized viewport', () => {
   )[0];
   assert.equal(refreshedStack.dataset.diagramRotation, stack.dataset.diagramRotation);
   assert.equal(refreshedStack.dataset.diagramLayoutKey, stack.dataset.diagramLayoutKey);
+  assert.equal(refreshedStack.dataset.diagramLayoutCandidateCount, '1');
+  assert.equal(refreshedStack.dataset.diagramRouteCacheHit, 'true');
+  assert.deepEqual(descendants(
+    refreshedStack, (node) => node.className === 'structural-trace',
+  ).map((route) => [route.attributes.d, route.dataset.routePoints]), organizedRoutes);
   assert.equal(refreshedStage.style.transform, organizedTransform);
 });
 

@@ -124,6 +124,26 @@ test('layout search routes a requested layout beyond the compact shortlist', () 
   assert.equal(candidates.at(-1).layoutKey, 'layout-17');
 });
 
+test('saved safe layout bypasses unrelated routing candidates', () => {
+  const { context } = palette();
+  const attempts = [];
+  const layouts = ['first', 'saved', 'last'].map((layoutKey) => ({ layoutKey }));
+  const route = (layout) => {
+    attempts.push(layout.layoutKey);
+    return {
+      ...layout,
+      routeQuality: { overlaps: 0, parallelConflicts: 0, crossings: 0 },
+    };
+  };
+
+  const selected = context.preferredRelationshipLayoutCandidate(
+    layouts, route, 'saved',
+  );
+
+  assert.equal(selected.layoutKey, 'saved');
+  assert.deepEqual(attempts, ['saved']);
+});
+
 test('failed layout attempts can restore the last committed node geometry', () => {
   const { context } = palette();
   const stack = new Element('div');
@@ -219,6 +239,24 @@ test('route simplification removes duplicate, reversal, and clear dogleg points'
   ], []);
 
   assert.equal(JSON.stringify(points), JSON.stringify([{ x: 0, y: 0 }, { x: 60, y: 0 }]));
+});
+
+test('clear aligned routes bypass visibility search without accepting conflicts', () => {
+  const { context } = palette();
+  const start = { x: 0, y: 20 };
+  const end = { x: 100, y: 20 };
+
+  assert.equal(
+    JSON.stringify(context.topologyDirectRoute(start, end, [], [], 3)),
+    JSON.stringify([start, end]),
+  );
+  assert.equal(context.topologyDirectRoute(
+    start,
+    end,
+    [],
+    [{ start: { x: 10, y: 20 }, end: { x: 90, y: 20 }, halfExtent: 3 }],
+    3,
+  ), null);
 });
 
 test('master relationship traces attach to distinct cardinal pathway ends', () => {

@@ -56,6 +56,7 @@ let masterDiagramResizeObserver = null;
 const routeFilters = new Map();
 const relationshipFilters = new Map();
 const relationshipDiagramViews = new Map();
+const relationshipLayoutRouteCache = new Map();
 const relationshipEndListOverrides = new Map();
 const DEFAULT_RELATIONSHIP_COLLAPSE_LIMIT = 7;
 const MIN_RELATIONSHIP_COLLAPSE_LIMIT = 1;
@@ -109,5 +110,4 @@ function relationshipCollapseLimit(harness) {
     ? DEFAULT_RELATIONSHIP_COLLAPSE_LIMIT
     : clampRelationshipCollapseLimit(stored);
 }
-
 
