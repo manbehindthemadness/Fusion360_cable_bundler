@@ -230,13 +230,13 @@ function renderRelationshipConnector(
       }, { haloWidth: 10 });
       (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
         const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
-        appendContrastTrace(svg, {
+        svg.append(svgElement("path", {
           class: "stripe-trace",
           d: curvePath(listY + stripeOffset, hubY + stripeOffset),
           stroke: stripe.color?.hex || "#fff",
           "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
           "data-wire-group-id": group.wireGroupId,
-        }, { haloWidth: 3.8, fixedBackground: mainColor });
+        }));
       });
     });
   };
@@ -428,13 +428,13 @@ function renderRelationshipBridge(groups) {
     }, { haloWidth: 10 });
     (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
       const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
-      appendContrastTrace(svg, {
+      svg.append(svgElement("path", {
         class: "stripe-trace",
         d: `M 0 ${y + stripeOffset} L 22 ${y + stripeOffset}`,
         stroke: stripe.color?.hex || "#fff",
         "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
         "data-wire-group-id": group.wireGroupId,
-      }, { haloWidth: 3.8, fixedBackground: mainColor });
+      }));
     });
   });
   return svg;

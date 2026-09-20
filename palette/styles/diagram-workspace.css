@@ -226,7 +226,6 @@
 :root[data-theme="dark"] .trace-contrast-halo.trace-contrast-dark-theme {
   stroke: var(--trace-halo);
 }
-.trace-contrast-halo.trace-contrast-fixed { stroke: var(--trace-fixed-halo); }
 .relationship-topology-edges .structural-trace { stroke: #7b9ab2; stroke-width: 2; }
 .relationship-topology-edge:not([data-render-mode="structure"]) .structural-trace {
   stroke: none;

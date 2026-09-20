@@ -31,7 +31,6 @@
   --surface-subtle: #f4f5f6;
   --success-border: #a9c9a9;
   --success-surface: #f2faf2;
-  --trace-fixed-halo: transparent;
   --trace-halo: #242a2f;
   --text: #202428;
   --danger: #b44242;
@@ -70,7 +69,7 @@
   --surface: #2b3136;
   --surface-subtle: #22272b;
   --text: #eef1f3;
-  --trace-halo: #eef2f5;
+  --trace-halo: #345e7d;
 }
 * { box-sizing: border-box; }
 html { height: 100%; }

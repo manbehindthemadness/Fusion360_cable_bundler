@@ -22,11 +22,15 @@ test('low-contrast trace halos switch neutrally with the palette theme', () => {
   const styles = readPaletteStyles();
 
   assert.match(styles, /:root \{[^}]*--trace-halo: #242a2f;/s);
-  assert.match(styles, /:root\[data-theme="dark"\] \{[^}]*--trace-halo: #eef2f5;/s);
+  assert.match(
+    styles,
+    /:root\[data-theme="dark"\] \{[^}]*--trace-halo: #345e7d;/s,
+  );
   assert.match(
     styles,
     /:root\[data-theme="dark"\] \.trace-contrast-halo\.trace-contrast-dark-theme[^}]*stroke: var\(--trace-halo\);/s,
   );
+  assert.doesNotMatch(styles, /trace-contrast-fixed|trace-fixed-halo/);
 });
 
 test('Wire Details fills most of the window and uses the shared diagram workspace', () => {
