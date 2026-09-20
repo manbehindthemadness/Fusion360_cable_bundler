@@ -215,6 +215,18 @@
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
 }
+.trace-contrast-halo {
+  fill: none;
+  stroke: transparent;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+:root[data-theme="light"] .trace-contrast-halo.trace-contrast-light-theme,
+:root[data-theme="dark"] .trace-contrast-halo.trace-contrast-dark-theme {
+  stroke: var(--trace-halo);
+}
+.trace-contrast-halo.trace-contrast-fixed { stroke: var(--trace-fixed-halo); }
 .relationship-topology-edges .structural-trace { stroke: #7b9ab2; stroke-width: 2; }
 .relationship-topology-edge:not([data-render-mode="structure"]) .structural-trace {
   stroke: none;
@@ -226,6 +238,7 @@
 .relationship-topology-edges .wire-trace,
 .relationship-connector .wire-trace,
 .relationship-connector .stripe-trace,
+.trace-contrast-halo,
 .relationship-connector .aggregate-trace {
   transition: opacity 120ms ease, stroke-width 120ms ease;
 }

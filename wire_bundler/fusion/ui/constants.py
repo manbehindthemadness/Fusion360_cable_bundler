@@ -76,6 +76,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "pathway-editors.js",
     ADDIN_ROOT / "palette" / "materials.js",
     ADDIN_ROOT / "palette" / "diagrams" / "workspace.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "trace-contrast.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-model.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout" / "ports.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout" / "routing.js",

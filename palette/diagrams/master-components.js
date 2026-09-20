@@ -221,21 +221,22 @@ function renderRelationshipConnector(
     routeGroups.forEach((group, index) => {
       const hubY = 50 + (index - (routeGroups.length - 1) / 2) * hubSpacing;
       const listY = endPositions.get(group.wireGroupId) ?? hubY;
-      svg.append(svgElement("path", {
+      const mainColor = group.materials?.mainColor?.hex || "#1777c8";
+      appendContrastTrace(svg, {
         class: "wire-trace",
         d: curvePath(listY, hubY),
-        stroke: group.materials?.mainColor?.hex || "#1777c8",
+        stroke: mainColor,
         "data-wire-group-id": group.wireGroupId,
-      }));
+      }, { haloWidth: 10 });
       (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
         const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
-        svg.append(svgElement("path", {
+        appendContrastTrace(svg, {
           class: "stripe-trace",
           d: curvePath(listY + stripeOffset, hubY + stripeOffset),
           stroke: stripe.color?.hex || "#fff",
           "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
           "data-wire-group-id": group.wireGroupId,
-        }));
+        }, { haloWidth: 3.8, fixedBackground: mainColor });
       });
     });
   };
@@ -418,21 +419,22 @@ function renderRelationshipBridge(groups) {
   const spacing = Math.min(2.5, 14 / Math.max(1, groups.length - 1));
   groups.forEach((group, index) => {
     const y = 50 + (index - (groups.length - 1) / 2) * spacing;
-    svg.append(svgElement("path", {
+    const mainColor = group.materials?.mainColor?.hex || "#1777c8";
+    appendContrastTrace(svg, {
       class: "wire-trace",
       d: `M 0 ${y} L 22 ${y}`,
-      stroke: group.materials?.mainColor?.hex || "#1777c8",
+      stroke: mainColor,
       "data-wire-group-id": group.wireGroupId,
-    }));
+    }, { haloWidth: 10 });
     (group.materials?.stripes || []).slice(0, 3).forEach((stripe, stripeIndex, stripes) => {
       const stripeOffset = centeredStripeOffset(stripeIndex, stripes.length, 2);
-      svg.append(svgElement("path", {
+      appendContrastTrace(svg, {
         class: "stripe-trace",
         d: `M 0 ${y + stripeOffset} L 22 ${y + stripeOffset}`,
         stroke: stripe.color?.hex || "#fff",
         "stroke-dasharray": stripe.pattern === "solid" ? "none" : "8 5",
         "data-wire-group-id": group.wireGroupId,
-      }));
+      }, { haloWidth: 3.8, fixedBackground: mainColor });
     });
   });
   return svg;

@@ -272,9 +272,9 @@ function topologyPortEscape(port, node, clearance = RELATIONSHIP_DIAGRAM_SPACING
 function topologyTraceHalfExtent(groupCount) {
   if (groupCount <= 0) return 1.5;
   if (groupCount <= TOPOLOGY_LANE_LIMIT) {
-    return (groupCount - 1) * TOPOLOGY_LANE_SPACING / 2 + 1.5;
+    return (groupCount - 1) * TOPOLOGY_LANE_SPACING / 2 + 3;
   }
-  return 4.5;
+  return 5;
 }
 
 /** Route one edge orthogonally through its assigned perimeter ports. */
@@ -505,4 +505,3 @@ function routeRelationshipEdges(component, ports, edgeGroups) {
   if (!best) throw new Error("Unable to route relationship edges outside protected nodes.");
   return best.routes;
 }
-

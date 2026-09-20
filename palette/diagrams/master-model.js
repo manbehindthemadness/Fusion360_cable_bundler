@@ -22,6 +22,7 @@ function createRelationshipFocusController(container) {
     "relationship-end-entry",
     "wire-trace",
     "stripe-trace",
+    "trace-contrast-halo",
     "aggregate-trace",
   ];
   let pointerFocus = null;

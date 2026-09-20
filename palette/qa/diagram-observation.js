@@ -97,7 +97,7 @@ function qaTopologyTraceClearance(edge, diagram) {
     const isBundle = path.className?.baseVal?.split(" ").includes(
       "relationship-wire-bundle",
     ) || path.className?.split?.(" ").includes("relationship-wire-bundle");
-    const traceHalfExtent = isBundle ? 4.5 : 1.5;
+    const traceHalfExtent = isBundle ? 5 : 3;
     for (let index = 0; index <= sampleCount; index += 1) {
       const point = path.getPointAtLength(length * index / sampleCount);
       const projected = {
@@ -432,5 +432,4 @@ function handleQaProbe(data) {
   }
   return "INVALID";
 }
-
 

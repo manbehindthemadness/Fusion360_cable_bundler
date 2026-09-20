@@ -72,6 +72,42 @@ test('palette theme changes preserve master wire material strokes', () => {
   assert.equal(trace.attributes.stroke, '#d72525');
 });
 
+test('master traces gain neutral halos only where their contrast is low', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.wireGroups[0].materials = {
+    ...definition.wireGroups[0].materials,
+    mainColor: { name: 'Near Black', hex: '#101214' },
+    stripes: [{
+      color: { name: 'Black', hex: '#101214' }, pattern: 'solid', widthMm: 0.2,
+    }],
+  };
+
+  const diagram = context.renderRelationshipMap(definition);
+  const halos = descendants(
+    diagram, (node) => node.className?.split(' ').includes('trace-contrast-halo'),
+  );
+  const wireHalo = halos.find((node) => (
+    node.dataset.wireGroupId === 'g1'
+      && node.className.split(' ').includes('trace-contrast-dark-theme')
+  ));
+  const stripeHalo = halos.find((node) => (
+    node.dataset.wireGroupId === 'g1'
+      && node.className.split(' ').includes('trace-contrast-fixed')
+  ));
+  const exactTrace = descendants(diagram, (node) => (
+    node.className?.split(' ').includes('wire-trace')
+      && node.dataset.wireGroupId === 'g1'
+      && node.attributes.stroke === '#101214'
+  ))[0];
+
+  assert.ok(wireHalo);
+  assert.equal(wireHalo.className.includes('trace-contrast-light-theme'), false);
+  assert.ok(stripeHalo.attributes.style.includes('#eef2f5'));
+  assert.ok(exactTrace);
+  assert.equal(context.traceContrastRatio('#000', '#fff'), 21);
+});
+
 test('current pathway popup retains gate ordering and interpolation controls', () => {
   const { context } = palette();
   const definition = harness();

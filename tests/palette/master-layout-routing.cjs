@@ -496,15 +496,15 @@ test('topology clearance includes the visible trace envelope', () => {
     className: 'wire-trace relationship-wire-lane',
     parentElement: { dataset: { wireGroupCount: '5' } },
     getTotalLength: () => 40,
-    getPointAtLength: (distance) => ({ x: 80 + distance, y: 66.5 }),
+    getPointAtLength: (distance) => ({ x: 80 + distance, y: 65 }),
     getScreenCTM: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
   };
   edge.parentElement.querySelectorAll = () => [edge];
 
-  assert.equal(context.topologyTraceHalfExtent(5), 9.5);
+  assert.equal(context.topologyTraceHalfExtent(5), 11);
   assert.equal(context.qaTopologyTraceClearance(edge, diagram), 32);
   assert.equal(context.qaTopologyTraceObstructed(edge, diagram), false);
-  edge.getPointAtLength = (distance) => ({ x: 80 + distance, y: 68 });
+  edge.getPointAtLength = (distance) => ({ x: 80 + distance, y: 66.5 });
   assert.equal(context.qaTopologyTraceClearance(edge, diagram), 30.5);
   assert.equal(context.qaTopologyTraceObstructed(edge, diagram), true);
 });
@@ -537,6 +537,5 @@ test('protected layout corridors route around an unrelated junction', () => {
     ), true);
   });
 });
-
 
 

@@ -11,7 +11,7 @@ const TOPOLOGY_PORT_CORNER_INSET = 14;
 const TOPOLOGY_ROUTE_CHANNEL_SPACING = 10;
 const TOPOLOGY_SIDES = ["right", "bottom", "top", "left"];
 const TOPOLOGY_LAYOUT_TRACE_HALF_EXTENT = (TOPOLOGY_LANE_LIMIT - 1)
-  * TOPOLOGY_LANE_SPACING / 2 + 1.5;
+  * TOPOLOGY_LANE_SPACING / 2 + 3;
 const TOPOLOGY_ROUTING_ENVELOPE = RELATIONSHIP_DIAGRAM_SPACING
   + TOPOLOGY_LAYOUT_TRACE_HALF_EXTENT;
 const TOPOLOGY_NODE_GAP = RELATIONSHIP_DIAGRAM_SPACING;
@@ -263,4 +263,3 @@ function allocateRelationshipPorts(component, reverseOrder = false, spreadPorts 
   });
   return ports;
 }
-

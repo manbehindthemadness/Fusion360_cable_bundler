@@ -18,6 +18,17 @@ test('palette defines fixed light and dark semantic color sets', () => {
   assert.doesNotMatch(styles, /\.wire-trace[^,{]*\{[^}]*stroke:/s);
 });
 
+test('low-contrast trace halos switch neutrally with the palette theme', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(styles, /:root \{[^}]*--trace-halo: #242a2f;/s);
+  assert.match(styles, /:root\[data-theme="dark"\] \{[^}]*--trace-halo: #eef2f5;/s);
+  assert.match(
+    styles,
+    /:root\[data-theme="dark"\] \.trace-contrast-halo\.trace-contrast-dark-theme[^}]*stroke: var\(--trace-halo\);/s,
+  );
+});
+
 test('Wire Details fills most of the window and uses the shared diagram workspace', () => {
   const styles = readPaletteStyles();
   assert.match(styles, /\.wire-group-details-popup \{[^}]*width: 90vw;[^}]*height: 90vh;/s);
