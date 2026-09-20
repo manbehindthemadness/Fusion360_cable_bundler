@@ -1,0 +1,276 @@
+/** Candidate routing, selection, state restoration, and layout orchestration. */
+
+function applyRelationshipLayoutGeometry(components, layout) {
+  const geometryById = new Map(layout.geometryComponents.flatMap(
+    (component) => component.nodes.map((node) => [node.id, node]),
+  ));
+  components.forEach((component) => component.nodes.forEach((node) => {
+    const geometry = geometryById.get(node.id);
+    node.width = geometry.width;
+    node.height = geometry.height;
+    node.dockPoints = geometry.dockPoints;
+    node.hubCenter = geometry.hubCenter;
+    node.left = geometry.left;
+    node.top = geometry.top;
+    if (node.kind === "pathway") {
+      node.dockSides = geometry.dockSides;
+      configureRelationshipPathwayDocking(
+        relationshipPathwayGroup(node), node.dockSides.start, node.dockSides.end,
+        node.intrinsicEndpointSizes,
+      );
+    }
+    node.element.style.left = `${node.left}px`;
+    node.element.style.top = `${node.top}px`;
+    node.element.style.width = `${node.width}px`;
+    node.element.style.height = `${node.height}px`;
+  }));
+}
+
+function relationshipLayoutRouteSets(components, harness) {
+  return components.map((component) => {
+    const edgeGroups = new Map(component.edges.map((edge) => [
+      relationshipEdgeId(edge),
+      relationshipEndpointGroups(harness, edge.junction, edge.relationship),
+    ]));
+    const candidates = [
+      { reverseOrder: false, portMode: "fan" },
+      { reverseOrder: true, portMode: "fan" },
+      { reverseOrder: false, portMode: "spread" },
+      { reverseOrder: true, portMode: "spread" },
+      { reverseOrder: false, portMode: "aligned" },
+      { reverseOrder: true, portMode: "aligned" },
+    ].map(({ reverseOrder, portMode }) => {
+      const ports = allocateRelationshipPorts(component, reverseOrder, portMode);
+      const routes = routeRelationshipEdges(component, ports, edgeGroups);
+      return { component, ports, edgeGroups, routes,
+        quality: topologyRouteSetQuality(routes) };
+    }).sort((left, right) => (
+      compareTopologyRouteQuality(left.quality, right.quality)
+    ));
+    return candidates[0];
+  });
+}
+
+function compareRelationshipLayouts(left, right) {
+  return compareTopologyRouteSafety(left.routeQuality, right.routeQuality)
+    || right.fitScale - left.fitScale
+    || left.width * left.height - right.width * right.height
+    || (left.width + left.height) - (right.width + right.height)
+    || left.routeQuality.shortSegments - right.routeQuality.shortSegments
+    || left.routeQuality.excessLength - right.routeQuality.excessLength
+    || left.routeQuality.bends - right.routeQuality.bends
+    || left.routeQuality.totalLength - right.routeQuality.totalLength
+    || left.edgeLength - right.edgeLength
+    || left.layoutKey.localeCompare(right.layoutKey);
+}
+
+function compareRelationshipLayoutGeometry(left, right) {
+  return left.crossings - right.crossings
+    || right.fitScale - left.fitScale
+    || left.width * left.height - right.width * right.height
+    || (left.width + left.height) - (right.width + right.height)
+    || left.edgeLength - right.edgeLength
+    || left.layoutKey.localeCompare(right.layoutKey);
+}
+
+/** Route the compact shortlist plus any requested previously committed layout. */
+function routeRelationshipLayoutPool(layouts, routeLayout, shortlistSize, preferredKey = "") {
+  const candidates = [];
+  const attempt = (items) => items.forEach((layout) => {
+    const candidate = routeLayout(layout);
+    if (candidate) candidates.push(candidate);
+  });
+  const preliminary = layouts.slice(0, shortlistSize);
+  const preferred = layouts.find((layout) => layout.layoutKey === preferredKey);
+  if (preferred && !preliminary.includes(preferred)) preliminary.push(preferred);
+  attempt(preliminary);
+  if (!candidates.length && preliminary.length < layouts.length) {
+    attempt(layouts.filter((layout) => !preliminary.includes(layout)));
+  }
+  return candidates;
+}
+
+/** Return every routable packing in deterministic visual-quality order. */
+function relationshipLayoutCandidates(components, harness, options = {}) {
+  const specifications = relationshipLayoutSpecifications(components);
+  const layouts = specifications.map((specification) => {
+    const layout = relationshipTopologyLayoutCandidate(components, specification, options);
+    layout.fitScale = Math.min(1,
+      Math.max(1, (options.width || layout.width) - 24) / layout.width,
+      Math.max(1, (options.height || layout.height) - 24) / layout.height);
+    return layout;
+  }).sort(compareRelationshipLayoutGeometry);
+  const shortlistSize = Math.min(TOPOLOGY_ROUTED_CANDIDATE_LIMIT, layouts.length);
+  const candidates = routeRelationshipLayoutPool(layouts, (layout) => {
+    layout.geometryComponents = materializeRelationshipLayout(components, layout);
+    try {
+      layout.routeSets = relationshipLayoutRouteSets(layout.geometryComponents, harness);
+    } catch (_error) {
+      return null;
+    }
+    const routes = new Map(layout.routeSets.flatMap((routeSet) => [...routeSet.routes]));
+    layout.routeQuality = topologyRouteSetQuality(routes);
+    return layout;
+  }, shortlistSize, options.layoutKey);
+  if (!candidates.length) throw new Error("Unable to produce a routed relationship layout.");
+  const safe = candidates.filter((candidate) => (
+    candidate.routeQuality.overlaps === 0
+    && candidate.routeQuality.parallelConflicts === 0
+    && candidate.routeQuality.crossings === 0
+  )).sort(compareRelationshipLayouts);
+  if (!safe.length) {
+    const bestUnsafe = candidates.sort(compareRelationshipLayouts)[0];
+    throw new Error(`No relationship layout satisfies trace safety rules (${JSON.stringify(
+      bestUnsafe?.routeQuality || {},
+    )}).`);
+  }
+  const best = safe[0];
+  const maximumArea = best.width * best.height * 1.15;
+  const minimumFitScale = best.fitScale * 0.95;
+  const signatures = new Set();
+  const preferred = safe.find((candidate) => candidate.layoutKey === options.layoutKey);
+  const filtered = safe.filter((candidate) => {
+    if (candidate.width * candidate.height > maximumArea
+      || candidate.fitScale < minimumFitScale) return false;
+    const signature = components.flatMap((component) => component.nodes.map((node) => {
+      const point = candidate.positions.get(node.id);
+      const sides = candidate.dockSides.get(node.id);
+      return `${node.id}:${Math.round(point.x)}:${Math.round(point.y)}:${
+        sides ? `${sides.start}-${sides.end}` : "hub"
+      }`;
+    })).join("|");
+    if (signatures.has(signature)) return false;
+    signatures.add(signature);
+    return true;
+  });
+  if (preferred && !filtered.includes(preferred)) filtered.push(preferred);
+  return filtered;
+}
+
+/** Select the best routed packing from genuinely different deterministic layouts. */
+function bestRelationshipLayout(components, harness, options = {}) {
+  return relationshipLayoutCandidates(components, harness, options)[0];
+}
+
+/** Capture mutable geometry so a failed redraw cannot damage the visible diagram. */
+function captureRelationshipLayoutState(stack, components) {
+  return {
+    stackStyle: { width: stack.style.width, height: stack.style.height },
+    stackDataset: {
+      diagramRotation: stack.dataset.diagramRotation,
+      diagramLayoutKey: stack.dataset.diagramLayoutKey,
+      minimumParallelTraceGap: stack.dataset.minimumParallelTraceGap,
+      overlappingTracePairCount: stack.dataset.overlappingTracePairCount,
+      diagramLayoutRevision: stack.dataset.diagramLayoutRevision,
+      diagramLayoutError: stack.dataset.diagramLayoutError,
+      diagramLayoutCandidateCount: stack.dataset.diagramLayoutCandidateCount,
+      diagramLayoutCandidateIndex: stack.dataset.diagramLayoutCandidateIndex,
+    },
+    nodes: components.flatMap((component) => component.nodes).map((node) => ({
+      node,
+      geometry: {
+        width: node.width,
+        height: node.height,
+        left: node.left,
+        top: node.top,
+        hubCenter: node.hubCenter,
+        dockPoints: node.dockPoints,
+        dockSides: node.dockSides,
+      },
+      style: {
+        left: node.element.style.left,
+        top: node.element.style.top,
+        width: node.element.style.width,
+        height: node.element.style.height,
+      },
+    })),
+  };
+}
+
+/** Restore the last committed geometry after an unsuccessful layout attempt. */
+function restoreRelationshipLayoutState(stack, state) {
+  Object.assign(stack.style, state.stackStyle);
+  Object.entries(state.stackDataset).forEach(([key, value]) => {
+    if (value === undefined) delete stack.dataset[key];
+    else stack.dataset[key] = value;
+  });
+  state.nodes.forEach(({ node, geometry, style }) => {
+    Object.assign(node, geometry);
+    Object.assign(node.element.style, style);
+    if (node.kind === "pathway" && geometry.dockSides) {
+      configureRelationshipPathwayDocking(
+        relationshipPathwayGroup(node), geometry.dockSides.start, geometry.dockSides.end,
+        node.intrinsicEndpointSizes,
+      );
+    }
+  });
+}
+
+/**
+ * Position acyclic topology components compactly and draw their edges.
+ */
+function layoutRelationshipGraph(stack, components, harness, options = {}) {
+  const priorState = captureRelationshipLayoutState(stack, components);
+  captureRelationshipIntrinsicSizes(components);
+  let layouts;
+  try {
+    layouts = relationshipLayoutCandidates(components, harness, options);
+  } catch (error) {
+    restoreRelationshipLayoutState(stack, priorState);
+    stack.dataset.diagramLayoutError = error.message;
+    return null;
+  }
+  const currentIndex = layouts.findIndex((candidate) => candidate.layoutKey === options.layoutKey);
+  const selectedIndex = Math.max(0, currentIndex);
+  const layout = layouts[selectedIndex];
+  stack.relationshipLayoutCandidates = layouts;
+  applyRelationshipLayoutGeometry(components, layout);
+  const canvasWidth = layout.width;
+  const canvasHeight = layout.height;
+  const overlay = svgElement("svg", {
+    class: "relationship-topology-edges",
+    viewBox: `0 0 ${canvasWidth} ${canvasHeight}`,
+    preserveAspectRatio: "none",
+    "aria-hidden": "true",
+  });
+  layout.routeSets.forEach(({ component, ports, edgeGroups, routes }) => {
+    const nodes = new Map(component.nodes.map((node) => [node.id, node]));
+    const portsById = new Map(ports.map((port) => [port.id, port]));
+    component.edges.forEach((edge) => {
+      const source = nodes.get(edge.sourceId);
+      const target = nodes.get(edge.targetId);
+      if (!source || !target) return;
+      const edgeId = relationshipEdgeId(edge);
+      const route = routes.get(edgeId);
+      if (!route) return;
+      const groups = edgeGroups.get(edgeId) || [];
+      overlay.append(renderTopologyEdge(edge, route, groups));
+      portsById.get(`${edgeId}:source`).groups = groups;
+      portsById.get(`${edgeId}:target`).groups = groups;
+    });
+    ports.forEach((port) => overlay.append(renderTopologyPort(port)));
+  });
+  stack.querySelector(".relationship-topology-edges")?.remove();
+  stack.insertBefore(overlay, stack.children[0] || null);
+  stack.style.width = `${canvasWidth}px`;
+  stack.style.height = `${canvasHeight}px`;
+  stack.dataset.diagramRotation = `${layout.rotation}`;
+  stack.dataset.diagramLayoutKey = layout.layoutKey;
+  stack.dataset.minimumParallelTraceGap = `${Math.max(
+    0, layout.routeQuality.minimumParallelGap,
+  )}`;
+  stack.dataset.overlappingTracePairCount = `${layout.routeQuality.parallelConflicts}`;
+  stack.dataset.diagramLayoutCandidateCount = `${layouts.length}`;
+  stack.dataset.diagramLayoutCandidateIndex = `${selectedIndex}`;
+  stack.dataset.diagramLayoutRevision = `${
+    Number.parseInt(priorState.stackDataset.diagramLayoutRevision || "0", 10) + 1
+  }`;
+  delete stack.dataset.diagramLayoutError;
+  return {
+    layoutKey: layout.layoutKey,
+    rotation: layout.rotation,
+    candidateCount: layouts.length,
+    candidateIndex: selectedIndex,
+  };
+}
+

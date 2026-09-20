@@ -26,7 +26,11 @@ from ..routing import (
     sample_centerline,
 )
 from ..routing.geometry import cross, difference, dot, magnitude, unit
-from .route_preview import _connection_profile_frames, _ProfileFrame, _routing_frame
+from .route_preview_parts.solver import (
+    ProfileFrame,
+    connection_profile_frames,
+    routing_frame,
+)
 
 REFINE_GRAPHICS_GROUP_ID = "kev0.wire_bundler.refines"
 REFINE_SPINE_GROUP_ID = "kev0.wire_bundler.refine_spine"
@@ -35,7 +39,7 @@ DEFAULT_REFINE_RADIUS_MM = 10.0
 _REFINE_COLOR = (232, 78, 180)
 _REFINE_HIGHLIGHT_COLOR = (255, 196, 62)
 _SPINE_COLOR = (42, 214, 226)
-RoutingFrame = Union[GateFrame, RefineFrame, _ProfileFrame]
+RoutingFrame = Union[GateFrame, RefineFrame, ProfileFrame]
 
 
 @dataclass(frozen=True)
@@ -74,7 +78,7 @@ def build_pathway_spine(
         raise ValueError("Selected pathway does not exist in this harness.")
     controls = {control.control_id: control for control in definition.controls}
     frames = tuple(
-        _routing_frame(design, controls.get(control_id), control_id)
+        routing_frame(design, controls.get(control_id), control_id)
         for control_id in pathway.ordered_control_ids
     )
     if not frames:
@@ -142,14 +146,14 @@ def build_end_spine(
         if end.endpoint is PathwayEndpoint.START
         else pathway.ordered_control_ids[-1]
     )
-    guide_frames = _connection_profile_frames(design, connection, {})
+    guide_frames = connection_profile_frames(design, connection, {})
     frames: tuple[RoutingFrame, ...] = (
         guide_frames[-1],
         *(
-            _routing_frame(design, controls.get(control_id), control_id)
+            routing_frame(design, controls.get(control_id), control_id)
             for control_id in end.ordered_control_ids
         ),
-        _routing_frame(design, controls.get(boundary_control_id), boundary_control_id),
+        routing_frame(design, controls.get(boundary_control_id), boundary_control_id),
     )
     return PathwaySpine(tuple(frame.origin for frame in frames), frames)
 

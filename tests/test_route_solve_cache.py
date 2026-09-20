@@ -33,6 +33,7 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
     Reuse Preview geometry for Generate while rejecting stale Fusion inputs.
     """
     from wire_bundler.fusion import route_preview
+    from wire_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
     design = object()
@@ -55,16 +56,16 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
         Return distinct synthetic start and end profile frames.
         """
         z = 0.0 if token == "fusion-start-token" else 20.0
-        return route_preview._ProfileFrame(
+        return route_solver.ProfileFrame(
             Vector3(0.0, 0.0, z),
             Vector3(0.0, 0.0, 1.0),
             Vector3(1.0, 0.0, 0.0),
             Vector3(0.0, 1.0, 0.0),
         )
 
-    monkeypatch.setattr(route_preview, "_routing_frame", routing_frame)
-    monkeypatch.setattr(route_preview, "_profile_frame", profile_frame)
-    monkeypatch.setattr(route_preview, "_route_solve_cache", None)
+    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
+    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
     first = route_preview.solve_wire_group_centerlines(design, valid_harness)
     second = route_preview.solve_wire_group_centerlines(design, valid_harness)
@@ -104,6 +105,7 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
     Preserve ordered end settings, reversed junction settings, and the global preset.
     """
     from wire_bundler.fusion import route_preview
+    from wire_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
     start = replace(
@@ -206,7 +208,7 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         """
         Return an ordered synthetic end-profile frame.
         """
-        return route_preview._ProfileFrame(
+        return route_solver.ProfileFrame(
             Vector3(0.0, 0.0, profile_z[token]),
             Vector3(0.0, 0.0, 1.0),
             Vector3(1.0, 0.0, 0.0),
@@ -226,7 +228,7 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         return route
 
     def capture_collision_fairing(
-        routes: tuple[RoutePreview, ...],
+        route_items: tuple[RoutePreview, ...],
         _group_ids: tuple[UUID, ...],
         _diameters_mm: tuple[float, ...],
         _normals: tuple[tuple[Vector3, ...], ...],
@@ -239,20 +241,23 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         Record transition and preset inputs retained for collision repair.
         """
         collision_calls.append((transitions, options["auto_transition_fraction"]))
-        return routes, ()
+        return route_items, ()
 
     monkeypatch.setattr(
-        "wire_bundler.fusion.route_preview.plan_wire_group_routes",
+        "wire_bundler.fusion.route_preview_parts.solver.plan_wire_group_routes",
         lambda _definition: (leg,),
     )
-    monkeypatch.setattr(route_preview, "_routing_frame", routing_frame)
-    monkeypatch.setattr(route_preview, "_profile_frame", profile_frame)
-    monkeypatch.setattr("wire_bundler.fusion.route_preview.fair_route", capture_fair_route)
+    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
+    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
     monkeypatch.setattr(
-        "wire_bundler.fusion.route_preview.separate_route_collisions",
+        "wire_bundler.fusion.route_preview_parts.solver.fair_route",
+        capture_fair_route,
+    )
+    monkeypatch.setattr(
+        "wire_bundler.fusion.route_preview_parts.solver.separate_route_collisions",
         capture_collision_fairing,
     )
-    monkeypatch.setattr(route_preview, "_route_solve_cache", None)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
     routes, legs = route_preview.solve_wire_group_centerlines(object(), definition)
 

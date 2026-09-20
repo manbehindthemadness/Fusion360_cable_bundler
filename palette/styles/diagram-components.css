@@ -1,0 +1,174 @@
+/* Master and Wire Details topology nodes, traces, and endpoint cards. */
+
+.relationship-topology-edge.relationship-focus-match .structural-trace { stroke-width: 3; }
+.relationship-topology-edge.relationship-focus-match .relationship-wire-bundle {
+  stroke-width: 9;
+}
+.relationship-pathway-group {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 210px 32px 154px 32px 210px;
+  grid-template-rows: 0 0 minmax(92px, max-content) 0 0;
+  align-items: stretch;
+  gap: 0;
+  width: max-content;
+}
+.relationship-end-list {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  margin: 0;
+  border: 1px solid #d9e1e7;
+  border-radius: 5px;
+}
+.relationship-end-list.empty {
+  align-self: center;
+  width: max-content;
+  min-width: 0;
+}
+.relationship-end-list.empty[data-endpoint="start"] { justify-self: end; }
+.relationship-end-list.empty[data-endpoint="end"] { justify-self: start; }
+.relationship-end-list.empty > summary {
+  white-space: nowrap;
+}
+.relationship-end-list.empty > summary::after { display: none; }
+.relationship-end-list[open] {
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.relationship-end-list > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  cursor: pointer;
+  font-weight: 700;
+  background: var(--surface-subtle);
+}
+.relationship-end-items {
+  display: grid;
+  align-content: space-around;
+  gap: 5px;
+  padding: 7px;
+}
+.relationship-end-entry {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #9eb5c6;
+  border-radius: 5px;
+  padding: 6px 7px;
+  text-align: left;
+  background: #eef5fa;
+  color: var(--text);
+  cursor: pointer;
+}
+.relationship-end-entry:hover, .relationship-end-entry:focus { border-color: var(--accent); }
+.relationship-end-entry[data-disconnected="true"] { cursor: default; }
+.relationship-end-entry strong { white-space: nowrap; }
+.relationship-end-entry small { color: var(--muted); }
+.relationship-pathway-hub {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  justify-self: center;
+  width: 154px;
+  min-height: 92px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  border: 1px solid #b07b2e;
+  border-radius: 7px;
+  padding: 10px;
+  background: #fff7e8;
+  text-align: center;
+  color: var(--text);
+  cursor: pointer;
+}
+.relationship-chain-link {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  width: calc(100% + 2px);
+  min-height: 92px;
+  margin-inline: -1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.relationship-junction-hub {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  width: 154px;
+  min-height: 92px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  border: 1px solid #6887a0;
+  border-radius: 999px;
+  padding: 10px;
+  background: #eef5fa;
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+.relationship-junction-hub strong { font-size: 12px; }
+.relationship-junction-hub small { color: var(--muted); }
+.relationship-pathway-hub strong { font-size: 12px; }
+.relationship-pathway-hub small { color: var(--muted); }
+.relationship-connector {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.relationship-connector path,
+.relationship-chain-link path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+.relationship-connector .aggregate-trace { stroke: #7b9ab2; stroke-width: 1.5; }
+.relationship-connector .placeholder-trace { stroke: #9aaab6; stroke-width: 1.5; }
+.relationship-chain-link .structural-trace { stroke: #7b9ab2; stroke-width: 1.5; }
+.relationship-connector .wire-trace,
+.relationship-chain-link .wire-trace { stroke-width: 7; }
+.relationship-connector .stripe-trace,
+.relationship-chain-link .stripe-trace { stroke-width: 1.4; }
+.wire-relationship-graphic {
+  border: 1px solid #d9e1e7;
+  border-radius: 5px;
+  overflow-x: auto;
+  background: var(--surface);
+}
+.wire-relationship-route { cursor: pointer; }
+.wire-relationship-node { cursor: pointer; outline: none; }
+.wire-relationship-node:focus .relationship-node,
+.wire-relationship-node:hover .relationship-node {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.relationship-map-svg { display: block; min-width: 100%; }
+.relationship-route-row { cursor: pointer; }
+.relationship-route-row .row-background { fill: transparent; }
+.relationship-route-row:hover .row-background,
+.relationship-route-row:focus .row-background { fill: #edf6fd; }
+.relationship-route-row:focus { outline: none; }
+.relationship-route-label { fill: var(--text); font-size: 12px; font-weight: 700; }
+.relationship-route-meta { fill: var(--muted); font-size: 10px; }
+.relationship-link { stroke-linecap: round; }
+.relationship-node.connection { fill: #eef5fa; stroke: #6887a0; }
+.relationship-node.pathway { fill: #fff7e8; stroke: #b07b2e; }
+.relationship-node.missing { fill: #fff2f2; stroke: var(--danger); stroke-dasharray: 3 2; }
+.relationship-node-label { fill: var(--text); font-size: 10px; text-anchor: middle; }
+.relationship-node-kind { fill: var(--muted); font-size: 8px; text-anchor: middle; text-transform: uppercase; }
+.relationship-map-empty { padding: 18px; text-align: center; }
+

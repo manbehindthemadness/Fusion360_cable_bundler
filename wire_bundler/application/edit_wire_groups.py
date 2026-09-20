@@ -18,7 +18,8 @@ from ..domain import (
     WireMaterialOverrides,
     validate_harness,
 )
-from .edit_harness import HarnessEditGateway, _persist, _read_definition
+from .edit_harness import HarnessEditGateway
+from .harness_edits.support import persist_definition, read_definition
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def save_wire_editor(
     """
     if (left_pathway_id, left_endpoint) == (right_pathway_id, right_endpoint):
         raise ValueError("Route Editor boundaries must differ.")
-    original, definition = _read_definition(harness_id, gateway)
+    original, definition = read_definition(harness_id, gateway)
     locations = wire_end_locations(definition)
     selected_locations = {
         "left": (left_pathway_id, left_endpoint),
@@ -203,7 +204,7 @@ def save_wire_editor(
     )
     if group_issues:
         raise ValueError(group_issues[0].message)
-    _persist(harness_id, original, updated, gateway)
+    persist_definition(harness_id, original, updated, gateway)
 
 
 def set_wire_group_properties(
@@ -274,14 +275,14 @@ def _update_wire_group(
     """
     Apply one validated replacement to an existing connected wire group.
     """
-    original, definition = _read_definition(harness_id, gateway)
+    original, definition = read_definition(harness_id, gateway)
     if not any(group.wire_group_id == wire_group_id for group in definition.wire_groups):
         raise ValueError("Selected wire group does not exist in this harness.")
     groups = tuple(
         update(group) if group.wire_group_id == wire_group_id else group
         for group in definition.wire_groups
     )
-    _persist(harness_id, original, replace(definition, wire_groups=groups), gateway)
+    persist_definition(harness_id, original, replace(definition, wire_groups=groups), gateway)
 
 
 def wire_end_locations(

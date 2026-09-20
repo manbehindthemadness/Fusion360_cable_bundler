@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass, replace
-from typing import Optional, Protocol
+from typing import Optional
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -22,28 +22,27 @@ from ....application import (
     update_pathway_refine,
 )
 from ....domain import ControlKind, RefineGeometry, loads
-from ....routing import Vector3
-from ....routing.geometry import cross, unit
 from ...refine_graphics import (
     REFINE_GRAPHICS_GROUP_ID,
     REFINE_SPINE_ENTITY_ID,
-    PathwaySpine,
-    RefinePlacement,
     build_end_spine,
     build_pathway_spine,
     clear_refine_spine,
-    draw_candidate_refine,
-    draw_pathway_spine,
     draw_refine_editor,
     place_refine,
     reconcile_refine_graphics,
 )
+from ...refine_graphics import (
+    PathwaySpine as PathwaySpine,
+)
+from ...refine_graphics import (
+    RefinePlacement as RefinePlacement,
+)
 from ...wire_solids import (
-    WireSolidVisibilityState,
     hide_generated_wire_group_solids,
     restore_generated_wire_group_visibility,
 )
-from ..constants import REFINE_RADIUS_INPUT_ID, REFINE_SPINE_INPUT_ID, REFINE_TRANSFORM_INPUT_ID
+from ..constants import REFINE_RADIUS_INPUT_ID, REFINE_SPINE_INPUT_ID
 from ..launchers import _open_refine_edit_command
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
@@ -54,47 +53,46 @@ from ..support import (
     _require_active_design,
 )
 from ..viewport import _refresh_active_preview
+from .refine_parts.inputs import (
+    add_refine_radius_input as _add_refine_radius_input,
+)
+from .refine_parts.inputs import (
+    add_refine_transform_input as _add_refine_transform_input,
+)
+from .refine_parts.inputs import (
+    read_edited_refine_geometry as _read_edited_refine_geometry,
+)
+from .refine_parts.inputs import (
+    read_refine_placement as _read_refine_placement,
+)
+from .refine_parts.inputs import (
+    read_refine_radius_mm as _read_refine_radius_mm,
+)
+from .refine_parts.inputs import (
+    refine_spine_selection_point_mm as _refine_spine_selection_point_mm,
+)
+from .refine_parts.placement import (
+    draw_add_refine_preview as _draw_add_refine_preview,
+)
+from .refine_parts.placement import (
+    show_refine_radius_input as _show_refine_radius_input,
+)
+from .refine_parts.placement import (
+    update_refine_placement as _update_refine_placement,
+)
+from .refine_parts.types import (
+    RefineCommandState as _RefineCommandState,
+)
+from .refine_parts.types import (
+    SelectionInput as _SelectionInput,
+)
 
 MINIMUM_REFINE_RADIUS_MM = 0.5
 
+__all__ = ["PathwaySpine", "RefinePlacement", "_read_refine_placement"]
+
 
 @dataclass
-class _RefineCommandState:
-    """
-    Share the temporary spine and current placement across command handlers.
-    """
-
-    harness_id: UUID
-    target_id: UUID
-    spine: PathwaySpine
-    target_kind: str = "pathway"
-    group: Optional[adsk.fusion.CustomGraphicsGroup] = None
-    placement: Optional[RefinePlacement] = None
-    candidate: Optional[adsk.fusion.CustomGraphicsLines] = None
-    preselected_point_mm: Optional[Vector3] = None
-    solid_visibility: WireSolidVisibilityState = ()
-
-
-class _SelectionInput(Protocol):
-    """
-    Expose selection operations needed around preview-backed graphics.
-    """
-
-    # noinspection PyPep8Naming
-    def setSelectionLimits(self, minimum: int, maximum: int = 0) -> bool:
-        """
-        Require a bounded number of selections.
-        """
-        ...
-
-    # noinspection PyPep8Naming
-    def clearSelection(self) -> bool:
-        """
-        Release the transient graphics selection before preview rollback.
-        """
-        ...
-
-
 class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
     """
     Restrict Custom Graphics selection to the command-owned pathway spine.
@@ -117,117 +115,6 @@ class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
         point_mm = _refine_spine_selection_point_mm(selection)
         if point_mm is not None:
             self._state.preselected_point_mm = point_mm
-
-
-def _refine_spine_selection_point_mm(selection: object) -> Optional[Vector3]:
-    """
-    Convert a valid Custom Graphics spine selection point to millimeters.
-    """
-    entity = getattr(selection, "entity", None)
-    point: Optional[adsk.core.Point3D] = getattr(selection, "point", None)
-    if getattr(entity, "id", None) != REFINE_SPINE_ENTITY_ID or point is None:
-        return None
-    return Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
-
-
-def _selected_refine_point_mm(
-    selection_input: Optional[adsk.core.SelectionCommandInput],
-) -> Optional[Vector3]:
-    """
-    Read a selected spine point, tolerating Fusion-invalidated preview entities.
-    """
-    if selection_input is None or selection_input.selectionCount != 1:
-        return None
-    try:
-        selection = selection_input.selection(0)
-    except (AttributeError, RuntimeError, TypeError):
-        return None
-    return _refine_spine_selection_point_mm(selection)
-
-
-def _update_refine_placement(
-    state: _RefineCommandState,
-    command_inputs: adsk.core.CommandInputs,
-    *,
-    position_manipulator: bool = True,
-) -> None:
-    """
-    Capture selection and radius inputs without modifying document graphics.
-    """
-    radius_input = adsk.core.DistanceValueCommandInput.cast(
-        command_inputs.itemById(REFINE_RADIUS_INPUT_ID)
-    )
-    if radius_input is None:
-        raise RuntimeError("Refine radius input is unavailable.")
-    selection_input = adsk.core.SelectionCommandInput.cast(
-        command_inputs.itemById(REFINE_SPINE_INPUT_ID)
-    )
-    if selection_input is not None and selection_input.selectionCount == 1:
-        selected_point_mm = _selected_refine_point_mm(selection_input)
-        if selected_point_mm is None:
-            selected_point_mm = state.preselected_point_mm
-        if selected_point_mm is None:
-            radius_input.isEnabled = False
-            radius_input.isVisible = False
-            return
-        state.placement = place_refine(
-            state.spine,
-            selected_point_mm,
-            _read_refine_radius_mm(radius_input),
-        )
-    elif state.placement is not None:
-        radius_mm = _read_refine_radius_mm(radius_input)
-        state.placement = replace(
-            state.placement,
-            geometry=replace(
-                state.placement.geometry,
-                display_radius_mm=radius_mm,
-            ),
-        )
-    else:
-        radius_input.isEnabled = False
-        radius_input.isVisible = False
-        return
-    placement = state.placement
-    if placement is None:
-        raise RuntimeError("Refine placement state was not captured.")
-    _show_refine_radius_input(radius_input, placement, position_manipulator=position_manipulator)
-
-
-def _show_refine_radius_input(
-    radius_input: adsk.core.DistanceValueCommandInput,
-    placement: RefinePlacement,
-    *,
-    position_manipulator: bool = True,
-) -> None:
-    """
-    Reveal the radius control and optionally position its canvas manipulator.
-    """
-    radius_input.isEnabled = True
-    radius_input.isVisible = True
-    if not position_manipulator:
-        return
-    origin = placement.geometry.origin_mm
-    direction = placement.geometry.u_direction
-    if not radius_input.setManipulator(
-        adsk.core.Point3D.create(*(coordinate / 10.0 for coordinate in origin)),
-        adsk.core.Vector3D.create(*direction),
-    ):
-        raise RuntimeError("Fusion could not position the refine-radius manipulator.")
-
-
-def _draw_add_refine_preview(state: _RefineCommandState) -> None:
-    """
-    Rebuild Add Refine graphics inside Fusion's preview transaction.
-    """
-    application = adsk.core.Application.get()
-    design = _require_active_design(application)
-    group, _lines = draw_pathway_spine(design, state.spine)
-    state.group = group
-    state.candidate = None
-    if state.placement is not None:
-        state.candidate = draw_candidate_refine(group, state.placement.geometry)
-    application.activeViewport.refresh()
 
 
 class _RefineActivateHandler(adsk.core.CommandEventHandler):
@@ -870,119 +757,6 @@ class _RefineActiveSelectionHandler(adsk.core.ActiveSelectionEventHandler):
             _open_refine_edit_command(application, *match)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             _report_failure("select refine point")
-
-
-def _read_refine_placement(
-    command_inputs: adsk.core.CommandInputs,
-    spine: PathwaySpine,
-) -> RefinePlacement:
-    """
-    Read a selected spine point and marker radius in millimeters.
-    """
-    selection_input = adsk.core.SelectionCommandInput.cast(
-        command_inputs.itemById(REFINE_SPINE_INPUT_ID)
-    )
-    radius_input = adsk.core.DistanceValueCommandInput.cast(
-        command_inputs.itemById(REFINE_RADIUS_INPUT_ID)
-    )
-    if selection_input is None or selection_input.selectionCount != 1:
-        raise ValueError("Select one point on the pathway spine.")
-    radius_mm = _read_refine_radius_mm(radius_input)
-    selected_point = _selected_refine_point_mm(selection_input)
-    if selected_point is None:
-        raise ValueError("Select a point on the displayed pathway spine.")
-    return place_refine(spine, selected_point, radius_mm)
-
-
-def _add_refine_radius_input(
-    command_inputs: adsk.core.CommandInputs,
-    initial_radius_mm: float = MINIMUM_REFINE_RADIUS_MM,
-) -> adsk.core.DistanceValueCommandInput:
-    """
-    Add a radius manipulator that starts at or above the supported minimum.
-    """
-    clamped_radius_mm = max(float(initial_radius_mm), MINIMUM_REFINE_RADIUS_MM)
-    radius_input = command_inputs.addDistanceValueCommandInput(
-        REFINE_RADIUS_INPUT_ID,
-        "Marker Radius",
-        adsk.core.ValueInput.createByString(f"{clamped_radius_mm:g} mm"),
-    )
-    if radius_input is None:
-        raise RuntimeError("Fusion could not create the refine-radius input.")
-    radius_input.minimumValue = MINIMUM_REFINE_RADIUS_MM / 10.0
-    radius_input.isMinimumValueInclusive = True
-    return radius_input
-
-
-def _read_refine_radius_mm(
-    radius_input: Optional[adsk.core.DistanceValueCommandInput],
-) -> float:
-    """
-    Read a valid Fusion distance and clamp transient subminimum values.
-    """
-    if radius_input is None or not radius_input.isValidExpression:
-        raise ValueError("Refine marker radius must be valid.")
-    return max(radius_input.value * 10.0, MINIMUM_REFINE_RADIUS_MM)
-
-
-def _refine_geometry_transform(geometry: RefineGeometry) -> adsk.core.Matrix3D:
-    """
-    Convert saved millimeter geometry into a centimeter-based Fusion triad.
-    """
-    u_direction = Vector3(*geometry.u_direction)
-    v_direction = Vector3(*geometry.v_direction)
-    tangent = unit(cross(u_direction, v_direction))
-    transform = adsk.core.Matrix3D.create()
-    if transform is None or not transform.setWithCoordinateSystem(
-        adsk.core.Point3D.create(*(value / 10.0 for value in geometry.origin_mm)),
-        adsk.core.Vector3D.create(*geometry.u_direction),
-        adsk.core.Vector3D.create(*geometry.v_direction),
-        adsk.core.Vector3D.create(tangent.x, tangent.y, tangent.z),
-    ):
-        raise RuntimeError("Fusion could not orient the refine transform controls.")
-    return transform
-
-
-def _add_refine_transform_input(
-    command_inputs: adsk.core.CommandInputs,
-    geometry: RefineGeometry,
-) -> adsk.core.TriadCommandInput:
-    """
-    Add a triad and explicitly initialize its writable world transform.
-
-    Fusion can ignore the initial matrix passed to ``addTriadCommandInput``;
-    assigning the same matrix to ``transform`` prevents the dialog and the first
-    manipulation from falling back to the global origin.
-    """
-    initial_transform = _refine_geometry_transform(geometry)
-    triad = command_inputs.addTriadCommandInput(
-        REFINE_TRANSFORM_INPUT_ID,
-        initial_transform,
-    )
-    if triad is None:
-        raise RuntimeError("Fusion could not create the refine transform controls.")
-    triad.transform = initial_transform
-    return triad
-
-
-def _read_edited_refine_geometry(command_inputs: adsk.core.CommandInputs) -> RefineGeometry:
-    """
-    Read a rigid triad and marker radius as persistent millimeter geometry.
-    """
-    triad = adsk.core.TriadCommandInput.cast(command_inputs.itemById(REFINE_TRANSFORM_INPUT_ID))
-    radius = adsk.core.DistanceValueCommandInput.cast(
-        command_inputs.itemById(REFINE_RADIUS_INPUT_ID)
-    )
-    if triad is None or not triad.isValidExpressions:
-        raise ValueError("Refine position and rotation must be valid.")
-    radius_mm = _read_refine_radius_mm(radius)
-    origin, u_direction, v_direction, _tangent = triad.transform.getAsCoordinateSystem()
-    return RefineGeometry(
-        origin_mm=(origin.x * 10.0, origin.y * 10.0, origin.z * 10.0),
-        u_direction=(u_direction.x, u_direction.y, u_direction.z),
-        v_direction=(v_direction.x, v_direction.y, v_direction.z),
-        display_radius_mm=radius_mm,
-    )
 
 
 def _reconcile_active_refines(application: adsk.core.Application) -> None:

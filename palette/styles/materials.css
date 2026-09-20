@@ -1,0 +1,43 @@
+/* Material editor and stripe controls. */
+
+.material-field { display: grid; gap: 6px; }
+.material-options form, .material-options label, .material-field,
+.appearance-library-controls, .stripe-row, .stripe-values { min-width: 0; }
+.material-options input:not([type="checkbox"]):not([type="color"]),
+.material-options select, .material-options textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.material-options input.filter, .material-options select {
+  box-sizing: border-box;
+  min-height: 38px;
+  height: 38px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  line-height: 20px;
+}
+.material-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.material-field-heading label { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+.material-color-row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
+.material-color-context { position: relative; }
+.material-color-context > .relationship-map-context-menu { z-index: 30; }
+.material-color-row input[type="color"] { width: 46px; height: 34px; padding: 2px; }
+.appearance-source { display: grid; gap: 6px; }
+.appearance-library-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.autocomplete { position: relative; }
+.autocomplete-suggestions { position: absolute; z-index: 20; top: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 4px 4px; box-shadow: 0 5px 12px #0003; }
+.autocomplete-suggestions[hidden] { display: none; }
+.autocomplete-suggestions button { display: block; width: 100%; min-height: 34px; padding: 6px 9px; border: 0; background: var(--surface); text-align: left; }
+.autocomplete-suggestions button:hover, .autocomplete-suggestions button:focus { background: var(--surface-subtle); }
+.stripe-list { display: grid; gap: 7px; }
+.stripe-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 6px; align-items: end; border: 1px solid var(--border); border-radius: 4px; padding: 7px; }
+.stripe-row input[type="color"] { width: 38px; height: 34px; padding: 2px; }
+.stripe-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.stripe-values label { gap: 3px; color: var(--muted); font-size: 11px; }
+.material-options textarea { min-height: 64px; resize: vertical; }
+.nested-details { margin-top: 0; background: var(--surface-subtle); }
+.nested-details + .nested-details { margin-top: 6px; }
+.nested-details > summary { padding: 8px 9px; font-size: 12px; }
+.nested-details > .section-content { padding: 0 9px 9px; }
+

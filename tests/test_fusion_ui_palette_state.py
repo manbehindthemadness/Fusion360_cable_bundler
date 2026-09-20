@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from tests.fusion_ui_support import (
     HarnessDefinition,
     HarnessLoadResult,
@@ -17,6 +19,15 @@ def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModul
     Keep every stylesheet and ordered script beside the palette entry point.
     """
     assert all(path.is_file() for path in addin_module.PALETTE_RESOURCE_FILES)
+    palette_file = addin_module.PALETTE_RESOURCE_FILES[0]
+    html = palette_file.read_text(encoding="utf-8")
+    relative_resources = {
+        path.relative_to(palette_file.parent).as_posix()
+        for path in addin_module.PALETTE_RESOURCE_FILES
+        if path != palette_file
+    }
+    referenced_resources = set(re.findall(r'(?:src|href)="([^"]+\.(?:js|css))"', html))
+    assert relative_resources == referenced_resources
 
 
 def test_palette_state_contains_complete_group_definition(
@@ -54,6 +65,7 @@ def test_palette_state_contains_complete_group_definition(
             "connectionId": str(end.connection_id),
             "pathwayId": str(end.pathway_id),
             "endpoint": end.endpoint.value,
+            "orderedControlIds": [str(control_id) for control_id in end.ordered_control_ids],
         }
         for end in valid_harness.standalone_ends
     ]

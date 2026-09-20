@@ -6,7 +6,13 @@
   <title>Harness Builder</title>
   <!-- Dynamic elements use these classes at runtime. -->
   <!--suppress CssUnusedSymbol -->
-  <link rel="stylesheet" href="palette/styles.css">
+  <link rel="stylesheet" href="palette/styles/base.css">
+  <link rel="stylesheet" href="palette/styles/materials.css">
+  <link rel="stylesheet" href="palette/styles/editor.css">
+  <link rel="stylesheet" href="palette/styles/diagram-workspace.css">
+  <link rel="stylesheet" href="palette/styles/create-wires.css">
+  <link rel="stylesheet" href="palette/styles/diagram-components.css">
+  <link rel="stylesheet" href="palette/styles/utilities.css">
 </head>
 <body>
   <main>
@@ -82,17 +88,27 @@
       </div>
     </form>
   </dialog>
-  <script src="palette/foundation.js"></script>
+  <script src="palette/foundation/state.js"></script>
+  <script src="palette/foundation/components.js"></script>
+  <script src="palette/foundation/pathways.js"></script>
   <script src="palette/pathway-editors.js"></script>
   <script src="palette/materials.js"></script>
   <script src="palette/diagrams/workspace.js"></script>
   <script src="palette/diagrams/master-model.js"></script>
-  <script src="palette/diagrams/master-layout.js"></script>
+  <script src="palette/diagrams/master-layout/ports.js"></script>
+  <script src="palette/diagrams/master-layout/routing.js"></script>
+  <script src="palette/diagrams/master-layout/rendering.js"></script>
+  <script src="palette/diagrams/master-layout/node-metrics.js"></script>
+  <script src="palette/diagrams/master-layout/layouts.js"></script>
+  <script src="palette/diagrams/master-layout/controller.js"></script>
   <script src="palette/wire-group-details.js"></script>
-  <script src="palette/diagrams/create-wires.js"></script>
+  <script src="palette/diagrams/create-wires/model.js"></script>
+  <script src="palette/diagrams/create-wires/view.js"></script>
+  <script src="palette/diagrams/create-wires/controller.js"></script>
   <script src="palette/diagrams/master-components.js"></script>
   <script src="palette/master-graphic.js"></script>
   <script src="palette/editor.js"></script>
+  <script src="palette/qa/diagram-observation.js"></script>
   <script src="palette/host.js"></script>
 </body>
 </html>

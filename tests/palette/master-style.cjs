@@ -1,14 +1,14 @@
 /** Focused palette regression suite. */
 /* global require, __dirname */
-const { assert, join, readFileSync, test } = require('./support.cjs');
+const { assert, readPaletteStyles, test } = require('./support.cjs');
 
 test('master relationship viewport uses a distinct darker backdrop', () => {
-  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  const styles = readPaletteStyles();
   assert.match(styles, /\.relationship-map-viewport \{[^}]*background: #dfe5ea;/s);
 });
 
 test('Wire Details fills most of the window and uses the shared diagram workspace', () => {
-  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  const styles = readPaletteStyles();
   assert.match(styles, /\.wire-group-details-popup \{[^}]*width: 90vw;[^}]*height: 90vh;/s);
   assert.match(
     styles,
@@ -20,7 +20,7 @@ test('Wire Details fills most of the window and uses the shared diagram workspac
 });
 
 test('Route Editor uses three independently scrollable columns', () => {
-  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  const styles = readPaletteStyles();
   const columnPattern = [
     String.raw`\.create-wires-layout \{[^}]*grid-template-columns: `,
     String.raw`minmax\(0, 1fr\) minmax\(0, 2fr\) minmax\(0, 1fr\);`,
@@ -63,7 +63,7 @@ test('Route Editor uses three independently scrollable columns', () => {
 });
 
 test('long wire-end names expand horizontally instead of wrapping', () => {
-  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+  const styles = readPaletteStyles();
 
   assert.match(
     styles,

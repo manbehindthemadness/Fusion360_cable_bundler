@@ -1,7 +1,9 @@
 /** Run with node tests/test_palette.cjs; no Fusion or browser dependencies. */
 /* global require */
 const paletteSuites = [
-  "group-ui.cjs",
+  "master-layout-state.cjs",
+  "master-layout-routing.cjs",
+  "panel-ui.cjs",
   "master-style.cjs",
 ];
 

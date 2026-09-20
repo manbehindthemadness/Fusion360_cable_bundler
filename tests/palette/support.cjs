@@ -194,6 +194,14 @@ function palette(storage = new Map(), preferences = storage) {
   return { context, calls };
 }
 
+/** Read every palette stylesheet in the production document order. */
+function readPaletteStyles() {
+  const html = readFileSync(join(__dirname, '..', '..', 'palette.html'), 'utf8');
+  return [...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
+    .map((match) => readFileSync(join(__dirname, '..', '..', match[1]), 'utf8'))
+    .join('\n');
+}
+
 /** Collect rendered descendants using a predicate. */
 function descendants(root, predicate) {
   return root.children.flatMap((child) => typeof child === 'object'
@@ -244,6 +252,7 @@ module.exports = {
   harness,
   join,
   palette,
+  readPaletteStyles,
   readFileSync,
   runInNewContext,
   test,
