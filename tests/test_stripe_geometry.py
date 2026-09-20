@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from cable_bundler.domain import StripePattern, CableColor, CableStripe
+from cable_bundler.domain import CableColor, CableStripe, StripePattern
 from cable_bundler.routing import (
     CubicBezier,
     RoutePreview,

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from tests.fusion_ui_support import (
     UUID,
+    CableColor,
+    CableGroupDefinition,
+    CableStripe,
     ControlKind,
     ControlStructure,
     HarnessDefinition,
@@ -12,9 +15,6 @@ from tests.fusion_ui_support import (
     Mock,
     PathwayEndpoint,
     SimpleNamespace,
-    CableColor,
-    CableGroupDefinition,
-    CableStripe,
     _PaletteLifecycleModule,
     dumps,
     json,

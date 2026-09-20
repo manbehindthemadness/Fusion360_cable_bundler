@@ -6,6 +6,7 @@ from dataclasses import replace
 from uuid import UUID
 
 from cable_bundler.domain import (
+    CableGroupDefinition,
     Connection,
     ControlKind,
     ControlStructure,
@@ -15,7 +16,6 @@ from cable_bundler.domain import (
     PathwayDefinition,
     PathwayEndpoint,
     StandaloneEndDefinition,
-    CableGroupDefinition,
     validate_harness,
 )
 

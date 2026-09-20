@@ -338,20 +338,12 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
         collision_calls.append((transitions, options["auto_transition_fraction"]))
         return route_items, ()
 
-    monkeypatch.setattr(
-        "cable_bundler.fusion.route_preview_parts.solver.plan_cable_group_routes",
-        lambda _definition: (leg,),
-    )
+    solver_namespace = vars(route_solver)
+    monkeypatch.setitem(solver_namespace, "plan_cable_group_routes", lambda _definition: (leg,))
     monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
     monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
-    monkeypatch.setattr(
-        "cable_bundler.fusion.route_preview_parts.solver.fair_route",
-        capture_fair_route,
-    )
-    monkeypatch.setattr(
-        "cable_bundler.fusion.route_preview_parts.solver.separate_route_collisions",
-        capture_collision_fairing,
-    )
+    monkeypatch.setitem(solver_namespace, "fair_route", capture_fair_route)
+    monkeypatch.setitem(solver_namespace, "separate_route_collisions", capture_collision_fairing)
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
     routes, legs = route_preview.solve_cable_group_centerlines(object(), definition)

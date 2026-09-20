@@ -68,7 +68,13 @@ def test_adds_ordered_pathway_to_existing_harness(valid_harness: HarnessDefiniti
     """
     Persist selected profile tokens in traversal order with stable identities.
     """
-    empty_harness = replace(valid_harness, controls=(), pathways=(), cables=())
+    empty_harness = replace(
+        valid_harness,
+        controls=(),
+        pathways=(),
+        standalone_ends=(),
+        cable_groups=(),
+    )
     gateway = _RecordingPathwayGateway(empty_harness)
     identifiers = iter((GATE_1_ID, GATE_2_ID, PATHWAY_ID))
 

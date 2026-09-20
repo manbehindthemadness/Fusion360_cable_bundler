@@ -10,6 +10,7 @@ import pytest
 
 from cable_bundler.domain import (
     SCHEMA_VERSION,
+    CableGroupDefinition,
     Connection,
     ControlKind,
     ControlStructure,
@@ -18,7 +19,6 @@ from cable_bundler.domain import (
     PathwayEndpoint,
     RoutingMode,
     StandaloneEndDefinition,
-    CableGroupDefinition,
 )
 
 pytest_plugins = ("tests.fusion_ui_support",)

@@ -8,9 +8,9 @@ import re
 
 import pytest
 
-from experiments.sweep_scenarios import SweepScenario, sweep_scenarios
 from cable_bundler.routing import fair_route, tightest_bend
 from cable_bundler.routing.geometry import difference, dot, magnitude, unit
+from experiments.sweep_scenarios import SweepScenario, sweep_scenarios
 
 
 @pytest.mark.parametrize("scenario", sweep_scenarios(), ids=lambda scenario: scenario.name)
