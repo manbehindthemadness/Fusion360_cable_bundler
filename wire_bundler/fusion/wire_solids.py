@@ -257,6 +257,48 @@ def apply_wire_group_materials(
     return applied
 
 
+def restore_wire_group_stripe_graphics(
+    harness: adsk.fusion.Component,
+    definition: HarnessDefinition,
+) -> int:
+    """
+    Recreate transient stripe meshes for existing generated wire-group solids.
+
+    Generated components retain their exact component-local route curves, while
+    the harness definition remains authoritative for current stripe settings.
+    Rebuilding only Custom Graphics keeps existing solid geometry untouched.
+    """
+    groups = {group.wire_group_id: group for group in definition.wire_groups}
+    restored = 0
+    for occurrence in generated_wire_group_occurrences(harness):
+        component = occurrence.component
+        attribute = component.attributes.itemByName(ATTRIBUTE_GROUP, GENERATED_WIRE_GROUP_ATTRIBUTE)
+        if attribute is None:
+            continue
+        try:
+            metadata = json.loads(attribute.value)
+            group_id = UUID(metadata["wire_group_id"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise RuntimeError("A generated wire group has invalid identity metadata.") from error
+        group = groups.get(group_id)
+        if group is None:
+            continue
+        stripes = definition.wire_group_materials(group).stripes
+        routes = _group_routes_from_metadata(metadata)
+        if not routes and stripes:
+            raise RuntimeError(
+                "Generated wire-group metadata has no routes for restoring stripe patterns."
+            )
+        restored += _replace_group_stripe_graphics(
+            component,
+            routes,
+            stripes,
+            group.diameter_mm / 2.0,
+            group_id,
+        )
+    return restored
+
+
 def _world_to_harness(
     design: adsk.fusion.Design, harness: adsk.fusion.Component
 ) -> adsk.core.Matrix3D:

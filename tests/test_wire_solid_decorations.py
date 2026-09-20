@@ -5,15 +5,18 @@ Regression tests for decoration continuity across generated solid segments.
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from types import ModuleType
 from typing import Iterator, Optional, Protocol, cast
+from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
 
-from wire_bundler.domain import StripePattern, WireColor, WireStripe
+from wire_bundler.domain import HarnessDefinition, StripePattern, WireColor, WireStripe
 from wire_bundler.routing import CubicBezier, RoutePreview, StripeMeshResult, Vector3
 from wire_bundler.routing.geometry import difference, dot, unit
 
@@ -52,6 +55,9 @@ class _WireSolidsModule(Protocol):
         ],
         tuple[tuple[_SweepSegment, StripeMeshResult], ...],
     ]
+    restore_wire_group_stripe_graphics: Callable[[object, object], int]
+    generated_wire_group_occurrences: Callable[[object], tuple[object, ...]]
+    _replace_group_stripe_graphics: Callable[..., int]
 
 
 @pytest.fixture
@@ -117,6 +123,67 @@ def _radial(result: StripeMeshResult, boundary: str) -> tuple[float, float, floa
     continuation = result.start if boundary == "start" else result.end
     assert continuation is not None
     return continuation.radial.x, continuation.radial.y, continuation.radial.z
+
+
+def test_restores_transient_stripes_from_generated_routes(
+    wire_solids: _WireSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Recreate decorations after reload without regenerating persistent bodies.
+    """
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(
+            valid_harness.material_defaults,
+            stripes=(WireStripe(WireColor("Red", 255, 0, 0), 0.25),),
+        ),
+    )
+    group = definition.wire_groups[0]
+    route = _straight_route(900, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    metadata = {
+        "wire_group_id": str(group.wire_group_id),
+        "route_legs": [
+            {
+                "route_id": str(route.wire_id),
+                "label": route.wire_number,
+                "route_curves_mm": [
+                    [
+                        [point.x, point.y, point.z]
+                        for point in (
+                            route.curves[0].start,
+                            route.curves[0].control_a,
+                            route.curves[0].control_b,
+                            route.curves[0].end,
+                        )
+                    ]
+                ],
+            }
+        ],
+    }
+    attribute = type("Attribute", (), {"value": json.dumps(metadata)})()
+    attributes = type("Attributes", (), {"itemByName": lambda *_args: attribute})()
+    component = type("Component", (), {"attributes": attributes})()
+    occurrence = type("Occurrence", (), {"component": component})()
+    replace_graphics = Mock(return_value=4)
+    monkeypatch.setattr(
+        wire_solids,
+        "generated_wire_group_occurrences",
+        lambda _harness: (occurrence,),
+    )
+    monkeypatch.setattr(
+        wire_solids,
+        "_replace_group_stripe_graphics",
+        replace_graphics,
+    )
+
+    assert wire_solids.restore_wire_group_stripe_graphics(object(), definition) == 4
+
+    restored_routes = replace_graphics.call_args.args[1]
+    assert restored_routes == (route,)
+    assert replace_graphics.call_args.args[3] == group.diameter_mm / 2.0
+    assert replace_graphics.call_args.args[4] == group.wire_group_id
 
 
 def test_copies_root_decoration_position_to_every_branch(

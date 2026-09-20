@@ -108,6 +108,8 @@ class _PaletteLifecycleModule(Protocol):
     _HistoryChangedHandler: type
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type
+    _restore_active_stripe_graphics: Callable[[object], int]
+    restore_wire_group_stripe_graphics: Callable[[object, HarnessDefinition], int]
     _open_palette_edit: Callable[[object, str, str], None]
     _apply_palette_edit: Callable[[object, str, str], str]
     _refresh_active_preview: Callable[..., str]

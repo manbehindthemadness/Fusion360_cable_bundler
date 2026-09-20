@@ -4,7 +4,7 @@ Fusion UI services for lifecycle.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, cast
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -16,6 +16,7 @@ from ...application import load_harnesses
 from .. import clear_route_previews
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import has_route_previews, reconcile_preview_history, reset_preview_history
+from ..wire_solids import restore_wire_group_stripe_graphics
 from .commands.refines import (
     RefineActiveSelectionHandler,
     reconcile_active_refines,
@@ -166,6 +167,34 @@ def _remove_document_handlers(application: adsk.core.Application) -> None:
     _restore_graphics_cache_preference(application)
 
 
+def _restore_active_stripe_graphics(
+    application: adsk.core.Application,
+) -> int:
+    """
+    Restore transient decorations for every readable harness in the active design.
+
+    One damaged generated component must not prevent other harnesses or the add-in
+    itself from loading.
+    """
+    restored = 0
+    results = load_harnesses(_create_harness_gateway(application))
+    for result in results:
+        if result.definition is None or result.component_handle is None:
+            continue
+        try:
+            restored += restore_wire_group_stripe_graphics(
+                cast("adsk.fusion.Component", result.component_handle),
+                result.definition,
+            )
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            _log_to_fusion(
+                f"Could not restore stripe decorations for {result.component_name}: {error}"
+            )
+    if restored:
+        application.activeViewport.refresh()
+    return restored
+
+
 def _register_palette_edit_commands(
     user_interface: adsk.core.UserInterface,
 ) -> None:
@@ -227,6 +256,7 @@ def start(_context: object) -> None:
 
         design = adsk.fusion.Design.cast(application.activeProduct)
         if design is not None:
+            _restore_active_stripe_graphics(application)
             reconcile_active_refines(application)
     except Exception:
         if application is not None:

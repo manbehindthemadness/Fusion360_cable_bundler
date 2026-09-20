@@ -84,6 +84,41 @@ def test_history_sync_does_not_edit_model_or_redraw(
     assert gateway.mock_calls == []
 
 
+def test_reload_restores_stripes_for_each_readable_harness(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Rebuild session-only stripe graphics when the add-in starts again.
+    """
+    application = SimpleNamespace(activeViewport=SimpleNamespace(refresh=Mock()))
+    harness_component = object()
+    damaged_component = object()
+    gateway = object()
+    restore = Mock(return_value=3)
+    results = (
+        SimpleNamespace(
+            component_name="Harness A",
+            definition=valid_harness,
+            component_handle=harness_component,
+        ),
+        SimpleNamespace(
+            component_name="Damaged",
+            definition=None,
+            component_handle=damaged_component,
+        ),
+    )
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: results)
+    monkeypatch.setattr(addin_module, "restore_wire_group_stripe_graphics", restore)
+
+    assert addin_module._restore_active_stripe_graphics(application) == 3
+
+    restore.assert_called_once_with(harness_component, valid_harness)
+    application.activeViewport.refresh.assert_called_once()
+
+
 def test_pending_slot_consumes_once_and_rejects_overlap(
     addin_module: _PaletteLifecycleModule,
 ) -> None:
