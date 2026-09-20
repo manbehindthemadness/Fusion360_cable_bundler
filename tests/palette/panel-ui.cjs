@@ -444,6 +444,70 @@ test('master end menu switches only disconnected ends immediately above Rename',
   assert.equal(menu.children.some((item) => item.textContent === 'Switch'), false);
 });
 
+test('Route Editor opens Details only for connected cable ends', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.cableGroups = definition.cableGroups.slice(1);
+  const left = context.resolveCableCreationBoundary(
+    definition, { pathwayId: 'p', endpoint: 'start' },
+  );
+  const right = context.resolveCableCreationBoundary(
+    definition, { pathwayId: 'p', endpoint: 'end' },
+  );
+  context.openCreateCablesPopup(definition, left, right);
+  const editor = context.document.body.querySelector('.create-cables-popup');
+  const cards = descendants(
+    editor, (node) => node.className?.split(' ').includes('create-cables-end-card'),
+  );
+  const connected = cards.find((candidate) => candidate.dataset.connectionId === 'a2');
+  const disconnected = cards.find((candidate) => candidate.dataset.connectionId === 'a1');
+  const openMenu = (connectionId) => {
+    const card = cards.find((candidate) => candidate.dataset.connectionId === connectionId);
+    card.events.contextmenu({
+      clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: card,
+    });
+    return editor.querySelector('.relationship-map-context-menu');
+  };
+
+  let menu = openMenu('a2');
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Details', 'Rename', 'Delete',
+  ]);
+  menu.children[0].events.click();
+  assert.equal(editor.open, true);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup').open, true);
+
+  context.closeCableGroupDetails();
+  connected.closest = () => null;
+  connected.setPointerCapture = () => {};
+  connected.hasPointerCapture = () => false;
+  connected.events.pointerdown({
+    button: 0, clientX: 20, clientY: 20, pointerId: 1, target: connected,
+  });
+  connected.events.pointermove({
+    clientX: 1000, clientY: 1000, preventDefault() {}, target: connected,
+  });
+  connected.events.pointerup({ pointerId: 1, target: connected });
+  connected.events.click({
+    preventDefault() {}, stopPropagation() {}, target: connected,
+  });
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
+
+  connected.events.pointerdown({
+    button: 0, clientX: 20, clientY: 20, pointerId: 2, target: connected,
+  });
+  connected.events.pointerup({ pointerId: 2, target: connected });
+  connected.events.click({ target: connected });
+  assert.equal(editor.open, true);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup').open, true);
+
+  context.closeCableGroupDetails();
+  menu = openMenu('a1');
+  assert.deepEqual(menu.children.map((item) => item.textContent), ['Rename', 'Delete']);
+  disconnected.events.click?.({ target: disconnected });
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
+});
+
 asyncTest('editing a master end isolates keyboard and pointer events until saved', async () => {
   const { context, calls } = palette();
   const definition = harness();

@@ -533,10 +533,12 @@ function cableGroupDetailsContextTargetIsInteractive(target, dialog) {
 }
 
 /** Open one refresh-stable route-and-member dialog for a connected cable group. */
-function openCableGroupDetails(harness, cableGroupId, connectionId) {
+function openCableGroupDetails(
+  harness, cableGroupId, connectionId, options = {},
+) {
   closePathwayPopup();
   closeJunctionRelationships();
-  closeCreateCablesPopup();
+  if (!options.preserveCreateCablesPopup) closeCreateCablesPopup();
   const prior = document.body.querySelector(".cable-group-details-popup");
   if (prior) {
     prior.remove();

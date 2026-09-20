@@ -16,13 +16,20 @@ function renderCableCreationEndCard(
   status.textContent = connected ? "Connected" : "Disconnected";
   card.append(name, status);
   hoverHighlight(card, () => highlightCableCreationEnd(harness, group));
+  const openDetails = connected && group.cableGroupId
+    ? () => openCableGroupDetails(
+      harness, group.cableGroupId, group.connectionId,
+      { preserveCreateCablesPopup: true },
+    )
+    : null;
+  card.activateCableDetails = openDetails;
   if (group.standalone) {
     if (!connected) card.dataset.disconnected = "true";
     card.tabIndex = 0;
     card.setAttribute("aria-label", `${group.label}, ${connected ? "connected" : "disconnected"} end`);
     card.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
-      showContextMenu(event, [
+      const contextItems = [
         {
           label: "Rename",
           action: () => beginInlineNameEdit(card, name, status, {
@@ -43,7 +50,14 @@ function renderCableCreationEndCard(
             rerender();
           },
         },
-      ]);
+      ];
+      if (openDetails) {
+        contextItems.unshift({
+          label: "Details",
+          action: openDetails,
+        });
+      }
+      showContextMenu(event, contextItems);
     });
   }
   return card;
@@ -66,8 +80,9 @@ function cableCreationContainsPoint(element, clientX, clientY) {
 }
 
 /** Add pathway-guide-style pointer dragging to one Route Editor card. */
-function enableCableCreationDrag(card, source, surfaces, onDrop) {
+function enableCableCreationDrag(card, source, surfaces, onDrop, onActivate = null) {
   let drag = null;
+  let suppressActivation = false;
   const clearMarkers = () => {
     surfaces.markers.forEach((element) => {
       delete element.dataset.drop;
@@ -89,6 +104,7 @@ function enableCableCreationDrag(card, source, surfaces, onDrop) {
   card.addEventListener("dragstart", (event) => event.preventDefault());
   card.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || event.target.closest("input")) return;
+    suppressActivation = false;
     drag = { x: event.clientX, y: event.clientY, active: false, target: null };
     card.setPointerCapture(event.pointerId);
   });
@@ -97,6 +113,7 @@ function enableCableCreationDrag(card, source, surfaces, onDrop) {
     if (!drag.active && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
     event.preventDefault();
     drag.active = true;
+    suppressActivation = true;
     card.dataset.dragging = "true";
     drag.target = null;
     clearMarkers();
@@ -153,6 +170,18 @@ function enableCableCreationDrag(card, source, surfaces, onDrop) {
   });
   card.addEventListener("pointercancel", clearDrag);
   card.addEventListener("lostpointercapture", clearDrag);
+  if (onActivate) {
+    card.addEventListener("click", (event) => {
+      if (event.target.closest?.("input")) return;
+      if (suppressActivation) {
+        suppressActivation = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      onActivate();
+    });
+  }
 }
 
 /** Create one static outer column and its replaceable list. */
@@ -268,6 +297,7 @@ function renderCableCreationAssignments(
           assignCableCreationPoolItem(assignments, side, poolIndex, target.rowIndex ?? 0);
           rerender();
         },
+        card.activateCableDetails,
       );
     });
   });
@@ -288,10 +318,10 @@ function renderCableCreationAssignments(
           }
           rerender();
         },
+        card.activateCableDetails,
       );
     });
   });
 }
 
 /** Remove the popup while optionally retaining enough state to restore it. */
-
