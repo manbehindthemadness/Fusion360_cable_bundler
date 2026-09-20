@@ -31,7 +31,11 @@ from ...domain import (
     CableStripe,
     HarnessDefinition,
 )
-from ..cable_solids import generated_cable_group_occurrences
+from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE
+from ..cable_solids import (
+    generated_cable_group_occurrences,
+    generated_cable_group_output_mode,
+)
 from ..route_preview import has_route_preview_for_harness
 from .constants import PALETTE_ID
 from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
@@ -61,9 +65,9 @@ def _harness_render_state(
     application: adsk.core.Application,
     gateway: object,
     definition: HarnessDefinition,
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, bool]:
     """
-    Discover mutually exclusive preview and solid output for one harness.
+    Discover mutually exclusive preview, solid, and finalized output for one harness.
 
     A solid wins during the brief interval before post-command preview cleanup,
     preserving the Render menu's NAND contract throughout palette refreshes.
@@ -72,18 +76,23 @@ def _harness_render_state(
     design_type = getattr(adsk.fusion, "Design", None)
     component_reader = getattr(gateway, "harness_component", None)
     if active_product is None or design_type is None or component_reader is None:
-        return False, False
+        return False, False, False
     design = cast(Any, design_type).cast(active_product)
     if design is None:
-        return False, False
+        return False, False, False
     read_harness_component = cast(
         Callable[[UUID], object],
         component_reader,
     )
     harness_component = read_harness_component(definition.harness_id)
-    has_solids = bool(generated_cable_group_occurrences(harness_component))
-    has_preview = not has_solids and has_route_preview_for_harness(design, definition)
-    return has_preview, has_solids
+    occurrences = generated_cable_group_occurrences(harness_component)
+    has_finalized = bool(occurrences) and all(
+        generated_cable_group_output_mode(occurrence) == FINALIZED_OUTPUT_MODE
+        for occurrence in occurrences
+    )
+    has_solids = bool(occurrences) and not has_finalized
+    has_preview = not occurrences and has_route_preview_for_harness(design, definition)
+    return has_preview, has_solids, has_finalized
 
 
 def _palette_theme_payload(application: adsk.core.Application) -> dict[str, str]:
@@ -142,7 +151,7 @@ def serialize_palette_state(
             )
             continue
         cable_groups, cable_group_route_error = _cable_group_payloads(definition)
-        has_route_preview, has_generated_solids = _harness_render_state(
+        has_route_preview, has_generated_solids, has_finalized_geometry = _harness_render_state(
             application,
             gateway,
             definition,
@@ -160,6 +169,7 @@ def serialize_palette_state(
                 "autoTransitionPreset": definition.auto_transition_preset.value,
                 "hasRoutePreview": has_route_preview,
                 "hasGeneratedSolids": has_generated_solids,
+                "hasFinalizedGeometry": has_finalized_geometry,
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
                 "connections": [
                     {

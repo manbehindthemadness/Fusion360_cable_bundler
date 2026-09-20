@@ -69,6 +69,7 @@ from .viewport import (
     _clear_highlight,
     _clear_preview,
     _clear_solids,
+    _finalize_solids,
     _generate_solids,
     _highlight_member,
     _preview_routes,
@@ -175,6 +176,10 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 return
             if action == "generate_solids":
                 _generate_solids(application, data)
+                self.clear_preview_after_destroy = True
+                return
+            if action == "finalize_solids":
+                _finalize_solids(application, data)
                 self.clear_preview_after_destroy = True
                 return
             if action == "clear_solids":

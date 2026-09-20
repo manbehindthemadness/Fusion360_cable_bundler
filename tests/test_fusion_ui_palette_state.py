@@ -63,6 +63,7 @@ def test_palette_state_contains_complete_group_definition(
     assert harness["schemaVersion"] == valid_harness.schema_version
     assert harness["hasRoutePreview"] is False
     assert harness["hasGeneratedSolids"] is False
+    assert harness["hasFinalizedGeometry"] is False
     assert harness["minimumClearanceMm"] == valid_harness.minimum_clearance_mm
     assert harness["autoTransitionPreset"] == valid_harness.auto_transition_preset.value
     assert harness["standaloneEnds"] == [
@@ -156,12 +157,15 @@ def test_palette_render_state_reports_preview_or_solids_but_never_both(
     fusion_module = sys.modules["adsk.fusion"]
     fusion_module.Design = SimpleNamespace(cast=lambda _product: design)  # type: ignore[attr-defined]
     occurrences = Mock(return_value=())
+    output_mode = Mock(return_value="solids")
     has_preview = Mock(return_value=True)
     monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", occurrences)
+    monkeypatch.setattr(addin_module, "generated_cable_group_output_mode", output_mode)
     monkeypatch.setattr(addin_module, "has_route_preview_for_harness", has_preview)
 
     assert addin_module._harness_render_state(application, gateway, valid_harness) == (
         True,
+        False,
         False,
     )
 
@@ -170,8 +174,16 @@ def test_palette_render_state_reports_preview_or_solids_but_never_both(
     assert addin_module._harness_render_state(application, gateway, valid_harness) == (
         False,
         True,
+        False,
     )
     has_preview.assert_not_called()
+
+    output_mode.return_value = "finalized"
+    assert addin_module._harness_render_state(application, gateway, valid_harness) == (
+        False,
+        False,
+        True,
+    )
 
 
 def test_damaged_palette_entry_can_delete_its_exact_component(

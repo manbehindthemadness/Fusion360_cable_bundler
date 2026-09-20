@@ -142,6 +142,12 @@ function clearSolids() {
   return mutate("clear_solids", { harnessId: harness.harnessId }, "Clearing cable solids…");
 }
 
+function finalizeSolids() {
+  const harness = currentState.harnesses.find((item) => harnessKey(item) === selectedHarnessKey);
+  if (!harness || harness.status === "damaged" || !(harness.cableGroups || []).length) return;
+  return mutate("finalize_solids", { harnessId: harness.harnessId, replaceExisting: true }, "Finalizing cable geometry…");
+}
+
 async function refresh() {
   try {
     render(await send("get_state"));
@@ -451,6 +457,10 @@ function setPreviewEnabled(enabled) {
 
 function setSolidsEnabled(enabled) {
   return enabled ? generateSolids() : clearSolids();
+}
+
+function setFinalizeEnabled(enabled) {
+  return enabled ? finalizeSolids() : clearSolids();
 }
 
 ui.back.addEventListener("click", closeEditor);

@@ -21,6 +21,7 @@ from ...routing import (
     build_continuous_stripe_mesh,
 )
 from .constants import GENERATED_STRIPE_GROUP_ID
+from .materials import cable_appearance
 from .sweep_geometry import RouteSweepSegment, prepare_group_sweep_segments
 
 
@@ -142,6 +143,63 @@ def replace_group_stripe_graphics(
             if stripe_effect is None:
                 raise RuntimeError("Fusion did not create a cable-group stripe color.")
             stripe_mesh.color = stripe_effect
+            created += 1
+    return created
+
+
+def replace_group_stripe_bodies(
+    component: adsk.fusion.Component,
+    routes: tuple[RoutePreview, ...],
+    stripes: tuple[CableStripe, ...],
+    cable_radius_mm: float,
+    design: adsk.fusion.Design,
+) -> int:
+    """
+    Replace transient stripe presentation with persistent renderable mesh bodies.
+
+    Stripe coordinates are authored in millimeters while Fusion mesh-body input
+    uses the design's internal centimeter units.
+    """
+    mesh_bodies = component.meshBodies
+    for body_index in range(mesh_bodies.count - 1, -1, -1):
+        body = mesh_bodies.item(body_index)
+        if body is not None and body.deleteMe() is False:
+            raise RuntimeError("Fusion could not delete an obsolete cable stripe body.")
+    if not stripes:
+        return 0
+    segments, start_junctions, end_junctions = prepare_group_sweep_segments(routes)
+    created = 0
+    for stripe_index, stripe in enumerate(stripes):
+        appearance = cable_appearance(design, stripe.color)
+        decorated_segments = build_continuous_segment_stripes(
+            segments,
+            start_junctions,
+            end_junctions,
+            stripe,
+            cable_radius_mm,
+        )
+        for segment, result in decorated_segments:
+            if not result.vertices or not result.triangle_indices:
+                continue
+            coordinates = [
+                coordinate / 10.0
+                for point in result.vertices
+                for coordinate in (point.x, point.y, point.z)
+            ]
+            body = mesh_bodies.addByTriangleMeshData(
+                coordinates,
+                list(result.triangle_indices),
+                [],
+                [],
+            )
+            if body is None:
+                raise RuntimeError("Fusion did not create a renderable cable stripe body.")
+            body.name = (
+                f"Cable Group Leg {segment.source_route_index + 1}"
+                + (f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else "")
+                + f" Stripe {stripe_index + 1}"
+            )
+            body.appearance = appearance
             created += 1
     return created
 

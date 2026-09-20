@@ -280,11 +280,13 @@ test('master diagram groups render and add actions into submenus', () => {
   const definition = harness();
   definition.hasRoutePreview = true;
   definition.hasGeneratedSolids = false;
+  definition.hasFinalizedGeometry = false;
   const actions = [];
   context.previewRoutes = () => actions.push('preview');
   context.clearPreview = () => actions.push('clear-preview');
   context.generateSolids = () => actions.push('solids');
   context.clearSolids = () => actions.push('clear-solids');
+  context.finalizeSolids = () => actions.push('finalize');
   const diagram = context.renderRelationshipMap(definition);
   const viewport = descendants(
     diagram, (node) => node.className === 'block-diagram-viewport',
@@ -302,6 +304,7 @@ test('master diagram groups render and add actions into submenus', () => {
   const renderRows = renderBranch.children[1].children;
   const preview = renderRows.find((row) => row.children[0].textContent === 'Preview');
   const solids = renderRows.find((row) => row.children[0].textContent === 'Solids');
+  const finalize = renderRows.find((row) => row.children[0].textContent === 'Finalize');
 
   assert.deepEqual(
     addBranch.children[1].children.map((item) => item.textContent),
@@ -309,6 +312,7 @@ test('master diagram groups render and add actions into submenus', () => {
   );
   assert.equal(preview.children[1].checked, true);
   assert.equal(solids.children[1].checked, false);
+  assert.equal(finalize.children[1].checked, false);
   preview.children[0].events.click();
   preview.children[1].checked = false;
   preview.children[1].events.click({ stopPropagation() {} });
@@ -317,9 +321,15 @@ test('master diagram groups render and add actions into submenus', () => {
   solids.children[0].events.click();
   solids.children[1].checked = false;
   solids.children[1].events.click({ stopPropagation() {} });
+  finalize.children[0].events.click();
+  finalize.children[1].checked = true;
+  finalize.children[1].events.click({ stopPropagation() {} });
+  finalize.children[1].checked = false;
+  finalize.children[1].events.click({ stopPropagation() {} });
 
   assert.deepEqual(actions, [
     'preview', 'clear-preview', 'solids', 'solids', 'clear-solids',
+    'finalize', 'finalize', 'clear-solids',
   ]);
 });
 

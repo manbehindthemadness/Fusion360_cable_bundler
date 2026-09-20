@@ -70,6 +70,7 @@ class _CableSolidsModule(Protocol):
     hide_generated_cable_group_solids: Callable[[object], _VisibilityState]
     restore_generated_cable_group_visibility: Callable[[_VisibilityState], None]
     _replace_group_stripe_graphics: Callable[..., int]
+    _replace_group_stripe_bodies: Callable[..., int]
 
 
 @pytest.fixture
@@ -249,6 +250,49 @@ def test_replacing_harness_owned_stripes_preserves_other_cable_groups(
 
     target.deleteMe.assert_called_once_with()
     other.deleteMe.assert_not_called()
+
+
+def test_finalized_stripes_are_persistent_colored_mesh_bodies(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Convert the same procedural stripe triangles into renderable component geometry.
+    """
+    stripe = CableStripe(CableColor("Red", 255, 0, 0), 0.25)
+    route = _straight_route(703, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    body = type("MeshBody", (), {"name": "", "appearance": None})()
+    add = Mock(return_value=body)
+    mesh_bodies = type(
+        "MeshBodies",
+        (),
+        {"count": 0, "item": lambda _self, _index: None, "addByTriangleMeshData": add},
+    )()
+    component = type("Component", (), {"meshBodies": mesh_bodies})()
+    appearance = object()
+    stripes_module = cast(
+        Any,
+        sys.modules["cable_bundler.fusion.cable_solid_parts.stripes"],
+    )
+    monkeypatch.setitem(vars(stripes_module), "cable_appearance", Mock(return_value=appearance))
+
+    count = cable_solids._replace_group_stripe_bodies(
+        component,
+        (route,),
+        (stripe,),
+        0.5,
+        object(),
+    )
+
+    assert count == 1
+    coordinates, indices, normals, normal_indices = add.call_args.args
+    assert coordinates
+    assert indices
+    assert max(abs(coordinate) for coordinate in coordinates) <= 1.1
+    assert normals == []
+    assert normal_indices == []
+    assert body.name == "Cable Group Leg 1 Stripe 1"
+    assert body.appearance is appearance
 
 
 def test_generated_solids_visibility_round_trip_preserves_prior_state(

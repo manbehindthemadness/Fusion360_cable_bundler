@@ -16,6 +16,7 @@ import adsk.fusion
 from ...application import plan_cable_group_routes
 from ...domain import ControlKind, HarnessDefinition, loads
 from .. import clear_route_previews, highlight_route_preview, show_route_previews
+from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, SOLID_OUTPUT_MODE
 from ..cable_solids import (
     apply_cable_group_materials,
     clear_cable_solids,
@@ -296,6 +297,24 @@ def _generate_solids(application: adsk.core.Application, serialized_data: str) -
     """
     Generate persistent cable-group bodies inside the palette command transaction.
     """
+    return _generate_cable_geometry(application, serialized_data, SOLID_OUTPUT_MODE)
+
+
+def _finalize_solids(application: adsk.core.Application, serialized_data: str) -> int:
+    """
+    Generate persistent cable bodies with renderable decoration geometry.
+    """
+    return _generate_cable_geometry(application, serialized_data, FINALIZED_OUTPUT_MODE)
+
+
+def _generate_cable_geometry(
+    application: adsk.core.Application,
+    serialized_data: str,
+    output_mode: str,
+) -> int:
+    """
+    Generate one selected persistent cable-output strategy from a palette request.
+    """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     replace_existing = payload.get("replaceExisting", False)
@@ -310,9 +329,14 @@ def _generate_solids(application: adsk.core.Application, serialized_data: str) -
         definition,
         replace_existing,
         notices,
+        output_mode,
     )
     application.activeViewport.refresh()
-    summary = f"Generated {count} cable-group solids."
+    summary = (
+        f"Finalized {count} cable-group geometries."
+        if output_mode == FINALIZED_OUTPUT_MODE
+        else f"Generated {count} cable-group solids."
+    )
     _send_palette_state(application, "\n".join((summary, *notices)))
     return count
 

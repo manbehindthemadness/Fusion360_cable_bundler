@@ -21,10 +21,19 @@ from ...routing import (
     tightest_bend,
 )
 from ..harness_gateway import ATTRIBUTE_GROUP
-from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE
+from .constants import (
+    FINALIZED_OUTPUT_MODE,
+    GENERATED_CABLE_GROUP_ATTRIBUTE,
+    GENERATED_OUTPUT_MODE_KEY,
+    SOLID_OUTPUT_MODE,
+)
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
-from .stripes import replace_group_stripe_graphics
+from .stripes import (
+    clear_group_stripe_graphics,
+    replace_group_stripe_bodies,
+    replace_group_stripe_graphics,
+)
 from .sweep_geometry import is_straight, prepare_group_sweep_segments
 
 
@@ -38,12 +47,15 @@ def build_cable_group_solid(
     harness_id: UUID,
     materials: CableMaterialSettings,
     design: adsk.fusion.Design,
+    output_mode: str = SOLID_OUTPUT_MODE,
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
     """
     if not routes:
         raise ValueError("A cable group requires at least one routed leg.")
+    if output_mode not in {SOLID_OUTPUT_MODE, FINALIZED_OUTPUT_MODE}:
+        raise ValueError(f"Unsupported cable output mode: {output_mode}")
     construction_segments, _start_junctions, _end_junctions = prepare_group_sweep_segments(routes)
     local_routes = tuple(route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
@@ -77,6 +89,7 @@ def build_cable_group_solid(
         {
             "harness_id": str(harness_id),
             "cable_group_id": str(group.cable_group_id),
+            GENERATED_OUTPUT_MODE_KEY: output_mode,
             "diameter_mm": group.diameter_mm,
             "length_mm": total_length_mm,
             "route_legs": [
@@ -101,13 +114,23 @@ def build_cable_group_solid(
         is None
     ):
         raise RuntimeError("Fusion could not store the generated cable-group identity.")
-    replace_group_stripe_graphics(
-        stripe_graphics_owner,
-        local_routes,
-        materials.stripes,
-        group.diameter_mm / 2.0,
-        group.cable_group_id,
-    )
+    if output_mode == FINALIZED_OUTPUT_MODE:
+        clear_group_stripe_graphics(stripe_graphics_owner, group.cable_group_id)
+        replace_group_stripe_bodies(
+            component,
+            local_routes,
+            materials.stripes,
+            group.diameter_mm / 2.0,
+            design,
+        )
+    else:
+        replace_group_stripe_graphics(
+            stripe_graphics_owner,
+            local_routes,
+            materials.stripes,
+            group.diameter_mm / 2.0,
+            group.cable_group_id,
+        )
 
 
 def _build_route_sweep(

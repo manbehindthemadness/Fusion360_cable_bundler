@@ -122,5 +122,6 @@ PALETTE_EDIT_NAMES = {
     "set_interpolation": "Change Interpolation Options",
     "preview_routes": "Preview Cable Routes",
     "generate_solids": "Generate Cable Solids",
+    "finalize_solids": "Finalize Cable Geometry",
     "clear_solids": "Clear Cable Solids",
 }

@@ -590,6 +590,14 @@ function addRelationshipMapContextMenu(workspace, harness) {
             disabled: !hasCableGroups && !harness.hasGeneratedSolids,
             title: hasCableGroups ? "" : "Requires at least one cable group",
           },
+          {
+            label: "Finalize",
+            checked: Boolean(harness.hasFinalizedGeometry),
+            action: finalizeSolids,
+            onToggle: setFinalizeEnabled,
+            disabled: !hasCableGroups && !harness.hasFinalizedGeometry,
+            title: hasCableGroups ? "" : "Requires at least one cable group",
+          },
         ],
       },
       {

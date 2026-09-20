@@ -36,9 +36,18 @@ def test_solid_generation_fails_native_transaction_on_kernel_error(
     assert not handler.clear_preview_after_destroy
 
 
-def test_successful_solid_generation_clears_preview_after_command_destroy(
+@pytest.mark.parametrize(
+    ("action", "generator_name"),
+    (
+        ("generate_solids", "_generate_solids"),
+        ("finalize_solids", "_finalize_solids"),
+    ),
+)
+def test_successful_geometry_generation_clears_preview_after_command_destroy(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    generator_name: str,
 ) -> None:
     """
     Remove transient graphics only after Fusion closes the successful transaction.
@@ -49,9 +58,9 @@ def test_successful_solid_generation_clears_preview_after_command_destroy(
     vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
     generate = Mock(return_value=3)
     clear = Mock(return_value=1)
-    monkeypatch.setattr(addin_module, "_generate_solids", generate)
+    monkeypatch.setattr(addin_module, generator_name, generate)
     monkeypatch.setattr(addin_module, "_clear_preview", clear)
-    execute = addin_module._PaletteEditExecuteHandler(("generate_solids", "{}", document))
+    execute = addin_module._PaletteEditExecuteHandler((action, "{}", document))
     destroyed = addin_module._PaletteEditDestroyedHandler(execute)
     args = SimpleNamespace(executeFailed=False)
 

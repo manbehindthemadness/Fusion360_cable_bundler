@@ -239,10 +239,20 @@ def test_clear_solids_targets_selected_harness_and_refreshes_viewport(
     send_state.assert_called_once_with(application, "Cleared 3 cable solids.")
 
 
-def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
+@pytest.mark.parametrize(
+    ("entrypoint_name", "output_mode", "expected_notice"),
+    (
+        ("_generate_solids", "solids", "Generated 2 cable-group solids."),
+        ("_finalize_solids", "finalized", "Finalized 2 cable-group geometries."),
+    ),
+)
+def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    entrypoint_name: str,
+    output_mode: str,
+    expected_notice: str,
 ) -> None:
     """
     Route the palette command to grouped generation with rebuild confirmation.
@@ -263,10 +273,22 @@ def test_generate_solids_uses_grouped_geometry_and_reports_group_count(
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id), "replaceExisting": True})
 
-    assert addin_module._generate_solids(application, payload) == 2
+    entrypoint = (
+        addin_module._generate_solids
+        if entrypoint_name == "_generate_solids"
+        else addin_module._finalize_solids
+    )
+    assert entrypoint(application, payload) == 2
 
     notices = generate.call_args.args[4]
     assert notices == []
-    generate.assert_called_once_with(design, component, valid_harness, True, notices)
+    generate.assert_called_once_with(
+        design,
+        component,
+        valid_harness,
+        True,
+        notices,
+        output_mode,
+    )
     viewport.refresh.assert_called_once_with()
-    send_state.assert_called_once_with(application, "Generated 2 cable-group solids.")
+    send_state.assert_called_once_with(application, expected_notice)

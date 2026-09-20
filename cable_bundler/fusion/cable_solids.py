@@ -24,8 +24,11 @@ from ..routing import (
     RoutePreview,
 )
 from .cable_solid_parts.constants import (
+    FINALIZED_OUTPUT_MODE,
     GENERATED_CABLE_GROUP_ATTRIBUTE,
+    GENERATED_OUTPUT_MODE_KEY,
     GENERATED_STRIPE_GROUP_ID,
+    SOLID_OUTPUT_MODE,
 )
 from .cable_solid_parts.materials import cable_appearance, material_metadata
 from .cable_solid_parts.metadata import group_routes_from_metadata, world_to_harness
@@ -35,6 +38,7 @@ from .cable_solid_parts.stripes import (
     clear_all_stripe_graphics,
     clear_group_stripe_graphics,
     generated_stripe_graphics_groups,
+    replace_group_stripe_bodies,
     replace_group_stripe_graphics,
 )
 from .cable_solid_parts.sweep_geometry import prepare_group_sweep_segments
@@ -44,16 +48,19 @@ from .route_preview import solve_cable_group_centerlines
 _build_continuous_segment_stripes = build_continuous_segment_stripes
 _prepare_group_sweep_segments = prepare_group_sweep_segments
 _replace_group_stripe_graphics = replace_group_stripe_graphics
+_replace_group_stripe_bodies = replace_group_stripe_bodies
 
 __all__ = [
     "GENERATED_STRIPE_GROUP_ID",
     "_build_continuous_segment_stripes",
     "_prepare_group_sweep_segments",
     "_replace_group_stripe_graphics",
+    "_replace_group_stripe_bodies",
     "CableSolidVisibilityState",
     "apply_cable_group_materials",
     "clear_cable_solids",
     "generate_cable_group_solids",
+    "generated_cable_group_output_mode",
     "generated_cable_group_bodies",
     "generated_cable_group_occurrences",
     "hide_generated_cable_group_solids",
@@ -96,6 +103,7 @@ def generate_cable_group_solids(
     definition: HarnessDefinition,
     replace_existing: bool = False,
     notices: Optional[list[str]] = None,
+    output_mode: str = SOLID_OUTPUT_MODE,
 ) -> int:
     """
     Build one multi-body component per cable group before replacing managed output.
@@ -143,6 +151,7 @@ def generate_cable_group_solids(
                     definition.harness_id,
                     definition.cable_group_materials(group),
                     design,
+                    output_mode,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
@@ -179,6 +188,24 @@ def generated_cable_group_occurrences(
         )
         is not None
     )
+
+
+def generated_cable_group_output_mode(occurrence: adsk.fusion.Occurrence) -> str:
+    """
+    Read the persistent render mode, treating legacy generated output as solids.
+    """
+    attribute = occurrence.component.attributes.itemByName(
+        ATTRIBUTE_GROUP,
+        GENERATED_CABLE_GROUP_ATTRIBUTE,
+    )
+    if attribute is None:
+        return SOLID_OUTPUT_MODE
+    try:
+        metadata = json.loads(attribute.value)
+    except (TypeError, json.JSONDecodeError):
+        return SOLID_OUTPUT_MODE
+    mode = metadata.get(GENERATED_OUTPUT_MODE_KEY)
+    return FINALIZED_OUTPUT_MODE if mode == FINALIZED_OUTPUT_MODE else SOLID_OUTPUT_MODE
 
 
 def hide_generated_cable_group_solids(
@@ -334,14 +361,24 @@ def apply_cable_group_materials(
                 "Generated cable-group metadata has no routes for applying stripe patterns."
             )
         clear_group_stripe_graphics(component, group_id, include_legacy=True)
-        _replace_group_stripe_graphics(
-            harness,
-            routes,
-            materials.stripes,
-            group.diameter_mm / 2.0,
-            group_id,
-            is_visible=occurrence.isLightBulbOn,
-        )
+        clear_group_stripe_graphics(harness, group_id)
+        if generated_cable_group_output_mode(occurrence) == FINALIZED_OUTPUT_MODE:
+            replace_group_stripe_bodies(
+                component,
+                routes,
+                materials.stripes,
+                group.diameter_mm / 2.0,
+                design,
+            )
+        else:
+            _replace_group_stripe_graphics(
+                harness,
+                routes,
+                materials.stripes,
+                group.diameter_mm / 2.0,
+                group_id,
+                is_visible=occurrence.isLightBulbOn,
+            )
         metadata.update(material_metadata(materials))
         attribute.value = json.dumps(metadata, sort_keys=True)
         applied += 1
@@ -363,6 +400,8 @@ def restore_cable_group_stripe_graphics(
     groups = {group.cable_group_id: group for group in definition.cable_groups}
     restored = 0
     for occurrence in generated_cable_group_occurrences(harness):
+        if generated_cable_group_output_mode(occurrence) == FINALIZED_OUTPUT_MODE:
+            continue
         component = occurrence.component
         attribute = component.attributes.itemByName(
             ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE
