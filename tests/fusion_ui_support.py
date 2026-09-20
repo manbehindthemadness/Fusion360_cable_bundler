@@ -180,6 +180,7 @@ class _PaletteLifecycleModule(Protocol):
     set_harness_properties: Callable[..., None]
     set_wire_group_properties: Callable[..., None]
     serialize_palette_state: Callable[[object, str], str]
+    _palette_theme_payload: Callable[[object], dict[str, str]]
     _harness_render_state: Callable[[object, object, HarnessDefinition], tuple[bool, bool]]
     _delete_damaged_harness: Callable[[object, str], str]
     _appearance_libraries_payload: Callable[[object], list[dict[str, str]]]

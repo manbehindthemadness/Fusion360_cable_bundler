@@ -4,16 +4,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #a9c9a9;
+  border: 1px solid var(--success-border);
   border-radius: 5px;
   padding: 8px 10px;
-  background: #f2faf2;
-  color: #226b22;
+  background: var(--success-surface);
+  color: var(--status-valid-text);
 }
 .relationship-audit::before { content: "✓"; font-weight: 800; }
 .relationship-audit.findings {
-  border-color: #d9a4a4;
-  background: #fff7f7;
+  border-color: var(--danger-border);
+  background: var(--danger-surface);
   color: var(--danger);
 }
 .relationship-audit.findings::before { content: "!"; }
@@ -39,7 +39,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #dfe5ea;
+  background: var(--canvas);
 }
 .block-diagram-workspace .block-diagram-toolbar {
   position: relative;
@@ -182,15 +182,15 @@
 }
 .relationship-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .relationship-map-legend i { display: inline-block; width: 11px; height: 11px; }
-.relationship-map-legend .connection { border: 1px solid #6887a0; border-radius: 3px; background: #eef5fa; }
-.relationship-map-legend .pathway { border: 1px solid #b07b2e; transform: rotate(45deg); background: #fff7e8; }
+.relationship-map-legend .connection { border: 1px solid var(--connection-border); border-radius: 3px; background: var(--connection-surface); }
+.relationship-map-legend .pathway { border: 1px solid var(--pathway-border); transform: rotate(45deg); background: var(--pathway-surface); }
 .relationship-map-legend .wire { width: 18px; height: 5px; border-radius: 3px; background: var(--accent); }
 .relationship-map-viewport {
   max-height: 430px;
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: auto;
-  background: #dfe5ea;
+  background: var(--canvas);
 }
 .relationship-pathway-stack {
   position: relative;
@@ -233,12 +233,12 @@
 .relationship-topology-edges .relationship-wire-bundle { stroke-width: 7; }
 .relationship-topology-port {
   fill: var(--surface);
-  stroke: #6887a0;
+  stroke: var(--connection-border);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 .relationship-wire-count rect {
-  fill: #526f85;
+  fill: var(--connection-border);
   stroke: var(--surface);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
@@ -260,12 +260,12 @@
 .wire-creation-selecting .relationship-end-list > summary.wire-creation-source {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
-  background: #dceefb;
+  background: var(--focus-surface);
 }
 .wire-creation-selecting .relationship-end-list > summary.wire-creation-target {
   outline: 2px solid var(--success);
   outline-offset: 2px;
-  background: #edf8ed;
+  background: var(--success-surface);
   cursor: pointer;
 }
 .wire-creation-selecting .relationship-end-list > summary.wire-creation-unavailable {

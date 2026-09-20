@@ -56,6 +56,7 @@ def test_palette_state_contains_complete_group_definition(
 
     harness = payload["harnesses"][0]
     assert payload["notice"] == "Ready"
+    assert payload["theme"] == {"active": "light", "mode": "fixed"}
     assert "wires" not in harness
     assert "profiles" not in harness
     assert "relationshipMap" not in harness
@@ -81,6 +82,43 @@ def test_palette_state_contains_complete_group_definition(
     assert wire_group["diameterMm"] == valid_harness.wire_groups[0].diameter_mm
     assert len(wire_group["routeLegs"]) == 1
     assert wire_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+
+
+@pytest.mark.parametrize(
+    ("configured", "active", "expected"),
+    (
+        ("light", "light", {"mode": "fixed", "active": "light"}),
+        ("dark-gray", "dark-gray", {"mode": "fixed", "active": "dark"}),
+        ("dark-blue", "dark-blue", {"mode": "fixed", "active": "dark"}),
+        ("device", "dark-gray", {"mode": "device", "active": "dark"}),
+    ),
+)
+def test_palette_theme_matches_fusion_configuration_and_active_device_theme(
+    addin_module: _PaletteLifecycleModule,
+    configured: str,
+    active: str,
+    expected: dict[str, str],
+) -> None:
+    """
+    Distinguish fixed Fusion themes from the active device-following theme.
+    """
+    themes = SimpleNamespace(
+        LightGrayUserInterfaceTheme="light",
+        DarkGrayUserInterfaceTheme="dark-gray",
+        DarkBlueUserInterfaceTheme="dark-blue",
+        DeviceUserInterfaceTheme="device",
+    )
+    sys.modules["adsk.core"].UserInterfaceThemes = themes  # type: ignore[attr-defined]
+    application = SimpleNamespace(
+        preferences=SimpleNamespace(
+            generalPreferences=SimpleNamespace(
+                userInterfaceTheme=configured,
+                activeUserInterfaceTheme=active,
+            )
+        )
+    )
+
+    assert addin_module._palette_theme_payload(application) == expected
 
 
 def test_palette_render_state_reports_preview_or_solids_but_never_both(

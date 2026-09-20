@@ -7,12 +7,12 @@
   align-items: center;
   gap: 6px;
   min-height: 30px;
-  border: 1px solid #e1e4e7;
+  border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 3px 4px 3px 7px;
   background: var(--surface);
 }
-.member-row.missing { border-color: var(--danger); background: #fff8f8; }
+.member-row.missing { border-color: var(--danger); background: var(--danger-surface); }
 .sequence-position { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; min-width: 3ch; }
 .member-row[data-reorder] { grid-template-columns: auto minmax(0, 1fr) auto; cursor: grab; position: relative; touch-action: none; user-select: none; }
 .member-row[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
@@ -47,7 +47,7 @@
 .wire-route {
   display: grid;
   gap: 8px;
-  border: 1px solid #dde1e5;
+  border: 1px solid var(--border-subtle);
   border-radius: 5px;
   padding: 9px;
   background: var(--surface-subtle);
@@ -65,19 +65,18 @@
   white-space: nowrap;
 }
 button.route-node:hover { border-color: var(--accent); color: var(--accent); }
-.route-node.missing { border-color: var(--danger); background: #fff8f8; color: var(--danger); }
+.route-node.missing { border-color: var(--danger); background: var(--danger-surface); color: var(--danger); }
 .wire-options-button { align-self: start; max-width: 100%; }
 .end-editor {
   display: grid;
   gap: 7px;
-  border: 1px solid #b9cddd;
+  border: 1px solid var(--connection-border);
   border-radius: 5px;
   padding: 8px;
-  background: #f5faff;
+  background: var(--connection-surface);
 }
 .end-editor-heading { display: flex; justify-content: space-between; gap: 8px; }
 .occupancy { display: grid; gap: 4px; }
 .validation-list { margin: 0; padding-left: 20px; }
 .validation-list li + li { margin-top: 6px; }
 .validation-list.errors { color: var(--danger); }
-

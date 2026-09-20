@@ -28,6 +28,7 @@ function closeEditor() {
 function render(state) {
   const scrollTop = document.scrollingElement.scrollTop;
   currentState = state;
+  applyPaletteTheme(state.theme);
   appendNotice(state.notice);
   renderLibrary();
   const selected = state.harnesses.find(

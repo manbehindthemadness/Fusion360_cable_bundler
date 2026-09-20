@@ -69,6 +69,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "styles" / "create-wires.css",
     ADDIN_ROOT / "palette" / "styles" / "diagram-components.css",
     ADDIN_ROOT / "palette" / "styles" / "utilities.css",
+    ADDIN_ROOT / "palette" / "foundation" / "theme.js",
     ADDIN_ROOT / "palette" / "foundation" / "state.js",
     ADDIN_ROOT / "palette" / "foundation" / "components.js",
     ADDIN_ROOT / "palette" / "foundation" / "pathways.js",

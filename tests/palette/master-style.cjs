@@ -4,7 +4,18 @@ const { assert, readPaletteStyles, test } = require('./support.cjs');
 
 test('master relationship viewport uses a distinct darker backdrop', () => {
   const styles = readPaletteStyles();
-  assert.match(styles, /\.relationship-map-viewport \{[^}]*background: #dfe5ea;/s);
+  assert.match(styles, /\.relationship-map-viewport \{[^}]*background: var\(--canvas\);/s);
+});
+
+test('palette defines fixed light and dark semantic color sets', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(styles, /:root \{[^}]*color-scheme: light;[^}]*--surface: #fff;/s);
+  assert.match(
+    styles,
+    /:root\[data-theme="dark"\] \{[^}]*color-scheme: dark;[^}]*--surface: #2b3136;/s,
+  );
+  assert.doesNotMatch(styles, /\.wire-trace[^,{]*\{[^}]*stroke:/s);
 });
 
 test('Wire Details fills most of the window and uses the shared diagram workspace', () => {

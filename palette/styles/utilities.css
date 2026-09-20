@@ -5,9 +5,8 @@
   border: 1px solid var(--danger);
   border-radius: 6px;
   padding: 11px;
-  background: #fff8f8;
-  color: #7e2929;
+  background: var(--danger-surface);
+  color: var(--danger-text);
   overflow-wrap: anywhere;
 }
 [hidden] { display: none !important; }
-

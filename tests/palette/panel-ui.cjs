@@ -3,6 +3,53 @@ const {
   Element, assert, descendants, harness, palette, readPaletteStyles, test,
 } = require('./support.cjs');
 
+test('palette follows fixed Fusion themes and live device theme rollovers', () => {
+  const { context } = palette(new Map(), new Map(), false);
+
+  context.render({ harnesses: [], notice: '', theme: { mode: 'fixed', active: 'dark' } });
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+  assert.equal(context.document.documentElement.style.colorScheme, 'dark');
+
+  context.changeDeviceTheme(false);
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+
+  context.render({ harnesses: [], notice: '', theme: { mode: 'device', active: 'dark' } });
+  assert.equal(context.document.documentElement.dataset.theme, 'light');
+  context.changeDeviceTheme(true);
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+});
+
+test('palette restores its last Fusion theme before the host state arrives', () => {
+  const storage = new Map([
+    ['wireBundler.paletteTheme', JSON.stringify({ mode: 'fixed', active: 'dark' })],
+  ]);
+  const { context } = palette(storage);
+
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+  assert.equal(context.document.documentElement.style.colorScheme, 'dark');
+});
+
+test('palette theme changes preserve master wire material strokes', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.wireGroups[0].materials = {
+    ...definition.wireGroups[0].materials,
+    mainColor: { name: 'Signal Red', hex: '#d72525' },
+  };
+  const diagram = context.renderRelationshipMap(definition);
+  const trace = descendants(
+    diagram,
+    (node) => node.className?.split(' ').includes('wire-trace')
+      && node.attributes.stroke === '#d72525',
+  )[0];
+
+  assert.ok(trace);
+  context.applyPaletteTheme({ mode: 'fixed', active: 'dark' });
+  assert.equal(trace.attributes.stroke, '#d72525');
+  context.applyPaletteTheme({ mode: 'fixed', active: 'light' });
+  assert.equal(trace.attributes.stroke, '#d72525');
+});
+
 test('current pathway popup retains gate ordering and interpolation controls', () => {
   const { context } = palette();
   const definition = harness();
@@ -404,4 +451,3 @@ test('material color context menus copy and paste between swatches', () => {
 
   assert.equal(swatches[2].value, '#ff0000');
 });
-

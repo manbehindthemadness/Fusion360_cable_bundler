@@ -82,6 +82,37 @@ def _harness_render_state(
     return has_preview, has_solids
 
 
+def _palette_theme_payload(application: adsk.core.Application) -> dict[str, str]:
+    """
+    Resolve Fusion's configured and currently active UI themes for the palette.
+
+    Older Fusion builds without theme access fall back to the light palette.
+    Device mode remains explicit so the HTML webview can react immediately to
+    operating-system theme rollovers during an open Fusion session.
+    """
+    preferences = getattr(application, "preferences", None)
+    general_preferences = getattr(preferences, "generalPreferences", None)
+    configured_theme = getattr(general_preferences, "userInterfaceTheme", None)
+    active_theme = getattr(
+        general_preferences,
+        "activeUserInterfaceTheme",
+        configured_theme,
+    )
+    themes = getattr(adsk.core, "UserInterfaceThemes", None)
+    device_theme = getattr(themes, "DeviceUserInterfaceTheme", None)
+    dark_themes = {
+        getattr(themes, "DarkBlueUserInterfaceTheme", None),
+        getattr(themes, "DarkGrayUserInterfaceTheme", None),
+    }
+    dark_themes.discard(None)
+    return {
+        "mode": "device"
+        if device_theme is not None and configured_theme == device_theme
+        else "fixed",
+        "active": "dark" if active_theme in dark_themes else "light",
+    }
+
+
 def serialize_palette_state(
     application: adsk.core.Application,
     notice: str = "",
@@ -224,6 +255,7 @@ def serialize_palette_state(
         "harnesses": harnesses,
         "notice": notice or _runtime.last_command_error,
         "ok": True,
+        "theme": _palette_theme_payload(application),
     }
     return json.dumps(payload, sort_keys=True)
 

@@ -149,12 +149,20 @@ class Element {
 }
 
 /** Evaluate the complete palette script with the Fusion transport mocked. */
-function palette(storage = new Map(), preferences = storage) {
+function palette(storage = new Map(), preferences = storage, prefersDark = false) {
   const calls = [];
+  const themeListeners = [];
+  const deviceTheme = {
+    matches: prefersDark,
+    addEventListener: (event, handler) => {
+      if (event === 'change') themeListeners.push(handler);
+    },
+  };
   /** @type {*} Palette functions are defined dynamically by the evaluated HTML script. */
   const context = {
     document: {
       body: new Element('body'),
+      documentElement: new Element('html'),
       scrollingElement: { scrollTop: 0 },
       events: {},
       createElement: (tag) => new Element(tag),
@@ -173,6 +181,7 @@ function palette(storage = new Map(), preferences = storage) {
       innerHeight: 700,
       Event: class Event { constructor(type) { this.type = type; } },
       requestAnimationFrame: (callback) => callback(),
+      matchMedia: () => deviceTheme,
       scrollTo: () => {},
       sessionStorage: {
         getItem: (key) => storage.get(key) || null,
@@ -190,6 +199,11 @@ function palette(storage = new Map(), preferences = storage) {
     .map((match) => readFileSync(join(__dirname, '..', '..', match[1]), 'utf8'));
   runInNewContext(scripts.join('\n'), context);
   context.ui = runInNewContext('ui', context);
+  context.deviceTheme = deviceTheme;
+  context.changeDeviceTheme = (matches) => {
+    deviceTheme.matches = matches;
+    themeListeners.forEach((listener) => listener({ matches }));
+  };
   context.mutate = (action, payload) => calls.push({ action, payload });
   return { context, calls };
 }
