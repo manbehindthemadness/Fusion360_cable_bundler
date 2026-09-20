@@ -151,6 +151,7 @@ class Element {
 /** Evaluate the complete palette script with the Fusion transport mocked. */
 function palette(storage = new Map(), preferences = storage, prefersDark = false) {
   const calls = [];
+  const intervals = [];
   const themeListeners = [];
   const deviceTheme = {
     matches: prefersDark,
@@ -182,6 +183,15 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
       Event: class Event { constructor(type) { this.type = type; } },
       requestAnimationFrame: (callback) => callback(),
       matchMedia: () => deviceTheme,
+      setInterval: (callback, delay) => {
+        const timer = { callback, delay };
+        intervals.push(timer);
+        return timer;
+      },
+      clearInterval: (timer) => {
+        const index = intervals.indexOf(timer);
+        if (index >= 0) intervals.splice(index, 1);
+      },
       scrollTo: () => {},
       sessionStorage: {
         getItem: (key) => storage.get(key) || null,
@@ -199,6 +209,7 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
     .map((match) => readFileSync(join(__dirname, '..', '..', match[1]), 'utf8'));
   runInNewContext(scripts.join('\n'), context);
   context.ui = runInNewContext('ui', context);
+  context.intervals = intervals;
   context.deviceTheme = deviceTheme;
   context.changeDeviceTheme = (matches) => {
     deviceTheme.matches = matches;

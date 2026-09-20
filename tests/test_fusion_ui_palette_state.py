@@ -121,6 +121,26 @@ def test_palette_theme_matches_fusion_configuration_and_active_device_theme(
     assert addin_module._palette_theme_payload(application) == expected
 
 
+def test_palette_theme_request_reads_only_the_current_fusion_theme(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Support lightweight device-theme polling without serializing harness state.
+    """
+    application = object()
+    theme_reader = Mock(return_value={"mode": "device", "active": "dark"})
+    state_reader = Mock()
+    monkeypatch.setattr(addin_module, "_palette_theme_payload", theme_reader)
+    monkeypatch.setattr(addin_module, "serialize_palette_state", state_reader)
+
+    response = json.loads(addin_module._dispatch_palette_action(application, "get_theme", "{}"))
+
+    assert response == {"ok": True, "theme": {"active": "dark", "mode": "device"}}
+    theme_reader.assert_called_once_with(application)
+    state_reader.assert_not_called()
+
+
 def test_palette_render_state_reports_preview_or_solids_but_never_both(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

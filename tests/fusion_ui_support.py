@@ -123,6 +123,7 @@ class _PaletteLifecycleModule(Protocol):
     remove_pathway: Callable[..., None]
     _apply_generated_materials: Callable[[object, UUID], str]
     _send_palette_state: Callable[[object, str], None]
+    _dispatch_palette_action: Callable[[object, str, str], str]
     reconcile_preview_history: Callable[[object, tuple[HarnessDefinition, ...]], None]
     _ShowPaletteCreatedHandler: type
     _RefineCommandState: type

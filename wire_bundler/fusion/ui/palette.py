@@ -49,6 +49,7 @@ from .palette_state import (
     _appearance_libraries_payload,
     _delete_damaged_harness,
     _library_appearances_payload,
+    _palette_theme_payload,
     _send_palette_state,
     serialize_palette_state,
 )
@@ -285,6 +286,11 @@ def _dispatch_palette_action(
     """
     if action == "get_state":
         return serialize_palette_state(application)
+    if action == "get_theme":
+        return json.dumps(
+            {"ok": True, "theme": _palette_theme_payload(application)},
+            sort_keys=True,
+        )
     if action == "get_appearance_libraries":
         return json.dumps(
             {"ok": True, "libraries": _appearance_libraries_payload(application)},

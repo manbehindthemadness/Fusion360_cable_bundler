@@ -1,6 +1,6 @@
 /* global require, __dirname */
 const {
-  Element, assert, descendants, harness, palette, readPaletteStyles, test,
+  Element, assert, asyncTest, descendants, harness, palette, readPaletteStyles, test,
 } = require('./support.cjs');
 
 test('palette follows fixed Fusion themes and live device theme rollovers', () => {
@@ -14,9 +14,31 @@ test('palette follows fixed Fusion themes and live device theme rollovers', () =
   assert.equal(context.document.documentElement.dataset.theme, 'dark');
 
   context.render({ harnesses: [], notice: '', theme: { mode: 'device', active: 'dark' } });
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+  context.changeDeviceTheme(false);
   assert.equal(context.document.documentElement.dataset.theme, 'light');
   context.changeDeviceTheme(true);
   assert.equal(context.document.documentElement.dataset.theme, 'dark');
+});
+
+asyncTest('device mode polls Fusion without refreshing harness state', async () => {
+  const { context } = palette();
+  const actions = [];
+  context.send = async (action) => {
+    actions.push(action);
+    return { ok: true, theme: { mode: 'device', active: 'dark' } };
+  };
+  context.applyPaletteTheme({ mode: 'device', active: 'light' });
+
+  assert.ok(context.intervals.some((timer) => timer.delay === 10000));
+  await context.pollFusionTheme();
+
+  assert.deepEqual(actions, ['get_theme']);
+  assert.equal(context.document.documentElement.dataset.theme, 'dark');
+
+  context.applyPaletteTheme({ mode: 'fixed', active: 'light' });
+  await context.pollFusionTheme();
+  assert.deepEqual(actions, ['get_theme']);
 });
 
 test('palette restores its last Fusion theme before the host state arrives', () => {

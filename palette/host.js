@@ -150,6 +150,21 @@ async function refresh() {
   }
 }
 
+let paletteThemePollInFlight = false;
+
+async function pollFusionTheme() {
+  if (paletteThemeMode !== "device" || paletteThemePollInFlight) return;
+  paletteThemePollInFlight = true;
+  try {
+    const response = await send("get_theme");
+    if (response.ok) applyPaletteTheme(response.theme);
+  } catch (_error) {
+    // Initial state loading reports bridge errors; recurring theme checks stay quiet.
+  } finally {
+    paletteThemePollInFlight = false;
+  }
+}
+
 async function createHarness() {
   appendNotice("Opening Create Harness…");
   try {
@@ -482,4 +497,7 @@ window.fusionJavaScriptHandler = { handle(action, data) {
   if (action === "qa_probe") return handleQaProbe(data);
   return "OK";
 }};
+if (typeof window.setInterval === "function") {
+  window.setInterval(() => void pollFusionTheme(), 10000);
+}
 void refresh();

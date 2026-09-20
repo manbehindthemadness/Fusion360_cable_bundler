@@ -7,12 +7,12 @@ const PALETTE_THEME_STORAGE_KEY = "wireBundler.paletteTheme";
 let paletteThemeMode = "fixed";
 let paletteActiveTheme = "light";
 
-function applyPaletteTheme(theme) {
+function applyPaletteTheme(theme, deviceTheme = null) {
   if (!theme) return;
   paletteThemeMode = theme?.mode === "device" ? "device" : "fixed";
   paletteActiveTheme = theme?.active === "dark" ? "dark" : "light";
-  const activeTheme = paletteThemeMode === "device" && paletteDeviceThemeQuery
-    ? (paletteDeviceThemeQuery.matches ? "dark" : "light")
+  const activeTheme = paletteThemeMode === "device" && deviceTheme
+    ? deviceTheme
     : paletteActiveTheme;
   const root = document.documentElement || document.body;
   root.dataset.theme = activeTheme;
@@ -29,7 +29,10 @@ function applyPaletteTheme(theme) {
 
 function handleDeviceThemeChange() {
   if (paletteThemeMode === "device") {
-    applyPaletteTheme({ mode: paletteThemeMode, active: paletteActiveTheme });
+    applyPaletteTheme(
+      { mode: paletteThemeMode, active: paletteActiveTheme },
+      paletteDeviceThemeQuery?.matches ? "dark" : "light",
+    );
   }
 }
 
@@ -41,10 +44,11 @@ try {
 } catch (_error) {
   // Fall through to the current device scheme if storage is unavailable or malformed.
 }
-applyPaletteTheme(initialPaletteTheme || {
-  mode: "device",
-  active: paletteDeviceThemeQuery?.matches ? "dark" : "light",
-});
+const initialDeviceTheme = paletteDeviceThemeQuery?.matches ? "dark" : "light";
+applyPaletteTheme(
+  initialPaletteTheme || { mode: "device", active: initialDeviceTheme },
+  initialDeviceTheme,
+);
 
 if (paletteDeviceThemeQuery?.addEventListener) {
   paletteDeviceThemeQuery.addEventListener("change", handleDeviceThemeChange);
