@@ -366,7 +366,7 @@ test('inset endpoint ports retain visible anchors and escape beyond their node',
   });
 });
 
-test('layered docking aligns sibling pathway ends toward their junction', () => {
+test('layered docking aligns sibling pathway ends with the selected flow axis', () => {
   const { context } = palette();
   assert.equal(context.relationshipNodeDimensions({
     kind: 'junction', element: { scrollWidth: 0, scrollHeight: 0 },
@@ -389,15 +389,17 @@ test('layered docking aligns sibling pathway ends toward their junction', () => 
     diagram, (node) => node.className === 'block-diagram-toolbar',
   )[0];
   toolbar.children[0].events.click();
+  const stack = descendants(
+    diagram, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
   const connectedPorts = descendants(
     diagram, (node) => node.className === 'relationship-topology-port'
       && node.dataset.nodeId.startsWith('pathway:'),
   );
 
-  assert.deepEqual(
-    [...new Set(connectedPorts.map((port) => port.dataset.side))].sort(),
-    ['left'],
-  );
+  const flowSides = stack.dataset.diagramLayoutKey.startsWith('vertical|')
+    ? ['bottom', 'top'] : ['left', 'right'];
+  assert.ok(connectedPorts.every((port) => flowSides.includes(port.dataset.side)));
   descendants(
     diagram, (node) => node.className === 'relationship-pathway-group',
   ).forEach((group) => {

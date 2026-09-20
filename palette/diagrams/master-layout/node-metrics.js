@@ -87,16 +87,18 @@ function captureRelationshipIntrinsicSizes(components) {
   }));
 }
 
-function relationshipPreferredSide(difference, fallback) {
+function relationshipPreferredSide(difference, fallback, flow = null) {
   if (!difference || (!difference.x && !difference.y)) return fallback;
+  if (flow === "horizontal") return difference.x < 0 ? "left" : "right";
+  if (flow === "vertical") return difference.y < 0 ? "top" : "bottom";
   if (Math.abs(difference.x) >= Math.abs(difference.y)) {
     return difference.x < 0 ? "left" : "right";
   }
   return difference.y < 0 ? "top" : "bottom";
 }
 
-/** Choose two distinct endpoint sides that face their connected junctions. */
-function relationshipPathwayDockSides(component, node, positions) {
+/** Choose distinct endpoint sides facing their junctions along the candidate flow axis. */
+function relationshipPathwayDockSides(component, node, positions, flow = null) {
   const differences = { start: [], end: [] };
   component.edges.forEach((edge) => {
     if (edge.relationship.pathwayId !== node.item.pathwayId) return;
@@ -113,9 +115,12 @@ function relationshipPathwayDockSides(component, node, positions) {
     x: values.reduce((total, value) => total + value.x, 0) / values.length,
     y: values.reduce((total, value) => total + value.y, 0) / values.length,
   } : null;
+  const fallback = flow === "vertical"
+    ? { start: "top", end: "bottom" }
+    : { start: "left", end: "right" };
   const preferred = {
-    start: relationshipPreferredSide(average(differences.start), "left"),
-    end: relationshipPreferredSide(average(differences.end), "right"),
+    start: relationshipPreferredSide(average(differences.start), fallback.start, flow),
+    end: relationshipPreferredSide(average(differences.end), fallback.end, flow),
   };
   const pairs = TOPOLOGY_SIDES.flatMap((start) => TOPOLOGY_SIDES
     .filter((end) => end !== start)
@@ -123,6 +128,10 @@ function relationshipPathwayDockSides(component, node, positions) {
   const scoreSide = (side, endpoint) => {
     const values = differences[endpoint];
     if (!values.length) return side === preferred[endpoint] ? 0 : 28;
+    if (flow) {
+      const flowSides = flow === "horizontal" ? ["left", "right"] : ["top", "bottom"];
+      if (!flowSides.includes(side)) return 1000;
+    }
     const vector = topologySideVector(side);
     return values.reduce((total, difference) => {
       const length = Math.hypot(difference.x, difference.y) || 1;
@@ -140,5 +149,3 @@ function relationshipPathwayDockSides(component, node, positions) {
       || TOPOLOGY_SIDES.indexOf(left.end) - TOPOLOGY_SIDES.indexOf(right.end);
   })[0];
 }
-
-

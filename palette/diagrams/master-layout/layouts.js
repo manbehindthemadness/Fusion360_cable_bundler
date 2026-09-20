@@ -501,7 +501,9 @@ function relationshipTopologyLayoutCandidate(components, specification) {
     const nextDockSides = new Map(components.flatMap((component) => component.nodes
       .filter((node) => node.kind === "pathway")
       .map((node) => [
-        node.id, relationshipPathwayDockSides(component, node, geometry.positions),
+        node.id, relationshipPathwayDockSides(
+          component, node, geometry.positions, specification.flow,
+        ),
       ])));
     const unchanged = [...nextDockSides].every(([id, sides]) => (
       sides.start === dockSides.get(id)?.start && sides.end === dockSides.get(id)?.end
@@ -587,4 +589,3 @@ function materializeRelationshipLayout(components, layout) {
     }),
   }));
 }
-

@@ -37,6 +37,40 @@ function branchingHarness() {
   return definition;
 }
 
+/** Return two connected hubs with four terminal pathway branches. */
+function twinHubHarness() {
+  const definition = harness();
+  definition.pathways.push(
+    { pathwayId: 'p2', name: 'Chassis ground path', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p3', name: 'Battery ground path', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p4', name: 'Dallas controller path', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+    { pathwayId: 'p5', name: 'Temp sensor path', startName: 'A', endName: 'B',
+      orderedControlIds: [] },
+  );
+  definition.junctions.push(
+    {
+      junctionId: 'j1', controlId: 'c1', name: 'Ground junction',
+      pathwayRelationships: [
+        { pathwayId: 'p', endpoint: 'start' },
+        { pathwayId: 'p2', endpoint: 'start' },
+        { pathwayId: 'p3', endpoint: 'start' },
+      ],
+    },
+    {
+      junctionId: 'j2', controlId: 'c2', name: 'Controller junction',
+      pathwayRelationships: [
+        { pathwayId: 'p', endpoint: 'end' },
+        { pathwayId: 'p4', endpoint: 'start' },
+        { pathwayId: 'p5', endpoint: 'start' },
+      ],
+    },
+  );
+  return definition;
+}
+
 /** Give topology wrappers dimensions representative of their rendered cards. */
 function sizeRelationshipNodes(diagram) {
   descendants(
@@ -392,6 +426,23 @@ test('master diagram redraw adapts to viewport aspect and maximizes contained zo
   assert.equal(toolbar.children[2].textContent, '100%');
 });
 
+test('master diagram maximizes zoom for a near-square twin-hub topology', () => {
+  const { context } = palette();
+  const definition = twinHubHarness();
+  const diagram = context.renderRelationshipMap(definition);
+  sizeRelationshipNodes(diagram);
+  const { toolbar, viewport, stack } = relationshipWorkspaceParts(diagram);
+
+  viewport.clientWidth = 1500;
+  viewport.clientHeight = 1400;
+  toolbar.children[0].events.click();
+
+  assert.match(stack.dataset.diagramLayoutKey, /^vertical\|/);
+  assert.equal(stack.relationshipLayoutCandidates[0].fitScale, 1);
+  assert.ok(Number.parseFloat(stack.style.width) <= viewport.clientWidth - 24);
+  assert.ok(Number.parseFloat(stack.style.height) <= viewport.clientHeight - 24);
+});
+
 test('route-aware redraw packs branching topology without trace blips or crossovers', () => {
   const { context } = palette();
   const definition = branchingHarness();
@@ -427,5 +478,3 @@ test('route-aware redraw packs branching topology without trace blips or crossov
   assert.ok(Number(stack.dataset.minimumParallelTraceGap) >= 10);
   assert.equal(stack.dataset.overlappingTracePairCount, '0');
 });
-
-
