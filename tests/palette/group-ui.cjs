@@ -1032,6 +1032,62 @@ test('master end menu exposes end-owned guide and refine actions', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
+test('editing a master end isolates keyboard and pointer events from Wire Details', () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  const diagram = context.renderRelationshipMap(definition);
+  const end = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a1',
+  )[0];
+
+  end.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
+  });
+  const menu = descendants(
+    diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
+  )[0];
+  menu.children.find((item) => item.textContent === 'Rename').events.click();
+  const input = end.querySelector('input');
+  ['mousedown', 'click'].forEach((eventName) => {
+    let pointerPropagationStopped = false;
+    input.events[eventName]({
+      stopPropagation() { pointerPropagationStopped = true; },
+    });
+    if (!pointerPropagationStopped && eventName === 'click') end.events.click();
+    assert.equal(pointerPropagationStopped, true);
+  });
+  let contextPropagationStopped = false;
+  let contextDefaultPrevented = false;
+  input.events.contextmenu({
+    stopPropagation() { contextPropagationStopped = true; },
+    preventDefault() { contextDefaultPrevented = true; },
+  });
+  assert.equal(contextPropagationStopped, true);
+  assert.equal(contextDefaultPrevented, false);
+  assert.equal(menu.hidden, true);
+  let propagationStopped = false;
+  let defaultPrevented = false;
+  input.events.keydown({
+    key: ' ',
+    stopPropagation() { propagationStopped = true; },
+    preventDefault() { defaultPrevented = true; },
+  });
+  if (!propagationStopped) end.events.keydown({ key: ' ', preventDefault() {} });
+
+  assert.equal(propagationStopped, true);
+  assert.equal(defaultPrevented, false);
+  assert.equal(context.document.body.querySelector('.wire-group-details-popup'), undefined);
+  assert.equal(end.querySelector('input'), input);
+  input.value = 'Engine Bay End';
+  input.events.blur();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'rename_standalone_end');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(calls[0].payload.name, 'Engine Bay End');
+});
+
 test('Wire Details end nodes and rows share end-owned routing actions', () => {
   const { context } = palette();
   const definition = harness();

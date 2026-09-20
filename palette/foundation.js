@@ -263,10 +263,14 @@ function beginInlineNameEdit(container, label, before, options) {
     if (save) void options.onSave(input.value);
   };
   input.addEventListener("keydown", (event) => {
+    event.stopPropagation();
     if (event.key === "Enter" || event.key === "Escape") {
       event.preventDefault();
       finish(event.key === "Enter");
     }
+  });
+  ["mousedown", "click", "contextmenu"].forEach((eventName) => {
+    input.addEventListener(eventName, (event) => event.stopPropagation());
   });
   input.addEventListener("blur", () => finish(true));
   input.focus();
