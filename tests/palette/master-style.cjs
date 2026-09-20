@@ -61,3 +61,12 @@ test('Route Editor uses three independently scrollable columns', () => {
     /\.create-wires-assignment-slot \.create-wires-end-card small \{[^}]*display: none;/s,
   );
 });
+
+test('long wire-end names expand horizontally instead of wrapping', () => {
+  const styles = readFileSync(join(__dirname, '..', '..', 'palette', 'styles.css'), 'utf8');
+
+  assert.match(
+    styles,
+    /\.relationship-end-entry strong \{[^}]*white-space: nowrap;/s,
+  );
+});
