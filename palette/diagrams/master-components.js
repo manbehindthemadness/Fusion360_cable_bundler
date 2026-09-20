@@ -439,7 +439,7 @@ function renderRelationshipBridge(groups) {
 
 function renderRelationshipEndList(
   harness, pathway, endpoint, groups, visibleGroups, query, collapseLimit,
-  showContextMenu, focusController, cableCreationController,
+  showContextMenu, focusController, cableCreationController, updateTopologyTrace,
 ) {
   const side = endpoint === "start" ? "A" : "B";
   const details = document.createElement("details");
@@ -561,6 +561,7 @@ function renderRelationshipEndList(
   details.addEventListener("toggle", () => {
     if (!query) relationshipEndListOverrides.set(overrideKey, details.open);
     if (details.redrawConnector) details.redrawConnector(details.open);
+    if (updateTopologyTrace) updateTopologyTrace(pathway.pathwayId, endpoint);
   });
   details.append(summary, items);
   return details;
@@ -618,7 +619,7 @@ function addRelationshipMapContextMenu(workspace, harness) {
 
 function renderRelationshipPathwayNode(
   harness, candidate, connections, query, collapseLimit, showContextMenu,
-  focusController, cableCreationController, nodeIds,
+  focusController, cableCreationController, nodeIds, updateTopologyTrace,
 ) {
   const groups = {
     start: relationshipEndGroups(harness, candidate.pathwayId, "start", connections),
@@ -643,11 +644,11 @@ function renderRelationshipPathwayNode(
   const pathwayGroup = document.createElement("div");
   const startList = renderRelationshipEndList(
     harness, candidate, "start", groups.start, visibleStart, query, collapseLimit,
-    showContextMenu, focusController, cableCreationController,
+    showContextMenu, focusController, cableCreationController, updateTopologyTrace,
   );
   const endList = renderRelationshipEndList(
     harness, candidate, "end", groups.end, visibleEnd, query, collapseLimit,
-    showContextMenu, focusController, cableCreationController,
+    showContextMenu, focusController, cableCreationController, updateTopologyTrace,
   );
   const startConnector = renderRelationshipConnector(
     visibleStart, pathwayGroups, true, startList.open, pathwayGroups.length === 0,

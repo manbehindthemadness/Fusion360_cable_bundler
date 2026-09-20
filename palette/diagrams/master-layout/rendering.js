@@ -93,3 +93,16 @@ function renderTopologyPort(port) {
     "data-cable-group-ids": groups.map((cableGroup) => cableGroup.cableGroupId).join(" "),
   });
 }
+
+/** Move an existing topology port without replacing the complete overlay. */
+function updateRenderedTopologyPort(port, element) {
+  const groups = port.groups || [];
+  const laneCount = groups.length <= TOPOLOGY_LANE_LIMIT ? groups.length : 1;
+  const extent = laneCount > 1
+    ? (laneCount - 1) * TOPOLOGY_LANE_SPACING + 8
+    : 8;
+  element.setAttribute("x", `${port.point.x - extent / 2}`);
+  element.setAttribute("y", `${port.point.y - extent / 2}`);
+  element.setAttribute("width", `${extent}`);
+  element.setAttribute("height", `${extent}`);
+}

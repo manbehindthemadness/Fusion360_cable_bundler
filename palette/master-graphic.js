@@ -116,6 +116,13 @@ function renderRelationshipMap(harness) {
     workspace.fit();
   };
 
+  const updateEndpointTrace = (pathwayId, endpoint) => {
+    window.requestAnimationFrame(() => {
+      if (!renderedStack) return;
+      updateRelationshipEndpointTraces(renderedStack, pathwayId, endpoint);
+    });
+  };
+
   const draw = () => {
     cableCreationController.cancel();
     const query = filter.value.trim().toLocaleLowerCase();
@@ -169,6 +176,7 @@ function renderRelationshipMap(harness) {
             focusController,
             cableCreationController,
             focusNodeIds,
+            updateEndpointTrace,
           ));
         }
         node.element = wrapper;

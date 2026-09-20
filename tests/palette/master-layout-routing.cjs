@@ -404,6 +404,68 @@ test('inset endpoint ports retain visible anchors and escape beyond their node',
   });
 });
 
+test('collapsing an end list locally reconnects its topology trace', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.junctions.push({
+    junctionId: 'j1', controlId: 'c1', name: 'Junction 001',
+    pathwayRelationships: [{ pathwayId: 'p', endpoint: 'end' }],
+  });
+  definition.cableGroups.forEach((group) => {
+    group.routeLegs[0].controlSteps = [{ controlId: 'c1' }];
+  });
+
+  const diagram = context.renderRelationshipMap(definition);
+  const stack = descendants(
+    diagram, (node) => node.className === 'relationship-pathway-stack',
+  )[0];
+  const endList = descendants(
+    diagram, (node) => node.className === 'relationship-end-list'
+      && node.dataset.pathwayId === 'p' && node.dataset.endpoint === 'end',
+  )[0];
+  const edge = descendants(
+    diagram, (node) => node.className === 'relationship-topology-edge'
+      && (node.dataset.sourceId === 'pathway:p' || node.dataset.targetId === 'pathway:p'),
+  )[0];
+  const pathwayIsSource = edge.dataset.sourceId === 'pathway:p';
+  const coordinate = (path) => [
+    Number(path.dataset[pathwayIsSource ? 'sourceX' : 'targetX']),
+    Number(path.dataset[pathwayIsSource ? 'sourceY' : 'targetY']),
+  ];
+  const initialPath = descendants(
+    edge, (node) => node.className === 'structural-trace',
+  )[0];
+  const initialEndpoint = coordinate(initialPath);
+  const initialRevision = stack.dataset.diagramLayoutRevision;
+
+  endList.style.left = '37px';
+  endList.style.top = '29px';
+  endList.style.width = '84px';
+  endList.style.height = '34px';
+  endList.open = false;
+  endList.events.toggle();
+
+  const updatedPath = descendants(
+    edge, (node) => node.className === 'structural-trace',
+  )[0];
+  const updatedEndpoint = coordinate(updatedPath);
+  const pathwayPort = descendants(
+    diagram, (node) => node.className === 'relationship-topology-port'
+      && node.dataset.nodeId === 'pathway:p',
+  )[0];
+  const portCenter = [
+    Number(pathwayPort.attributes.x) + Number(pathwayPort.attributes.width) / 2,
+    Number(pathwayPort.attributes.y) + Number(pathwayPort.attributes.height) / 2,
+  ];
+
+  assert.notDeepEqual(updatedEndpoint, initialEndpoint);
+  assert.deepEqual(updatedEndpoint, portCenter);
+  assert.equal(stack.dataset.diagramLayoutRevision, initialRevision);
+  assert.equal(descendants(
+    diagram, (node) => node.className === 'relationship-topology-edge',
+  )[0], edge);
+});
+
 test('layered docking aligns sibling pathway ends with the selected flow axis', () => {
   const { context } = palette();
   assert.equal(context.relationshipNodeDimensions({

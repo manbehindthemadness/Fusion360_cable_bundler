@@ -305,6 +305,86 @@ function restoreRelationshipLayoutState(stack, state) {
   });
 }
 
+/** Copy routed geometry before a local interaction mutates its visible endpoint. */
+function cloneRelationshipRouteSet(routeSet) {
+  const ports = routeSet.ports.map((port) => ({
+    ...port,
+    point: { ...port.point },
+  }));
+  const portsById = new Map(ports.map((port) => [port.id, port]));
+  const routes = new Map([...routeSet.routes].map(([edgeId, route]) => [edgeId, {
+    ...route,
+    points: route.points.map((point) => ({ ...point })),
+    sourcePort: portsById.get(route.sourcePort.id),
+    targetPort: portsById.get(route.targetPort.id),
+  }]));
+  return {
+    ...routeSet,
+    ports,
+    routes,
+    edgeElements: new Map(),
+    portElements: new Map(),
+  };
+}
+
+/** Reroute only traces attached to one end list after its visible size changes. */
+function updateRelationshipEndpointTraces(stack, pathwayId, endpoint) {
+  const pathwayNodeId = `pathway:${pathwayId}`;
+  (stack.relationshipRenderedRouteSets || []).forEach((routeSet) => {
+    const pathwayNode = routeSet.component.nodes.find((node) => node.id === pathwayNodeId);
+    if (!pathwayNode) return;
+    const affectedEdges = routeSet.component.edges.filter((edge) => (
+      edge.relationship.pathwayId === pathwayId
+        && edge.relationship.endpoint === endpoint
+    ));
+    if (!affectedEdges.length) return;
+    const metrics = relationshipPathwayDimensions(pathwayNode, pathwayNode.dockSides);
+    const dockPoint = relationshipRenderedDockPoint(pathwayNode, endpoint, metrics);
+    const affectedEdgeIds = new Set(affectedEdges.map(relationshipEdgeId));
+    const affectedPorts = routeSet.ports.filter((port) => (
+      port.nodeId === pathwayNodeId && affectedEdgeIds.has(port.edgeId)
+    ));
+    const priorPortPoints = new Map(affectedPorts.map((port) => [port.id, port.point]));
+    affectedPorts.forEach((port) => {
+      port.point = { ...dockPoint };
+    });
+    const routingContext = createRelationshipRoutingContext(routeSet.component.nodes);
+    affectedEdges.forEach((edge) => {
+      const edgeId = relationshipEdgeId(edge);
+      const priorRoute = routeSet.routes.get(edgeId);
+      const occupied = [...routeSet.routes]
+        .filter(([otherEdgeId]) => otherEdgeId !== edgeId)
+        .flatMap(([, route]) => topologyRouteSegments(route.points).map((segment) => ({
+          ...segment,
+          halfExtent: route.traceHalfExtent,
+        })));
+      const route = routeRelationshipEdge(
+        priorRoute.sourcePort,
+        priorRoute.targetPort,
+        routeSet.component.nodes,
+        occupied,
+        priorRoute.traceHalfExtent,
+        routingContext,
+      );
+      const edgePorts = affectedPorts.filter((port) => port.edgeId === edgeId);
+      if (!route) {
+        edgePorts.forEach((port) => {
+          port.point = priorPortPoints.get(port.id);
+        });
+        return;
+      }
+      routeSet.routes.set(edgeId, route);
+      edgePorts.forEach((port) => {
+        updateRenderedTopologyPort(port, routeSet.portElements.get(port.id));
+      });
+      const rendered = renderTopologyEdge(
+        edge, route, routeSet.edgeGroups.get(edgeId) || [],
+      );
+      routeSet.edgeElements.get(edgeId).replaceChildren(...rendered.children);
+    });
+  });
+}
+
 /**
  * Position acyclic topology components compactly and draw their edges.
  */
@@ -334,7 +414,11 @@ function layoutRelationshipGraph(stack, components, harness, options = {}) {
   });
   overlay.style.width = `${canvasWidth}px`;
   overlay.style.height = `${canvasHeight}px`;
-  layout.routeSets.forEach(({ component, ports, edgeGroups, routes }) => {
+  const renderedRouteSets = layout.routeSets.map(cloneRelationshipRouteSet);
+  renderedRouteSets.forEach((routeSet) => {
+    const {
+      component, ports, edgeGroups, routes,
+    } = routeSet;
     const nodes = new Map(component.nodes.map((node) => [node.id, node]));
     const portsById = new Map(ports.map((port) => [port.id, port]));
     component.edges.forEach((edge) => {
@@ -345,14 +429,21 @@ function layoutRelationshipGraph(stack, components, harness, options = {}) {
       const route = routes.get(edgeId);
       if (!route) return;
       const groups = edgeGroups.get(edgeId) || [];
-      overlay.append(renderTopologyEdge(edge, route, groups));
+      const edgeElement = renderTopologyEdge(edge, route, groups);
+      routeSet.edgeElements.set(edgeId, edgeElement);
+      overlay.append(edgeElement);
       portsById.get(`${edgeId}:source`).groups = groups;
       portsById.get(`${edgeId}:target`).groups = groups;
     });
-    ports.forEach((port) => overlay.append(renderTopologyPort(port)));
+    ports.forEach((port) => {
+      const portElement = renderTopologyPort(port);
+      routeSet.portElements.set(port.id, portElement);
+      overlay.append(portElement);
+    });
   });
   stack.querySelector(".relationship-topology-edges")?.remove();
   stack.insertBefore(overlay, stack.children[0] || null);
+  stack.relationshipRenderedRouteSets = renderedRouteSets;
   stack.style.width = `${canvasWidth}px`;
   stack.style.height = `${canvasHeight}px`;
   stack.dataset.diagramRotation = `${layout.rotation}`;
