@@ -41,6 +41,7 @@ PANEL_IDS = ("SolidScriptsAddinsPanel", "InsertAssemblePanel")
 HARNESS_NAME_INPUT_ID = "harness_name"
 PATHWAY_NAME_INPUT_ID = "pathway_name"
 PATHWAY_GATES_INPUT_ID = "pathway_gates"
+JUNCTION_NAME_INPUT_ID = "junction_name"
 JUNCTION_PROFILE_INPUT_ID = "junction_profile"
 JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID = "junction_relationship_geometry"
 JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID = "junction_relationship_choice"

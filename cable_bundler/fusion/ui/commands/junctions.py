@@ -15,7 +15,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ....application import add_junction, add_junction_relationship
+from ....application import add_junction, add_junction_relationship, suggest_junction_name
 from ....domain import (
     ControlKind,
     HarnessDefinition,
@@ -24,6 +24,7 @@ from ....domain import (
     loads,
 )
 from ..constants import (
+    JUNCTION_NAME_INPUT_ID,
     JUNCTION_PROFILE_INPUT_ID,
     JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID,
     JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID,
@@ -50,6 +51,21 @@ class _AddJunctionCommandState:
 
     harness_id: UUID
     registered_profiles: tuple[object, ...]
+
+
+def _read_junction_name(command_inputs: adsk.core.CommandInputs) -> str:
+    """
+    Read and normalize the required junction name input.
+    """
+    name_input = adsk.core.StringValueCommandInput.cast(
+        command_inputs.itemById(JUNCTION_NAME_INPUT_ID)
+    )
+    if name_input is None:
+        raise ValueError("Junction name input is unavailable.")
+    name = name_input.value.strip()
+    if not name:
+        raise ValueError("Junction name must not be empty.")
+    return name
 
 
 def _junction_profile_token(
@@ -100,7 +116,7 @@ class _AddJunctionPreSelectHandler(adsk.core.SelectionEventHandler):
 
 class _AddJunctionValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
     """
-    Require exactly one currently unregistered sketch profile.
+    Require a name and exactly one currently unregistered sketch profile.
     """
 
     def __init__(self, state: _AddJunctionCommandState) -> None:
@@ -115,6 +131,7 @@ class _AddJunctionValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         Enable execution only for an eligible selection.
         """
         try:
+            _read_junction_name(args.inputs)
             _junction_profile_token(args.inputs, self._state)
         except (AttributeError, TypeError, ValueError):
             args.areInputsValid = False
@@ -142,6 +159,7 @@ class _AddJunctionExecuteHandler(adsk.core.CommandEventHandler):
         try:
             junction = add_junction(
                 self._state.harness_id,
+                _read_junction_name(args.command.commandInputs),
                 _junction_profile_token(args.command.commandInputs, self._state),
                 _create_harness_gateway(application),
             )
@@ -169,15 +187,23 @@ class _AddJunctionCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 raise RuntimeError("No harness was selected for junction creation.")
             application = adsk.core.Application.get()
             design = _require_active_design(application)
-            definition = loads(
-                _create_harness_gateway(application).read_harness_definition(harness_id)
-            )
+            gateway = _create_harness_gateway(application)
+            definition = loads(gateway.read_harness_definition(harness_id))
+            initial_name = suggest_junction_name(harness_id, "Junction 01", gateway)
             registered_tokens = {
                 token for connection in definition.connections for token in connection.member_tokens
             } | {control.entity_token for control in definition.controls if control.entity_token}
             registered_profiles = _native_profile_entities(design, registered_tokens)
             state = _AddJunctionCommandState(harness_id, registered_profiles)
-            selection_input = args.command.commandInputs.addSelectionInput(
+            command_inputs = args.command.commandInputs
+            name_input = command_inputs.addStringValueInput(
+                JUNCTION_NAME_INPUT_ID,
+                "Junction Name",
+                initial_name,
+            )
+            if name_input is None:
+                raise RuntimeError("Fusion could not create the junction name input.")
+            selection_input = command_inputs.addSelectionInput(
                 JUNCTION_PROFILE_INPUT_ID,
                 "Junction Profile",
                 "Select one sketch profile not already registered in this harness",

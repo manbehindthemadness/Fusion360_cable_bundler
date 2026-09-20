@@ -15,6 +15,7 @@ from .junctions import (
     remove_junction,
     remove_junction_relationship,
     rename_junction,
+    suggest_junction_name,
     update_junction_relationships,
 )
 from .pathways import (
@@ -58,6 +59,7 @@ __all__ = [
     "set_harness_material_defaults",
     "set_harness_properties",
     "set_interpolation",
+    "suggest_junction_name",
     "suggest_pathway_extension_name",
     "switch_standalone_end",
     "update_junction_relationships",

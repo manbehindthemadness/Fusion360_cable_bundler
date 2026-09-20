@@ -54,6 +54,122 @@ def test_junction_selector_rejects_registered_profiles(
         addin_module._junction_profile_token(inputs, state)
 
 
+def test_junction_selector_requires_a_name_and_passes_it_to_creation(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Validate and persist the friendly name supplied beside the profile selector.
+    """
+    name_input = SimpleNamespace(value=" Power Branch ")
+    profile = SimpleNamespace(entityToken="unused", nativeObject=None)
+    selection_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(entity=profile),
+    )
+    inputs_by_id = {
+        addin_module.JUNCTION_NAME_INPUT_ID: name_input,
+        addin_module.JUNCTION_PROFILE_INPUT_ID: selection_input,
+    }
+    inputs = SimpleNamespace(itemById=inputs_by_id.get)
+    core_module = sys.modules["adsk.core"]
+    fusion_module = sys.modules["adsk.fusion"]
+    core_module.StringValueCommandInput = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
+    core_module.SelectionCommandInput = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
+    fusion_module.Profile = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    state = addin_module._AddJunctionCommandState(UUID(int=1), ())
+    validate_args = SimpleNamespace(inputs=inputs, areInputsValid=False)
+
+    addin_module._AddJunctionValidateInputsHandler(state).notify(validate_args)
+
+    assert validate_args.areInputsValid
+    gateway = object()
+    application = object()
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    junction_commands = importlib.import_module("cable_bundler.fusion.ui.commands.junctions")
+    add = Mock(return_value=SimpleNamespace(name="Power Branch"))
+    send = Mock()
+    monkeypatch.setitem(vars(junction_commands), "add_junction", add)
+    monkeypatch.setitem(vars(junction_commands), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(junction_commands), "_send_palette_state", send)
+    execute_args = SimpleNamespace(
+        command=SimpleNamespace(commandInputs=inputs),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+
+    addin_module._AddJunctionExecuteHandler(state).notify(execute_args)
+
+    add.assert_called_once_with(UUID(int=1), "Power Branch", "unused", gateway)
+    send.assert_called_once_with(application, "Created Power Branch.")
+    assert not execute_args.executeFailed
+
+    name_input.value = "  "
+    addin_module._AddJunctionValidateInputsHandler(state).notify(validate_args)
+    assert not validate_args.areInputsValid
+
+
+def test_add_junction_picker_includes_a_suggested_name_field(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Place the editable junction name before the native profile selector.
+    """
+    harness_id = UUID(int=1)
+    application = object()
+    gateway = SimpleNamespace(read_harness_definition=Mock(return_value="definition"))
+    junction_commands = importlib.import_module("cable_bundler.fusion.ui.commands.junctions")
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    monkeypatch.setitem(vars(junction_commands), "_require_active_design", lambda _app: object())
+    monkeypatch.setitem(vars(junction_commands), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(
+        vars(junction_commands),
+        "loads",
+        lambda _serialized: SimpleNamespace(connections=(), controls=()),
+    )
+    suggest = Mock(return_value="Junction 02")
+    monkeypatch.setitem(vars(junction_commands), "suggest_junction_name", suggest)
+    monkeypatch.setitem(vars(junction_commands), "_native_profile_entities", lambda *_args: ())
+    name_input = object()
+    selection_input = SimpleNamespace(
+        addSelectionFilter=Mock(return_value=True),
+        setSelectionLimits=Mock(return_value=True),
+    )
+    command_inputs = SimpleNamespace(
+        addStringValueInput=Mock(return_value=name_input),
+        addSelectionInput=Mock(return_value=selection_input),
+    )
+    accepted_event = SimpleNamespace(add=Mock(return_value=True))
+    command = SimpleNamespace(
+        commandInputs=command_inputs,
+        preSelect=accepted_event,
+        validateInputs=accepted_event,
+        execute=accepted_event,
+        destroy=accepted_event,
+    )
+    addin_module._runtime.pending_junction.prepare(harness_id)
+
+    addin_module._AddJunctionCreatedHandler().notify(SimpleNamespace(command=command))
+
+    suggest.assert_called_once_with(harness_id, "Junction 01", gateway)
+    command_inputs.addStringValueInput.assert_called_once_with(
+        addin_module.JUNCTION_NAME_INPUT_ID,
+        "Junction Name",
+        "Junction 02",
+    )
+    command_inputs.addSelectionInput.assert_called_once_with(
+        addin_module.JUNCTION_PROFILE_INPUT_ID,
+        "Junction Profile",
+        "Select one sketch profile not already registered in this harness",
+    )
+
+
 def test_relationship_selector_narrows_ambiguous_geometry_to_endpoint_choice(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

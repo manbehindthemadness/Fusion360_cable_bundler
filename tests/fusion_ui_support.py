@@ -100,6 +100,8 @@ class _PaletteLifecycleModule(Protocol):
     PALETTE_RESOURCE_FILES: tuple[Path, ...]
     JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID: str
     JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID: str
+    JUNCTION_NAME_INPUT_ID: str
+    JUNCTION_PROFILE_INPUT_ID: str
     STANDALONE_END_GUIDES_INPUT_ID: str
     STANDALONE_END_BOUNDARY_INPUT_ID: str
     _PaletteIncomingHandler: type
@@ -135,6 +137,9 @@ class _PaletteLifecycleModule(Protocol):
     _RefineDestroyedHandler: type
     _RefineValidateInputsHandler: type
     _AddJunctionCommandState: type
+    _AddJunctionCreatedHandler: type
+    _AddJunctionExecuteHandler: type
+    _AddJunctionValidateInputsHandler: type
     _AddJunctionPreSelectHandler: type
     _AddJunctionRelationshipCommandState: type
     _AddJunctionRelationshipInputChangedHandler: type
@@ -153,6 +158,7 @@ class _PaletteLifecycleModule(Protocol):
     _EditRefineExecutePreviewHandler: type
     _read_refine_placement: Callable[[object, object], _RefinePlacementResult]
     _junction_profile_token: Callable[[object, object], str]
+    _read_junction_name: Callable[[object], str]
     _read_junction_relationship_candidate: Callable[[object, object], Any]
     _update_junction_relationship_choices: Callable[[object, object], None]
     _read_standalone_end_inputs: Callable[[object, object], tuple[tuple[str, ...], Any]]

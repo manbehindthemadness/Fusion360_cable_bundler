@@ -24,16 +24,42 @@ from .support import (
 from .types import HarnessEditGateway
 
 
+def suggest_junction_name(
+    harness_id: UUID,
+    requested_name: str,
+    gateway: HarnessEditGateway,
+) -> str:
+    """
+    Return a normalized conflict-free junction name for one harness.
+    """
+    if not isinstance(requested_name, str):
+        raise ValueError("Junction name must be a string.")
+    normalized_name = requested_name.strip()
+    if not normalized_name:
+        raise ValueError("Junction name must not be empty.")
+    _, definition = read_definition(harness_id, gateway)
+    return next_available_name(
+        normalized_name,
+        (candidate.name for candidate in definition.junctions),
+    )
+
+
 # noinspection DuplicatedCode
 def add_junction(
     harness_id: UUID,
+    name: str,
     entity_token: str,
     gateway: HarnessEditGateway,
     id_factory: Callable[[], UUID] = uuid4,
 ) -> JunctionDefinition:
     """
-    Persist one unconnected routing-gate junction from unused Fusion geometry.
+    Persist one named unconnected routing-gate junction from unused Fusion geometry.
     """
+    if not isinstance(name, str):
+        raise ValueError("Junction name must be a string.")
+    normalized_name = name.strip()
+    if not normalized_name:
+        raise ValueError("Junction name must not be empty.")
     normalized_token = entity_token.strip()
     if not normalized_token:
         raise ValueError("A junction must reference Fusion geometry.")
@@ -73,7 +99,7 @@ def add_junction(
     junction = JunctionDefinition(
         junction_id=junction_id,
         name=next_available_name(
-            "Junction 01", (candidate.name for candidate in definition.junctions)
+            normalized_name, (candidate.name for candidate in definition.junctions)
         ),
         control_id=control.control_id,
     )

@@ -22,6 +22,7 @@ from cable_bundler.application import (
     set_cable_group_material_overrides,
     set_cable_group_properties,
     set_harness_properties,
+    suggest_junction_name,
     switch_standalone_end,
 )
 from cable_bundler.application.edit_harness import set_interpolation
@@ -272,6 +273,7 @@ def test_new_junction_control_inherits_gate_interpolation_defaults(
 
     junction = add_junction(
         definition.harness_id,
+        " Power Branch ",
         "junction-token",
         gateway,
         id_factory=lambda: next(generated_ids),
@@ -279,8 +281,22 @@ def test_new_junction_control_inherits_gate_interpolation_defaults(
 
     stored = loads(gateway.serialized_definition)
     control = next(item for item in stored.controls if item.control_id == junction.control_id)
+    assert junction.name == "Power Branch"
     assert control.interpolation == gate_defaults
     assert control.interpolation_is_override is False
+
+
+def test_suggests_next_junction_name(valid_harness: HarnessDefinition) -> None:
+    """
+    Increment junction names case-insensitively within the owning harness.
+    """
+    existing = JunctionDefinition(UUID(int=101), "Junction 01", UUID(int=102))
+    definition = replace(valid_harness, junctions=(existing,))
+    gateway = _recording_gateway(definition)
+
+    suggested = suggest_junction_name(definition.harness_id, "Junction 01", gateway)
+
+    assert suggested == "Junction 02"
 
 
 def test_segmented_junction_retains_source_control_interpolation(
