@@ -30,6 +30,7 @@ from .pathways import (
     update_pathway_refine,
 )
 from .properties import (
+    rename_harness,
     set_harness_material_defaults,
     set_harness_properties,
     set_interpolation,
@@ -52,6 +53,7 @@ __all__ = [
     "remove_pathway",
     "remove_pathway_gate",
     "remove_standalone_end",
+    "rename_harness",
     "rename_junction",
     "rename_pathway",
     "rename_standalone_end",

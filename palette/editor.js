@@ -1,3 +1,31 @@
+/** Replace the master section title with an inline-editable harness name. */
+function configureMasterHarnessName(section, harness) {
+  const summary = section.children[0];
+  const name = summary.children[0];
+  const count = summary.querySelector(".count");
+  const edit = document.createElement("button");
+  name.textContent = harness.definitionName || harness.componentName || "Unnamed harness";
+  edit.type = "button";
+  edit.className = "button compact";
+  edit.textContent = "Edit";
+  edit.setAttribute("aria-label", "Edit harness name");
+  edit.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    beginInlineNameEdit(summary, name, edit, {
+      value: harness.definitionName || "",
+      placeholder: "Harness name",
+      ariaLabel: "Harness name",
+      onEditingChange: (editing) => { edit.disabled = editing; },
+      onSave: (value) => mutate("rename_harness", {
+        harnessId: harness.harnessId,
+        name: value,
+      }, "Saving harness name…"),
+    });
+  });
+  summary.insertBefore(edit, count);
+}
+
 function renderEditor(harness) {
   suspendCreateCablesPopup();
   resetMasterDiagramSizing();
@@ -61,11 +89,12 @@ function renderEditor(harness) {
   const relationshipMap = renderRelationshipMap(harness);
   const masterSection = editorSection(
     "master-relationship-graphic",
-    "Master Relationship Graphic",
+    harness.definitionName || harness.componentName || "Unnamed harness",
     `${harness.pathways.length} pathways`,
     relationshipMap,
     true,
   );
+  configureMasterHarnessName(masterSection, harness);
   ui.editor.append(masterSection);
   observeMasterDiagramSize(masterSection, relationshipMap);
   if (openPathwayPopupId) openPathwayPopup(harness, openPathwayPopupId);

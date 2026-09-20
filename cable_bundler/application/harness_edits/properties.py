@@ -16,6 +16,28 @@ from .support import persist_definition, read_definition
 from .types import HarnessEditGateway
 
 
+def rename_harness(
+    harness_id: UUID,
+    name: str,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace the persisted display name without changing harness identity.
+    """
+    if not isinstance(name, str):
+        raise ValueError("Harness name must be a string.")
+    normalized_name = name.strip()
+    if not normalized_name:
+        raise ValueError("Harness name must not be empty.")
+    original, definition = read_definition(harness_id, gateway)
+    persist_definition(
+        harness_id,
+        original,
+        replace(definition, name=normalized_name),
+        gateway,
+    )
+
+
 def set_harness_material_defaults(
     harness_id: UUID,
     settings: CableMaterialSettings,

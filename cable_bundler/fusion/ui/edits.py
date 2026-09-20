@@ -19,6 +19,7 @@ from ...application import (
     remove_pathway,
     remove_pathway_gate,
     remove_standalone_end,
+    rename_harness,
     rename_junction,
     rename_pathway,
     rename_standalone_end,
@@ -328,11 +329,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved connected-cable material overrides."
-    if action in {"rename_junction", "rename_pathway"}:
+    if action in {"rename_harness", "rename_junction", "rename_pathway"}:
         name = payload.get("name")
         if not isinstance(name, str):
             raise ValueError("Rename request requires a text name.")
-        if action == "rename_junction":
+        if action == "rename_harness":
+            rename_harness(harness_id, name, gateway)
+        elif action == "rename_junction":
             rename_junction(
                 harness_id,
                 _read_payload_uuid(payload, "junctionId", "junction"),

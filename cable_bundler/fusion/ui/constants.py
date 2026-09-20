@@ -111,6 +111,7 @@ PALETTE_EDIT_NAMES = {
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_standalone_end": "Delete Standalone End",
     "save_cable_editor": "Save Route Editor",
+    "rename_harness": "Rename Harness",
     "rename_junction": "Rename Junction",
     "rename_standalone_end": "Rename Standalone End",
     "switch_standalone_end": "Switch Standalone End",

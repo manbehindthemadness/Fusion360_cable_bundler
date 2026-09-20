@@ -182,6 +182,7 @@ class _PaletteLifecycleModule(Protocol):
     _show_palette: Callable[[object], None]
     _create_harness_gateway: Callable[[object], object]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
+    rename_harness: Callable[[UUID, str, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
     switch_standalone_end: Callable[[UUID, UUID, object], None]
     save_cable_editor: Callable[..., None]

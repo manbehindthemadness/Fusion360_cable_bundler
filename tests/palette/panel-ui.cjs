@@ -275,6 +275,34 @@ test('master diagram Materials action opens harness materials', () => {
   assert.equal(materialDialog.children[0].children[0].textContent, 'Harness Materials');
 });
 
+test('master diagram shows and edits the persisted harness name', () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.componentName = 'Fusion Component';
+  definition.definitionName = 'Engine Harness';
+  context.renderEditor(definition);
+  const section = context.ui.editor.children[0];
+  const summary = section.children[0];
+
+  assert.equal(summary.children[0].textContent, 'Engine Harness');
+  assert.equal(summary.children[1].textContent, 'Edit');
+  assert.equal(summary.children[1].attributes['aria-label'], 'Edit harness name');
+  assert.equal(descendants(
+    section, (node) => node.className === 'relationship-map-identity',
+  ).length, 0);
+
+  summary.children[1].events.click({ preventDefault() {}, stopPropagation() {} });
+  const input = summary.querySelector('input');
+  assert.equal(input.value, 'Engine Harness');
+  input.value = 'Cabin Harness';
+  input.events.keydown({ key: 'Enter', preventDefault() {}, stopPropagation() {} });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'rename_harness');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.name, 'Cabin Harness');
+});
+
 test('master diagram groups render and add actions into submenus', () => {
   const { context } = palette();
   const definition = harness();

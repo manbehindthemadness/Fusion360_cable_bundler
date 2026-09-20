@@ -17,6 +17,7 @@ from cable_bundler.application import (
     add_end_refine,
     add_junction,
     append_end_guides,
+    rename_harness,
     save_cable_editor,
     segment_pathway,
     set_cable_group_material_overrides,
@@ -94,6 +95,33 @@ def test_appends_guides_to_end_without_mutating_parent_pathway(
     assert updated_connection.member_tokens == (connection.entity_token, "new-end-guide")
     assert updated_connection.member_identities[-1] == new_member_id
     assert stored.pathways == valid_harness.pathways
+
+
+def test_renames_harness_without_changing_identity(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Normalize and persist the editable harness display name.
+    """
+    gateway = _recording_gateway(valid_harness)
+
+    rename_harness(valid_harness.harness_id, "  Engine Harness  ", gateway)
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.name == "Engine Harness"
+    assert stored.harness_id == valid_harness.harness_id
+
+
+def test_rejects_empty_harness_name(valid_harness: HarnessDefinition) -> None:
+    """
+    Keep the persisted definition valid when an empty rename is submitted.
+    """
+    gateway = _recording_gateway(valid_harness)
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        rename_harness(valid_harness.harness_id, "   ", gateway)
+
+    assert loads(gateway.serialized_definition) == valid_harness
 
 
 def test_adds_end_owned_refine_without_mutating_parent_pathway(

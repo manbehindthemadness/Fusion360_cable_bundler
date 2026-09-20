@@ -27,6 +27,23 @@
   grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
 }
+#editor > details[data-section="master-relationship-graphic"] > summary {
+  grid-template-columns: minmax(0, max-content) auto minmax(0, 1fr) auto 1ch;
+}
+#editor > details[data-section="master-relationship-graphic"] > summary > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#editor > details[data-section="master-relationship-graphic"] > summary > input {
+  min-width: 0;
+}
+#editor > details[data-section="master-relationship-graphic"] > summary > .count {
+  grid-column: 4;
+}
+#editor > details[data-section="master-relationship-graphic"] > summary::after {
+  grid-column: 5;
+}
 #editor > details[data-section="master-relationship-graphic"]:not([open]) {
   align-self: start;
 }
