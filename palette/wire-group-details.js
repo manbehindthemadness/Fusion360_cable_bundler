@@ -406,28 +406,35 @@ function renderWireGroupDetailsGraphic(harness, group, focusedConnectionId, show
     } else if (node.kind === "pathway") {
       const pathwayId = node.id.slice("pathway:".length);
       hoverHighlight(groupNode, () => highlightMember(harness, "pathway_gates", pathwayId));
-      const activate = () => openPathwayPopup(harness, pathwayId);
+      const activate = () => activatePathwayNode(harness, node.item);
       groupNode.addEventListener("click", activate);
       groupNode.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         activate();
       });
+      if (node.item) {
+        groupNode.addEventListener("contextmenu", (event) => {
+          event.stopPropagation();
+          showContextMenu(event, pathwayNodeContextItems(harness, node.item));
+        });
+      }
     } else {
       const junctionId = node.id.slice("junction:".length);
       hoverHighlight(groupNode, () => highlightMember(harness, "junction", junctionId));
-      const activate = () => {
-        const junction = (harness.junctions || []).find(
-          (candidate) => candidate.junctionId === junctionId,
-        );
-        if (junction) openJunctionRelationships(harness, junction);
-      };
+      const activate = () => activateJunctionNode(harness, node.item);
       groupNode.addEventListener("click", activate);
       groupNode.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         activate();
       });
+      if (node.item) {
+        groupNode.addEventListener("contextmenu", (event) => {
+          event.stopPropagation();
+          showContextMenu(event, junctionNodeContextItems(harness, node.item));
+        });
+      }
     }
     svg.append(groupNode);
   });

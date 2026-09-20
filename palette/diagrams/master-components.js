@@ -156,13 +156,10 @@ function renderRelationshipJunctionHub(
     groups: relationshipJunctionGroups(harness, junction),
     nodeIds,
   });
-  hub.addEventListener("click", () => openJunctionRelationships(harness, junction));
+  hub.addEventListener("click", () => activateJunctionNode(harness, junction));
   hub.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
-    showContextMenu(event, [
-      { label: "Open junction configuration", action: () => openJunctionRelationships(harness, junction) },
-      { label: "Delete", action: () => removeJunction(harness, junction) },
-    ]);
+    showContextMenu(event, junctionNodeContextItems(harness, junction));
   });
   hub.append(name, kind);
   return hub;
@@ -641,11 +638,6 @@ function renderRelationshipPathwayNode(
   const hub = document.createElement("button");
   const hubName = document.createElement("strong");
   const hubDirection = document.createElement("small");
-  const controls = new Map(harness.controls.map((control) => [control.controlId, control]));
-  const canSegment = candidate.orderedControlIds.slice(1, -1).some((controlId) => {
-    const control = controls.get(controlId);
-    return control && ["routing_gate", "refine"].includes(control.kind);
-  });
   pathwayGroup.className = "relationship-pathway-group";
   pathwayGroup.dataset.pathwayId = candidate.pathwayId;
   hub.type = "button";
@@ -655,19 +647,10 @@ function renderRelationshipPathwayNode(
   hubDirection.textContent = pathwayDirection(candidate);
   hoverHighlight(hub, () => highlightMember(harness, "pathway_gates", candidate.pathwayId));
   focusController.bind(hub, { groups: allPathwayGroups, nodeIds });
-  hub.addEventListener("click", () => openPathwayPopup(harness, candidate.pathwayId));
+  hub.addEventListener("click", () => activatePathwayNode(harness, candidate));
   hub.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
-    showContextMenu(event, [
-      { label: "Add refine point", action: () => addPathwayRefine(harness, candidate) },
-      {
-        label: "Segment",
-        action: () => segmentPathway(harness, candidate),
-        disabled: !canSegment,
-        title: canSegment ? "" : "Requires an interior routing gate or refine point",
-      },
-      { label: "Delete", action: () => removePathway(harness, candidate) },
-    ]);
+    showContextMenu(event, pathwayNodeContextItems(harness, candidate));
   });
   hub.append(hubName, hubDirection);
   startList.redrawConnector = startConnector.redraw;

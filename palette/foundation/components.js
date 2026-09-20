@@ -329,6 +329,46 @@ function endRoutingContextItems(harness, connectionId) {
   ];
 }
 
+/** Open the configuration owned by one pathway diagram node. */
+function activatePathwayNode(harness, pathway) {
+  if (pathway) openPathwayPopup(harness, pathway.pathwayId);
+}
+
+/** Return the pathway actions shared by master and Wire Details diagram nodes. */
+function pathwayNodeContextItems(harness, pathway) {
+  const controls = new Map(harness.controls.map((control) => [control.controlId, control]));
+  const canSegment = pathway.orderedControlIds.slice(1, -1).some((controlId) => {
+    const control = controls.get(controlId);
+    return control && ["routing_gate", "refine"].includes(control.kind);
+  });
+  return [
+    { label: "Add refine point", action: () => addPathwayRefine(harness, pathway) },
+    {
+      label: "Segment",
+      action: () => segmentPathway(harness, pathway),
+      disabled: !canSegment,
+      title: canSegment ? "" : "Requires an interior routing gate or refine point",
+    },
+    { label: "Delete", action: () => removePathway(harness, pathway) },
+  ];
+}
+
+/** Open the configuration owned by one junction diagram node. */
+function activateJunctionNode(harness, junction) {
+  if (junction) openJunctionRelationships(harness, junction);
+}
+
+/** Return the junction actions shared by master and Wire Details diagram nodes. */
+function junctionNodeContextItems(harness, junction) {
+  return [
+    {
+      label: "Open junction configuration",
+      action: () => activateJunctionNode(harness, junction),
+    },
+    { label: "Delete", action: () => removeJunction(harness, junction) },
+  ];
+}
+
 function pathwayDirection(pathway) {
   const start = pathway?.startName || "A";
   const end = pathway?.endName || "B";

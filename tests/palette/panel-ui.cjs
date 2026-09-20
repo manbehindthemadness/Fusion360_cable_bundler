@@ -460,6 +460,60 @@ test('Wire Details end nodes and rows share end-owned routing actions', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
+test('Wire Details pathway and junction nodes share master diagram interactions', () => {
+  const { context } = palette();
+  const definition = harness();
+  const junction = {
+    junctionId: 'j1', controlId: 'cj', name: 'Branch',
+    pathwayRelationships: [{ pathwayId: 'p', endpoint: 'start' }],
+  };
+  definition.junctions = [junction];
+  definition.wireGroups[0].routeLegs[0].controlSteps = [{ controlId: 'cj' }];
+  const actions = [];
+  context.activatePathwayNode = (_harness, pathway) => (
+    actions.push(['open-pathway', pathway.pathwayId])
+  );
+  context.activateJunctionNode = (_harness, item) => (
+    actions.push(['open-junction', item.junctionId])
+  );
+  context.addPathwayRefine = (_harness, pathway) => (
+    actions.push(['refine', pathway.pathwayId])
+  );
+  context.removeJunction = (_harness, item) => (
+    actions.push(['delete-junction', item.junctionId])
+  );
+  context.openWireGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.wire-group-details-popup');
+  const node = (nodeId) => descendants(details, (candidate) => (
+    candidate.className?.split(' ').includes('wire-group-details-node')
+      && candidate.dataset.nodeId === nodeId
+  ))[0];
+  const menu = details.querySelector('.relationship-map-context-menu');
+  const invokeContextMenu = (target) => target.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target,
+  });
+
+  node('pathway:p').events.click();
+  node('junction:j1').events.click();
+  invokeContextMenu(node('pathway:p'));
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Add refine point', 'Segment', 'Delete',
+  ]);
+  menu.children[0].events.click();
+  invokeContextMenu(node('junction:j1'));
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Open junction configuration', 'Delete',
+  ]);
+  menu.children[1].events.click();
+
+  assert.deepEqual(actions, [
+    ['open-pathway', 'p'],
+    ['open-junction', 'j1'],
+    ['refine', 'p'],
+    ['delete-junction', 'j1'],
+  ]);
+});
+
 test('material color context menus copy and paste between swatches', () => {
   const { context } = palette();
   const definition = harness();
