@@ -502,12 +502,12 @@ def _adjustment_notice(adjustment: TransitionAdjustment) -> str:
 
 def _collision_notice(collision: RouteCollision) -> str:
     """
-    Format one best-effort residual member collision for the event console.
+    Format one residual member collision for the event console.
     """
     return (
         f"{collision.left_label} and {collision.right_label} remain "
         f"{collision.clearance_shortfall_mm:.3f} mm inside the requested separation; "
-        "generated geometry uses the best deterministic route found."
+        "the original deterministic route is retained."
     )
 
 

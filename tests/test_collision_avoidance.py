@@ -1,5 +1,5 @@
 """
-Regressions for deterministic best-effort separation of routed members.
+Regressions for deterministic transactional separation of routed members.
 """
 
 from __future__ import annotations
@@ -26,6 +26,28 @@ def _straight_route(identity: int, label: str, start: Vector3, end: Vector3) -> 
     direction = Vector3(end.x - start.x, end.y - start.y, end.z - start.z)
     route = RoutePreview(UUID(int=identity), label, (start, end))
     return fair_route(route, (direction, direction), minimum_bend_radius_mm=1.05)
+
+
+def _separate_horizontal_routes(
+    routes: tuple[RoutePreview, ...],
+    group_ids: tuple[UUID, ...],
+    diameters_mm: tuple[float, ...],
+) -> tuple[tuple[RoutePreview, ...], tuple[avoidance.RouteCollision, ...]]:
+    """
+    Run collision repair for straight horizontal regression routes.
+    """
+    route_count = len(routes)
+    normals = tuple((Vector3(1, 0, 0),) * 2 for _route in routes)
+    transitions = tuple((TransitionLengths(),) * 2 for _route in routes)
+    return separate_route_collisions(
+        routes,
+        group_ids,
+        diameters_mm,
+        normals,
+        transitions,
+        (1.05,) * route_count,
+        0.0,
+    )
 
 
 def test_repairs_crossing_members_with_a_broad_offset_corridor() -> None:
@@ -196,12 +218,30 @@ def test_minimum_gap_is_surface_separation_not_an_avoidance_toggle() -> None:
     assert spaced[0].clearance_shortfall_mm > 0.0
 
 
-def test_collision_capsules_include_the_centerline_sampling_envelope() -> None:
+def test_equal_diameter_routes_at_planned_spacing_do_not_diverge() -> None:
     """
-    Conservatively flag clearance inside the per-route sampling error bound.
+    Keep equal-size parallel routes stable when their surfaces exactly touch.
     """
     first = _straight_route(1, "First", Vector3(0, 0, 0), Vector3(10, 0, 0))
-    second = _straight_route(2, "Second", Vector3(0, 2.04, 0), Vector3(10, 2.04, 0))
+    second = _straight_route(2, "Second", Vector3(0, 2.0, 0), Vector3(10, 2.0, 0))
+    groups = (UUID(int=111), UUID(int=112))
+
+    routes, collisions = _separate_horizontal_routes(
+        (first, second),
+        groups,
+        (2.0, 2.0),
+    )
+
+    assert routes == (first, second)
+    assert collisions == ()
+
+
+def test_collision_capsules_report_physical_overlap() -> None:
+    """
+    Report penetration from physical radii rather than sampling inflation.
+    """
+    first = _straight_route(1, "First", Vector3(0, 0, 0), Vector3(10, 0, 0))
+    second = _straight_route(2, "Second", Vector3(0, 1.96, 0), Vector3(10, 1.96, 0))
 
     collisions = route_collisions(
         (first, second),
@@ -211,29 +251,106 @@ def test_collision_capsules_include_the_centerline_sampling_envelope() -> None:
     )
 
     assert len(collisions) == 1
-    assert collisions[0].clearance_shortfall_mm == pytest.approx(0.03)
+    assert collisions[0].clearance_shortfall_mm == pytest.approx(0.04)
 
 
 def test_returns_residual_diagnostics_when_fixed_endpoints_make_contact_unavoidable() -> None:
     """
-    Preserve best-effort output when two distinct groups share immovable endpoints.
+    Roll back partial repair when distinct groups share immovable endpoints.
     """
     first = _straight_route(1, "First", Vector3(0, 0, 0), Vector3(10, 0, 0))
     second = _straight_route(2, "Second", Vector3(0, 0, 0), Vector3(10, 0, 0))
     groups = (UUID(int=101), UUID(int=102))
-    normals = ((Vector3(1, 0, 0),) * 2,) * 2
-    transitions = ((TransitionLengths(),) * 2,) * 2
 
-    routes, collisions = separate_route_collisions(
+    routes, collisions = _separate_horizontal_routes(
         (first, second),
         groups,
         (2.0, 2.0),
-        normals,
-        transitions,
-        (1.05, 1.05),
-        0.0,
     )
 
-    assert len(routes) == 2
+    assert routes == (first, second)
     assert collisions
     assert collisions[0].clearance_shortfall_mm > 0.0
+
+
+def test_rolls_back_partial_repair_from_live_equal_diameter_tangle() -> None:
+    """
+    Keep a failed repair from adding divergent supports to captured live routes.
+    """
+    route_points = (
+        (
+            Vector3(-11.219261591181533, 35.204291839389924, -12.000000000000002),
+            Vector3(-11.219261591181533, 35.204291839389924, -6.000000000000001),
+            Vector3(-13.536555236518895, 30.396546798692402, 0.0),
+            Vector3(-10.428977052707834, 30.396546798692402, 14.533921942997779),
+            Vector3(2.465576701782069, 34.144085526251715, 19.659714013670197),
+        ),
+        (
+            Vector3(-8.655174950136866, 28.96593558740924, -6.000000000000001),
+            Vector3(-12.036555236518895, 30.396546798692402, 0.0),
+            Vector3(-9.200248986274348, 30.396546798692402, 13.673557288471208),
+            Vector3(2.465576701782069, 34.144085526251715, 18.159714013670197),
+        ),
+    )
+    normals = (
+        (
+            Vector3(0.0, -0.0, 1.0),
+            Vector3(-0.1345273974583756, -0.2791072375612931, 0.9507899501330356),
+            Vector3(0.028228643654086498, -0.1717307057476598, 0.9847394114083489),
+            Vector3(0.6132934910743355, 0.10996141795282702, 0.7821633974865211),
+            Vector3(0.7071067811865475, 0.7071067811865476, 1.1775693440128314e-16),
+        ),
+        (
+            Vector3(0.0, -0.0, 1.0),
+            Vector3(-0.020728528784056156, 0.054404472981348914, 0.9983038021634848),
+            Vector3(0.60711901083829, 0.11972987384831728, 0.785538836714648),
+            Vector3(0.7071067811865475, 0.7071067811865476, 1.1775693440128314e-16),
+        ),
+    )
+    raw_routes = (
+        RoutePreview(
+            UUID("92ae97f0-7bae-5905-afe2-06063dd2404e"),
+            "Group 2 Leg 1",
+            route_points[0],
+        ),
+        RoutePreview(
+            UUID("f0592a26-ba7e-55a3-baed-4da1a3d7aa19"),
+            "Group 3 Leg 2",
+            route_points[1],
+        ),
+    )
+    routes = tuple(
+        fair_route(
+            route,
+            route_normals,
+            minimum_bend_radius_mm=0.7875,
+            auto_transition_fraction=0.4375,
+        )
+        for route, route_normals in zip(raw_routes, normals)
+    )
+
+    separated, collisions = separate_route_collisions(
+        routes,
+        (
+            UUID("b057e50a-3fdb-4798-b9b0-cb3f18607e1f"),
+            UUID("c61d15ea-a627-4903-abbc-8df72dd0f423"),
+        ),
+        (1.5, 1.5),
+        normals,
+        tuple(tuple(TransitionLengths() for _point in points) for points in route_points),
+        (0.7875, 0.7875),
+        0.0,
+        0.4375,
+    )
+
+    assert separated == routes
+    assert len(collisions) == 1
+    assert collisions == route_collisions(
+        routes,
+        (
+            UUID("b057e50a-3fdb-4798-b9b0-cb3f18607e1f"),
+            UUID("c61d15ea-a627-4903-abbc-8df72dd0f423"),
+        ),
+        (1.5, 1.5),
+    )
+    assert collisions[0].clearance_shortfall_mm == pytest.approx(0.27064295794047255)

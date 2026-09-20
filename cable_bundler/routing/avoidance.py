@@ -1,5 +1,5 @@
 """
-Deterministic best-effort separation for already constrained cable routes.
+Deterministic transactional separation for already constrained cable routes.
 """
 
 from __future__ import annotations
@@ -184,7 +184,9 @@ def separate_route_collisions(
 
     Guide crossings never move during this stage. Each accepted detour is
     refaired through the existing bend-radius solver, and deterministic limits
-    ensure that identical definitions always produce identical geometry.
+    ensure that identical definitions always produce identical geometry. If
+    the bounded repair cannot clear every overlap, all detours are discarded
+    and the original routes are returned with their original diagnostics.
     """
     count = len(routes)
     if not all(
@@ -207,7 +209,8 @@ def separate_route_collisions(
     route_span_origins = [list(range(len(route.points) - 1)) for route in routes]
     detour_counts = [0] * count
     collision_index = _CollisionIndex(tuple(current), group_ids, diameters_mm, clearance_mm)
-    collisions = collision_index.collisions
+    initial_collisions = collision_index.collisions
+    collisions = initial_collisions
     route_indices = {route.cable_id: index for index, route in enumerate(routes)}
     for _pass_index in range(_MAX_REPAIR_PASSES):
         if not collisions:
@@ -307,6 +310,8 @@ def separate_route_collisions(
                 break
         if not repaired:
             break
+    if collisions:
+        return routes, initial_collisions
     return tuple(current), collisions
 
 
@@ -471,13 +476,15 @@ def _route_geometry(
     """
     Sample and conservatively bound one route for repeated collision queries.
 
-    Expanding by the sampling tolerance prevents the piecewise-linear collision
-    proxy from understating the swept centerline envelope between samples.
+    Expand broad-phase bounds by the sampling tolerance without adding that
+    uncertainty to the physical cable radius. Otherwise two routes placed at
+    exactly their required separation are misclassified as overlapping.
     """
-    radius = diameter_mm / 2.0 + clearance_mm / 2.0 + _SAMPLE_TOLERANCE_MM + _NUMERIC_MARGIN_MM
+    radius = diameter_mm / 2.0 + clearance_mm / 2.0
+    bounds_margin = _SAMPLE_TOLERANCE_MM + _NUMERIC_MARGIN_MM
     points = _sample_route(route)
     capsules = tuple(
-        _capsule(start, end, radius)
+        _capsule(start, end, radius, bounds_margin)
         for start, end in zip(points, points[1:])
         if magnitude(difference(end, start)) > 1e-12
     )
@@ -496,20 +503,26 @@ def _route_geometry(
     )
 
 
-def _capsule(start: Vector3, end: Vector3, radius_mm: float) -> _Capsule:
+def _capsule(
+    start: Vector3,
+    end: Vector3,
+    radius_mm: float,
+    bounds_margin_mm: float,
+) -> _Capsule:
     """
-    Create a capsule with precomputed expanded axis-aligned bounds.
+    Create a physical capsule with conservatively expanded broad-phase bounds.
     """
+    bounds_radius = radius_mm + bounds_margin_mm
     return _Capsule(
         start,
         end,
         radius_mm,
-        min(start.x, end.x) - radius_mm,
-        max(start.x, end.x) + radius_mm,
-        min(start.y, end.y) - radius_mm,
-        max(start.y, end.y) + radius_mm,
-        min(start.z, end.z) - radius_mm,
-        max(start.z, end.z) + radius_mm,
+        min(start.x, end.x) - bounds_radius,
+        max(start.x, end.x) + bounds_radius,
+        min(start.y, end.y) - bounds_radius,
+        max(start.y, end.y) + bounds_radius,
+        min(start.z, end.z) - bounds_radius,
+        max(start.z, end.z) + bounds_radius,
     )
 
 
