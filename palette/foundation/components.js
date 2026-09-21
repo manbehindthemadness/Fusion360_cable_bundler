@@ -345,18 +345,23 @@ function endRoutingContextItems(harness, connectionId, includeProperties = true)
   const refineUnavailable = unavailable || !(pathway.orderedControlIds || []).length;
   return [
     {
-      label: "Add Guides",
-      action: () => appendEndGuides(harness, connectionId),
-      disabled: unavailable,
-      title: unavailable ? "Requires an end attached to an existing pathway" : "",
-    },
-    {
-      label: "Add Refine Point",
-      action: () => addEndRefine(harness, connectionId),
-      disabled: refineUnavailable,
-      title: refineUnavailable
-        ? "Requires an end attached to a pathway with a routing gate"
-        : "",
+      label: "Add",
+      items: [
+        {
+          label: "Guides",
+          action: () => appendEndGuides(harness, connectionId),
+          disabled: unavailable,
+          title: unavailable ? "Requires an end attached to an existing pathway" : "",
+        },
+        {
+          label: "Refine",
+          action: () => addEndRefine(harness, connectionId),
+          disabled: refineUnavailable,
+          title: refineUnavailable
+            ? "Requires an end attached to a pathway with a routing gate"
+            : "",
+        },
+      ],
     },
     ...(includeProperties ? [{
       label: "Properties",
@@ -378,7 +383,10 @@ function pathwayNodeContextItems(harness, pathway) {
     return control && ["routing_gate", "refine"].includes(control.kind);
   });
   return [
-    { label: "Add refine point", action: () => addPathwayRefine(harness, pathway) },
+    {
+      label: "Add",
+      items: [{ label: "Refine", action: () => addPathwayRefine(harness, pathway) }],
+    },
     {
       label: "Segment",
       action: () => segmentPathway(harness, pathway),

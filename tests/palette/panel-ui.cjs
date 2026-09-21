@@ -3,6 +3,14 @@ const {
   Element, assert, asyncTest, descendants, harness, palette, readPaletteStyles, test,
 } = require('./support.cjs');
 
+/** Return the named submenu branch from a rendered context menu. */
+function contextMenuBranch(menu, label) {
+  return menu.children.find(
+    (item) => item.className === 'context-menu-branch'
+      && item.children[0].textContent === label,
+  );
+}
+
 test('palette follows fixed Fusion themes and live device theme rollovers', () => {
   const { context } = palette(new Map(), new Map(), false);
 
@@ -441,7 +449,7 @@ test('Cable Details header shows and renames its cable group', () => {
   assert.equal(calls[0].payload.name, 'Cabin data');
 });
 
-test('master end menu exposes end-owned guide and refine actions', () => {
+test('master end menu groups end-owned guide and refine actions under Add', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways[0].orderedControlIds = ['c1'];
@@ -460,11 +468,17 @@ test('master end menu exposes end-owned guide and refine actions', () => {
   const menu = descendants(
     diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
   )[0];
-  menu.children.find((item) => item.textContent === 'Add Guides').events.click();
+  let addBranch = contextMenuBranch(menu, 'Add');
+  assert.deepEqual(
+    addBranch.children[1].children.map((item) => item.textContent),
+    ['Guides', 'Refine'],
+  );
+  addBranch.children[1].children[0].events.click();
   end.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
   });
-  menu.children.find((item) => item.textContent === 'Add Refine Point').events.click();
+  addBranch = contextMenuBranch(menu, 'Add');
+  addBranch.children[1].children[1].events.click();
 
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
@@ -655,7 +669,7 @@ asyncTest('editing a master end isolates keyboard and pointer events until saved
   assert.equal(diagram.className.includes('relationship-focus-active'), true);
 });
 
-test('Cable Details end nodes and rows share end-owned routing actions', () => {
+test('Cable Details end nodes and rows share Add routing submenus', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways[0].orderedControlIds = ['c1'];
@@ -679,11 +693,17 @@ test('Cable Details end nodes and rows share end-owned routing actions', () => {
   graphicEnd.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: graphicEnd,
   });
-  menu.children.find((item) => item.textContent === 'Add Guides').events.click();
+  let addBranch = contextMenuBranch(menu, 'Add');
+  assert.deepEqual(
+    addBranch.children[1].children.map((item) => item.textContent),
+    ['Guides', 'Refine'],
+  );
+  addBranch.children[1].children[0].events.click();
   member.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: member,
   });
-  menu.children.find((item) => item.textContent === 'Add Refine Point').events.click();
+  addBranch = contextMenuBranch(menu, 'Add');
+  addBranch.children[1].children[1].events.click();
 
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
   assert.equal(menu.children.at(-1).textContent, 'Properties');
@@ -790,10 +810,17 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   node('pathway:p').events.click();
   node('junction:j1').events.click();
   invokeContextMenu(node('pathway:p'));
-  assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Add refine point', 'Segment', 'Delete', 'Properties',
+  const addBranch = menu.children[0];
+  assert.equal(addBranch.className, 'context-menu-branch');
+  assert.equal(addBranch.children[0].textContent, 'Add');
+  assert.deepEqual(menu.children.slice(1).map((item) => item.textContent), [
+    'Segment', 'Delete', 'Properties',
   ]);
-  menu.children[0].events.click();
+  assert.deepEqual(
+    addBranch.children[1].children.map((item) => item.textContent),
+    ['Refine'],
+  );
+  addBranch.children[1].children[0].events.click();
   invokeContextMenu(node('junction:j1'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
     'Open junction configuration', 'Delete', 'Properties',
