@@ -4,6 +4,7 @@
 function openJunctionRelationships(harness, junction) {
   retainConfigurationPopupParent(harness);
   closePathwayPopup(true);
+  closeCableEndRoutingPopup(true);
   closeCableGroupDetails();
   const prior = document.body.querySelector(".junction-relationships-popup");
   if (prior) {

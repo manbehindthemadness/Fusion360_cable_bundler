@@ -14,7 +14,9 @@
 }
 .member-row.missing { border-color: var(--danger); background: var(--danger-surface); }
 .sequence-position { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; min-width: 3ch; }
-.member-row[data-reorder] { grid-template-columns: auto minmax(0, 1fr) auto; cursor: grab; position: relative; touch-action: none; user-select: none; }
+.member-row.has-sequence-position,
+.member-row[data-reorder] { grid-template-columns: auto minmax(0, 1fr) auto; }
+.member-row[data-reorder] { cursor: grab; position: relative; touch-action: none; user-select: none; }
 .member-row[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
 .member-row[data-drop]::after {
   content: ""; position: absolute; left: 0; right: 0; height: 4px;

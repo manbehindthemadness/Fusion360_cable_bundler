@@ -49,6 +49,7 @@ let currentState = { harnesses: [], notice: "" };
 let selectedHarnessKey = readSession("cableBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";
+let openCableEndRoutingPopupId = "";
 let openCableGroupDetailsState = null;
 let configurationPopupParentState = null;
 let openCreateCablesPopupState = null;
@@ -110,4 +111,3 @@ function relationshipCollapseLimit(harness) {
     ? DEFAULT_RELATIONSHIP_COLLAPSE_LIMIT
     : clampRelationshipCollapseLimit(stored);
 }
-

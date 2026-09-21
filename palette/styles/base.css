@@ -87,6 +87,7 @@ body {
 .cable-options { border: 1px solid var(--border); border-radius: 6px; width: 320px; max-width: 90vw; }
 .pathway-popup,
 .junction-relationships-popup,
+.cable-end-routing-popup,
 .cable-group-details-popup,
 .create-cables-popup {
   width: 620px;
@@ -101,10 +102,12 @@ body {
 }
 .pathway-popup::backdrop,
 .junction-relationships-popup::backdrop,
+.cable-end-routing-popup::backdrop,
 .cable-group-details-popup::backdrop,
 .create-cables-popup::backdrop { background: #0005; }
 .pathway-popup > .pathway-popup-entry,
-.junction-relationships-popup > .pathway-popup-entry { margin: 0; }
+.junction-relationships-popup > .pathway-popup-entry,
+.cable-end-routing-popup > .pathway-popup-entry { margin: 0; }
 .pathway-popup-actions {
   display: flex;
   justify-content: flex-end;

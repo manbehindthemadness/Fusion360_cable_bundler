@@ -1,5 +1,5 @@
 /** Render route and member details for one assigned cable-end group. */
-/* global openCableGroupDetailsState */
+/* global openCableEndRoutingPopupId, openCableGroupDetailsState */
 
 const CABLE_GROUP_DETAILS_NODE_HEIGHT = 40;
 const CABLE_GROUP_DETAILS_ROW_GAP = 90;
@@ -349,6 +349,158 @@ function routeCableGroupDetailsEdges(topology) {
   });
 }
 
+/** Render one cable end's controls in their terminal-to-pathway traversal order. */
+function renderCableEndRoutingControls(harness, connection, end) {
+  const content = document.createElement("div");
+  const sequence = document.createElement("div");
+  const addGuides = document.createElement("button");
+  const addRefine = document.createElement("button");
+  const controls = new Map(
+    harness.controls.map((control) => [control.controlId, control]),
+  );
+  const routingItems = (connection.members || []).map((member) => ({
+    id: member.memberId,
+    label: `Guide ${member.index + 1}`,
+    kind: "guide",
+    hasLinkedGeometry: member.hasLinkedGeometry,
+    edit: () => openInterpolationOptions(
+      harness,
+      "end",
+      connection.connectionId,
+      `Guide ${member.index + 1}`,
+      member.interpolation,
+      member.usesDefaults,
+      member.memberId,
+    ),
+    highlight: () => highlightMember(
+      harness, "connection", connection.connectionId, { memberIndex: member.index },
+    ),
+  }));
+  end.orderedControlIds.forEach((controlId) => {
+    const control = controls.get(controlId);
+    const isRefine = control?.kind === "refine";
+    routingItems.push({
+      id: controlId,
+      label: control?.name || "Missing control",
+      kind: isRefine ? "refine" : "guide",
+      hasLinkedGeometry: control?.hasLinkedGeometry,
+      edit: isRefine
+        ? () => editPathwayRefine(harness, control)
+        : () => openInterpolationOptions(
+          harness, "gate", controlId, control?.name || "Guide", control?.interpolation,
+          control?.usesDefaults ?? true,
+        ),
+      highlight: () => highlightMember(harness, "control", controlId),
+    });
+  });
+  content.className = "section-content";
+  sequence.className = "sequence";
+  routingItems.forEach((item, index) => {
+    const row = memberRow(
+      `${item.label} #${item.id.slice(0, 8)}`,
+      item.highlight,
+      [optionsButton(
+        item.kind === "refine"
+          ? "Move, rotate, or resize refine point"
+          : "Guide interpolation options",
+        item.edit,
+        !item.id,
+      )],
+      !item.hasLinkedGeometry,
+    );
+    const position = document.createElement("span");
+    row.classList.add("has-sequence-position");
+    position.className = "sequence-position";
+    position.textContent = `${index + 1}`;
+    position.setAttribute("aria-label", `Position ${index + 1}`);
+    row.insertBefore(position, row.children[0]);
+    row.children[1].title = `Click for ${item.kind} options`;
+    sequence.append(row);
+  });
+  if (!routingItems.length) {
+    sequence.append(emptyMessage("No end-owned routing controls."));
+  }
+  addGuides.type = "button";
+  addGuides.className = "button compact";
+  addGuides.textContent = "+ Add Guides";
+  addGuides.addEventListener("click", () => appendEndGuides(harness, connection.connectionId));
+  addRefine.type = "button";
+  addRefine.className = "button compact";
+  addRefine.textContent = "+ Add Refine Point";
+  const pathway = harness.pathways.find((candidate) => candidate.pathwayId === end.pathwayId);
+  addRefine.disabled = !pathway || !(pathway.orderedControlIds || []).length;
+  addRefine.title = addRefine.disabled
+    ? "Requires a pathway with a routing gate"
+    : "";
+  addRefine.addEventListener("click", () => addEndRefine(harness, connection.connectionId));
+  content.append(sequence, addGuides, addRefine);
+  const section = nestedSection(
+    `end:${connection.connectionId}:routing`,
+    "Routing Controls · Traversal Order",
+    `${routingItems.length}`,
+    content,
+    () => highlightMember(harness, "connection", connection.connectionId),
+  );
+  section.open = true;
+  section.classList.add("pathway-popup-entry");
+  return section;
+}
+
+/** Close the active cable-end routing panel. */
+function closeCableEndRoutingPopup(preserveParent = false) {
+  const dialog = document.body.querySelector(".cable-end-routing-popup");
+  openCableEndRoutingPopupId = "";
+  if (!preserveParent) configurationPopupParentState = null;
+  dialog?.remove();
+  if (dialog?.open) dialog.close();
+}
+
+/** Open a refresh-stable routing-control panel for one physical cable end. */
+function openCableEndRoutingPopup(harness, connectionId) {
+  retainConfigurationPopupParent(harness);
+  closePathwayPopup(true);
+  closeJunctionRelationships(true);
+  closeCableGroupDetails();
+  const connection = harness.connections.find(
+    (candidate) => candidate.connectionId === connectionId,
+  );
+  const end = (harness.standaloneEnds || []).find(
+    (candidate) => candidate.connectionId === connectionId,
+  );
+  const prior = document.body.querySelector(".cable-end-routing-popup");
+  if (prior) {
+    prior.remove();
+    if (prior.open) prior.close();
+  }
+  if (!connection || !end) {
+    openCableEndRoutingPopupId = "";
+    restoreConfigurationPopupParent();
+    return;
+  }
+  openCableEndRoutingPopupId = connectionId;
+  const dialog = document.createElement("dialog");
+  const actions = document.createElement("div");
+  const close = document.createElement("button");
+  const connectionName = connection.name || "Unnamed cable end";
+  dialog.className = "cable-end-routing-popup";
+  dialog.setAttribute("aria-label", `Cable end routing controls: ${connectionName}`);
+  actions.className = "pathway-popup-actions";
+  close.type = "button";
+  close.className = "button";
+  close.textContent = "Close";
+  close.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    const isCurrent = document.body.querySelector(".cable-end-routing-popup") === dialog;
+    if (isCurrent) openCableEndRoutingPopupId = "";
+    dialog.remove();
+    if (isCurrent) restoreConfigurationPopupParent();
+  });
+  actions.append(close);
+  dialog.append(renderCableEndRoutingControls(harness, connection, end), actions);
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 /** Render the routed pathways, junctions, and physical ends for one group. */
 function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, showContextMenu) {
   const topology = layoutCableGroupDetailsTopology(
@@ -377,7 +529,7 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     const groupNode = svgElement("g", {
       class: `cable-group-details-node ${node.kind}${isFocused ? " focused" : ""}`,
       tabindex: "0",
-      role: ["connection", "attachment"].includes(node.kind) ? "group" : "button",
+      role: node.kind === "attachment" ? "group" : "button",
       "aria-label": `${node.kind}: ${node.label}`,
       "data-node-id": node.id,
     });
@@ -416,6 +568,13 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       const connectionId = node.id.slice("connection:".length);
       groupNode.dataset.connectionId = connectionId;
       hoverHighlight(groupNode, () => highlightMember(harness, "connection", connectionId));
+      const activate = () => openCableEndRoutingPopup(harness, connectionId);
+      groupNode.addEventListener("click", activate);
+      groupNode.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        activate();
+      });
       groupNode.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
         showContextMenu(event, cableGroupDetailsEndContextItems(harness, node.item));
@@ -637,6 +796,7 @@ function openCableGroupDetails(
 ) {
   closePathwayPopup();
   closeJunctionRelationships();
+  closeCableEndRoutingPopup();
   if (!options.preserveCreateCablesPopup) closeCreateCablesPopup();
   const prior = document.body.querySelector(".cable-group-details-popup");
   if (prior) {

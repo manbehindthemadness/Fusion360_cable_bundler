@@ -163,10 +163,11 @@ function closePathwayPopup(preserveParent = false) {
   if (dialog?.open) dialog.close();
 }
 
-/** Retain Cable Details as the parent of a pathway or junction configuration popup. */
+/** Retain Cable Details as the parent of a routing configuration popup. */
 function retainConfigurationPopupParent(harness) {
   const replacingConfiguration = document.body.querySelector(".pathway-popup")
-    || document.body.querySelector(".junction-relationships-popup");
+    || document.body.querySelector(".junction-relationships-popup")
+    || document.body.querySelector(".cable-end-routing-popup");
   if (openCableGroupDetailsState) {
     configurationPopupParentState = { harness, ...openCableGroupDetailsState };
   } else if (replacingConfiguration && configurationPopupParentState) {
@@ -187,6 +188,7 @@ function restoreConfigurationPopupParent() {
 function openPathwayPopup(harness, pathwayId) {
   retainConfigurationPopupParent(harness);
   closeJunctionRelationships(true);
+  closeCableEndRoutingPopup(true);
   closeCableGroupDetails();
   const pathway = harness.pathways.find((candidate) => candidate.pathwayId === pathwayId);
   const existing = document.body.querySelector(".pathway-popup");
@@ -227,4 +229,3 @@ function openPathwayPopup(harness, pathwayId) {
   document.body.append(dialog);
   dialog.showModal();
 }
-

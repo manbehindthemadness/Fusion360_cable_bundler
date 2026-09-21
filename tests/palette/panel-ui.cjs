@@ -11,6 +11,18 @@ function contextMenuBranch(menu, label) {
   );
 }
 
+/** Assert that Cable Details is open with the requested member focused. */
+function assertFocusedCableDetails(context, connectionId) {
+  const details = context.document.body.querySelector('.cable-group-details-popup');
+  assert.equal(details.open, true);
+  const focused = descendants(
+    details,
+    (node) => node.className?.split(' ').includes('cable-group-details-member')
+      && node.className.split(' ').includes('focused'),
+  )[0];
+  assert.equal(focused.dataset.connectionId, connectionId);
+}
+
 test('palette follows fixed Fusion themes and live device theme rollovers', () => {
   const { context } = palette(new Map(), new Map(), false);
 
@@ -173,14 +185,72 @@ test('closing pathway configuration returns to its Cable Details parent', () => 
   close.events.click();
 
   assert.equal(context.document.body.querySelector('.pathway-popup'), undefined);
-  const restored = context.document.body.querySelector('.cable-group-details-popup');
-  assert.equal(restored.open, true);
-  const focused = descendants(
-    restored,
-    (node) => node.className?.split(' ').includes('cable-group-details-member')
-      && node.className.split(' ').includes('focused'),
+  assertFocusedCableDetails(context, 'a1');
+});
+
+test('Cable Details end node opens its routing controls in traversal order', () => {
+  const { context } = palette();
+  const definition = harness();
+  const interpolationCalls = [];
+  context.openInterpolationOptions = (...args) => interpolationCalls.push(args);
+  definition.connections[0].members = [
+    {
+      index: 0, memberId: 'guide-1',
+      interpolation: { approach_mm: 1, departure_mm: 2 },
+      usesDefaults: false, hasLinkedGeometry: true,
+    },
+    {
+      index: 1, memberId: 'guide-2',
+      interpolation: { approach_mm: null, departure_mm: null },
+      usesDefaults: true, hasLinkedGeometry: true,
+    },
+  ];
+  definition.controls = [
+    {
+      controlId: 'refine-1', name: 'Refine 1', kind: 'refine',
+      interpolation: { approach_mm: null, departure_mm: null },
+      usesDefaults: true, hasLinkedGeometry: false,
+    },
+  ];
+  definition.standaloneEnds[0].orderedControlIds = ['refine-1'];
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
+  const endNode = descendants(details, (node) => (
+    node.className?.split(' ').includes('cable-group-details-node')
+      && node.dataset.nodeId === 'connection:a1'
+  ))[0];
+  endNode.events.click();
+
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
+  let routing = context.document.body.querySelector('.cable-end-routing-popup');
+  assert.equal(routing.open, true);
+  assert.equal(routing.attributes['aria-label'], 'Cable end routing controls: a1');
+  const section = routing.querySelector('.pathway-popup-entry');
+  assert.equal(section.children[0].children[0].textContent, 'Routing Controls · Traversal Order');
+  assert.equal(section.children[0].children[1].textContent, '3');
+  const rows = descendants(
+    section, (node) => node.className?.split(' ').includes('member-row'),
+  );
+  assert.deepEqual(rows.map((row) => row.children[1].textContent), [
+    'Guide 1 #guide-1', 'Guide 2 #guide-2', 'Refine 1 #refine-1 (geometry missing)',
+  ]);
+  assert.equal(rows.every((row) => row.className.includes('has-sequence-position')), true);
+  rows[0].querySelector('.options-button').events.click();
+  assert.equal(interpolationCalls.length, 1);
+  assert.deepEqual(interpolationCalls[0].slice(1), [
+    'end', 'a1', 'Guide 1', { approach_mm: 1, departure_mm: 2 }, false, 'guide-1',
+  ]);
+
+  context.renderEditor(definition);
+  routing = context.document.body.querySelector('.cable-end-routing-popup');
+  const close = descendants(
+    routing, (node) => node.tag === 'button' && node.textContent === 'Close',
   )[0];
-  assert.equal(focused.dataset.connectionId, 'a1');
+  close.events.click();
+
+  assert.equal(context.document.body.querySelector('.cable-end-routing-popup'), undefined);
+  assertFocusedCableDetails(context, 'a1');
 });
 
 test('closing junction configuration returns to its Cable Details parent', () => {

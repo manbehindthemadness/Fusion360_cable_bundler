@@ -63,6 +63,15 @@ test('Cable Details rename controls keep their focus highlight inside the panel'
   );
 });
 
+test('numbered routing rows keep positions, labels, and actions on one line', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(
+    styles,
+    /\.member-row\.has-sequence-position,[^{]*\.member-row\[data-reorder] \{[^}]*grid-template-columns: auto minmax\(0, 1fr\) auto;/s,
+  );
+});
+
 test('Route Editor uses three independently scrollable columns', () => {
   const styles = readPaletteStyles();
   const columnPattern = [

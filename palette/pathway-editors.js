@@ -66,23 +66,27 @@ function enableSequenceDrag(
   row.addEventListener("lostpointercapture", clearDrag);
 }
 
-/** Open interpolation settings for harness defaults or one pathway gate. */
+/** Open interpolation settings for harness defaults or one routing section. */
 function openInterpolationOptions(
   harness, target, targetId = null, name = "", settings = {}, useDefaults = false,
+  memberId = null,
 ) {
-  if (!["defaults", "gate"].includes(target)) {
-    throw new TypeError(`Unsupported pathway interpolation target: ${target}`);
+  if (!["defaults", "gate", "end"].includes(target)) {
+    throw new TypeError(`Unsupported routing interpolation target: ${target}`);
   }
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
     "cable-options",
   );
   const isDefaults = target === "defaults";
+  const isEnd = target === "end";
   heading.textContent = isDefaults ? "Generation defaults" : `Interpolation · ${name}`;
   dialog.setAttribute("aria-label", heading.textContent);
   note.textContent = "Leave a distance blank for Auto. The harness relaxation preset sets Auto's preferred curve extent; safe bend minimums may expand it, crowded values are reduced to the feasible range, and crowded spans use a direct profile-to-profile curve when it preserves that radius. "
     + (isDefaults
       ? "Distance presets are used for new controls. Existing controls follow defaults unless individually customized. The relaxation preset applies to every Auto distance in this harness."
-      : "Approach and departure follow the gate traversal order. Changes affect all cable groups through this gate.");
+      : isEnd
+        ? "Terminal-side and pathway-side transitions follow the end traversal order. Changes affect every cable group using this end guide."
+        : "Approach and departure follow the gate traversal order. Changes affect all cable groups through this gate.");
   form.append(heading, note);
   const applyExisting = document.createElement("input");
   applyExisting.type = "checkbox";
@@ -135,7 +139,7 @@ function openInterpolationOptions(
   const primary = addFields(
     isDefaults ? "Gates · " : "",
     isDefaults ? harness.gateDefaults : settings,
-    false,
+    isEnd,
   );
   const ends = isDefaults ? addFields("Ends · ", harness.endDefaults, true) : null;
   let minimumClearance = null;
@@ -195,8 +199,8 @@ function openInterpolationOptions(
       useDefaults = true;
       updateStatus();
       for (const [key, input] of Object.entries(primary)) {
-        input.value = harness.gateDefaults?.[key] == null
-          ? "" : `${harness.gateDefaults[key]}`;
+        const defaults = isEnd ? harness.endDefaults : harness.gateDefaults;
+        input.value = defaults?.[key] == null ? "" : `${defaults[key]}`;
       }
     });
     form.append(reset);
@@ -217,6 +221,7 @@ function openInterpolationOptions(
         harnessId: harness.harnessId,
         target,
         targetId,
+        ...(memberId ? { memberId } : {}),
         useDefaults,
         settings: values(primary),
         ...(ends ? { endDefaults: values(ends), applyExisting: applyExisting.checked } : {}),

@@ -36,6 +36,7 @@ function renderEditor(harness) {
     closeCreateCablesPopup();
     closePathwayPopup();
     closeJunctionRelationships();
+    closeCableEndRoutingPopup();
     closeCableGroupDetails();
     const error = document.createElement("div");
     const actions = document.createElement("div");
@@ -104,6 +105,9 @@ function renderEditor(harness) {
     );
     if (junction) openJunctionRelationships(harness, junction);
     else closeJunctionRelationships();
+  }
+  if (openCableEndRoutingPopupId) {
+    openCableEndRoutingPopup(harness, openCableEndRoutingPopupId);
   }
   const materialOptions = document.body.querySelector(".material-options");
   // Keep the foreground material editor above its originating details dialog during refresh.
