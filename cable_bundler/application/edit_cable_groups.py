@@ -15,6 +15,7 @@ from ..domain import (
     CableGroupDefinition,
     CableMaterialOverrides,
     HarnessDefinition,
+    Metadata,
     PathwayEndpoint,
     validate_harness,
 )
@@ -52,6 +53,7 @@ class _MutableCableGroup:
     connection_ids: list[UUID]
     diameter_mm: float
     material_overrides: CableMaterialOverrides
+    metadata_overrides: Metadata
 
 
 def save_cable_editor(
@@ -125,6 +127,7 @@ def save_cable_editor(
             list(group.connection_ids),
             group.diameter_mm,
             group.material_overrides,
+            group.metadata_overrides,
         )
         for group in definition.cable_groups
     ]
@@ -160,6 +163,7 @@ def save_cable_editor(
                     [pairing.left_connection_id, pairing.right_connection_id],
                     DEFAULT_CABLE_DIAMETER_MM,
                     CableMaterialOverrides(),
+                    (),
                 )
             )
         elif left_index is None:
@@ -180,6 +184,7 @@ def save_cable_editor(
             tuple(group.connection_ids),
             group.diameter_mm,
             group.material_overrides,
+            group.metadata_overrides,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -215,7 +220,7 @@ def set_cable_group_properties(
     conductor_material: Optional[str],
     manufacturer: Optional[str],
     part_number: Optional[str],
-    notes: Optional[str],
+    metadata_overrides: Metadata,
     gateway: HarnessEditGateway,
 ) -> None:
     """
@@ -241,8 +246,8 @@ def set_cable_group_properties(
                 conductor_material=conductor_material,
                 manufacturer=manufacturer,
                 part_number=part_number,
-                notes=notes,
             ),
+            metadata_overrides=metadata_overrides,
         ),
     )
 

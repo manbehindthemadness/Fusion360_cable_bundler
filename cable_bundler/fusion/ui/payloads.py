@@ -15,6 +15,7 @@ from ...domain import (
     CableMaterialOverrides,
     CableMaterialSettings,
     CableStripe,
+    Metadata,
     StripePattern,
 )
 
@@ -317,7 +318,32 @@ def _read_material_settings(raw_value: object) -> CableMaterialSettings:
     )
 
 
-def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, str]:
+def _read_metadata(raw_value: object, label: str = "Metadata") -> Metadata:
+    """
+    Parse ordered key/value rows supplied by the palette.
+    """
+    if not isinstance(raw_value, list):
+        raise ValueError(f"{label} must be a list of key/value rows.")
+    entries: list[tuple[str, str]] = []
+    keys: set[str] = set()
+    for index, raw_entry in enumerate(raw_value):
+        if not isinstance(raw_entry, dict):
+            raise ValueError(f"{label} row {index + 1} must be an object.")
+        key = raw_entry.get("key")
+        value = raw_entry.get("value")
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"{label} row {index + 1} needs a key.")
+        if not isinstance(value, str):
+            raise ValueError(f"{label} row {index + 1} value must be text.")
+        normalized_key = key.strip().casefold()
+        if normalized_key in keys:
+            raise ValueError(f"{label} keys must be unique ignoring case.")
+        keys.add(normalized_key)
+        entries.append((key.strip(), value))
+    return tuple(entries)
+
+
+def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, Metadata]:
     """
     Parse inheritable construction and catalog properties supplied by the palette.
     """
@@ -328,7 +354,7 @@ def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, str
         _read_material_text(raw_value, "conductorMaterial", "Conductor material", required=True),
         _read_material_text(raw_value, "manufacturer", "Manufacturer", required=False),
         _read_material_text(raw_value, "partNumber", "Part number", required=False),
-        _read_material_text(raw_value, "notes", "Notes", required=False),
+        _read_metadata(raw_value.get("metadata", []), "Harness metadata"),
     )
 
 

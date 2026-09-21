@@ -59,6 +59,28 @@ def test_base_visual_override_replaces_or_inherits_library_appearance(
     assert plain_red.appearance is None
 
 
+def test_cable_metadata_inherits_parent_rows_and_applies_keyed_overrides(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve parent ordering while replacing and extending child-searchable values.
+    """
+    definition = replace(
+        valid_harness,
+        metadata=(("project", "Orion"), ("drawing-zone", "A1")),
+    )
+    cable_group = replace(
+        valid_harness.cable_groups[0],
+        metadata_overrides=(("Drawing-Zone", "B4"), ("inspection", "required")),
+    )
+
+    assert definition.cable_group_metadata(cable_group) == (
+        ("project", "Orion"),
+        ("Drawing-Zone", "B4"),
+        ("inspection", "required"),
+    )
+
+
 def test_catalog_provides_search_suggestions_without_owning_values() -> None:
     """
     Load bundled materials, conductors, colors, and supported stripe patterns.

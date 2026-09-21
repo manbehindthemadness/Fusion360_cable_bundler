@@ -20,9 +20,12 @@ from cable_bundler.application import (
     rename_harness,
     save_cable_editor,
     segment_pathway,
+    set_cable_end_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
     set_harness_properties,
+    set_junction_properties,
+    set_pathway_properties,
     suggest_junction_name,
     switch_standalone_end,
 )
@@ -243,7 +246,7 @@ def test_edits_group_construction_and_visual_overrides(
         "Tinned Copper",
         "Maker",
         "WG-01",
-        "Grouped conductor",
+        (("drawing-zone", "B4"),),
         gateway,
     )
     set_cable_group_material_overrides(
@@ -255,8 +258,11 @@ def test_edits_group_construction_and_visual_overrides(
 
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].diameter_mm == 2.4
-    assert stored.cable_groups[0].material_overrides.main_color.name == "Red"
+    main_color = stored.cable_groups[0].material_overrides.main_color
+    assert main_color is not None
+    assert main_color.name == "Red"
     assert stored.cable_group_materials(stored.cable_groups[0]).part_number == "WG-01"
+    assert stored.cable_groups[0].metadata_overrides == (("drawing-zone", "B4"),)
 
 
 def test_harness_properties_flow_into_group_inheritance(
@@ -273,7 +279,7 @@ def test_harness_properties_flow_into_group_inheritance(
         "Silver Copper",
         "Parent Maker",
         "PARENT-1",
-        "Parent notes",
+        (("project", "Orion"),),
         gateway,
     )
 
@@ -281,6 +287,70 @@ def test_harness_properties_flow_into_group_inheritance(
     materials = stored.cable_group_materials(stored.cable_groups[0])
     assert materials.insulation_material == "PTFE"
     assert materials.part_number == "PARENT-1"
+    assert stored.cable_group_metadata(stored.cable_groups[0]) == (("project", "Orion"),)
+
+
+def test_pathway_properties_store_searchable_metadata_without_routing_changes(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace pathway-owned metadata while retaining its complete routing definition.
+    """
+    gateway = _recording_gateway(valid_harness)
+    pathway = valid_harness.pathways[0]
+
+    set_pathway_properties(
+        valid_harness.harness_id,
+        pathway.pathway_id,
+        (("zone", "forward"),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.pathways[0] == replace(pathway, metadata=(("zone", "forward"),))
+
+
+def test_cable_end_properties_store_metadata_without_changing_connection(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace one physical end's metadata while retaining its geometry and identity.
+    """
+    gateway = _recording_gateway(valid_harness)
+    connection = valid_harness.connections[0]
+
+    set_cable_end_properties(
+        valid_harness.harness_id,
+        connection.connection_id,
+        (("connector", "J1"),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0] == replace(connection, metadata=(("connector", "J1"),))
+
+
+def test_junction_properties_store_metadata_without_changing_topology(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace one junction's metadata while retaining its control and relationships.
+    """
+    junction = JunctionDefinition(
+        UUID(int=901), "Junction 01", valid_harness.controls[0].control_id
+    )
+    definition = replace(valid_harness, junctions=(junction,))
+    gateway = _recording_gateway(definition)
+
+    set_junction_properties(
+        definition.harness_id,
+        junction.junction_id,
+        (("panel", "P2"),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.junctions[0] == replace(junction, metadata=(("panel", "P2"),))
 
 
 def test_new_junction_control_inherits_gate_interpolation_defaults(
@@ -353,7 +423,13 @@ def test_segmented_junction_retains_source_control_interpolation(
     definition = replace(
         valid_harness,
         controls=controls,
-        pathways=(replace(pathway, ordered_control_ids=(first_id, junction_control_id, last_id)),),
+        pathways=(
+            replace(
+                pathway,
+                ordered_control_ids=(first_id, junction_control_id, last_id),
+                metadata=(("zone", "forward"),),
+            ),
+        ),
     )
     gateway = _recording_gateway(definition)
     generated_ids = iter(
@@ -378,6 +454,12 @@ def test_segmented_junction_retains_source_control_interpolation(
     )
     assert retained.interpolation == source_settings
     assert retained.interpolation_is_override is True
+    preceding = next(item for item in stored.pathways if item.pathway_id == pathway.pathway_id)
+    following = next(
+        item for item in stored.pathways if item.pathway_id == result.following_pathway.pathway_id
+    )
+    assert preceding.metadata == (("zone", "forward"),)
+    assert following.metadata == ()
 
 
 def test_apply_existing_defaults_updates_junctions_and_end_fallbacks(

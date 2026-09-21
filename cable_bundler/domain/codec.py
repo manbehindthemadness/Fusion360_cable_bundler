@@ -150,6 +150,7 @@ def loads(serialized: str) -> HarnessDefinition:
             if schema_version >= 14
             else AutoTransitionPreset.TIGHT
         ),
+        metadata=_parse_metadata(payload.get("metadata", []), "$.metadata"),
     )
     return definition
 
@@ -168,6 +169,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         "material_defaults": _materials_to_dict(definition.material_defaults),
         "minimum_clearance_mm": definition.minimum_clearance_mm,
         "auto_transition_preset": definition.auto_transition_preset.value,
+        "metadata": _metadata_to_list(definition.metadata),
         "connections": [
             {
                 "interpolation": asdict(connection.interpolation),
@@ -175,6 +177,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "name": connection.name,
                 "entity_token": connection.entity_token,
                 "additional_entity_tokens": list(connection.additional_entity_tokens),
+                "metadata": _metadata_to_list(connection.metadata),
                 **(
                     {
                         "member_interpolations": [
@@ -217,6 +220,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "ordered_control_ids": [
                     str(control_id) for control_id in pathway.ordered_control_ids
                 ],
+                "metadata": _metadata_to_list(pathway.metadata),
             }
             for pathway in definition.pathways
         ],
@@ -232,6 +236,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                     }
                     for relationship in junction.pathway_relationships
                 ],
+                "metadata": _metadata_to_list(junction.metadata),
             }
             for junction in definition.junctions
         ],
@@ -250,6 +255,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
                 "diameter_mm": group.diameter_mm,
                 "material_overrides": _material_overrides_to_dict(group.material_overrides),
+                "metadata_overrides": _metadata_to_list(group.metadata_overrides),
             }
             for group in definition.cable_groups
         ],
@@ -267,6 +273,36 @@ def _color_to_dict(color: CableColor) -> dict[str, object]:
         "green": color.green,
         "blue": color.blue,
     }
+
+
+def _metadata_to_list(entries: tuple[tuple[str, str], ...]) -> list[dict[str, str]]:
+    """
+    Convert ordered searchable metadata to JSON-compatible rows.
+    """
+    return [{"key": key, "value": value} for key, value in entries]
+
+
+def _parse_metadata(raw_value: object, path: str) -> tuple[tuple[str, str], ...]:
+    """
+    Parse ordered key/value metadata while rejecting ambiguous duplicate keys.
+    """
+    if not isinstance(raw_value, list):
+        raise DefinitionParseError(path, "expected a list")
+    entries: list[tuple[str, str]] = []
+    normalized_keys: set[str] = set()
+    for index, raw_entry in enumerate(raw_value):
+        entry_path = f"{path}[{index}]"
+        entry = _require_mapping(raw_entry, entry_path)
+        key = _require_str(entry, "key", f"{entry_path}.key")
+        value = _require_str(entry, "value", f"{entry_path}.value")
+        normalized_key = key.strip().casefold()
+        if not normalized_key:
+            raise DefinitionParseError(f"{entry_path}.key", "expected non-empty text")
+        if normalized_key in normalized_keys:
+            raise DefinitionParseError(f"{entry_path}.key", "duplicate metadata key")
+        normalized_keys.add(normalized_key)
+        entries.append((key, value))
+    return tuple(entries)
 
 
 def _stripe_to_dict(stripe: CableStripe) -> dict[str, object]:
@@ -506,6 +542,7 @@ def _parse_connection(raw_value: object, path: str) -> Connection:
         member_ids=identities,
         member_interpolations=settings,
         interpolation=parse_interpolation(value.get("interpolation", {}), f"{path}.interpolation"),
+        metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
     )
     return connection
 
@@ -596,6 +633,7 @@ def _parse_pathway(raw_value: object, path: str) -> PathwayDefinition:
             f"{path}.routing_mode",
         ),
         ordered_control_ids=control_ids,
+        metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
     )
     return pathway
 
@@ -622,6 +660,7 @@ def _parse_junction(
         name=_require_str(value, "name", f"{path}.name"),
         control_id=_require_uuid(value, "control_id", f"{path}.control_id"),
         pathway_relationships=relationships,
+        metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
     )
 
 
@@ -683,6 +722,9 @@ def _parse_cable_group(
         diameter_mm=_require_float(value, "diameter_mm", f"{path}.diameter_mm"),
         material_overrides=parse_material_overrides(
             value.get("material_overrides"), f"{path}.material_overrides"
+        ),
+        metadata_overrides=_parse_metadata(
+            value.get("metadata_overrides", []), f"{path}.metadata_overrides"
         ),
     )
 

@@ -24,10 +24,13 @@ from ...application import (
     rename_pathway,
     rename_standalone_end,
     save_cable_editor,
+    set_cable_end_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
     set_harness_material_defaults,
     set_harness_properties,
+    set_junction_properties,
+    set_pathway_properties,
     switch_standalone_end,
     update_junction_relationships,
 )
@@ -38,6 +41,7 @@ from .payloads import (
     _read_harness_properties,
     _read_material_overrides,
     _read_material_settings,
+    _read_metadata,
     _read_palette_payload,
     _read_payload_offset,
     _read_payload_uuid,
@@ -281,7 +285,6 @@ def _apply_palette_edit(
                 "conductorMaterial": payload.get("conductorMaterial"),
                 "manufacturer": payload.get("manufacturer"),
                 "partNumber": payload.get("partNumber"),
-                "notes": payload.get("notes"),
             }
         )
         set_cable_group_properties(
@@ -292,7 +295,7 @@ def _apply_palette_edit(
             property_materials.conductor_material,
             property_materials.manufacturer,
             property_materials.part_number,
-            property_materials.notes,
+            _read_metadata(payload.get("metadataOverrides", []), "Cable metadata overrides"),
             gateway,
         )
         return "Saved connected-cable properties."
@@ -309,7 +312,7 @@ def _apply_palette_edit(
             conductor_material,
             manufacturer,
             part_number,
-            notes,
+            metadata,
         ) = _read_harness_properties(payload)
         set_harness_properties(
             harness_id,
@@ -317,7 +320,7 @@ def _apply_palette_edit(
             conductor_material,
             manufacturer,
             part_number,
-            notes,
+            metadata,
             gateway,
         )
         return "Saved harness properties."
@@ -329,6 +332,30 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved connected-cable material overrides."
+    if action == "set_pathway_properties":
+        set_pathway_properties(
+            harness_id,
+            _read_payload_uuid(payload, "pathwayId", "pathway"),
+            _read_metadata(payload.get("metadata", []), "Pathway metadata"),
+            gateway,
+        )
+        return "Saved pathway properties."
+    if action == "set_junction_properties":
+        set_junction_properties(
+            harness_id,
+            _read_payload_uuid(payload, "junctionId", "junction"),
+            _read_metadata(payload.get("metadata", []), "Junction metadata"),
+            gateway,
+        )
+        return "Saved junction properties."
+    if action == "set_cable_end_properties":
+        set_cable_end_properties(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_metadata(payload.get("metadata", []), "Cable-end metadata"),
+            gateway,
+        )
+        return "Saved cable-end properties."
     if action in {"rename_harness", "rename_junction", "rename_pathway"}:
         name = payload.get("name")
         if not isinstance(name, str):

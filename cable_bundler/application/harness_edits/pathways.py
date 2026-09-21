@@ -11,6 +11,7 @@ from ...domain import (
     ControlStructure,
     JunctionDefinition,
     JunctionPathwayRelationship,
+    Metadata,
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
@@ -447,6 +448,26 @@ def rename_pathway(
             (item.name for item in definition.pathways if item.pathway_id != pathway_id),
         )
     updated = replace(pathway, **{field: normalized})
+    persist_definition(
+        harness_id,
+        original,
+        replace(definition, pathways=replace_pathway(definition, updated)),
+        gateway,
+    )
+
+
+def set_pathway_properties(
+    harness_id: UUID,
+    pathway_id: UUID,
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace searchable metadata without changing pathway routing behavior.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    pathway = require_pathway(definition, pathway_id)
+    updated = replace(pathway, metadata=metadata)
     persist_definition(
         harness_id,
         original,

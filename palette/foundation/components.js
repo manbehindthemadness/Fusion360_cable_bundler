@@ -333,7 +333,7 @@ function cableGroupLabel(harness, group) {
 }
 
 /** Return end-owned routing actions shared by every end representation. */
-function endRoutingContextItems(harness, connectionId) {
+function endRoutingContextItems(harness, connectionId, includeProperties = true) {
   const end = (harness.standaloneEnds || []).find(
     (candidate) => candidate.connectionId === connectionId,
   );
@@ -357,6 +357,10 @@ function endRoutingContextItems(harness, connectionId) {
         ? "Requires an end attached to a pathway with a routing gate"
         : "",
     },
+    ...(includeProperties ? [{
+      label: "Properties",
+      action: () => openCableEndProperties(harness, connectionId),
+    }] : []),
   ];
 }
 
@@ -381,6 +385,7 @@ function pathwayNodeContextItems(harness, pathway) {
       title: canSegment ? "" : "Requires an interior routing gate or refine point",
     },
     { label: "Delete", action: () => removePathway(harness, pathway) },
+    { label: "Properties", action: () => openPathwayProperties(harness, pathway) },
   ];
 }
 
@@ -397,6 +402,7 @@ function junctionNodeContextItems(harness, junction) {
       action: () => activateJunctionNode(harness, junction),
     },
     { label: "Delete", action: () => removeJunction(harness, junction) },
+    { label: "Properties", action: () => openJunctionProperties(harness, junction) },
   ];
 }
 

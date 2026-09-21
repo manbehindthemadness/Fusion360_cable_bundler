@@ -12,6 +12,7 @@ from ...domain import (
     HarnessDefinition,
     JunctionDefinition,
     JunctionPathwayRelationship,
+    Metadata,
     PathwayEndpoint,
     next_available_name,
     validate_harness,
@@ -229,6 +230,37 @@ def rename_junction(
         ),
     )
     updated = replace(junction, name=resolved_name)
+    persist_definition(
+        harness_id,
+        original,
+        replace(
+            definition,
+            junctions=tuple(
+                updated if candidate.junction_id == junction_id else candidate
+                for candidate in definition.junctions
+            ),
+        ),
+        gateway,
+    )
+
+
+def set_junction_properties(
+    harness_id: UUID,
+    junction_id: UUID,
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace searchable metadata without changing junction topology.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    junction = next(
+        (candidate for candidate in definition.junctions if candidate.junction_id == junction_id),
+        None,
+    )
+    if junction is None:
+        raise ValueError("Selected junction does not exist in this harness.")
+    updated = replace(junction, metadata=metadata)
     persist_definition(
         harness_id,
         original,

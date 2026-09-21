@@ -10,6 +10,7 @@ from ...domain import (
     Connection,
     ControlKind,
     ControlStructure,
+    Metadata,
     PathwayEndpoint,
     RefineGeometry,
     next_available_name,
@@ -261,3 +262,40 @@ def rename_standalone_end(
         ),
     )
     persist_definition(harness_id, original, updated, gateway)
+
+
+def set_cable_end_properties(
+    harness_id: UUID,
+    connection_id: UUID,
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace searchable metadata without changing end routing or membership.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected cable end does not exist in this harness.")
+    connection = next(
+        (
+            candidate
+            for candidate in definition.connections
+            if candidate.connection_id == connection_id
+        ),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end has a missing connection.")
+    updated_connection = replace(connection, metadata=metadata)
+    persist_definition(
+        harness_id,
+        original,
+        replace(
+            definition,
+            connections=tuple(
+                updated_connection if candidate.connection_id == connection_id else candidate
+                for candidate in definition.connections
+            ),
+        ),
+        gateway,
+    )

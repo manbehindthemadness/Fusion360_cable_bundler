@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from dataclasses import replace
+from typing import Any
+from uuid import UUID
 
+from cable_bundler.domain import JunctionDefinition
 from tests.fusion_ui_support import (
     HarnessDefinition,
     HarnessLoadResult,
@@ -14,6 +19,22 @@ from tests.fusion_ui_support import (
     pytest,
     sys,
 )
+
+
+def _serialize_definition(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    definition: HarnessDefinition,
+    serialize_palette_state: Callable[[object, str], str],
+) -> dict[str, Any]:
+    """
+    Project one deterministic definition through the mocked palette boundary.
+    """
+    gateway = SimpleNamespace(is_entity_token_resolvable=lambda _entity_token: True)
+    result = HarnessLoadResult("Harness_001", definition, None, ())
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+    return json.loads(serialize_palette_state(object(), ""))
 
 
 def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModule) -> None:
@@ -75,14 +96,75 @@ def test_palette_state_contains_complete_group_definition(
         }
         for end in valid_harness.standalone_ends
     ]
+    assert harness["pathways"][0]["metadata"] == []
+    assert harness["connections"][0]["metadata"] == []
     cable_group = harness["cableGroups"][0]
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
     assert cable_group["connectionIds"] == [
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]
     assert cable_group["diameterMm"] == valid_harness.cable_groups[0].diameter_mm
+    assert harness["metadata"] == []
+    assert cable_group["metadata"] == []
+    assert cable_group["metadataOverrides"] == []
     assert len(cable_group["routeLegs"]) == 1
     assert cable_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+
+
+def test_palette_state_resolves_cable_metadata_overrides(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Send both resolved rows and explicit child overrides to the properties editor.
+    """
+    group = replace(valid_harness.cable_groups[0], metadata_overrides=(("project", "Apollo"),))
+    definition = replace(valid_harness, metadata=(("project", "Orion"),), cable_groups=(group,))
+    payload = _serialize_definition(
+        addin_module,
+        monkeypatch,
+        definition,
+        addin_module.serialize_palette_state,
+    )
+    cable_group = payload["harnesses"][0]["cableGroups"][0]
+
+    assert cable_group["metadata"] == [{"key": "project", "value": "Apollo"}]
+    assert cable_group["metadataOverrides"] == [{"key": "project", "value": "Apollo"}]
+
+
+def test_palette_state_includes_junction_and_cable_end_metadata(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Expose identity-owned metadata to both metadata-only property dialogs.
+    """
+    junction = JunctionDefinition(
+        UUID(int=902),
+        "Junction 01",
+        valid_harness.controls[0].control_id,
+        metadata=(("panel", "P2"),),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(valid_harness.connections[0], metadata=(("connector", "J1"),)),
+            valid_harness.connections[1],
+        ),
+        junctions=(junction,),
+    )
+    payload = _serialize_definition(
+        addin_module,
+        monkeypatch,
+        definition,
+        addin_module.serialize_palette_state,
+    )
+    harness = payload["harnesses"][0]
+
+    assert harness["connections"][0]["metadata"] == [{"key": "connector", "value": "J1"}]
+    assert harness["junctions"][0]["metadata"] == [{"key": "panel", "value": "P2"}]
 
 
 @pytest.mark.parametrize(

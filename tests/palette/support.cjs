@@ -241,7 +241,7 @@ function harness() {
     manufacturer: '', partNumber: '', notes: '',
   };
   const connections = [1, 2, 3].flatMap((i) => ['a', 'b'].map((end) => ({
-    connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true,
+    connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true, metadata: [],
   })));
   const standaloneEnds = [1, 2, 3].flatMap((i) => [
     { connectionId: `a${i}`, pathwayId: 'p', endpoint: 'start', orderedControlIds: [] },
@@ -253,6 +253,7 @@ function harness() {
     materialOverrides: { insulationMaterial: null, conductorMaterial: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,
       partNumber: null, notes: null },
+    metadata: [], metadataOverrides: [],
     routeLegs: [{ routeId: `r${i}`, label: `Group ${i} Leg 1`,
       startConnectionId: `a${i}`, endConnectionId: `b${i}`,
       pathwayIds: ['p'], controlSteps: [] }],
@@ -262,9 +263,9 @@ function harness() {
     schemaVersion: 15, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
-    validationMessages: [], materialDefaults, controls: [], connections,
+    validationMessages: [], materialDefaults, metadata: [], controls: [], connections,
     pathways: [{ pathwayId: 'p', name: 'lower fuse box path', startName: 'O2-sensor',
-      endName: 'CAN_BUS-ctrl', orderedControlIds: [] }],
+      endName: 'CAN_BUS-ctrl', orderedControlIds: [], metadata: [] }],
     junctions: [], standaloneEnds, cableGroups, cableGroupRouteError: null,
   };
 }

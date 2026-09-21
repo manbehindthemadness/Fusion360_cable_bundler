@@ -88,6 +88,110 @@ function createMaterialTextField(settings, key, labelText, suggestions = [], mul
   return { wrapper, header, input };
 }
 
+/** Build an ordered key/value editor with optional parent inheritance controls. */
+function createMetadataEditor(parentEntries, overrideEntries = null) {
+  const wrapper = document.createElement("section");
+  const heading = document.createElement("div");
+  const title = document.createElement("strong");
+  const add = document.createElement("button");
+  const list = document.createElement("div");
+  const isCableGroup = overrideEntries !== null;
+  const parentByKey = new Map(
+    (parentEntries || []).map((entry) => [entry.key.trim().toLocaleLowerCase(), entry]),
+  );
+  const overridesByKey = new Map(
+    (overrideEntries || []).map((entry) => [entry.key.trim().toLocaleLowerCase(), entry]),
+  );
+  wrapper.className = "metadata-editor";
+  heading.className = "metadata-heading";
+  title.textContent = "Custom Metadata";
+  add.type = "button";
+  add.className = "button compact";
+  add.textContent = "Add Field";
+  list.className = "metadata-list";
+  heading.append(title, add);
+  wrapper.append(heading, list);
+
+  const appendRow = (entry = { key: "", value: "" }, inherited = false) => {
+    const row = document.createElement("div");
+    const key = document.createElement("input");
+    const value = document.createElement("input");
+    const remove = document.createElement("button");
+    key.type = "text";
+    key.className = "filter metadata-key";
+    key.placeholder = "Key";
+    key.setAttribute("aria-label", "Metadata key");
+    key.value = entry.key || "";
+    value.type = "text";
+    value.className = "filter metadata-value";
+    value.placeholder = "Value";
+    value.setAttribute("aria-label", `${entry.key || "Metadata"} value`);
+    value.value = entry.value || "";
+    remove.type = "button";
+    remove.className = "button compact metadata-row-action";
+    row.className = "metadata-row";
+    row.append(key, value);
+
+    let override = null;
+    if (isCableGroup && inherited) {
+      const inheritedEntry = parentByKey.get(entry.key.trim().toLocaleLowerCase());
+      const overrideLabel = document.createElement("label");
+      const overrideText = document.createElement("span");
+      override = document.createElement("input");
+      override.type = "checkbox";
+      override.checked = overridesByKey.has(entry.key.trim().toLocaleLowerCase());
+      overrideText.textContent = "Override";
+      key.disabled = true;
+      const update = () => {
+        value.disabled = !override.checked;
+        if (!override.checked) value.value = inheritedEntry.value;
+      };
+      override.addEventListener("change", update);
+      overrideLabel.className = "metadata-override";
+      overrideLabel.append(override, overrideText);
+      row.append(overrideLabel);
+      update();
+    } else {
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => row.remove());
+      row.append(remove);
+    }
+    row.metadataControls = { key, value, inherited, override };
+    list.append(row);
+  };
+
+  (parentEntries || []).forEach((parentEntry) => {
+    const normalizedKey = parentEntry.key.trim().toLocaleLowerCase();
+    appendRow(overridesByKey.get(normalizedKey) || parentEntry, isCableGroup);
+  });
+  if (isCableGroup) {
+    (overrideEntries || []).filter(
+      (entry) => !parentByKey.has(entry.key.trim().toLocaleLowerCase()),
+    ).forEach((entry) => appendRow(entry));
+  }
+  add.addEventListener("click", () => appendRow());
+
+  const read = () => {
+    const rows = [...list.children].map((row) => row.metadataControls);
+    const keys = new Set();
+    rows.forEach((controls) => {
+      const key = controls.key.value.trim();
+      if (!key) throw new Error("Every metadata row needs a key.");
+      const normalizedKey = key.toLocaleLowerCase();
+      if (keys.has(normalizedKey)) {
+        throw new Error("Metadata keys must be unique ignoring case.");
+      }
+      keys.add(normalizedKey);
+    });
+    return rows.filter(
+      (controls) => !controls.inherited || controls.override.checked,
+    ).map((controls) => ({
+      key: controls.key.value.trim(), value: controls.value.value,
+    }));
+  };
+  return { wrapper, read };
+}
+
 /** Open inheritable harness properties or one connected cable group's overrides. */
 function openPropertiesDialog(harness, cableGroup = null) {
   const isCableGroup = cableGroup !== null;
@@ -149,7 +253,10 @@ function openPropertiesDialog(harness, cableGroup = null) {
   );
   addMaterialField("manufacturer", "Manufacturer");
   addMaterialField("partNumber", "Part Number");
-  addMaterialField("notes", "Notes", [], true);
+  const metadataEditor = createMetadataEditor(
+    harness.metadata || [], isCableGroup ? cableGroup.metadataOverrides || [] : null,
+  );
+  form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const diameterMm = isCableGroup ? Number(diameter.value) : null;
@@ -163,7 +270,6 @@ function openPropertiesDialog(harness, cableGroup = null) {
     const conductorMaterial = fieldValue("conductorMaterial");
     const manufacturer = fieldValue("manufacturer");
     const partNumber = fieldValue("partNumber");
-    const notes = fieldValue("notes");
     if (insulationMaterial !== null && !insulationMaterial.trim()) {
       error.textContent = "Insulation material must not be empty.";
       return;
@@ -186,7 +292,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             conductorMaterial,
             manufacturer,
             partNumber,
-            notes,
+            metadataOverrides: metadataEditor.read(),
           }
           : {
             harnessId: harness.harnessId,
@@ -194,7 +300,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             conductorMaterial,
             manufacturer,
             partNumber,
-            notes,
+            metadata: metadataEditor.read(),
           },
       );
       if (response.ok) dialog.close();
@@ -224,6 +330,71 @@ function openHarnessProperties(harness) {
 /** Open one connected cable group's inherited construction properties. */
 function openCableGroupProperties(harness, cableGroup) {
   openPropertiesDialog(harness, cableGroup);
+}
+
+/** Open a metadata-only properties dialog for one identity-owned harness entity. */
+function openEntityMetadataProperties(
+  harness, entity, title, className, action, identityPayload,
+) {
+  const { dialog, form, heading, error, actions, cancel, save } = createOptionsDialog(
+    `cable-options ${className}`,
+  );
+  const metadataEditor = createMetadataEditor(entity.metadata || []);
+  heading.textContent = title;
+  form.append(heading, metadataEditor.wrapper);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    cancel.disabled = true;
+    save.disabled = true;
+    try {
+      const response = await send(action, {
+        harnessId: harness.harnessId,
+        ...identityPayload,
+        metadata: metadataEditor.read(),
+      });
+      if (response.ok) dialog.close();
+      else error.textContent = response.error || `Could not save ${title.toLowerCase()}.`;
+    } catch (failure) {
+      error.textContent = failure.message;
+    } finally {
+      cancel.disabled = false;
+      save.disabled = false;
+    }
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  actions.append(cancel, save);
+  form.append(error, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+/** Open searchable custom metadata owned by one pathway. */
+function openPathwayProperties(harness, pathway) {
+  openEntityMetadataProperties(
+    harness, pathway, "Pathway Properties", "pathway-properties", "set_pathway_properties",
+    { pathwayId: pathway.pathwayId },
+  );
+}
+
+/** Open searchable custom metadata owned by one junction. */
+function openJunctionProperties(harness, junction) {
+  openEntityMetadataProperties(
+    harness, junction, "Junction Properties", "junction-properties", "set_junction_properties",
+    { junctionId: junction.junctionId },
+  );
+}
+
+/** Open searchable custom metadata owned by one cable end. */
+function openCableEndProperties(harness, connectionId) {
+  const connection = harness.connections.find(
+    (candidate) => candidate.connectionId === connectionId,
+  );
+  if (!connection) return;
+  openEntityMetadataProperties(
+    harness, connection, "Cable End Properties", "cable-end-properties",
+    "set_cable_end_properties", { connectionId },
+  );
 }
 
 function openMaterialOptions(harness, cableGroup = null) {

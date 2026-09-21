@@ -7,6 +7,7 @@ from .ends import (
     append_end_guides,
     remove_standalone_end,
     rename_standalone_end,
+    set_cable_end_properties,
     switch_standalone_end,
 )
 from .junctions import (
@@ -15,6 +16,7 @@ from .junctions import (
     remove_junction,
     remove_junction_relationship,
     rename_junction,
+    set_junction_properties,
     suggest_junction_name,
     update_junction_relationships,
 )
@@ -26,6 +28,7 @@ from .pathways import (
     remove_pathway_gate,
     rename_pathway,
     segment_pathway,
+    set_pathway_properties,
     suggest_pathway_extension_name,
     update_pathway_refine,
 )
@@ -58,9 +61,12 @@ __all__ = [
     "rename_pathway",
     "rename_standalone_end",
     "segment_pathway",
+    "set_cable_end_properties",
+    "set_pathway_properties",
     "set_harness_material_defaults",
     "set_harness_properties",
     "set_interpolation",
+    "set_junction_properties",
     "suggest_junction_name",
     "suggest_pathway_extension_name",
     "switch_standalone_end",

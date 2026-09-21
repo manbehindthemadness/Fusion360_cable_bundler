@@ -528,7 +528,7 @@ function renderRelationshipEndList(
     button.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
       const contextItems = [
-        ...endRoutingContextItems(harness, group.connectionId),
+        ...endRoutingContextItems(harness, group.connectionId, false),
         ...(!group.cableGroupId ? [{
           label: "Switch",
           action: () => mutate("switch_standalone_end", {
@@ -548,6 +548,10 @@ function renderRelationshipEndList(
             harnessId: harness.harnessId,
             connectionId: group.connectionId,
           }, `Deleting ${group.label}…`),
+        },
+        {
+          label: "Properties",
+          action: () => openCableEndProperties(harness, group.connectionId),
         },
       ];
       if (group.cableGroupId) {

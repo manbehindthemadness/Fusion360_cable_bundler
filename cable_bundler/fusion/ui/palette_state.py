@@ -171,11 +171,13 @@ def serialize_palette_state(
                 "hasGeneratedSolids": has_generated_solids,
                 "hasFinalizedGeometry": has_finalized_geometry,
                 "materialDefaults": _material_settings_payload(definition.material_defaults),
+                "metadata": _metadata_payload(definition.metadata),
                 "connections": [
                     {
                         "interpolation": asdict(connection.interpolation),
                         "connectionId": str(connection.connection_id),
                         "name": connection.name,
+                        "metadata": _metadata_payload(connection.metadata),
                         "hasLinkedGeometry": all(
                             gateway.is_entity_token_resolvable(token)
                             for token in connection.member_tokens
@@ -224,6 +226,7 @@ def serialize_palette_state(
                         "orderedControlIds": [
                             str(control_id) for control_id in pathway.ordered_control_ids
                         ],
+                        "metadata": _metadata_payload(pathway.metadata),
                     }
                     for pathway in definition.pathways
                 ],
@@ -239,6 +242,7 @@ def serialize_palette_state(
                             }
                             for relationship in junction.pathway_relationships
                         ],
+                        "metadata": _metadata_payload(junction.metadata),
                     }
                     for junction in definition.junctions
                 ],
@@ -299,6 +303,8 @@ def _cable_group_payloads(
             "diameterMm": group.diameter_mm,
             "materials": _material_settings_payload(definition.cable_group_materials(group)),
             "materialOverrides": _material_overrides_payload(group.material_overrides),
+            "metadata": _metadata_payload(definition.cable_group_metadata(group)),
+            "metadataOverrides": _metadata_payload(group.metadata_overrides),
             "routeLegs": [
                 {
                     "routeId": str(leg.route_id),
@@ -373,6 +379,13 @@ def _color_payload(color: CableColor) -> dict[str, object]:
         "blue": color.blue,
         "hex": color.hex_rgb,
     }
+
+
+def _metadata_payload(entries: tuple[tuple[str, str], ...]) -> list[dict[str, str]]:
+    """
+    Convert ordered searchable metadata rows for the palette.
+    """
+    return [{"key": key, "value": value} for key, value in entries]
 
 
 def _appearance_reference_payload(

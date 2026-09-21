@@ -5,6 +5,8 @@ Tests for the current group-only harness codec.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
+from uuid import UUID
 
 import pytest
 
@@ -13,6 +15,7 @@ from cable_bundler.domain import (
     AutoTransitionPreset,
     DefinitionParseError,
     HarnessDefinition,
+    JunctionDefinition,
     dumps,
     loads,
 )
@@ -37,6 +40,48 @@ def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> Non
     Produce stable persisted text for the same immutable definition.
     """
     assert dumps(valid_harness) == dumps(valid_harness)
+
+
+def test_metadata_round_trip_is_optional_and_does_not_change_schema(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve new searchable rows while keeping schema-15 definitions without them readable.
+    """
+    group = replace(valid_harness.cable_groups[0], metadata_overrides=(("drawing-zone", "B4"),))
+    junction = JunctionDefinition(
+        UUID(int=900),
+        "Junction 01",
+        valid_harness.controls[0].control_id,
+        metadata=(("panel", "P2"),),
+    )
+    definition = replace(
+        valid_harness,
+        metadata=(("project", "Orion"),),
+        cable_groups=(group,),
+        connections=(
+            replace(valid_harness.connections[0], metadata=(("connector", "J1"),)),
+            valid_harness.connections[1],
+        ),
+        junctions=(junction,),
+        pathways=(replace(valid_harness.pathways[0], metadata=(("zone", "forward"),)),),
+    )
+
+    payload = json.loads(dumps(definition))
+
+    assert payload["schema_version"] == SCHEMA_VERSION
+    assert loads(json.dumps(payload)) == definition
+    del payload["metadata"]
+    del payload["cable_groups"][0]["metadata_overrides"]
+    del payload["connections"][0]["metadata"]
+    del payload["junctions"][0]["metadata"]
+    del payload["pathways"][0]["metadata"]
+    compatible = loads(json.dumps(payload))
+    assert compatible.metadata == ()
+    assert compatible.cable_groups[0].metadata_overrides == ()
+    assert compatible.connections[0].metadata == ()
+    assert compatible.junctions[0].metadata == ()
+    assert compatible.pathways[0].metadata == ()
 
 
 def test_auto_transition_presets_expose_approved_span_fractions() -> None:

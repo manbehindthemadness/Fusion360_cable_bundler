@@ -36,8 +36,28 @@
 .stripe-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .stripe-values label { gap: 3px; color: var(--muted); font-size: 11px; }
 .material-options textarea { min-height: 64px; resize: vertical; }
+.harness-properties, .cable-group-properties, .pathway-properties,
+.junction-properties, .cable-end-properties {
+  width: 520px;
+  min-width: 360px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  resize: horizontal;
+}
+.metadata-editor { display: grid; gap: 7px; min-width: 0; }
+.metadata-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.metadata-list { display: grid; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 3px; }
+.metadata-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) minmax(140px, 1.2fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.metadata-row input.filter { width: 100%; min-width: 0; }
+.metadata-override { display: flex !important; align-items: center; gap: 4px !important; font-size: 11px; }
+.metadata-row-action { white-space: nowrap; }
 .nested-details { margin-top: 0; background: var(--surface-subtle); }
 .nested-details + .nested-details { margin-top: 6px; }
 .nested-details > summary { padding: 8px 9px; font-size: 12px; }
 .nested-details > .section-content { padding: 0 9px 9px; }
-

@@ -12,6 +12,30 @@ from uuid import UUID, uuid5
 
 SCHEMA_VERSION = 15
 DEFAULT_CABLE_DIAMETER_MM = 1.5
+Metadata = tuple[tuple[str, str], ...]
+
+
+def _validate_metadata(entries: Metadata, label: str) -> None:
+    """
+    Require ordered, uniquely named text metadata fields.
+    """
+    if not isinstance(entries, tuple):
+        raise ValueError(f"{label} must be an ordered tuple.")
+    keys: set[str] = set()
+    for entry in entries:
+        if (
+            not isinstance(entry, tuple)
+            or len(entry) != 2
+            or not all(isinstance(item, str) for item in entry)
+        ):
+            raise ValueError(f"{label} entries must contain a text key and value.")
+        key, _value = entry
+        normalized_key = key.strip().casefold()
+        if not normalized_key:
+            raise ValueError(f"{label} keys must not be empty.")
+        if normalized_key in keys:
+            raise ValueError(f"{label} keys must be unique ignoring case.")
+        keys.add(normalized_key)
 
 
 class RoutingMode(str, Enum):
@@ -379,6 +403,13 @@ class Connection:
     member_ids: tuple[UUID, ...] = ()
     interpolation: InterpolationSettings = InterpolationSettings()
     member_interpolations: tuple[Optional[InterpolationSettings], ...] = ()
+    metadata: Metadata = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require unambiguous searchable cable-end metadata.
+        """
+        _validate_metadata(self.metadata, "Cable-end metadata")
 
     @property
     def member_settings(self) -> tuple[InterpolationSettings, ...]:
@@ -434,6 +465,13 @@ class PathwayDefinition:
     ordered_control_ids: tuple[UUID, ...]
     start_name: str = ""
     end_name: str = ""
+    metadata: Metadata = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require unambiguous searchable pathway metadata.
+        """
+        _validate_metadata(self.metadata, "Pathway metadata")
 
 
 @dataclass(frozen=True)
@@ -456,6 +494,13 @@ class JunctionDefinition:
     name: str
     control_id: UUID
     pathway_relationships: tuple[JunctionPathwayRelationship, ...] = ()
+    metadata: Metadata = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require unambiguous searchable junction metadata.
+        """
+        _validate_metadata(self.metadata, "Junction metadata")
 
 
 @dataclass(frozen=True)
@@ -485,6 +530,13 @@ class CableGroupDefinition:
     connection_ids: tuple[UUID, ...]
     diameter_mm: float = DEFAULT_CABLE_DIAMETER_MM
     material_overrides: CableMaterialOverrides = CableMaterialOverrides()
+    metadata_overrides: Metadata = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require unambiguous searchable metadata overrides.
+        """
+        _validate_metadata(self.metadata_overrides, "Cable metadata overrides")
 
 
 @dataclass(frozen=True)
@@ -510,6 +562,7 @@ class HarnessDefinition:
     material_defaults: CableMaterialSettings = CableMaterialSettings()
     minimum_clearance_mm: float = 0.0
     auto_transition_preset: AutoTransitionPreset = AutoTransitionPreset.TIGHT
+    metadata: Metadata = ()
 
     def __post_init__(self) -> None:
         """
@@ -524,9 +577,26 @@ class HarnessDefinition:
             raise ValueError("Minimum member clearance must be finite and nonnegative.")
         if not isinstance(self.auto_transition_preset, AutoTransitionPreset):
             raise ValueError("Auto transition preset must be a supported preset.")
+        _validate_metadata(self.metadata, "Harness metadata")
 
     def cable_group_materials(self, group: CableGroupDefinition) -> CableMaterialSettings:
         """
         Resolve one connected cable group's material settings from parent defaults.
         """
         return group.material_overrides.resolve(self.material_defaults)
+
+    def cable_group_metadata(self, group: CableGroupDefinition) -> Metadata:
+        """
+        Merge one cable's explicit values over harness metadata by key.
+        """
+        overrides = {key.casefold(): (key, value) for key, value in group.metadata_overrides}
+        resolved: list[tuple[str, str]] = []
+        inherited_keys: set[str] = set()
+        for key, value in self.metadata:
+            normalized_key = key.casefold()
+            inherited_keys.add(normalized_key)
+            resolved.append(overrides.get(normalized_key, (key, value)))
+        resolved.extend(
+            entry for entry in group.metadata_overrides if entry[0].casefold() not in inherited_keys
+        )
+        return tuple(resolved)

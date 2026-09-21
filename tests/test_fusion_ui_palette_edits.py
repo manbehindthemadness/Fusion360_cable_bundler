@@ -249,7 +249,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
                 "conductorMaterial": None,
                 "manufacturer": "",
                 "partNumber": "WB-42",
-                "notes": "Install as matched stock",
+                "metadataOverrides": [{"key": "drawing-zone", "value": "B4"}],
             }
         ),
     )
@@ -262,7 +262,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         None,
         "",
         "WB-42",
-        "Install as matched stock",
+        (("drawing-zone", "B4"),),
         gateway,
     )
     assert notice == "Saved connected-cable properties."
@@ -291,7 +291,7 @@ def test_palette_edit_saves_harness_properties_without_visual_materials(
                 "conductorMaterial": "Tinned Copper",
                 "manufacturer": "Acme",
                 "partNumber": "WB-42",
-                "notes": "Matched stock",
+                "metadata": [{"key": "project", "value": "Orion"}],
             }
         ),
     )
@@ -302,7 +302,7 @@ def test_palette_edit_saves_harness_properties_without_visual_materials(
         "Tinned Copper",
         "Acme",
         "WB-42",
-        "Matched stock",
+        (("project", "Orion"),),
         gateway,
     )
     assert notice == "Saved harness properties."
@@ -354,6 +354,92 @@ def test_palette_edit_deletes_junction_by_identity(
 
     remove.assert_called_once_with(harness_id, junction_id, gateway)
     assert notice == "Deleted junction."
+
+
+def test_palette_edit_saves_pathway_metadata(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse pathway key/value rows independently of routing controls.
+    """
+    harness_id = UUID(int=1)
+    pathway_id = UUID(int=2)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_pathway_properties", save)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "set_pathway_properties",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "pathwayId": str(pathway_id),
+                "metadata": [{"key": "zone", "value": "forward"}],
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        pathway_id,
+        (("zone", "forward"),),
+        gateway,
+    )
+    assert notice == "Saved pathway properties."
+
+
+@pytest.mark.parametrize(
+    ("action", "identity_key", "service_name", "notice"),
+    (
+        (
+            "set_junction_properties",
+            "junctionId",
+            "set_junction_properties",
+            "Saved junction properties.",
+        ),
+        (
+            "set_cable_end_properties",
+            "connectionId",
+            "set_cable_end_properties",
+            "Saved cable-end properties.",
+        ),
+    ),
+)
+def test_palette_edit_saves_identity_owned_metadata(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    identity_key: str,
+    service_name: str,
+    notice: str,
+) -> None:
+    """
+    Parse junction and cable-end metadata through their dedicated edit services.
+    """
+    harness_id = UUID(int=1)
+    identity = UUID(int=2)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, service_name, save)
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        action,
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                identity_key: str(identity),
+                "metadata": [{"key": "location", "value": "P2"}],
+            }
+        ),
+    )
+
+    save.assert_called_once_with(harness_id, identity, (("location", "P2"),), gateway)
+    assert result == notice
 
 
 @pytest.mark.parametrize("action", ["rename_pathway", "set_interpolation"])

@@ -10,6 +10,7 @@ from uuid import UUID
 from ...domain import (
     AutoTransitionPreset,
     CableMaterialSettings,
+    Metadata,
 )
 from ...domain.model import InterpolationSettings
 from .support import persist_definition, read_definition
@@ -63,11 +64,11 @@ def set_harness_properties(
     conductor_material: str,
     manufacturer: str,
     part_number: str,
-    notes: str,
+    metadata: Metadata,
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Replace inheritable construction and catalog properties without changing appearance.
+    Replace inheritable construction, catalog, and searchable metadata properties.
     """
     original, definition = read_definition(harness_id, gateway)
     updated_defaults = replace(
@@ -76,12 +77,11 @@ def set_harness_properties(
         conductor_material=conductor_material,
         manufacturer=manufacturer,
         part_number=part_number,
-        notes=notes,
     )
     persist_definition(
         harness_id,
         original,
-        replace(definition, material_defaults=updated_defaults),
+        replace(definition, material_defaults=updated_defaults, metadata=metadata),
         gateway,
     )
 

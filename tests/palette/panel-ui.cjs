@@ -239,7 +239,7 @@ test('empty pathway end opens the current pathway popup', () => {
   const definition = harness();
   definition.pathways.push({
     pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
-    orderedControlIds: [],
+    orderedControlIds: [], metadata: [],
   });
 
   const diagram = context.renderRelationshipMap(definition);
@@ -434,6 +434,7 @@ test('master end menu switches only disconnected ends immediately above Rename',
   let menu = openMenu(disconnected);
   const labels = menu.children.map((item) => item.textContent);
   assert.equal(labels.indexOf('Switch'), labels.indexOf('Rename') - 1);
+  assert.equal(labels.at(-1), 'Properties');
   menu.children.find((item) => item.textContent === 'Switch').events.click();
   assert.equal(calls.length, 1);
   assert.equal(calls[0].action, 'switch_standalone_end');
@@ -620,6 +621,7 @@ test('Cable Details end nodes and rows share end-owned routing actions', () => {
   menu.children.find((item) => item.textContent === 'Add Refine Point').events.click();
 
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
+  assert.equal(menu.children.at(-1).textContent, 'Properties');
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {
@@ -627,7 +629,7 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   const definition = harness();
   const junction = {
     junctionId: 'j1', controlId: 'cj', name: 'Branch',
-    pathwayRelationships: [{ pathwayId: 'p', endpoint: 'start' }],
+    pathwayRelationships: [{ pathwayId: 'p', endpoint: 'start' }], metadata: [],
   };
   definition.junctions = [junction];
   definition.cableGroups[0].routeLegs[0].controlSteps = [{ controlId: 'cj' }];
@@ -659,12 +661,12 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   node('junction:j1').events.click();
   invokeContextMenu(node('pathway:p'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Add refine point', 'Segment', 'Delete',
+    'Add refine point', 'Segment', 'Delete', 'Properties',
   ]);
   menu.children[0].events.click();
   invokeContextMenu(node('junction:j1'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Open junction configuration', 'Delete',
+    'Open junction configuration', 'Delete', 'Properties',
   ]);
   menu.children[1].events.click();
 
@@ -727,4 +729,116 @@ test('material color context menus copy and paste between swatches', () => {
   paste.events.click();
 
   assert.equal(swatches[2].value, '#ff0000');
+});
+
+asyncTest('connected cable metadata inherits until explicitly overridden', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const cableGroup = definition.cableGroups[0];
+  definition.metadata = [{ key: 'project', value: 'Orion' }];
+  cableGroup.metadata = [{ key: 'project', value: 'Orion' }];
+  cableGroup.metadataOverrides = [];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableGroupProperties(definition, cableGroup);
+
+  const dialog = context.document.body.querySelector('.cable-group-properties');
+  const row = dialog.querySelector('.metadata-row');
+  const value = row.querySelector('.metadata-value');
+  const override = descendants(row, (node) => node.type === 'checkbox')[0];
+  assert.equal(value.value, 'Orion');
+  assert.equal(value.disabled, true);
+  override.checked = true;
+  override.events.change();
+  value.value = 'Apollo';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_cable_group_properties');
+  assert.equal(JSON.stringify(calls[0].payload.metadataOverrides), JSON.stringify([
+    { key: 'project', value: 'Apollo' },
+  ]));
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Notes').length, 0);
+});
+
+asyncTest('pathway Properties edits only pathway metadata', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const pathway = definition.pathways[0];
+  pathway.metadata = [{ key: 'zone', value: 'forward' }];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openPathwayProperties(definition, pathway);
+
+  const dialog = context.document.body.querySelector('.pathway-properties');
+  const fields = descendants(dialog, (node) => node.tag === 'input');
+  assert.equal(fields.length, 2);
+  assert.equal(fields[0].value, 'zone');
+  assert.equal(fields[1].value, 'forward');
+  fields[1].value = 'aft';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_pathway_properties');
+  assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([
+    { key: 'zone', value: 'aft' },
+  ]));
+});
+
+asyncTest('junction Properties edits only junction metadata', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const junction = {
+    junctionId: 'j1', controlId: 'cj', name: 'Branch',
+    pathwayRelationships: [], metadata: [{ key: 'panel', value: 'P2' }],
+  };
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openJunctionProperties(definition, junction);
+
+  const dialog = context.document.body.querySelector('.junction-properties');
+  const fields = descendants(dialog, (node) => node.tag === 'input');
+  assert.equal(fields.length, 2);
+  fields[1].value = 'P3';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_junction_properties');
+  assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([
+    { key: 'panel', value: 'P3' },
+  ]));
+});
+
+asyncTest('cable-end Properties edits only the selected end metadata', async () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.connections[0].metadata = [{ key: 'connector', value: 'J1' }];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableEndProperties(definition, 'a1');
+
+  const dialog = context.document.body.querySelector('.cable-end-properties');
+  const fields = descendants(dialog, (node) => node.tag === 'input');
+  assert.equal(fields.length, 2);
+  fields[1].value = 'J2';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_cable_end_properties');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([
+    { key: 'connector', value: 'J2' },
+  ]));
 });
