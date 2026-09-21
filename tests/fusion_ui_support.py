@@ -150,6 +150,7 @@ class _PaletteLifecycleModule(Protocol):
     _AddStandaloneEndPreSelectHandler: type
     _AttachCableEndCommandState: type
     _AttachCableEndCreatedHandler: type
+    _read_face_parameters: Callable[[object], tuple[float, float]]
     _read_attachment_inputs: Callable[[object, object], Any]
     _JunctionRelationshipCandidate: type
     _SegmentCommandState: type

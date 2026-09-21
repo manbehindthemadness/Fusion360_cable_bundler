@@ -429,6 +429,66 @@ def test_cable_end_attachment_picker_reads_supported_target_and_optional_name(
     assert attachment.target_kind.value == "joint_origin"
 
 
+def test_face_attachment_uses_a_subcomponent_faces_native_center(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Derive stable center parameters without mixing assembly and native coordinates.
+    """
+    native_center = object()
+    native_evaluator = SimpleNamespace(
+        getParameterAtPoint=Mock(return_value=[True, SimpleNamespace(x=1.25, y=2.5)]),
+        isParameterOnFace=Mock(return_value=True),
+    )
+    native_face = SimpleNamespace(
+        evaluator=native_evaluator,
+        centroid=native_center,
+        pointOnFace=object(),
+    )
+    proxy_face = SimpleNamespace(
+        nativeObject=native_face,
+        evaluator=SimpleNamespace(getParameterAtPoint=Mock(return_value=(False, None))),
+        centroid=object(),
+        pointOnFace=object(),
+    )
+
+    parameters = addin_module._read_face_parameters(proxy_face)
+
+    assert parameters == (1.25, 2.5)
+    native_evaluator.getParameterAtPoint.assert_called_once_with(native_center)
+    native_evaluator.isParameterOnFace.assert_called_once()
+
+
+def test_face_attachment_uses_an_interior_point_when_centroid_is_outside_face(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep concave and holed faces attachable when their centroid is not on the face.
+    """
+    centroid = object()
+    interior_point = object()
+    centroid_parameter = SimpleNamespace(x=1.0, y=2.0)
+    interior_parameter = SimpleNamespace(x=3.0, y=4.0)
+    evaluator = SimpleNamespace(
+        getParameterAtPoint=Mock(
+            side_effect=((True, centroid_parameter), (True, interior_parameter))
+        ),
+        isParameterOnFace=Mock(side_effect=(False, True)),
+    )
+    face = SimpleNamespace(
+        nativeObject=None,
+        evaluator=evaluator,
+        centroid=centroid,
+        pointOnFace=interior_point,
+    )
+
+    parameters = addin_module._read_face_parameters(face)
+
+    assert parameters == (3.0, 4.0)
+    evaluated_points = [item.args[0] for item in evaluator.getParameterAtPoint.call_args_list]
+    assert evaluated_points == [centroid, interior_point]
+
+
 def test_cable_end_attachment_picker_enables_the_agreed_target_set(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

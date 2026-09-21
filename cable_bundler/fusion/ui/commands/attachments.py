@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass
+from typing import Any, Optional, cast
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -34,16 +35,45 @@ class _AttachCableEndCommandState:
     excluded_entities: tuple[object, ...]
 
 
-def _read_face_parameters(face: object, point: object) -> tuple[float, float]:
+def _surface_parameters(
+    evaluator: object,
+    point: object,
+) -> Optional[tuple[float, float]]:
     """
-    Convert a clicked face position into persistent surface parameters.
+    Read one UV pair without treating an evaluator miss as a command failure.
     """
-    evaluator = getattr(face, "evaluator", None)
-    result = evaluator.getParameterAtPoint(point) if evaluator is not None else None
-    if not isinstance(result, tuple) or len(result) != 2 or not result[0]:
-        raise ValueError("Fusion could not locate the selected point on this face.")
-    parameter = result[1]
-    return float(parameter.x), float(parameter.y)
+    get_parameter = getattr(evaluator, "getParameterAtPoint", None)
+    if not callable(get_parameter) or point is None:
+        return None
+    try:
+        result = cast(Any, get_parameter)(point)
+        if not isinstance(result, (list, tuple)) or len(result) != 2 or not result[0]:
+            return None
+        parameter = result[1]
+        is_on_face = getattr(evaluator, "isParameterOnFace", None)
+        if callable(is_on_face) and not cast(Any, is_on_face)(parameter):
+            return None
+        return float(parameter.x), float(parameter.y)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+
+
+def _read_face_parameters(face: object) -> tuple[float, float]:
+    """
+    Locate the selected face's center in persistent, assembly-safe surface parameters.
+    """
+    for candidate_face in (getattr(face, "nativeObject", None), face):
+        if candidate_face is None:
+            continue
+        evaluator = getattr(candidate_face, "evaluator", None)
+        for point_name in ("centroid", "pointOnFace"):
+            parameters = _surface_parameters(
+                evaluator,
+                getattr(candidate_face, point_name, None),
+            )
+            if parameters is not None:
+                return parameters
+    raise ValueError("Fusion could not locate a persistent point on this face.")
 
 
 def _read_attachment_inputs(
@@ -73,11 +103,7 @@ def _read_attachment_inputs(
     name = getattr(name_input, "value", "") if name_input is not None else ""
     if not isinstance(name, str):
         raise ValueError("Connection name must be text.")
-    parameters = (
-        _read_face_parameters(entity, getattr(selection, "point", None))
-        if kind is AttachmentTargetKind.FACE
-        else ()
-    )
+    parameters = _read_face_parameters(entity) if kind is AttachmentTargetKind.FACE else ()
     return CableEndAttachment(
         target_kind=kind,
         entity_token=token.strip(),
