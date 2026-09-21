@@ -325,6 +325,24 @@ function removeGate(harness, pathway, controlId, name) {
   );
 }
 
+function removeEndGuide(harness, connectionId, memberId, name) {
+  if (!window.confirm(`Remove ${name} from this cable end?`)) return;
+  void mutate(
+    "remove_end_guide",
+    { harnessId: harness.harnessId, connectionId, memberId },
+    "Removing end guide…",
+  );
+}
+
+function removeEndControl(harness, connectionId, controlId, name) {
+  if (!window.confirm(`Remove ${name} from this cable end?`)) return;
+  void mutate(
+    "remove_end_control",
+    { harnessId: harness.harnessId, connectionId, controlId },
+    "Removing end control…",
+  );
+}
+
 function removePathway(harness, pathway) {
   const deletedPathwayIds = relationshipPathwayDeletionIds(harness, pathway.pathwayId);
   const deletedEnds = (harness.standaloneEnds || []).filter(

@@ -375,6 +375,13 @@ function renderCableEndRoutingControls(harness, connection, end) {
     highlight: () => highlightMember(
       harness, "connection", connection.connectionId, { memberIndex: member.index },
     ),
+    remove: () => removeEndGuide(
+      harness, connection.connectionId, member.memberId, `Guide ${member.index + 1}`,
+    ),
+    removeDisabled: connection.members.length === 1,
+    removeTitle: connection.members.length === 1
+      ? "A cable end must retain at least one guide"
+      : `Remove Guide ${member.index + 1}`,
   }));
   end.orderedControlIds.forEach((controlId) => {
     const control = controls.get(controlId);
@@ -391,6 +398,11 @@ function renderCableEndRoutingControls(harness, connection, end) {
           control?.usesDefaults ?? true,
         ),
       highlight: () => highlightMember(harness, "control", controlId),
+      remove: () => removeEndControl(
+        harness, connection.connectionId, controlId, control?.name || "this control",
+      ),
+      removeDisabled: false,
+      removeTitle: `Remove ${control?.name || "control"}`,
     });
   });
   content.className = "section-content";
@@ -399,13 +411,16 @@ function renderCableEndRoutingControls(harness, connection, end) {
     const row = memberRow(
       `${item.label} #${item.id.slice(0, 8)}`,
       item.highlight,
-      [optionsButton(
-        item.kind === "refine"
-          ? "Move, rotate, or resize refine point"
-          : "Guide interpolation options",
-        item.edit,
-        !item.id,
-      )],
+      [
+        optionsButton(
+          item.kind === "refine"
+            ? "Move, rotate, or resize refine point"
+            : "Guide interpolation options",
+          item.edit,
+          !item.id,
+        ),
+        actionButton("×", item.removeTitle, item.remove, item.removeDisabled, true),
+      ],
       !item.hasLinkedGeometry,
     );
     const position = document.createElement("span");

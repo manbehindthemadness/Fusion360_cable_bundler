@@ -19,6 +19,8 @@ from cable_bundler.application import (
     append_end_guides,
     attach_cable_end,
     remove_cable_end_attachment,
+    remove_end_control,
+    remove_end_guide,
     rename_cable_end_attachment,
     rename_cable_group,
     rename_harness,
@@ -140,6 +142,97 @@ def test_appends_guides_to_end_without_mutating_parent_pathway(
     assert updated_connection.member_tokens == (connection.entity_token, "new-end-guide")
     assert updated_connection.member_identities[-1] == new_member_id
     assert stored.pathways == valid_harness.pathways
+
+
+def test_removes_end_guides_and_controls_by_stable_identity(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve remaining guide settings and prune an end-owned refine definition.
+    """
+    connection = valid_harness.connections[0]
+    end = valid_harness.standalone_ends[0]
+    first_member_id = UUID("21000000-0000-0000-0000-000000000001")
+    second_member_id = UUID("21000000-0000-0000-0000-000000000002")
+    refine_id = UUID("31000000-0000-0000-0000-000000000001")
+    first_settings = InterpolationSettings(1.0, 2.0)
+    second_settings = InterpolationSettings(3.0, 4.0)
+    refine = ControlStructure(
+        refine_id,
+        "Refine Point 01",
+        ControlKind.REFINE,
+        "",
+        refine_geometry=RefineGeometry(
+            origin_mm=(1.0, 2.0, 3.0),
+            u_direction=(1.0, 0.0, 0.0),
+            v_direction=(0.0, 1.0, 0.0),
+            display_radius_mm=2.0,
+        ),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                connection,
+                entity_token="first-guide",
+                additional_entity_tokens=("second-guide",),
+                member_ids=(first_member_id, second_member_id),
+                member_interpolations=(first_settings, second_settings),
+            ),
+            *valid_harness.connections[1:],
+        ),
+        controls=(*valid_harness.controls, refine),
+        standalone_ends=(
+            replace(end, ordered_control_ids=(refine_id,)),
+            *valid_harness.standalone_ends[1:],
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    remove_end_guide(
+        definition.harness_id,
+        connection.connection_id,
+        first_member_id,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    updated_connection = next(
+        item for item in stored.connections if item.connection_id == connection.connection_id
+    )
+    assert updated_connection.member_tokens == ("second-guide",)
+    assert updated_connection.member_identities == (second_member_id,)
+    assert updated_connection.member_interpolations == (second_settings,)
+
+    remove_end_control(
+        definition.harness_id,
+        connection.connection_id,
+        refine_id,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    updated_end = next(
+        item for item in stored.standalone_ends if item.connection_id == connection.connection_id
+    )
+    assert updated_end.ordered_control_ids == ()
+    assert all(control.control_id != refine_id for control in stored.controls)
+
+
+def test_rejects_removing_the_only_end_guide(valid_harness: HarnessDefinition) -> None:
+    """
+    Preserve the minimum terminal guide required by a standalone cable end.
+    """
+    connection = valid_harness.connections[0]
+    gateway = _recording_gateway(valid_harness)
+
+    with pytest.raises(ValueError, match="retain at least one guide"):
+        remove_end_guide(
+            valid_harness.harness_id,
+            connection.connection_id,
+            connection.member_identities[0],
+            gateway,
+        )
+
+    assert loads(gateway.serialized_definition) == valid_harness
 
 
 def test_renames_harness_without_changing_identity(

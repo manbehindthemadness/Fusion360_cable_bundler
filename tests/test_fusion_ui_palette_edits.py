@@ -94,6 +94,53 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     assert notice == "Deleted standalone end."
 
 
+@pytest.mark.parametrize(
+    ("action", "identity_key", "service_name", "notice"),
+    [
+        ("remove_end_guide", "memberId", "remove_end_guide", "Removed cable-end guide."),
+        (
+            "remove_end_control",
+            "controlId",
+            "remove_end_control",
+            "Removed cable-end control.",
+        ),
+    ],
+)
+def test_palette_edit_removes_cable_end_routing_items_by_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    identity_key: str,
+    service_name: str,
+    notice: str,
+) -> None:
+    """
+    Parse stable end and item identities before delegating routing-item removal.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    item_id = UUID(int=3)
+    gateway = object()
+    remove = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, service_name, remove)
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        action,
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                identity_key: str(item_id),
+            }
+        ),
+    )
+
+    remove.assert_called_once_with(harness_id, connection_id, item_id, gateway)
+    assert result == notice
+
+
 def test_palette_edit_renames_standalone_end_by_connection_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

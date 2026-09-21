@@ -15,6 +15,8 @@ from ...application import (
     CableEditorRename,
     move_pathway_gate,
     remove_cable_end_attachment,
+    remove_end_control,
+    remove_end_guide,
     remove_junction,
     remove_junction_relationship,
     remove_pathway,
@@ -121,6 +123,22 @@ def _apply_palette_edit(
             gateway,
         )
         return "Removed pathway gate."
+    if action == "remove_end_guide":
+        remove_end_guide(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_payload_uuid(payload, "memberId", "guide"),
+            gateway,
+        )
+        return "Removed cable-end guide."
+    if action == "remove_end_control":
+        remove_end_control(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_payload_uuid(payload, "controlId", "control"),
+            gateway,
+        )
+        return "Removed cable-end control."
     if action == "remove_pathway":
         remove_pathway(
             harness_id,

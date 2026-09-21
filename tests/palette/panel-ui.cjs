@@ -189,10 +189,11 @@ test('closing pathway configuration returns to its Cable Details parent', () => 
 });
 
 test('Cable Details end node opens its routing controls in traversal order', () => {
-  const { context } = palette();
+  const { context, calls } = palette();
   const definition = harness();
   const interpolationCalls = [];
   context.openInterpolationOptions = (...args) => interpolationCalls.push(args);
+  context.window.confirm = () => true;
   definition.connections[0].members = [
     {
       index: 0, memberId: 'guide-1',
@@ -241,6 +242,17 @@ test('Cable Details end node opens its routing controls in traversal order', () 
   assert.deepEqual(interpolationCalls[0].slice(1), [
     'end', 'a1', 'Guide 1', { approach_mm: 1, departure_mm: 2 }, false, 'guide-1',
   ]);
+  rows[1].querySelector('.danger').events.click();
+  rows[2].querySelector('.danger').events.click();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].action, 'remove_end_guide');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(calls[0].payload.memberId, 'guide-2');
+  assert.equal(calls[1].action, 'remove_end_control');
+  assert.equal(calls[1].payload.harnessId, 'h');
+  assert.equal(calls[1].payload.connectionId, 'a1');
+  assert.equal(calls[1].payload.controlId, 'refine-1');
 
   context.renderEditor(definition);
   routing = context.document.body.querySelector('.cable-end-routing-popup');

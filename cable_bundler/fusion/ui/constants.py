@@ -113,6 +113,8 @@ PALETTE_EDIT_NAMES = {
     "remove_junction": "Delete Junction",
     "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
+    "remove_end_control": "Remove Cable End Control",
+    "remove_end_guide": "Remove Cable End Guide",
     "remove_standalone_end": "Delete Standalone End",
     "remove_cable_end_attachment": "Delete Cable End Connection",
     "save_cable_editor": "Save Route Editor",

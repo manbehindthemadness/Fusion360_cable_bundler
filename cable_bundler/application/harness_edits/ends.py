@@ -14,6 +14,7 @@ from ...domain import (
     Metadata,
     PathwayEndpoint,
     RefineGeometry,
+    StandaloneEndDefinition,
     next_available_name,
 )
 from .support import (
@@ -182,6 +183,109 @@ def append_end_guides(
     )
     persist_definition(harness_id, original, updated, gateway)
     return updated_connection
+
+
+# noinspection DuplicatedCode
+def remove_end_guide(
+    harness_id: UUID,
+    connection_id: UUID,
+    member_id: UUID,
+    gateway: HarnessEditGateway,
+) -> Connection:
+    """
+    Remove one guide from an end while retaining at least one terminal guide.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected standalone end has a missing connection.")
+    member_ids = connection.member_identities
+    try:
+        member_index = member_ids.index(member_id)
+    except ValueError as error:
+        raise ValueError("Selected guide does not belong to this cable end.") from error
+    if len(member_ids) == 1:
+        raise ValueError("A cable end must retain at least one guide.")
+    remaining_tokens = tuple(
+        token for index, token in enumerate(connection.member_tokens) if index != member_index
+    )
+    remaining_ids = tuple(
+        identity for index, identity in enumerate(member_ids) if index != member_index
+    )
+    remaining_interpolations = (
+        tuple(
+            settings
+            for index, settings in enumerate(connection.member_interpolations)
+            if index != member_index
+        )
+        if connection.member_interpolations
+        else ()
+    )
+    updated_connection = replace(
+        connection,
+        entity_token=remaining_tokens[0],
+        additional_entity_tokens=remaining_tokens[1:],
+        member_ids=remaining_ids,
+        member_interpolations=remaining_interpolations,
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_connection
+
+
+def remove_end_control(
+    harness_id: UUID,
+    connection_id: UUID,
+    control_id: UUID,
+    gateway: HarnessEditGateway,
+) -> StandaloneEndDefinition:
+    """
+    Remove one end-owned routing control and prune its unreferenced definition.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    end = next(
+        (item for item in definition.standalone_ends if item.connection_id == connection_id),
+        None,
+    )
+    if end is None:
+        raise ValueError("Selected standalone end does not exist in this harness.")
+    if control_id not in end.ordered_control_ids:
+        raise ValueError("Selected control does not belong to this cable end.")
+    updated_end = replace(
+        end,
+        ordered_control_ids=tuple(item for item in end.ordered_control_ids if item != control_id),
+    )
+    standalone_ends = tuple(
+        updated_end if item.connection_id == connection_id else item
+        for item in definition.standalone_ends
+    )
+    referenced_control_ids = (
+        {item for pathway in definition.pathways for item in pathway.ordered_control_ids}
+        | {junction.control_id for junction in definition.junctions}
+        | {item for candidate in standalone_ends for item in candidate.ordered_control_ids}
+    )
+    updated = replace(
+        definition,
+        controls=tuple(
+            control
+            for control in definition.controls
+            if control.control_id != control_id or control.control_id in referenced_control_ids
+        ),
+        standalone_ends=standalone_ends,
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_end
 
 
 def switch_standalone_end(
