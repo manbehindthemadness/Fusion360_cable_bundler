@@ -122,6 +122,7 @@ PALETTE_EDIT_NAMES = {
     "set_harness_material_defaults": "Change Harness Cable Materials",
     "set_harness_properties": "Change Harness Properties",
     "set_junction_properties": "Change Junction Properties",
+    "set_pathway_end_properties": "Change Pathway End Properties",
     "set_pathway_properties": "Change Pathway Properties",
     "set_interpolation": "Change Interpolation Options",
     "preview_routes": "Preview Cable Routes",

@@ -97,6 +97,8 @@ def test_palette_state_contains_complete_group_definition(
         for end in valid_harness.standalone_ends
     ]
     assert harness["pathways"][0]["metadata"] == []
+    assert harness["pathways"][0]["startMetadata"] == []
+    assert harness["pathways"][0]["endMetadata"] == []
     assert harness["connections"][0]["metadata"] == []
     cable_group = harness["cableGroups"][0]
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
@@ -133,7 +135,7 @@ def test_palette_state_resolves_cable_metadata_overrides(
     assert cable_group["metadataOverrides"] == [{"key": "project", "value": "Apollo"}]
 
 
-def test_palette_state_includes_junction_and_cable_end_metadata(
+def test_palette_state_includes_identity_owned_metadata(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
@@ -154,6 +156,13 @@ def test_palette_state_includes_junction_and_cable_end_metadata(
             valid_harness.connections[1],
         ),
         junctions=(junction,),
+        pathways=(
+            replace(
+                valid_harness.pathways[0],
+                start_metadata=(("station", "left"),),
+                end_metadata=(("station", "right"),),
+            ),
+        ),
     )
     payload = _serialize_definition(
         addin_module,
@@ -165,6 +174,8 @@ def test_palette_state_includes_junction_and_cable_end_metadata(
 
     assert harness["connections"][0]["metadata"] == [{"key": "connector", "value": "J1"}]
     assert harness["junctions"][0]["metadata"] == [{"key": "panel", "value": "P2"}]
+    assert harness["pathways"][0]["startMetadata"] == [{"key": "station", "value": "left"}]
+    assert harness["pathways"][0]["endMetadata"] == [{"key": "station", "value": "right"}]
 
 
 @pytest.mark.parametrize(

@@ -227,6 +227,8 @@ def serialize_palette_state(
                             str(control_id) for control_id in pathway.ordered_control_ids
                         ],
                         "metadata": _metadata_payload(pathway.metadata),
+                        "startMetadata": _metadata_payload(pathway.start_metadata),
+                        "endMetadata": _metadata_payload(pathway.end_metadata),
                     }
                     for pathway in definition.pathways
                 ],

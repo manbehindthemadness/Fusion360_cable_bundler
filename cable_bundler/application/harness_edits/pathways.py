@@ -116,6 +116,7 @@ def segment_pathway(
         pathway,
         ordered_control_ids=pathway.ordered_control_ids[:control_index],
         end_name="",
+        end_metadata=(),
     )
     following_pathway = PathwayDefinition(
         pathway_id=following_pathway_id,
@@ -123,6 +124,7 @@ def segment_pathway(
         routing_mode=pathway.routing_mode,
         ordered_control_ids=pathway.ordered_control_ids[control_index + 1 :],
         end_name=pathway.end_name,
+        end_metadata=pathway.end_metadata,
     )
     junction = JunctionDefinition(
         junction_id=junction_id,
@@ -468,6 +470,28 @@ def set_pathway_properties(
     original, definition = read_definition(harness_id, gateway)
     pathway = require_pathway(definition, pathway_id)
     updated = replace(pathway, metadata=metadata)
+    persist_definition(
+        harness_id,
+        original,
+        replace(definition, pathways=replace_pathway(definition, updated)),
+        gateway,
+    )
+
+
+def set_pathway_end_properties(
+    harness_id: UUID,
+    pathway_id: UUID,
+    endpoint: PathwayEndpoint,
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace searchable metadata for one pathway boundary without changing routing.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    pathway = require_pathway(definition, pathway_id)
+    field = "start_metadata" if endpoint is PathwayEndpoint.START else "end_metadata"
+    updated = replace(pathway, **{field: metadata})
     persist_definition(
         harness_id,
         original,

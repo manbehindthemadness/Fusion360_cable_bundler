@@ -25,6 +25,7 @@ from cable_bundler.application import (
     set_cable_group_properties,
     set_harness_properties,
     set_junction_properties,
+    set_pathway_end_properties,
     set_pathway_properties,
     suggest_junction_name,
     switch_standalone_end,
@@ -310,6 +311,31 @@ def test_pathway_properties_store_searchable_metadata_without_routing_changes(
     assert stored.pathways[0] == replace(pathway, metadata=(("zone", "forward"),))
 
 
+def test_pathway_end_properties_store_metadata_on_only_the_selected_boundary(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace one pathway end's metadata while retaining routing and the opposite end.
+    """
+    pathway = replace(valid_harness.pathways[0], end_metadata=(("station", "right"),))
+    definition = replace(valid_harness, pathways=(pathway,))
+    gateway = _recording_gateway(definition)
+
+    set_pathway_end_properties(
+        definition.harness_id,
+        pathway.pathway_id,
+        PathwayEndpoint.START,
+        (("station", "left"),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.pathways[0] == replace(
+        pathway,
+        start_metadata=(("station", "left"),),
+    )
+
+
 def test_cable_end_properties_store_metadata_without_changing_connection(
     valid_harness: HarnessDefinition,
 ) -> None:
@@ -428,6 +454,8 @@ def test_segmented_junction_retains_source_control_interpolation(
                 pathway,
                 ordered_control_ids=(first_id, junction_control_id, last_id),
                 metadata=(("zone", "forward"),),
+                start_metadata=(("station", "left"),),
+                end_metadata=(("station", "right"),),
             ),
         ),
     )
@@ -460,6 +488,10 @@ def test_segmented_junction_retains_source_control_interpolation(
     )
     assert preceding.metadata == (("zone", "forward"),)
     assert following.metadata == ()
+    assert preceding.start_metadata == (("station", "left"),)
+    assert preceding.end_metadata == ()
+    assert following.start_metadata == ()
+    assert following.end_metadata == (("station", "right"),)
 
 
 def test_apply_existing_defaults_updates_junctions_and_end_fallbacks(

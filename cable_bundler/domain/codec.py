@@ -221,6 +221,8 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                     str(control_id) for control_id in pathway.ordered_control_ids
                 ],
                 "metadata": _metadata_to_list(pathway.metadata),
+                "start_metadata": _metadata_to_list(pathway.start_metadata),
+                "end_metadata": _metadata_to_list(pathway.end_metadata),
             }
             for pathway in definition.pathways
         ],
@@ -634,6 +636,8 @@ def _parse_pathway(raw_value: object, path: str) -> PathwayDefinition:
         ),
         ordered_control_ids=control_ids,
         metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
+        start_metadata=_parse_metadata(value.get("start_metadata", []), f"{path}.start_metadata"),
+        end_metadata=_parse_metadata(value.get("end_metadata", []), f"{path}.end_metadata"),
     )
     return pathway
 

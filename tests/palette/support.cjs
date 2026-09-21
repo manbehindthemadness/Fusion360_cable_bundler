@@ -265,7 +265,8 @@ function harness() {
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,
     pathways: [{ pathwayId: 'p', name: 'lower fuse box path', startName: 'O2-sensor',
-      endName: 'CAN_BUS-ctrl', orderedControlIds: [], metadata: [] }],
+      endName: 'CAN_BUS-ctrl', orderedControlIds: [], metadata: [],
+      startMetadata: [], endMetadata: [] }],
     junctions: [], standaloneEnds, cableGroups, cableGroupRouteError: null,
   };
 }

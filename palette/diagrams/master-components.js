@@ -469,12 +469,18 @@ function renderRelationshipEndList(
   );
   summary.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
-    showContextMenu(event, [{
-      label: "Route Editor",
-      action: () => cableCreationController.begin(cableCreationBoundary),
-      disabled: !groups.length,
-      title: groups.length ? "" : "Requires at least one end",
-    }]);
+    showContextMenu(event, [
+      {
+        label: "Route Editor",
+        action: () => cableCreationController.begin(cableCreationBoundary),
+        disabled: !groups.length,
+        title: groups.length ? "" : "Requires at least one end",
+      },
+      {
+        label: "Properties",
+        action: () => openPathwayEndProperties(harness, pathway, endpoint),
+      },
+    ]);
   });
   if (!groups.length) {
     details.open = false;

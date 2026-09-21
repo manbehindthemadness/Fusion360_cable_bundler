@@ -391,6 +391,43 @@ def test_palette_edit_saves_pathway_metadata(
     assert notice == "Saved pathway properties."
 
 
+def test_palette_edit_saves_pathway_end_metadata(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the selected boundary and its key/value rows without changing routing.
+    """
+    harness_id = UUID(int=1)
+    pathway_id = UUID(int=2)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_pathway_end_properties", save)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "set_pathway_end_properties",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "pathwayId": str(pathway_id),
+                "endpoint": "end",
+                "metadata": [{"key": "station", "value": "right"}],
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        pathway_id,
+        PathwayEndpoint.END,
+        (("station", "right"),),
+        gateway,
+    )
+    assert notice == "Saved pathway-end properties."
+
+
 @pytest.mark.parametrize(
     ("action", "identity_key", "service_name", "notice"),
     (

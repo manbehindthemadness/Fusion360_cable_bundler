@@ -466,12 +466,22 @@ class PathwayDefinition:
     start_name: str = ""
     end_name: str = ""
     metadata: Metadata = ()
+    start_metadata: Metadata = ()
+    end_metadata: Metadata = ()
 
     def __post_init__(self) -> None:
         """
         Require unambiguous searchable pathway metadata.
         """
         _validate_metadata(self.metadata, "Pathway metadata")
+        _validate_metadata(self.start_metadata, "Pathway start metadata")
+        _validate_metadata(self.end_metadata, "Pathway end metadata")
+
+    def endpoint_metadata(self, endpoint: PathwayEndpoint) -> Metadata:
+        """
+        Return searchable metadata owned by one pathway boundary.
+        """
+        return self.start_metadata if endpoint is PathwayEndpoint.START else self.end_metadata
 
 
 @dataclass(frozen=True)

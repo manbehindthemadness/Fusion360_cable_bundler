@@ -377,6 +377,16 @@ function openPathwayProperties(harness, pathway) {
   );
 }
 
+/** Open searchable custom metadata owned by one pathway boundary. */
+function openPathwayEndProperties(harness, pathway, endpoint) {
+  const side = endpoint === "start" ? "A" : "B";
+  const metadata = endpoint === "start" ? pathway.startMetadata : pathway.endMetadata;
+  openEntityMetadataProperties(
+    harness, { metadata }, `Pathway End ${side} Properties`, "pathway-end-properties",
+    "set_pathway_end_properties", { pathwayId: pathway.pathwayId, endpoint },
+  );
+}
+
 /** Open searchable custom metadata owned by one junction. */
 function openJunctionProperties(harness, junction) {
   openEntityMetadataProperties(

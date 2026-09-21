@@ -37,7 +37,7 @@
 .stripe-values label { gap: 3px; color: var(--muted); font-size: 11px; }
 .material-options textarea { min-height: 64px; resize: vertical; }
 .harness-properties, .cable-group-properties, .pathway-properties,
-.junction-properties, .cable-end-properties {
+.pathway-end-properties, .junction-properties, .cable-end-properties {
   width: 520px;
   min-width: 360px;
   max-width: 92vw;

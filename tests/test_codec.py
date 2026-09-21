@@ -64,7 +64,14 @@ def test_metadata_round_trip_is_optional_and_does_not_change_schema(
             valid_harness.connections[1],
         ),
         junctions=(junction,),
-        pathways=(replace(valid_harness.pathways[0], metadata=(("zone", "forward"),)),),
+        pathways=(
+            replace(
+                valid_harness.pathways[0],
+                metadata=(("zone", "forward"),),
+                start_metadata=(("station", "left"),),
+                end_metadata=(("station", "right"),),
+            ),
+        ),
     )
 
     payload = json.loads(dumps(definition))
@@ -76,12 +83,16 @@ def test_metadata_round_trip_is_optional_and_does_not_change_schema(
     del payload["connections"][0]["metadata"]
     del payload["junctions"][0]["metadata"]
     del payload["pathways"][0]["metadata"]
+    del payload["pathways"][0]["start_metadata"]
+    del payload["pathways"][0]["end_metadata"]
     compatible = loads(json.dumps(payload))
     assert compatible.metadata == ()
     assert compatible.cable_groups[0].metadata_overrides == ()
     assert compatible.connections[0].metadata == ()
     assert compatible.junctions[0].metadata == ()
     assert compatible.pathways[0].metadata == ()
+    assert compatible.pathways[0].start_metadata == ()
+    assert compatible.pathways[0].end_metadata == ()
 
 
 def test_auto_transition_presets_expose_approved_span_fractions() -> None:

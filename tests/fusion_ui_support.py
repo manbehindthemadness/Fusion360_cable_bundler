@@ -189,6 +189,7 @@ class _PaletteLifecycleModule(Protocol):
     set_cable_end_properties: Callable[..., None]
     set_harness_properties: Callable[..., None]
     set_junction_properties: Callable[..., None]
+    set_pathway_end_properties: Callable[..., None]
     set_pathway_properties: Callable[..., None]
     set_cable_group_properties: Callable[..., None]
     serialize_palette_state: Callable[[object, str], str]

@@ -30,6 +30,7 @@ from ...application import (
     set_harness_material_defaults,
     set_harness_properties,
     set_junction_properties,
+    set_pathway_end_properties,
     set_pathway_properties,
     switch_standalone_end,
     update_junction_relationships,
@@ -340,6 +341,18 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved pathway properties."
+    if action == "set_pathway_end_properties":
+        endpoint = payload.get("endpoint")
+        if endpoint not in {member.value for member in PathwayEndpoint}:
+            raise ValueError("Pathway end has an invalid endpoint.")
+        set_pathway_end_properties(
+            harness_id,
+            _read_payload_uuid(payload, "pathwayId", "pathway"),
+            PathwayEndpoint(endpoint),
+            _read_metadata(payload.get("metadata", []), "Pathway-end metadata"),
+            gateway,
+        )
+        return "Saved pathway-end properties."
     if action == "set_junction_properties":
         set_junction_properties(
             harness_id,

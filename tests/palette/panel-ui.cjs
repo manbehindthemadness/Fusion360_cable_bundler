@@ -239,7 +239,7 @@ test('empty pathway end opens the current pathway popup', () => {
   const definition = harness();
   definition.pathways.push({
     pathwayId: 'p2', name: 'Pathway 002', startName: 'A', endName: 'B',
-    orderedControlIds: [], metadata: [],
+    orderedControlIds: [], metadata: [], startMetadata: [], endMetadata: [],
   });
 
   const diagram = context.renderRelationshipMap(definition);
@@ -252,6 +252,34 @@ test('empty pathway end opens the current pathway popup', () => {
   const popup = context.document.body.querySelector('.pathway-popup');
   assert.equal(popup.open, true);
   assert.equal(popup.attributes['aria-label'], 'Pathway configuration: Pathway 002');
+});
+
+test('pathway end menu places Properties immediately below Route Editor', () => {
+  const { context } = palette();
+  const definition = harness();
+  const diagram = context.renderRelationshipMap(definition);
+  const pathwayEnd = descendants(diagram, (node) => (
+    node.className?.split(' ').includes('relationship-end-list')
+      && node.dataset.pathwayId === 'p'
+      && node.dataset.endpoint === 'start'
+  ))[0];
+
+  pathwayEnd.children[0].events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {},
+    target: pathwayEnd.children[0],
+  });
+
+  const menu = descendants(
+    diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
+  )[0];
+  assert.deepEqual(menu.children.map((item) => item.textContent), [
+    'Route Editor', 'Properties',
+  ]);
+  menu.children[1].events.click();
+  assert.equal(
+    context.document.body.querySelector('.pathway-end-properties').open,
+    true,
+  );
 });
 
 test('master diagram Materials action opens harness materials', () => {
@@ -788,6 +816,36 @@ asyncTest('pathway Properties edits only pathway metadata', async () => {
   assert.equal(calls[0].action, 'set_pathway_properties');
   assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([
     { key: 'zone', value: 'aft' },
+  ]));
+});
+
+asyncTest('pathway-end Properties edits only the selected boundary metadata', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const pathway = definition.pathways[0];
+  pathway.startMetadata = [{ key: 'station', value: 'left' }];
+  pathway.endMetadata = [{ key: 'station', value: 'right' }];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openPathwayEndProperties(definition, pathway, 'start');
+
+  const dialog = context.document.body.querySelector('.pathway-end-properties');
+  const fields = descendants(dialog, (node) => node.tag === 'input');
+  assert.equal(fields.length, 2);
+  assert.equal(fields[0].value, 'station');
+  assert.equal(fields[1].value, 'left');
+  fields[1].value = 'forward-left';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_pathway_end_properties');
+  assert.equal(calls[0].payload.pathwayId, 'p');
+  assert.equal(calls[0].payload.endpoint, 'start');
+  assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([
+    { key: 'station', value: 'forward-left' },
   ]));
 });
 
