@@ -76,7 +76,7 @@ function openCreateCablesPopup(
   const actions = document.createElement("div");
   const cancel = document.createElement("button");
   const save = document.createElement("button");
-  const groups = cableCreationDisconnectedGroups(harness, left, right);
+  const groups = cableCreationAssignmentGroups(harness, left, right);
   const assignments = reconcileCableCreationAssignments(restoredAssignments, groups);
   const leftPool = createCableCreationEndPool(left);
   const rightPool = createCableCreationEndPool(right);
@@ -247,4 +247,3 @@ function createCableCreationController(harness, container) {
   };
   return { begin, bind, cancel };
 }
-

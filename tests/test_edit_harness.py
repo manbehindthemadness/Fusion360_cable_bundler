@@ -166,7 +166,7 @@ def test_adds_end_owned_refine_without_mutating_parent_pathway(
     assert stored.pathways == valid_harness.pathways
 
 
-def test_switches_disconnected_end_between_pathway_boundaries(
+def test_switches_unassigned_end_between_pathway_boundaries(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
@@ -203,7 +203,7 @@ def test_switches_disconnected_end_between_pathway_boundaries(
     )
 
 
-def test_rejects_switching_connected_end(valid_harness: HarnessDefinition) -> None:
+def test_rejects_switching_assigned_end(valid_harness: HarnessDefinition) -> None:
     """
     Require detachment before an endpoint change can alter a routed group.
     """
@@ -212,7 +212,7 @@ def test_rejects_switching_connected_end(valid_harness: HarnessDefinition) -> No
 
     with pytest.raises(
         ValueError,
-        match="Only disconnected standalone ends can switch pathway boundaries",
+        match="Only unassigned standalone ends can switch pathway boundaries",
     ):
         switch_standalone_end(
             valid_harness.harness_id,

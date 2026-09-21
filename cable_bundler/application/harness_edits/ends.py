@@ -96,9 +96,9 @@ def switch_standalone_end(
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Move one disconnected end to the opposite boundary of its pathway.
+    Move one unassigned end to the opposite boundary of its pathway.
 
-    Connected ends must first be detached so this edit cannot silently change
+    Assigned ends must first be detached so this edit cannot silently change
     an existing cable group's route.
     """
     original, definition = read_definition(harness_id, gateway)
@@ -113,7 +113,7 @@ def switch_standalone_end(
     if end is None:
         raise ValueError("Selected standalone end does not exist in this harness.")
     if any(connection_id in group.connection_ids for group in definition.cable_groups):
-        raise ValueError("Only disconnected standalone ends can switch pathway boundaries.")
+        raise ValueError("Only unassigned standalone ends can switch pathway boundaries.")
     switched_endpoint = (
         PathwayEndpoint.END if end.endpoint is PathwayEndpoint.START else PathwayEndpoint.START
     )
@@ -193,7 +193,7 @@ def remove_standalone_end(
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Remove one disconnected end association and its owned connection metadata.
+    Remove one unassigned end association and its owned connection metadata.
 
     Referenced Fusion geometry is not deleted.
     """

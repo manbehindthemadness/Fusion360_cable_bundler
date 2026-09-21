@@ -132,7 +132,7 @@
   cursor: pointer;
 }
 .relationship-end-entry:hover, .relationship-end-entry:focus { border-color: var(--accent); }
-.relationship-end-entry[data-disconnected="true"] { cursor: default; }
+.relationship-end-entry[data-unassigned="true"] { cursor: default; }
 .relationship-end-entry strong { white-space: nowrap; }
 .relationship-end-entry small { color: var(--muted); }
 .relationship-pathway-hub {

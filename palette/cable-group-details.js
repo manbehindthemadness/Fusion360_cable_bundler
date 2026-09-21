@@ -1,4 +1,4 @@
-/** Render route and member details for one connected cable-end group. */
+/** Render route and member details for one assigned cable-end group. */
 /* global openCableGroupDetailsState */
 
 const CABLE_GROUP_DETAILS_NODE_HEIGHT = 40;
@@ -478,7 +478,7 @@ function renderCableGroupDetailsMembers(
     row.dataset.connectionId = `${connectionId}`;
     const reference = row.querySelector(".member-reference");
     const isFocused = connectionId === focusedConnectionId;
-    reference.title = `Start diagram from ${connection?.name || "this connected end"}`;
+    reference.title = `Start diagram from ${connection?.name || "this assigned end"}`;
     reference.setAttribute("aria-label", reference.title);
     reference.setAttribute("aria-pressed", isFocused ? "true" : "false");
     reference.addEventListener("click", () => onSelect(connectionId));
@@ -492,7 +492,7 @@ function renderCableGroupDetailsMembers(
   return members;
 }
 
-/** Move the selected styling within an existing Connected Ends list. */
+/** Move the selected styling within an existing Assigned Ends list. */
 function focusCableGroupDetailsMember(members, connectionId) {
   members.querySelectorAll(".cable-group-details-member").forEach((row) => {
     const isFocused = row.dataset.connectionId === connectionId;
@@ -593,7 +593,7 @@ function openCableGroupDetails(
     }, "Saving cable-group name…"),
   }));
   titleRow.append(title, rename);
-  summary.textContent = `${group.connectionIds.length} connected ${
+  summary.textContent = `${group.connectionIds.length} assigned ${
     group.connectionIds.length === 1 ? "end" : "ends"
   }`;
   heading.append(titleRow, summary);
@@ -609,7 +609,7 @@ function openCableGroupDetails(
     );
     content.append(graphicWorkspace.root);
   }
-  memberHeading.textContent = "Connected Ends";
+  memberHeading.textContent = "Assigned Ends";
   const selectConnection = (selectedConnectionId) => {
     if (selectedConnectionId === focusedConnectionId
       || !group.connectionIds.includes(selectedConnectionId)) return;

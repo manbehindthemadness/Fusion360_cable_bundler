@@ -1,7 +1,7 @@
 /** Drag-and-drop rendering for staged cable assignments. */
 
 function renderCableCreationEndCard(
-  harness, boundary, group, assignments, connected, showContextMenu, rerender,
+  harness, boundary, group, assignments, assigned, showContextMenu, rerender,
 ) {
   const card = document.createElement("div");
   const name = document.createElement("strong");
@@ -13,10 +13,10 @@ function renderCableCreationEndCard(
   card.dataset.cableGroupIds = relationshipGroupIds(group.groups);
   card.setAttribute("role", "listitem");
   name.textContent = assignments.renames[group.connectionId] ?? group.label;
-  status.textContent = connected ? "Connected" : "Disconnected";
+  status.textContent = assigned ? "Assigned" : "Unassigned";
   card.append(name, status);
   hoverHighlight(card, () => highlightCableCreationEnd(harness, group));
-  const openDetails = connected && group.cableGroupId
+  const openDetails = assigned && group.cableGroupId
     ? () => openCableGroupDetails(
       harness, group.cableGroupId, group.connectionId,
       { preserveCreateCablesPopup: true },
@@ -24,9 +24,9 @@ function renderCableCreationEndCard(
     : null;
   card.activateCableDetails = openDetails;
   if (group.standalone) {
-    if (!connected) card.dataset.disconnected = "true";
+    if (!assigned) card.dataset.unassigned = "true";
     card.tabIndex = 0;
-    card.setAttribute("aria-label", `${group.label}, ${connected ? "connected" : "disconnected"} end`);
+    card.setAttribute("aria-label", `${group.label}, ${assigned ? "assigned" : "unassigned"} end`);
     card.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
       const contextItems = [
@@ -210,7 +210,7 @@ function renderCableCreationAssignments(
     left: new Map(groups.left.map((group) => [group.connectionId, group])),
     right: new Map(groups.right.map((group) => [group.connectionId, group])),
   };
-  const connectedIds = cableCreationStagedConnectedIds(harness, assignments);
+  const assignedIds = cableCreationStagedAssignedIds(harness, assignments);
   const surfaces = {
     center,
     markers: new Set(),
@@ -230,7 +230,7 @@ function renderCableCreationAssignments(
         boundaries[side],
         group,
         assignments,
-        connectedIds.has(connectionId),
+        assignedIds.has(connectionId),
         showContextMenu,
         rerender,
       );
@@ -240,7 +240,7 @@ function renderCableCreationAssignments(
       pools[side].list.append(card);
     });
     if (!surfaces.pools[side].cards.length) {
-      pools[side].list.append(emptyMessage("No disconnected ends."));
+      pools[side].list.append(emptyMessage("No unassigned ends."));
     }
   });
 
@@ -267,7 +267,7 @@ function renderCableCreationAssignments(
         boundaries[side],
         group,
         assignments,
-        connectedIds.has(item.connectionId),
+        assignedIds.has(item.connectionId),
         showContextMenu,
         rerender,
       );

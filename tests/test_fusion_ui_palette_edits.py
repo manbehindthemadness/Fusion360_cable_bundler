@@ -75,7 +75,7 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Parse the disconnected-end identity and delegate the metadata deletion.
+    Parse the unassigned-end identity and delegate the metadata deletion.
     """
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)
@@ -182,7 +182,7 @@ def test_palette_edit_switches_standalone_end_by_connection_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Parse the disconnected-end identity and delegate its boundary swap.
+    Parse the unassigned-end identity and delegate its boundary swap.
     """
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)

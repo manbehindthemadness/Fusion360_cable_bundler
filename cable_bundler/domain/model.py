@@ -516,7 +516,7 @@ class JunctionDefinition:
 @dataclass(frozen=True)
 class StandaloneEndDefinition:
     """
-    Attach one disconnected physical end to a pathway boundary.
+    Attach one physical end to a pathway boundary before or after cable assignment.
 
     The referenced connection owns ordered guide profiles. End-owned controls
     extend that guide stack to the pathway without modifying the pathway.

@@ -1,5 +1,5 @@
 """
-Tests for transactional disconnected-end creation.
+Tests for transactional unassigned-end creation.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class _RecordingGateway(StandaloneEndGateway):
         self.serialized_definition = serialized_definition
 
 
-def test_adds_one_ordered_disconnected_end(valid_harness: HarnessDefinition) -> None:
+def test_adds_one_ordered_unassigned_end(valid_harness: HarnessDefinition) -> None:
     """
     Persist guide order and placement without adding cable-owned data.
     """

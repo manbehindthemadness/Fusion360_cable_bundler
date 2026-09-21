@@ -400,7 +400,7 @@ def _validate_standalone_ends(
     issues: list[ValidationIssue],
 ) -> None:
     """
-    Validate disconnected connection placement without requiring cable geometry.
+    Validate cable-end placement without requiring a cable assignment.
     """
     connection_ids = {connection.connection_id for connection in definition.connections}
     pathway_ids = {pathway.pathway_id for pathway in definition.pathways}

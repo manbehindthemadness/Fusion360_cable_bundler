@@ -47,7 +47,7 @@ function cableCreationReachableBoundaries(harness, sourceKey) {
 }
 
 /** Return ends at the two selected boundaries for group assignment. */
-function cableCreationDisconnectedGroups(harness, left, right) {
+function cableCreationAssignmentGroups(harness, left, right) {
   return {
     left: left.groups,
     right: right.groups,
@@ -298,8 +298,8 @@ function cableCreationDetachedConnectionIds(assignments, pairings, deleted) {
   );
 }
 
-/** Resolve staged connected status using the same detach-then-merge semantics as Save. */
-function cableCreationStagedConnectedIds(harness, assignments) {
+/** Resolve staged assignment status using the same detach-then-merge semantics as Save. */
+function cableCreationStagedAssignedIds(harness, assignments) {
   const deleted = new Set(Object.keys(assignments.deletedConnectionIds));
   const pairings = cableCreationCompletePairings(assignments);
   const detached = new Set(
@@ -334,4 +334,3 @@ function cableCreationStagedConnectedIds(harness, assignments) {
 }
 
 /** Render one draggable end card with the master diagram's end interactions. */
-

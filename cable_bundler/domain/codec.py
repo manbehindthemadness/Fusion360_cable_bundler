@@ -690,7 +690,7 @@ def _parse_standalone_end(
     require_controls: bool,
 ) -> StandaloneEndDefinition:
     """
-    Parse one disconnected pathway-end assignment.
+    Parse one pathway-end definition independently of cable assignment.
     """
     value = _require_mapping(raw_value, path)
     raw_control_ids = _require_list(
@@ -714,7 +714,7 @@ def _parse_cable_group(
     path: str,
 ) -> CableGroupDefinition:
     """
-    Parse one persistent collection of electrically connected cable ends.
+    Parse one persistent collection of assigned cable ends.
     """
     value = _require_mapping(raw_value, path)
     raw_connection_ids = _require_list(value, "connection_ids", f"{path}.connection_ids")

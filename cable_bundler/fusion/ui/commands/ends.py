@@ -204,7 +204,7 @@ def _read_standalone_end_candidate(
     for candidate in matches:
         if selected_item_name == candidate.label:
             return candidate
-    raise ValueError("Choose which matching pathway end receives the disconnected end.")
+    raise ValueError("Choose which matching pathway end receives the unassigned end.")
 
 
 def _update_standalone_end_choices(
@@ -336,7 +336,7 @@ class _AddStandaloneEndValidateInputsHandler(adsk.core.ValidateInputsEventHandle
 
 class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
     """
-    Persist one disconnected end without invoking route generation.
+    Persist one unassigned end without invoking route generation.
     """
 
     def __init__(self, state: _AddStandaloneEndCommandState) -> None:
@@ -362,7 +362,7 @@ class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
                 _create_harness_gateway(application),
             )
             application.activeViewport.refresh()
-            _send_palette_state(application, f"Created disconnected {result.connection.name}.")
+            _send_palette_state(application, f"Created unassigned {result.connection.name}.")
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)

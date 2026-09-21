@@ -1,5 +1,5 @@
 """
-Plan non-duplicated preview legs for connected cable-end groups.
+Plan non-duplicated preview legs for assigned cable-end groups.
 """
 
 from __future__ import annotations

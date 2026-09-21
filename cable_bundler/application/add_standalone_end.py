@@ -1,5 +1,5 @@
 """
-Create disconnected end stacks anchored to pathway boundaries.
+Create unassigned end stacks anchored to pathway boundaries.
 """
 
 from __future__ import annotations

@@ -103,7 +103,7 @@ COMMAND_SPECS = (
     CommandSpec(
         ADD_END_COMMAND_ID,
         ADD_END_COMMAND_NAME,
-        "Create a disconnected end at an existing pathway boundary.",
+        "Create an unassigned end at an existing pathway boundary.",
         ADD_END_RESOURCE_FOLDER,
         AddStandaloneEndCreatedHandler,
     ),

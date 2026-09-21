@@ -504,7 +504,7 @@ function renderRelationshipEndList(
     name.textContent = group.label;
     const connectionContext = group.connectionName && group.connectionName !== group.label
       ? `${group.connectionName} · ` : "";
-    meta.textContent = `${connectionContext}${group.cableGroupId ? "Connected" : "Disconnected"}`;
+    meta.textContent = `${connectionContext}${group.cableGroupId ? "Assigned" : "Unassigned"}`;
     button.append(name, meta);
     hoverHighlight(button, () => highlightMember(harness, "connection", group.connectionId));
     focusController.bind(button, {
@@ -518,10 +518,10 @@ function renderRelationshipEndList(
       harness, group.cableGroupId, group.connectionId,
     );
     if (group.cableGroupId) button.addEventListener("click", openDetails);
-    if (!group.cableGroupId) button.dataset.disconnected = "true";
+    if (!group.cableGroupId) button.dataset.unassigned = "true";
     button.tabIndex = 0;
     button.setAttribute(
-      "aria-label", `${group.label}, ${group.cableGroupId ? "connected" : "disconnected"} end`,
+      "aria-label", `${group.label}, ${group.cableGroupId ? "assigned" : "unassigned"} end`,
     );
     if (group.cableGroupId) {
       button.setAttribute("role", "button");
