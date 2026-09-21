@@ -248,7 +248,7 @@ function harness() {
     { connectionId: `b${i}`, pathwayId: 'p', endpoint: 'end', orderedControlIds: [] },
   ]);
   const cableGroups = [1, 2, 3].map((i) => ({
-    cableGroupId: `g${i}`, connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
+    cableGroupId: `g${i}`, name: '', connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
     materials: materialDefaults,
     materialOverrides: { insulationMaterial: null, conductorMaterial: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,

@@ -409,6 +409,36 @@ test('Cable Details Materials action opens group materials', () => {
   );
 });
 
+test('Cable Details header shows and renames its cable group', () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.cableGroups[0].name = 'Engine loom';
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+
+  const details = context.document.body.querySelector('.cable-group-details-popup');
+  const heading = details.querySelector('.cable-group-details-heading');
+  const title = descendants(heading, (node) => node.tag === 'h2')[0];
+  const rename = descendants(
+    heading, (node) => node.tag === 'button' && node.textContent === 'Rename',
+  )[0];
+  assert.equal(title.textContent, 'Engine loom');
+  assert.equal(descendants(heading, (node) => node.textContent === 'Cable Details').length, 0);
+
+  rename.events.click();
+  const input = heading.querySelector('input');
+  assert.equal(input.value, 'Engine loom');
+  assert.equal(input.attributes['aria-label'], 'Cable group name');
+  input.value = 'Cabin data';
+  input.events.keydown({ key: 'Enter', stopPropagation() {}, preventDefault() {} });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'rename_cable_group');
+  assert.equal(calls[0].payload.harnessId, 'h');
+  assert.equal(calls[0].payload.cableGroupId, 'g1');
+  assert.equal(calls[0].payload.name, 'Cabin data');
+});
+
 test('master end menu exposes end-owned guide and refine actions', () => {
   const { context } = palette();
   const definition = harness();

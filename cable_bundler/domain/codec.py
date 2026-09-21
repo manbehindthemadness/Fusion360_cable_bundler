@@ -258,6 +258,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "diameter_mm": group.diameter_mm,
                 "material_overrides": _material_overrides_to_dict(group.material_overrides),
                 "metadata_overrides": _metadata_to_list(group.metadata_overrides),
+                "name": group.name,
             }
             for group in definition.cable_groups
         ],
@@ -717,6 +718,9 @@ def _parse_cable_group(
     """
     value = _require_mapping(raw_value, path)
     raw_connection_ids = _require_list(value, "connection_ids", f"{path}.connection_ids")
+    name = value.get("name", "")
+    if not isinstance(name, str):
+        raise DefinitionParseError(f"{path}.name", "expected a string")
     return CableGroupDefinition(
         cable_group_id=_require_uuid(value, "cable_group_id", f"{path}.cable_group_id"),
         connection_ids=tuple(
@@ -730,6 +734,7 @@ def _parse_cable_group(
         metadata_overrides=_parse_metadata(
             value.get("metadata_overrides", []), f"{path}.metadata_overrides"
         ),
+        name=name,
     )
 
 

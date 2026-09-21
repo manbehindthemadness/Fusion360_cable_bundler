@@ -54,6 +54,7 @@ class _MutableCableGroup:
     diameter_mm: float
     material_overrides: CableMaterialOverrides
     metadata_overrides: Metadata
+    name: str
 
 
 def save_cable_editor(
@@ -128,6 +129,7 @@ def save_cable_editor(
             group.diameter_mm,
             group.material_overrides,
             group.metadata_overrides,
+            group.name,
         )
         for group in definition.cable_groups
     ]
@@ -164,6 +166,7 @@ def save_cable_editor(
                     DEFAULT_CABLE_DIAMETER_MM,
                     CableMaterialOverrides(),
                     (),
+                    "",
                 )
             )
         elif left_index is None:
@@ -185,6 +188,7 @@ def save_cable_editor(
             group.diameter_mm,
             group.material_overrides,
             group.metadata_overrides,
+            group.name,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -288,6 +292,27 @@ def _update_cable_group(
         for group in definition.cable_groups
     )
     persist_definition(harness_id, original, replace(definition, cable_groups=groups), gateway)
+
+
+def rename_cable_group(
+    harness_id: UUID,
+    cable_group_id: UUID,
+    name: str,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Rename one connected cable group without changing its members or routing.
+
+    Clearing the custom name restores the palette's generated cable-group label.
+    """
+    if not isinstance(name, str):
+        raise ValueError("Cable-group name must be a string.")
+    _update_cable_group(
+        harness_id,
+        cable_group_id,
+        gateway,
+        lambda group: replace(group, name=name.strip()),
+    )
 
 
 def cable_end_locations(

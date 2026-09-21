@@ -46,6 +46,23 @@ test('Cable Details fills most of the window and uses the shared diagram workspa
   assert.match(styles, /\.cable-group-route-link \{[^}]*fill: none;[^}]*stroke-linecap: round;/s);
 });
 
+test('Cable Details rename controls keep their focus highlight inside the panel', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(
+    styles,
+    /\.cable-group-details-title \{[^}]*flex-wrap: wrap;[^}]*min-width: 0;/s,
+  );
+  assert.match(
+    styles,
+    /\.cable-group-details-title input \{[^}]*min-width: 0;[^}]*max-width: 28rem;/s,
+  );
+  assert.match(
+    styles,
+    /\.cable-group-details-title input:focus-visible,[^{]*\.cable-group-details-rename:focus-visible \{[^}]*outline-offset: -2px;/s,
+  );
+});
+
 test('Route Editor uses three independently scrollable columns', () => {
   const styles = readPaletteStyles();
   const columnPattern = [

@@ -49,6 +49,7 @@ def test_metadata_round_trip_is_optional_and_does_not_change_schema(
     Preserve new searchable rows while keeping schema-15 definitions without them readable.
     """
     group = replace(valid_harness.cable_groups[0], metadata_overrides=(("drawing-zone", "B4"),))
+    group = replace(group, name="Engine loom")
     junction = JunctionDefinition(
         UUID(int=900),
         "Junction 01",
@@ -80,6 +81,7 @@ def test_metadata_round_trip_is_optional_and_does_not_change_schema(
     assert loads(json.dumps(payload)) == definition
     del payload["metadata"]
     del payload["cable_groups"][0]["metadata_overrides"]
+    del payload["cable_groups"][0]["name"]
     del payload["connections"][0]["metadata"]
     del payload["junctions"][0]["metadata"]
     del payload["pathways"][0]["metadata"]
@@ -88,6 +90,7 @@ def test_metadata_round_trip_is_optional_and_does_not_change_schema(
     compatible = loads(json.dumps(payload))
     assert compatible.metadata == ()
     assert compatible.cable_groups[0].metadata_overrides == ()
+    assert compatible.cable_groups[0].name == ""
     assert compatible.connections[0].metadata == ()
     assert compatible.junctions[0].metadata == ()
     assert compatible.pathways[0].metadata == ()

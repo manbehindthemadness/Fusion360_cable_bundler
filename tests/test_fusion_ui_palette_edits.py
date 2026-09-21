@@ -124,6 +124,36 @@ def test_palette_edit_renames_standalone_end_by_connection_identity(
     assert notice == "Saved end name."
 
 
+def test_palette_edit_renames_cable_group_by_identity(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the group identity and delegate its display-name edit.
+    """
+    harness_id = UUID(int=1)
+    cable_group_id = UUID(int=2)
+    gateway = object()
+    rename = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "rename_cable_group", rename)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "rename_cable_group",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "cableGroupId": str(cable_group_id),
+                "name": "Engine loom",
+            }
+        ),
+    )
+
+    rename.assert_called_once_with(harness_id, cable_group_id, "Engine loom", gateway)
+    assert notice == "Saved cable-group name."
+
+
 def test_palette_edit_renames_harness_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

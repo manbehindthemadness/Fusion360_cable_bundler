@@ -28,6 +28,7 @@ from .create_harness import (
 from .edit_cable_groups import (
     CableEditorPairing,
     CableEditorRename,
+    rename_cable_group,
     save_cable_editor,
     set_cable_group_material_overrides,
     set_cable_group_properties,
@@ -113,6 +114,7 @@ __all__ = [
     "remove_pathway_gate",
     "remove_junction_relationship",
     "remove_standalone_end",
+    "rename_cable_group",
     "rename_harness",
     "rename_junction",
     "rename_pathway",

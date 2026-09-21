@@ -17,6 +17,7 @@ from cable_bundler.application import (
     add_end_refine,
     add_junction,
     append_end_guides,
+    rename_cable_group,
     rename_harness,
     save_cable_editor,
     segment_pathway,
@@ -264,6 +265,26 @@ def test_edits_group_construction_and_visual_overrides(
     assert main_color.name == "Red"
     assert stored.cable_group_materials(stored.cable_groups[0]).part_number == "WG-01"
     assert stored.cable_groups[0].metadata_overrides == (("drawing-zone", "B4"),)
+
+
+def test_renames_cable_group_without_changing_its_route_members(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist a trimmed group name independently of connectivity and construction.
+    """
+    gateway = _recording_gateway(valid_harness)
+    group = valid_harness.cable_groups[0]
+
+    rename_cable_group(
+        valid_harness.harness_id,
+        group.cable_group_id,
+        "  Engine loom  ",
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.cable_groups[0] == replace(group, name="Engine loom")
 
 
 def test_harness_properties_flow_into_group_inheritance(
@@ -595,3 +616,31 @@ def test_cable_editor_creates_group_from_two_standalone_ends(
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].cable_group_id == group_id
     assert stored.cable_groups[0].connection_ids == (left_id, right_id)
+
+
+def test_cable_editor_preserves_existing_group_name(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Retain the group's display identity while committing unchanged membership.
+    """
+    pathway = valid_harness.pathways[0]
+    group = replace(valid_harness.cable_groups[0], name="Engine loom")
+    definition = replace(valid_harness, cable_groups=(group,))
+    gateway = _recording_gateway(definition)
+
+    save_cable_editor(
+        definition.harness_id,
+        pathway.pathway_id,
+        PathwayEndpoint.START,
+        pathway.pathway_id,
+        PathwayEndpoint.END,
+        (CableEditorPairing(*group.connection_ids),),
+        (),
+        (),
+        (),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.cable_groups[0].name == "Engine loom"

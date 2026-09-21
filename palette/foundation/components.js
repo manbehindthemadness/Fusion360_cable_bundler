@@ -326,6 +326,7 @@ function addContextMenu(root, returnFocus = null) {
 }
 
 function cableGroupLabel(harness, group) {
+  if (group.name) return group.name;
   const index = (harness.cableGroups || []).findIndex(
     (candidate) => candidate.cableGroupId === group.cableGroupId,
   );

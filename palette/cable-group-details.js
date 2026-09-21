@@ -555,7 +555,9 @@ function openCableGroupDetails(
   const dialog = document.createElement("dialog");
   const content = document.createElement("div");
   const heading = document.createElement("div");
+  const titleRow = document.createElement("div");
   const title = document.createElement("h2");
+  const rename = document.createElement("button");
   const summary = document.createElement("p");
   const memberHeading = document.createElement("h3");
   const actions = document.createElement("div");
@@ -575,11 +577,26 @@ function openCableGroupDetails(
     ]);
   });
   heading.className = "cable-group-details-heading";
-  title.textContent = "Cable Details";
+  titleRow.className = "cable-group-details-title";
+  title.textContent = cableGroupLabel(harness, group);
+  rename.type = "button";
+  rename.className = "button secondary cable-group-details-rename";
+  rename.textContent = "Rename";
+  rename.addEventListener("click", () => beginInlineNameEdit(titleRow, title, rename, {
+    value: group.name || title.textContent,
+    placeholder: cableGroupLabel(harness, { ...group, name: "" }),
+    ariaLabel: "Cable group name",
+    onSave: (value) => mutate("rename_cable_group", {
+      harnessId: harness.harnessId,
+      cableGroupId: group.cableGroupId,
+      name: value,
+    }, "Saving cable-group name…"),
+  }));
+  titleRow.append(title, rename);
   summary.textContent = `${group.connectionIds.length} connected ${
     group.connectionIds.length === 1 ? "end" : "ends"
   }`;
-  heading.append(title, summary);
+  heading.append(titleRow, summary);
   content.append(heading);
   if (harness.cableGroupRouteError) {
     const error = document.createElement("div");

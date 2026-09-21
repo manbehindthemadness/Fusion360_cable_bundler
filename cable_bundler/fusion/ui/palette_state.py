@@ -301,6 +301,7 @@ def _cable_group_payloads(
     payloads = [
         {
             "cableGroupId": str(group.cable_group_id),
+            "name": group.name,
             "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
             "diameterMm": group.diameter_mm,
             "materials": _material_settings_payload(definition.cable_group_materials(group)),

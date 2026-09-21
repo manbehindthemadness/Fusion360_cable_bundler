@@ -541,6 +541,7 @@ class CableGroupDefinition:
     diameter_mm: float = DEFAULT_CABLE_DIAMETER_MM
     material_overrides: CableMaterialOverrides = CableMaterialOverrides()
     metadata_overrides: Metadata = ()
+    name: str = ""
 
     def __post_init__(self) -> None:
         """

@@ -102,6 +102,7 @@ def test_palette_state_contains_complete_group_definition(
     assert harness["connections"][0]["metadata"] == []
     cable_group = harness["cableGroups"][0]
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
+    assert cable_group["name"] == ""
     assert cable_group["connectionIds"] == [
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]

@@ -19,6 +19,7 @@ from ...application import (
     remove_pathway,
     remove_pathway_gate,
     remove_standalone_end,
+    rename_cable_group,
     rename_harness,
     rename_junction,
     rename_pathway,
@@ -213,6 +214,17 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved end name."
+    if action == "rename_cable_group":
+        name = payload.get("name")
+        if not isinstance(name, str):
+            raise ValueError("Cable-group rename request requires a text name.")
+        rename_cable_group(
+            harness_id,
+            _read_payload_uuid(payload, "cableGroupId", "cable group"),
+            name,
+            gateway,
+        )
+        return "Saved cable-group name."
     if action == "switch_standalone_end":
         switch_standalone_end(
             harness_id,
