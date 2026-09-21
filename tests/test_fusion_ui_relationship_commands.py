@@ -489,6 +489,62 @@ def test_face_attachment_uses_an_interior_point_when_centroid_is_outside_face(
     assert evaluated_points == [centroid, interior_point]
 
 
+def test_attachment_completion_partially_refreshes_generated_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Rebuild generated output for the attached end before refreshing its preview.
+    """
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    state = attachments._AttachCableEndCommandState(harness_id, connection_id, ())
+    attachment = SimpleNamespace(display_name="Battery GND")
+    definition = object()
+    component = object()
+    design = object()
+    viewport = SimpleNamespace(refresh=Mock())
+    application = SimpleNamespace(activeViewport=viewport)
+    gateway = SimpleNamespace(
+        read_harness_definition=Mock(return_value="definition"),
+        harness_component=Mock(return_value=component),
+    )
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    attach = Mock()
+    refresh_generated = Mock(return_value=1)
+    send = Mock()
+    monkeypatch.setitem(vars(attachments), "_read_attachment_inputs", lambda *_args: attachment)
+    monkeypatch.setitem(vars(attachments), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(attachments), "attach_cable_end", attach)
+    monkeypatch.setitem(vars(attachments), "loads", lambda _serialized: definition)
+    monkeypatch.setitem(vars(attachments), "_require_active_design", lambda _app: design)
+    monkeypatch.setitem(
+        vars(attachments),
+        "refresh_generated_cable_groups_for_connection",
+        refresh_generated,
+    )
+    monkeypatch.setitem(vars(attachments), "_refresh_active_preview", lambda *_args: "")
+    monkeypatch.setitem(vars(attachments), "_send_palette_state", send)
+    args = SimpleNamespace(
+        command=SimpleNamespace(commandInputs=object()),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+
+    attachments._AttachCableEndExecuteHandler(state).notify(args)
+
+    attach.assert_called_once_with(harness_id, connection_id, attachment, gateway)
+    refresh_generated.assert_called_once_with(design, component, definition, connection_id)
+    viewport.refresh.assert_called_once_with()
+    send.assert_called_once_with(
+        application,
+        "Attached cable end to Battery GND. Updated 1 generated cable group.",
+    )
+    assert not args.executeFailed
+
+
 def test_cable_end_attachment_picker_enables_the_agreed_target_set(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

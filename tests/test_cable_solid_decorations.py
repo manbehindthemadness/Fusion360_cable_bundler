@@ -9,7 +9,7 @@ import json
 import sys
 from collections.abc import Callable
 from dataclasses import replace
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Optional, Protocol, cast
 from unittest.mock import Mock
 from uuid import UUID
@@ -67,6 +67,10 @@ class _CableSolidsModule(Protocol):
     ]
     restore_cable_group_stripe_graphics: Callable[[object, object], int]
     generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
+    refresh_generated_cable_groups_for_connection: Callable[..., int]
+    solve_cable_group_centerlines: Callable[..., object]
+    world_to_harness: Callable[..., object]
+    build_cable_group_solid: Callable[..., None]
     hide_generated_cable_group_solids: Callable[[object], _VisibilityState]
     restore_generated_cable_group_visibility: Callable[[_VisibilityState], None]
     _replace_group_stripe_graphics: Callable[..., int]
@@ -339,6 +343,86 @@ def test_generated_solids_visibility_round_trip_preserves_prior_state(
     assert visible.isLightBulbOn
     assert not hidden.isLightBulbOn
     assert stripe_group.isVisible
+
+
+def test_connection_completion_rebuilds_only_its_generated_cable_group(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace affected output in place while preserving mode, visibility, and neighbors.
+    """
+    group = valid_harness.cable_groups[0]
+    route = _straight_route(704, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    leg = SimpleNamespace(route_id=route.cable_id, cable_group_id=group.cable_group_id)
+
+    def occurrence(identity: UUID, *, visible: bool) -> Any:
+        """
+        Build one generated occurrence with persistent group metadata.
+        """
+        attribute = SimpleNamespace(
+            value=json.dumps(
+                {
+                    "cable_group_id": str(identity),
+                    "output_mode": "finalized",
+                }
+            )
+        )
+        return SimpleNamespace(
+            component=SimpleNamespace(
+                attributes=SimpleNamespace(itemByName=lambda *_args: attribute)
+            ),
+            isLightBulbOn=visible,
+            isValid=True,
+            deleteMe=Mock(return_value=True),
+        )
+
+    previous = occurrence(group.cable_group_id, visible=False)
+    unrelated = occurrence(UUID(int=999), visible=True)
+    replacement = SimpleNamespace(
+        component=object(),
+        isLightBulbOn=True,
+        isValid=True,
+        deleteMe=Mock(return_value=True),
+    )
+    add_occurrence = Mock(return_value=replacement)
+    harness = SimpleNamespace(occurrences=SimpleNamespace(addNewComponent=add_occurrence))
+    build = Mock()
+    matrix = object()
+    transform = object()
+    core_module = sys.modules["adsk.core"]
+    core_module.Matrix3D = SimpleNamespace(create=Mock(return_value=matrix))  # type: ignore[attr-defined]
+    monkeypatch.setattr(
+        cable_solids,
+        "generated_cable_group_occurrences",
+        lambda _harness: (previous, unrelated),
+    )
+    monkeypatch.setattr(
+        cable_solids,
+        "solve_cable_group_centerlines",
+        lambda _design, _definition, _notices: ((route,), (leg,)),
+    )
+    monkeypatch.setattr(cable_solids, "world_to_harness", lambda _design, _harness: transform)
+    monkeypatch.setattr(cable_solids, "build_cable_group_solid", build)
+
+    updated = cable_solids.refresh_generated_cable_groups_for_connection(
+        object(),
+        harness,
+        valid_harness,
+        valid_harness.connections[0].connection_id,
+        [],
+    )
+
+    assert updated == 1
+    add_occurrence.assert_called_once_with(matrix)
+    assert build.call_args.args[0] is replacement.component
+    assert build.call_args.args[4] == (route,)
+    assert build.call_args.args[-1] == "finalized"
+    assert build.call_args.kwargs == {"is_visible": False}
+    assert replacement.isLightBulbOn is False
+    previous.deleteMe.assert_called_once_with()
+    unrelated.deleteMe.assert_not_called()
 
 
 def test_copies_root_decoration_position_to_every_branch(

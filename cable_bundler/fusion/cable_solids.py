@@ -64,6 +64,7 @@ __all__ = [
     "generated_cable_group_bodies",
     "generated_cable_group_occurrences",
     "hide_generated_cable_group_solids",
+    "refresh_generated_cable_groups_for_connection",
     "restore_cable_group_stripe_graphics",
     "restore_generated_cable_group_visibility",
 ]
@@ -170,6 +171,98 @@ def generate_cable_group_solids(
                 ) from error
         if previous:
             restore_cable_group_stripe_graphics(harness, definition)
+        raise
+    return len(created)
+
+
+def refresh_generated_cable_groups_for_connection(
+    design: adsk.fusion.Design,
+    harness: adsk.fusion.Component,
+    definition: HarnessDefinition,
+    connection_id: UUID,
+    notices: Optional[list[str]] = None,
+) -> int:
+    """
+    Rebuild only generated cable-group components that contain one edited end.
+
+    Existing output mode and visibility are preserved. If no generated output
+    exists for the affected groups, this is a harmless no-op.
+    """
+    affected_ids = {
+        group.cable_group_id
+        for group in definition.cable_groups
+        if connection_id in group.connection_ids
+    }
+    if not affected_ids:
+        return 0
+    previous_by_id: dict[UUID, adsk.fusion.Occurrence] = {}
+    for occurrence in generated_cable_group_occurrences(harness):
+        attribute = occurrence.component.attributes.itemByName(
+            ATTRIBUTE_GROUP,
+            GENERATED_CABLE_GROUP_ATTRIBUTE,
+        )
+        if attribute is None:
+            continue
+        try:
+            group_id = UUID(json.loads(attribute.value)["cable_group_id"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise RuntimeError("A generated cable group has invalid identity metadata.") from error
+        if group_id in affected_ids:
+            if group_id in previous_by_id:
+                raise RuntimeError("A cable group has duplicate generated geometry.")
+            previous_by_id[group_id] = occurrence
+    if not previous_by_id:
+        return 0
+
+    routes, legs = solve_cable_group_centerlines(design, definition, notices)
+    routes_by_id = {route.cable_id: route for route in routes}
+    if not routes or set(routes_by_id) != {leg.route_id for leg in legs}:
+        raise ValueError("Every cable group must have complete route geometry before generation.")
+    legs_by_group: dict[UUID, list[RoutePreview]] = {}
+    for leg in legs:
+        legs_by_group.setdefault(leg.cable_group_id, []).append(routes_by_id[leg.route_id])
+    local_transform = world_to_harness(design, harness)
+    created: list[adsk.fusion.Occurrence] = []
+    try:
+        for group_index, group in enumerate(definition.cable_groups):
+            if group.cable_group_id not in previous_by_id:
+                continue
+            previous = previous_by_id[group.cable_group_id]
+            group_routes = tuple(legs_by_group.get(group.cable_group_id, ()))
+            if not group_routes:
+                raise ValueError(f"Cable Group {group_index + 1} has no route legs.")
+            occurrence = harness.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+            if occurrence is None:
+                raise RuntimeError(
+                    f"Fusion could not update Cable Group {group_index + 1} geometry."
+                )
+            created.append(occurrence)
+            build_cable_group_solid(
+                occurrence.component,
+                harness,
+                group,
+                group_index,
+                group_routes,
+                local_transform,
+                definition.harness_id,
+                definition.cable_group_materials(group),
+                design,
+                generated_cable_group_output_mode(previous),
+                is_visible=previous.isLightBulbOn,
+            )
+            occurrence.isLightBulbOn = previous.isLightBulbOn
+        for occurrence in previous_by_id.values():
+            if not occurrence.deleteMe():
+                raise RuntimeError("Fusion could not replace generated cable-group geometry.")
+    except Exception as error:
+        for group_id in previous_by_id:
+            clear_group_stripe_graphics(harness, group_id)
+        for occurrence in reversed(created):
+            if occurrence.isValid and not occurrence.deleteMe():
+                raise RuntimeError(
+                    "Fusion could not clean incomplete cable geometry; undo this command."
+                ) from error
+        restore_cable_group_stripe_graphics(harness, definition)
         raise
     return len(created)
 

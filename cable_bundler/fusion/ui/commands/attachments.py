@@ -16,6 +16,7 @@ import adsk.fusion
 from ....application import attach_cable_end
 from ....domain import AttachmentTargetKind, CableEndAttachment, loads
 from ...attachment_targets import attachment_target_kind, attachment_target_name
+from ...cable_solids import refresh_generated_cable_groups_for_connection
 from ..constants import CABLE_END_ATTACHMENT_NAME_INPUT_ID, CABLE_END_ATTACHMENT_TARGET_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
@@ -154,7 +155,7 @@ class _AttachCableEndValidateInputsHandler(adsk.core.ValidateInputsEventHandler)
 
 class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
     """
-    Persist one attachment and refresh any visible route preview.
+    Persist one attachment and update only its affected cable geometry.
     """
 
     def __init__(self, state: _AttachCableEndCommandState) -> None:
@@ -166,22 +167,38 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
-        Save the selected target without modifying the target object itself.
+        Save the target and rebuild only generated cable groups that use this end.
         """
         application = adsk.core.Application.get()
         try:
             attachment = _read_attachment_inputs(args.command.commandInputs, self._state)
+            gateway = _create_harness_gateway(application)
             attach_cable_end(
                 self._state.harness_id,
                 self._state.connection_id,
                 attachment,
-                _create_harness_gateway(application),
+                gateway,
+            )
+            definition = loads(gateway.read_harness_definition(self._state.harness_id))
+            updated_count = refresh_generated_cable_groups_for_connection(
+                _require_active_design(application),
+                gateway.harness_component(self._state.harness_id),
+                definition,
+                self._state.connection_id,
             )
             warning = _refresh_active_preview(application, self._state.harness_id)
             application.activeViewport.refresh()
+            geometry_notice = (
+                f" Updated {updated_count} generated cable "
+                f"group{'s' if updated_count != 1 else ''}."
+                if updated_count
+                else ""
+            )
             _send_palette_state(
                 application,
-                f"Attached cable end to {attachment.display_name}. {warning}".strip(),
+                (
+                    f"Attached cable end to {attachment.display_name}.{geometry_notice} {warning}"
+                ).strip(),
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True

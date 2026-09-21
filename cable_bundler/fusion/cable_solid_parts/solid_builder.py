@@ -48,6 +48,8 @@ def build_cable_group_solid(
     materials: CableMaterialSettings,
     design: adsk.fusion.Design,
     output_mode: str = SOLID_OUTPUT_MODE,
+    *,
+    is_visible: bool = True,
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
@@ -130,6 +132,7 @@ def build_cable_group_solid(
             materials.stripes,
             group.diameter_mm / 2.0,
             group.cable_group_id,
+            is_visible=is_visible,
         )
 
 
