@@ -39,6 +39,7 @@ from .launchers import (
     _open_add_pathway_command,
     _open_append_end_guides_command,
     _open_append_gates_command,
+    _open_attach_cable_end_command,
     _open_end_refine_command,
     _open_palette_edit,
     _open_refine_command,
@@ -135,6 +136,9 @@ _NATIVE_DIALOG_ACTIONS: dict[
         application, data
     ),
     "add_end": lambda application, data: _open_add_end_command(application, data),
+    "connect_cable_end": lambda application, data: _open_attach_cable_end_command(
+        application, data
+    ),
     "append_pathway_gates": lambda application, data: _open_append_gates_command(application, data),
     "append_end_guides": lambda application, data: _open_append_end_guides_command(
         application, data

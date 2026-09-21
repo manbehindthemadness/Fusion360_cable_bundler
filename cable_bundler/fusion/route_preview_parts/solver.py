@@ -15,6 +15,8 @@ import adsk.fusion
 
 from ...application import CableGroupRouteLeg, plan_cable_group_routes
 from ...domain import (
+    AttachmentTargetKind,
+    CableEndAttachment,
     Connection,
     ControlKind,
     ControlStructure,
@@ -44,6 +46,7 @@ from ...routing.conditioning import (
     junction_normal_indices,
 )
 from ...routing.geometry import cross, unit
+from ..attachment_targets import resolve_attachment_target
 
 
 @dataclass(frozen=True)
@@ -204,7 +207,8 @@ def solve_cable_group_routes(
             connection = connections.get(connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing {position} connection.")
-            connection_profile_frames(design, connection, profile_frames)
+            member_frames = connection_profile_frames(design, connection, profile_frames)
+            connection_attachment_frame(design, connection, member_frames[0], profile_frames)
     control_frame_snapshot = tuple(sorted(frames.items(), key=lambda item: str(item[0])))
     profile_frame_snapshot = tuple(sorted(profile_frames.items()))
     cached = _route_solve_cache
@@ -269,11 +273,14 @@ def solve_cable_group_routes(
             connection = connections.get(leg.start_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing start connection.")
-            connection_frames = connection_profile_frames(design, connection, profile_frames)
+            connection_frames = connection_route_frames(design, connection, profile_frames)
+            has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
             start_frames = connection_frames
             points.extend(frame.origin for frame in connection_frames)
             normals.extend(frame.normal for frame in connection_frames)
-            start_transitions = tuple(
+            start_transitions = (
+                (TransitionLengths(None, None),) if has_attachment_frame else ()
+            ) + tuple(
                 TransitionLengths(settings.approach_mm, settings.departure_mm)
                 for settings in connection.member_settings
             )
@@ -338,8 +345,11 @@ def solve_cable_group_routes(
             connection = connections.get(leg.end_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
-            connection_frames = connection_profile_frames(design, connection, profile_frames)
-            native_end_transitions = tuple(
+            connection_frames = connection_route_frames(design, connection, profile_frames)
+            has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
+            native_end_transitions = (
+                (TransitionLengths(None, None),) if has_attachment_frame else ()
+            ) + tuple(
                 TransitionLengths(settings.approach_mm, settings.departure_mm)
                 for settings in connection.member_settings
             )
@@ -357,9 +367,13 @@ def solve_cable_group_routes(
             soft_guide_indices.update(
                 range(end_start_index, end_start_index + max(0, len(connection_frames) - 1))
             )
-            transitions.extend(
+            reversed_member_transitions = tuple(
                 TransitionLengths(settings.departure_mm, settings.approach_mm)
                 for settings in reversed(connection.member_settings)
+            )
+            transitions.extend(
+                reversed_member_transitions
+                + ((TransitionLengths(None, None),) if has_attachment_frame else ())
             )
         if len(points) < 2:
             raise ValueError(f"{leg.label} does not contain enough route geometry.")
@@ -480,6 +494,114 @@ def connection_profile_frames(
         if token not in cache:
             cache[token] = _profile_frame(design, token)
     return tuple(cache[token] for token in member_tokens)
+
+
+def connection_route_frames(
+    design: adsk.fusion.Design,
+    connection: Connection,
+    cache: dict[str, ProfileFrame],
+) -> tuple[ProfileFrame, ...]:
+    """
+    Prepend one resolved external attachment to the end's native guide frames.
+    """
+    member_frames = connection_profile_frames(design, connection, cache)
+    attachment_frame = connection_attachment_frame(
+        design,
+        connection,
+        member_frames[0],
+        cache,
+    )
+    return (attachment_frame, *member_frames) if attachment_frame is not None else member_frames
+
+
+def connection_attachment_frame(
+    design: adsk.fusion.Design,
+    connection: Connection,
+    adjacent_frame: ProfileFrame,
+    cache: dict[str, ProfileFrame],
+) -> Optional[ProfileFrame]:
+    """
+    Resolve and cache the external contact frame for one attached cable end.
+    """
+    attachment = connection.attachment
+    if attachment is None:
+        return None
+    key = f"attachment:{connection.connection_id}"
+    if key not in cache:
+        frame = _attachment_frame(design, attachment, adjacent_frame)
+        if frame is None:
+            return None
+        cache[key] = frame
+    return cache[key]
+
+
+def _basis_from_normal(normal: Vector3) -> tuple[Vector3, Vector3]:
+    """
+    Build one stable orthonormal in-plane basis for a target normal.
+    """
+    normalized = unit(normal)
+    seed = Vector3(1.0, 0.0, 0.0) if abs(normalized.x) < 0.9 else Vector3(0.0, 1.0, 0.0)
+    u_direction = unit(cross(seed, normalized))
+    return u_direction, unit(cross(normalized, u_direction))
+
+
+def _attachment_frame(
+    design: adsk.fusion.Design,
+    attachment: CableEndAttachment,
+    adjacent_frame: ProfileFrame,
+) -> Optional[ProfileFrame]:
+    """
+    Convert one supported live Fusion target into a route contact frame.
+    """
+    entity = resolve_attachment_target(design, attachment)
+    if entity is None:
+        return None
+    if attachment.target_kind is AttachmentTargetKind.PROFILE:
+        frame = _profile_frame(design, attachment.entity_token)
+        return ProfileFrame(
+            frame.origin,
+            frame.normal,
+            frame.u_direction,
+            frame.v_direction,
+        )
+    if attachment.target_kind is AttachmentTargetKind.FACE:
+        parameter = adsk.core.Point2D.create(*attachment.parameters)
+        point_result = entity.evaluator.getPointAtParameter(parameter)
+        normal_result = entity.evaluator.getNormalAtParameter(parameter)
+        if not point_result[0] or not normal_result[0]:
+            return None
+        normal = _vector(normal_result[1])
+        u_direction, v_direction = _basis_from_normal(normal)
+        return ProfileFrame(_point_to_mm(point_result[1]), unit(normal), u_direction, v_direction)
+    if attachment.target_kind is AttachmentTargetKind.JOINT_ORIGIN:
+        transform = entity.transform
+        return ProfileFrame(
+            _point_to_mm(transform.translation),
+            _vector(entity.primaryAxisVector),
+            _vector(entity.secondaryAxisVector),
+            _vector(entity.thirdAxisVector),
+        )
+    if attachment.target_kind is AttachmentTargetKind.CIRCULAR_EDGE:
+        geometry = entity.geometry
+        normal = _vector(geometry.normal)
+        u_direction, v_direction = _basis_from_normal(normal)
+        return ProfileFrame(_point_to_mm(geometry.center), unit(normal), u_direction, v_direction)
+    if attachment.target_kind is AttachmentTargetKind.SKETCH_POINT:
+        sketch = entity.parentSketch
+        u_direction = _vector(sketch.xDirection)
+        v_direction = _vector(sketch.yDirection)
+        return ProfileFrame(
+            _point_to_mm(entity.worldGeometry),
+            unit(cross(u_direction, v_direction)),
+            u_direction,
+            v_direction,
+        )
+    return ProfileFrame(
+        _point_to_mm(entity.geometry),
+        adjacent_frame.normal,
+        adjacent_frame.u_direction,
+        adjacent_frame.v_direction,
+    )
 
 
 def _connection_profile_points(

@@ -371,6 +371,170 @@ def test_standalone_end_resolves_all_harness_owned_profiles(
     assert set(registered) == {connection_native, control_native}
 
 
+def test_cable_end_attachment_picker_reads_supported_target_and_optional_name(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Convert one named joint origin selection into persistent attachment metadata.
+    """
+    core_module = sys.modules["adsk.core"]
+    fusion_module = sys.modules["adsk.fusion"]
+    core_module.SelectionCommandInput = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
+    core_module.StringValueCommandInput = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
+    entity_types = (
+        ("Profile", "profile"),
+        ("BRepFace", "face"),
+        ("JointOrigin", "joint"),
+        ("BRepEdge", "edge"),
+        ("ConstructionPoint", "construction"),
+        ("SketchPoint", "sketch"),
+    )
+    for type_name, marker in entity_types:
+        setattr(
+            fusion_module,
+            type_name,
+            SimpleNamespace(
+                cast=lambda value, expected=marker: value if value.kind == expected else None
+            ),
+        )
+    target = SimpleNamespace(
+        kind="joint",
+        entityToken="joint-token",
+        name="Connector J1",
+        nativeObject=None,
+    )
+    selection_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(entity=target, point=None),
+    )
+    name_input = SimpleNamespace(value=" Pin 4 ")
+    inputs_by_id = {
+        addin_module.CABLE_END_ATTACHMENT_TARGET_INPUT_ID: selection_input,
+        addin_module.CABLE_END_ATTACHMENT_NAME_INPUT_ID: name_input,
+    }
+    state = addin_module._AttachCableEndCommandState(UUID(int=1), UUID(int=2), ())
+
+    attachment = addin_module._read_attachment_inputs(
+        SimpleNamespace(itemById=inputs_by_id.get),
+        state,
+    )
+
+    assert attachment.entity_token == "joint-token"
+    assert attachment.inherited_name == "Connector J1"
+    assert attachment.name == "Pin 4"
+    assert attachment.target_kind.value == "joint_origin"
+
+
+def test_cable_end_attachment_picker_enables_the_agreed_target_set(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Configure profiles, faces, origins, circular edges, and authored point targets.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    application = object()
+    connection = SimpleNamespace(
+        connection_id=connection_id,
+        attachment=None,
+        member_tokens=("guide-token",),
+    )
+    gateway = SimpleNamespace(read_harness_definition=Mock(return_value="definition"))
+    design = SimpleNamespace(findEntityByToken=lambda _token: ())
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    monkeypatch.setitem(vars(attachments), "_require_active_design", lambda _app: design)
+    monkeypatch.setitem(vars(attachments), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(
+        vars(attachments),
+        "loads",
+        lambda _serialized: SimpleNamespace(connections=(connection,)),
+    )
+    filters: list[str] = []
+    selection_input = SimpleNamespace(
+        addSelectionFilter=lambda value: filters.append(value) or True,
+        setSelectionLimits=Mock(return_value=True),
+    )
+    command_inputs = SimpleNamespace(
+        addSelectionInput=Mock(return_value=selection_input),
+        addStringValueInput=Mock(return_value=object()),
+    )
+    accepted_event = SimpleNamespace(add=Mock(return_value=True))
+    command = SimpleNamespace(
+        commandInputs=command_inputs,
+        preSelect=accepted_event,
+        validateInputs=accepted_event,
+        execute=accepted_event,
+        destroy=accepted_event,
+    )
+    addin_module._runtime.pending_cable_end_attachment.prepare((harness_id, connection_id))
+
+    addin_module._AttachCableEndCreatedHandler().notify(SimpleNamespace(command=command))
+
+    assert filters == [
+        "Profiles",
+        "Faces",
+        "JointOrigins",
+        "CircularEdges",
+        "ConstructionPoints",
+        "SketchPoints",
+    ]
+    command_inputs.addStringValueInput.assert_called_once_with(
+        addin_module.CABLE_END_ATTACHMENT_NAME_INPUT_ID,
+        "Connection Name",
+        "",
+    )
+
+
+@pytest.mark.parametrize(
+    "target_kind",
+    (
+        "profile",
+        "face",
+        "joint_origin",
+        "circular_edge",
+        "construction_point",
+        "sketch_point",
+    ),
+)
+def test_cable_end_attachment_validation_enables_ok_for_each_filtered_target(
+    addin_module: _PaletteLifecycleModule,
+    target_kind: str,
+) -> None:
+    """
+    Enable OK without requesting target-specific persistent data during validation.
+    """
+    core_module = sys.modules["adsk.core"]
+    core_module.SelectionCommandInput = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
+    selection_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(
+            entity=SimpleNamespace(kind=target_kind),
+        ),
+    )
+    inputs = SimpleNamespace(
+        itemById=lambda identity: (
+            selection_input
+            if identity == addin_module.CABLE_END_ATTACHMENT_TARGET_INPUT_ID
+            else None
+        )
+    )
+    args = SimpleNamespace(inputs=inputs, areInputsValid=False)
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+
+    attachments._AttachCableEndValidateInputsHandler().notify(args)
+
+    assert args.areInputsValid, target_kind
+
+
 def test_relationship_selector_refreshes_only_for_geometry_input_changes(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

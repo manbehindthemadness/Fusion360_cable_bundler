@@ -7,6 +7,7 @@ from dataclasses import replace
 from uuid import UUID, uuid4
 
 from ...domain import (
+    CableEndAttachment,
     Connection,
     ControlKind,
     ControlStructure,
@@ -21,6 +22,99 @@ from .support import (
     read_definition,
 )
 from .types import HarnessEditGateway
+
+
+def attach_cable_end(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment: CableEndAttachment,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Attach one existing cable end to an external Fusion target.
+    """
+    if not isinstance(attachment, CableEndAttachment):
+        raise ValueError("Cable-end attachment is invalid.")
+    original, definition = read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected cable end does not exist in this harness.")
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end has a missing connection.")
+    if connection.attachment is not None:
+        raise ValueError("Selected cable end is already attached.")
+    if attachment.entity_token in connection.member_tokens:
+        raise ValueError("A cable end cannot attach to its own guide geometry.")
+    updated_connection = replace(connection, attachment=attachment)
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
+def rename_cable_end_attachment(
+    harness_id: UUID,
+    connection_id: UUID,
+    name: str,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Set or clear the display-name override for one cable-end attachment.
+    """
+    if not isinstance(name, str):
+        raise ValueError("Connection name must be text.")
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None or connection.attachment is None:
+        raise ValueError("Selected cable end does not have a connection attachment.")
+    updated_connection = replace(
+        connection,
+        attachment=replace(connection.attachment, name=name.strip()),
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
+def remove_cable_end_attachment(
+    harness_id: UUID,
+    connection_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Detach one cable end without deleting its referenced Fusion target.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None or connection.attachment is None:
+        raise ValueError("Selected cable end does not have a connection attachment.")
+    updated_connection = replace(connection, attachment=None)
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
 
 
 # noinspection DuplicatedCode

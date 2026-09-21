@@ -57,6 +57,15 @@
   stroke-width: 3;
 }
 .cable-group-details-node.junction .relationship-node { fill: var(--junction-surface); stroke: var(--junction-border); }
+.cable-group-details-node.attachment .relationship-node {
+  fill: var(--success-surface);
+  stroke: var(--success-border);
+}
+.cable-group-details-node.attachment[data-connected="false"] .relationship-node {
+  fill: var(--surface);
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+}
 .cable-group-details-member.focused { border-color: var(--accent); background: var(--focus-surface); }
 .cable-group-route-error {
   border: 1px solid var(--danger-border);

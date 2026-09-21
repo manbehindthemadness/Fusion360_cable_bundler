@@ -31,6 +31,7 @@ from ...domain import (
     CableStripe,
     HarnessDefinition,
 )
+from ..attachment_targets import attachment_display_name, resolve_attachment_target
 from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE
 from ..cable_solids import (
     generated_cable_group_occurrences,
@@ -136,6 +137,12 @@ def serialize_palette_state(
     gateway = _create_harness_gateway(application)
     results = load_harnesses(gateway)
     catalog = load_cable_material_catalog()
+    design_type = getattr(adsk.fusion, "Design", None)
+    design = (
+        cast(Any, design_type).cast(getattr(application, "activeProduct", None))
+        if design_type is not None
+        else None
+    )
     harnesses: list[dict[str, object]] = []
     for result in results:
         definition = result.definition
@@ -178,6 +185,23 @@ def serialize_palette_state(
                         "connectionId": str(connection.connection_id),
                         "name": connection.name,
                         "metadata": _metadata_payload(connection.metadata),
+                        "attachment": (
+                            {
+                                "name": attachment_display_name(design, connection.attachment),
+                                "nameOverride": connection.attachment.name,
+                                "targetKind": connection.attachment.target_kind.value,
+                                "connected": resolve_attachment_target(
+                                    design, connection.attachment
+                                )
+                                is not None
+                                if design is not None
+                                else gateway.is_entity_token_resolvable(
+                                    connection.attachment.entity_token
+                                ),
+                            }
+                            if connection.attachment is not None
+                            else None
+                        ),
                         "hasLinkedGeometry": all(
                             gateway.is_entity_token_resolvable(token)
                             for token in connection.member_tokens

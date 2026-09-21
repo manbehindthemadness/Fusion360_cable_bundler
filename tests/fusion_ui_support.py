@@ -104,6 +104,8 @@ class _PaletteLifecycleModule(Protocol):
     JUNCTION_PROFILE_INPUT_ID: str
     STANDALONE_END_GUIDES_INPUT_ID: str
     STANDALONE_END_BOUNDARY_INPUT_ID: str
+    CABLE_END_ATTACHMENT_TARGET_INPUT_ID: str
+    CABLE_END_ATTACHMENT_NAME_INPUT_ID: str
     _PaletteIncomingHandler: type
     _PaletteEditExecuteHandler: type
     _PaletteEditDestroyedHandler: type
@@ -112,6 +114,7 @@ class _PaletteLifecycleModule(Protocol):
     _DeferredStripeRestoreHandler: type
     _register_deferred_stripe_restore: Callable[[object], None]
     _remove_deferred_stripe_restore: Callable[[object], None]
+    _remove_user_interface: Callable[[object], None]
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type
     _restore_active_stripe_graphics: Callable[[object], int]
@@ -145,6 +148,9 @@ class _PaletteLifecycleModule(Protocol):
     _AddJunctionRelationshipInputChangedHandler: type
     _AddStandaloneEndCommandState: type
     _AddStandaloneEndPreSelectHandler: type
+    _AttachCableEndCommandState: type
+    _AttachCableEndCreatedHandler: type
+    _read_attachment_inputs: Callable[[object, object], Any]
     _JunctionRelationshipCandidate: type
     _SegmentCommandState: type
     _SegmentPreSelectHandler: type
@@ -182,6 +188,8 @@ class _PaletteLifecycleModule(Protocol):
     _show_palette: Callable[[object], None]
     _create_harness_gateway: Callable[[object], object]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
+    remove_cable_end_attachment: Callable[[UUID, UUID, object], None]
+    rename_cable_end_attachment: Callable[[UUID, UUID, str, object], None]
     rename_cable_group: Callable[[UUID, UUID, str, object], None]
     rename_harness: Callable[[UUID, str, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
@@ -279,7 +287,9 @@ def addin_module(
     monkeypatch.setitem(sys.modules, "adsk.core", core_module)
     monkeypatch.setitem(sys.modules, "adsk.fusion", fusion_module)
     for module_name in tuple(sys.modules):
-        if module_name.startswith("cable_bundler.fusion.ui"):
+        if module_name.startswith("cable_bundler.fusion.ui") or module_name == (
+            "cable_bundler.fusion.attachment_targets"
+        ):
             sys.modules.pop(module_name, None)
 
     module_names = (
@@ -295,6 +305,7 @@ def addin_module(
         "cable_bundler.fusion.ui.commands.pathways",
         "cable_bundler.fusion.ui.commands.junctions",
         "cable_bundler.fusion.ui.commands.ends",
+        "cable_bundler.fusion.ui.commands.attachments",
         "cable_bundler.fusion.ui.commands.refines",
     )
     modules = tuple(importlib.import_module(name) for name in module_names)

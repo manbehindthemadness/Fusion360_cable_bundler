@@ -14,11 +14,13 @@ from ...application import (
     CableEditorPairing,
     CableEditorRename,
     move_pathway_gate,
+    remove_cable_end_attachment,
     remove_junction,
     remove_junction_relationship,
     remove_pathway,
     remove_pathway_gate,
     remove_standalone_end,
+    rename_cable_end_attachment,
     rename_cable_group,
     rename_harness,
     rename_junction,
@@ -140,6 +142,13 @@ def _apply_palette_edit(
             gateway,
         )
         return "Deleted standalone end."
+    if action == "remove_cable_end_attachment":
+        remove_cable_end_attachment(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            gateway,
+        )
+        return "Detached cable end."
     if action == "save_cable_editor":
         left_boundary = payload.get("leftBoundary")
         right_boundary = payload.get("rightBoundary")
@@ -214,6 +223,17 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved end name."
+    if action == "rename_cable_end_attachment":
+        name = payload.get("name")
+        if not isinstance(name, str):
+            raise ValueError("Connection rename request requires a text name.")
+        rename_cable_end_attachment(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            name,
+            gateway,
+        )
+        return "Saved connection name."
     if action == "rename_cable_group":
         name = payload.get("name")
         if not isinstance(name, str):

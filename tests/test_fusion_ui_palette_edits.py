@@ -124,6 +124,45 @@ def test_palette_edit_renames_standalone_end_by_connection_identity(
     assert notice == "Saved end name."
 
 
+def test_palette_edits_rename_and_remove_cable_end_attachment(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Delegate diagram connection lifecycle edits by their cable-end identity.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    gateway = object()
+    rename = Mock()
+    remove = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "rename_cable_end_attachment", rename)
+    monkeypatch.setattr(addin_module, "remove_cable_end_attachment", remove)
+
+    rename_notice = addin_module._apply_palette_edit(
+        object(),
+        "rename_cable_end_attachment",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "name": "Bulkhead pin",
+            }
+        ),
+    )
+    remove_notice = addin_module._apply_palette_edit(
+        object(),
+        "remove_cable_end_attachment",
+        json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
+    )
+
+    rename.assert_called_once_with(harness_id, connection_id, "Bulkhead pin", gateway)
+    remove.assert_called_once_with(harness_id, connection_id, gateway)
+    assert rename_notice == "Saved connection name."
+    assert remove_notice == "Detached cable end."
+
+
 def test_palette_edit_renames_cable_group_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

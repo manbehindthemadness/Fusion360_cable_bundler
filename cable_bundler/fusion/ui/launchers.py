@@ -20,6 +20,7 @@ from .constants import (
     ADD_PATHWAY_COMMAND_ID,
     ADD_REFINE_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
+    ATTACH_CABLE_END_COMMAND_ID,
     COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
@@ -281,4 +282,28 @@ def _open_add_end_command(application: adsk.core.Application, serialized_data: s
             raise RuntimeError("Fusion did not open the Add End command.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_standalone_end.clear()
+        raise
+
+
+def _open_attach_cable_end_command(
+    application: adsk.core.Application,
+    serialized_data: str,
+) -> None:
+    """
+    Open native target selection for one palette-selected cable end.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
+    command_definition = application.userInterface.commandDefinitions.itemById(
+        ATTACH_CABLE_END_COMMAND_ID
+    )
+    if command_definition is None:
+        raise RuntimeError("Fusion Connect Cable End command is unavailable.")
+    _runtime.pending_cable_end_attachment.prepare((harness_id, connection_id))
+    try:
+        if not command_definition.execute():
+            raise RuntimeError("Fusion did not open the Connect Cable End command.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_cable_end_attachment.clear()
         raise

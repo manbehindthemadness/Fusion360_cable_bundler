@@ -8,7 +8,11 @@ from dataclasses import replace
 from typing import Any
 from uuid import UUID
 
-from cable_bundler.domain import JunctionDefinition
+from cable_bundler.domain import (
+    AttachmentTargetKind,
+    CableEndAttachment,
+    JunctionDefinition,
+)
 from tests.fusion_ui_support import (
     HarnessDefinition,
     HarnessLoadResult,
@@ -112,6 +116,43 @@ def test_palette_state_contains_complete_group_definition(
     assert cable_group["metadataOverrides"] == []
     assert len(cable_group["routeLegs"]) == 1
     assert cable_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+
+
+def test_palette_state_reports_attachment_and_connection_status(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep attached/detached separate from live connected/disconnected resolution.
+    """
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "attachment-token",
+        "Connector datum",
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(valid_harness.connections[0], attachment=attachment),
+            valid_harness.connections[1],
+        ),
+    )
+    gateway = SimpleNamespace(is_entity_token_resolvable=lambda token: token == "attachment-token")
+    result = HarnessLoadResult("Harness_001", definition, None, ())
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+
+    payload = json.loads(addin_module.serialize_palette_state(object(), ""))
+
+    connection = payload["harnesses"][0]["connections"][0]
+    assert connection["attachment"] == {
+        "connected": True,
+        "name": "Connector datum",
+        "nameOverride": "",
+        "targetKind": "construction_point",
+    }
+    assert payload["harnesses"][0]["connections"][1]["attachment"] is None
 
 
 def test_palette_state_resolves_cable_metadata_overrides(

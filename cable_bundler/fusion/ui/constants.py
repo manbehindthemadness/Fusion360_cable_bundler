@@ -14,6 +14,7 @@ ADD_PATHWAY_COMMAND_ID = "kev0_cable_bundler_add_pathway"
 ADD_JUNCTION_COMMAND_ID = "kev0_cable_bundler_add_junction"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_ID = "kev0_cable_bundler_add_junction_relationship"
 ADD_END_COMMAND_ID = "kev0_cable_bundler_add_end"
+ATTACH_CABLE_END_COMMAND_ID = "kev0_cable_bundler_attach_cable_end"
 APPEND_GATES_COMMAND_ID = "kev0_cable_bundler_append_pathway_gates"
 ADD_REFINE_COMMAND_ID = "kev0_cable_bundler_add_pathway_refine"
 SEGMENT_PATHWAY_COMMAND_ID = "kev0_cable_bundler_segment_pathway"
@@ -26,6 +27,7 @@ ADD_PATHWAY_COMMAND_NAME = "Add Pathway"
 ADD_JUNCTION_COMMAND_NAME = "Add Junction"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_NAME = "Add Junction Relationship"
 ADD_END_COMMAND_NAME = "Add End"
+ATTACH_CABLE_END_COMMAND_NAME = "Connect Cable End"
 APPEND_GATES_COMMAND_NAME = "Add Gates"
 ADD_REFINE_COMMAND_NAME = "Add Refine Point"
 SEGMENT_PATHWAY_COMMAND_NAME = "Segment Pathway"
@@ -48,6 +50,8 @@ JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID = "junction_relationship_choice"
 STANDALONE_END_GUIDES_INPUT_ID = "standalone_end_guides"
 STANDALONE_END_BOUNDARY_INPUT_ID = "standalone_end_boundary"
 STANDALONE_END_CHOICE_INPUT_ID = "standalone_end_choice"
+CABLE_END_ATTACHMENT_TARGET_INPUT_ID = "cable_end_attachment_target"
+CABLE_END_ATTACHMENT_NAME_INPUT_ID = "cable_end_attachment_name"
 REFINE_SPINE_INPUT_ID = "refine_spine"
 REFINE_RADIUS_INPUT_ID = "refine_radius"
 REFINE_TRANSFORM_INPUT_ID = "refine_transform"
@@ -110,11 +114,13 @@ PALETTE_EDIT_NAMES = {
     "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_standalone_end": "Delete Standalone End",
+    "remove_cable_end_attachment": "Delete Cable End Connection",
     "save_cable_editor": "Save Route Editor",
     "rename_cable_group": "Rename Connected Cable",
     "rename_harness": "Rename Harness",
     "rename_junction": "Rename Junction",
     "rename_standalone_end": "Rename Standalone End",
+    "rename_cable_end_attachment": "Rename Cable End Connection",
     "switch_standalone_end": "Switch Standalone End",
     "rename_pathway": "Rename Pathway",
     "set_cable_end_properties": "Change Cable End Properties",

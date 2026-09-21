@@ -13,9 +13,11 @@ from uuid import UUID
 
 from .model import (
     SCHEMA_VERSION,
+    AttachmentTargetKind,
     AutoTransitionPreset,
     CableAppearanceReference,
     CableColor,
+    CableEndAttachment,
     CableGroupDefinition,
     CableMaterialOverrides,
     CableMaterialSettings,
@@ -42,6 +44,7 @@ EnumType = TypeVar(
     PathwayEndpoint,
     StripePattern,
     AutoTransitionPreset,
+    AttachmentTargetKind,
 )
 
 
@@ -82,11 +85,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 14 are migratable)",
+            "(schemas 12 through 15 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -178,6 +181,17 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "entity_token": connection.entity_token,
                 "additional_entity_tokens": list(connection.additional_entity_tokens),
                 "metadata": _metadata_to_list(connection.metadata),
+                "attachment": (
+                    {
+                        "target_kind": connection.attachment.target_kind.value,
+                        "entity_token": connection.attachment.entity_token,
+                        "inherited_name": connection.attachment.inherited_name,
+                        "name": connection.attachment.name,
+                        "parameters": list(connection.attachment.parameters),
+                    }
+                    if connection.attachment is not None
+                    else None
+                ),
                 **(
                     {
                         "member_interpolations": [
@@ -546,8 +560,43 @@ def _parse_connection(raw_value: object, path: str) -> Connection:
         member_interpolations=settings,
         interpolation=parse_interpolation(value.get("interpolation", {}), f"{path}.interpolation"),
         metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
+        attachment=_parse_attachment(value.get("attachment"), f"{path}.attachment"),
     )
     return connection
+
+
+def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachment]:
+    """
+    Parse one optional Fusion-backed cable-end attachment.
+    """
+    if raw_value is None:
+        return None
+    value = _require_mapping(raw_value, path)
+    raw_parameters = _require_list(value, "parameters", f"{path}.parameters")
+    parameters: list[float] = []
+    for index, raw_parameter in enumerate(raw_parameters):
+        parameter_path = f"{path}.parameters[{index}]"
+        if isinstance(raw_parameter, bool) or not isinstance(raw_parameter, (int, float)):
+            raise DefinitionParseError(parameter_path, "expected a number")
+        parameter = float(raw_parameter)
+        if not math.isfinite(parameter):
+            raise DefinitionParseError(parameter_path, "expected a finite number")
+        parameters.append(parameter)
+    try:
+        return CableEndAttachment(
+            target_kind=_require_enum(
+                AttachmentTargetKind,
+                value,
+                "target_kind",
+                f"{path}.target_kind",
+            ),
+            entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
+            inherited_name=_require_str(value, "inherited_name", f"{path}.inherited_name"),
+            name=_require_str(value, "name", f"{path}.name"),
+            parameters=tuple(parameters),
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
 
 
 def _parse_control(raw_value: object, path: str) -> ControlStructure:

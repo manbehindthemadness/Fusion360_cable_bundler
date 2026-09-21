@@ -689,6 +689,71 @@ test('Cable Details end nodes and rows share end-owned routing actions', () => {
   assert.equal(menu.children.at(-1).textContent, 'Properties');
 });
 
+test('Cable Details connects detached ends and manages diagram-only connection nodes', () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  const nativeActions = [];
+  context.connectCableEnd = (_harness, connectionId) => nativeActions.push(connectionId);
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  let details = context.document.body.querySelector('.cable-group-details-popup');
+  let endNode = descendants(details, (node) => (
+    node.dataset.connectionId === 'a1'
+      && node.className?.split(' ').includes('cable-group-details-node')
+  ))[0];
+  let menu = details.querySelector('.relationship-map-context-menu');
+  endNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: endNode,
+  });
+  menu.children.find((item) => item.textContent === 'Connect').events.click();
+  assert.deepEqual(nativeActions, ['a1']);
+
+  connection.attachment = {
+    name: 'J1 socket', nameOverride: '', targetKind: 'joint_origin', connected: true,
+  };
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  details = context.document.body.querySelector('.cable-group-details-popup');
+  const attachmentNode = descendants(details, (node) => (
+    node.dataset.nodeId === 'attachment:a1'
+  ))[0];
+  const labels = descendants(attachmentNode, (node) => node.tag === 'text');
+  assert.equal(labels.some((node) => node.textContent === 'J1 socket'), true);
+  assert.equal(labels.some((node) => node.textContent === 'Connected'), true);
+  assert.equal(attachmentNode.dataset.connected, 'true');
+  connection.attachment.connected = false;
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  details = context.document.body.querySelector('.cable-group-details-popup');
+  const disconnectedNode = descendants(details, (node) => (
+    node.dataset.nodeId === 'attachment:a1'
+  ))[0];
+  assert.equal(
+    descendants(disconnectedNode, (node) => node.tag === 'text')
+      .some((node) => node.textContent === 'Disconnected'),
+    true,
+  );
+  assert.equal(disconnectedNode.dataset.connected, 'false');
+  menu = details.querySelector('.relationship-map-context-menu');
+  disconnectedNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
+  });
+  menu.children.find((item) => item.textContent === 'Rename').events.click();
+  const renameDialog = context.document.body.querySelector('.connection-name-popup');
+  const input = renameDialog.querySelector('input');
+  assert.equal(input.placeholder, 'J1 socket');
+  input.value = 'Bulkhead pin';
+  renameDialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[0].action, 'rename_cable_end_attachment');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(calls[0].payload.name, 'Bulkhead pin');
+
+  disconnectedNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
+  });
+  menu.children.find((item) => item.textContent === 'Delete').events.click();
+  assert.equal(calls[1].action, 'remove_cable_end_attachment');
+  assert.equal(calls[1].payload.connectionId, 'a1');
+});
+
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {
   const { context } = palette();
   const definition = harness();

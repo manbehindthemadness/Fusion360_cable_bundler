@@ -12,7 +12,9 @@ import pytest
 
 from cable_bundler.application import CableGroupControlStep, CableGroupRouteLeg
 from cable_bundler.domain import (
+    AttachmentTargetKind,
     AutoTransitionPreset,
+    CableEndAttachment,
     CableGroupDefinition,
     Connection,
     ControlKind,
@@ -32,6 +34,45 @@ from cable_bundler.routing import (
     Vector3,
 )
 from tests.fusion_ui_support import _PaletteLifecycleModule
+
+
+def test_attached_connection_prepends_external_contact_frame(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Extend an attached cable end to its target before traversing native guides.
+    """
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    member_frame = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 10.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    target_frame = replace(member_frame, origin=Vector3(0.0, 0.0, 0.0))
+    connection = Connection(
+        UUID(int=1),
+        "End 1",
+        "member-token",
+        attachment=CableEndAttachment(
+            AttachmentTargetKind.JOINT_ORIGIN,
+            "target-token",
+            "Connector J1",
+        ),
+    )
+    monkeypatch.setattr(route_solver, "_profile_frame", lambda _design, _token: member_frame)
+    monkeypatch.setattr(
+        route_solver,
+        "_attachment_frame",
+        lambda _design, _attachment, _adjacent: target_frame,
+    )
+
+    frames = route_solver.connection_route_frames(object(), connection, {})
+
+    assert frames == (target_frame, member_frame)
 
 
 def test_undersized_gate_warns_through_public_product_solver(

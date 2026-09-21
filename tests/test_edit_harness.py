@@ -17,6 +17,9 @@ from cable_bundler.application import (
     add_end_refine,
     add_junction,
     append_end_guides,
+    attach_cable_end,
+    remove_cable_end_attachment,
+    rename_cable_end_attachment,
     rename_cable_group,
     rename_harness,
     save_cable_editor,
@@ -33,8 +36,10 @@ from cable_bundler.application import (
 )
 from cable_bundler.application.edit_harness import set_interpolation
 from cable_bundler.domain import (
+    AttachmentTargetKind,
     AutoTransitionPreset,
     CableColor,
+    CableEndAttachment,
     CableMaterialOverrides,
     Connection,
     ControlKind,
@@ -73,6 +78,41 @@ def _recording_gateway(definition: HarnessDefinition) -> _RecordingGateway:
     state.read_harness_definition = read_harness_definition
     state.replace_harness_definition = replace_harness_definition
     return cast(_RecordingGateway, cast(object, state))
+
+
+def test_attaches_renames_and_removes_external_cable_end_target(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist attachment lifecycle independently of assignment and target geometry.
+    """
+    connection_id = valid_harness.connections[0].connection_id
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "joint-origin-token",
+        "J1 Pin 1",
+    )
+    gateway = _recording_gateway(valid_harness)
+
+    attach_cable_end(valid_harness.harness_id, connection_id, attachment, gateway)
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment == attachment
+    assert stored.cable_groups == valid_harness.cable_groups
+
+    rename_cable_end_attachment(
+        valid_harness.harness_id,
+        connection_id,
+        " Bulkhead socket ",
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment is not None
+    assert stored.connections[0].attachment.name == "Bulkhead socket"
+
+    remove_cable_end_attachment(valid_harness.harness_id, connection_id, gateway)
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment is None
+    assert stored.cable_groups == valid_harness.cable_groups
 
 
 def test_appends_guides_to_end_without_mutating_parent_pathway(

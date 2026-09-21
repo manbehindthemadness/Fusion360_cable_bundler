@@ -256,6 +256,21 @@ async function appendEndGuides(harness, connectionId) {
   }
 }
 
+async function connectCableEnd(harness, connectionId) {
+  appendNotice("Select a connectable target…");
+  try {
+    const response = await send("connect_cable_end", {
+      harnessId: harness.harnessId,
+      connectionId,
+    });
+    if (!response.ok) {
+      appendNotice(response.error || "Connect Cable End could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
 async function addEndRefine(harness, connectionId) {
   appendNotice("Select a refine location on this end’s routing span…");
   try {

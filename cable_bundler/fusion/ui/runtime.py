@@ -116,6 +116,9 @@ class UiRuntime:
         default_factory=PendingSlot
     )
     pending_standalone_end: PendingSlot[UUID] = field(default_factory=PendingSlot)
+    pending_cable_end_attachment: PendingSlot[tuple[UUID, UUID]] = field(
+        default_factory=PendingSlot
+    )
     pending_append_gates: PendingSlot[tuple[str, UUID, UUID]] = field(default_factory=PendingSlot)
     pending_refine: PendingSlot[tuple[str, UUID, UUID]] = field(default_factory=PendingSlot)
     pending_segment: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
@@ -149,6 +152,7 @@ class UiRuntime:
         self.pending_junction.clear()
         self.pending_junction_relationship.clear()
         self.pending_standalone_end.clear()
+        self.pending_cable_end_attachment.clear()
         self.pending_append_gates.clear()
         self.pending_refine.clear()
         self.pending_segment.clear()

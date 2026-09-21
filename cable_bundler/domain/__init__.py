@@ -6,9 +6,11 @@ from .codec import DefinitionParseError, dumps, loads
 from .model import (
     DEFAULT_CABLE_DIAMETER_MM,
     SCHEMA_VERSION,
+    AttachmentTargetKind,
     AutoTransitionPreset,
     CableAppearanceReference,
     CableColor,
+    CableEndAttachment,
     CableGroupDefinition,
     CableMaterialOverrides,
     CableMaterialSettings,
@@ -33,6 +35,7 @@ from .validation import ValidationIssue, validate_harness
 __all__ = [
     "DEFAULT_CABLE_DIAMETER_MM",
     "SCHEMA_VERSION",
+    "AttachmentTargetKind",
     "AutoTransitionPreset",
     "Connection",
     "ControlKind",
@@ -50,6 +53,7 @@ __all__ = [
     "StripePattern",
     "ValidationIssue",
     "CableAppearanceReference",
+    "CableEndAttachment",
     "CableGroupDefinition",
     "CableColor",
     "CableMaterialOverrides",

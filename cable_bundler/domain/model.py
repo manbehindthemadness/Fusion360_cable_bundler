@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -64,6 +64,19 @@ class PathwayEndpoint(str, Enum):
 
     START = "start"
     END = "end"
+
+
+class AttachmentTargetKind(str, Enum):
+    """
+    Identify the supported Fusion entity backing one cable-end attachment.
+    """
+
+    PROFILE = "profile"
+    FACE = "face"
+    JOINT_ORIGIN = "joint_origin"
+    CIRCULAR_EDGE = "circular_edge"
+    CONSTRUCTION_POINT = "construction_point"
+    SKETCH_POINT = "sketch_point"
 
 
 class AutoTransitionPreset(str, Enum):
@@ -389,6 +402,54 @@ class RefineGeometry:
 
 
 @dataclass(frozen=True)
+class CableEndAttachment:
+    """
+    Retain one optional external termination target for a physical cable end.
+
+    A blank name inherits the live target name. The saved inherited name remains
+    available when Fusion can no longer resolve the target.
+    """
+
+    target_kind: AttachmentTargetKind
+    entity_token: str
+    inherited_name: str
+    name: str = ""
+    parameters: tuple[float, ...] = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require a resolvable identity shape and finite target parameters.
+        """
+        if not isinstance(self.target_kind, AttachmentTargetKind):
+            raise ValueError("Cable-end attachment target kind is invalid.")
+        if not isinstance(self.entity_token, str) or not self.entity_token.strip():
+            raise ValueError("Cable-end attachment requires a Fusion entity token.")
+        if not isinstance(self.inherited_name, str) or not self.inherited_name.strip():
+            raise ValueError("Cable-end attachment requires an inherited target name.")
+        if not isinstance(self.name, str):
+            raise ValueError("Cable-end attachment name must be text.")
+        if not isinstance(self.parameters, tuple) or any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            for value in self.parameters
+        ):
+            raise ValueError("Cable-end attachment parameters must be finite numbers.")
+        expected_count = 2 if self.target_kind is AttachmentTargetKind.FACE else 0
+        if len(self.parameters) != expected_count:
+            raise ValueError(
+                "Face attachments require two surface parameters; other targets require none."
+            )
+
+    @property
+    def display_name(self) -> str:
+        """
+        Return the explicit alias or the saved inherited target name.
+        """
+        return self.name.strip() or self.inherited_name.strip()
+
+
+@dataclass(frozen=True)
 class Connection:
     """
     Reference a physical connection profile in a Fusion design.
@@ -404,6 +465,7 @@ class Connection:
     interpolation: InterpolationSettings = InterpolationSettings()
     member_interpolations: tuple[Optional[InterpolationSettings], ...] = ()
     metadata: Metadata = ()
+    attachment: Optional[CableEndAttachment] = None
 
     def __post_init__(self) -> None:
         """

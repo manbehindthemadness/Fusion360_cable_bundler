@@ -22,19 +22,10 @@ from .commands.refines import (
     reconcile_active_refines,
 )
 from .constants import (
-    ADD_END_COMMAND_ID,
-    ADD_JUNCTION_COMMAND_ID,
-    ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
-    ADD_PATHWAY_COMMAND_ID,
-    ADD_REFINE_COMMAND_ID,
-    APPEND_GATES_COMMAND_ID,
     COMMAND_ID,
     COMMAND_RESOURCE_FOLDER,
-    CREATE_COMMAND_ID,
-    EDIT_REFINE_COMMAND_ID,
     PALETTE_ID,
     PANEL_IDS,
-    SEGMENT_PATHWAY_COMMAND_ID,
     WORKSPACE_ID,
 )
 from .constants import (
@@ -46,7 +37,7 @@ from .palette import (
 from .palette_state import (
     _send_palette_state,
 )
-from .registration import register_commands
+from .registration import COMMAND_SPECS, register_commands
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
@@ -398,16 +389,7 @@ def _remove_user_interface(user_interface: adsk.core.UserInterface) -> None:
 
     for command_id in (
         *(f"{COMMAND_ID}_{action}" for action in _PALETTE_EDIT_NAMES),
-        COMMAND_ID,
-        CREATE_COMMAND_ID,
-        ADD_PATHWAY_COMMAND_ID,
-        ADD_JUNCTION_COMMAND_ID,
-        ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
-        ADD_END_COMMAND_ID,
-        APPEND_GATES_COMMAND_ID,
-        ADD_REFINE_COMMAND_ID,
-        SEGMENT_PATHWAY_COMMAND_ID,
-        EDIT_REFINE_COMMAND_ID,
+        *(spec.command_id for spec in COMMAND_SPECS),
     ):
         command_definition = user_interface.commandDefinitions.itemById(command_id)
         if command_definition:

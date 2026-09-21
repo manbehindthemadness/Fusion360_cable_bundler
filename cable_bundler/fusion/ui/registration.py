@@ -10,6 +10,7 @@ from typing import Callable
 # noinspection PyUnresolvedReferences
 import adsk.core
 
+from .commands.attachments import AttachCableEndCreatedHandler
 from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
 from .commands.junctions import (
@@ -37,6 +38,8 @@ from .constants import (
     ADD_REFINE_COMMAND_NAME,
     APPEND_GATES_COMMAND_ID,
     APPEND_GATES_COMMAND_NAME,
+    ATTACH_CABLE_END_COMMAND_ID,
+    ATTACH_CABLE_END_COMMAND_NAME,
     COMMAND_DESCRIPTION,
     COMMAND_ID,
     COMMAND_NAME,
@@ -106,6 +109,13 @@ COMMAND_SPECS = (
         "Create an unassigned end at an existing pathway boundary.",
         ADD_END_RESOURCE_FOLDER,
         AddStandaloneEndCreatedHandler,
+    ),
+    CommandSpec(
+        ATTACH_CABLE_END_COMMAND_ID,
+        ATTACH_CABLE_END_COMMAND_NAME,
+        "Attach a cable end to external Fusion geometry.",
+        ADD_END_RESOURCE_FOLDER,
+        AttachCableEndCreatedHandler,
     ),
     CommandSpec(
         APPEND_GATES_COMMAND_ID,

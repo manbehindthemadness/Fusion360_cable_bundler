@@ -222,3 +222,30 @@ def test_registered_command_specs_have_unique_stable_ids(
     assert len(command_ids) == len(set(command_ids))
     assert addin_module.COMMAND_ID in command_ids
     assert addin_module.ADD_END_COMMAND_ID in command_ids
+
+
+def test_ui_cleanup_removes_every_registered_command_definition(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Prevent newly registered commands from surviving an add-in stop and blocking restart.
+    """
+    deleted_ids: list[str] = []
+
+    def command_definition(command_id: str) -> object:
+        return SimpleNamespace(deleteMe=lambda: deleted_ids.append(command_id))
+
+    user_interface = SimpleNamespace(
+        workspaces=SimpleNamespace(itemById=lambda _identity: None),
+        commandDefinitions=SimpleNamespace(itemById=command_definition),
+        palettes=SimpleNamespace(itemById=lambda _identity: None),
+    )
+
+    addin_module._remove_user_interface(user_interface)
+
+    registered_ids = {spec.command_id for spec in addin_module.COMMAND_SPECS}
+    attachment_id = importlib.import_module(
+        "cable_bundler.fusion.ui.constants"
+    ).ATTACH_CABLE_END_COMMAND_ID
+    assert registered_ids <= set(deleted_ids)
+    assert attachment_id in deleted_ids

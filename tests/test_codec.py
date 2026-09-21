@@ -12,7 +12,9 @@ import pytest
 
 from cable_bundler.domain import (
     SCHEMA_VERSION,
+    AttachmentTargetKind,
     AutoTransitionPreset,
+    CableEndAttachment,
     DefinitionParseError,
     HarnessDefinition,
     JunctionDefinition,
@@ -40,6 +42,30 @@ def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> Non
     Produce stable persisted text for the same immutable definition.
     """
     assert dumps(valid_harness) == dumps(valid_harness)
+
+
+def test_round_trip_preserves_optional_cable_end_attachment(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the selected target, inherited name, alias, and face parameters.
+    """
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.FACE,
+        "face-token",
+        "Connector body",
+        "Pin 4",
+        (0.25, 0.75),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(valid_harness.connections[0], attachment=attachment),
+            valid_harness.connections[1],
+        ),
+    )
+
+    assert loads(dumps(definition)) == definition
 
 
 def test_metadata_round_trip_is_optional_and_does_not_change_schema(
@@ -111,7 +137,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 16])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 17])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -175,6 +201,23 @@ def test_migrates_schema_14_with_empty_end_controls(
 
     assert migrated.schema_version == SCHEMA_VERSION
     assert all(not end.ordered_control_ids for end in migrated.standalone_ends)
+
+
+def test_migrates_schema_15_with_detached_cable_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Treat cable ends saved before connection attachments as detached.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["schema_version"] = 15
+    for connection in payload["connections"]:
+        del connection["attachment"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert all(connection.attachment is None for connection in migrated.connections)
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

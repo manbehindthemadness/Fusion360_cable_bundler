@@ -91,6 +91,16 @@ function cableGroupDetailsTopology(harness, group) {
       connection?.name || "Missing end",
     );
     if (location) connect(`connection:${connectionId}`, `pathway:${location.pathwayId}`);
+    if (connection?.attachment) {
+      const attachmentId = `attachment:${connectionId}`;
+      addNode(
+        attachmentId,
+        "attachment",
+        { ...connection.attachment, connectionId },
+        connection.attachment.name || "Unnamed connection",
+      );
+      connect(`connection:${connectionId}`, attachmentId);
+    }
   });
   activeJunctionIds.forEach((junctionId) => {
     const junction = junctions.get(junctionId);
@@ -367,7 +377,7 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     const groupNode = svgElement("g", {
       class: `cable-group-details-node ${node.kind}${isFocused ? " focused" : ""}`,
       tabindex: "0",
-      role: node.kind === "connection" ? "group" : "button",
+      role: ["connection", "attachment"].includes(node.kind) ? "group" : "button",
       "aria-label": `${node.kind}: ${node.label}`,
       "data-node-id": node.id,
     });
@@ -391,7 +401,14 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     });
     const title = svgElement("title");
     label.textContent = node.label;
-    kind.textContent = node.kind === "connection" ? "Cable End" : node.kind;
+    if (node.kind === "connection") {
+      kind.textContent = `Cable End · ${node.item?.attachment ? "Attached" : "Detached"}`;
+    } else if (node.kind === "attachment") {
+      kind.textContent = node.item.connected ? "Connected" : "Disconnected";
+      groupNode.dataset.connected = node.item.connected ? "true" : "false";
+    } else {
+      kind.textContent = node.kind;
+    }
     title.textContent = node.label;
     shape.append(title);
     groupNode.append(shape, label, kind);
@@ -401,7 +418,12 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       hoverHighlight(groupNode, () => highlightMember(harness, "connection", connectionId));
       groupNode.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
-        showContextMenu(event, endRoutingContextItems(harness, connectionId));
+        showContextMenu(event, cableGroupDetailsEndContextItems(harness, node.item));
+      });
+    } else if (node.kind === "attachment") {
+      groupNode.addEventListener("contextmenu", (event) => {
+        event.stopPropagation();
+        showContextMenu(event, cableGroupAttachmentContextItems(harness, node.item));
       });
     } else if (node.kind === "pathway") {
       const pathwayId = node.id.slice("pathway:".length);
@@ -447,6 +469,81 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
   return workspace;
 }
 
+/** Open a small modal editor for one diagram-only connection node name. */
+function renameCableGroupAttachment(harness, attachment) {
+  const dialog = document.createElement("dialog");
+  const form = document.createElement("form");
+  const field = document.createElement("label");
+  const input = document.createElement("input");
+  const actions = document.createElement("div");
+  const cancel = document.createElement("button");
+  const save = document.createElement("button");
+  dialog.className = "connection-name-popup";
+  form.method = "dialog";
+  field.textContent = "Connection Name";
+  input.type = "text";
+  input.className = "filter";
+  input.value = attachment.nameOverride || "";
+  input.placeholder = attachment.name || "Inherited target name";
+  input.setAttribute("aria-label", "Connection name");
+  actions.className = "pathway-popup-actions";
+  cancel.type = "button";
+  cancel.className = "button secondary";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => dialog.close());
+  save.type = "submit";
+  save.className = "button";
+  save.textContent = "Save";
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    dialog.close();
+    void mutate("rename_cable_end_attachment", {
+      harnessId: harness.harnessId,
+      connectionId: attachment.connectionId,
+      name: input.value,
+    }, "Saving connection name…");
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  field.append(input);
+  actions.append(cancel, save);
+  form.append(field, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  input.focus();
+  input.select();
+}
+
+/** Return Cable Details actions for attaching one physical cable end. */
+function cableGroupDetailsEndContextItems(harness, connection) {
+  return [
+    {
+      label: "Connect",
+      action: () => connectCableEnd(harness, connection.connectionId),
+      disabled: Boolean(connection.attachment),
+      title: connection.attachment ? "Delete the existing connection before reconnecting" : "",
+    },
+    ...endRoutingContextItems(harness, connection.connectionId),
+  ];
+}
+
+/** Return rename and delete actions for one diagram-only connection node. */
+function cableGroupAttachmentContextItems(harness, attachment) {
+  return [
+    {
+      label: "Rename",
+      action: () => renameCableGroupAttachment(harness, attachment),
+    },
+    {
+      label: "Delete",
+      action: () => mutate("remove_cable_end_attachment", {
+        harnessId: harness.harnessId,
+        connectionId: attachment.connectionId,
+      }, `Deleting connection ${attachment.name}…`),
+    },
+  ];
+}
+
 /** Render the physical member list for one cable group. */
 function renderCableGroupDetailsMembers(
   harness, group, focusedConnectionId, onSelect, showContextMenu,
@@ -469,7 +566,9 @@ function renderCableGroupDetailsMembers(
       ? `${pathway?.name || "Missing pathway"} · ${side}`
       : "Unlocated end";
     const row = memberRow(
-      `${connection?.name || "Missing end"} · ${boundary}`,
+      `${connection?.name || "Missing end"} · ${boundary} · ${
+        connection?.attachment ? "Attached" : "Detached"
+      }`,
       () => highlightMember(harness, "connection", connectionId),
       [],
       !connection || !location,
@@ -484,7 +583,7 @@ function renderCableGroupDetailsMembers(
     reference.addEventListener("click", () => onSelect(connectionId));
     row.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
-      showContextMenu(event, endRoutingContextItems(harness, connectionId));
+      showContextMenu(event, cableGroupDetailsEndContextItems(harness, connection));
     });
     if (isFocused) row.classList.add("focused");
     members.append(row);
