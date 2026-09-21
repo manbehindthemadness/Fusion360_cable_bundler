@@ -415,6 +415,7 @@ class CableEndAttachment:
     inherited_name: str
     name: str = ""
     parameters: tuple[float, ...] = ()
+    metadata: Metadata = ()
 
     def __post_init__(self) -> None:
         """
@@ -440,6 +441,7 @@ class CableEndAttachment:
             raise ValueError(
                 "Face attachments require two surface parameters; other targets require none."
             )
+        _validate_metadata(self.metadata, "Cable-end connection metadata")
 
     @property
     def display_name(self) -> str:

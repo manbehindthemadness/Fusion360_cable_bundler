@@ -92,6 +92,36 @@ def rename_cable_end_attachment(
     persist_definition(harness_id, original, updated, gateway)
 
 
+def set_cable_end_attachment_properties(
+    harness_id: UUID,
+    connection_id: UUID,
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace searchable metadata owned by one external cable-end connection.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None or connection.attachment is None:
+        raise ValueError("Selected cable end does not have a connection attachment.")
+    updated_connection = replace(
+        connection,
+        attachment=replace(connection.attachment, metadata=metadata),
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
 def remove_cable_end_attachment(
     harness_id: UUID,
     connection_id: UUID,

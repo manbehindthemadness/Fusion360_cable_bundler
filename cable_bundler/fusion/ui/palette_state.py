@@ -190,6 +190,7 @@ def serialize_palette_state(
                                 "name": attachment_display_name(design, connection.attachment),
                                 "nameOverride": connection.attachment.name,
                                 "targetKind": connection.attachment.target_kind.value,
+                                "metadata": _metadata_payload(connection.attachment.metadata),
                                 "connected": resolve_attachment_target(
                                     design, connection.attachment
                                 )

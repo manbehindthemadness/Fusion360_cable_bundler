@@ -12,6 +12,7 @@ from .ends import (
     remove_standalone_end,
     rename_cable_end_attachment,
     rename_standalone_end,
+    set_cable_end_attachment_properties,
     set_cable_end_properties,
     switch_standalone_end,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "rename_pathway",
     "rename_standalone_end",
     "segment_pathway",
+    "set_cable_end_attachment_properties",
     "set_cable_end_properties",
     "set_pathway_end_properties",
     "set_pathway_properties",

@@ -130,6 +130,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         AttachmentTargetKind.CONSTRUCTION_POINT,
         "attachment-token",
         "Connector datum",
+        metadata=(("connector", "J1"),),
     )
     definition = replace(
         valid_harness,
@@ -151,6 +152,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "name": "Connector datum",
         "nameOverride": "",
         "targetKind": "construction_point",
+        "metadata": [{"key": "connector", "value": "J1"}],
     }
     assert payload["harnesses"][0]["connections"][1]["attachment"] is None
 

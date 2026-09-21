@@ -26,6 +26,7 @@ from cable_bundler.application import (
     rename_harness,
     save_cable_editor,
     segment_pathway,
+    set_cable_end_attachment_properties,
     set_cable_end_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
@@ -110,6 +111,16 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     stored = loads(gateway.serialized_definition)
     assert stored.connections[0].attachment is not None
     assert stored.connections[0].attachment.name == "Bulkhead socket"
+
+    set_cable_end_attachment_properties(
+        valid_harness.harness_id,
+        connection_id,
+        (("connector", "J1"),),
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment is not None
+    assert stored.connections[0].attachment.metadata == (("connector", "J1"),)
 
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, gateway)
     stored = loads(gateway.serialized_definition)

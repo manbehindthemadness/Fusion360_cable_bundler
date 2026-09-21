@@ -791,11 +791,15 @@ test('Cable Details end nodes and rows share Add routing submenus', () => {
   assert.equal(menu.children.at(-1).textContent, 'Properties');
 });
 
-test('Cable Details connects detached ends and manages diagram-only connection nodes', () => {
+asyncTest('Cable Details connects detached ends and manages diagram-only connection nodes', async () => {
   const { context, calls } = palette();
   const definition = harness();
   const connection = definition.connections.find((item) => item.connectionId === 'a1');
   const nativeActions = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
   context.connectCableEnd = (_harness, connectionId) => nativeActions.push(connectionId);
   context.openCableGroupDetails(definition, 'g1', 'a1');
   let details = context.document.body.querySelector('.cable-group-details-popup');
@@ -812,6 +816,7 @@ test('Cable Details connects detached ends and manages diagram-only connection n
 
   connection.attachment = {
     name: 'J1 socket', nameOverride: '', targetKind: 'joint_origin', connected: true,
+    metadata: [{ key: 'connector', value: 'J1' }],
   };
   context.openCableGroupDetails(definition, 'g1', 'a1');
   details = context.document.body.querySelector('.cable-group-details-popup');
@@ -854,6 +859,23 @@ test('Cable Details connects detached ends and manages diagram-only connection n
   menu.children.find((item) => item.textContent === 'Delete').events.click();
   assert.equal(calls[1].action, 'remove_cable_end_attachment');
   assert.equal(calls[1].payload.connectionId, 'a1');
+
+  disconnectedNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
+  });
+  assert.equal(menu.children.at(-1).textContent, 'Properties');
+  menu.children.at(-1).events.click();
+  const properties = context.document.body.querySelector('.connection-properties');
+  assert.equal(properties.open, true);
+  const metadataFields = descendants(properties, (node) => node.tag === 'input');
+  assert.equal(metadataFields.length, 2);
+  metadataFields[1].value = 'J2';
+  await properties.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[2].action, 'set_cable_end_attachment_properties');
+  assert.equal(calls[2].payload.connectionId, 'a1');
+  assert.equal(JSON.stringify(calls[2].payload.metadata), JSON.stringify([
+    { key: 'connector', value: 'J2' },
+  ]));
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {

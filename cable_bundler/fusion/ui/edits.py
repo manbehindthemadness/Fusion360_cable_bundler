@@ -29,6 +29,7 @@ from ...application import (
     rename_pathway,
     rename_standalone_end,
     save_cable_editor,
+    set_cable_end_attachment_properties,
     set_cable_end_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
@@ -419,6 +420,14 @@ def _apply_palette_edit(
             gateway,
         )
         return "Saved cable-end properties."
+    if action == "set_cable_end_attachment_properties":
+        set_cable_end_attachment_properties(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable-end connection"),
+            _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
+            gateway,
+        )
+        return "Saved cable-end connection properties."
     if action in {"rename_harness", "rename_junction", "rename_pathway"}:
         name = payload.get("name")
         if not isinstance(name, str):

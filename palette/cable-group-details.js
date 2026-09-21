@@ -701,7 +701,7 @@ function cableGroupDetailsEndContextItems(harness, connection) {
   ];
 }
 
-/** Return rename and delete actions for one diagram-only connection node. */
+/** Return actions for one diagram-only connection node. */
 function cableGroupAttachmentContextItems(harness, attachment) {
   return [
     {
@@ -714,6 +714,10 @@ function cableGroupAttachmentContextItems(harness, attachment) {
         harnessId: harness.harnessId,
         connectionId: attachment.connectionId,
       }, `Deleting connection ${attachment.name}…`),
+    },
+    {
+      label: "Properties",
+      action: () => openCableEndAttachmentProperties(harness, attachment),
     },
   ];
 }

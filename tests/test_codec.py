@@ -48,7 +48,7 @@ def test_round_trip_preserves_optional_cable_end_attachment(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Preserve the selected target, inherited name, alias, and face parameters.
+    Preserve attachment metadata while keeping older attachments without it readable.
     """
     attachment = CableEndAttachment(
         AttachmentTargetKind.FACE,
@@ -56,6 +56,7 @@ def test_round_trip_preserves_optional_cable_end_attachment(
         "Connector body",
         "Pin 4",
         (0.25, 0.75),
+        (("drawing-reference", "J1"),),
     )
     definition = replace(
         valid_harness,
@@ -65,7 +66,14 @@ def test_round_trip_preserves_optional_cable_end_attachment(
         ),
     )
 
-    assert loads(dumps(definition)) == definition
+    serialized = dumps(definition)
+    assert loads(serialized) == definition
+
+    legacy_payload = json.loads(serialized)
+    legacy_payload["connections"][0]["attachment"].pop("metadata")
+    legacy_definition = loads(json.dumps(legacy_payload))
+    assert legacy_definition.connections[0].attachment is not None
+    assert legacy_definition.connections[0].attachment.metadata == ()
 
 
 def test_metadata_round_trip_is_optional_and_does_not_change_schema(

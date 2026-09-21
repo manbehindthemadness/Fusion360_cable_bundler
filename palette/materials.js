@@ -407,6 +407,15 @@ function openCableEndProperties(harness, connectionId) {
   );
 }
 
+/** Open searchable custom metadata owned by one external cable-end connection. */
+function openCableEndAttachmentProperties(harness, attachment) {
+  if (!attachment) return;
+  openEntityMetadataProperties(
+    harness, attachment, "Connection Properties", "connection-properties",
+    "set_cable_end_attachment_properties", { connectionId: attachment.connectionId },
+  );
+}
+
 function openMaterialOptions(harness, cableGroup = null) {
   const isCableGroup = cableGroup !== null;
   const hasOverrides = isCableGroup;

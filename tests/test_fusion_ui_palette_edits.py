@@ -559,6 +559,12 @@ def test_palette_edit_saves_pathway_end_metadata(
             "set_cable_end_properties",
             "Saved cable-end properties.",
         ),
+        (
+            "set_cable_end_attachment_properties",
+            "connectionId",
+            "set_cable_end_attachment_properties",
+            "Saved cable-end connection properties.",
+        ),
     ),
 )
 def test_palette_edit_saves_identity_owned_metadata(
@@ -570,7 +576,7 @@ def test_palette_edit_saves_identity_owned_metadata(
     notice: str,
 ) -> None:
     """
-    Parse junction and cable-end metadata through their dedicated edit services.
+    Parse identity-owned metadata through its dedicated edit service.
     """
     harness_id = UUID(int=1)
     identity = UUID(int=2)

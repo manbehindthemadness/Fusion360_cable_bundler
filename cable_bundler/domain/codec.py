@@ -188,6 +188,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                         "inherited_name": connection.attachment.inherited_name,
                         "name": connection.attachment.name,
                         "parameters": list(connection.attachment.parameters),
+                        "metadata": _metadata_to_list(connection.attachment.metadata),
                     }
                     if connection.attachment is not None
                     else None
@@ -594,6 +595,7 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
             inherited_name=_require_str(value, "inherited_name", f"{path}.inherited_name"),
             name=_require_str(value, "name", f"{path}.name"),
             parameters=tuple(parameters),
+            metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
