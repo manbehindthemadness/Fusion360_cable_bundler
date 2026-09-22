@@ -23,7 +23,7 @@ from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_ref
 from ..route_preview import (
     has_route_previews,
     reconcile_preview_history,
-    refresh_route_previews,
+    refresh_route_previews_with_result,
     reset_preview_history,
 )
 from .commands.refines import (
@@ -83,7 +83,11 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             if args.commandId in _HISTORY_NAVIGATION_COMMAND_IDS:
                 _request_deferred_stripe_restore(application)
             else:
-                _refresh_changed_routing_geometry(application, design, results, definitions)
+                notice = _refresh_changed_routing_geometry(
+                    application, design, results, definitions
+                )
+                _send_palette_state(application, notice)
+                return
             _send_palette_state(application)
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             _log_to_fusion(f"Could not synchronize harness history: {error}")
@@ -94,7 +98,7 @@ def _refresh_changed_routing_geometry(
     design: adsk.fusion.Design,
     results: tuple[HarnessLoadResult, ...],
     definitions: tuple[HarnessDefinition, ...],
-) -> None:
+) -> str:
     """
     Reconcile generated output and previews after geometry-owning commands.
 
@@ -103,7 +107,7 @@ def _refresh_changed_routing_geometry(
     this writer to preserve Fusion's Redo stack.
     """
     if _runtime.geometry_refresh_active:
-        return
+        return ""
     _runtime.geometry_refresh_active = True
     try:
         rebuilt_count = 0
@@ -120,12 +124,28 @@ def _refresh_changed_routing_geometry(
             for notice in notices:
                 _log_to_fusion(notice)
         previews_active = has_route_previews(design)
+        updated_preview_routes = 0
         if previews_active:
             for definition in definitions:
-                for warning in refresh_route_previews(design, definition):
+                preview_result = refresh_route_previews_with_result(design, definition)
+                updated_preview_routes += preview_result.updated_route_count
+                for warning in preview_result.warnings:
                     _log_to_fusion(warning)
         if rebuilt_count or previews_active:
             application.activeViewport.refresh()
+        if not rebuilt_count and not updated_preview_routes:
+            return ""
+        parts = []
+        if rebuilt_count:
+            parts.append(
+                f"{rebuilt_count} generated cable group{'s' if rebuilt_count != 1 else ''}"
+            )
+        if updated_preview_routes:
+            parts.append(
+                f"{updated_preview_routes} preview route"
+                f"{'s' if updated_preview_routes != 1 else ''}"
+            )
+        return f"Updated local routing geometry: {' and '.join(parts)}."
     finally:
         _runtime.geometry_refresh_active = False
 

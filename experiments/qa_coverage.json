@@ -6,7 +6,7 @@
     {
       "id": "M0-DOM-001",
       "area": "persistence",
-      "behavior": "Schema-v15 group-only definitions round-trip deterministically, schemas 12 through 14 migrate in memory, and unsupported legacy or future versions fail explicitly.",
+      "behavior": "Schema-v18 definitions round-trip deterministically, schemas 12 through 17 migrate in memory, and unsupported legacy or future versions fail explicitly.",
       "status": "automated",
       "layers": ["pytest"],
       "evidence": ["tests/test_codec.py"],
@@ -46,6 +46,15 @@
       "status": "automated",
       "layers": ["pytest", "palette"],
       "evidence": ["tests/test_palette.cjs", "tests/test_cable_group_routes.py"],
+      "capabilities": []
+    },
+    {
+      "id": "M0-REL-002",
+      "area": "external-connections",
+      "behavior": "Cable ends persist multiple unattached or attached connection nodes, connection-owned metadata and refines survive edits, and multiple targets produce deterministic reduced-diameter clock-face branches.",
+      "status": "automated",
+      "layers": ["pytest", "palette"],
+      "evidence": ["tests/test_edit_connections.py", "tests/test_route_solve_cache.py", "tests/test_palette.cjs", "tests/test_fusion_ui_relationship_commands.py"],
       "capabilities": []
     },
     {
@@ -112,6 +121,15 @@
       "capabilities": ["safe-repeated-host-owned-addin-start-stop", "command-registry-inspection", "palette-registry-inspection"],
       "manualReason": "Fusion 2704.1.53 crashed during the second Application.scripts stop/start cycle inside one MCP-hosted script. Repeated host-owned cycles through Scripts and Add-Ins passed on the current macOS host.",
       "reviewTrigger": "Retry automation only after Autodesk exposes a stable host-owned lifecycle boundary or a later Fusion release materially changes Application.scripts behavior."
+    },
+    {
+      "id": "M0-LIFE-005",
+      "area": "local-geometry-refresh",
+      "behavior": "Moving a guide or refine rebuilds only changed generated cable groups, redraws only changed preview routes, and records a bounded event-console notice when geometry actually changes.",
+      "status": "automated",
+      "layers": ["pytest"],
+      "evidence": ["tests/test_fusion_ui_lifecycle.py", "tests/test_cable_solid_decorations.py", "tests/test_route_solve_cache.py"],
+      "capabilities": []
     },
     {
       "id": "M0-LINK-001",

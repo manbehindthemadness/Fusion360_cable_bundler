@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional, Union
@@ -16,10 +15,7 @@ import adsk.fusion
 
 from ...application import CableGroupRouteLeg, plan_cable_group_routes
 from ...domain import (
-    AttachmentTargetKind,
-    CableEndAttachment,
     Connection,
-    ControlKind,
     ControlStructure,
     HarnessDefinition,
 )
@@ -41,26 +37,20 @@ from ...routing import (
 )
 from ...routing.conditioning import (
     CircularGuideConstraint,
-    condition_connection_points,
     condition_control_points,
     condition_route_normals,
     junction_normal_indices,
 )
 from ...routing.geometry import cross, unit
-from ..attachment_targets import resolve_attachment_target
-
-
-@dataclass(frozen=True)
-class ProfileFrame:
-    """
-    Describe one end guide and any circular interior available to its route.
-    """
-
-    origin: Vector3
-    normal: Vector3
-    u_direction: Vector3
-    v_direction: Vector3
-    usable_radius_mm: Optional[float] = None
+from .frames import (
+    ProfileFrame,
+    connection_attachment_frame,
+    connection_branch_route_frames,
+    connection_profile_frames,
+    connection_route_frames,
+    routing_frame,
+)
+from .frames import connection_profile_points as _connection_profile_points
 
 
 @dataclass(frozen=True)
@@ -629,245 +619,6 @@ def _connection_branch_routes(
     return tuple(routes), tuple(legs)
 
 
-def connection_branch_route_frames(
-    design: adsk.fusion.Design,
-    connection: Connection,
-    attachment: CableEndAttachment,
-    guide: ProfileFrame,
-    index: int,
-    count: int,
-    parent_diameter_mm: float,
-    controls: dict[UUID, ControlStructure],
-    frames: dict[UUID, Union[GateFrame, RefineFrame]],
-    cache: dict[str, ProfileFrame],
-) -> tuple[ProfileFrame, ...]:
-    """
-    Resolve one external branch from its target through owned refines to its guide origin.
-    """
-    target = connection_attachment_frame(design, connection, attachment, guide, cache)
-    if target is None:
-        return ()
-    refine_frames: list[ProfileFrame] = []
-    for control_id in attachment.ordered_control_ids:
-        frame = frames.get(control_id)
-        if frame is None:
-            frame = routing_frame(design, controls.get(control_id), control_id)
-            frames[control_id] = frame
-        refine_frames.append(_routing_profile_frame(frame))
-    branch_diameter_mm = parent_diameter_mm / count
-    origin = _clockface_branch_origin(
-        guide,
-        index,
-        count,
-        parent_diameter_mm,
-        branch_diameter_mm,
-    )
-    origin_frame = ProfileFrame(
-        origin,
-        guide.normal,
-        guide.u_direction,
-        guide.v_direction,
-    )
-    return target, *refine_frames, origin_frame
-
-
-def _routing_profile_frame(frame: Union[GateFrame, RefineFrame]) -> ProfileFrame:
-    """
-    Project a saved routing control into the common profile-frame contract.
-    """
-    return ProfileFrame(
-        frame.origin,
-        unit(cross(frame.u_direction, frame.v_direction)),
-        frame.u_direction,
-        frame.v_direction,
-        frame.usable_radius_mm if isinstance(frame, GateFrame) else None,
-    )
-
-
-def _clockface_branch_origin(
-    guide: ProfileFrame,
-    index: int,
-    count: int,
-    parent_diameter_mm: float,
-    branch_diameter_mm: float,
-) -> Vector3:
-    """
-    Place one branch center on an even clock face inside the parent envelope.
-    """
-    radius_mm = max(0.0, (parent_diameter_mm - branch_diameter_mm) * 0.5)
-    angle = math.pi * 0.5 - math.tau * index / count
-    return guide.origin.translated(guide.u_direction, math.cos(angle) * radius_mm).translated(
-        guide.v_direction, math.sin(angle) * radius_mm
-    )
-
-
-def connection_profile_frames(
-    design: adsk.fusion.Design,
-    connection: Connection,
-    cache: dict[str, ProfileFrame],
-) -> tuple[ProfileFrame, ...]:
-    """
-    Resolve and cache every ordered profile frame owned by one connection.
-    """
-    member_tokens = connection.member_tokens
-    for token in member_tokens:
-        if token not in cache:
-            cache[token] = _profile_frame(design, token)
-    return tuple(cache[token] for token in member_tokens)
-
-
-def connection_route_frames(
-    design: adsk.fusion.Design,
-    connection: Connection,
-    frames: dict[UUID, Union[GateFrame, RefineFrame]],
-    cache: dict[str, ProfileFrame],
-) -> tuple[ProfileFrame, ...]:
-    """
-    Prepend one resolved external attachment to the end's native guide frames.
-    """
-    member_frames = connection_profile_frames(design, connection, cache)
-    attachment = connection.attachments[0] if len(connection.attachments) == 1 else None
-    attachment_frame = (
-        connection_attachment_frame(
-            design,
-            connection,
-            attachment,
-            member_frames[0],
-            cache,
-        )
-        if attachment is not None
-        else None
-    )
-    if attachment_frame is None or attachment is None:
-        return member_frames
-    refine_frames = tuple(
-        _routing_profile_frame(frames[control_id]) for control_id in attachment.ordered_control_ids
-    )
-    return attachment_frame, *refine_frames, *member_frames
-
-
-def connection_attachment_frame(
-    design: adsk.fusion.Design,
-    connection: Connection,
-    attachment: CableEndAttachment,
-    adjacent_frame: ProfileFrame,
-    cache: dict[str, ProfileFrame],
-) -> Optional[ProfileFrame]:
-    """
-    Resolve and cache the external contact frame for one attached cable end.
-    """
-    key = f"attachment:{connection.connection_id}:{attachment.attachment_id}"
-    if key not in cache:
-        frame = _attachment_frame(design, attachment, adjacent_frame)
-        if frame is None:
-            return None
-        cache[key] = frame
-    return cache[key]
-
-
-def _basis_from_normal(normal: Vector3) -> tuple[Vector3, Vector3]:
-    """
-    Build one stable orthonormal in-plane basis for a target normal.
-    """
-    normalized = unit(normal)
-    seed = Vector3(1.0, 0.0, 0.0) if abs(normalized.x) < 0.9 else Vector3(0.0, 1.0, 0.0)
-    u_direction = unit(cross(seed, normalized))
-    return u_direction, unit(cross(normalized, u_direction))
-
-
-def _attachment_frame(
-    design: adsk.fusion.Design,
-    attachment: CableEndAttachment,
-    adjacent_frame: ProfileFrame,
-) -> Optional[ProfileFrame]:
-    """
-    Convert one supported live Fusion target into a route contact frame.
-    """
-    entity = resolve_attachment_target(design, attachment)
-    if entity is None:
-        return None
-    if attachment.target_kind is AttachmentTargetKind.PROFILE:
-        frame = _profile_frame(design, attachment.entity_token)
-        return ProfileFrame(
-            frame.origin,
-            frame.normal,
-            frame.u_direction,
-            frame.v_direction,
-        )
-    if attachment.target_kind is AttachmentTargetKind.FACE:
-        parameter = adsk.core.Point2D.create(*attachment.parameters)
-        point_result = entity.evaluator.getPointAtParameter(parameter)
-        normal_result = entity.evaluator.getNormalAtParameter(parameter)
-        if not point_result[0] or not normal_result[0]:
-            return None
-        normal = _vector(normal_result[1])
-        u_direction, v_direction = _basis_from_normal(normal)
-        return ProfileFrame(_point_to_mm(point_result[1]), unit(normal), u_direction, v_direction)
-    if attachment.target_kind is AttachmentTargetKind.JOINT_ORIGIN:
-        transform = entity.transform
-        return ProfileFrame(
-            _point_to_mm(transform.translation),
-            _vector(entity.primaryAxisVector),
-            _vector(entity.secondaryAxisVector),
-            _vector(entity.thirdAxisVector),
-        )
-    if attachment.target_kind is AttachmentTargetKind.CIRCULAR_EDGE:
-        geometry = entity.geometry
-        normal = _vector(geometry.normal)
-        u_direction, v_direction = _basis_from_normal(normal)
-        return ProfileFrame(_point_to_mm(geometry.center), unit(normal), u_direction, v_direction)
-    if attachment.target_kind is AttachmentTargetKind.SKETCH_POINT:
-        sketch = entity.parentSketch
-        u_direction = _vector(sketch.xDirection)
-        v_direction = _vector(sketch.yDirection)
-        return ProfileFrame(
-            _point_to_mm(entity.worldGeometry),
-            unit(cross(u_direction, v_direction)),
-            u_direction,
-            v_direction,
-        )
-    return ProfileFrame(
-        _point_to_mm(entity.geometry),
-        adjacent_frame.normal,
-        adjacent_frame.u_direction,
-        adjacent_frame.v_direction,
-    )
-
-
-def _connection_profile_points(
-    frames: tuple[ProfileFrame, ...],
-    pathway_target: Vector3,
-    diameter_mm: float,
-    transitions: tuple[TransitionLengths, ...],
-    auto_transition_fraction: float,
-) -> list[Vector3]:
-    """
-    Use bounded, transition-scaled guide conditioning to approach the pathway.
-
-    Frames are stored terminal-to-pathway, so placement propagates backward
-    from the known pathway crossing while preserving the authored guide order.
-    """
-    constraints = tuple(
-        CircularGuideConstraint(
-            frame.origin,
-            frame.normal,
-            frame.u_direction,
-            frame.v_direction,
-            frame.usable_radius_mm,
-        )
-        for frame in frames
-    )
-    return list(
-        condition_connection_points(
-            constraints,
-            pathway_target,
-            diameter_mm,
-            transitions,
-            auto_transition_fraction,
-        )
-    )
-
-
 def _adjustment_notice(adjustment: TransitionAdjustment) -> str:
     """
     Format a dynamic transition correction for the palette event console.
@@ -889,132 +640,6 @@ def _collision_notice(collision: RouteCollision) -> str:
         f"{collision.clearance_shortfall_mm:.3f} mm inside the requested separation; "
         "the original deterministic route is retained."
     )
-
-
-def routing_frame(
-    design: adsk.fusion.Design,
-    control: Optional[ControlStructure],
-    control_id: UUID,
-) -> Union[GateFrame, RefineFrame]:
-    """
-    Build a constrained gate or unconstrained refine routing frame.
-    """
-    if control is None:
-        raise RuntimeError(f"Routing control is missing: {control_id}")
-    if control.kind is ControlKind.REFINE:
-        geometry = control.refine_geometry
-        if geometry is None:
-            raise RuntimeError(f"{control.name} has no saved refine geometry.")
-        return RefineFrame(
-            refine_id=control.control_id,
-            name=control.name,
-            origin=Vector3(*geometry.origin_mm),
-            u_direction=Vector3(*geometry.u_direction),
-            v_direction=Vector3(*geometry.v_direction),
-        )
-    return _gate_frame(design, control, control_id)
-
-
-def _gate_frame(
-    design: adsk.fusion.Design,
-    control: Optional[ControlStructure],
-    control_id: UUID,
-) -> GateFrame:
-    """
-    Build a millimeter-scale circular aperture frame from one physical control.
-
-    Connection-owned end profiles are resolved separately as centroid/normal
-    frames. Their position and orientation guide fairing and the resulting sweep,
-    but they are not apertures against which the cable bundle is fit-tested.
-    """
-    if control is None:
-        raise RuntimeError(f"Routing control is missing: {control_id}")
-    if control.kind is not ControlKind.ROUTING_GATE:
-        raise RuntimeError(
-            f"{control.name} is not a routing gate; profile-gate preview is not supported yet."
-        )
-    profile = _resolve_profile(design, control.entity_token)
-    profile_loops = profile.profileLoops
-    if profile_loops.count != 1:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
-    profile_curves = profile_loops.item(0).profileCurves
-    if profile_curves.count != 1:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
-    profile_curve = profile_curves.item(0)
-    circle = adsk.fusion.SketchCircle.cast(
-        profile_curve.sketchEntity if profile_curve is not None else None
-    )
-    if circle is None:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
-    sketch = profile.parentSketch
-    center = sketch.sketchToModelSpace(circle.geometry.center)
-    return GateFrame(
-        gate_id=control.control_id,
-        name=control.name,
-        origin=_point_to_mm(center),
-        u_direction=_vector(sketch.xDirection),
-        v_direction=_vector(sketch.yDirection),
-        usable_radius_mm=circle.geometry.radius * 10.0,
-    )
-
-
-def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> ProfileFrame:
-    """
-    Return a millimeter-scale model centroid and dimensionless unit plane normal.
-    """
-    profile = _resolve_profile(design, entity_token)
-    area_properties = profile.areaProperties()
-    if area_properties is None:
-        raise RuntimeError("Fusion could not calculate connection-profile area properties.")
-    sketch = profile.parentSketch
-    u_direction = _vector(sketch.xDirection)
-    v_direction = _vector(sketch.yDirection)
-    normal = unit(cross(u_direction, v_direction))
-    usable_radius_mm: Optional[float] = None
-    origin = sketch.sketchToModelSpace(area_properties.centroid)
-    loops = profile.profileLoops
-    if loops.count == 1:
-        curves = loops.item(0).profileCurves
-        if curves.count == 1:
-            profile_curve = curves.item(0)
-            circle = adsk.fusion.SketchCircle.cast(
-                profile_curve.sketchEntity if profile_curve is not None else None
-            )
-            if circle is not None:
-                origin = sketch.sketchToModelSpace(circle.geometry.center)
-                usable_radius_mm = circle.geometry.radius * 10.0
-    return ProfileFrame(
-        _point_to_mm(origin),
-        normal,
-        u_direction,
-        v_direction,
-        usable_radius_mm,
-    )
-
-
-def _resolve_profile(design: adsk.fusion.Design, entity_token: str) -> adsk.fusion.Profile:
-    """
-    Resolve one stored token to a Fusion sketch profile.
-    """
-    entities = design.findEntityByToken(entity_token)
-    profile = adsk.fusion.Profile.cast(entities[0] if entities else None)
-    if profile is None:
-        raise RuntimeError("A route profile is missing or no longer resolves in Fusion.")
-    return profile
-
-
-def _point_to_mm(point: adsk.core.Point3D) -> Vector3:
-    """
-    Convert a Fusion point from centimeters to millimeters.
-    """
-    return Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
-
-
-def _vector(vector: adsk.core.Vector3D) -> Vector3:
-    """
-    Copy a Fusion model-space direction into the routing model.
-    """
-    return Vector3(vector.x, vector.y, vector.z)
 
 
 def reset_route_solve_cache() -> None:

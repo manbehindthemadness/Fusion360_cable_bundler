@@ -24,13 +24,19 @@ import adsk.core  # noqa: E402
 # noinspection PyUnresolvedReferences
 import adsk.fusion  # noqa: E402
 
-from cable_bundler.addin import (  # noqa: E402
+from cable_bundler.fusion.ui.constants import (  # noqa: E402
     ADD_END_COMMAND_ID,
+    ADD_JUNCTION_COMMAND_ID,
+    ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
+    ADD_REFINE_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
+    ATTACH_CABLE_END_COMMAND_ID,
     COMMAND_ID,
     CREATE_COMMAND_ID,
+    EDIT_REFINE_COMMAND_ID,
     PALETTE_ID,
+    SEGMENT_PATHWAY_COMMAND_ID,
 )
 from experiments.scenario_report import ScenarioReport  # noqa: E402
 
@@ -40,8 +46,14 @@ EXPECTED_COMMAND_IDS = (
     COMMAND_ID,
     CREATE_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
+    ADD_JUNCTION_COMMAND_ID,
+    ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
     ADD_END_COMMAND_ID,
+    ATTACH_CABLE_END_COMMAND_ID,
+    ADD_REFINE_COMMAND_ID,
+    SEGMENT_PATHWAY_COMMAND_ID,
+    EDIT_REFINE_COMMAND_ID,
     "UndoCommand",
     "RedoCommand",
 )
@@ -118,6 +130,15 @@ def audit_fusion_capabilities(
                 else False,
             }
         report.record_observation("fusion.commands", commands)
+        unavailable = tuple(
+            command_id
+            for command_id, capabilities in commands.items()
+            if not capabilities["registered"] or not capabilities["execute"]
+        )
+        if unavailable:
+            raise RuntimeError(
+                "Expected Fusion commands are unavailable: " + ", ".join(unavailable)
+            )
 
     with report.step("Probe isolated document lifecycle"):
         report.record_observation(

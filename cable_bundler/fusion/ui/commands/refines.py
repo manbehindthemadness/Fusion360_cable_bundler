@@ -22,7 +22,7 @@ from ....application import (
     load_harnesses,
     update_pathway_refine,
 )
-from ....domain import ControlKind, RefineGeometry, loads
+from ....domain import ControlKind, loads
 from ...cable_solids import (
     hide_generated_cable_group_solids,
     restore_generated_cable_group_visibility,
@@ -38,12 +38,8 @@ from ...refine_graphics import (
     place_refine,
     reconcile_refine_graphics,
 )
-from ...refine_graphics import (
-    PathwaySpine as PathwaySpine,
-)
-from ...refine_graphics import (
-    RefinePlacement as RefinePlacement,
-)
+from ...refine_graphics import PathwaySpine as PathwaySpine
+from ...refine_graphics import RefinePlacement as RefinePlacement
 from ..constants import REFINE_RADIUS_INPUT_ID, REFINE_SPINE_INPUT_ID
 from ..launchers import _open_refine_edit_command
 from ..palette_state import _send_palette_state
@@ -55,6 +51,7 @@ from ..support import (
     _require_active_design,
 )
 from ..viewport import _refresh_active_preview
+from .refine_parts.activation import RefineActivateHandler as _RefineActivateHandler
 from .refine_parts.inputs import (
     add_refine_radius_input as _add_refine_radius_input,
 )
@@ -83,13 +80,14 @@ from .refine_parts.placement import (
     update_refine_placement as _update_refine_placement,
 )
 from .refine_parts.types import (
+    EditRefineCommandState as _EditRefineCommandState,
+)
+from .refine_parts.types import (
     RefineCommandState as _RefineCommandState,
 )
 from .refine_parts.types import (
     SelectionInput as _SelectionInput,
 )
-
-MINIMUM_REFINE_RADIUS_MM = 0.5
 
 __all__ = [
     "EditRefineCreatedHandler",
@@ -125,35 +123,6 @@ class _RefinePreSelectHandler(adsk.core.SelectionEventHandler):
         point_mm = _refine_spine_selection_point_mm(selection)
         if point_mm is not None:
             self._state.preselected_point_mm = point_mm
-
-
-class _RefineActivateHandler(adsk.core.CommandEventHandler):
-    """
-    Request the initial preview after the command becomes interactive.
-    """
-
-    def __init__(
-        self,
-        selection_input: Optional[_SelectionInput] = None,
-    ) -> None:
-        """
-        Optionally require placement selection after the initial preview exists.
-        """
-        super().__init__()
-        self._selection_input = selection_input
-
-    def notify(self, args: adsk.core.CommandEventArgs) -> None:
-        """
-        Draw command graphics, then let Fusion disable OK until placement.
-        """
-        try:
-            if not args.command.doExecutePreview():
-                raise RuntimeError("Fusion could not start the refine preview.")
-            if self._selection_input is not None:
-                if not self._selection_input.setSelectionLimits(1, 1):
-                    raise RuntimeError("Fusion could not require refine-path selection.")
-        except (AttributeError, RuntimeError, TypeError, ValueError):
-            _report_failure("start refine preview")
 
 
 class _RefineSelectHandler(adsk.core.SelectionEventHandler):
@@ -525,18 +494,6 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 restore_generated_cable_group_visibility(state.solid_visibility)
             _report_failure("open Add Refine Point")
             raise
-
-
-@dataclass
-class _EditRefineCommandState:
-    """
-    Share the edited refine identity and temporary marker across handlers.
-    """
-
-    harness_id: UUID
-    control_id: UUID
-    geometry: RefineGeometry
-    group: Optional[adsk.fusion.CustomGraphicsGroup] = None
 
 
 def _preview_edited_refine(

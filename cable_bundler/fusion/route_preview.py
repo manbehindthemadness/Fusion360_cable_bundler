@@ -57,6 +57,16 @@ class _PreviewState:
     route_control_ids: dict[UUID, tuple[UUID, ...]] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class RoutePreviewRefreshResult:
+    """
+    Report warnings and the number of preview legs changed by one refresh.
+    """
+
+    warnings: tuple[str, ...]
+    updated_route_count: int
+
+
 _preview_states: dict[str, _PreviewState] = {}
 _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
 
@@ -334,8 +344,19 @@ def refresh_route_previews(
     """
     Recompute active cable-group previews and retain the last valid graphics on failure.
     """
+    return refresh_route_previews_with_result(design, definition).warnings
+
+
+def refresh_route_previews_with_result(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+) -> RoutePreviewRefreshResult:
+    """
+    Recompute active previews and report how many route legs actually changed.
+    """
     groups = design.rootComponent.customGraphicsGroups
     warnings: list[str] = []
+    updated_route_count = 0
     for index in range(groups.count):
         group = groups.item(index)
         if group is None:
@@ -343,10 +364,10 @@ def refresh_route_previews(
         state = _preview_states.get(group.id)
         if state is None or state.definition.harness_id != definition.harness_id:
             continue
-        warning = _refresh_cable_group_preview(design, group, state, definition)
-        if warning:
-            warnings.append(warning)
-    return tuple(warnings)
+        result = _refresh_cable_group_preview(design, group, state, definition)
+        warnings.extend(result.warnings)
+        updated_route_count += result.updated_route_count
+    return RoutePreviewRefreshResult(tuple(warnings), updated_route_count)
 
 
 def _refresh_cable_group_preview(
@@ -354,7 +375,7 @@ def _refresh_cable_group_preview(
     group: adsk.fusion.CustomGraphicsGroup,
     state: _PreviewState,
     definition: HarnessDefinition,
-) -> str:
+) -> RoutePreviewRefreshResult:
     """
     Reconcile one active group-network preview after a saved definition edit.
 
@@ -363,6 +384,7 @@ def _refresh_cable_group_preview(
     """
     _remember_preview(group.id, state)
     if not definition.cable_groups:
+        removed_count = len(state.routes)
         for child in _cable_graphics(group, set(state.routes)):
             child.deleteMe()
         state.definition = definition
@@ -372,14 +394,18 @@ def _refresh_cable_group_preview(
         state.route_pathway_ids.clear()
         state.route_control_ids.clear()
         _remember_preview(group.id, state)
-        return ""
+        return RoutePreviewRefreshResult((), removed_count)
     solve_notices: list[str] = []
     try:
         routes, legs = solve_cable_group_routes(design, definition, solve_notices)
     except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-        return f"Preview update failed for a cable group: {error}"
+        return RoutePreviewRefreshResult(
+            (f"Preview update failed for a cable group: {error}",),
+            0,
+        )
     solved = {route.cable_id: route for route in routes}
     removed_ids = set(state.routes) - set(solved)
+    updated_route_count = len(removed_ids)
     for child in _cable_graphics(group, removed_ids):
         child.deleteMe()
     for route_id in removed_ids:
@@ -418,6 +444,7 @@ def _refresh_cable_group_preview(
         for child in previous:
             child.deleteMe()
         state.routes[route.cable_id] = route
+        updated_route_count += 1
     group_connections = {
         cable_group.cable_group_id: cable_group.connection_ids
         for cable_group in definition.cable_groups
@@ -445,7 +472,11 @@ def _refresh_cable_group_preview(
         if leg.route_id in drawn_leg_ids
     }
     _remember_preview(group.id, state)
-    return " ".join(warnings)
+    notice = " ".join(warnings)
+    return RoutePreviewRefreshResult(
+        (notice,) if notice else (),
+        updated_route_count,
+    )
 
 
 def highlight_route_preview(design: adsk.fusion.Design, group_id: Optional[UUID]) -> int:

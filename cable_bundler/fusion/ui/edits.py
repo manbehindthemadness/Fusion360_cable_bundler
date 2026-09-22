@@ -4,6 +4,8 @@ Fusion UI services for edits.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 # noinspection PyUnresolvedReferences
 import adsk.core
 
@@ -13,6 +15,7 @@ import adsk.fusion
 from ...application import (
     CableEditorPairing,
     CableEditorRename,
+    HarnessEditGateway,
     add_cable_end_connection,
     move_pathway_gate,
     remove_cable_end_attachment,
@@ -54,8 +57,22 @@ from .payloads import (
     _read_payload_offset,
     _read_payload_uuid,
 )
-from .support import (
-    _create_harness_gateway,
+from .support import _create_harness_gateway
+
+_TOPOLOGY_ACTIONS = frozenset(
+    (
+        "add_cable_end_connection",
+        "move_pathway_gate",
+        "remove_junction_relationship",
+        "update_junction_relationships",
+        "remove_pathway_gate",
+        "remove_end_guide",
+        "remove_end_control",
+        "remove_pathway",
+        "remove_junction",
+        "remove_standalone_end",
+        "remove_cable_end_attachment",
+    )
 )
 
 
@@ -70,6 +87,22 @@ def _apply_palette_edit(
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     gateway = _create_harness_gateway(application)
+    if action in _TOPOLOGY_ACTIONS:
+        return _apply_topology_edit(action, payload, harness_id, gateway)
+    if action == "save_cable_editor":
+        return _apply_route_editor_edit(payload, harness_id, gateway)
+    return _apply_property_edit(action, payload, harness_id, gateway)
+
+
+def _apply_topology_edit(
+    action: str,
+    payload: dict[str, object],
+    harness_id: UUID,
+    gateway: HarnessEditGateway,
+) -> str:
+    """
+    Apply one relationship, ordering, or deletion edit.
+    """
     if action == "add_cable_end_connection":
         add_cable_end_connection(
             harness_id,
@@ -177,69 +210,90 @@ def _apply_palette_edit(
             gateway,
         )
         return "Detached cable end."
-    if action == "save_cable_editor":
-        left_boundary = payload.get("leftBoundary")
-        right_boundary = payload.get("rightBoundary")
-        raw_pairings = payload.get("pairings")
-        raw_detached = payload.get("detachedConnectionIds")
-        raw_renames = payload.get("renames")
-        raw_deleted = payload.get("deletedConnectionIds")
-        if not isinstance(left_boundary, dict) or not isinstance(right_boundary, dict):
-            raise ValueError("Route Editor boundaries must be objects.")
-        if not all(
-            isinstance(value, list)
-            for value in (raw_pairings, raw_detached, raw_renames, raw_deleted)
-        ):
-            raise ValueError("Route Editor changes must be lists.")
-        left_endpoint = left_boundary.get("endpoint")
-        right_endpoint = right_boundary.get("endpoint")
-        if left_endpoint not in {member.value for member in PathwayEndpoint}:
-            raise ValueError("Route Editor left boundary has an invalid endpoint.")
-        if right_endpoint not in {member.value for member in PathwayEndpoint}:
-            raise ValueError("Route Editor right boundary has an invalid endpoint.")
-        pairings: list[CableEditorPairing] = []
-        for index, raw_pairing in enumerate(raw_pairings):
-            if not isinstance(raw_pairing, dict):
-                raise ValueError(f"Route Editor pairing {index + 1} must be an object.")
-            pairings.append(
-                CableEditorPairing(
-                    _read_payload_uuid(raw_pairing, "leftConnectionId", "left cable end"),
-                    _read_payload_uuid(raw_pairing, "rightConnectionId", "right cable end"),
-                )
+    raise ValueError(f"Unsupported topology edit: {action}")
+
+
+def _apply_route_editor_edit(
+    payload: dict[str, object],
+    harness_id: UUID,
+    gateway: HarnessEditGateway,
+) -> str:
+    """
+    Parse and persist one complete Route Editor transaction.
+    """
+    left_boundary = payload.get("leftBoundary")
+    right_boundary = payload.get("rightBoundary")
+    raw_pairings = payload.get("pairings")
+    raw_detached = payload.get("detachedConnectionIds")
+    raw_renames = payload.get("renames")
+    raw_deleted = payload.get("deletedConnectionIds")
+    if not isinstance(left_boundary, dict) or not isinstance(right_boundary, dict):
+        raise ValueError("Route Editor boundaries must be objects.")
+    if (
+        not isinstance(raw_pairings, list)
+        or not isinstance(raw_detached, list)
+        or not isinstance(raw_renames, list)
+        or not isinstance(raw_deleted, list)
+    ):
+        raise ValueError("Route Editor changes must be lists.")
+    left_endpoint = left_boundary.get("endpoint")
+    right_endpoint = right_boundary.get("endpoint")
+    if left_endpoint not in {member.value for member in PathwayEndpoint}:
+        raise ValueError("Route Editor left boundary has an invalid endpoint.")
+    if right_endpoint not in {member.value for member in PathwayEndpoint}:
+        raise ValueError("Route Editor right boundary has an invalid endpoint.")
+    pairings: list[CableEditorPairing] = []
+    for index, raw_pairing in enumerate(raw_pairings):
+        if not isinstance(raw_pairing, dict):
+            raise ValueError(f"Route Editor pairing {index + 1} must be an object.")
+        pairings.append(
+            CableEditorPairing(
+                _read_payload_uuid(raw_pairing, "leftConnectionId", "left cable end"),
+                _read_payload_uuid(raw_pairing, "rightConnectionId", "right cable end"),
             )
-        renames: list[CableEditorRename] = []
-        for index, raw_rename in enumerate(raw_renames):
-            if not isinstance(raw_rename, dict) or not isinstance(raw_rename.get("name"), str):
-                raise ValueError(f"Route Editor rename {index + 1} must contain a text name.")
-            renames.append(
-                CableEditorRename(
-                    _read_payload_uuid(raw_rename, "connectionId", "renamed cable end"),
-                    raw_rename["name"],
-                )
-            )
-        save_cable_editor(
-            harness_id,
-            _read_payload_uuid(left_boundary, "pathwayId", "left pathway"),
-            PathwayEndpoint(left_endpoint),
-            _read_payload_uuid(right_boundary, "pathwayId", "right pathway"),
-            PathwayEndpoint(right_endpoint),
-            tuple(pairings),
-            tuple(
-                _read_payload_uuid(
-                    {"connectionId": connection_id}, "connectionId", "detached cable end"
-                )
-                for connection_id in raw_detached
-            ),
-            tuple(renames),
-            tuple(
-                _read_payload_uuid(
-                    {"connectionId": connection_id}, "connectionId", "deleted cable end"
-                )
-                for connection_id in raw_deleted
-            ),
-            gateway,
         )
-        return "Saved Route Editor changes."
+    renames: list[CableEditorRename] = []
+    for index, raw_rename in enumerate(raw_renames):
+        if not isinstance(raw_rename, dict) or not isinstance(raw_rename.get("name"), str):
+            raise ValueError(f"Route Editor rename {index + 1} must contain a text name.")
+        renames.append(
+            CableEditorRename(
+                _read_payload_uuid(raw_rename, "connectionId", "renamed cable end"),
+                raw_rename["name"],
+            )
+        )
+    save_cable_editor(
+        harness_id,
+        _read_payload_uuid(left_boundary, "pathwayId", "left pathway"),
+        PathwayEndpoint(left_endpoint),
+        _read_payload_uuid(right_boundary, "pathwayId", "right pathway"),
+        PathwayEndpoint(right_endpoint),
+        tuple(pairings),
+        tuple(
+            _read_payload_uuid(
+                {"connectionId": connection_id}, "connectionId", "detached cable end"
+            )
+            for connection_id in raw_detached
+        ),
+        tuple(renames),
+        tuple(
+            _read_payload_uuid({"connectionId": connection_id}, "connectionId", "deleted cable end")
+            for connection_id in raw_deleted
+        ),
+        gateway,
+    )
+    return "Saved Route Editor changes."
+
+
+def _apply_property_edit(
+    action: str,
+    payload: dict[str, object],
+    harness_id: UUID,
+    gateway: HarnessEditGateway,
+) -> str:
+    """
+    Apply one naming, interpolation, material, or metadata edit.
+    """
     if action == "rename_standalone_end":
         name = payload.get("name")
         if not isinstance(name, str):

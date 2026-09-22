@@ -44,6 +44,7 @@ def test_attached_connection_prepends_external_contact_frame(
     """
     Extend an attached cable end to its target before traversing native guides.
     """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
@@ -64,9 +65,9 @@ def test_attached_connection_prepends_external_contact_frame(
             "Connector J1",
         ),
     )
-    monkeypatch.setattr(route_solver, "_profile_frame", lambda _design, _token: member_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", lambda _design, _token: member_frame)
     monkeypatch.setattr(
-        route_solver,
+        route_frames,
         "_attachment_frame",
         lambda _design, _attachment, _adjacent: target_frame,
     )
@@ -84,6 +85,7 @@ def test_multiple_connections_create_divided_clockface_branches(
     """
     Divide branch diameters and keep their guide origins inside the parent envelope.
     """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
@@ -142,17 +144,22 @@ def test_multiple_connections_create_divided_clockface_branches(
         Vector3(1.0, 0.0, 0.0),
         Vector3(0.0, 1.0, 0.0),
     )
-    monkeypatch.setattr(
-        route_solver,
+    solver_namespace = vars(route_solver)
+    monkeypatch.setitem(
+        solver_namespace,
         "connection_profile_frames",
         lambda _design, _connection, _cache: (guide,),
     )
     monkeypatch.setattr(
-        route_solver,
+        route_frames,
         "connection_attachment_frame",
         lambda _design, _connection, attachment, _guide, _cache: targets[attachment.attachment_id],
     )
-    monkeypatch.setattr(route_solver, "fair_route", lambda route, *_args, **_kwargs: route)
+    monkeypatch.setitem(
+        solver_namespace,
+        "fair_route",
+        lambda route, *_args, **_kwargs: route,
+    )
 
     routes, legs = route_solver._connection_branch_routes(
         object(),
@@ -209,13 +216,14 @@ def test_connection_refine_spine_uses_selected_external_branch(
         Vector3(0.0, 1.0, 0.0),
     )
     target = replace(guide, origin=Vector3(0.0, 0.0, 10.0))
-    monkeypatch.setattr(
-        refine_graphics,
+    refine_namespace = vars(refine_graphics)
+    monkeypatch.setitem(
+        refine_namespace,
         "connection_profile_frames",
         lambda _design, _connection, _cache: (guide,),
     )
     branch_frames = Mock(return_value=(target, guide))
-    monkeypatch.setattr(refine_graphics, "connection_branch_route_frames", branch_frames)
+    monkeypatch.setitem(refine_namespace, "connection_branch_route_frames", branch_frames)
 
     spine = refine_graphics.build_connection_spine(
         object(),
@@ -237,6 +245,7 @@ def test_undersized_gate_warns_through_public_product_solver(
     Continue public product routing when cable envelopes exceed an aperture.
     """
     from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
@@ -298,8 +307,8 @@ def test_undersized_gate_warns_through_public_product_solver(
             Vector3(0.0, 1.0, 0.0),
         )
 
-    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
-    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)
     notices: list[str] = []
 
@@ -322,6 +331,7 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
     Reuse Preview geometry for Generate while rejecting stale Fusion inputs.
     """
     from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
@@ -352,8 +362,8 @@ def test_reuses_solve_until_resolved_geometry_or_definition_changes(
             Vector3(0.0, 1.0, 0.0),
         )
 
-    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
-    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)
 
     first = route_preview.solve_cable_group_centerlines(design, valid_harness)
@@ -394,6 +404,7 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
     Preserve ordered end settings, reversed junction settings, and the global preset.
     """
     from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
@@ -534,8 +545,8 @@ def test_end_and_junction_interpolation_reaches_every_fairing_stage(
 
     solver_namespace = vars(route_solver)
     monkeypatch.setitem(solver_namespace, "plan_cable_group_routes", lambda _definition: (leg,))
-    monkeypatch.setattr(route_solver, "routing_frame", routing_frame)
-    monkeypatch.setattr(route_solver, "_profile_frame", profile_frame)
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
     monkeypatch.setitem(solver_namespace, "fair_route", capture_fair_route)
     monkeypatch.setitem(solver_namespace, "separate_route_collisions", capture_collision_fairing)
     monkeypatch.setattr(route_solver, "_route_solve_cache", None)

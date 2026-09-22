@@ -232,6 +232,7 @@ class _PaletteLifecycleModule(Protocol):
     has_route_previews: Callable[[object], bool]
     show_route_previews: Callable[..., tuple[object, ...]]
     refresh_route_previews: Callable[..., tuple[str, ...]]
+    refresh_route_previews_with_result: Callable[..., object]
     _log_to_fusion: Callable[[str], None]
     _member_entity_tokens: Callable[[HarnessDefinition, str, UUID], tuple[str, ...]]
     _highlight_member: Callable[[object, str], int]

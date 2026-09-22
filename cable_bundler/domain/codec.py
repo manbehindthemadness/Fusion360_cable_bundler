@@ -6,11 +6,23 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict
-from typing import Any, Optional, Type, TypeVar, cast
+from typing import Any, Optional, cast
 from uuid import UUID
 
+from .codec_support import DefinitionParseError, parse_interpolation
+from .codec_support import optional_float as _optional_float
+from .codec_support import optional_str as _optional_str
+from .codec_support import parse_uuid as _parse_uuid
+from .codec_support import require_enum as _require_enum
+from .codec_support import require_finite_nonnegative_float as _require_finite_nonnegative_float
+from .codec_support import require_float as _require_float
+from .codec_support import require_int as _require_int
+from .codec_support import require_list as _require_list
+from .codec_support import require_mapping as _require_mapping
+from .codec_support import require_str as _require_str
+from .codec_support import require_uuid as _require_uuid
 from .model import (
     SCHEMA_VERSION,
     AttachmentTargetKind,
@@ -26,7 +38,6 @@ from .model import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
-    InterpolationSettings,
     JunctionDefinition,
     JunctionPathwayRelationship,
     PathwayDefinition,
@@ -36,30 +47,6 @@ from .model import (
     StandaloneEndDefinition,
     StripePattern,
 )
-
-EnumType = TypeVar(
-    "EnumType",
-    RoutingMode,
-    ControlKind,
-    PathwayEndpoint,
-    StripePattern,
-    AutoTransitionPreset,
-    AttachmentTargetKind,
-)
-
-
-class DefinitionParseError(ValueError):
-    """
-    Report invalid serialized harness data at a precise field path.
-    """
-
-    def __init__(self, path: str, message: str) -> None:
-        """
-        Initialize a structured parse error.
-        """
-        self.path = path
-        self.reason = message
-        super().__init__(f"{path}: {message}")
 
 
 def dumps(definition: HarnessDefinition) -> str:
@@ -846,160 +833,3 @@ def _parse_cable_group(
         ),
         name=name,
     )
-
-
-def _require_mapping(raw_value: object, path: str) -> Mapping[str, Any]:
-    """
-    Require a mapping with string keys.
-    """
-    if not isinstance(raw_value, Mapping):
-        raise DefinitionParseError(path, "expected an object")
-    if not all(isinstance(key, str) for key in raw_value):
-        raise DefinitionParseError(path, "expected string object keys")
-    return raw_value
-
-
-def _require_value(value: Mapping[str, Any], key: str, path: str) -> object:
-    """
-    Require a named mapping value.
-    """
-    if key not in value:
-        raise DefinitionParseError(path, "missing required field")
-    return value[key]
-
-
-def _require_str(value: Mapping[str, Any], key: str, path: str) -> str:
-    """
-    Require a string field.
-    """
-    raw_value = _require_value(value, key, path)
-    if not isinstance(raw_value, str):
-        raise DefinitionParseError(path, "expected a string")
-    return raw_value
-
-
-def _require_int(value: Mapping[str, Any], key: str, path: str) -> int:
-    """
-    Require an integer field without accepting booleans.
-    """
-    raw_value = _require_value(value, key, path)
-    if isinstance(raw_value, bool) or not isinstance(raw_value, int):
-        raise DefinitionParseError(path, "expected an integer")
-    return raw_value
-
-
-def _require_float(value: Mapping[str, Any], key: str, path: str) -> float:
-    """
-    Require a numeric field without accepting booleans.
-    """
-    raw_value = _require_value(value, key, path)
-    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
-        raise DefinitionParseError(path, "expected a number")
-    return float(raw_value)
-
-
-def _require_finite_nonnegative_float(raw_value: object, path: str) -> float:
-    """
-    Parse one persisted distance that may be zero but must remain finite.
-    """
-    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
-        raise DefinitionParseError(path, "expected a number")
-    parsed = float(raw_value)
-    if not math.isfinite(parsed) or parsed < 0.0:
-        raise DefinitionParseError(path, "expected a finite nonnegative number")
-    return parsed
-
-
-def _optional_float(raw_value: object, path: str) -> Optional[float]:
-    """
-    Parse a nullable finite number.
-    """
-    if raw_value is None:
-        return None
-    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
-        raise DefinitionParseError(path, "expected a number or null")
-    parsed = float(raw_value)
-    if not math.isfinite(parsed):
-        raise DefinitionParseError(path, "expected a finite number or null")
-    return parsed
-
-
-def _optional_str(raw_value: object, path: str) -> Optional[str]:
-    """
-    Parse nullable override text without treating an empty string as inheritance.
-    """
-    if raw_value is None:
-        return None
-    if not isinstance(raw_value, str):
-        raise DefinitionParseError(path, "expected a string or null")
-    return raw_value
-
-
-def _require_list(value: Mapping[str, Any], key: str, path: str) -> Sequence[object]:
-    """
-    Require an array field.
-    """
-    raw_value = _require_value(value, key, path)
-    if not isinstance(raw_value, list):
-        raise DefinitionParseError(path, "expected an array")
-    return raw_value
-
-
-def _require_uuid(value: Mapping[str, Any], key: str, path: str) -> UUID:
-    """
-    Require and parse a UUID string field.
-    """
-    raw_value = _require_value(value, key, path)
-    parsed_uuid = _parse_uuid(raw_value, path)
-    return parsed_uuid
-
-
-def _parse_uuid(raw_value: object, path: str) -> UUID:
-    """
-    Parse a UUID string.
-    """
-    if not isinstance(raw_value, str):
-        raise DefinitionParseError(path, "expected a UUID string")
-    try:
-        parsed_uuid = UUID(raw_value)
-    except ValueError as error:
-        raise DefinitionParseError(path, "invalid UUID") from error
-    return parsed_uuid
-
-
-def _require_enum(
-    enum_type: Type[EnumType],
-    value: Mapping[str, Any],
-    key: str,
-    path: str,
-) -> EnumType:
-    """
-    Require a string matching a supported enum value.
-    """
-    raw_value = _require_str(value, key, path)
-    try:
-        parsed_value = enum_type(raw_value)
-    except ValueError as error:
-        allowed_values = ", ".join(member.value for member in enum_type)
-        raise DefinitionParseError(path, f"expected one of: {allowed_values}") from error
-    return parsed_value
-
-
-def parse_interpolation(raw_value: object, path: str) -> InterpolationSettings:
-    """
-    Parse optional automatic or explicit distances for persistence and UI requests.
-    """
-    value = _require_mapping(raw_value, path)
-    distances = []
-    for field in ("approach_mm", "departure_mm"):
-        raw = value.get(field)
-        if raw is None:
-            distances.append(None)
-            continue
-        number = _require_float(value, field, f"{path}.{field}")
-        try:
-            InterpolationSettings(number)
-        except ValueError as error:
-            raise DefinitionParseError(f"{path}.{field}", str(error)) from error
-        distances.append(number)
-    return InterpolationSettings(*distances)

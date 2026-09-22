@@ -12,6 +12,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
+from .....domain import RefineGeometry
 from .....routing import Vector3
 from ....cable_solids import (
     CableSolidVisibilityState,
@@ -40,6 +41,18 @@ class RefineCommandState:
     solid_visibility: CableSolidVisibilityState = field(
         default_factory=lambda: CableSolidVisibilityState((), ())
     )
+
+
+@dataclass
+class EditRefineCommandState:
+    """
+    Share the edited refine identity and temporary marker across handlers.
+    """
+
+    harness_id: UUID
+    control_id: UUID
+    geometry: RefineGeometry
+    group: Optional[adsk.fusion.CustomGraphicsGroup] = None
 
 
 class SelectionInput(Protocol):

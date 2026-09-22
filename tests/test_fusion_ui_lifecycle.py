@@ -130,7 +130,12 @@ def test_native_command_refreshes_only_changed_routing_geometry(
     fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
     gateway = object()
     reconcile = Mock()
-    refresh = Mock(return_value=("Cable 1 retained its last valid preview.",))
+    refresh = Mock(
+        return_value=SimpleNamespace(
+            warnings=("Cable 1 retained its last valid preview.",),
+            updated_route_count=2,
+        )
+    )
     refresh_solids = Mock(return_value=1)
     send = Mock()
     log = Mock()
@@ -154,7 +159,7 @@ def test_native_command_refreshes_only_changed_routing_geometry(
         "has_route_previews",
         Mock(return_value=previews_active),
     )
-    monkeypatch.setattr(addin_module, "refresh_route_previews", refresh)
+    monkeypatch.setattr(addin_module, "refresh_route_previews_with_result", refresh)
     monkeypatch.setattr(
         addin_module,
         "refresh_changed_generated_cable_groups",
@@ -179,7 +184,10 @@ def test_native_command_refreshes_only_changed_routing_geometry(
         refresh.assert_not_called()
         log.assert_not_called()
     viewport.refresh.assert_called_once_with()
-    send.assert_called_once_with(application)
+    expected_notice = "Updated local routing geometry: 1 generated cable group"
+    if previews_active:
+        expected_notice += " and 2 preview routes"
+    send.assert_called_once_with(application, f"{expected_notice}.")
 
 
 def test_deferred_stripe_restore_event_registers_and_releases(

@@ -260,7 +260,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 16, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 18, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,
