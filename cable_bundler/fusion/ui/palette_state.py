@@ -70,6 +70,7 @@ def _attachment_payload(
         "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,
         "metadata": _metadata_payload(attachment.metadata),
         "connected": connected,
+        "orderedControlIds": [str(control_id) for control_id in attachment.ordered_control_ids],
     }
 
 

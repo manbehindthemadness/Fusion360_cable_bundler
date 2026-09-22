@@ -32,6 +32,7 @@ class RefineCommandState:
     target_id: UUID
     spine: PathwaySpine
     target_kind: str = "pathway"
+    attachment_id: Optional[UUID] = None
     group: Optional[adsk.fusion.CustomGraphicsGroup] = None
     placement: Optional[RefinePlacement] = None
     candidate: Optional[adsk.fusion.CustomGraphicsLines] = None

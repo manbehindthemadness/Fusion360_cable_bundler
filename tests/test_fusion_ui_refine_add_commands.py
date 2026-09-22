@@ -538,6 +538,54 @@ def test_add_refine_execute_finalizes_graphics_inside_transaction(
     assert not args.executeFailed
 
 
+def test_add_connection_refine_execute_targets_selected_node(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Persist placement against the selected external connection-node identity.
+    """
+    geometry = _refine_control().refine_geometry
+    assert geometry is not None
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
+    placement = refine_commands.RefinePlacement(1, geometry)
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    state = addin_module._RefineCommandState(
+        harness_id,
+        connection_id,
+        object(),
+        "connection",
+        attachment_id,
+        placement=placement,
+    )
+    radius = SimpleNamespace(isValidExpression=True, value=1.0)
+    args, _application, refine_commands = _refine_execute_context()
+    args.command.commandInputs = SimpleNamespace(itemById=lambda _identity: radius)
+    core_module = sys.modules["adsk.core"]
+    core_module.DistanceValueCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    add_refine = Mock()
+    gateway = object()
+    monkeypatch.setitem(vars(refine_commands), "add_connection_refine", add_refine)
+    monkeypatch.setitem(vars(refine_commands), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(refine_commands), "_refresh_active_preview", lambda *_args: "")
+    monkeypatch.setitem(vars(refine_commands), "_finalize_refine_graphics", Mock())
+    monkeypatch.setitem(vars(refine_commands), "_send_palette_state", Mock())
+
+    addin_module._RefineExecuteHandler(state).notify(args)
+
+    add_refine.assert_called_once_with(
+        harness_id,
+        connection_id,
+        attachment_id,
+        0,
+        geometry,
+        gateway,
+    )
+    assert not args.executeFailed
+
+
 def test_add_refine_destroy_restores_solids_and_releases_handlers(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

@@ -64,6 +64,7 @@ def attach_cable_end(
         attachment_id=attachment_id,
         name=attachment.name or existing.name,
         metadata=existing.metadata,
+        ordered_control_ids=existing.ordered_control_ids,
     )
     updated_connection = _replace_cable_end_attachment(
         connection, attachment_id, completed_attachment
@@ -196,7 +197,7 @@ def remove_cable_end_attachment(
     )
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
-    _cable_end_attachment(connection, attachment_id)
+    removed_attachment = _cable_end_attachment(connection, attachment_id)
     remaining = tuple(
         attachment
         for attachment in connection.attachments
@@ -209,6 +210,11 @@ def remove_cable_end_attachment(
     )
     updated = replace(
         definition,
+        controls=tuple(
+            control
+            for control in definition.controls
+            if control.control_id not in removed_attachment.ordered_control_ids
+        ),
         connections=tuple(
             updated_connection if item.connection_id == connection_id else item
             for item in definition.connections
@@ -519,6 +525,82 @@ def add_end_refine(
     return control
 
 
+# noinspection DuplicatedCode
+def add_connection_refine(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    insertion_index: int,
+    geometry: RefineGeometry,
+    gateway: HarnessEditGateway,
+    id_factory: Callable[[], UUID] = uuid4,
+) -> ControlStructure:
+    """
+    Insert an unconstrained refine between one external target and its end guide.
+    """
+    if isinstance(insertion_index, bool) or not isinstance(insertion_index, int):
+        raise ValueError("Connection refine insertion position must be an integer.")
+    if not isinstance(geometry, RefineGeometry):
+        raise ValueError("Refine geometry is invalid.")
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    if not attachment.has_target:
+        raise ValueError("Connect this node before refining its routing span.")
+    if not 0 <= insertion_index <= len(attachment.ordered_control_ids):
+        raise ValueError("Connection refine insertion position is outside its routing span.")
+    control = ControlStructure(
+        control_id=id_factory(),
+        name=next_available_name("Refine Point 01", (item.name for item in definition.controls)),
+        kind=ControlKind.REFINE,
+        entity_token="",
+        interpolation=definition.gate_defaults,
+        refine_geometry=geometry,
+    )
+    existing_ids = {
+        definition.harness_id,
+        *(item.connection_id for item in definition.connections),
+        *(member_id for item in definition.connections for member_id in item.member_identities),
+        *(
+            item.attachment_id
+            for candidate in definition.connections
+            for item in candidate.attachments
+        ),
+        *(item.control_id for item in definition.controls),
+        *(pathway.pathway_id for pathway in definition.pathways),
+        *(junction.junction_id for junction in definition.junctions),
+        *(group.cable_group_id for group in definition.cable_groups),
+    }
+    if control.control_id in existing_ids:
+        raise ValueError("Generated refine identity is already in use.")
+    ordered_control_ids = list(attachment.ordered_control_ids)
+    ordered_control_ids.insert(insertion_index, control.control_id)
+    updated_attachment = replace(
+        attachment,
+        ordered_control_ids=tuple(ordered_control_ids),
+    )
+    updated_connection = _replace_cable_end_attachment(
+        connection,
+        attachment_id,
+        updated_attachment,
+    )
+    updated = replace(
+        definition,
+        controls=(*definition.controls, control),
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return control
+
+
 def remove_standalone_end(
     harness_id: UUID,
     connection_id: UUID,
@@ -536,7 +618,19 @@ def remove_standalone_end(
     )
     if removed_end is None:
         raise ValueError("Selected standalone end does not exist in this harness.")
-    removed_control_ids = set(removed_end.ordered_control_ids)
+    removed_connection = next(
+        (
+            connection
+            for connection in definition.connections
+            if connection.connection_id == connection_id
+        ),
+        None,
+    )
+    removed_control_ids = set(removed_end.ordered_control_ids) | {
+        control_id
+        for attachment in (removed_connection.attachments if removed_connection is not None else ())
+        for control_id in attachment.ordered_control_ids
+    }
     updated = replace(
         definition,
         controls=tuple(

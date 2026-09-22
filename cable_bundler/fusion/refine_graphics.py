@@ -28,6 +28,7 @@ from ..routing import (
 from ..routing.geometry import cross, difference, dot, magnitude, unit
 from .route_preview_parts.solver import (
     ProfileFrame,
+    connection_branch_route_frames,
     connection_profile_frames,
     routing_frame,
 )
@@ -155,6 +156,51 @@ def build_end_spine(
         ),
         routing_frame(design, controls.get(boundary_control_id), boundary_control_id),
     )
+    return PathwaySpine(tuple(frame.origin for frame in frames), frames)
+
+
+def build_connection_spine(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    connection_id: UUID,
+    attachment_id: UUID,
+) -> PathwaySpine:
+    """
+    Build the external span from one connected target to its clock-face guide origin.
+    """
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist in this harness.")
+    attachment = next(
+        (item for item in connection.attachments if item.attachment_id == attachment_id),
+        None,
+    )
+    if attachment is None or not attachment.has_target:
+        raise ValueError("Selected connection does not have target geometry.")
+    group = next(
+        (item for item in definition.cable_groups if connection_id in item.connection_ids),
+        None,
+    )
+    if group is None:
+        raise ValueError("Selected connection is not assigned to a cable group.")
+    guide = connection_profile_frames(design, connection, {})[0]
+    frames = connection_branch_route_frames(
+        design,
+        connection,
+        attachment,
+        guide,
+        connection.attachments.index(attachment),
+        len(connection.attachments),
+        group.diameter_mm,
+        {control.control_id: control for control in definition.controls},
+        {},
+        {},
+    )
+    if len(frames) < 2:
+        raise ValueError("Selected connection does not have resolvable route geometry.")
     return PathwaySpine(tuple(frame.origin for frame in frames), frames)
 
 

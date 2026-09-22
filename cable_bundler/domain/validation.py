@@ -410,6 +410,64 @@ def _validate_standalone_ends(
     }
     junction_control_ids = {junction.control_id for junction in definition.junctions}
     owned_control_paths: dict[UUID, str] = {}
+    for connection_index, connection in enumerate(definition.connections):
+        for attachment_index, attachment in enumerate(connection.attachments):
+            attachment_path = (
+                f"connections[{connection_index}].attachment"
+                if attachment_index == 0
+                else (
+                    f"connections[{connection_index}].additional_attachments"
+                    f"[{attachment_index - 1}]"
+                )
+            )
+            if attachment.ordered_control_ids and not attachment.has_target:
+                issues.append(
+                    ValidationIssue(
+                        "unattached_connection_controls",
+                        f"{attachment_path}.ordered_control_ids",
+                        "A connection requires target geometry before it can own refines.",
+                    )
+                )
+            seen_attachment_controls: set[UUID] = set()
+            for control_index, control_id in enumerate(attachment.ordered_control_ids):
+                control_path = f"{attachment_path}.ordered_control_ids[{control_index}]"
+                control = controls.get(control_id)
+                if control is None:
+                    issues.append(
+                        ValidationIssue(
+                            "missing_connection_control_reference",
+                            control_path,
+                            "Referenced connection refine does not exist.",
+                        )
+                    )
+                elif control.kind is not ControlKind.REFINE:
+                    issues.append(
+                        ValidationIssue(
+                            "connection_control_kind_mismatch",
+                            control_path,
+                            "Connection-owned controls must be refine points.",
+                        )
+                    )
+                if control_id in pathway_control_ids or control_id in junction_control_ids:
+                    issues.append(
+                        ValidationIssue(
+                            "shared_connection_control",
+                            control_path,
+                            "A connection-owned refine must not belong to a pathway or junction.",
+                        )
+                    )
+                previous_path = owned_control_paths.get(control_id)
+                if control_id in seen_attachment_controls or previous_path is not None:
+                    issues.append(
+                        ValidationIssue(
+                            "duplicate_connection_control",
+                            control_path,
+                            "A connection refine may appear only once.",
+                        )
+                    )
+                else:
+                    seen_attachment_controls.add(control_id)
+                    owned_control_paths[control_id] = control_path
     seen_connections: dict[UUID, str] = {}
     for index, end in enumerate(definition.standalone_ends):
         path = f"standalone_ends[{index}]"

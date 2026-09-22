@@ -85,11 +85,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, 16, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, 17, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 16 are migratable)",
+            "(schemas 12 through 17 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -292,6 +292,7 @@ def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
         "parameters": list(attachment.parameters),
         "metadata": _metadata_to_list(attachment.metadata),
         "attachment_id": str(attachment.attachment_id),
+        "ordered_control_ids": [str(control_id) for control_id in attachment.ordered_control_ids],
     }
 
 
@@ -643,6 +644,16 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
                 _require_uuid(value, "attachment_id", f"{path}.attachment_id")
                 if "attachment_id" in value
                 else UUID(int=0)
+            ),
+            ordered_control_ids=tuple(
+                _parse_uuid(control_id, f"{path}.ordered_control_ids[{index}]")
+                for index, control_id in enumerate(
+                    _require_list(
+                        {"ordered_control_ids": [], **value},
+                        "ordered_control_ids",
+                        f"{path}.ordered_control_ids",
+                    )
+                )
             ),
         )
     except ValueError as error:

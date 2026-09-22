@@ -158,6 +158,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "nameOverride": "",
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
+        "orderedControlIds": [],
     }
     assert connection["attachments"] == [connection["attachment"]]
     assert payload["harnesses"][0]["connections"][1]["attachment"] == {
@@ -167,6 +168,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "nameOverride": "",
         "targetKind": None,
         "metadata": [],
+        "orderedControlIds": [],
     }
 
 

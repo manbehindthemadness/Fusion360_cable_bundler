@@ -873,6 +873,14 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(labels.some((node) => node.textContent === 'J1 socket'), true);
   assert.equal(labels.some((node) => node.textContent === 'Connected'), true);
   assert.equal(attachmentNode.dataset.connected, 'true');
+  menu = details.querySelector('.relationship-map-context-menu');
+  attachmentNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
+  });
+  menu.children.find((item) => item.textContent === 'Refine').events.click();
+  assert.equal(calls[2].action, 'add_connection_refine');
+  assert.equal(calls[2].payload.connectionId, 'a1');
+  assert.equal(calls[2].payload.attachmentId, 'connection-2');
   connectedAttachment.connected = false;
   context.openCableGroupDetails(definition, 'g1', 'a1');
   details = context.document.body.querySelector('.cable-group-details-popup');
@@ -889,16 +897,17 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
   });
+  assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
   menu.children.find((item) => item.textContent === 'Rename').events.click();
   const renameDialog = context.document.body.querySelector('.connection-name-popup');
   const input = renameDialog.querySelector('input');
   assert.equal(input.placeholder, 'J1 socket');
   input.value = 'Bulkhead pin';
   renameDialog.querySelector('form').events.submit({ preventDefault() {} });
-  assert.equal(calls[2].action, 'rename_cable_end_attachment');
-  assert.equal(calls[2].payload.connectionId, 'a1');
-  assert.equal(calls[2].payload.attachmentId, 'connection-2');
-  assert.equal(calls[2].payload.name, 'Bulkhead pin');
+  assert.equal(calls[3].action, 'rename_cable_end_attachment');
+  assert.equal(calls[3].payload.connectionId, 'a1');
+  assert.equal(calls[3].payload.attachmentId, 'connection-2');
+  assert.equal(calls[3].payload.name, 'Bulkhead pin');
 
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
@@ -911,10 +920,10 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(metadataFields.length, 2);
   metadataFields[1].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
-  assert.equal(calls[3].action, 'set_cable_end_attachment_properties');
-  assert.equal(calls[3].payload.connectionId, 'a1');
-  assert.equal(calls[3].payload.attachmentId, 'connection-2');
-  assert.equal(JSON.stringify(calls[3].payload.metadata), JSON.stringify([
+  assert.equal(calls[4].action, 'set_cable_end_attachment_properties');
+  assert.equal(calls[4].payload.connectionId, 'a1');
+  assert.equal(calls[4].payload.attachmentId, 'connection-2');
+  assert.equal(JSON.stringify(calls[4].payload.metadata), JSON.stringify([
     { key: 'connector', value: 'J2' },
   ]));
 
@@ -922,9 +931,9 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
   });
   menu.children.find((item) => item.textContent === 'Delete').events.click();
-  assert.equal(calls[4].action, 'remove_cable_end_attachment');
-  assert.equal(calls[4].payload.connectionId, 'a1');
-  assert.equal(calls[4].payload.attachmentId, 'connection-2');
+  assert.equal(calls[5].action, 'remove_cable_end_attachment');
+  assert.equal(calls[5].payload.connectionId, 'a1');
+  assert.equal(calls[5].payload.attachmentId, 'connection-2');
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {

@@ -166,7 +166,7 @@ def _open_refine_command(application: adsk.core.Application, serialized_data: st
     )
     if command_definition is None:
         raise RuntimeError("Fusion Add Refine Point command is unavailable.")
-    _runtime.pending_refine.prepare(("pathway", harness_id, pathway_id))
+    _runtime.pending_refine.prepare(("pathway", harness_id, pathway_id, None))
     try:
         if not command_definition.execute():
             raise RuntimeError("Fusion did not open the Add Refine Point command.")
@@ -214,7 +214,32 @@ def _open_end_refine_command(
     )
     if command_definition is None:
         raise RuntimeError("Fusion Add Refine Point command is unavailable.")
-    _runtime.pending_refine.prepare(("end", harness_id, connection_id))
+    _runtime.pending_refine.prepare(("end", harness_id, connection_id, None))
+    try:
+        if not command_definition.execute():
+            raise RuntimeError("Fusion did not open the Add Refine Point command.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_refine.clear()
+        raise
+
+
+def _open_connection_refine_command(
+    application: adsk.core.Application,
+    serialized_data: str,
+) -> None:
+    """
+    Open interactive refine placement for one external connection span.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
+    attachment_id = _read_payload_uuid(payload, "attachmentId", "connection node")
+    command_definition = application.userInterface.commandDefinitions.itemById(
+        ADD_REFINE_COMMAND_ID
+    )
+    if command_definition is None:
+        raise RuntimeError("Fusion Add Refine Point command is unavailable.")
+    _runtime.pending_refine.prepare(("connection", harness_id, connection_id, attachment_id))
     try:
         if not command_definition.execute():
             raise RuntimeError("Fusion did not open the Add Refine Point command.")

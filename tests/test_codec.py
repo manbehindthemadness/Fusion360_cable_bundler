@@ -170,7 +170,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 18])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 19])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -251,6 +251,33 @@ def test_migrates_schema_15_with_detached_cable_ends(
 
     assert migrated.schema_version == SCHEMA_VERSION
     assert all(connection.attachment is None for connection in migrated.connections)
+
+
+def test_migrates_schema_17_with_empty_connection_controls(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve external targets when connection-owned refines are introduced.
+    """
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "target-token",
+        "Target",
+        attachment_id=UUID(int=81),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 17
+    del payload["connections"][0]["attachment"]["ordered_control_ids"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.connections[0].attachment is not None
+    assert migrated.connections[0].attachment.ordered_control_ids == ()
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

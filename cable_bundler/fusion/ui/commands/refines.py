@@ -16,6 +16,7 @@ import adsk.core
 import adsk.fusion
 
 from ....application import (
+    add_connection_refine,
     add_end_refine,
     add_pathway_refine,
     load_harnesses,
@@ -29,6 +30,7 @@ from ...cable_solids import (
 from ...refine_graphics import (
     REFINE_GRAPHICS_GROUP_ID,
     REFINE_SPINE_ENTITY_ID,
+    build_connection_spine,
     build_end_spine,
     build_pathway_spine,
     clear_refine_spine,
@@ -355,6 +357,17 @@ class _RefineExecuteHandler(adsk.core.CommandEventHandler):
                     placement.geometry,
                     gateway,
                 )
+            elif self._state.target_kind == "connection":
+                if self._state.attachment_id is None:
+                    raise RuntimeError("Connection refine identity is unavailable.")
+                add_connection_refine(
+                    self._state.harness_id,
+                    self._state.target_id,
+                    self._state.attachment_id,
+                    placement.insertion_index - 1,
+                    placement.geometry,
+                    gateway,
+                )
             else:
                 add_pathway_refine(
                     self._state.harness_id,
@@ -414,16 +427,24 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
         try:
             if pending_ids is None:
                 raise RuntimeError("No routing span was selected for refine placement.")
-            target_kind, harness_id, target_id = pending_ids
+            target_kind, harness_id, target_id, attachment_id = pending_ids
             application = adsk.core.Application.get()
             design = _require_active_design(application)
             gateway = _create_harness_gateway(application)
             definition = loads(gateway.read_harness_definition(harness_id))
-            spine = (
-                build_end_spine(design, definition, target_id)
-                if target_kind == "end"
-                else build_pathway_spine(design, definition, target_id)
-            )
+            if target_kind == "end":
+                spine = build_end_spine(design, definition, target_id)
+            elif target_kind == "connection":
+                if attachment_id is None:
+                    raise RuntimeError("Connection refine identity is unavailable.")
+                spine = build_connection_spine(
+                    design,
+                    definition,
+                    target_id,
+                    attachment_id,
+                )
+            else:
+                spine = build_pathway_spine(design, definition, target_id)
             selection_input = args.command.commandInputs.addSelectionInput(
                 REFINE_SPINE_INPUT_ID,
                 "Routing Point",
@@ -436,7 +457,13 @@ class _RefineCreatedHandler(adsk.core.CommandCreatedEventHandler):
             radius_input = _add_refine_radius_input(args.command.commandInputs)
             radius_input.isVisible = False
             radius_input.isEnabled = False
-            command_state = _RefineCommandState(harness_id, target_id, spine, target_kind)
+            command_state = _RefineCommandState(
+                harness_id,
+                target_id,
+                spine,
+                target_kind,
+                attachment_id,
+            )
             state = command_state
             activate_handler = _RefineActivateHandler(selection_input)
             preselect_handler = _RefinePreSelectHandler(command_state)

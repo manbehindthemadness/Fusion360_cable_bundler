@@ -163,6 +163,7 @@ def _append_route_control(
     )
 
 
+# noinspection DuplicatedCode
 def solve_cable_group_routes(
     design: adsk.fusion.Design,
     definition: HarnessDefinition,
@@ -210,6 +211,13 @@ def solve_cable_group_routes(
                 raise RuntimeError(f"{leg.label} references a missing {position} connection.")
             member_frames = connection_profile_frames(design, connection, profile_frames)
             for attachment in connection.attachments:
+                for control_id in attachment.ordered_control_ids:
+                    if control_id not in frames:
+                        frames[control_id] = routing_frame(
+                            design,
+                            controls.get(control_id),
+                            control_id,
+                        )
                 connection_attachment_frame(
                     design,
                     connection,
@@ -281,16 +289,32 @@ def solve_cable_group_routes(
             connection = connections.get(leg.start_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing start connection.")
-            connection_frames = connection_route_frames(design, connection, profile_frames)
+            connection_frames = connection_route_frames(
+                design,
+                connection,
+                frames,
+                profile_frames,
+            )
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
+            attachment_control_ids = (
+                connection.attachments[0].ordered_control_ids if has_attachment_frame else ()
+            )
             start_frames = connection_frames
             points.extend(frame.origin for frame in connection_frames)
             normals.extend(frame.normal for frame in connection_frames)
             start_transitions = (
-                (TransitionLengths(None, None),) if has_attachment_frame else ()
-            ) + tuple(
-                TransitionLengths(settings.approach_mm, settings.departure_mm)
-                for settings in connection.member_settings
+                ((TransitionLengths(None, None),) if has_attachment_frame else ())
+                + tuple(
+                    TransitionLengths(
+                        controls[control_id].interpolation.approach_mm,
+                        controls[control_id].interpolation.departure_mm,
+                    )
+                    for control_id in attachment_control_ids
+                )
+                + tuple(
+                    TransitionLengths(settings.approach_mm, settings.departure_mm)
+                    for settings in connection.member_settings
+                )
             )
             transitions.extend(start_transitions)
             point_control_ids.extend((None,) * len(connection_frames))
@@ -353,13 +377,29 @@ def solve_cable_group_routes(
             connection = connections.get(leg.end_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
-            connection_frames = connection_route_frames(design, connection, profile_frames)
+            connection_frames = connection_route_frames(
+                design,
+                connection,
+                frames,
+                profile_frames,
+            )
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
+            attachment_control_ids = (
+                connection.attachments[0].ordered_control_ids if has_attachment_frame else ()
+            )
             native_end_transitions = (
-                (TransitionLengths(None, None),) if has_attachment_frame else ()
-            ) + tuple(
-                TransitionLengths(settings.approach_mm, settings.departure_mm)
-                for settings in connection.member_settings
+                ((TransitionLengths(None, None),) if has_attachment_frame else ())
+                + tuple(
+                    TransitionLengths(
+                        controls[control_id].interpolation.approach_mm,
+                        controls[control_id].interpolation.departure_mm,
+                    )
+                    for control_id in attachment_control_ids
+                )
+                + tuple(
+                    TransitionLengths(settings.approach_mm, settings.departure_mm)
+                    for settings in connection.member_settings
+                )
             )
             end_points = _connection_profile_points(
                 connection_frames,
@@ -379,8 +419,16 @@ def solve_cable_group_routes(
                 TransitionLengths(settings.departure_mm, settings.approach_mm)
                 for settings in reversed(connection.member_settings)
             )
+            reversed_attachment_transitions = tuple(
+                TransitionLengths(
+                    controls[control_id].interpolation.departure_mm,
+                    controls[control_id].interpolation.approach_mm,
+                )
+                for control_id in reversed(attachment_control_ids)
+            )
             transitions.extend(
                 reversed_member_transitions
+                + reversed_attachment_transitions
                 + ((TransitionLengths(None, None),) if has_attachment_frame else ())
             )
         if len(points) < 2:
@@ -479,6 +527,8 @@ def solve_cable_group_routes(
         design,
         definition,
         connections,
+        controls,
+        frames,
         profile_frames,
         auto_transition_fraction,
     )
@@ -502,6 +552,8 @@ def _connection_branch_routes(
     design: adsk.fusion.Design,
     definition: HarnessDefinition,
     connections: dict[UUID, Connection],
+    controls: dict[UUID, ControlStructure],
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
     auto_transition_fraction: float,
 ) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
@@ -518,31 +570,45 @@ def _connection_branch_routes(
             guide = connection_profile_frames(design, connection, cache)[0]
             branch_diameter_mm = group.diameter_mm / len(connection.attachments)
             for index, attachment in enumerate(connection.attachments):
-                target = connection_attachment_frame(
+                branch_frames = connection_branch_route_frames(
                     design,
                     connection,
                     attachment,
                     guide,
+                    index,
+                    len(connection.attachments),
+                    group.diameter_mm,
+                    controls,
+                    frames,
                     cache,
                 )
-                if target is None:
+                if not branch_frames:
                     continue
                 route_id = uuid5(
                     attachment.attachment_id,
                     f"{group.cable_group_id}:{connection_id}:connection-branch",
                 )
-                origin = _clockface_branch_origin(
-                    guide,
-                    index,
-                    len(connection.attachments),
-                    group.diameter_mm,
-                    branch_diameter_mm,
-                )
                 label = f"{group.name or 'Cable group'} · {attachment.display_name}"
-                raw_route = RoutePreview(route_id, label, (target.origin, origin))
+                raw_route = RoutePreview(
+                    route_id,
+                    label,
+                    tuple(frame.origin for frame in branch_frames),
+                )
+                transitions = (
+                    TransitionLengths(None, None),
+                    *(
+                        TransitionLengths(
+                            controls[control_id].interpolation.approach_mm,
+                            controls[control_id].interpolation.departure_mm,
+                        )
+                        for control_id in attachment.ordered_control_ids
+                    ),
+                    TransitionLengths(None, None),
+                )
                 route = fair_route(
                     raw_route,
-                    (target.normal, guide.normal),
+                    tuple(frame.normal for frame in branch_frames),
+                    transitions,
                     minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
                     auto_transition_fraction=auto_transition_fraction,
                 )
@@ -561,6 +627,61 @@ def _connection_branch_routes(
                     )
                 )
     return tuple(routes), tuple(legs)
+
+
+def connection_branch_route_frames(
+    design: adsk.fusion.Design,
+    connection: Connection,
+    attachment: CableEndAttachment,
+    guide: ProfileFrame,
+    index: int,
+    count: int,
+    parent_diameter_mm: float,
+    controls: dict[UUID, ControlStructure],
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
+    cache: dict[str, ProfileFrame],
+) -> tuple[ProfileFrame, ...]:
+    """
+    Resolve one external branch from its target through owned refines to its guide origin.
+    """
+    target = connection_attachment_frame(design, connection, attachment, guide, cache)
+    if target is None:
+        return ()
+    refine_frames: list[ProfileFrame] = []
+    for control_id in attachment.ordered_control_ids:
+        frame = frames.get(control_id)
+        if frame is None:
+            frame = routing_frame(design, controls.get(control_id), control_id)
+            frames[control_id] = frame
+        refine_frames.append(_routing_profile_frame(frame))
+    branch_diameter_mm = parent_diameter_mm / count
+    origin = _clockface_branch_origin(
+        guide,
+        index,
+        count,
+        parent_diameter_mm,
+        branch_diameter_mm,
+    )
+    origin_frame = ProfileFrame(
+        origin,
+        guide.normal,
+        guide.u_direction,
+        guide.v_direction,
+    )
+    return target, *refine_frames, origin_frame
+
+
+def _routing_profile_frame(frame: Union[GateFrame, RefineFrame]) -> ProfileFrame:
+    """
+    Project a saved routing control into the common profile-frame contract.
+    """
+    return ProfileFrame(
+        frame.origin,
+        unit(cross(frame.u_direction, frame.v_direction)),
+        frame.u_direction,
+        frame.v_direction,
+        frame.usable_radius_mm if isinstance(frame, GateFrame) else None,
+    )
 
 
 def _clockface_branch_origin(
@@ -598,24 +719,31 @@ def connection_profile_frames(
 def connection_route_frames(
     design: adsk.fusion.Design,
     connection: Connection,
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
 ) -> tuple[ProfileFrame, ...]:
     """
     Prepend one resolved external attachment to the end's native guide frames.
     """
     member_frames = connection_profile_frames(design, connection, cache)
+    attachment = connection.attachments[0] if len(connection.attachments) == 1 else None
     attachment_frame = (
         connection_attachment_frame(
             design,
             connection,
-            connection.attachments[0],
+            attachment,
             member_frames[0],
             cache,
         )
-        if len(connection.attachments) == 1
+        if attachment is not None
         else None
     )
-    return (attachment_frame, *member_frames) if attachment_frame is not None else member_frames
+    if attachment_frame is None or attachment is None:
+        return member_frames
+    refine_frames = tuple(
+        _routing_profile_frame(frames[control_id]) for control_id in attachment.ordered_control_ids
+    )
+    return attachment_frame, *refine_frames, *member_frames
 
 
 def connection_attachment_frame(

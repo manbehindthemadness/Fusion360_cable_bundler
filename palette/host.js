@@ -294,6 +294,22 @@ async function addEndRefine(harness, connectionId) {
   }
 }
 
+async function addConnectionRefine(harness, connectionId, attachmentId) {
+  appendNotice("Select a refine location on this connection’s routing span…");
+  try {
+    const response = await send("add_connection_refine", {
+      harnessId: harness.harnessId,
+      connectionId,
+      attachmentId,
+    });
+    if (!response.ok) {
+      appendNotice(response.error || "Add Refine Point could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
 async function segmentPathway(harness, pathway) {
   appendNotice(`Select an interior control on ${pathway.name}…`);
   try {

@@ -42,6 +42,7 @@ from .launchers import (
     _open_append_end_guides_command,
     _open_append_gates_command,
     _open_attach_cable_end_command,
+    _open_connection_refine_command,
     _open_end_refine_command,
     _open_palette_edit,
     _open_refine_command,
@@ -99,7 +100,10 @@ _PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refi
 _PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
 _CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)
 _PALETTE_EDIT_POLICIES["add_cable_end_connection"] = _CONNECTION_GEOMETRY_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = _CONNECTION_GEOMETRY_EDIT_POLICY
+_PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = PaletteEditPolicy(
+    reconcile_refines=True,
+    refresh_connection_geometry=True,
+)
 _PALETTE_EDIT_POLICIES["remove_pathway"] = PaletteEditPolicy(reconcile_refines=True)
 _PALETTE_EDIT_POLICIES["remove_junction"] = PaletteEditPolicy(reconcile_refines=True)
 _MATERIAL_EDIT_POLICY = PaletteEditPolicy(
@@ -153,6 +157,9 @@ _NATIVE_DIALOG_ACTIONS: dict[
     ),
     "add_pathway_refine": lambda application, data: _open_refine_command(application, data),
     "add_end_refine": lambda application, data: _open_end_refine_command(application, data),
+    "add_connection_refine": lambda application, data: _open_connection_refine_command(
+        application, data
+    ),
     "segment_pathway": lambda application, data: _open_segment_command(application, data),
     "edit_pathway_refine": _launch_refine_edit,
 }

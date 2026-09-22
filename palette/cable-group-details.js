@@ -709,6 +709,12 @@ function cableGroupAttachmentContextItems(harness, attachment) {
       disabled: Boolean(attachment.targetKind),
       title: attachment.targetKind ? "This connection already has a target" : "",
     },
+    ...(attachment.connected ? [{
+      label: "Refine",
+      action: () => addConnectionRefine(
+        harness, attachment.connectionId, attachment.attachmentId,
+      ),
+    }] : []),
     {
       label: "Rename",
       action: () => renameCableGroupAttachment(harness, attachment),

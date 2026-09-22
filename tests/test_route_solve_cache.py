@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from typing import Any
+from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
@@ -70,7 +71,7 @@ def test_attached_connection_prepends_external_contact_frame(
         lambda _design, _attachment, _adjacent: target_frame,
     )
 
-    frames = route_solver.connection_route_frames(object(), connection, {})
+    frames = route_solver.connection_route_frames(object(), connection, {}, {})
 
     assert frames == (target_frame, member_frame)
 
@@ -86,11 +87,13 @@ def test_multiple_connections_create_divided_clockface_branches(
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
 
     del addin_module
+    refine_id = UUID(int=90)
     first = CableEndAttachment(
         AttachmentTargetKind.JOINT_ORIGIN,
         "target-1",
         "Target 1",
         attachment_id=UUID(int=91),
+        ordered_control_ids=(refine_id,),
     )
     second = CableEndAttachment(
         AttachmentTargetKind.JOINT_ORIGIN,
@@ -106,6 +109,21 @@ def test_multiple_connections_create_divided_clockface_branches(
     definition = replace(
         valid_harness,
         connections=(connection, valid_harness.connections[1]),
+        controls=(
+            *valid_harness.controls,
+            ControlStructure(
+                refine_id,
+                "Connection Refine",
+                ControlKind.REFINE,
+                "",
+                refine_geometry=RefineGeometry(
+                    (0.0, 2.0, 5.0),
+                    (1.0, 0.0, 0.0),
+                    (0.0, 1.0, 0.0),
+                    2.0,
+                ),
+            ),
+        ),
     )
     guide = route_solver.ProfileFrame(
         Vector3(0.0, 0.0, 0.0),
@@ -117,6 +135,13 @@ def test_multiple_connections_create_divided_clockface_branches(
         first.attachment_id: replace(guide, origin=Vector3(-5.0, 0.0, 10.0)),
         second.attachment_id: replace(guide, origin=Vector3(5.0, 0.0, 10.0)),
     }
+    refine_frame = RefineFrame(
+        refine_id,
+        "Connection Refine",
+        Vector3(0.0, 2.0, 5.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
     monkeypatch.setattr(
         route_solver,
         "connection_profile_frames",
@@ -133,6 +158,8 @@ def test_multiple_connections_create_divided_clockface_branches(
         object(),
         definition,
         {item.connection_id: item for item in definition.connections},
+        {item.control_id: item for item in definition.controls},
+        {refine_id: refine_frame},
         {},
         definition.auto_transition_preset.span_fraction,
     )
@@ -144,11 +171,61 @@ def test_multiple_connections_create_divided_clockface_branches(
         group.diameter_mm / 2.0,
     )
     assert all(leg.is_connection_branch for leg in legs)
+    assert routes[0].points[1] == refine_frame.origin
     origins = tuple(route.points[-1] for route in routes)
     branch_radius = group.diameter_mm / 4.0
     assert tuple(
         coordinate for point in origins for coordinate in (point.x, point.y, point.z)
     ) == pytest.approx((0.0, branch_radius, 0.0, 0.0, -branch_radius, 0.0))
+
+
+def test_connection_refine_spine_uses_selected_external_branch(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Present the selected target-to-guide branch as the native refine-placement spine.
+    """
+    from cable_bundler.fusion import refine_graphics
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "target-token",
+        "Target",
+        attachment_id=UUID(int=93),
+    )
+    connection = replace(valid_harness.connections[0], attachment=attachment)
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+    )
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    target = replace(guide, origin=Vector3(0.0, 0.0, 10.0))
+    monkeypatch.setattr(
+        refine_graphics,
+        "connection_profile_frames",
+        lambda _design, _connection, _cache: (guide,),
+    )
+    branch_frames = Mock(return_value=(target, guide))
+    monkeypatch.setattr(refine_graphics, "connection_branch_route_frames", branch_frames)
+
+    spine = refine_graphics.build_connection_spine(
+        object(),
+        definition,
+        connection.connection_id,
+        attachment.attachment_id,
+    )
+
+    assert spine.points == (target.origin, guide.origin)
+    assert branch_frames.call_args.args[1:4] == (connection, attachment, guide)
 
 
 def test_undersized_gate_warns_through_public_product_solver(

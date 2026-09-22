@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -417,6 +417,7 @@ class CableEndAttachment:
     parameters: tuple[float, ...] = ()
     metadata: Metadata = ()
     attachment_id: UUID = UUID(int=0)
+    ordered_control_ids: tuple[UUID, ...] = ()
 
     def __post_init__(self) -> None:
         """
@@ -453,6 +454,14 @@ class CableEndAttachment:
         _validate_metadata(self.metadata, "Cable-end connection metadata")
         if not isinstance(self.attachment_id, UUID):
             raise ValueError("Cable-end connection identity is invalid.")
+        if not isinstance(self.ordered_control_ids, tuple) or any(
+            not isinstance(control_id, UUID) for control_id in self.ordered_control_ids
+        ):
+            raise ValueError("Cable-end connection controls must be an ordered UUID tuple.")
+        if len(set(self.ordered_control_ids)) != len(self.ordered_control_ids):
+            raise ValueError("Cable-end connection controls must be unique.")
+        if self.ordered_control_ids and not self.has_target:
+            raise ValueError("A cable-end connection requires a target before it can own controls.")
 
     @property
     def display_name(self) -> str:
