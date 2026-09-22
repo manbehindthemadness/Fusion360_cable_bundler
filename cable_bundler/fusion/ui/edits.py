@@ -17,6 +17,8 @@ from ...application import (
     CableEditorRename,
     HarnessEditGateway,
     add_cable_end_connection,
+    disconnect_cable_end_main,
+    disconnect_cable_end_shielding,
     move_pathway_gate,
     remove_cable_end_attachment,
     remove_end_control,
@@ -65,6 +67,7 @@ from .support import _create_harness_gateway
 _TOPOLOGY_ACTIONS = frozenset(
     (
         "add_cable_end_connection",
+        "disconnect_cable_end_relationship",
         "move_pathway_gate",
         "remove_junction_relationship",
         "update_junction_relationships",
@@ -119,6 +122,21 @@ def _apply_topology_edit(
             parent_attachment_id=parent_attachment_id,
         )
         return "Added cable-end connection."
+    if action == "disconnect_cable_end_relationship":
+        relationship = payload.get("relationship")
+        if relationship not in {"main", "shielding"}:
+            raise ValueError("Cable-end relationship kind is invalid.")
+        arguments = (
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
+            gateway,
+        )
+        if relationship == "main":
+            disconnect_cable_end_main(*arguments)
+        else:
+            disconnect_cable_end_shielding(*arguments)
+        return f"Disconnected cable-end {relationship} relationship."
     if action == "move_pathway_gate":
         move_pathway_gate(
             harness_id,

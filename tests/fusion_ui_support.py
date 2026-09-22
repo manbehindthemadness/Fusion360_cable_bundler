@@ -189,6 +189,8 @@ class _PaletteLifecycleModule(Protocol):
     _show_palette: Callable[[object], None]
     _create_harness_gateway: Callable[[object], object]
     add_cable_end_connection: Callable[[UUID, UUID, object], None]
+    disconnect_cable_end_main: Callable[[UUID, UUID, UUID, object], None]
+    disconnect_cable_end_shielding: Callable[[UUID, UUID, UUID, object], None]
     remove_standalone_end: Callable[[UUID, UUID, object], None]
     remove_cable_end_attachment: Callable[[UUID, UUID, UUID, object], None]
     rename_cable_end_attachment: Callable[[UUID, UUID, UUID, str, object], None]

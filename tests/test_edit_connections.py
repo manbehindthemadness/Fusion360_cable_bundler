@@ -14,6 +14,8 @@ from cable_bundler.application import (
     add_connection_refine,
     attach_cable_end,
     attach_cable_end_shielding,
+    disconnect_cable_end_main,
+    disconnect_cable_end_shielding,
     remove_cable_end_attachment,
     rename_cable_end_attachment,
     set_cable_end_attachment_properties,
@@ -245,6 +247,114 @@ def test_rejects_shielding_relationship_on_a_non_leaf_connection(
             connection.connection_id,
             parent.attachment_id,
             target,
+            gateway,
+        )
+
+
+def test_disconnects_main_and_shielding_relationships_independently(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the connection node and unrelated relationship when either target is removed.
+    """
+    connection = valid_harness.connections[0]
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "main-target",
+        "Main target",
+        name="Connector",
+        metadata=(("location", "J1"),),
+        attachment_id=UUID(int=741),
+        shielding_target=CableEndTarget(
+            AttachmentTargetKind.CONSTRUCTION_POINT,
+            "shield-target",
+            "Shield target",
+        ),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=attachment),
+            *valid_harness.connections[1:],
+        ),
+    )
+    gateway = _recording_gateway(definition)
+    refine_id = UUID(int=742)
+    add_connection_refine(
+        definition.harness_id,
+        connection.connection_id,
+        attachment.attachment_id,
+        0,
+        RefineGeometry(
+            origin_mm=(1.0, 2.0, 3.0),
+            u_direction=(1.0, 0.0, 0.0),
+            v_direction=(0.0, 1.0, 0.0),
+            display_radius_mm=2.0,
+        ),
+        gateway,
+        id_factory=lambda: refine_id,
+    )
+
+    disconnect_cable_end_main(
+        definition.harness_id,
+        connection.connection_id,
+        attachment.attachment_id,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    disconnected = stored.connections[0].attachment
+    assert disconnected is not None
+    assert not disconnected.has_target
+    assert disconnected.name == "Connector"
+    assert disconnected.metadata == (("location", "J1"),)
+    assert disconnected.shielding_target == attachment.shielding_target
+    assert disconnected.ordered_control_ids == ()
+    assert all(control.control_id != refine_id for control in stored.controls)
+
+    disconnect_cable_end_shielding(
+        definition.harness_id,
+        connection.connection_id,
+        attachment.attachment_id,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    disconnected = stored.connections[0].attachment
+    assert disconnected is not None
+    assert disconnected.shielding_target is None
+
+
+def test_rejects_main_disconnect_while_connection_children_depend_on_profile(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Retain a parent profile until its child connection nodes are removed.
+    """
+    connection = valid_harness.connections[0]
+    parent = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "parent-profile",
+        "Parent profile",
+        attachment_id=UUID(int=751),
+    )
+    child = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=752),
+        parent_attachment_id=parent.attachment_id,
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=parent, additional_attachments=(child,)),
+            *valid_harness.connections[1:],
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    with pytest.raises(ValueError, match="Disconnect child connection nodes"):
+        disconnect_cable_end_main(
+            definition.harness_id,
+            connection.connection_id,
+            parent.attachment_id,
             gateway,
         )
 

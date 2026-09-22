@@ -109,6 +109,7 @@ ROUTING_MODE_LABELS = {
 
 PALETTE_EDIT_NAMES = {
     "add_cable_end_connection": "Add Cable End Connection",
+    "disconnect_cable_end_relationship": "Disconnect Cable End Relationship",
     "delete_damaged_harness": "Delete Damaged Harness",
     "move_pathway_gate": "Reorder Pathway Gates",
     "update_junction_relationships": "Edit Junction Relationships",

@@ -68,8 +68,13 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
   );
   const materials = connection
     ? cableEndAttachmentMaterials(group, connection, attachment) : group.materials;
-  const hasShieldingConnection = !hasChildren
-    && typeof materials?.shielding === "string" && materials.shielding.trim() !== "";
+  const hasShielding = typeof materials?.shielding === "string"
+    && materials.shielding.trim() !== "";
+  const hasShieldingConnection = !hasChildren && hasShielding;
+  const hasMainRelationship = attachment.targetKind !== null
+    && attachment.targetKind !== undefined;
+  const hasShieldingRelationship = attachment.shieldingTarget !== null
+    && attachment.shieldingTarget !== undefined;
   const mainConnect = {
     label: "Main",
     action: () => connectCableEnd(
@@ -100,6 +105,36 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
       ),
       disabled: attachment.connected,
       title: attachment.connected ? "This connection already has a target" : "",
+    },
+    {
+      label: "Disconnect",
+      items: [
+        {
+          label: "Main",
+          action: () => mutate("disconnect_cable_end_relationship", {
+            harnessId: harness.harnessId,
+            connectionId: attachment.connectionId,
+            attachmentId: attachment.attachmentId,
+            relationship: "main",
+          }, "Disconnecting main relationship…"),
+          disabled: !hasMainRelationship || hasChildren,
+          title: hasChildren
+            ? "Disconnect child connection nodes before their parent profile"
+            : (!hasMainRelationship ? "This connection has no main relationship" : ""),
+        },
+        ...((hasShielding || hasShieldingRelationship) ? [{
+          label: "Shielding",
+          action: () => mutate("disconnect_cable_end_relationship", {
+            harnessId: harness.harnessId,
+            connectionId: attachment.connectionId,
+            attachmentId: attachment.attachmentId,
+            relationship: "shielding",
+          }, "Disconnecting shielding relationship…"),
+          disabled: !hasShieldingRelationship,
+          title: hasShieldingRelationship
+            ? "" : "This connection has no shielding relationship",
+        }] : []),
+      ],
     },
     {
       label: "Add",

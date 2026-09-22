@@ -21,6 +21,10 @@ from tests.fusion_ui_support import (
     ("action", "notice"),
     (
         ("add_cable_end_connection", "Added connection."),
+        (
+            "disconnect_cable_end_relationship",
+            "Disconnected cable-end main relationship.",
+        ),
         ("remove_cable_end_attachment", "Detached cable end."),
         (
             "set_cable_end_attachment_properties",
@@ -72,6 +76,7 @@ def test_connection_count_edit_rebuilds_affected_generated_geometry(
             "connectionId": str(connection_id),
             "attachmentId": str(UUID(int=3)),
             "diameterMm": 0.6,
+            "relationship": "main",
         }
     )
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
@@ -85,11 +90,60 @@ def test_connection_count_edit_rebuilds_affected_generated_geometry(
         connection_id,
     )
     refreshed_preview.assert_called_once_with(application, harness_id, ensure_visible=False)
-    if action == "remove_cable_end_attachment":
+    if action in {"disconnect_cable_end_relationship", "remove_cable_end_attachment"}:
         reconciled.assert_called_once_with(application)
     else:
         reconciled.assert_not_called()
     sent.assert_called_once_with(application, f"{notice} Updated 1 generated cable group.")
+    assert not args.executeFailed
+
+
+def test_shielding_disconnect_skips_geometry_and_preview_work(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Treat shielding removal as a palette-only data relationship update.
+    """
+    document = object()
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    refreshed_geometry = Mock()
+    refreshed_preview = Mock(return_value="")
+    reconciled = Mock()
+    sent = Mock()
+    monkeypatch.setattr(
+        addin_module,
+        "_apply_palette_edit",
+        Mock(return_value="Disconnected cable-end shielding relationship."),
+    )
+    monkeypatch.setattr(
+        addin_module,
+        "refresh_generated_cable_groups_for_connection",
+        refreshed_geometry,
+    )
+    monkeypatch.setattr(addin_module, "reconcile_active_refines", reconciled)
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed_preview)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps(
+        {
+            "harnessId": str(UUID(int=1)),
+            "connectionId": str(UUID(int=2)),
+            "attachmentId": str(UUID(int=3)),
+            "relationship": "shielding",
+        }
+    )
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(
+        ("disconnect_cable_end_relationship", payload, document)
+    ).notify(args)
+
+    refreshed_geometry.assert_not_called()
+    refreshed_preview.assert_not_called()
+    reconciled.assert_not_called()
+    sent.assert_called_once_with(application, "Disconnected cable-end shielding relationship.")
     assert not args.executeFailed
 
 

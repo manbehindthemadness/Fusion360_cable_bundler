@@ -150,6 +150,89 @@ def attach_cable_end_shielding(
     persist_definition(harness_id, original, updated, gateway)
 
 
+def disconnect_cable_end_main(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Remove one node's geometric target and its target-dependent refine controls.
+
+    Parent profiles remain connected until their child connection relationships are
+    removed, preserving the explicit connection-chain invariant.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    if not attachment.has_target:
+        raise ValueError("Selected connection does not have a main relationship.")
+    if connection.attachment_children(attachment_id):
+        raise ValueError("Disconnect child connection nodes before their parent profile.")
+    removed_control_ids = frozenset(attachment.ordered_control_ids)
+    disconnected = replace(
+        attachment,
+        target_kind=None,
+        entity_token="",
+        inherited_name="",
+        parameters=(),
+        ordered_control_ids=(),
+    )
+    updated_connection = _replace_cable_end_attachment(connection, attachment_id, disconnected)
+    updated = replace(
+        definition,
+        controls=tuple(
+            control
+            for control in definition.controls
+            if control.control_id not in removed_control_ids
+        ),
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
+def disconnect_cable_end_shielding(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Remove one node's non-geometric shielding target relationship.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    if attachment.shielding_target is None:
+        raise ValueError("Selected connection does not have a shielding relationship.")
+    updated_connection = _replace_cable_end_attachment(
+        connection,
+        attachment_id,
+        replace(attachment, shielding_target=None),
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
 # noinspection DuplicatedCode
 def add_cable_end_connection(
     harness_id: UUID,

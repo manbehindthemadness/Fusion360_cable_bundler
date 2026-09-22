@@ -267,6 +267,47 @@ asyncTest('shielded final connections split Connect into main and shielding targ
   assert.equal(parentConnect.items, undefined);
 });
 
+asyncTest('connection nodes disconnect main and shielding relationships independently', async () => {
+  const { context, calls, definition, group, connection } = shieldingConnectionFixture();
+  const node = {
+    attachmentId: 'connected-node', parentAttachmentId: null, connectionId: 'a1',
+    name: 'Connected node', nameOverride: '', targetKind: 'construction_point',
+    connected: false, metadata: [], visualOverrides: {},
+    shieldingTarget: {
+      targetKind: 'construction_point', name: 'Shield stud', connected: false,
+    },
+  };
+  connection.attachment = node;
+  connection.attachments = /** @type {Array<*>} */ ([node]);
+
+  let items = context.cableGroupAttachmentContextItems(definition, group, node);
+  let disconnect = items.find((item) => item.label === 'Disconnect');
+  assert.equal(
+    JSON.stringify(disconnect.items.map((item) => item.label)),
+    JSON.stringify(['Main', 'Shielding']),
+  );
+  assert.equal(disconnect.items[0].disabled, false);
+  assert.equal(disconnect.items[1].disabled, false);
+  await disconnect.items[1].action();
+  await disconnect.items[0].action();
+  assert.equal(calls[0].action, 'disconnect_cable_end_relationship');
+  assert.equal(calls[0].payload.relationship, 'shielding');
+  assert.equal(calls[1].payload.relationship, 'main');
+
+  connection.attachments.push({
+    attachmentId: 'child', parentAttachmentId: node.attachmentId, connectionId: 'a1',
+    name: 'Child', nameOverride: '', targetKind: null, connected: false,
+    shieldingTarget: null, metadata: [], visualOverrides: {},
+  });
+  items = context.cableGroupAttachmentContextItems(definition, group, node);
+  disconnect = items.find((item) => item.label === 'Disconnect');
+  assert.equal(disconnect.items[0].disabled, true);
+  assert.equal(
+    disconnect.items[0].title,
+    'Disconnect child connection nodes before their parent profile',
+  );
+});
+
 asyncTest('connection Properties place shielding above custom metadata', async () => {
   const { context, calls, definition, group, connection } = shieldingConnectionFixture();
   const node = {

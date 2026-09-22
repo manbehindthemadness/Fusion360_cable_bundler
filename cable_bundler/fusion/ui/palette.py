@@ -100,6 +100,10 @@ _PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refi
 _PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
 _CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)
 _PALETTE_EDIT_POLICIES["add_cable_end_connection"] = _CONNECTION_GEOMETRY_EDIT_POLICY
+_PALETTE_EDIT_POLICIES["disconnect_cable_end_relationship"] = PaletteEditPolicy(
+    reconcile_refines=True,
+    refresh_connection_geometry=True,
+)
 _PALETTE_EDIT_POLICIES["set_cable_end_attachment_properties"] = _CONNECTION_GEOMETRY_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = PaletteEditPolicy(
     reconcile_refines=True,
@@ -217,12 +221,18 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             notice = _apply_palette_edit(application, action, data)
             payload = _read_palette_payload(data)
             harness_id = _read_payload_uuid(payload, "harnessId", "harness")
-            if policy.reconcile_refines:
+            is_data_only_disconnect = (
+                action == "disconnect_cable_end_relationship"
+                and payload.get("relationship") == "shielding"
+            )
+            if policy.reconcile_refines and not is_data_only_disconnect:
                 reconcile_active_refines(application)
             if policy.apply_generated_materials:
                 notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
-            refreshes_connection_geometry = policy.refresh_connection_geometry and (
-                action != "set_cable_end_attachment_properties" or "diameterMm" in payload
+            refreshes_connection_geometry = (
+                policy.refresh_connection_geometry
+                and not is_data_only_disconnect
+                and (action != "set_cable_end_attachment_properties" or "diameterMm" in payload)
             )
             if refreshes_connection_geometry:
                 connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
@@ -239,10 +249,14 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                         f"{notice} Updated {updated_count} generated cable "
                         f"group{'s' if updated_count != 1 else ''}."
                     )
-            warning = _refresh_active_preview(
-                application,
-                harness_id,
-                ensure_visible=policy.ensure_preview_visible,
+            warning = (
+                ""
+                if is_data_only_disconnect
+                else _refresh_active_preview(
+                    application,
+                    harness_id,
+                    ensure_visible=policy.ensure_preview_visible,
+                )
             )
             application.activeViewport.refresh()
             _send_palette_state(application, f"{notice} {warning}".strip())

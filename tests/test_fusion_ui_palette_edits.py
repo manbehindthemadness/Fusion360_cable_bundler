@@ -291,6 +291,41 @@ def test_palette_edits_rename_and_remove_cable_end_attachment(
     assert remove_notice == "Detached cable end."
 
 
+@pytest.mark.parametrize(
+    ("relationship", "service_name"),
+    (("main", "disconnect_cable_end_main"), ("shielding", "disconnect_cable_end_shielding")),
+)
+def test_palette_edit_disconnects_one_cable_end_relationship(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    relationship: str,
+    service_name: str,
+) -> None:
+    """
+    Route each submenu choice to the matching relationship-specific edit service.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    gateway, disconnect = _mock_palette_service(addin_module, monkeypatch, service_name)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "disconnect_cable_end_relationship",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
+                "relationship": relationship,
+            }
+        ),
+    )
+
+    disconnect.assert_called_once_with(harness_id, connection_id, attachment_id, gateway)
+    assert notice == f"Disconnected cable-end {relationship} relationship."
+
+
 def test_palette_edit_renames_cable_group_by_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
