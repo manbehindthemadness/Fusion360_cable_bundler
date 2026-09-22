@@ -46,6 +46,7 @@ from .frames import (
     ProfileFrame,
     connection_attachment_frame,
     connection_attachment_parent_frame,
+    connection_attachment_route_side_point,
     connection_branch_route_frames,
     connection_profile_frames,
     connection_route_frames,
@@ -578,6 +579,7 @@ def _connection_branch_routes(
                 if parent_attachment_id is None:
                     guide = end_guide
                     parent_diameter_mm = group.diameter_mm
+                    parent_side_point = None
                     if len(siblings) <= 1:
                         continue
                 else:
@@ -597,6 +599,14 @@ def _connection_branch_routes(
                     if parent_frame is None:
                         continue
                     guide = parent_frame
+                    parent_side_point = connection_attachment_route_side_point(
+                        design,
+                        parent,
+                        parent_frame,
+                        parent_adjacent,
+                        controls,
+                        frames,
+                    )
                     parent_diameter_mm = definition.cable_end_attachment_diameter(
                         group, connection_id, parent_attachment_id
                     )
@@ -616,6 +626,7 @@ def _connection_branch_routes(
                         controls,
                         frames,
                         cache,
+                        parent_side_point=parent_side_point,
                     )
                     if not branch_frames:
                         continue
@@ -638,7 +649,12 @@ def _connection_branch_routes(
                             )
                             for control_id in attachment.ordered_control_ids
                         ),
-                        TransitionLengths(None, None),
+                        *(
+                            TransitionLengths(None, None)
+                            for _ in range(
+                                len(branch_frames) - len(attachment.ordered_control_ids) - 1
+                            )
+                        ),
                     )
                     route = fair_route(
                         raw_route,

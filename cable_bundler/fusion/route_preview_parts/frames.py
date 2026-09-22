@@ -24,8 +24,10 @@ from ...domain import (
 )
 from ...routing import GateFrame, RefineFrame, TransitionLengths, Vector3
 from ...routing.conditioning import CircularGuideConstraint, condition_connection_points
-from ...routing.geometry import cross, unit
+from ...routing.geometry import cross, difference, dot, unit
 from ..attachment_targets import resolve_attachment_target
+
+_OPPOSITE_SIDE_EXTENSION_DIAMETERS = 5.0
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,8 @@ def connection_branch_route_frames(
     controls: dict[UUID, ControlStructure],
     frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
+    *,
+    parent_side_point: Optional[Vector3] = None,
 ) -> tuple[ProfileFrame, ...]:
     """
     Resolve one external branch from its target through owned refines to its guide origin.
@@ -60,13 +64,7 @@ def connection_branch_route_frames(
     target = connection_attachment_frame(design, connection, attachment, guide, cache)
     if target is None:
         return ()
-    refine_frames: list[ProfileFrame] = []
-    for control_id in attachment.ordered_control_ids:
-        frame = frames.get(control_id)
-        if frame is None:
-            frame = routing_frame(design, controls.get(control_id), control_id)
-            frames[control_id] = frame
-        refine_frames.append(_routing_profile_frame(frame))
+    refine_frames = _attachment_refine_frames(design, attachment, controls, frames)
     origin = _clockface_branch_origin(
         guide,
         index,
@@ -80,7 +78,93 @@ def connection_branch_route_frames(
         guide.u_direction,
         guide.v_direction,
     )
-    return target, *refine_frames, origin_frame
+    child_side_frame = refine_frames[-1] if refine_frames else target
+    opposite_side_frame = _opposite_profile_side_frame(
+        origin_frame,
+        parent_side_point,
+        child_side_frame.origin,
+        branch_diameter_mm * _OPPOSITE_SIDE_EXTENSION_DIAMETERS,
+    )
+    return (
+        target,
+        *refine_frames,
+        *((opposite_side_frame,) if opposite_side_frame is not None else ()),
+        origin_frame,
+    )
+
+
+def _opposite_profile_side_frame(
+    profile: ProfileFrame,
+    parent_side_point: Optional[Vector3],
+    child_side_point: Vector3,
+    extension_mm: float,
+) -> Optional[ProfileFrame]:
+    """
+    Add a descendant-side guide when parent and child geometry occupy the same half-space.
+    """
+    if parent_side_point is None:
+        return None
+    normal = unit(profile.normal)
+    parent_projection = dot(difference(parent_side_point, profile.origin), normal)
+    if abs(parent_projection) <= 1e-9:
+        return None
+    child_projection = dot(difference(child_side_point, profile.origin), normal)
+    if parent_projection * child_projection < -1e-9:
+        return None
+    opposite_direction = (
+        normal if parent_projection < 0.0 else Vector3(-normal.x, -normal.y, -normal.z)
+    )
+    return ProfileFrame(
+        profile.origin.translated(opposite_direction, extension_mm),
+        profile.u_direction,
+        profile.u_direction,
+        profile.v_direction,
+    )
+
+
+def connection_attachment_route_side_point(
+    design: adsk.fusion.Design,
+    attachment: CableEndAttachment,
+    attachment_frame: ProfileFrame,
+    adjacent_frame: ProfileFrame,
+    controls: dict[UUID, ControlStructure],
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
+) -> Optional[Vector3]:
+    """
+    Resolve the nearest routed point that establishes which side leaves a profile.
+    """
+    route_frames = (
+        *_attachment_refine_frames(design, attachment, controls, frames),
+        adjacent_frame,
+    )
+    normal = unit(attachment_frame.normal)
+    return next(
+        (
+            frame.origin
+            for frame in route_frames
+            if abs(dot(difference(frame.origin, attachment_frame.origin), normal)) > 1e-9
+        ),
+        None,
+    )
+
+
+def _attachment_refine_frames(
+    design: adsk.fusion.Design,
+    attachment: CableEndAttachment,
+    controls: dict[UUID, ControlStructure],
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
+) -> tuple[ProfileFrame, ...]:
+    """
+    Resolve the ordered routing-control frames owned by one attachment.
+    """
+    resolved: list[ProfileFrame] = []
+    for control_id in attachment.ordered_control_ids:
+        frame = frames.get(control_id)
+        if frame is None:
+            frame = routing_frame(design, controls.get(control_id), control_id)
+            frames[control_id] = frame
+        resolved.append(_routing_profile_frame(frame))
+    return tuple(resolved)
 
 
 def _routing_profile_frame(frame: Union[GateFrame, RefineFrame]) -> ProfileFrame:

@@ -29,6 +29,7 @@ from ..routing.geometry import cross, difference, dot, magnitude, unit
 from .route_preview_parts.solver import (
     ProfileFrame,
     connection_attachment_parent_frame,
+    connection_attachment_route_side_point,
     connection_branch_route_frames,
     connection_profile_frames,
     routing_frame,
@@ -202,6 +203,28 @@ def build_connection_spine(
             group, connection_id, attachment.parent_attachment_id
         )
     )
+    controls = {control.control_id: control for control in definition.controls}
+    routing_frames: dict[UUID, Union[GateFrame, RefineFrame]] = {}
+    parent_side_point: Optional[Vector3] = None
+    if attachment.parent_attachment_id is not None:
+        parent = next(
+            item
+            for item in connection.attachments
+            if item.attachment_id == attachment.parent_attachment_id
+        )
+        parent_adjacent = connection_attachment_parent_frame(
+            design, connection, parent, end_guide, cache
+        )
+        if parent_adjacent is None:
+            raise ValueError("Selected connection parent does not have resolvable geometry.")
+        parent_side_point = connection_attachment_route_side_point(
+            design,
+            parent,
+            parent_guide,
+            parent_adjacent,
+            controls,
+            routing_frames,
+        )
     frames = connection_branch_route_frames(
         design,
         connection,
@@ -211,9 +234,10 @@ def build_connection_spine(
         len(siblings),
         parent_diameter_mm,
         definition.cable_end_attachment_diameter(group, connection_id, attachment.attachment_id),
-        {control.control_id: control for control in definition.controls},
-        {},
+        controls,
+        routing_frames,
         cache,
+        parent_side_point=parent_side_point,
     )
     if len(frames) < 2:
         raise ValueError("Selected connection does not have resolvable route geometry.")

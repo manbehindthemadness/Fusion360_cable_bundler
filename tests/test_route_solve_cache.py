@@ -285,7 +285,7 @@ def test_nested_connection_routes_from_child_target_to_parent_profile(
     )
     targets = {
         root.attachment_id: replace(guide, origin=Vector3(0.0, 0.0, 5.0)),
-        child.attachment_id: replace(guide, origin=Vector3(0.0, 0.0, 10.0)),
+        child.attachment_id: replace(guide, origin=Vector3(5.0, 0.0, 2.0)),
     }
 
     def attachment_frame(
@@ -307,12 +307,6 @@ def test_nested_connection_routes_from_child_target_to_parent_profile(
     )
     monkeypatch.setattr(route_frames, "connection_attachment_frame", attachment_frame)
     monkeypatch.setitem(vars(route_solver), "connection_attachment_frame", attachment_frame)
-    monkeypatch.setitem(
-        vars(route_solver),
-        "fair_route",
-        lambda route, *_args, **_kwargs: route,
-    )
-
     routes, legs = route_solver._connection_branch_routes(
         object(),
         definition,
@@ -324,9 +318,14 @@ def test_nested_connection_routes_from_child_target_to_parent_profile(
     )
 
     assert len(routes) == 1
+    parent_origin = targets[root.attachment_id].origin
+    opposite_side_origin = parent_origin.translated(
+        guide.normal, definition.cable_groups[0].diameter_mm * 5.0
+    )
     assert routes[0].points == (
         targets[child.attachment_id].origin,
-        targets[root.attachment_id].origin,
+        opposite_side_origin,
+        parent_origin,
     )
     assert legs[0].attachment_id == child.attachment_id
     assert legs[0].diameter_mm == definition.cable_groups[0].diameter_mm
