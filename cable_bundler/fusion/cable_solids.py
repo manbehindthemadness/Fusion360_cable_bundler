@@ -31,7 +31,12 @@ from .cable_solid_parts.constants import (
     SOLID_OUTPUT_MODE,
 )
 from .cable_solid_parts.materials import cable_appearance, material_metadata
-from .cable_solid_parts.metadata import group_routes_from_metadata, world_to_harness
+from .cable_solid_parts.metadata import (
+    group_geometry_routes_from_metadata,
+    group_routes_from_metadata,
+    route_in_component_space,
+    world_to_harness,
+)
 from .cable_solid_parts.solid_builder import build_cable_group_solid
 from .cable_solid_parts.stripes import (
     build_continuous_segment_stripes,
@@ -64,6 +69,7 @@ __all__ = [
     "generated_cable_group_bodies",
     "generated_cable_group_occurrences",
     "hide_generated_cable_group_solids",
+    "refresh_changed_generated_cable_groups",
     "refresh_generated_cable_groups_for_connection",
     "restore_cable_group_stripe_graphics",
     "restore_generated_cable_group_visibility",
@@ -121,10 +127,7 @@ def generate_cable_group_solids(
         raise ValueError(
             "Generated solids already exist; confirm rebuilding before replacing them."
         )
-    routes, legs = solve_cable_group_centerlines(design, definition, notices)
-    routes_by_id = {route.cable_id: route for route in routes}
-    if not routes or set(routes_by_id) != {leg.route_id for leg in legs}:
-        raise ValueError("Every cable group must have complete route geometry before generation.")
+    routes, legs, routes_by_id = _solve_complete_group_routes(design, definition, notices)
     legs_by_group: dict[UUID, list[tuple[CableGroupRouteLeg, RoutePreview]]] = {}
     for leg in legs:
         legs_by_group.setdefault(leg.cable_group_id, []).append((leg, routes_by_id[leg.route_id]))
@@ -209,9 +212,64 @@ def refresh_generated_cable_groups_for_connection(
         for group in definition.cable_groups
         if connection_id in group.connection_ids
     }
-    if not affected_ids:
+    return _refresh_generated_cable_groups(
+        design,
+        harness,
+        definition,
+        frozenset(affected_ids),
+        notices,
+    )
+
+
+def refresh_changed_generated_cable_groups(
+    design: adsk.fusion.Design,
+    harness: adsk.fusion.Component,
+    definition: HarnessDefinition,
+    notices: Optional[list[str]] = None,
+) -> int:
+    """
+    Rebuild generated groups whose stored curves differ from current guide geometry.
+
+    Stored component-local curves make this comparison independent of harness
+    placement. Groups with no generated occurrence remain untouched.
+    """
+    occurrences_by_id = _generated_cable_group_metadata_by_id(harness)
+    if not occurrences_by_id:
         return 0
-    previous_by_id: dict[UUID, adsk.fusion.Occurrence] = {}
+
+    routes, legs, routes_by_id = _solve_complete_group_routes(design, definition, notices)
+    local_transform = world_to_harness(design, harness)
+    current_by_group: dict[UUID, dict[UUID, RoutePreview]] = {}
+    for leg in legs:
+        route = route_in_component_space(routes_by_id[leg.route_id], local_transform)
+        current_by_group.setdefault(leg.cable_group_id, {})[route.cable_id] = route
+
+    changed_ids: set[UUID] = set()
+    for group_id, (_occurrence, metadata) in occurrences_by_id.items():
+        current = current_by_group.get(group_id)
+        if current is None:
+            continue
+        stored_curves = {
+            route.cable_id: route.curves for route in group_geometry_routes_from_metadata(metadata)
+        }
+        current_curves = {route_id: route.curves for route_id, route in current.items()}
+        if stored_curves != current_curves:
+            changed_ids.add(group_id)
+    return _refresh_generated_cable_groups(
+        design,
+        harness,
+        definition,
+        frozenset(changed_ids),
+    )
+
+
+def _generated_cable_group_metadata_by_id(
+    harness: adsk.fusion.Component,
+) -> dict[UUID, tuple[adsk.fusion.Occurrence, dict[str, object]]]:
+    """
+    Decode generated group identity and route metadata exactly once per component.
+    """
+    occurrences_by_id: dict[UUID, tuple[adsk.fusion.Occurrence, dict[str, object]]] = {}
     for occurrence in generated_cable_group_occurrences(harness):
         attribute = occurrence.component.attributes.itemByName(
             ATTRIBUTE_GROUP,
@@ -220,20 +278,54 @@ def refresh_generated_cable_groups_for_connection(
         if attribute is None:
             continue
         try:
-            group_id = UUID(json.loads(attribute.value)["cable_group_id"])
+            metadata = json.loads(attribute.value)
+            group_id = UUID(metadata["cable_group_id"])
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise RuntimeError("A generated cable group has invalid identity metadata.") from error
-        if group_id in affected_ids:
-            if group_id in previous_by_id:
-                raise RuntimeError("A cable group has duplicate generated geometry.")
-            previous_by_id[group_id] = occurrence
-    if not previous_by_id:
-        return 0
+        if group_id in occurrences_by_id:
+            raise RuntimeError("A cable group has duplicate generated geometry.")
+        occurrences_by_id[group_id] = (occurrence, metadata)
+    return occurrences_by_id
 
+
+def _solve_complete_group_routes(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    notices: Optional[list[str]],
+) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...], dict[UUID, RoutePreview]]:
+    """
+    Solve every route and reject incomplete generated-output geometry.
+    """
     routes, legs = solve_cable_group_centerlines(design, definition, notices)
     routes_by_id = {route.cable_id: route for route in routes}
     if not routes or set(routes_by_id) != {leg.route_id for leg in legs}:
         raise ValueError("Every cable group must have complete route geometry before generation.")
+    return routes, legs, routes_by_id
+
+
+def _refresh_generated_cable_groups(
+    design: adsk.fusion.Design,
+    harness: adsk.fusion.Component,
+    definition: HarnessDefinition,
+    affected_ids: frozenset[UUID],
+    notices: Optional[list[str]] = None,
+) -> int:
+    """
+    Rebuild the selected generated cable groups while preserving presentation.
+    """
+    if not affected_ids:
+        return 0
+    previous_by_id = {
+        group_id: occurrence
+        for group_id, (occurrence, _metadata) in _generated_cable_group_metadata_by_id(
+            harness
+        ).items()
+        if group_id in affected_ids
+    }
+    if not previous_by_id:
+        return 0
+
+    routes, legs, routes_by_id = _solve_complete_group_routes(design, definition, notices)
     legs_by_group: dict[UUID, list[RoutePreview]] = {}
     for leg in legs:
         legs_by_group.setdefault(leg.cable_group_id, []).append(routes_by_id[leg.route_id])

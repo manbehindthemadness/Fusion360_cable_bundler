@@ -67,10 +67,13 @@ class _CableSolidsModule(Protocol):
     ]
     restore_cable_group_stripe_graphics: Callable[[object, object], int]
     generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
+    refresh_changed_generated_cable_groups: Callable[..., int]
     refresh_generated_cable_groups_for_connection: Callable[..., int]
     solve_cable_group_centerlines: Callable[..., object]
     world_to_harness: Callable[..., object]
+    route_in_component_space: Callable[..., RoutePreview]
     build_cable_group_solid: Callable[..., None]
+    _refresh_generated_cable_groups: Callable[..., int]
     hide_generated_cable_group_solids: Callable[[object], _VisibilityState]
     restore_generated_cable_group_visibility: Callable[[_VisibilityState], None]
     _replace_group_stripe_graphics: Callable[..., int]
@@ -442,6 +445,86 @@ def test_connection_completion_rebuilds_its_group_with_branch_sweep_options(
     assert replacement.isLightBulbOn is False
     previous.deleteMe.assert_called_once_with()
     unrelated.deleteMe.assert_not_called()
+
+
+def test_geometry_refresh_rebuilds_only_group_with_changed_branch_curve(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Include reduced connection branches when detecting locally changed output.
+    """
+    group = valid_harness.cable_groups[0]
+    main = _straight_route(801, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    old_branch = _straight_route(802, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0))
+    moved_branch = _straight_route(802, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 5.0, 0.0))
+
+    def encoded(route: RoutePreview) -> list[list[list[float]]]:
+        """
+        Serialize exact curve controls in generated metadata form.
+        """
+        return [
+            [
+                [point.x, point.y, point.z]
+                for point in (curve.start, curve.control_a, curve.control_b, curve.end)
+            ]
+            for curve in route.curves
+        ]
+
+    metadata = {
+        "cable_group_id": str(group.cable_group_id),
+        "route_legs": [
+            {
+                "route_id": str(main.cable_id),
+                "label": main.cable_number,
+                "route_curves_mm": encoded(main),
+            }
+        ],
+        "connection_branches": [
+            {
+                "route_id": str(old_branch.cable_id),
+                "label": old_branch.cable_number,
+                "route_curves_mm": encoded(old_branch),
+            }
+        ],
+    }
+    attribute = SimpleNamespace(value=json.dumps(metadata))
+    occurrence = SimpleNamespace(
+        component=SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
+    )
+    legs = (
+        SimpleNamespace(route_id=main.cable_id, cable_group_id=group.cable_group_id),
+        SimpleNamespace(route_id=moved_branch.cable_id, cable_group_id=group.cable_group_id),
+    )
+    rebuild = Mock(return_value=1)
+    monkeypatch.setattr(
+        cable_solids,
+        "generated_cable_group_occurrences",
+        lambda _harness: (occurrence,),
+    )
+    monkeypatch.setattr(
+        cable_solids,
+        "solve_cable_group_centerlines",
+        lambda _design, _definition, _notices: ((main, moved_branch), legs),
+    )
+    monkeypatch.setattr(cable_solids, "world_to_harness", lambda *_args: object())
+    monkeypatch.setattr(
+        cable_solids,
+        "route_in_component_space",
+        lambda route, _transform: route,
+    )
+    monkeypatch.setattr(cable_solids, "_refresh_generated_cable_groups", rebuild)
+
+    updated = cable_solids.refresh_changed_generated_cable_groups(
+        object(),
+        object(),
+        valid_harness,
+        [],
+    )
+
+    assert updated == 1
+    assert rebuild.call_args.args[3] == frozenset({group.cable_group_id})
 
 
 def test_copies_root_decoration_position_to_every_branch(

@@ -110,6 +110,78 @@ def test_history_sync_defers_stripes_until_replaced_component_settles(
     assert gateway.mock_calls == []
 
 
+@pytest.mark.parametrize("previews_active", (False, True))
+def test_native_command_refreshes_only_changed_routing_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    previews_active: bool,
+) -> None:
+    """
+    Update local generated output and any active preview after moving a guide.
+    """
+    design = object()
+    viewport = SimpleNamespace(refresh=Mock())
+    application = SimpleNamespace(activeProduct=design, activeViewport=viewport)
+    harness_component = object()
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    gateway = object()
+    reconcile = Mock()
+    refresh = Mock(return_value=("Cable 1 retained its last valid preview.",))
+    refresh_solids = Mock(return_value=1)
+    send = Mock()
+    log = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(
+        addin_module,
+        "load_harnesses",
+        Mock(
+            return_value=(
+                SimpleNamespace(
+                    component_name="Harness A",
+                    definition=valid_harness,
+                    component_handle=harness_component,
+                ),
+            )
+        ),
+    )
+    monkeypatch.setattr(addin_module, "reconcile_preview_history", reconcile)
+    monkeypatch.setattr(
+        addin_module,
+        "has_route_previews",
+        Mock(return_value=previews_active),
+    )
+    monkeypatch.setattr(addin_module, "refresh_route_previews", refresh)
+    monkeypatch.setattr(
+        addin_module,
+        "refresh_changed_generated_cable_groups",
+        refresh_solids,
+    )
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    monkeypatch.setattr(addin_module, "_log_to_fusion", log)
+
+    addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId="MoveCommand"))
+
+    reconcile.assert_called_once_with(design, (valid_harness,))
+    refresh_solids.assert_called_once_with(
+        design,
+        harness_component,
+        valid_harness,
+        [],
+    )
+    if previews_active:
+        refresh.assert_called_once_with(design, valid_harness)
+        log.assert_called_once_with("Cable 1 retained its last valid preview.")
+    else:
+        refresh.assert_not_called()
+        log.assert_not_called()
+    viewport.refresh.assert_called_once_with()
+    send.assert_called_once_with(application)
+
+
 def test_deferred_stripe_restore_event_registers_and_releases(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

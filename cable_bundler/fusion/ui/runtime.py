@@ -133,6 +133,7 @@ class UiRuntime:
     deferred_stripe_restore_event: Optional[object] = None
     deferred_stripe_restore_handler: Optional[object] = None
     stripe_restore_pending: bool = False
+    geometry_refresh_active: bool = False
     active_selection_handler: Optional[object] = None
     document_saving_handler: Optional[object] = None
     document_saved_handler: Optional[object] = None

@@ -140,3 +140,28 @@ def group_routes_from_metadata(metadata: dict[str, object]) -> tuple[RoutePrevie
             raise RuntimeError("Generated cable-group route metadata is malformed.")
         routes.append(_route_from_encoded(route_id, label, encoded))
     return tuple(routes)
+
+
+def group_geometry_routes_from_metadata(
+    metadata: dict[str, object],
+) -> tuple[RoutePreview, ...]:
+    """
+    Restore every main and reduced-diameter branch route stored for one group.
+    """
+    routes = list(group_routes_from_metadata(metadata))
+    encoded_branches = metadata.get("connection_branches", [])
+    if not isinstance(encoded_branches, list):
+        raise RuntimeError("Generated cable-group branch metadata is malformed.")
+    for encoded_branch in encoded_branches:
+        if not isinstance(encoded_branch, dict):
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        try:
+            route_id = UUID(encoded_branch["route_id"])
+            label = encoded_branch["label"]
+            encoded = encoded_branch["route_curves_mm"]
+        except (KeyError, TypeError, ValueError) as error:
+            raise RuntimeError("Generated cable-group branch metadata is malformed.") from error
+        if not isinstance(label, str):
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        routes.append(_route_from_encoded(route_id, label, encoded))
+    return tuple(routes)
