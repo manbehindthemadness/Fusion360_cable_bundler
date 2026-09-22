@@ -423,6 +423,16 @@ def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
                 raw_value, "conductorMaterial", "Conductor material", required=True
             )
         ),
+        manufacturer=(
+            None
+            if raw_value.get("manufacturer") is None
+            else _read_material_text(raw_value, "manufacturer", "Manufacturer", required=False)
+        ),
+        part_number=(
+            None
+            if raw_value.get("partNumber") is None
+            else _read_material_text(raw_value, "partNumber", "Part number", required=False)
+        ),
         main_color=(
             None
             if raw_value.get("mainColor") is None

@@ -293,6 +293,8 @@ def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, obje
         "diameter_mm": overrides.diameter_mm,
         "insulation_material": overrides.insulation_material,
         "conductor_material": overrides.conductor_material,
+        "manufacturer": overrides.manufacturer,
+        "part_number": overrides.part_number,
         "main_color": None
         if overrides.main_color is None
         else _color_to_dict(overrides.main_color),
@@ -688,6 +690,8 @@ def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverride
             conductor_material=_optional_str(
                 value.get("conductor_material"), f"{path}.conductor_material"
             ),
+            manufacturer=_optional_str(value.get("manufacturer"), f"{path}.manufacturer"),
+            part_number=_optional_str(value.get("part_number"), f"{path}.part_number"),
             main_color=None if raw_color is None else _parse_color(raw_color, f"{path}.main_color"),
             appearance=_parse_appearance(value.get("appearance"), f"{path}.appearance"),
             stripes=(

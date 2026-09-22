@@ -494,6 +494,8 @@ def _apply_property_edit(
                     "diameterMm": payload.get("diameterMm"),
                     "insulationMaterial": payload.get("insulationMaterial"),
                     "conductorMaterial": payload.get("conductorMaterial"),
+                    "manufacturer": payload.get("manufacturer"),
+                    "partNumber": payload.get("partNumber"),
                 }
             )
             if has_construction_properties
@@ -518,6 +520,8 @@ def _apply_property_edit(
                 diameter_mm=property_overrides.diameter_mm,
                 insulation_material=property_overrides.insulation_material,
                 conductor_material=property_overrides.conductor_material,
+                manufacturer=property_overrides.manufacturer,
+                part_number=property_overrides.part_number,
             )
         return "Saved cable-end connection properties."
     if action == "set_cable_end_attachment_visual_overrides":

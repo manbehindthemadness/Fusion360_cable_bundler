@@ -663,6 +663,8 @@ def test_palette_edit_saves_connection_properties(
                 "diameterMm": 0.6,
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
+                "manufacturer": "Branch maker",
+                "partNumber": "BR-01",
                 "metadata": [{"key": "location", "value": "P2"}],
             }
         ),
@@ -677,6 +679,8 @@ def test_palette_edit_saves_connection_properties(
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material=None,
+        manufacturer="Branch maker",
+        part_number="BR-01",
     )
     assert result == "Saved cable-end connection properties."
 

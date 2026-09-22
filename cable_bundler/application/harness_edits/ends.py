@@ -167,6 +167,8 @@ def set_cable_end_attachment_properties(
     diameter_mm: Optional[float] = None,
     insulation_material: Optional[str] = None,
     conductor_material: Optional[str] = None,
+    manufacturer: Optional[str] = None,
+    part_number: Optional[str] = None,
 ) -> None:
     """
     Replace metadata and optional construction overrides owned by one branch.
@@ -194,6 +196,8 @@ def set_cable_end_attachment_properties(
             diameter_mm=diameter_mm,
             insulation_material=insulation_material,
             conductor_material=conductor_material,
+            manufacturer=manufacturer,
+            part_number=part_number,
         )
     updated_connection = _replace_cable_end_attachment(
         connection,

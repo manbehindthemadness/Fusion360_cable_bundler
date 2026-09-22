@@ -544,6 +544,8 @@ def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, obje
         "diameterMm": overrides.diameter_mm,
         "insulationMaterial": overrides.insulation_material,
         "conductorMaterial": overrides.conductor_material,
+        "manufacturer": overrides.manufacturer,
+        "partNumber": overrides.part_number,
         "mainColor": (
             None if overrides.main_color is None else _color_payload(overrides.main_color)
         ),

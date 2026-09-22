@@ -470,6 +470,8 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   addMaterialOverride(
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
   );
+  addMaterialOverride("manufacturer", "Manufacturer", []);
+  addMaterialOverride("partNumber", "Part Number", []);
   const metadataEditor = createMetadataEditor(attachment.metadata || []);
   form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {
@@ -492,6 +494,10 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         ? materialControls.insulationMaterial.input.value.trim() : null;
       const conductorMaterial = materialControls.conductorMaterial.toggle.checked
         ? materialControls.conductorMaterial.input.value.trim() : null;
+      const manufacturer = materialControls.manufacturer.toggle.checked
+        ? materialControls.manufacturer.input.value.trim() : null;
+      const partNumber = materialControls.partNumber.toggle.checked
+        ? materialControls.partNumber.input.value.trim() : null;
       if (insulationMaterial === "" || conductorMaterial === "") {
         throw new Error("Enabled material overrides must not be empty.");
       }
@@ -504,6 +510,8 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         diameterMm,
         insulationMaterial,
         conductorMaterial,
+        manufacturer,
+        partNumber,
         metadata: metadataEditor.read(),
       });
       if (response.ok) dialog.close();

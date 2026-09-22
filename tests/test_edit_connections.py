@@ -93,6 +93,8 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        manufacturer="Branch maker",
+        part_number="BR-01",
     )
     stored = loads(gateway.serialized_definition)
     saved_attachment = stored.connections[0].attachments[1]
@@ -100,6 +102,8 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.visual_overrides.diameter_mm == 0.6
     assert saved_attachment.visual_overrides.insulation_material == "ETFE"
     assert saved_attachment.visual_overrides.conductor_material == "Aluminum"
+    assert saved_attachment.visual_overrides.manufacturer == "Branch maker"
+    assert saved_attachment.visual_overrides.part_number == "BR-01"
 
     group = valid_harness.cable_groups[0]
     with pytest.raises(ValueError, match="collectively exceed"):
@@ -296,6 +300,8 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        manufacturer="Branch maker",
+        part_number="BR-01",
     )
 
     set_cable_end_attachment_visual_overrides(
@@ -307,6 +313,8 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        manufacturer="Branch maker",
+        part_number="BR-01",
     )
 
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, second_id, gateway)

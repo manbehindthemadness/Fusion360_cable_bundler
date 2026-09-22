@@ -316,6 +316,8 @@ def test_round_trip_preserves_connection_construction_overrides(
         diameter_mm=0.55,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        manufacturer="Branch maker",
+        part_number="BR-01",
     )
     attachment = CableEndAttachment(None, attachment_id=UUID(int=83), visual_overrides=overrides)
     definition = replace(
@@ -346,6 +348,8 @@ def test_migrates_schema_19_with_inherited_connection_construction(
     del visual_overrides["diameter_mm"]
     del visual_overrides["insulation_material"]
     del visual_overrides["conductor_material"]
+    del visual_overrides["manufacturer"]
+    del visual_overrides["part_number"]
 
     migrated = loads(json.dumps(payload))
 

@@ -354,6 +354,8 @@ class CableVisualOverrides:
     diameter_mm: Optional[float] = None
     insulation_material: Optional[str] = None
     conductor_material: Optional[str] = None
+    manufacturer: Optional[str] = None
+    part_number: Optional[str] = None
 
     def __post_init__(self) -> None:
         """
@@ -372,6 +374,9 @@ class CableVisualOverrides:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
+        for value in (self.manufacturer, self.part_number):
+            if value is not None and not isinstance(value, str):
+                raise ValueError("Connection catalog metadata overrides must be text.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
 
     def resolve(self, parent: CableMaterialSettings) -> CableMaterialSettings:
@@ -392,8 +397,8 @@ class CableVisualOverrides:
                 if self.conductor_material is None
                 else self.conductor_material
             ),
-            manufacturer=parent.manufacturer,
-            part_number=parent.part_number,
+            manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
+            part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes,
         )
 

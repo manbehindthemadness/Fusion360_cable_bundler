@@ -83,6 +83,8 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
             diameter_mm=0.6,
             insulation_material="ETFE",
             conductor_material="Aluminum",
+            manufacturer="Branch maker",
+            part_number="BR-01",
             main_color=red,
             stripes=(CableStripe(CableColor("White", 255, 255, 255), 0.2),),
         ),
@@ -114,6 +116,8 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
     assert resolved.stripes == overridden.visual_overrides.stripes
     assert resolved.insulation_material == "ETFE"
     assert resolved.conductor_material == "Aluminum"
+    assert resolved.manufacturer == "Branch maker"
+    assert resolved.part_number == "BR-01"
     assert (
         multiple.cable_end_attachment_diameter(
             group, connection.connection_id, overridden.attachment_id
