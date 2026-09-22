@@ -328,6 +328,21 @@ def test_flipping_sketch_normal_does_not_flip_the_route() -> None:
     assert fair_route(route, positive) == fair_route(route, negative)
 
 
+def test_fixed_terminal_normal_preserves_an_explicit_departure_side() -> None:
+    """
+    Keep a selected terminal tangent sign when a descendant must leave the opposite profile side.
+    """
+    route = _route((Vector3(5, 0, 2), Vector3(0, 0, 5)))
+
+    smooth = fair_route(
+        route,
+        (Vector3(0, 0, 1), Vector3(0, 0, -1)),
+        fixed_normal_indices=frozenset({1}),
+    )
+
+    assert dot(unit(smooth.curves[-1].derivative(1.0)), Vector3(0, 0, -1)) == pytest.approx(1.0)
+
+
 def test_backtracking_order_is_preserved_when_geometry_allows_it() -> None:
     """
     Never choose the terminal or reorder guides using distance to a gate.

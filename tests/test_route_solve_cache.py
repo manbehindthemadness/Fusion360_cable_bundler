@@ -35,6 +35,7 @@ from cable_bundler.routing import (
     TransitionLengths,
     Vector3,
 )
+from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
@@ -285,7 +286,7 @@ def test_nested_connection_routes_from_child_target_to_parent_profile(
     )
     targets = {
         root.attachment_id: replace(guide, origin=Vector3(0.0, 0.0, 5.0)),
-        child.attachment_id: replace(guide, origin=Vector3(5.0, 0.0, 2.0)),
+        child.attachment_id: replace(guide, origin=Vector3(50.0, 0.0, 2.0)),
     }
 
     def attachment_frame(
@@ -319,14 +320,11 @@ def test_nested_connection_routes_from_child_target_to_parent_profile(
 
     assert len(routes) == 1
     parent_origin = targets[root.attachment_id].origin
-    opposite_side_origin = parent_origin.translated(
-        guide.normal, definition.cable_groups[0].diameter_mm * 5.0
-    )
     assert routes[0].points == (
         targets[child.attachment_id].origin,
-        opposite_side_origin,
         parent_origin,
     )
+    assert dot(routes[0].curves[-1].derivative(1.0), Vector3(0.0, 0.0, -1.0)) > 0.0
     assert legs[0].attachment_id == child.attachment_id
     assert legs[0].diameter_mm == definition.cable_groups[0].diameter_mm
 

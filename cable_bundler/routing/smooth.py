@@ -88,13 +88,15 @@ def fair_route(
     minimum_bend_radius_mm: float = 0.0,
     adjustments: Optional[list[TransitionAdjustment]] = None,
     auto_transition_fraction: float = 0.25,
+    fixed_normal_indices: frozenset[int] = frozenset(),
 ) -> RoutePreview:
     """
     Preserve crossings and connect them with tangent-continuous local transitions.
 
-    Normal signs follow stored traversal, never reorder points. Automatic
-    transitions occupy the requested share of each span. All lengths clamp to
-    the nearest proportional fit above their safe minima when a span is crowded.
+    Normal signs follow stored traversal except at explicitly fixed crossings;
+    points are never reordered. Automatic transitions occupy the requested share
+    of each span. All lengths clamp to the nearest proportional fit above their
+    safe minima when a span is crowded.
     """
     points = route.points
     if len(points) < 2 or len(normals) != len(points):
@@ -112,13 +114,16 @@ def fair_route(
         or auto_transition_fraction > 0.5
     ):
         raise ValueError("Auto transition fraction must be finite and greater than 0 through 0.5.")
+    if any(index < 0 or index >= len(points) for index in fixed_normal_indices):
+        raise ValueError("Fixed normal indices must reference route crossings.")
     lengths = transitions or tuple(TransitionLengths() for _ in points)
     for requested in lengths:
         for value in (requested.approach_mm, requested.departure_mm):
             if value is not None and (not math.isfinite(value) or value < 0.0):
                 raise ValueError("Transition lengths must be finite and non-negative.")
     tangents = tuple(
-        _oriented_normal(points, index, normal) for index, normal in enumerate(normals)
+        unit(normal) if index in fixed_normal_indices else _oriented_normal(points, index, normal)
+        for index, normal in enumerate(normals)
     )
     limits = _transition_limits(route, tangents, minimum_bend_radius_mm)
     curves: list[CubicBezier] = []

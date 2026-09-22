@@ -27,8 +27,6 @@ from ...routing.conditioning import CircularGuideConstraint, condition_connectio
 from ...routing.geometry import cross, difference, dot, unit
 from ..attachment_targets import resolve_attachment_target
 
-_OPPOSITE_SIDE_EXTENSION_DIAMETERS = 5.0
-
 
 @dataclass(frozen=True)
 class ProfileFrame:
@@ -72,54 +70,29 @@ def connection_branch_route_frames(
         parent_diameter_mm,
         branch_diameter_mm,
     )
+    origin_normal = _profile_normal_toward_point(guide, origin, parent_side_point)
     origin_frame = ProfileFrame(
         origin,
-        guide.normal,
+        origin_normal,
         guide.u_direction,
         guide.v_direction,
     )
-    child_side_frame = refine_frames[-1] if refine_frames else target
-    opposite_side_frame = _opposite_profile_side_frame(
-        origin_frame,
-        parent_side_point,
-        child_side_frame.origin,
-        branch_diameter_mm * _OPPOSITE_SIDE_EXTENSION_DIAMETERS,
-    )
-    return (
-        target,
-        *refine_frames,
-        *((opposite_side_frame,) if opposite_side_frame is not None else ()),
-        origin_frame,
-    )
+    return target, *refine_frames, origin_frame
 
 
-def _opposite_profile_side_frame(
+def _profile_normal_toward_point(
     profile: ProfileFrame,
+    origin: Vector3,
     parent_side_point: Optional[Vector3],
-    child_side_point: Vector3,
-    extension_mm: float,
-) -> Optional[ProfileFrame]:
+) -> Vector3:
     """
-    Add a descendant-side guide when parent and child geometry occupy the same half-space.
+    Orient a descendant terminal tangent toward its parent's routed side.
     """
     if parent_side_point is None:
-        return None
+        return profile.normal
     normal = unit(profile.normal)
-    parent_projection = dot(difference(parent_side_point, profile.origin), normal)
-    if abs(parent_projection) <= 1e-9:
-        return None
-    child_projection = dot(difference(child_side_point, profile.origin), normal)
-    if parent_projection * child_projection < -1e-9:
-        return None
-    opposite_direction = (
-        normal if parent_projection < 0.0 else Vector3(-normal.x, -normal.y, -normal.z)
-    )
-    return ProfileFrame(
-        profile.origin.translated(opposite_direction, extension_mm),
-        profile.u_direction,
-        profile.u_direction,
-        profile.v_direction,
-    )
+    parent_projection = dot(difference(parent_side_point, origin), normal)
+    return normal if parent_projection >= 0.0 else Vector3(-normal.x, -normal.y, -normal.z)
 
 
 def connection_attachment_route_side_point(

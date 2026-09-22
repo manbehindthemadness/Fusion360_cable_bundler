@@ -662,6 +662,11 @@ def _connection_branch_routes(
                         transitions,
                         minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
                         auto_transition_fraction=auto_transition_fraction,
+                        fixed_normal_indices=(
+                            frozenset({len(branch_frames) - 1})
+                            if parent_attachment_id is not None
+                            else frozenset()
+                        ),
                     )
                     routes.append(route)
                     legs.append(
