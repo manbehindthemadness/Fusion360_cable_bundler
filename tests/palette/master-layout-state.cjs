@@ -123,7 +123,7 @@ test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
 
-  assert.equal(definition.schemaVersion, 19);
+  assert.equal(definition.schemaVersion, 20);
   assert.equal(Object.hasOwn(definition, 'cables'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(

@@ -558,8 +558,10 @@ def _connection_branch_routes(
             if connection is None or len(connection.attachments) <= 1:
                 continue
             guide = connection_profile_frames(design, connection, cache)[0]
-            branch_diameter_mm = group.diameter_mm / len(connection.attachments)
             for index, attachment in enumerate(connection.attachments):
+                branch_diameter_mm = definition.cable_end_attachment_diameter(
+                    group, connection_id, attachment.attachment_id
+                )
                 branch_frames = connection_branch_route_frames(
                     design,
                     connection,

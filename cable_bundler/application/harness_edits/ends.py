@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
+from typing import Optional
 from uuid import UUID, uuid4
 
 from ...domain import (
@@ -106,6 +107,12 @@ def add_cable_end_connection(
             connection,
             additional_attachments=(*connection.additional_attachments, attachment),
         )
+    group = next(
+        (item for item in definition.cable_groups if connection_id in item.connection_ids),
+        None,
+    )
+    if group is not None and len(updated_connection.attachments) > 1:
+        _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
     updated = replace(
         definition,
         connections=tuple(
@@ -156,9 +163,13 @@ def set_cable_end_attachment_properties(
     attachment_id: UUID,
     metadata: Metadata,
     gateway: HarnessEditGateway,
+    *,
+    diameter_mm: Optional[float] = None,
+    insulation_material: Optional[str] = None,
+    conductor_material: Optional[str] = None,
 ) -> None:
     """
-    Replace searchable metadata owned by one external cable-end connection.
+    Replace metadata and optional construction overrides owned by one branch.
     """
     original, definition = read_definition(harness_id, gateway)
     connection = next(
@@ -168,9 +179,29 @@ def set_cable_end_attachment_properties(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
+    branch_overrides = attachment.visual_overrides
+    if diameter_mm is not None:
+        if len(connection.attachments) <= 1:
+            raise ValueError("A single connection inherits its cable-group properties.")
+        group = next(
+            (item for item in definition.cable_groups if connection_id in item.connection_ids),
+            None,
+        )
+        if group is None:
+            raise ValueError("Connection properties require an assigned cable group.")
+        branch_overrides = replace(
+            branch_overrides,
+            diameter_mm=diameter_mm,
+            insulation_material=insulation_material,
+            conductor_material=conductor_material,
+        )
     updated_connection = _replace_cable_end_attachment(
-        connection, attachment_id, replace(attachment, metadata=metadata)
+        connection,
+        attachment_id,
+        replace(attachment, metadata=metadata, visual_overrides=branch_overrides),
     )
+    if diameter_mm is not None:
+        _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
     updated = replace(
         definition,
         connections=tuple(
@@ -203,10 +234,16 @@ def set_cable_end_attachment_visual_overrides(
     if len(connection.attachments) <= 1:
         raise ValueError("A single connection inherits its cable-group materials.")
     attachment = _cable_end_attachment(connection, attachment_id)
+    visual_overrides = replace(
+        attachment.visual_overrides,
+        main_color=overrides.main_color,
+        appearance=overrides.appearance,
+        stripes=overrides.stripes,
+    )
     updated_connection = _replace_cable_end_attachment(
         connection,
         attachment_id,
-        replace(attachment, visual_overrides=overrides),
+        replace(attachment, visual_overrides=visual_overrides),
     )
     updated = replace(
         definition,
@@ -216,6 +253,26 @@ def set_cable_end_attachment_visual_overrides(
         ),
     )
     persist_definition(harness_id, original, updated, gateway)
+
+
+def _validate_connection_diameter_budget(
+    parent_diameter_mm: float,
+    connection: Connection,
+) -> None:
+    """
+    Reject divided-branch diameters whose sum exceeds their parent cable.
+    """
+    inherited_diameter_mm = parent_diameter_mm / len(connection.attachments)
+    combined_diameter_mm = sum(
+        inherited_diameter_mm
+        if attachment.visual_overrides.diameter_mm is None
+        else attachment.visual_overrides.diameter_mm
+        for attachment in connection.attachments
+    )
+    if combined_diameter_mm > parent_diameter_mm + 1e-9:
+        raise ValueError(
+            "Connection diameters cannot collectively exceed the parent cable diameter."
+        )
 
 
 def remove_cable_end_attachment(
@@ -247,6 +304,12 @@ def remove_cable_end_attachment(
         attachment=remaining[0] if remaining else None,
         additional_attachments=remaining[1:],
     )
+    group = next(
+        (item for item in definition.cable_groups if connection_id in item.connection_ids),
+        None,
+    )
+    if group is not None and len(updated_connection.attachments) > 1:
+        _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
     updated = replace(
         definition,
         controls=tuple(

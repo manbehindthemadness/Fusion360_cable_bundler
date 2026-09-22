@@ -605,12 +605,6 @@ def test_palette_edit_saves_pathway_end_metadata(
             "set_cable_end_properties",
             "Saved cable-end properties.",
         ),
-        (
-            "set_cable_end_attachment_properties",
-            "connectionId",
-            "set_cable_end_attachment_properties",
-            "Saved cable-end connection properties.",
-        ),
     ),
 )
 def test_palette_edit_saves_identity_owned_metadata(
@@ -626,7 +620,6 @@ def test_palette_edit_saves_identity_owned_metadata(
     """
     harness_id = UUID(int=1)
     identity = UUID(int=2)
-    attachment_id = UUID(int=3)
     gateway, save = _mock_palette_service(addin_module, monkeypatch, service_name)
 
     result = addin_module._apply_palette_edit(
@@ -636,19 +629,56 @@ def test_palette_edit_saves_identity_owned_metadata(
             {
                 "harnessId": str(harness_id),
                 identity_key: str(identity),
-                "attachmentId": str(attachment_id),
                 "metadata": [{"key": "location", "value": "P2"}],
             }
         ),
     )
 
-    expected = (
-        (harness_id, identity, attachment_id, (("location", "P2"),), gateway)
-        if action == "set_cable_end_attachment_properties"
-        else (harness_id, identity, (("location", "P2"),), gateway)
-    )
-    save.assert_called_once_with(*expected)
+    save.assert_called_once_with(harness_id, identity, (("location", "P2"),), gateway)
     assert result == notice
+
+
+def test_palette_edit_saves_connection_properties(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse branch construction overrides and metadata through one atomic edit.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    gateway, save = _mock_palette_service(
+        addin_module, monkeypatch, "set_cable_end_attachment_properties"
+    )
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        "set_cable_end_attachment_properties",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
+                "diameterMm": 0.6,
+                "insulationMaterial": "ETFE",
+                "conductorMaterial": None,
+                "metadata": [{"key": "location", "value": "P2"}],
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        connection_id,
+        attachment_id,
+        (("location", "P2"),),
+        gateway,
+        diameter_mm=0.6,
+        insulation_material="ETFE",
+        conductor_material=None,
+    )
+    assert result == "Saved cable-end connection properties."
 
 
 @pytest.mark.parametrize("action", ["rename_pathway", "set_interpolation"])

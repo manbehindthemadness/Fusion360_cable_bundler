@@ -22,6 +22,10 @@ from tests.fusion_ui_support import (
     (
         ("add_cable_end_connection", "Added connection."),
         ("remove_cable_end_attachment", "Detached cable end."),
+        (
+            "set_cable_end_attachment_properties",
+            "Saved cable-end connection properties.",
+        ),
     ),
 )
 def test_connection_count_edit_rebuilds_affected_generated_geometry(
@@ -67,6 +71,7 @@ def test_connection_count_edit_rebuilds_affected_generated_geometry(
             "harnessId": str(harness_id),
             "connectionId": str(connection_id),
             "attachmentId": str(UUID(int=3)),
+            "diameterMm": 0.6,
         }
     )
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
@@ -85,4 +90,44 @@ def test_connection_count_edit_rebuilds_affected_generated_geometry(
     else:
         reconciled.assert_not_called()
     sent.assert_called_once_with(application, f"{notice} Updated 1 generated cable group.")
+    assert not args.executeFailed
+
+
+def test_connection_metadata_edit_does_not_rebuild_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep metadata-only Properties saves independent of generated branch geometry.
+    """
+    document = object()
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    refreshed_geometry = Mock()
+    monkeypatch.setattr(
+        addin_module, "_apply_palette_edit", Mock(return_value="Saved connection properties.")
+    )
+    monkeypatch.setattr(
+        addin_module,
+        "refresh_generated_cable_groups_for_connection",
+        refreshed_geometry,
+    )
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", Mock(return_value=""))
+    monkeypatch.setattr(addin_module, "_send_palette_state", Mock())
+    payload = json.dumps(
+        {
+            "harnessId": str(UUID(int=1)),
+            "connectionId": str(UUID(int=2)),
+            "attachmentId": str(UUID(int=3)),
+            "metadata": [{"key": "connector", "value": "J1"}],
+        }
+    )
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(
+        ("set_cable_end_attachment_properties", payload, document)
+    ).notify(args)
+
+    refreshed_geometry.assert_not_called()
     assert not args.executeFailed

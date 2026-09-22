@@ -407,14 +407,118 @@ function openCableEndProperties(harness, connectionId) {
   );
 }
 
-/** Open searchable custom metadata owned by one external cable-end connection. */
-function openCableEndAttachmentProperties(harness, attachment) {
+/** Open construction overrides and metadata owned by one divided connection branch. */
+function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   if (!attachment) return;
-  openEntityMetadataProperties(
-    harness, attachment, "Connection Properties", "connection-properties",
-    "set_cable_end_attachment_properties", {
-      connectionId: attachment.connectionId,
-      attachmentId: attachment.attachmentId,
-    },
+  const connection = harness.connections.find(
+    (candidate) => candidate.connectionId === attachment.connectionId,
   );
+  if (!cableGroup || !connection || (connection.attachments || []).length <= 1) {
+    openEntityMetadataProperties(
+      harness, attachment, "Connection Properties", "connection-properties",
+      "set_cable_end_attachment_properties", {
+        connectionId: attachment.connectionId,
+        attachmentId: attachment.attachmentId,
+      },
+    );
+    return;
+  }
+  const overrides = attachment.visualOverrides || {};
+  const inheritedDiameter = cableGroup.diameterMm / connection.attachments.length;
+  const { dialog, form, heading, error, actions, cancel, save } = createOptionsDialog(
+    "cable-options connection-properties",
+  );
+  const diameterLabel = document.createElement("label");
+  const diameter = document.createElement("input");
+  diameterLabel.textContent = "Diameter (mm)";
+  diameter.type = "number";
+  diameter.className = "filter";
+  diameter.step = "any";
+  diameter.required = true;
+  diameter.value = `${overrides.diameterMm ?? inheritedDiameter}`;
+  diameterLabel.append(diameter);
+  heading.textContent = "Connection Properties";
+  form.append(heading, diameterLabel);
+
+  const materialControls = {};
+  const addMaterialOverride = (key, labelText, suggestions) => {
+    const values = { [key]: overrides[key] ?? cableGroup.materials[key] };
+    const { wrapper, header, input } = createMaterialTextField(
+      values, key, labelText, suggestions,
+    );
+    const toggleLabel = document.createElement("label");
+    const toggle = document.createElement("input");
+    const toggleText = document.createElement("span");
+    toggle.type = "checkbox";
+    toggle.checked = overrides[key] !== null && overrides[key] !== undefined;
+    toggleText.textContent = "Override";
+    const update = () => {
+      input.disabled = !toggle.checked;
+      if (!toggle.checked) input.value = cableGroup.materials[key];
+    };
+    toggle.addEventListener("change", update);
+    toggleLabel.append(toggle, toggleText);
+    header.append(toggleLabel);
+    update();
+    form.append(wrapper);
+    materialControls[key] = { input, toggle };
+  };
+  const catalog = currentState.catalog || { insulationMaterials: [], conductorMaterials: [] };
+  addMaterialOverride(
+    "insulationMaterial", "Insulation Material", catalog.insulationMaterials || [],
+  );
+  addMaterialOverride(
+    "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
+  );
+  const metadataEditor = createMetadataEditor(attachment.metadata || []);
+  form.append(metadataEditor.wrapper);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const diameterMm = Number(diameter.value);
+      if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
+        throw new Error("Diameter must be a positive number.");
+      }
+      const combinedDiameter = connection.attachments.reduce((total, candidate) => {
+        if (candidate.attachmentId === attachment.attachmentId) return total + diameterMm;
+        return total + (candidate.visualOverrides?.diameterMm ?? inheritedDiameter);
+      }, 0);
+      if (combinedDiameter > cableGroup.diameterMm + 1e-9) {
+        throw new Error(
+          "Connection diameters cannot collectively exceed the parent cable diameter.",
+        );
+      }
+      const insulationMaterial = materialControls.insulationMaterial.toggle.checked
+        ? materialControls.insulationMaterial.input.value.trim() : null;
+      const conductorMaterial = materialControls.conductorMaterial.toggle.checked
+        ? materialControls.conductorMaterial.input.value.trim() : null;
+      if (insulationMaterial === "" || conductorMaterial === "") {
+        throw new Error("Enabled material overrides must not be empty.");
+      }
+      cancel.disabled = true;
+      save.disabled = true;
+      const response = await send("set_cable_end_attachment_properties", {
+        harnessId: harness.harnessId,
+        connectionId: attachment.connectionId,
+        attachmentId: attachment.attachmentId,
+        diameterMm,
+        insulationMaterial,
+        conductorMaterial,
+        metadata: metadataEditor.read(),
+      });
+      if (response.ok) dialog.close();
+      else error.textContent = response.error || "Could not save connection properties.";
+    } catch (failure) {
+      error.textContent = failure.message;
+    } finally {
+      cancel.disabled = false;
+      save.disabled = false;
+    }
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  actions.append(cancel, save);
+  form.append(error, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
 }

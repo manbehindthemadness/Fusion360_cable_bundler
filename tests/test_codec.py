@@ -172,7 +172,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 20])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 21])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -304,6 +304,54 @@ def test_migrates_schema_18_with_inherited_connection_visuals(
     migrated_attachment = migrated.connections[0].attachment
     assert migrated_attachment is not None
     assert migrated_attachment.visual_overrides == CableVisualOverrides()
+
+
+def test_round_trip_preserves_connection_construction_overrides(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist divided-branch diameter and material overrides with visual settings.
+    """
+    overrides = CableVisualOverrides(
+        diameter_mm=0.55,
+        insulation_material="ETFE",
+        conductor_material="Aluminum",
+    )
+    attachment = CableEndAttachment(None, attachment_id=UUID(int=83), visual_overrides=overrides)
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+
+    restored = loads(dumps(definition))
+
+    assert restored.connections[0].attachment is not None
+    assert restored.connections[0].attachment.visual_overrides == overrides
+
+
+def test_migrates_schema_19_with_inherited_connection_construction(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Default newly introduced branch construction fields for schema 19 data.
+    """
+    attachment = CableEndAttachment(None, attachment_id=UUID(int=84))
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 19
+    visual_overrides = payload["connections"][0]["attachment"]["visual_overrides"]
+    del visual_overrides["diameter_mm"]
+    del visual_overrides["insulation_material"]
+    del visual_overrides["conductor_material"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.connections[0].attachment is not None
+    assert migrated.connections[0].attachment.visual_overrides == CableVisualOverrides()
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

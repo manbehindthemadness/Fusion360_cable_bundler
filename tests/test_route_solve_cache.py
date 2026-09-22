@@ -17,6 +17,7 @@ from cable_bundler.domain import (
     AutoTransitionPreset,
     CableEndAttachment,
     CableGroupDefinition,
+    CableVisualOverrides,
     Connection,
     ControlKind,
     ControlStructure,
@@ -96,6 +97,7 @@ def test_multiple_connections_create_divided_clockface_branches(
         "Target 1",
         attachment_id=UUID(int=91),
         ordered_control_ids=(refine_id,),
+        visual_overrides=CableVisualOverrides(diameter_mm=0.4),
     )
     second = CableEndAttachment(
         AttachmentTargetKind.JOINT_ORIGIN,
@@ -174,7 +176,7 @@ def test_multiple_connections_create_divided_clockface_branches(
     group = definition.cable_groups[0]
     assert len(routes) == 2
     assert tuple(leg.diameter_mm for leg in legs) == (
-        group.diameter_mm / 2.0,
+        0.4,
         group.diameter_mm / 2.0,
     )
     assert all(leg.is_connection_branch for leg in legs)

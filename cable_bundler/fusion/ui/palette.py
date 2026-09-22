@@ -100,6 +100,7 @@ _PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refi
 _PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
 _CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)
 _PALETTE_EDIT_POLICIES["add_cable_end_connection"] = _CONNECTION_GEOMETRY_EDIT_POLICY
+_PALETTE_EDIT_POLICIES["set_cable_end_attachment_properties"] = _CONNECTION_GEOMETRY_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = PaletteEditPolicy(
     reconcile_refines=True,
     refresh_connection_geometry=True,
@@ -214,13 +215,16 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             if policy is None:
                 raise ValueError(f"Unsupported harness edit: {action}")
             notice = _apply_palette_edit(application, action, data)
-            harness_id = _read_payload_uuid(_read_palette_payload(data), "harnessId", "harness")
+            payload = _read_palette_payload(data)
+            harness_id = _read_payload_uuid(payload, "harnessId", "harness")
             if policy.reconcile_refines:
                 reconcile_active_refines(application)
             if policy.apply_generated_materials:
                 notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
-            if policy.refresh_connection_geometry:
-                payload = _read_palette_payload(data)
+            refreshes_connection_geometry = policy.refresh_connection_geometry and (
+                action != "set_cable_end_attachment_properties" or "diameterMm" in payload
+            )
+            if refreshes_connection_geometry:
                 connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
                 gateway = _create_harness_gateway(application)
                 definition = loads(gateway.read_harness_definition(harness_id))

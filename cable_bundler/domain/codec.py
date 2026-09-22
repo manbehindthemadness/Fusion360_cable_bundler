@@ -73,11 +73,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, 16, 17, 18, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, 17, 18, 19, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 18 are migratable)",
+            "(schemas 12 through 19 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -287,9 +287,12 @@ def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
 
 def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, object]:
     """
-    Convert branch-only visual overrides while preserving null inheritance.
+    Convert branch overrides while preserving null inheritance.
     """
     return {
+        "diameter_mm": overrides.diameter_mm,
+        "insulation_material": overrides.insulation_material,
+        "conductor_material": overrides.conductor_material,
         "main_color": None
         if overrides.main_color is None
         else _color_to_dict(overrides.main_color),
@@ -671,13 +674,20 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
 
 def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverrides:
     """
-    Parse optional branch visual overrides from current or migrated data.
+    Parse optional branch overrides from current or migrated data.
     """
     value = _require_mapping(raw_value, path)
     raw_color = value.get("main_color")
     raw_stripes = value.get("stripes")
     try:
         return CableVisualOverrides(
+            diameter_mm=_optional_float(value.get("diameter_mm"), f"{path}.diameter_mm"),
+            insulation_material=_optional_str(
+                value.get("insulation_material"), f"{path}.insulation_material"
+            ),
+            conductor_material=_optional_str(
+                value.get("conductor_material"), f"{path}.conductor_material"
+            ),
             main_color=None if raw_color is None else _parse_color(raw_color, f"{path}.main_color"),
             appearance=_parse_appearance(value.get("appearance"), f"{path}.appearance"),
             stripes=(

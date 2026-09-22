@@ -538,9 +538,12 @@ def _material_overrides_payload(overrides: CableMaterialOverrides) -> dict[str, 
 
 def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, object]:
     """
-    Preserve branch-only visual inheritance markers at the palette boundary.
+    Preserve branch-property inheritance markers at the palette boundary.
     """
     return {
+        "diameterMm": overrides.diameter_mm,
+        "insulationMaterial": overrides.insulation_material,
+        "conductorMaterial": overrides.conductor_material,
         "mainColor": (
             None if overrides.main_color is None else _color_payload(overrides.main_color)
         ),

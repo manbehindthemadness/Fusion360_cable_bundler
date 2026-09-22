@@ -398,11 +398,31 @@ def _read_material_overrides(raw_value: object) -> CableMaterialOverrides:
 
 def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
     """
-    Parse nullable branch visuals; null values retain cable-group inheritance.
+    Parse nullable branch overrides; null values retain cable-group inheritance.
     """
     if not isinstance(raw_value, dict):
         raise ValueError("Connection material overrides must be an object.")
+    diameter = raw_value.get("diameterMm")
+    if diameter is not None and (
+        isinstance(diameter, bool) or not isinstance(diameter, (int, float))
+    ):
+        raise ValueError("Connection diameter must be a number in millimeters.")
     return CableVisualOverrides(
+        diameter_mm=diameter,
+        insulation_material=(
+            None
+            if raw_value.get("insulationMaterial") is None
+            else _read_material_text(
+                raw_value, "insulationMaterial", "Insulation material", required=True
+            )
+        ),
+        conductor_material=(
+            None
+            if raw_value.get("conductorMaterial") is None
+            else _read_material_text(
+                raw_value, "conductorMaterial", "Conductor material", required=True
+            )
+        ),
         main_color=(
             None
             if raw_value.get("mainColor") is None

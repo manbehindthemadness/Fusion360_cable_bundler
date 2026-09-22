@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -341,29 +341,57 @@ class CableMaterialOverrides:
 @dataclass(frozen=True)
 class CableVisualOverrides:
     """
-    Override branch visuals; null inherits and an empty stripe tuple suppresses.
+    Override one divided connection branch's construction and visual properties.
+
+    A null diameter selects the cable end's equal share of its parent cable.
+    Material and visual nulls inherit from the connected cable group, while an
+    empty stripe tuple suppresses inherited stripes.
     """
 
     main_color: Optional[CableColor] = None
     appearance: Optional[CableAppearanceReference] = None
     stripes: Optional[tuple[CableStripe, ...]] = None
+    diameter_mm: Optional[float] = None
+    insulation_material: Optional[str] = None
+    conductor_material: Optional[str] = None
 
     def __post_init__(self) -> None:
         """
-        Validate explicit visual overrides while retaining inheritance markers.
+        Validate explicit branch overrides while retaining inheritance markers.
         """
+        if self.diameter_mm is not None and (
+            isinstance(self.diameter_mm, bool)
+            or not isinstance(self.diameter_mm, (int, float))
+            or not math.isfinite(self.diameter_mm)
+            or self.diameter_mm <= 0.0
+        ):
+            raise ValueError("Connection diameter override must be finite and positive.")
+        for value, label in (
+            (self.insulation_material, "Insulation material"),
+            (self.conductor_material, "Conductor material"),
+        ):
+            if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise ValueError(f"{label} override must not be empty.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
 
     def resolve(self, parent: CableMaterialSettings) -> CableMaterialSettings:
         """
-        Merge branch visuals over resolved group materials.
+        Merge branch material and visual overrides over resolved group materials.
         """
         return CableMaterialSettings(
-            insulation_material=parent.insulation_material,
+            insulation_material=(
+                parent.insulation_material
+                if self.insulation_material is None
+                else self.insulation_material
+            ),
             main_color=parent.main_color if self.main_color is None else self.main_color,
             appearance=parent.appearance if self.main_color is None else self.appearance,
             stripes=parent.stripes if self.stripes is None else self.stripes,
-            conductor_material=parent.conductor_material,
+            conductor_material=(
+                parent.conductor_material
+                if self.conductor_material is None
+                else self.conductor_material
+            ),
             manufacturer=parent.manufacturer,
             part_number=parent.part_number,
             notes=parent.notes,
@@ -780,6 +808,36 @@ class HarnessDefinition:
         if len(connection.attachments) == 1:
             return parent
         return attachment.visual_overrides.resolve(parent)
+
+    def cable_end_attachment_diameter(
+        self,
+        group: CableGroupDefinition,
+        connection_id: UUID,
+        attachment_id: UUID,
+    ) -> float:
+        """
+        Resolve one connection branch diameter from its parent cable group.
+        """
+        if connection_id not in group.connection_ids:
+            raise ValueError("Cable-end connection does not belong to the cable group.")
+        connection = next(
+            (item for item in self.connections if item.connection_id == connection_id),
+            None,
+        )
+        if connection is None:
+            raise ValueError("Cable-end connection references a missing cable end.")
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == attachment_id),
+            None,
+        )
+        if attachment is None:
+            raise ValueError("Cable-end connection does not exist.")
+        if len(connection.attachments) <= 1:
+            return group.diameter_mm
+        diameter_mm = attachment.visual_overrides.diameter_mm
+        return (
+            group.diameter_mm / len(connection.attachments) if diameter_mm is None else diameter_mm
+        )
 
     def cable_group_metadata(self, group: CableGroupDefinition) -> Metadata:
         """

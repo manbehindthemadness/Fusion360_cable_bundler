@@ -545,19 +545,23 @@ def _validate_cable_groups(
     """
     Validate exclusive group membership across distinct pathway boundaries.
     """
-    connection_ids = {connection.connection_id for connection in definition.connections}
+    connections_by_id = {
+        connection.connection_id: connection for connection in definition.connections
+    }
+    connection_ids = set(connections_by_id)
     locations: dict[UUID, tuple[UUID, PathwayEndpoint]] = {
         end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends
     }
     memberships: dict[UUID, str] = {}
     for group_index, group in enumerate(definition.cable_groups):
         group_path = f"cable_groups[{group_index}]"
-        if (
+        valid_group_diameter = not (
             isinstance(group.diameter_mm, bool)
             or not isinstance(group.diameter_mm, (int, float))
             or not math.isfinite(group.diameter_mm)
             or group.diameter_mm <= 0
-        ):
+        )
+        if not valid_group_diameter:
             issues.append(
                 ValidationIssue(
                     "invalid_cable_group_diameter",
@@ -583,6 +587,24 @@ def _validate_cable_groups(
                 member_path,
                 issues,
             )
+            connection = connections_by_id.get(connection_id)
+            if connection is not None and len(connection.attachments) > 1 and valid_group_diameter:
+                inherited_diameter_mm = group.diameter_mm / len(connection.attachments)
+                combined_diameter_mm = sum(
+                    inherited_diameter_mm
+                    if attachment.visual_overrides.diameter_mm is None
+                    else attachment.visual_overrides.diameter_mm
+                    for attachment in connection.attachments
+                )
+                if combined_diameter_mm > group.diameter_mm + 1e-9:
+                    issues.append(
+                        ValidationIssue(
+                            "connection_diameter_budget_exceeded",
+                            f"{member_path}.connection_diameters",
+                            "Connection diameters cannot collectively exceed the parent cable "
+                            "diameter.",
+                        )
+                    )
             previous_membership = memberships.get(connection_id)
             if previous_membership is not None:
                 issues.append(

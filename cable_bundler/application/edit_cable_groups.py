@@ -291,7 +291,18 @@ def _update_cable_group(
         update(group) if group.cable_group_id == cable_group_id else group
         for group in definition.cable_groups
     )
-    persist_definition(harness_id, original, replace(definition, cable_groups=groups), gateway)
+    updated = replace(definition, cable_groups=groups)
+    diameter_issue = next(
+        (
+            issue
+            for issue in validate_harness(updated)
+            if issue.code == "connection_diameter_budget_exceeded"
+        ),
+        None,
+    )
+    if diameter_issue is not None:
+        raise ValueError(diameter_issue.message)
+    persist_definition(harness_id, original, updated, gateway)
 
 
 def rename_cable_group(

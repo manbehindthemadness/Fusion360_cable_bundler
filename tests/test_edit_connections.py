@@ -17,6 +17,7 @@ from cable_bundler.application import (
     rename_cable_end_attachment,
     set_cable_end_attachment_properties,
     set_cable_end_attachment_visual_overrides,
+    set_cable_group_properties,
 )
 from cable_bundler.domain import (
     AttachmentTargetKind,
@@ -89,9 +90,40 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         second_attachment_id,
         (("connector", "J1"),),
         gateway,
+        diameter_mm=0.6,
+        insulation_material="ETFE",
+        conductor_material="Aluminum",
     )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachments[1].metadata == (("connector", "J1"),)
+    saved_attachment = stored.connections[0].attachments[1]
+    assert saved_attachment.metadata == (("connector", "J1"),)
+    assert saved_attachment.visual_overrides.diameter_mm == 0.6
+    assert saved_attachment.visual_overrides.insulation_material == "ETFE"
+    assert saved_attachment.visual_overrides.conductor_material == "Aluminum"
+
+    group = valid_harness.cable_groups[0]
+    with pytest.raises(ValueError, match="collectively exceed"):
+        set_cable_group_properties(
+            valid_harness.harness_id,
+            group.cable_group_id,
+            1.0,
+            None,
+            None,
+            None,
+            None,
+            (),
+            gateway,
+        )
+
+    with pytest.raises(ValueError, match="collectively exceed"):
+        set_cable_end_attachment_properties(
+            valid_harness.harness_id,
+            connection_id,
+            first_attachment_id,
+            (),
+            gateway,
+            diameter_mm=1.0,
+        )
 
     attach_cable_end(
         valid_harness.harness_id,
@@ -106,6 +138,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         attachment_id=second_attachment_id,
         name="Bulkhead socket",
         metadata=(("connector", "J1"),),
+        visual_overrides=saved_attachment.visual_overrides,
     )
     assert stored.cable_groups == valid_harness.cable_groups
 
@@ -254,12 +287,27 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     add_cable_end_connection(
         valid_harness.harness_id, connection_id, gateway, id_factory=lambda: second_id
     )
+    set_cable_end_attachment_properties(
+        valid_harness.harness_id,
+        connection_id,
+        first_id,
+        (),
+        gateway,
+        diameter_mm=0.6,
+        insulation_material="ETFE",
+        conductor_material="Aluminum",
+    )
 
     set_cable_end_attachment_visual_overrides(
         valid_harness.harness_id, connection_id, first_id, overrides, gateway
     )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachments[0].visual_overrides == overrides
+    assert stored.connections[0].attachments[0].visual_overrides == replace(
+        overrides,
+        diameter_mm=0.6,
+        insulation_material="ETFE",
+        conductor_material="Aluminum",
+    )
 
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, second_id, gateway)
     stored = loads(gateway.serialized_definition)

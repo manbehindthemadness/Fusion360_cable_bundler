@@ -6,7 +6,9 @@ from dataclasses import replace
 from uuid import UUID
 
 from cable_bundler.domain import (
+    CableEndAttachment,
     CableGroupDefinition,
+    CableVisualOverrides,
     Connection,
     ControlKind,
     ControlStructure,
@@ -104,6 +106,31 @@ def test_rejects_nonpositive_cable_group_diameter(
     issues = validate_harness(replace(valid_harness, cable_groups=(group,)))
 
     assert any(issue.code == "invalid_cable_group_diameter" for issue in issues)
+
+
+def test_rejects_connection_diameters_above_parent_cable(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Bound the sum of resolved divided-branch diameters by the parent diameter.
+    """
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=CableEndAttachment(
+            None,
+            attachment_id=UUID(int=801),
+            visual_overrides=CableVisualOverrides(diameter_mm=1.0),
+        ),
+        additional_attachments=(CableEndAttachment(None, attachment_id=UUID(int=802)),),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+    )
+
+    issues = validate_harness(definition)
+
+    assert any(issue.code == "connection_diameter_budget_exceeded" for issue in issues)
 
 
 def test_rejects_distinct_group_members_at_the_same_pathway_end(

@@ -80,6 +80,9 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
     overridden = replace(
         inherited.attachment,
         visual_overrides=CableVisualOverrides(
+            diameter_mm=0.6,
+            insulation_material="ETFE",
+            conductor_material="Aluminum",
             main_color=red,
             stripes=(CableStripe(CableColor("White", 255, 255, 255), 0.2),),
         ),
@@ -109,6 +112,20 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
     )
     assert resolved.main_color == red
     assert resolved.stripes == overridden.visual_overrides.stripes
+    assert resolved.insulation_material == "ETFE"
+    assert resolved.conductor_material == "Aluminum"
+    assert (
+        multiple.cable_end_attachment_diameter(
+            group, connection.connection_id, overridden.attachment_id
+        )
+        == 0.6
+    )
+    assert (
+        multiple.cable_end_attachment_diameter(
+            group, connection.connection_id, second.attachment_id
+        )
+        == group.diameter_mm / 2.0
+    )
 
 
 def test_cable_metadata_inherits_parent_rows_and_applies_keyed_overrides(

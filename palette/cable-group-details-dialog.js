@@ -91,7 +91,7 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
     },
     {
       label: "Properties",
-      action: () => openCableEndAttachmentProperties(harness, attachment),
+      action: () => openCableEndAttachmentProperties(harness, group, attachment),
     },
   ];
 }

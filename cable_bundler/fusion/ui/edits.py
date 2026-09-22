@@ -487,13 +487,38 @@ def _apply_property_edit(
         )
         return "Saved cable-end properties."
     if action == "set_cable_end_attachment_properties":
-        set_cable_end_attachment_properties(
-            harness_id,
-            _read_payload_uuid(payload, "connectionId", "cable-end connection"),
-            _read_payload_uuid(payload, "attachmentId", "connection node"),
-            _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
-            gateway,
+        has_construction_properties = "diameterMm" in payload
+        property_overrides = (
+            _read_visual_overrides(
+                {
+                    "diameterMm": payload.get("diameterMm"),
+                    "insulationMaterial": payload.get("insulationMaterial"),
+                    "conductorMaterial": payload.get("conductorMaterial"),
+                }
+            )
+            if has_construction_properties
+            else None
         )
+        if property_overrides is not None and property_overrides.diameter_mm is None:
+            raise ValueError("Connection diameter must be a number in millimeters.")
+        connection_id = _read_payload_uuid(payload, "connectionId", "cable-end connection")
+        attachment_id = _read_payload_uuid(payload, "attachmentId", "connection node")
+        metadata = _read_metadata(payload.get("metadata", []), "Cable-end connection metadata")
+        if property_overrides is None:
+            set_cable_end_attachment_properties(
+                harness_id, connection_id, attachment_id, metadata, gateway
+            )
+        else:
+            set_cable_end_attachment_properties(
+                harness_id,
+                connection_id,
+                attachment_id,
+                metadata,
+                gateway,
+                diameter_mm=property_overrides.diameter_mm,
+                insulation_material=property_overrides.insulation_material,
+                conductor_material=property_overrides.conductor_material,
+            )
         return "Saved cable-end connection properties."
     if action == "set_cable_end_attachment_visual_overrides":
         set_cable_end_attachment_visual_overrides(
