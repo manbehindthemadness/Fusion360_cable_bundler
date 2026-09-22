@@ -13,17 +13,12 @@ import adsk.core
 import adsk.fusion
 
 from ...application import HarnessLoadResult, load_harnesses
-from ...domain import HarnessDefinition
 from .. import clear_route_previews
-from ..cable_solids import (
-    refresh_changed_generated_cable_groups,
-    restore_cable_group_stripe_graphics,
-)
+from ..cable_solids import restore_cable_group_stripe_graphics
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import (
     has_route_previews,
     reconcile_preview_history,
-    refresh_route_previews_with_result,
     reset_preview_history,
 )
 from .commands.refines import (
@@ -67,9 +62,11 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
     def notify(self, args: adsk.core.ApplicationCommandEventArgs) -> None:
         """
         Synchronize caches and recreate session-only decorations after history travel.
+
+        Command termination must remain read-only. Fusion has already committed a
+        native command at this point, so model or Custom Graphics writes here would
+        create a second undo entry in front of the command the user just completed.
         """
-        if _runtime.geometry_refresh_active:
-            return
         application = adsk.core.Application.get()
         try:
             design = adsk.fusion.Design.cast(application.activeProduct)
@@ -82,72 +79,9 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             reconcile_preview_history(design, definitions)
             if args.commandId in _HISTORY_NAVIGATION_COMMAND_IDS:
                 _request_deferred_stripe_restore(application)
-            else:
-                notice = _refresh_changed_routing_geometry(
-                    application, design, results, definitions
-                )
-                _send_palette_state(application, notice)
-                return
             _send_palette_state(application)
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             _log_to_fusion(f"Could not synchronize harness history: {error}")
-
-
-def _refresh_changed_routing_geometry(
-    application: adsk.core.Application,
-    design: adsk.fusion.Design,
-    results: tuple[HarnessLoadResult, ...],
-    definitions: tuple[HarnessDefinition, ...],
-) -> str:
-    """
-    Reconcile generated output and previews after geometry-owning commands.
-
-    Exact stored curves and stable route identities keep both operations local
-    to changed cable groups and legs. History navigation deliberately bypasses
-    this writer to preserve Fusion's Redo stack.
-    """
-    if _runtime.geometry_refresh_active:
-        return ""
-    _runtime.geometry_refresh_active = True
-    try:
-        rebuilt_count = 0
-        for result in results:
-            if result.definition is None or result.component_handle is None:
-                continue
-            notices: list[str] = []
-            rebuilt_count += refresh_changed_generated_cable_groups(
-                design,
-                result.component_handle,
-                result.definition,
-                notices,
-            )
-            for notice in notices:
-                _log_to_fusion(notice)
-        previews_active = has_route_previews(design)
-        updated_preview_routes = 0
-        if previews_active:
-            for definition in definitions:
-                preview_result = refresh_route_previews_with_result(design, definition)
-                updated_preview_routes += preview_result.updated_route_count
-                for warning in preview_result.warnings:
-                    _log_to_fusion(warning)
-        if rebuilt_count or previews_active:
-            application.activeViewport.refresh()
-        if not rebuilt_count and not updated_preview_routes:
-            return ""
-        parts = []
-        if rebuilt_count:
-            parts.append(
-                f"{rebuilt_count} generated cable group{'s' if rebuilt_count != 1 else ''}"
-            )
-        if updated_preview_routes:
-            parts.append(
-                f"{updated_preview_routes} preview route"
-                f"{'s' if updated_preview_routes != 1 else ''}"
-            )
-        return f"Updated local routing geometry: {' and '.join(parts)}."
-    finally:
-        _runtime.geometry_refresh_active = False
 
 
 class _DeferredStripeRestoreHandler(adsk.core.CustomEventHandler):
