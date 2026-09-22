@@ -298,6 +298,45 @@ asyncTest('connection Properties place shielding above custom metadata', async (
   assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([]));
 });
 
+test('shielding indicators distinguish connected and disconnected relationships', () => {
+  const { context, definition, connection } = shieldingConnectionFixture();
+  const node = {
+    attachmentId: 'shielded-connector', parentAttachmentId: null, connectionId: 'a1',
+    name: 'Shielded connector', nameOverride: '', targetKind: 'construction_point',
+    connected: true, metadata: [], visualOverrides: {},
+    shieldingTarget: {
+      targetKind: 'construction_point', name: 'Shield stud', connected: true,
+    },
+  };
+  connection.attachment = node;
+  connection.attachments = [node];
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  let details = context.document.body.querySelector('.cable-group-details-popup');
+  let rendered = descendants(details, (candidate) => (
+    candidate.dataset.nodeId === 'attachment:a1:shielded-connector'
+  ))[0];
+  assert.equal(rendered.dataset.shielding, 'connected');
+  let indicator = descendants(rendered, (candidate) => (
+    candidate.className === 'connection-shielding-indicator connected'
+  ))[0];
+  assert.equal(indicator.attributes['aria-label'], 'Shielding connected');
+  assert.equal(indicator.children[1].textContent, 'S+');
+
+  node.shieldingTarget = null;
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  details = context.document.body.querySelector('.cable-group-details-popup');
+  rendered = descendants(details, (candidate) => (
+    candidate.dataset.nodeId === 'attachment:a1:shielded-connector'
+  ))[0];
+  assert.equal(rendered.dataset.shielding, 'disconnected');
+  indicator = descendants(rendered, (candidate) => (
+    candidate.className === 'connection-shielding-indicator disconnected'
+  ))[0];
+  assert.equal(indicator.attributes['aria-label'], 'Shielding disconnected');
+  assert.equal(indicator.children[1].textContent, 'S−');
+});
+
 test('Cable Details connection nodes form a parent-child chain', () => {
   const { context } = palette();
   const definition = harness();

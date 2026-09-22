@@ -66,6 +66,28 @@
   stroke: var(--muted);
   stroke-dasharray: 4 3;
 }
+.connection-shielding-indicator.connected circle {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+.connection-shielding-indicator.connected text {
+  fill: var(--surface);
+}
+.connection-shielding-indicator.disconnected circle {
+  fill: var(--surface);
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 1;
+}
+.connection-shielding-indicator.disconnected text {
+  fill: var(--muted);
+}
+.connection-shielding-indicator text {
+  font-size: 7px;
+  font-weight: 700;
+  text-anchor: middle;
+}
 .cable-group-details-member.focused { border-color: var(--accent); background: var(--focus-surface); }
 .cable-group-route-error {
   border: 1px solid var(--danger-border);

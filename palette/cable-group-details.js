@@ -584,12 +584,43 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     } else if (node.kind === "attachment") {
       kind.textContent = node.item.connected ? "Connected" : "Disconnected";
       groupNode.dataset.connected = node.item.connected ? "true" : "false";
+      const connection = harness.connections.find(
+        (candidate) => candidate.connectionId === node.item.connectionId,
+      );
+      const shielding = connection
+        ? cableEndAttachmentMaterials(group, connection, node.item).shielding : "";
+      const hasShielding = typeof shielding === "string" && shielding.trim() !== "";
+      const shieldingConnected = node.item.shieldingTarget?.connected === true;
+      groupNode.dataset.shielding = hasShielding
+        ? (shieldingConnected ? "connected" : "disconnected") : "none";
+      if (hasShielding) {
+        const shieldingStatus = shieldingConnected ? "connected" : "disconnected";
+        const indicator = svgElement("g", {
+          class: `connection-shielding-indicator ${shieldingStatus}`,
+          role: "img",
+          "aria-label": `Shielding ${shieldingStatus}`,
+        });
+        const indicatorCircle = svgElement("circle", {
+          cx: node.x + node.width / 2 - 10,
+          cy: node.y - node.height / 2 + 10,
+          r: 8,
+        });
+        const indicatorLabel = svgElement("text", {
+          x: node.x + node.width / 2 - 10,
+          y: node.y - node.height / 2 + 13,
+        });
+        const indicatorTitle = svgElement("title");
+        indicatorLabel.textContent = shieldingConnected ? "S+" : "S−";
+        indicatorTitle.textContent = `Shielding ${shieldingStatus}`;
+        indicator.append(indicatorCircle, indicatorLabel, indicatorTitle);
+        groupNode.append(indicator);
+      }
     } else {
       kind.textContent = node.kind;
     }
     title.textContent = node.label;
     shape.append(title);
-    groupNode.append(shape, label, kind);
+    groupNode.prepend(shape, label, kind);
     if (node.kind === "connection") {
       const connectionId = node.id.slice("connection:".length);
       groupNode.dataset.connectionId = connectionId;
