@@ -106,10 +106,16 @@ def _apply_topology_edit(
     Apply one relationship, ordering, or deletion edit.
     """
     if action == "add_cable_end_connection":
+        parent_attachment_id = (
+            _read_payload_uuid(payload, "parentAttachmentId", "parent connection")
+            if payload.get("parentAttachmentId") is not None
+            else None
+        )
         add_cable_end_connection(
             harness_id,
             _read_payload_uuid(payload, "connectionId", "cable end"),
             gateway,
+            parent_attachment_id=parent_attachment_id,
         )
         return "Added cable-end connection."
     if action == "move_pathway_gate":

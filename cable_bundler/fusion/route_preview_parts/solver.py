@@ -45,6 +45,7 @@ from ...routing.geometry import cross, unit
 from .frames import (
     ProfileFrame,
     connection_attachment_frame,
+    connection_attachment_parent_frame,
     connection_branch_route_frames,
     connection_profile_frames,
     connection_route_frames,
@@ -201,6 +202,15 @@ def solve_cable_group_routes(
                 raise RuntimeError(f"{leg.label} references a missing {position} connection.")
             member_frames = connection_profile_frames(design, connection, profile_frames)
             for attachment in connection.attachments:
+                parent_frame = connection_attachment_parent_frame(
+                    design,
+                    connection,
+                    attachment,
+                    member_frames[0],
+                    profile_frames,
+                )
+                if parent_frame is None:
+                    continue
                 for control_id in attachment.ordered_control_ids:
                     if control_id not in frames:
                         frames[control_id] = routing_frame(
@@ -212,7 +222,7 @@ def solve_cable_group_routes(
                     design,
                     connection,
                     attachment,
-                    member_frames[0],
+                    parent_frame,
                     profile_frames,
                 )
     control_frame_snapshot = tuple(sorted(frames.items(), key=lambda item: str(item[0])))
@@ -286,8 +296,9 @@ def solve_cable_group_routes(
                 profile_frames,
             )
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
+            root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
-                connection.attachments[0].ordered_control_ids if has_attachment_frame else ()
+                root_attachments[0].ordered_control_ids if has_attachment_frame else ()
             )
             start_frames = connection_frames
             points.extend(frame.origin for frame in connection_frames)
@@ -374,8 +385,9 @@ def solve_cable_group_routes(
                 profile_frames,
             )
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
+            root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
-                connection.attachments[0].ordered_control_ids if has_attachment_frame else ()
+                root_attachments[0].ordered_control_ids if has_attachment_frame else ()
             )
             native_end_transitions = (
                 ((TransitionLengths(None, None),) if has_attachment_frame else ())
@@ -548,77 +560,108 @@ def _connection_branch_routes(
     auto_transition_fraction: float,
 ) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
     """
-    Build reduced-diameter target branches for ends with multiple connections.
+    Build every root split and descendant connection span.
     """
     routes: list[RoutePreview] = []
     legs: list[CableGroupRouteLeg] = []
     for group in definition.cable_groups:
         for connection_id in group.connection_ids:
             connection = connections.get(connection_id)
-            if connection is None or len(connection.attachments) <= 1:
+            if connection is None:
                 continue
-            guide = connection_profile_frames(design, connection, cache)[0]
-            for index, attachment in enumerate(connection.attachments):
-                branch_diameter_mm = definition.cable_end_attachment_diameter(
-                    group, connection_id, attachment.attachment_id
-                )
-                branch_frames = connection_branch_route_frames(
-                    design,
-                    connection,
-                    attachment,
-                    guide,
-                    index,
-                    len(connection.attachments),
-                    group.diameter_mm,
-                    controls,
-                    frames,
-                    cache,
-                )
-                if not branch_frames:
-                    continue
-                route_id = uuid5(
-                    attachment.attachment_id,
-                    f"{group.cable_group_id}:{connection_id}:connection-branch",
-                )
-                label = f"{group.name or 'Cable group'} · {attachment.display_name}"
-                raw_route = RoutePreview(
-                    route_id,
-                    label,
-                    tuple(frame.origin for frame in branch_frames),
-                )
-                transitions = (
-                    TransitionLengths(None, None),
-                    *(
-                        TransitionLengths(
-                            controls[control_id].interpolation.approach_mm,
-                            controls[control_id].interpolation.departure_mm,
-                        )
-                        for control_id in attachment.ordered_control_ids
-                    ),
-                    TransitionLengths(None, None),
-                )
-                route = fair_route(
-                    raw_route,
-                    tuple(frame.normal for frame in branch_frames),
-                    transitions,
-                    minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
-                    auto_transition_fraction=auto_transition_fraction,
-                )
-                routes.append(route)
-                legs.append(
-                    CableGroupRouteLeg(
-                        route_id,
-                        group.cable_group_id,
-                        label,
-                        connection_id,
-                        None,
-                        (),
-                        (),
-                        diameter_mm=branch_diameter_mm,
-                        is_connection_branch=True,
-                        attachment_id=attachment.attachment_id,
+            end_guide = connection_profile_frames(design, connection, cache)[0]
+            parent_ids = tuple(
+                dict.fromkeys(item.parent_attachment_id for item in connection.attachments)
+            )
+            for parent_attachment_id in parent_ids:
+                siblings = connection.attachment_children(parent_attachment_id)
+                if parent_attachment_id is None:
+                    guide = end_guide
+                    parent_diameter_mm = group.diameter_mm
+                    if len(siblings) <= 1:
+                        continue
+                else:
+                    parent = next(
+                        item
+                        for item in connection.attachments
+                        if item.attachment_id == parent_attachment_id
                     )
-                )
+                    parent_adjacent = connection_attachment_parent_frame(
+                        design, connection, parent, end_guide, cache
+                    )
+                    if parent_adjacent is None:
+                        continue
+                    parent_frame = connection_attachment_frame(
+                        design, connection, parent, parent_adjacent, cache
+                    )
+                    if parent_frame is None:
+                        continue
+                    guide = parent_frame
+                    parent_diameter_mm = definition.cable_end_attachment_diameter(
+                        group, connection_id, parent_attachment_id
+                    )
+                for index, attachment in enumerate(siblings):
+                    branch_diameter_mm = definition.cable_end_attachment_diameter(
+                        group, connection_id, attachment.attachment_id
+                    )
+                    branch_frames = connection_branch_route_frames(
+                        design,
+                        connection,
+                        attachment,
+                        guide,
+                        index,
+                        len(siblings),
+                        parent_diameter_mm,
+                        branch_diameter_mm,
+                        controls,
+                        frames,
+                        cache,
+                    )
+                    if not branch_frames:
+                        continue
+                    route_id = uuid5(
+                        attachment.attachment_id,
+                        f"{group.cable_group_id}:{connection_id}:connection-branch",
+                    )
+                    label = f"{group.name or 'Cable group'} · {attachment.display_name}"
+                    raw_route = RoutePreview(
+                        route_id,
+                        label,
+                        tuple(frame.origin for frame in branch_frames),
+                    )
+                    transitions = (
+                        TransitionLengths(None, None),
+                        *(
+                            TransitionLengths(
+                                controls[control_id].interpolation.approach_mm,
+                                controls[control_id].interpolation.departure_mm,
+                            )
+                            for control_id in attachment.ordered_control_ids
+                        ),
+                        TransitionLengths(None, None),
+                    )
+                    route = fair_route(
+                        raw_route,
+                        tuple(frame.normal for frame in branch_frames),
+                        transitions,
+                        minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
+                        auto_transition_fraction=auto_transition_fraction,
+                    )
+                    routes.append(route)
+                    legs.append(
+                        CableGroupRouteLeg(
+                            route_id,
+                            group.cable_group_id,
+                            label,
+                            connection_id,
+                            None,
+                            (),
+                            (),
+                            diameter_mm=branch_diameter_mm,
+                            is_connection_branch=True,
+                            attachment_id=attachment.attachment_id,
+                        )
+                    )
     return tuple(routes), tuple(legs)
 
 

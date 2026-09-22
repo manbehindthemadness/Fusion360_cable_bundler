@@ -186,10 +186,11 @@ def test_multiple_connections_create_divided_clockface_branches(
     )
     assert routes[0].points[1] == refine_frame.origin
     origins = tuple(route.points[-1] for route in routes)
-    branch_radius = group.diameter_mm / 4.0
+    first_branch_radius = (group.diameter_mm - 0.4) / 2.0
+    second_branch_radius = (group.diameter_mm - group.diameter_mm / 2.0) / 2.0
     assert tuple(
         coordinate for point in origins for coordinate in (point.x, point.y, point.z)
-    ) == pytest.approx((0.0, branch_radius, 0.0, 0.0, -branch_radius, 0.0))
+    ) == pytest.approx((0.0, first_branch_radius, 0.0, 0.0, -second_branch_radius, 0.0))
 
 
 def test_connection_refine_spine_uses_selected_external_branch(
@@ -240,6 +241,95 @@ def test_connection_refine_spine_uses_selected_external_branch(
 
     assert spine.points == (target.origin, guide.origin)
     assert branch_frames.call_args.args[1:4] == (connection, attachment, guide)
+
+
+def test_nested_connection_routes_from_child_target_to_parent_profile(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Continue a connection chain from each child target to its immediate parent.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    root = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "root-profile",
+        "Root",
+        attachment_id=UUID(int=94),
+    )
+    child = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "child-target",
+        "Child",
+        attachment_id=UUID(int=95),
+        parent_attachment_id=root.attachment_id,
+    )
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=root,
+        additional_attachments=(child,),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+    )
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    targets = {
+        root.attachment_id: replace(guide, origin=Vector3(0.0, 0.0, 5.0)),
+        child.attachment_id: replace(guide, origin=Vector3(0.0, 0.0, 10.0)),
+    }
+
+    def attachment_frame(
+        _design: object,
+        _connection: Connection,
+        attachment: CableEndAttachment,
+        _guide: object,
+        _cache: dict[str, route_solver.ProfileFrame],
+    ) -> route_solver.ProfileFrame:
+        """
+        Return the deterministic frame assigned to one test attachment.
+        """
+        return targets[attachment.attachment_id]
+
+    monkeypatch.setitem(
+        vars(route_solver),
+        "connection_profile_frames",
+        lambda _design, _connection, _cache: (guide,),
+    )
+    monkeypatch.setattr(route_frames, "connection_attachment_frame", attachment_frame)
+    monkeypatch.setitem(vars(route_solver), "connection_attachment_frame", attachment_frame)
+    monkeypatch.setitem(
+        vars(route_solver),
+        "fair_route",
+        lambda route, *_args, **_kwargs: route,
+    )
+
+    routes, legs = route_solver._connection_branch_routes(
+        object(),
+        definition,
+        {item.connection_id: item for item in definition.connections},
+        {},
+        {},
+        {},
+        definition.auto_transition_preset.span_fraction,
+    )
+
+    assert len(routes) == 1
+    assert routes[0].points == (
+        targets[child.attachment_id].origin,
+        targets[root.attachment_id].origin,
+    )
+    assert legs[0].attachment_id == child.attachment_id
+    assert legs[0].diameter_mm == definition.cable_groups[0].diameter_mm
 
 
 def test_undersized_gate_warns_through_public_product_solver(

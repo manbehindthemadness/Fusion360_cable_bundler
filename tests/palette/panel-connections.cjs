@@ -77,6 +77,12 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   attachmentNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
   });
+  let addAttachmentAction = contextMenuBranch(menu, 'Add');
+  assert.deepEqual(
+    addAttachmentAction.children[1].children.map((item) => item.textContent),
+    ['Connection'],
+  );
+  assert.equal(addAttachmentAction.children[1].children[0].disabled, true);
   menu.children.find((item) => item.textContent === 'Connect').events.click();
   assert.deepEqual(nativeActions, [['a1', 'connection-2']]);
   assert.equal(menu.children.some((item) => item.textContent === 'Materials'), true);
@@ -87,66 +93,76 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     metadata: [{ key: 'connector', value: 'J1' }],
     visualOverrides: { mainColor: null, appearance: null, stripes: null },
   };
+  const openSecondAttachmentMenu = () => {
+    context.openCableGroupDetails(definition, 'g1', 'a1');
+    details = context.document.body.querySelector('.cable-group-details-popup');
+    attachmentNode = descendants(details, (node) => (
+      node.dataset.nodeId === 'attachment:a1:connection-2'
+    ))[0];
+    menu = details.querySelector('.relationship-map-context-menu');
+    attachmentNode.events.contextmenu({
+      clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
+    });
+    return contextMenuBranch(menu, 'Add');
+  };
   connection.attachments[1] = connectedAttachment;
-  context.openCableGroupDetails(definition, 'g1', 'a1');
-  details = context.document.body.querySelector('.cable-group-details-popup');
-  attachmentNode = descendants(details, (node) => (
-    node.dataset.nodeId === 'attachment:a1:connection-2'
-  ))[0];
+  addAttachmentAction = openSecondAttachmentMenu();
   const labels = descendants(attachmentNode, (node) => node.tag === 'text');
   assert.equal(labels.some((node) => node.textContent === 'J1 socket'), true);
   assert.equal(labels.some((node) => node.textContent === 'Connected'), true);
   assert.equal(attachmentNode.dataset.connected, 'true');
-  menu = details.querySelector('.relationship-map-context-menu');
-  attachmentNode.events.contextmenu({
-    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
-  });
-  assert.equal(
-    menu.children.find((item) => item.textContent === 'Connect').disabled,
-    true,
-  );
-  const addRefine = contextMenuBranch(menu, 'Add');
   assert.deepEqual(
-    addRefine.children[1].children.map((item) => item.textContent),
-    ['Refine'],
+    addAttachmentAction.children[1].children.map((item) => item.textContent),
+    ['Connection', 'Refine'],
   );
-  assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
-  addRefine.children[1].children[0].events.click();
+  assert.equal(menu.children.find((item) => item.textContent === 'Connect').disabled, true);
+  assert.equal(addAttachmentAction.children[1].children[0].disabled, true);
+  addAttachmentAction.children[1].children[1].events.click();
   assert.equal(calls[2].action, 'add_connection_refine');
   assert.equal(calls[2].payload.connectionId, 'a1');
   assert.equal(calls[2].payload.attachmentId, 'connection-2');
+
+  for (const targetKind of [
+    'face', 'joint_origin', 'circular_edge', 'construction_point', 'sketch_point',
+  ]) {
+    connectedAttachment.targetKind = targetKind;
+    addAttachmentAction = openSecondAttachmentMenu();
+    assert.equal(addAttachmentAction.children[1].children[0].disabled, true, targetKind);
+  }
+
+  connectedAttachment.targetKind = 'profile';
+  addAttachmentAction = openSecondAttachmentMenu();
+  assert.equal(addAttachmentAction.children[1].children[0].disabled, false);
+  addAttachmentAction.children[1].children[0].events.click();
+  assert.equal(calls[3].action, 'add_cable_end_connection');
+  assert.equal(calls[3].payload.connectionId, 'a1');
+  assert.equal(calls[3].payload.parentAttachmentId, 'connection-2');
+
   connectedAttachment.connected = false;
-  context.openCableGroupDetails(definition, 'g1', 'a1');
-  details = context.document.body.querySelector('.cable-group-details-popup');
-  const disconnectedNode = descendants(details, (node) => (
-    node.dataset.nodeId === 'attachment:a1:connection-2'
-  ))[0];
+  addAttachmentAction = openSecondAttachmentMenu();
+  const disconnectedNode = attachmentNode;
   assert.equal(
     descendants(disconnectedNode, (node) => node.tag === 'text')
       .some((node) => node.textContent === 'Disconnected'),
     true,
   );
   assert.equal(disconnectedNode.dataset.connected, 'false');
-  menu = details.querySelector('.relationship-map-context-menu');
-  disconnectedNode.events.contextmenu({
-    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
-  });
-  assert.equal(
-    menu.children.find((item) => item.textContent === 'Connect').disabled,
-    false,
+  assert.deepEqual(
+    addAttachmentAction.children[1].children.map((item) => item.textContent),
+    ['Connection'],
   );
-  assert.equal(contextMenuBranch(menu, 'Add'), undefined);
-  assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
+  assert.equal(menu.children.find((item) => item.textContent === 'Connect').disabled, false);
+  assert.equal(addAttachmentAction.children[1].children[0].disabled, true);
   menu.children.find((item) => item.textContent === 'Rename').events.click();
   const renameDialog = context.document.body.querySelector('.connection-name-popup');
   const input = renameDialog.querySelector('input');
   assert.equal(input.placeholder, 'J1 socket');
   input.value = 'Bulkhead pin';
   renameDialog.querySelector('form').events.submit({ preventDefault() {} });
-  assert.equal(calls[3].action, 'rename_cable_end_attachment');
-  assert.equal(calls[3].payload.connectionId, 'a1');
-  assert.equal(calls[3].payload.attachmentId, 'connection-2');
-  assert.equal(calls[3].payload.name, 'Bulkhead pin');
+  assert.equal(calls[4].action, 'rename_cable_end_attachment');
+  assert.equal(calls[4].payload.connectionId, 'a1');
+  assert.equal(calls[4].payload.attachmentId, 'connection-2');
+  assert.equal(calls[4].payload.name, 'Bulkhead pin');
 
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
@@ -170,15 +186,15 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[8].value = 'BR-01';
   propertyFields[10].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
-  assert.equal(calls[4].action, 'set_cable_end_attachment_properties');
-  assert.equal(calls[4].payload.connectionId, 'a1');
-  assert.equal(calls[4].payload.attachmentId, 'connection-2');
-  assert.equal(calls[4].payload.diameterMm, 0.6);
-  assert.equal(calls[4].payload.insulationMaterial, 'ETFE');
-  assert.equal(calls[4].payload.conductorMaterial, null);
-  assert.equal(calls[4].payload.manufacturer, 'Branch maker');
-  assert.equal(calls[4].payload.partNumber, 'BR-01');
-  assert.equal(JSON.stringify(calls[4].payload.metadata), JSON.stringify([
+  assert.equal(calls[5].action, 'set_cable_end_attachment_properties');
+  assert.equal(calls[5].payload.connectionId, 'a1');
+  assert.equal(calls[5].payload.attachmentId, 'connection-2');
+  assert.equal(calls[5].payload.diameterMm, 0.6);
+  assert.equal(calls[5].payload.insulationMaterial, 'ETFE');
+  assert.equal(calls[5].payload.conductorMaterial, null);
+  assert.equal(calls[5].payload.manufacturer, 'Branch maker');
+  assert.equal(calls[5].payload.partNumber, 'BR-01');
+  assert.equal(JSON.stringify(calls[5].payload.metadata), JSON.stringify([
     { key: 'connector', value: 'J2' },
   ]));
 
@@ -186,9 +202,9 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
   });
   menu.children.find((item) => item.textContent === 'Delete').events.click();
-  assert.equal(calls[5].action, 'remove_cable_end_attachment');
-  assert.equal(calls[5].payload.connectionId, 'a1');
-  assert.equal(calls[5].payload.attachmentId, 'connection-2');
+  assert.equal(calls[6].action, 'remove_cable_end_attachment');
+  assert.equal(calls[6].payload.connectionId, 'a1');
+  assert.equal(calls[6].payload.attachmentId, 'connection-2');
 
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
@@ -197,6 +213,35 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   const materials = context.document.body.querySelector('.material-options');
   assert.equal(materials.open, true);
   assert.equal(materials.querySelector('h2').textContent, 'Connection Materials');
+});
+
+test('Cable Details connection nodes form a parent-child chain', () => {
+  const { context } = palette();
+  const definition = harness();
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  connection.attachment = {
+    attachmentId: 'parent', parentAttachmentId: null, name: 'Parent', nameOverride: '',
+    targetKind: 'profile', connected: true, metadata: [], visualOverrides: {},
+  };
+  connection.attachments = [
+    connection.attachment,
+    {
+      attachmentId: 'child', parentAttachmentId: 'parent', name: 'Child', nameOverride: '',
+      targetKind: 'profile', connected: true, metadata: [], visualOverrides: {},
+    },
+    {
+      attachmentId: 'grandchild', parentAttachmentId: 'child', name: 'Grandchild',
+      nameOverride: '', targetKind: null, connected: false, metadata: [], visualOverrides: {},
+    },
+  ];
+
+  const topology = context.cableGroupDetailsTopology(definition, definition.cableGroups[0]);
+  const edgeIds = topology.edges.map((edge) => [edge.leftId, edge.rightId].sort().join('|'));
+
+  assert.equal(edgeIds.includes('attachment:a1:parent|connection:a1'), true);
+  assert.equal(edgeIds.includes('attachment:a1:child|attachment:a1:parent'), true);
+  assert.equal(edgeIds.includes('attachment:a1:child|attachment:a1:grandchild'), true);
+  assert.equal(edgeIds.includes('attachment:a1:child|connection:a1'), false);
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {

@@ -103,7 +103,13 @@ function cableGroupDetailsTopology(harness, group) {
         { ...attachment, connectionId },
         attachment.name || "Unnamed connection",
       );
-      connect(`connection:${connectionId}`, nodeId);
+    });
+    attachments.forEach((attachment, attachmentIndex) => {
+      const attachmentId = attachment.attachmentId || `legacy-${attachmentIndex}`;
+      const parentNodeId = attachment.parentAttachmentId
+        ? `attachment:${connectionId}:${attachment.parentAttachmentId}`
+        : `connection:${connectionId}`;
+      connect(parentNodeId, `attachment:${connectionId}:${attachmentId}`);
     });
   });
   activeJunctionIds.forEach((junctionId) => {

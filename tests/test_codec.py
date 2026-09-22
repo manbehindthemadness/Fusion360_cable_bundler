@@ -172,7 +172,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 21])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 22])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -356,6 +356,35 @@ def test_migrates_schema_19_with_inherited_connection_construction(
     assert migrated.schema_version == SCHEMA_VERSION
     assert migrated.connections[0].attachment is not None
     assert migrated.connections[0].attachment.visual_overrides == CableVisualOverrides()
+
+
+def test_migrates_schema_20_connections_as_root_nodes(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the former flat connection list as root-level sibling branches.
+    """
+    first = CableEndAttachment(None, attachment_id=UUID(int=85))
+    second = CableEndAttachment(None, attachment_id=UUID(int=86))
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                valid_harness.connections[0],
+                attachment=first,
+                additional_attachments=(second,),
+            ),
+        ),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 20
+    payload["connections"][0]["attachment"].pop("parent_attachment_id")
+    payload["connections"][0]["additional_attachments"][0].pop("parent_attachment_id")
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert all(item.parent_attachment_id is None for item in migrated.connections[0].attachments)
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

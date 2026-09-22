@@ -588,23 +588,36 @@ def _validate_cable_groups(
                 issues,
             )
             connection = connections_by_id.get(connection_id)
-            if connection is not None and len(connection.attachments) > 1 and valid_group_diameter:
-                inherited_diameter_mm = group.diameter_mm / len(connection.attachments)
-                combined_diameter_mm = sum(
-                    inherited_diameter_mm
-                    if attachment.visual_overrides.diameter_mm is None
-                    else attachment.visual_overrides.diameter_mm
-                    for attachment in connection.attachments
+            if connection is not None and valid_group_diameter:
+                parent_ids = tuple(
+                    dict.fromkeys(item.parent_attachment_id for item in connection.attachments)
                 )
-                if combined_diameter_mm > group.diameter_mm + 1e-9:
-                    issues.append(
-                        ValidationIssue(
-                            "connection_diameter_budget_exceeded",
-                            f"{member_path}.connection_diameters",
-                            "Connection diameters cannot collectively exceed the parent cable "
-                            "diameter.",
+                for parent_attachment_id in parent_ids:
+                    children = connection.attachment_children(parent_attachment_id)
+                    if len(children) <= 1:
+                        continue
+                    parent_diameter_mm = (
+                        group.diameter_mm
+                        if parent_attachment_id is None
+                        else definition.cable_end_attachment_diameter(
+                            group, connection_id, parent_attachment_id
                         )
                     )
+                    combined_diameter_mm = sum(
+                        definition.cable_end_attachment_diameter(
+                            group, connection_id, child.attachment_id
+                        )
+                        for child in children
+                    )
+                    if combined_diameter_mm > parent_diameter_mm + 1e-9:
+                        issues.append(
+                            ValidationIssue(
+                                "connection_diameter_budget_exceeded",
+                                f"{member_path}.connection_diameters",
+                                "Connection diameters cannot collectively exceed the parent "
+                                "cable diameter.",
+                            )
+                        )
             previous_membership = memberships.get(connection_id)
             if previous_membership is not None:
                 issues.append(

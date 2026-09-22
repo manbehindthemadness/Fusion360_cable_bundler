@@ -160,6 +160,69 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert stored.cable_groups == valid_harness.cable_groups
 
 
+def test_adds_and_removes_cascading_connection_descendants(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist the selected parent and delete its complete descendant subtree.
+    """
+    connection_id = valid_harness.connections[0].connection_id
+    root_id = UUID(int=711)
+    child_id = UUID(int=712)
+    grandchild_id = UUID(int=713)
+    gateway = _recording_gateway(valid_harness)
+    add_cable_end_connection(
+        valid_harness.harness_id,
+        connection_id,
+        gateway,
+        id_factory=lambda: root_id,
+    )
+    attach_cable_end(
+        valid_harness.harness_id,
+        connection_id,
+        root_id,
+        CableEndAttachment(AttachmentTargetKind.PROFILE, "root-profile", "Root profile"),
+        gateway,
+    )
+    add_cable_end_connection(
+        valid_harness.harness_id,
+        connection_id,
+        gateway,
+        parent_attachment_id=root_id,
+        id_factory=lambda: child_id,
+    )
+    attach_cable_end(
+        valid_harness.harness_id,
+        connection_id,
+        child_id,
+        CableEndAttachment(AttachmentTargetKind.PROFILE, "child-profile", "Child profile"),
+        gateway,
+    )
+    add_cable_end_connection(
+        valid_harness.harness_id,
+        connection_id,
+        gateway,
+        parent_attachment_id=child_id,
+        id_factory=lambda: grandchild_id,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert tuple(
+        (item.attachment_id, item.parent_attachment_id)
+        for item in stored.connections[0].attachments
+    ) == ((root_id, None), (child_id, root_id), (grandchild_id, child_id))
+
+    remove_cable_end_attachment(
+        valid_harness.harness_id,
+        connection_id,
+        child_id,
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert tuple(item.attachment_id for item in stored.connections[0].attachments) == (root_id,)
+
+
 def test_replaces_a_saved_external_target(
     valid_harness: HarnessDefinition,
 ) -> None:

@@ -66,6 +66,11 @@ def _attachment_payload(
     )
     return {
         "attachmentId": str(attachment.attachment_id),
+        "parentAttachmentId": (
+            str(attachment.parent_attachment_id)
+            if attachment.parent_attachment_id is not None
+            else None
+        ),
         "name": attachment_display_name(design, attachment),
         "nameOverride": attachment.name,
         "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,

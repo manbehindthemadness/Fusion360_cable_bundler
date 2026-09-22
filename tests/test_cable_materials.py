@@ -7,6 +7,7 @@ from uuid import UUID
 
 from cable_bundler.application import load_cable_material_catalog
 from cable_bundler.domain import (
+    AttachmentTargetKind,
     CableAppearanceReference,
     CableColor,
     CableEndAttachment,
@@ -129,6 +130,69 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
             group, connection.connection_id, second.attachment_id
         )
         == group.diameter_mm / 2.0
+    )
+
+
+def test_nested_connections_inherit_from_their_immediate_parent(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Resolve descendant construction values through each parent branch level.
+    """
+    group = valid_harness.cable_groups[0]
+    connection = valid_harness.connections[0]
+    root = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "root-profile",
+        "Root",
+        attachment_id=UUID(int=711),
+        visual_overrides=CableVisualOverrides(
+            diameter_mm=0.7,
+            insulation_material="ETFE",
+        ),
+    )
+    root_peer = CableEndAttachment(None, attachment_id=UUID(int=712))
+    child = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=713),
+        parent_attachment_id=root.attachment_id,
+        visual_overrides=CableVisualOverrides(
+            diameter_mm=0.3,
+            conductor_material="Aluminum",
+        ),
+    )
+    child_peer = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=714),
+        parent_attachment_id=root.attachment_id,
+    )
+    nested_connection = replace(
+        connection,
+        attachment=root,
+        additional_attachments=(root_peer, child, child_peer),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(nested_connection, *valid_harness.connections[1:]),
+    )
+
+    resolved = definition.cable_end_attachment_materials(
+        group, connection.connection_id, child.attachment_id
+    )
+
+    assert resolved.insulation_material == "ETFE"
+    assert resolved.conductor_material == "Aluminum"
+    assert (
+        definition.cable_end_attachment_diameter(
+            group, connection.connection_id, child.attachment_id
+        )
+        == 0.3
+    )
+    assert (
+        definition.cable_end_attachment_diameter(
+            group, connection.connection_id, child_peer.attachment_id
+        )
+        == 0.35
     )
 
 

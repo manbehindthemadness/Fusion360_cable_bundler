@@ -49,6 +49,7 @@ def connection_branch_route_frames(
     index: int,
     count: int,
     parent_diameter_mm: float,
+    branch_diameter_mm: float,
     controls: dict[UUID, ControlStructure],
     frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
@@ -66,7 +67,6 @@ def connection_branch_route_frames(
             frame = routing_frame(design, controls.get(control_id), control_id)
             frames[control_id] = frame
         refine_frames.append(_routing_profile_frame(frame))
-    branch_diameter_mm = parent_diameter_mm / count
     origin = _clockface_branch_origin(
         guide,
         index,
@@ -138,7 +138,8 @@ def connection_route_frames(
     Prepend one resolved external attachment to the end's native guide frames.
     """
     member_frames = connection_profile_frames(design, connection, cache)
-    attachment = connection.attachments[0] if len(connection.attachments) == 1 else None
+    root_attachments = connection.attachment_children(None)
+    attachment = root_attachments[0] if len(root_attachments) == 1 else None
     attachment_frame = (
         connection_attachment_frame(
             design,
@@ -156,6 +157,31 @@ def connection_route_frames(
         _routing_profile_frame(frames[control_id]) for control_id in attachment.ordered_control_ids
     )
     return attachment_frame, *refine_frames, *member_frames
+
+
+def connection_attachment_parent_frame(
+    design: adsk.fusion.Design,
+    connection: Connection,
+    attachment: CableEndAttachment,
+    end_guide: ProfileFrame,
+    cache: dict[str, ProfileFrame],
+) -> Optional[ProfileFrame]:
+    """
+    Resolve the immediate parent profile for one connection node.
+    """
+    parent_id = attachment.parent_attachment_id
+    if parent_id is None:
+        return end_guide
+    parent = next(
+        (item for item in connection.attachments if item.attachment_id == parent_id),
+        None,
+    )
+    if parent is None:
+        return None
+    adjacent = connection_attachment_parent_frame(design, connection, parent, end_guide, cache)
+    if adjacent is None:
+        return None
+    return connection_attachment_frame(design, connection, parent, adjacent, cache)
 
 
 def connection_attachment_frame(

@@ -6,6 +6,7 @@ from dataclasses import replace
 from uuid import UUID
 
 from cable_bundler.domain import (
+    AttachmentTargetKind,
     CableEndAttachment,
     CableGroupDefinition,
     CableVisualOverrides,
@@ -122,6 +123,48 @@ def test_rejects_connection_diameters_above_parent_cable(
             visual_overrides=CableVisualOverrides(diameter_mm=1.0),
         ),
         additional_attachments=(CableEndAttachment(None, attachment_id=UUID(int=802)),),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+    )
+
+    issues = validate_harness(definition)
+
+    assert any(issue.code == "connection_diameter_budget_exceeded" for issue in issues)
+
+
+def test_rejects_nested_connection_diameters_above_immediate_parent(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Apply the diameter budget independently at every connection-tree branch.
+    """
+    root_id = UUID(int=811)
+    root = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "root-profile",
+        "Root",
+        attachment_id=root_id,
+        visual_overrides=CableVisualOverrides(diameter_mm=0.7),
+    )
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=root,
+        additional_attachments=(
+            CableEndAttachment(None, attachment_id=UUID(int=812)),
+            CableEndAttachment(
+                None,
+                attachment_id=UUID(int=813),
+                parent_attachment_id=root_id,
+                visual_overrides=CableVisualOverrides(diameter_mm=0.5),
+            ),
+            CableEndAttachment(
+                None,
+                attachment_id=UUID(int=814),
+                parent_attachment_id=root_id,
+            ),
+        ),
     )
     definition = replace(
         valid_harness,

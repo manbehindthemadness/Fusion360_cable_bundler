@@ -407,13 +407,60 @@ function openCableEndProperties(harness, connectionId) {
   );
 }
 
+/** Return direct siblings of one connection node in stable display order. */
+function cableEndAttachmentSiblings(connection, attachment) {
+  return (connection.attachments || []).filter(
+    (candidate) => (candidate.parentAttachmentId || null)
+      === (attachment.parentAttachmentId || null),
+  );
+}
+
+/** Resolve the diameter inherited by one connection node from its immediate parent. */
+function cableEndAttachmentParentDiameter(cableGroup, connection, attachment) {
+  if (!attachment.parentAttachmentId) return cableGroup.diameterMm;
+  const parent = (connection.attachments || []).find(
+    (candidate) => candidate.attachmentId === attachment.parentAttachmentId,
+  );
+  if (!parent) return cableGroup.diameterMm;
+  const siblings = cableEndAttachmentSiblings(connection, parent);
+  const inherited = cableEndAttachmentParentDiameter(cableGroup, connection, parent)
+    / Math.max(1, siblings.length);
+  if (siblings.length <= 1) return inherited;
+  return parent.visualOverrides?.diameterMm ?? inherited;
+}
+
+/** Resolve materials inherited by one connection node from its immediate parent. */
+function cableEndAttachmentParentMaterials(cableGroup, connection, attachment) {
+  if (!attachment.parentAttachmentId) return cableGroup.materials;
+  const parent = (connection.attachments || []).find(
+    (candidate) => candidate.attachmentId === attachment.parentAttachmentId,
+  );
+  if (!parent) return cableGroup.materials;
+  const inherited = cableEndAttachmentParentMaterials(cableGroup, connection, parent);
+  const siblings = cableEndAttachmentSiblings(connection, parent);
+  if (siblings.length <= 1) return inherited;
+  const overrides = parent.visualOverrides || {};
+  return {
+    ...inherited,
+    ...Object.fromEntries(
+      [
+        "insulationMaterial", "conductorMaterial", "manufacturer", "partNumber",
+        "mainColor", "appearance", "stripes",
+      ]
+        .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
+        .map((key) => [key, overrides[key]]),
+    ),
+  };
+}
+
 /** Open construction overrides and metadata owned by one divided connection branch. */
 function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   if (!attachment) return;
   const connection = harness.connections.find(
     (candidate) => candidate.connectionId === attachment.connectionId,
   );
-  if (!cableGroup || !connection || (connection.attachments || []).length <= 1) {
+  const siblings = connection ? cableEndAttachmentSiblings(connection, attachment) : [];
+  if (!cableGroup || !connection || siblings.length <= 1) {
     openEntityMetadataProperties(
       harness, attachment, "Connection Properties", "connection-properties",
       "set_cable_end_attachment_properties", {
@@ -424,7 +471,11 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     return;
   }
   const overrides = attachment.visualOverrides || {};
-  const inheritedDiameter = cableGroup.diameterMm / connection.attachments.length;
+  const parentDiameter = cableEndAttachmentParentDiameter(cableGroup, connection, attachment);
+  const inheritedDiameter = parentDiameter / siblings.length;
+  const inheritedMaterials = cableEndAttachmentParentMaterials(
+    cableGroup, connection, attachment,
+  );
   const { dialog, form, heading, error, actions, cancel, save } = createOptionsDialog(
     "cable-options connection-properties",
   );
@@ -442,7 +493,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
 
   const materialControls = {};
   const addMaterialOverride = (key, labelText, suggestions) => {
-    const values = { [key]: overrides[key] ?? cableGroup.materials[key] };
+    const values = { [key]: overrides[key] ?? inheritedMaterials[key] };
     const { wrapper, header, input } = createMaterialTextField(
       values, key, labelText, suggestions,
     );
@@ -454,7 +505,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     toggleText.textContent = "Override";
     const update = () => {
       input.disabled = !toggle.checked;
-      if (!toggle.checked) input.value = cableGroup.materials[key];
+      if (!toggle.checked) input.value = inheritedMaterials[key];
     };
     toggle.addEventListener("change", update);
     toggleLabel.append(toggle, toggleText);
@@ -481,11 +532,11 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
       if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
         throw new Error("Diameter must be a positive number.");
       }
-      const combinedDiameter = connection.attachments.reduce((total, candidate) => {
+      const combinedDiameter = siblings.reduce((total, candidate) => {
         if (candidate.attachmentId === attachment.attachmentId) return total + diameterMm;
         return total + (candidate.visualOverrides?.diameterMm ?? inheritedDiameter);
       }, 0);
-      if (combinedDiameter > cableGroup.diameterMm + 1e-9) {
+      if (combinedDiameter > parentDiameter + 1e-9) {
         throw new Error(
           "Connection diameters cannot collectively exceed the parent cable diameter.",
         );

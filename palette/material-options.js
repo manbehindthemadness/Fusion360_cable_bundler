@@ -5,7 +5,12 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const isCableGroup = cableGroup !== null;
   const isConnectionBranch = attachment !== null;
   const hasOverrides = isCableGroup || isConnectionBranch;
-  const settings = isCableGroup ? cableGroup.materials : harness.materialDefaults;
+  const connection = isConnectionBranch ? harness.connections.find(
+    (candidate) => candidate.connectionId === attachment.connectionId,
+  ) : null;
+  const settings = isConnectionBranch && connection
+    ? cableEndAttachmentParentMaterials(cableGroup, connection, attachment)
+    : (isCableGroup ? cableGroup.materials : harness.materialDefaults);
   const overrides = isConnectionBranch
     ? attachment.visualOverrides : (isCableGroup ? cableGroup.materialOverrides : null);
   const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
@@ -22,7 +27,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     ? "Connection Materials"
     : (isCableGroup ? "Connected Cable Group Materials" : "Harness Materials");
   note.textContent = isConnectionBranch
-    ? "Checked visual fields override this connected cable group for this branch."
+    ? "Checked visual fields override this connection node’s immediate parent."
     : (isCableGroup
       ? "Checked visual fields override this harness for the connected cable group."
       : "These visual values are inherited by connected cable groups without overrides.");

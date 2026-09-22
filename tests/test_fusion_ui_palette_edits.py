@@ -129,8 +129,43 @@ def test_palette_edit_adds_unattached_cable_end_connection(
         json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
     )
 
-    add.assert_called_once_with(harness_id, connection_id, gateway)
+    add.assert_called_once_with(harness_id, connection_id, gateway, parent_attachment_id=None)
     assert notice == "Added cable-end connection."
+
+
+def test_palette_edit_adds_child_connection_to_selected_parent(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Pass the selected connection identity through the palette edit boundary.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    parent_attachment_id = UUID(int=3)
+    gateway = object()
+    add = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "add_cable_end_connection", add)
+
+    addin_module._apply_palette_edit(
+        object(),
+        "add_cable_end_connection",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "parentAttachmentId": str(parent_attachment_id),
+            }
+        ),
+    )
+
+    add.assert_called_once_with(
+        harness_id,
+        connection_id,
+        gateway,
+        parent_attachment_id=parent_attachment_id,
+    )
 
 
 @pytest.mark.parametrize(

@@ -153,6 +153,7 @@ def test_palette_state_reports_attachment_and_connection_status(
     connection = payload["harnesses"][0]["connections"][0]
     assert connection["attachment"] == {
         "attachmentId": str(UUID(int=901)),
+        "parentAttachmentId": None,
         "connected": True,
         "name": "Connector datum",
         "nameOverride": "",
@@ -173,6 +174,7 @@ def test_palette_state_reports_attachment_and_connection_status(
     assert connection["attachments"] == [connection["attachment"]]
     assert payload["harnesses"][0]["connections"][1]["attachment"] == {
         "attachmentId": str(UUID(int=902)),
+        "parentAttachmentId": None,
         "connected": False,
         "name": "Connection",
         "nameOverride": "",

@@ -28,6 +28,7 @@ from ..routing import (
 from ..routing.geometry import cross, difference, dot, magnitude, unit
 from .route_preview_parts.solver import (
     ProfileFrame,
+    connection_attachment_parent_frame,
     connection_branch_route_frames,
     connection_profile_frames,
     routing_frame,
@@ -186,18 +187,33 @@ def build_connection_spine(
     )
     if group is None:
         raise ValueError("Selected connection is not assigned to a cable group.")
-    guide = connection_profile_frames(design, connection, {})[0]
+    cache: dict[str, ProfileFrame] = {}
+    end_guide = connection_profile_frames(design, connection, cache)[0]
+    parent_guide = connection_attachment_parent_frame(
+        design, connection, attachment, end_guide, cache
+    )
+    if parent_guide is None:
+        raise ValueError("Selected connection parent does not have resolvable geometry.")
+    siblings = connection.attachment_children(attachment.parent_attachment_id)
+    parent_diameter_mm = (
+        group.diameter_mm
+        if attachment.parent_attachment_id is None
+        else definition.cable_end_attachment_diameter(
+            group, connection_id, attachment.parent_attachment_id
+        )
+    )
     frames = connection_branch_route_frames(
         design,
         connection,
         attachment,
-        guide,
-        connection.attachments.index(attachment),
-        len(connection.attachments),
-        group.diameter_mm,
+        parent_guide,
+        siblings.index(attachment),
+        len(siblings),
+        parent_diameter_mm,
+        definition.cable_end_attachment_diameter(group, connection_id, attachment.attachment_id),
         {control.control_id: control for control in definition.controls},
         {},
-        {},
+        cache,
     )
     if len(frames) < 2:
         raise ValueError("Selected connection does not have resolvable route geometry.")

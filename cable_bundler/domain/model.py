@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -493,6 +493,7 @@ class CableEndAttachment:
     attachment_id: UUID = UUID(int=0)
     ordered_control_ids: tuple[UUID, ...] = ()
     visual_overrides: CableVisualOverrides = CableVisualOverrides()
+    parent_attachment_id: Optional[UUID] = None
 
     def __post_init__(self) -> None:
         """
@@ -529,6 +530,12 @@ class CableEndAttachment:
         _validate_metadata(self.metadata, "Cable-end connection metadata")
         if not isinstance(self.attachment_id, UUID):
             raise ValueError("Cable-end connection identity is invalid.")
+        if self.parent_attachment_id is not None and not isinstance(
+            self.parent_attachment_id, UUID
+        ):
+            raise ValueError("Cable-end connection parent identity is invalid.")
+        if self.parent_attachment_id == self.attachment_id:
+            raise ValueError("A cable-end connection cannot parent itself.")
         if not isinstance(self.ordered_control_ids, tuple) or any(
             not isinstance(control_id, UUID) for control_id in self.ordered_control_ids
         ):
@@ -591,6 +598,24 @@ class Connection:
         target_tokens = tuple(item.entity_token for item in self.attachments if item.has_target)
         if len(set(target_tokens)) != len(target_tokens):
             raise ValueError("Cable-end connection targets must be unique.")
+        attachments_by_id = {item.attachment_id: item for item in self.attachments}
+        for item in self.attachments:
+            parent_id = item.parent_attachment_id
+            if parent_id is None:
+                continue
+            parent = attachments_by_id.get(parent_id)
+            if parent is None:
+                raise ValueError("Cable-end connection parent does not exist.")
+            if parent.target_kind is not AttachmentTargetKind.PROFILE:
+                raise ValueError("Child connections require a sketch-profile parent.")
+        for item in self.attachments:
+            visited: set[UUID] = set()
+            ancestor = item
+            while ancestor.parent_attachment_id is not None:
+                if ancestor.attachment_id in visited:
+                    raise ValueError("Cable-end connection ancestry must not contain a cycle.")
+                visited.add(ancestor.attachment_id)
+                ancestor = attachments_by_id[ancestor.parent_attachment_id]
 
     @property
     def attachments(self) -> tuple[CableEndAttachment, ...]:
@@ -600,6 +625,16 @@ class Connection:
         return (
             (self.attachment,) if self.attachment is not None else ()
         ) + self.additional_attachments
+
+    def attachment_children(
+        self, parent_attachment_id: Optional[UUID]
+    ) -> tuple[CableEndAttachment, ...]:
+        """
+        Return direct children of the cable end or one connection node in stable order.
+        """
+        return tuple(
+            item for item in self.attachments if item.parent_attachment_id == parent_attachment_id
+        )
 
     @property
     def member_settings(self) -> tuple[InterpolationSettings, ...]:
@@ -795,24 +830,18 @@ class HarnessDefinition:
         """
         Resolve branch visuals, inheriting the group for a single connection.
         """
-        if connection_id not in group.connection_ids:
-            raise ValueError("Cable-end connection does not belong to the cable group.")
-        connection = next(
-            (item for item in self.connections if item.connection_id == connection_id),
-            None,
+        connection, attachment = self._cable_end_attachment_context(
+            group, connection_id, attachment_id
         )
-        if connection is None:
-            raise ValueError("Cable-end connection references a missing cable end.")
-        attachment = next(
-            (item for item in connection.attachments if item.attachment_id == attachment_id),
-            None,
+        siblings = connection.attachment_children(attachment.parent_attachment_id)
+        parent = (
+            self.cable_group_materials(group)
+            if attachment.parent_attachment_id is None
+            else self.cable_end_attachment_materials(
+                group, connection_id, attachment.parent_attachment_id
+            )
         )
-        if attachment is None:
-            raise ValueError("Cable-end connection does not exist.")
-        parent = self.cable_group_materials(group)
-        if len(connection.attachments) == 1:
-            return parent
-        return attachment.visual_overrides.resolve(parent)
+        return parent if len(siblings) <= 1 else attachment.visual_overrides.resolve(parent)
 
     def cable_end_attachment_diameter(
         self,
@@ -823,6 +852,31 @@ class HarnessDefinition:
         """
         Resolve one connection branch diameter from its parent cable group.
         """
+        connection, attachment = self._cable_end_attachment_context(
+            group, connection_id, attachment_id
+        )
+        siblings = connection.attachment_children(attachment.parent_attachment_id)
+        parent_diameter_mm = (
+            group.diameter_mm
+            if attachment.parent_attachment_id is None
+            else self.cable_end_attachment_diameter(
+                group, connection_id, attachment.parent_attachment_id
+            )
+        )
+        if len(siblings) <= 1:
+            return parent_diameter_mm
+        diameter_mm = attachment.visual_overrides.diameter_mm
+        return parent_diameter_mm / len(siblings) if diameter_mm is None else diameter_mm
+
+    def _cable_end_attachment_context(
+        self,
+        group: CableGroupDefinition,
+        connection_id: UUID,
+        attachment_id: UUID,
+    ) -> tuple[Connection, CableEndAttachment]:
+        """
+        Resolve one attachment and its owning cable end within a cable group.
+        """
         if connection_id not in group.connection_ids:
             raise ValueError("Cable-end connection does not belong to the cable group.")
         connection = next(
@@ -837,12 +891,7 @@ class HarnessDefinition:
         )
         if attachment is None:
             raise ValueError("Cable-end connection does not exist.")
-        if len(connection.attachments) <= 1:
-            return group.diameter_mm
-        diameter_mm = attachment.visual_overrides.diameter_mm
-        return (
-            group.diameter_mm / len(connection.attachments) if diameter_mm is None else diameter_mm
-        )
+        return connection, attachment
 
     def cable_group_metadata(self, group: CableGroupDefinition) -> Metadata:
         """

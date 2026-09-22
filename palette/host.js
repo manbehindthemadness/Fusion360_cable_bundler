@@ -272,10 +272,11 @@ async function connectCableEnd(harness, connectionId, attachmentId) {
   }
 }
 
-function addCableEndConnection(harness, connectionId) {
-  mutate("add_cable_end_connection", {
+function addCableEndConnection(harness, connectionId, parentAttachmentId = null) {
+  void mutate("add_cable_end_connection", {
     harnessId: harness.harnessId,
     connectionId,
+    ...(parentAttachmentId ? { parentAttachmentId } : {}),
   }, "Adding connection…");
 }
 

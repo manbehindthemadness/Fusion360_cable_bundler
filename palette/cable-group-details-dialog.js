@@ -57,7 +57,12 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
   const connection = harness.connections.find(
     (candidate) => candidate.connectionId === attachment.connectionId,
   );
-  const hasBranchMaterials = (connection?.attachments || []).length > 1;
+  const siblings = (connection?.attachments || []).filter(
+    (candidate) => (candidate.parentAttachmentId || null)
+      === (attachment.parentAttachmentId || null),
+  );
+  const hasBranchMaterials = siblings.length > 1;
+  const canAddConnection = attachment.connected && attachment.targetKind === "profile";
   return [
     {
       label: "Connect",
@@ -67,15 +72,27 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
       disabled: attachment.connected,
       title: attachment.connected ? "This connection already has a target" : "",
     },
-    ...(attachment.connected ? [{
+    {
       label: "Add",
-      items: [{
-        label: "Refine",
-        action: () => addConnectionRefine(
-          harness, attachment.connectionId, attachment.attachmentId,
-        ),
-      }],
-    }] : []),
+      items: [
+        {
+          label: "Connection",
+          action: () => addCableEndConnection(
+            harness, attachment.connectionId, attachment.attachmentId,
+          ),
+          disabled: !canAddConnection,
+          title: canAddConnection
+            ? ""
+            : "Requires this connection to be attached to a sketch profile",
+        },
+        ...(attachment.connected ? [{
+          label: "Refine",
+          action: () => addConnectionRefine(
+            harness, attachment.connectionId, attachment.attachmentId,
+          ),
+        }] : []),
+      ],
+    },
     {
       label: "Rename",
       action: () => renameCableGroupAttachment(harness, attachment),
