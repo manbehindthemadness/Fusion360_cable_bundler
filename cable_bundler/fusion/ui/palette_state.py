@@ -513,6 +513,7 @@ def _material_settings_payload(settings: CableMaterialSettings) -> dict[str, obj
         "appearance": _appearance_reference_payload(settings.appearance),
         "stripes": [_stripe_payload(stripe) for stripe in settings.stripes],
         "conductorMaterial": settings.conductor_material,
+        "shielding": settings.shielding,
         "manufacturer": settings.manufacturer,
         "partNumber": settings.part_number,
         "notes": settings.notes,
@@ -535,6 +536,7 @@ def _material_overrides_payload(overrides: CableMaterialOverrides) -> dict[str, 
             else [_stripe_payload(stripe) for stripe in overrides.stripes]
         ),
         "conductorMaterial": overrides.conductor_material,
+        "shielding": overrides.shielding,
         "manufacturer": overrides.manufacturer,
         "partNumber": overrides.part_number,
         "notes": overrides.notes,
@@ -549,6 +551,7 @@ def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, obje
         "diameterMm": overrides.diameter_mm,
         "insulationMaterial": overrides.insulation_material,
         "conductorMaterial": overrides.conductor_material,
+        "shielding": overrides.shielding,
         "manufacturer": overrides.manufacturer,
         "partNumber": overrides.part_number,
         "mainColor": (

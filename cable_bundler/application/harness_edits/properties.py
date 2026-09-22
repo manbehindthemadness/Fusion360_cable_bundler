@@ -62,6 +62,7 @@ def set_harness_properties(
     harness_id: UUID,
     insulation_material: str,
     conductor_material: str,
+    shielding: str,
     manufacturer: str,
     part_number: str,
     metadata: Metadata,
@@ -75,6 +76,7 @@ def set_harness_properties(
         definition.material_defaults,
         insulation_material=insulation_material,
         conductor_material=conductor_material,
+        shielding=shielding,
         manufacturer=manufacturer,
         part_number=part_number,
     )

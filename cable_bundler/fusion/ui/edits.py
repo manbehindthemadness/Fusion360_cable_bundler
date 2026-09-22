@@ -407,6 +407,7 @@ def _apply_property_edit(
             {
                 "insulationMaterial": payload.get("insulationMaterial"),
                 "conductorMaterial": payload.get("conductorMaterial"),
+                "shielding": payload.get("shielding"),
                 "manufacturer": payload.get("manufacturer"),
                 "partNumber": payload.get("partNumber"),
             }
@@ -417,6 +418,7 @@ def _apply_property_edit(
             diameter,
             property_materials.insulation_material,
             property_materials.conductor_material,
+            property_materials.shielding,
             property_materials.manufacturer,
             property_materials.part_number,
             _read_metadata(payload.get("metadataOverrides", []), "Cable metadata overrides"),
@@ -434,6 +436,7 @@ def _apply_property_edit(
         (
             insulation_material,
             conductor_material,
+            shielding,
             manufacturer,
             part_number,
             metadata,
@@ -442,6 +445,7 @@ def _apply_property_edit(
             harness_id,
             insulation_material,
             conductor_material,
+            shielding,
             manufacturer,
             part_number,
             metadata,
@@ -500,6 +504,7 @@ def _apply_property_edit(
                     "diameterMm": payload.get("diameterMm"),
                     "insulationMaterial": payload.get("insulationMaterial"),
                     "conductorMaterial": payload.get("conductorMaterial"),
+                    "shielding": payload.get("shielding"),
                     "manufacturer": payload.get("manufacturer"),
                     "partNumber": payload.get("partNumber"),
                 }
@@ -526,6 +531,7 @@ def _apply_property_edit(
                 diameter_mm=property_overrides.diameter_mm,
                 insulation_material=property_overrides.insulation_material,
                 conductor_material=property_overrides.conductor_material,
+                shielding=property_overrides.shielding,
                 manufacturer=property_overrides.manufacturer,
                 part_number=property_overrides.part_number,
             )

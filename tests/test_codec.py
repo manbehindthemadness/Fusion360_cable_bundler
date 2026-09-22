@@ -172,7 +172,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 22])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 23])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -316,6 +316,7 @@ def test_round_trip_preserves_connection_construction_overrides(
         diameter_mm=0.55,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        shielding="Foil",
         manufacturer="Branch maker",
         part_number="BR-01",
     )
@@ -385,6 +386,37 @@ def test_migrates_schema_20_connections_as_root_nodes(
 
     assert migrated.schema_version == SCHEMA_VERSION
     assert all(item.parent_attachment_id is None for item in migrated.connections[0].attachments)
+
+
+def test_migrates_schema_21_with_empty_shielding(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Default shielding fields introduced after schema 21 without guessing construction.
+    """
+    attachment = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=87),
+        visual_overrides=CableVisualOverrides(conductor_material="Aluminum"),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 21
+    del payload["material_defaults"]["shielding"]
+    del payload["cable_groups"][0]["material_overrides"]["shielding"]
+    del payload["connections"][0]["attachment"]["visual_overrides"]["shielding"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.material_defaults.shielding == ""
+    assert migrated.cable_groups[0].material_overrides.shielding is None
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.visual_overrides.shielding is None
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

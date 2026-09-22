@@ -179,6 +179,7 @@ def set_cable_end_attachment_properties(
     diameter_mm: Optional[float] = None,
     insulation_material: Optional[str] = None,
     conductor_material: Optional[str] = None,
+    shielding: Optional[str] = None,
     manufacturer: Optional[str] = None,
     part_number: Optional[str] = None,
 ) -> None:
@@ -211,6 +212,7 @@ def set_cable_end_attachment_properties(
             diameter_mm=diameter_mm,
             insulation_material=insulation_material,
             conductor_material=conductor_material,
+            shielding=shielding,
             manufacturer=manufacturer,
             part_number=part_number,
         )

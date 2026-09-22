@@ -172,7 +172,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   const properties = context.document.body.querySelector('.connection-properties');
   assert.equal(properties.open, true);
   const propertyFields = descendants(properties, (node) => node.tag === 'input');
-  assert.equal(propertyFields.length, 11);
+  assert.equal(propertyFields.length, 13);
   assert.equal(propertyFields[0].value, '0.75');
   propertyFields[0].value = '0.6';
   propertyFields[1].checked = true;
@@ -180,11 +180,14 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[2].value = 'ETFE';
   propertyFields[5].checked = true;
   propertyFields[5].events.change();
-  propertyFields[6].value = 'Branch maker';
+  propertyFields[6].value = 'Foil';
   propertyFields[7].checked = true;
   propertyFields[7].events.change();
-  propertyFields[8].value = 'BR-01';
-  propertyFields[10].value = 'J2';
+  propertyFields[8].value = 'Branch maker';
+  propertyFields[9].checked = true;
+  propertyFields[9].events.change();
+  propertyFields[10].value = 'BR-01';
+  propertyFields[12].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
   assert.equal(calls[5].action, 'set_cable_end_attachment_properties');
   assert.equal(calls[5].payload.connectionId, 'a1');
@@ -192,6 +195,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(calls[5].payload.diameterMm, 0.6);
   assert.equal(calls[5].payload.insulationMaterial, 'ETFE');
   assert.equal(calls[5].payload.conductorMaterial, null);
+  assert.equal(calls[5].payload.shielding, 'Foil');
   assert.equal(calls[5].payload.manufacturer, 'Branch maker');
   assert.equal(calls[5].payload.partNumber, 'BR-01');
   assert.equal(JSON.stringify(calls[5].payload.metadata), JSON.stringify([

@@ -35,6 +35,7 @@ def material_metadata(materials: CableMaterialSettings) -> dict[str, object]:
             }
         ),
         "conductor_material": materials.conductor_material,
+        "shielding": materials.shielding,
         "manufacturer": materials.manufacturer,
         "part_number": materials.part_number,
         "notes": materials.notes,

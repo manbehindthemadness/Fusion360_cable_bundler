@@ -93,6 +93,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        shielding="Braided copper",
         manufacturer="Branch maker",
         part_number="BR-01",
     )
@@ -102,6 +103,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.visual_overrides.diameter_mm == 0.6
     assert saved_attachment.visual_overrides.insulation_material == "ETFE"
     assert saved_attachment.visual_overrides.conductor_material == "Aluminum"
+    assert saved_attachment.visual_overrides.shielding == "Braided copper"
     assert saved_attachment.visual_overrides.manufacturer == "Branch maker"
     assert saved_attachment.visual_overrides.part_number == "BR-01"
 
@@ -111,6 +113,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
             valid_harness.harness_id,
             group.cable_group_id,
             1.0,
+            None,
             None,
             None,
             None,
@@ -363,6 +366,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        shielding="Braided copper",
         manufacturer="Branch maker",
         part_number="BR-01",
     )
@@ -376,6 +380,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         diameter_mm=0.6,
         insulation_material="ETFE",
         conductor_material="Aluminum",
+        shielding="Braided copper",
         manufacturer="Branch maker",
         part_number="BR-01",
     )

@@ -73,11 +73,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, 16, 17, 18, 19, 20, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 20 are migratable)",
+            "(schemas 12 through 21 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -298,6 +298,7 @@ def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, obje
         "diameter_mm": overrides.diameter_mm,
         "insulation_material": overrides.insulation_material,
         "conductor_material": overrides.conductor_material,
+        "shielding": overrides.shielding,
         "manufacturer": overrides.manufacturer,
         "part_number": overrides.part_number,
         "main_color": None
@@ -377,6 +378,7 @@ def _materials_to_dict(settings: CableMaterialSettings) -> dict[str, object]:
         "appearance": _appearance_to_dict(settings.appearance),
         "stripes": [_stripe_to_dict(stripe) for stripe in settings.stripes],
         "conductor_material": settings.conductor_material,
+        "shielding": settings.shielding,
         "manufacturer": settings.manufacturer,
         "part_number": settings.part_number,
         "notes": settings.notes,
@@ -399,6 +401,7 @@ def _material_overrides_to_dict(overrides: CableMaterialOverrides) -> dict[str, 
             else [_stripe_to_dict(stripe) for stripe in overrides.stripes]
         ),
         "conductor_material": overrides.conductor_material,
+        "shielding": overrides.shielding,
         "manufacturer": overrides.manufacturer,
         "part_number": overrides.part_number,
         "notes": overrides.notes,
@@ -500,6 +503,7 @@ def parse_material_settings(raw_value: object, path: str) -> CableMaterialSettin
             conductor_material=_require_str(
                 value, "conductor_material", f"{path}.conductor_material"
             ),
+            shielding=_require_str({"shielding": "", **value}, "shielding", f"{path}.shielding"),
             manufacturer=_require_str(value, "manufacturer", f"{path}.manufacturer"),
             part_number=_require_str(value, "part_number", f"{path}.part_number"),
             notes=_require_str(value, "notes", f"{path}.notes"),
@@ -532,6 +536,7 @@ def parse_material_overrides(raw_value: object, path: str) -> CableMaterialOverr
             conductor_material=_optional_str(
                 value.get("conductor_material"), f"{path}.conductor_material"
             ),
+            shielding=_optional_str(value.get("shielding"), f"{path}.shielding"),
             manufacturer=_optional_str(value.get("manufacturer"), f"{path}.manufacturer"),
             part_number=_optional_str(value.get("part_number"), f"{path}.part_number"),
             notes=_optional_str(value.get("notes"), f"{path}.notes"),
@@ -700,6 +705,7 @@ def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverride
             conductor_material=_optional_str(
                 value.get("conductor_material"), f"{path}.conductor_material"
             ),
+            shielding=_optional_str(value.get("shielding"), f"{path}.shielding"),
             manufacturer=_optional_str(value.get("manufacturer"), f"{path}.manufacturer"),
             part_number=_optional_str(value.get("part_number"), f"{path}.part_number"),
             main_color=None if raw_color is None else _parse_color(raw_color, f"{path}.main_color"),

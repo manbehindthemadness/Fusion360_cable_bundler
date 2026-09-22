@@ -27,12 +27,14 @@ def test_cable_group_resolves_each_override_independently(
     """
     defaults = CableMaterialSettings(
         insulation_material="PTFE",
+        shielding="Foil",
         main_color=CableColor("Blue", 0, 0, 255),
         manufacturer="Parent maker",
         notes="Parent note",
     )
     overrides = CableMaterialOverrides(
         main_color=CableColor("Red", 255, 0, 0),
+        shielding="Braided copper",
         manufacturer="",
     )
     definition = replace(valid_harness, material_defaults=defaults)
@@ -42,6 +44,7 @@ def test_cable_group_resolves_each_override_independently(
 
     assert resolved.insulation_material == "PTFE"
     assert resolved.main_color.name == "Red"
+    assert resolved.shielding == "Braided copper"
     assert resolved.manufacturer == ""
     assert resolved.notes == "Parent note"
 
@@ -84,6 +87,7 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
             diameter_mm=0.6,
             insulation_material="ETFE",
             conductor_material="Aluminum",
+            shielding="Foil",
             manufacturer="Branch maker",
             part_number="BR-01",
             main_color=red,
@@ -117,6 +121,7 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
     assert resolved.stripes == overridden.visual_overrides.stripes
     assert resolved.insulation_material == "ETFE"
     assert resolved.conductor_material == "Aluminum"
+    assert resolved.shielding == "Foil"
     assert resolved.manufacturer == "Branch maker"
     assert resolved.part_number == "BR-01"
     assert (
@@ -159,6 +164,7 @@ def test_nested_connections_inherit_from_their_immediate_parent(
         visual_overrides=CableVisualOverrides(
             diameter_mm=0.3,
             conductor_material="Aluminum",
+            shielding="Braided copper",
         ),
     )
     child_peer = CableEndAttachment(
@@ -182,6 +188,7 @@ def test_nested_connections_inherit_from_their_immediate_parent(
 
     assert resolved.insulation_material == "ETFE"
     assert resolved.conductor_material == "Aluminum"
+    assert resolved.shielding == "Braided copper"
     assert (
         definition.cable_end_attachment_diameter(
             group, connection.connection_id, child.attachment_id

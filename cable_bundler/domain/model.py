@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -254,6 +254,7 @@ class CableMaterialSettings:
     appearance: Optional[CableAppearanceReference] = None
     stripes: tuple[CableStripe, ...] = ()
     conductor_material: str = "Copper"
+    shielding: str = ""
     manufacturer: str = ""
     part_number: str = ""
     notes: str = ""
@@ -276,7 +277,7 @@ class CableMaterialSettings:
             isinstance(stripe, CableStripe) for stripe in self.stripes
         ):
             raise ValueError("Cable stripes must be an ordered tuple of stripe definitions.")
-        for value in (self.manufacturer, self.part_number, self.notes):
+        for value in (self.shielding, self.manufacturer, self.part_number, self.notes):
             if not isinstance(value, str):
                 raise ValueError("Cable catalog metadata must be text.")
 
@@ -295,6 +296,7 @@ class CableMaterialOverrides:
     appearance: Optional[CableAppearanceReference] = None
     stripes: Optional[tuple[CableStripe, ...]] = None
     conductor_material: Optional[str] = None
+    shielding: Optional[str] = None
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
     notes: Optional[str] = None
@@ -310,7 +312,7 @@ class CableMaterialOverrides:
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
-        for value in (self.manufacturer, self.part_number, self.notes):
+        for value in (self.shielding, self.manufacturer, self.part_number, self.notes):
             if value is not None and not isinstance(value, str):
                 raise ValueError("Cable catalog metadata overrides must be text.")
 
@@ -332,6 +334,7 @@ class CableMaterialOverrides:
                 if self.conductor_material is None
                 else self.conductor_material
             ),
+            shielding=parent.shielding if self.shielding is None else self.shielding,
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes if self.notes is None else self.notes,
@@ -354,6 +357,7 @@ class CableVisualOverrides:
     diameter_mm: Optional[float] = None
     insulation_material: Optional[str] = None
     conductor_material: Optional[str] = None
+    shielding: Optional[str] = None
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
 
@@ -374,7 +378,7 @@ class CableVisualOverrides:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
-        for value in (self.manufacturer, self.part_number):
+        for value in (self.shielding, self.manufacturer, self.part_number):
             if value is not None and not isinstance(value, str):
                 raise ValueError("Connection catalog metadata overrides must be text.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
@@ -397,6 +401,7 @@ class CableVisualOverrides:
                 if self.conductor_material is None
                 else self.conductor_material
             ),
+            shielding=parent.shielding if self.shielding is None else self.shielding,
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes,

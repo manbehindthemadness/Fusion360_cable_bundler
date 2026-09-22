@@ -251,6 +251,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   addMaterialField(
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials,
   );
+  addMaterialField("shielding", "Shielding");
   addMaterialField("manufacturer", "Manufacturer");
   addMaterialField("partNumber", "Part Number");
   const metadataEditor = createMetadataEditor(
@@ -268,6 +269,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
       ? null : controls[key].input.value;
     const insulationMaterial = fieldValue("insulationMaterial");
     const conductorMaterial = fieldValue("conductorMaterial");
+    const shielding = fieldValue("shielding");
     const manufacturer = fieldValue("manufacturer");
     const partNumber = fieldValue("partNumber");
     if (insulationMaterial !== null && !insulationMaterial.trim()) {
@@ -290,6 +292,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             diameterMm,
             insulationMaterial,
             conductorMaterial,
+            shielding,
             manufacturer,
             partNumber,
             metadataOverrides: metadataEditor.read(),
@@ -298,6 +301,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             harnessId: harness.harnessId,
             insulationMaterial,
             conductorMaterial,
+            shielding,
             manufacturer,
             partNumber,
             metadata: metadataEditor.read(),
@@ -444,7 +448,7 @@ function cableEndAttachmentParentMaterials(cableGroup, connection, attachment) {
     ...inherited,
     ...Object.fromEntries(
       [
-        "insulationMaterial", "conductorMaterial", "manufacturer", "partNumber",
+        "insulationMaterial", "conductorMaterial", "shielding", "manufacturer", "partNumber",
         "mainColor", "appearance", "stripes",
       ]
         .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
@@ -521,6 +525,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   addMaterialOverride(
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
   );
+  addMaterialOverride("shielding", "Shielding", []);
   addMaterialOverride("manufacturer", "Manufacturer", []);
   addMaterialOverride("partNumber", "Part Number", []);
   const metadataEditor = createMetadataEditor(attachment.metadata || []);
@@ -545,6 +550,8 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         ? materialControls.insulationMaterial.input.value.trim() : null;
       const conductorMaterial = materialControls.conductorMaterial.toggle.checked
         ? materialControls.conductorMaterial.input.value.trim() : null;
+      const shielding = materialControls.shielding.toggle.checked
+        ? materialControls.shielding.input.value.trim() : null;
       const manufacturer = materialControls.manufacturer.toggle.checked
         ? materialControls.manufacturer.input.value.trim() : null;
       const partNumber = materialControls.partNumber.toggle.checked
@@ -561,6 +568,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         diameterMm,
         insulationMaterial,
         conductorMaterial,
+        shielding,
         manufacturer,
         partNumber,
         metadata: metadataEditor.read(),

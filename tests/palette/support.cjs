@@ -236,7 +236,7 @@ function descendants(root, predicate) {
 /** Return three cable groups sharing one pathway. */
 function harness() {
   const materialDefaults = {
-    insulationMaterial: 'PVC', conductorMaterial: 'Copper',
+    insulationMaterial: 'PVC', conductorMaterial: 'Copper', shielding: '',
     mainColor: { name: 'Black', hex: '#202020' }, appearance: null, stripes: [],
     manufacturer: '', partNumber: '', notes: '',
   };
@@ -250,7 +250,7 @@ function harness() {
   const cableGroups = [1, 2, 3].map((i) => ({
     cableGroupId: `g${i}`, name: '', connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
     materials: materialDefaults,
-    materialOverrides: { insulationMaterial: null, conductorMaterial: null,
+    materialOverrides: { insulationMaterial: null, conductorMaterial: null, shielding: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,
       partNumber: null, notes: null },
     metadata: [], metadataOverrides: [],
@@ -260,7 +260,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 20, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 22, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,
