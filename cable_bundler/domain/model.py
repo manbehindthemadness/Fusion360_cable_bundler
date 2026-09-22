@@ -5,12 +5,12 @@ Immutable domain objects for a versioned harness definition.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -481,6 +481,58 @@ class RefineGeometry:
 
 
 @dataclass(frozen=True)
+class CableEndTarget:
+    """
+    Retain one named external Fusion target used by a cable-end relationship.
+    """
+
+    target_kind: AttachmentTargetKind
+    entity_token: str
+    inherited_name: str
+    name: str = ""
+    parameters: tuple[float, ...] = ()
+
+    def __post_init__(self) -> None:
+        """
+        Require complete persistent identity and target-specific parameters.
+        """
+        if not isinstance(self.target_kind, AttachmentTargetKind):
+            raise ValueError("Cable-end target kind is invalid.")
+        if not isinstance(self.entity_token, str) or not self.entity_token.strip():
+            raise ValueError("Cable-end target entity token must not be empty.")
+        if not isinstance(self.inherited_name, str) or not self.inherited_name.strip():
+            raise ValueError("Cable-end target inherited name must not be empty.")
+        if not isinstance(self.name, str):
+            raise ValueError("Cable-end target name must be text.")
+        if not isinstance(self.parameters, tuple) or any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            for value in self.parameters
+        ):
+            raise ValueError("Cable-end target parameters must be finite numbers.")
+        expected_count = 2 if self.target_kind is AttachmentTargetKind.FACE else 0
+        if len(self.parameters) != expected_count:
+            raise ValueError(
+                "Face targets require two surface parameters; other targets require none."
+            )
+
+    @property
+    def display_name(self) -> str:
+        """
+        Return the explicit alias or saved inherited target name.
+        """
+        return self.name.strip() or self.inherited_name.strip()
+
+    @property
+    def has_target(self) -> bool:
+        """
+        Report that this value always represents a complete target.
+        """
+        return True
+
+
+@dataclass(frozen=True)
 class CableEndAttachment:
     """
     Retain one external connection node and its optional Fusion target.
@@ -499,6 +551,7 @@ class CableEndAttachment:
     ordered_control_ids: tuple[UUID, ...] = ()
     visual_overrides: CableVisualOverrides = CableVisualOverrides()
     parent_attachment_id: Optional[UUID] = None
+    shielding_target: Optional[CableEndTarget] = None
 
     def __post_init__(self) -> None:
         """
@@ -551,6 +604,10 @@ class CableEndAttachment:
             raise ValueError("A cable-end connection requires a target before it can own controls.")
         if not isinstance(self.visual_overrides, CableVisualOverrides):
             raise ValueError("Cable-end connection visual overrides are invalid.")
+        if self.shielding_target is not None and not isinstance(
+            self.shielding_target, CableEndTarget
+        ):
+            raise ValueError("Cable-end shielding target is invalid.")
 
     @property
     def display_name(self) -> str:
@@ -833,7 +890,7 @@ class HarnessDefinition:
         attachment_id: UUID,
     ) -> CableMaterialSettings:
         """
-        Resolve branch visuals, inheriting the group for a single connection.
+        Resolve branch visuals and connector-level shielding inheritance.
         """
         connection, attachment = self._cable_end_attachment_context(
             group, connection_id, attachment_id
@@ -846,7 +903,10 @@ class HarnessDefinition:
                 group, connection_id, attachment.parent_attachment_id
             )
         )
-        return parent if len(siblings) <= 1 else attachment.visual_overrides.resolve(parent)
+        if len(siblings) > 1:
+            return attachment.visual_overrides.resolve(parent)
+        shielding = attachment.visual_overrides.shielding
+        return parent if shielding is None else replace(parent, shielding=shielding)
 
     def cable_end_attachment_diameter(
         self,

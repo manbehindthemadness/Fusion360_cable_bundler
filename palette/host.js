@@ -256,13 +256,14 @@ async function appendEndGuides(harness, connectionId) {
   }
 }
 
-async function connectCableEnd(harness, connectionId, attachmentId) {
+async function connectCableEnd(harness, connectionId, attachmentId, relationship = "main") {
   appendNotice("Select a connectable target…");
   try {
     const response = await send("connect_cable_end", {
       harnessId: harness.harnessId,
       connectionId,
       attachmentId,
+      relationship,
     });
     if (!response.ok) {
       appendNotice(response.error || "Connect Cable End could not be opened.", true);

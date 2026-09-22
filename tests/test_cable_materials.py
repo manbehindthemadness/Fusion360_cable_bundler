@@ -101,7 +101,7 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
 
     assert single.cable_end_attachment_materials(
         group, connection.connection_id, overridden.attachment_id
-    ) == single.cable_group_materials(group)
+    ) == replace(single.cable_group_materials(group), shielding="Foil")
 
     second = CableEndAttachment(None, attachment_id=UUID(int=702))
     multiple_connection = replace(
@@ -200,6 +200,47 @@ def test_nested_connections_inherit_from_their_immediate_parent(
             group, connection.connection_id, child_peer.attachment_id
         )
         == 0.35
+    )
+
+
+def test_connection_shielding_override_applies_without_a_divided_branch(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Start and interrupt shielding inheritance at ordinary connector nodes.
+    """
+    group = valid_harness.cable_groups[0]
+    connection = valid_harness.connections[0]
+    root = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "root-profile",
+        "Root",
+        attachment_id=UUID(int=721),
+        visual_overrides=CableVisualOverrides(shielding="Foil"),
+    )
+    child = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=722),
+        parent_attachment_id=root.attachment_id,
+        visual_overrides=CableVisualOverrides(shielding=""),
+    )
+    nested = replace(connection, attachment=root, additional_attachments=(child,))
+    definition = replace(
+        valid_harness,
+        connections=(nested, *valid_harness.connections[1:]),
+    )
+
+    assert (
+        definition.cable_end_attachment_materials(
+            group, connection.connection_id, root.attachment_id
+        ).shielding
+        == "Foil"
+    )
+    assert (
+        definition.cable_end_attachment_materials(
+            group, connection.connection_id, child.attachment_id
+        ).shielding
+        == ""
     )
 
 

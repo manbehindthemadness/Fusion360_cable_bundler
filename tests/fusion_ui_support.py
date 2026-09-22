@@ -198,6 +198,7 @@ class _PaletteLifecycleModule(Protocol):
     switch_standalone_end: Callable[[UUID, UUID, object], None]
     save_cable_editor: Callable[..., None]
     set_cable_end_attachment_properties: Callable[..., None]
+    set_cable_end_attachment_shielding: Callable[..., None]
     set_cable_end_attachment_visual_overrides: Callable[..., None]
     set_cable_end_properties: Callable[..., None]
     set_harness_properties: Callable[..., None]

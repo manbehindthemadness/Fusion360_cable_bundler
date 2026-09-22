@@ -30,6 +30,7 @@ from .model import (
     CableAppearanceReference,
     CableColor,
     CableEndAttachment,
+    CableEndTarget,
     CableGroupDefinition,
     CableMaterialOverrides,
     CableMaterialSettings,
@@ -73,11 +74,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 21 are migratable)",
+            "(schemas 12 through 22 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -287,6 +288,24 @@ def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
         ),
         "ordered_control_ids": [str(control_id) for control_id in attachment.ordered_control_ids],
         "visual_overrides": _visual_overrides_to_dict(attachment.visual_overrides),
+        "shielding_target": (
+            None
+            if attachment.shielding_target is None
+            else _target_to_dict(attachment.shielding_target)
+        ),
+    }
+
+
+def _target_to_dict(target: CableEndTarget) -> dict[str, object]:
+    """
+    Convert one secondary external relationship target to portable values.
+    """
+    return {
+        "target_kind": target.target_kind.value,
+        "entity_token": target.entity_token,
+        "inherited_name": target.inherited_name,
+        "name": target.name,
+        "parameters": list(target.parameters),
     }
 
 
@@ -632,16 +651,7 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
     if raw_value is None:
         return None
     value = _require_mapping(raw_value, path)
-    raw_parameters = _require_list(value, "parameters", f"{path}.parameters")
-    parameters: list[float] = []
-    for index, raw_parameter in enumerate(raw_parameters):
-        parameter_path = f"{path}.parameters[{index}]"
-        if isinstance(raw_parameter, bool) or not isinstance(raw_parameter, (int, float)):
-            raise DefinitionParseError(parameter_path, "expected a number")
-        parameter = float(raw_parameter)
-        if not math.isfinite(parameter):
-            raise DefinitionParseError(parameter_path, "expected a finite number")
-        parameters.append(parameter)
+    parameters = _parse_target_parameters(value, path)
     try:
         raw_target_kind = value.get("target_kind")
         target_kind = (
@@ -684,9 +694,51 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
             visual_overrides=_parse_visual_overrides(
                 value.get("visual_overrides", {}), f"{path}.visual_overrides"
             ),
+            shielding_target=(
+                None
+                if value.get("shielding_target") is None
+                else _parse_target(value.get("shielding_target"), f"{path}.shielding_target")
+            ),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_target(raw_value: object, path: str) -> CableEndTarget:
+    """
+    Parse one complete secondary external relationship target.
+    """
+    value = _require_mapping(raw_value, path)
+    parameters = _parse_target_parameters(value, path)
+    try:
+        return CableEndTarget(
+            target_kind=_require_enum(
+                AttachmentTargetKind, value, "target_kind", f"{path}.target_kind"
+            ),
+            entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
+            inherited_name=_require_str(value, "inherited_name", f"{path}.inherited_name"),
+            name=_require_str({"name": "", **value}, "name", f"{path}.name"),
+            parameters=parameters,
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_target_parameters(value: Mapping[str, Any], path: str) -> tuple[float, ...]:
+    """
+    Parse finite target parameters shared by primary and shielding relationships.
+    """
+    raw_parameters = _require_list(value, "parameters", f"{path}.parameters")
+    parameters: list[float] = []
+    for index, raw_parameter in enumerate(raw_parameters):
+        parameter_path = f"{path}.parameters[{index}]"
+        if isinstance(raw_parameter, bool) or not isinstance(raw_parameter, (int, float)):
+            raise DefinitionParseError(parameter_path, "expected a number")
+        parameter = float(raw_parameter)
+        if not math.isfinite(parameter):
+            raise DefinitionParseError(parameter_path, "expected a finite number")
+        parameters.append(parameter)
+    return tuple(parameters)
 
 
 def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverrides:

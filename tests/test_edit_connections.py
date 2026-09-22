@@ -13,9 +13,11 @@ from cable_bundler.application import (
     add_cable_end_connection,
     add_connection_refine,
     attach_cable_end,
+    attach_cable_end_shielding,
     remove_cable_end_attachment,
     rename_cable_end_attachment,
     set_cable_end_attachment_properties,
+    set_cable_end_attachment_shielding,
     set_cable_end_attachment_visual_overrides,
     set_cable_group_properties,
 )
@@ -23,6 +25,7 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     CableColor,
     CableEndAttachment,
+    CableEndTarget,
     CableVisualOverrides,
     HarnessDefinition,
     RefineGeometry,
@@ -161,6 +164,89 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert remaining_attachment is not None
     assert remaining_attachment.attachment_id == second_attachment_id
     assert stored.cable_groups == valid_harness.cable_groups
+
+
+def test_attaches_shielding_data_only_to_a_shielded_leaf(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist a secondary target without replacing the leaf's main geometry target.
+    """
+    connection = valid_harness.connections[0]
+    leaf = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "main-profile",
+        "Main socket",
+        attachment_id=UUID(int=721),
+    )
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, shielding="Foil"),
+        connections=(replace(connection, attachment=leaf), *valid_harness.connections[1:]),
+    )
+    gateway = _recording_gateway(definition)
+    target = CableEndTarget(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "shield-stud",
+        "Shield stud",
+    )
+
+    attach_cable_end_shielding(
+        definition.harness_id,
+        connection.connection_id,
+        leaf.attachment_id,
+        target,
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    saved = stored.connections[0].attachment
+    assert saved is not None
+    assert saved.entity_token == "main-profile"
+    assert saved.shielding_target == target
+
+
+def test_rejects_shielding_relationship_on_a_non_leaf_connection(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep shielding relationships at the final nodes of explicit connection chains.
+    """
+    connection = valid_harness.connections[0]
+    parent = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "parent-profile",
+        "Parent",
+        attachment_id=UUID(int=731),
+    )
+    child = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=732),
+        parent_attachment_id=parent.attachment_id,
+    )
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, shielding="Braid"),
+        connections=(
+            replace(connection, attachment=parent, additional_attachments=(child,)),
+            *valid_harness.connections[1:],
+        ),
+    )
+    gateway = _recording_gateway(definition)
+    target = CableEndTarget(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "shield-stud",
+        "Shield stud",
+    )
+
+    with pytest.raises(ValueError, match="final connection"):
+        attach_cable_end_shielding(
+            definition.harness_id,
+            connection.connection_id,
+            parent.attachment_id,
+            target,
+            gateway,
+        )
 
 
 def test_adds_and_removes_cascading_connection_descendants(
@@ -387,4 +473,42 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
 
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, second_id, gateway)
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachments[0].visual_overrides == CableVisualOverrides()
+    assert stored.connections[0].attachments[0].visual_overrides == CableVisualOverrides(
+        shielding="Braided copper"
+    )
+
+
+def test_sets_and_clears_connector_shielding_inheritance(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist both explicit empty interruptions and null inheritance markers.
+    """
+    connection_id = valid_harness.connections[0].connection_id
+    attachment_id = UUID(int=721)
+    gateway = _recording_gateway(valid_harness)
+    add_cable_end_connection(
+        valid_harness.harness_id, connection_id, gateway, id_factory=lambda: attachment_id
+    )
+
+    set_cable_end_attachment_shielding(
+        valid_harness.harness_id,
+        connection_id,
+        attachment_id,
+        "  ",
+        (("connector", "J1"),),
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    saved_attachment = stored.connections[0].attachment
+    assert saved_attachment is not None
+    assert saved_attachment.visual_overrides.shielding == ""
+    assert saved_attachment.metadata == (("connector", "J1"),)
+
+    set_cable_end_attachment_shielding(
+        valid_harness.harness_id, connection_id, attachment_id, None, (), gateway
+    )
+    stored = loads(gateway.serialized_definition)
+    saved_attachment = stored.connections[0].attachment
+    assert saved_attachment is not None
+    assert saved_attachment.visual_overrides.shielding is None

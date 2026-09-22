@@ -11,6 +11,7 @@ from uuid import UUID
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndTarget,
     JunctionDefinition,
 )
 from tests.fusion_ui_support import (
@@ -132,6 +133,11 @@ def test_palette_state_reports_attachment_and_connection_status(
         "Connector datum",
         metadata=(("connector", "J1"),),
         attachment_id=UUID(int=901),
+        shielding_target=CableEndTarget(
+            AttachmentTargetKind.CONSTRUCTION_POINT,
+            "shield-token",
+            "Shield stud",
+        ),
     )
     definition = replace(
         valid_harness,
@@ -143,7 +149,9 @@ def test_palette_state_reports_attachment_and_connection_status(
             ),
         ),
     )
-    gateway = SimpleNamespace(is_entity_token_resolvable=lambda token: token == "attachment-token")
+    gateway = SimpleNamespace(
+        is_entity_token_resolvable=lambda token: token in {"attachment-token", "shield-token"}
+    )
     result = HarnessLoadResult("Harness_001", definition, None, ())
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
@@ -155,6 +163,11 @@ def test_palette_state_reports_attachment_and_connection_status(
         "attachmentId": str(UUID(int=901)),
         "parentAttachmentId": None,
         "connected": True,
+        "shieldingTarget": {
+            "targetKind": "construction_point",
+            "name": "Shield stud",
+            "connected": True,
+        },
         "name": "Connector datum",
         "nameOverride": "",
         "targetKind": "construction_point",
@@ -177,6 +190,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "attachmentId": str(UUID(int=902)),
         "parentAttachmentId": None,
         "connected": False,
+        "shieldingTarget": None,
         "name": "Connection",
         "nameOverride": "",
         "targetKind": None,

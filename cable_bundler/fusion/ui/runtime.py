@@ -116,7 +116,7 @@ class UiRuntime:
         default_factory=PendingSlot
     )
     pending_standalone_end: PendingSlot[UUID] = field(default_factory=PendingSlot)
-    pending_cable_end_attachment: PendingSlot[tuple[UUID, UUID, UUID]] = field(
+    pending_cable_end_attachment: PendingSlot[tuple[UUID, UUID, UUID, str]] = field(
         default_factory=PendingSlot
     )
     pending_append_gates: PendingSlot[tuple[str, UUID, UUID]] = field(default_factory=PendingSlot)

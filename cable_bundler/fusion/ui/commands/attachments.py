@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import traceback
-from dataclasses import dataclass
-from typing import Any, Optional, cast
+from dataclasses import dataclass, replace
+from typing import Any, Literal, Optional, cast
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -13,8 +13,8 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ....application import attach_cable_end
-from ....domain import AttachmentTargetKind, CableEndAttachment, loads
+from ....application import attach_cable_end, attach_cable_end_shielding
+from ....domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget, loads
 from ...attachment_targets import (
     attachment_target_kind,
     attachment_target_name,
@@ -40,6 +40,7 @@ class _AttachCableEndCommandState:
     attachment_id: UUID
     excluded_entities: tuple[object, ...]
     attachment: CableEndAttachment
+    relationship: Literal["main", "shielding"] = "main"
 
 
 def _surface_parameters(
@@ -86,7 +87,7 @@ def _read_face_parameters(face: object) -> tuple[float, float]:
 def _read_attachment_inputs(
     command_inputs: adsk.core.CommandInputs,
     state: _AttachCableEndCommandState,
-) -> CableEndAttachment:
+) -> CableEndTarget:
     """
     Validate the selected target and optional connection name.
     """
@@ -111,13 +112,12 @@ def _read_attachment_inputs(
     if not isinstance(name, str):
         raise ValueError("Connection name must be text.")
     parameters = _read_face_parameters(entity) if kind is AttachmentTargetKind.FACE else ()
-    return CableEndAttachment(
+    return CableEndTarget(
         target_kind=kind,
         entity_token=token.strip(),
         inherited_name=attachment_target_name(entity, kind),
         name=name.strip(),
         parameters=parameters,
-        metadata=state.attachment.metadata,
     )
 
 
@@ -178,36 +178,55 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
-            attachment = _read_attachment_inputs(args.command.commandInputs, self._state)
+            target = _read_attachment_inputs(args.command.commandInputs, self._state)
             gateway = _create_harness_gateway(application)
-            attach_cable_end(
-                self._state.harness_id,
-                self._state.connection_id,
-                self._state.attachment_id,
-                attachment,
-                gateway,
-            )
-            definition = loads(gateway.read_harness_definition(self._state.harness_id))
-            updated_count = refresh_generated_cable_groups_for_connection(
-                _require_active_design(application),
-                gateway.harness_component(self._state.harness_id),
-                definition,
-                self._state.connection_id,
-            )
-            warning = _refresh_active_preview(application, self._state.harness_id)
-            application.activeViewport.refresh()
-            geometry_notice = (
-                f" Updated {updated_count} generated cable "
-                f"group{'s' if updated_count != 1 else ''}."
-                if updated_count
-                else ""
-            )
-            _send_palette_state(
-                application,
-                (
-                    f"Attached cable end to {attachment.display_name}.{geometry_notice} {warning}"
-                ).strip(),
-            )
+            if self._state.relationship == "shielding":
+                attach_cable_end_shielding(
+                    self._state.harness_id,
+                    self._state.connection_id,
+                    self._state.attachment_id,
+                    target,
+                    gateway,
+                )
+                _send_palette_state(application, f"Connected shielding to {target.display_name}.")
+            else:
+                attachment = replace(
+                    self._state.attachment,
+                    target_kind=target.target_kind,
+                    entity_token=target.entity_token,
+                    inherited_name=target.inherited_name,
+                    name=target.name,
+                    parameters=target.parameters,
+                )
+                attach_cable_end(
+                    self._state.harness_id,
+                    self._state.connection_id,
+                    self._state.attachment_id,
+                    attachment,
+                    gateway,
+                )
+                definition = loads(gateway.read_harness_definition(self._state.harness_id))
+                updated_count = refresh_generated_cable_groups_for_connection(
+                    _require_active_design(application),
+                    gateway.harness_component(self._state.harness_id),
+                    definition,
+                    self._state.connection_id,
+                )
+                warning = _refresh_active_preview(application, self._state.harness_id)
+                application.activeViewport.refresh()
+                geometry_notice = (
+                    f" Updated {updated_count} generated cable "
+                    f"group{'s' if updated_count != 1 else ''}."
+                    if updated_count
+                    else ""
+                )
+                _send_palette_state(
+                    application,
+                    (
+                        f"Attached cable end to {attachment.display_name}."
+                        f"{geometry_notice} {warning}"
+                    ).strip(),
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
@@ -227,7 +246,9 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         request = _runtime.pending_cable_end_attachment.consume()
         if request is None:
             raise RuntimeError("No cable end was selected for connection.")
-        harness_id, connection_id, attachment_id = request
+        harness_id, connection_id, attachment_id, relationship = request
+        if relationship not in {"main", "shielding"}:
+            raise ValueError("Cable-end relationship kind is invalid.")
         application = adsk.core.Application.get()
         design = _require_active_design(application)
         gateway = _create_harness_gateway(application)
@@ -244,13 +265,24 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         )
         if attachment is None:
             raise ValueError("Selected cable-end connection no longer exists.")
-        if resolve_attachment_target(design, attachment) is not None:
-            raise ValueError("Selected cable-end connection already has a target.")
+        selected_target = attachment if relationship == "main" else attachment.shielding_target
+        if (
+            selected_target is not None
+            and resolve_attachment_target(design, selected_target) is not None
+        ):
+            raise ValueError(
+                f"Selected cable-end {relationship} relationship already has a target."
+            )
         excluded_entities = tuple(
             _native_fusion_entity(entity)
             for token in (
                 *connection.member_tokens,
                 *(item.entity_token for item in connection.attachments if item.has_target),
+                *(
+                    item.shielding_target.entity_token
+                    for item in connection.attachments
+                    if item.shielding_target is not None
+                ),
             )
             for entity in (design.findEntityByToken(token) or ())
         )
@@ -260,11 +292,12 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             attachment_id,
             excluded_entities,
             attachment,
+            relationship,
         )
         inputs = args.command.commandInputs
         selection_input = inputs.addSelectionInput(
             CABLE_END_ATTACHMENT_TARGET_INPUT_ID,
-            "Connection Target",
+            "Shielding Target" if relationship == "shielding" else "Connection Target",
             "Select a profile, face, joint origin, circular edge, construction point, or sketch point",
         )
         if selection_input is None:
@@ -286,8 +319,8 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         if (
             inputs.addStringValueInput(
                 CABLE_END_ATTACHMENT_NAME_INPUT_ID,
-                "Connection Name",
-                attachment.name,
+                "Shielding Connection Name" if relationship == "shielding" else "Connection Name",
+                selected_target.name if selected_target is not None else "",
             )
             is None
         ):

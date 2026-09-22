@@ -34,6 +34,7 @@ from ...application import (
     rename_standalone_end,
     save_cable_editor,
     set_cable_end_attachment_properties,
+    set_cable_end_attachment_shielding,
     set_cable_end_attachment_visual_overrides,
     set_cable_end_properties,
     set_cable_group_material_overrides,
@@ -536,6 +537,19 @@ def _apply_property_edit(
                 part_number=property_overrides.part_number,
             )
         return "Saved cable-end connection properties."
+    if action == "set_cable_end_attachment_shielding":
+        shielding = payload.get("shielding")
+        if shielding is not None and not isinstance(shielding, str):
+            raise ValueError("Connection shielding override must be text or null.")
+        set_cable_end_attachment_shielding(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable-end connection"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
+            shielding,
+            _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
+            gateway,
+        )
+        return "Saved cable-end connection shielding."
     if action == "set_cable_end_attachment_visual_overrides":
         set_cable_end_attachment_visual_overrides(
             harness_id,

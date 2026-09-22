@@ -129,6 +129,7 @@ PALETTE_EDIT_NAMES = {
     "switch_standalone_end": "Switch Standalone End",
     "rename_pathway": "Rename Pathway",
     "set_cable_end_attachment_properties": "Change Cable End Connection Properties",
+    "set_cable_end_attachment_shielding": "Change Cable End Connection Shielding",
     "set_cable_end_attachment_visual_overrides": "Change Cable End Connection Materials",
     "set_cable_end_properties": "Change Cable End Properties",
     "set_cable_group_properties": "Change Connected Cable Properties",

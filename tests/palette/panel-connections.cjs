@@ -11,6 +11,20 @@ function contextMenuBranch(menu, label) {
   );
 }
 
+/** Build a cable-details fixture whose selected cable inherits shielding. */
+function shieldingConnectionFixture() {
+  const { context, calls } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  group.materials = { ...group.materials, shielding: 'Foil' };
+  return { context, calls, definition, group, connection };
+}
+
 asyncTest('Cable Details connects detached ends and manages diagram-only connection nodes', async () => {
   const { context, calls } = palette();
   const definition = harness();
@@ -217,6 +231,71 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   const materials = context.document.body.querySelector('.material-options');
   assert.equal(materials.open, true);
   assert.equal(materials.querySelector('h2').textContent, 'Connection Materials');
+});
+
+asyncTest('shielded final connections split Connect into main and shielding targets', async () => {
+  const { context, calls, definition, group, connection } = shieldingConnectionFixture();
+  const leaf = {
+    attachmentId: 'shielded-leaf', parentAttachmentId: null, connectionId: 'a1',
+    name: 'Shielded leaf', nameOverride: '', targetKind: null, connected: false,
+    shieldingTarget: null, metadata: [], visualOverrides: {},
+  };
+  connection.attachment = leaf;
+  connection.attachments = /** @type {Array<*>} */ ([leaf]);
+
+  const items = context.cableGroupAttachmentContextItems(definition, group, leaf);
+  const connect = items.find((item) => item.label === 'Connect');
+
+  assert.equal(
+    JSON.stringify(connect.items.map((item) => item.label)),
+    JSON.stringify(['Main', 'Shielding']),
+  );
+  await connect.items[1].action();
+  assert.equal(calls[0].action, 'connect_cable_end');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(calls[0].payload.attachmentId, 'shielded-leaf');
+  assert.equal(calls[0].payload.relationship, 'shielding');
+
+  connection.attachments.push({
+    attachmentId: 'child', parentAttachmentId: leaf.attachmentId, connectionId: 'a1',
+    name: 'Child', nameOverride: '', targetKind: null, connected: false,
+    shieldingTarget: null, metadata: [], visualOverrides: {},
+  });
+  const parentConnect = context.cableGroupAttachmentContextItems(
+    definition, group, leaf,
+  ).find((item) => item.label === 'Connect');
+  assert.equal(parentConnect.items, undefined);
+});
+
+asyncTest('connection Properties place shielding above custom metadata', async () => {
+  const { context, calls, definition, group, connection } = shieldingConnectionFixture();
+  const node = {
+    attachmentId: 'connector', parentAttachmentId: null, connectionId: 'a1',
+    name: 'Connector', nameOverride: '', targetKind: null, connected: false,
+    shieldingTarget: null, metadata: [], visualOverrides: {},
+  };
+  connection.attachment = node;
+  connection.attachments = [node];
+
+  const items = context.cableGroupAttachmentContextItems(definition, group, node);
+  assert.equal(items.some((item) => item.label === 'Shielding Properties'), false);
+  assert.equal(items.at(-1).label, 'Properties');
+  items.at(-1).action();
+  const dialog = context.document.body.querySelector('.connection-properties');
+  assert.equal(dialog.querySelector('h2').textContent, 'Connection Properties');
+  const fields = descendants(dialog, (item) => item.tag === 'input');
+  assert.equal(fields[1].value, 'Foil');
+  assert.equal(fields[1].disabled, true);
+  fields[0].checked = true;
+  fields[0].events.change();
+  fields[1].value = '';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_cable_end_attachment_shielding');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+  assert.equal(calls[0].payload.attachmentId, 'connector');
+  assert.equal(calls[0].payload.shielding, '');
+  assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([]));
 });
 
 test('Cable Details connection nodes form a parent-child chain', () => {

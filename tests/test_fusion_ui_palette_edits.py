@@ -726,6 +726,37 @@ def test_palette_edit_saves_connection_properties(
     assert result == "Saved cable-end connection properties."
 
 
+def test_palette_edit_saves_connection_shielding_override(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Preserve an explicit empty shielding value as an inheritance interruption.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    gateway, save = _mock_palette_service(
+        addin_module, monkeypatch, "set_cable_end_attachment_shielding"
+    )
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        "set_cable_end_attachment_shielding",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
+                "shielding": "",
+            }
+        ),
+    )
+
+    save.assert_called_once_with(harness_id, connection_id, attachment_id, "", (), gateway)
+    assert result == "Saved cable-end connection shielding."
+
+
 @pytest.mark.parametrize("action", ["rename_pathway", "set_interpolation"])
 def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str

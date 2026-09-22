@@ -63,11 +63,40 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
   );
   const hasBranchMaterials = siblings.length > 1;
   const canAddConnection = attachment.connected && attachment.targetKind === "profile";
+  const hasChildren = (connection?.attachments || []).some(
+    (candidate) => candidate.parentAttachmentId === attachment.attachmentId,
+  );
+  const materials = connection
+    ? cableEndAttachmentMaterials(group, connection, attachment) : group.materials;
+  const hasShieldingConnection = !hasChildren
+    && typeof materials?.shielding === "string" && materials.shielding.trim() !== "";
+  const mainConnect = {
+    label: "Main",
+    action: () => connectCableEnd(
+      harness, attachment.connectionId, attachment.attachmentId, "main",
+    ),
+    disabled: attachment.connected,
+    title: attachment.connected ? "This connection already has a main target" : "",
+  };
   return [
-    {
+    hasShieldingConnection ? {
+      label: "Connect",
+      items: [
+        mainConnect,
+        {
+          label: "Shielding",
+          action: () => connectCableEnd(
+            harness, attachment.connectionId, attachment.attachmentId, "shielding",
+          ),
+          disabled: attachment.shieldingTarget?.connected === true,
+          title: attachment.shieldingTarget?.connected
+            ? "This connection already has a shielding target" : "",
+        },
+      ],
+    } : {
       label: "Connect",
       action: () => connectCableEnd(
-        harness, attachment.connectionId, attachment.attachmentId,
+        harness, attachment.connectionId, attachment.attachmentId, "main",
       ),
       disabled: attachment.connected,
       title: attachment.connected ? "This connection already has a target" : "",

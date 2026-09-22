@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from ...domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndTarget,
     CableVisualOverrides,
     Connection,
     ControlKind,
@@ -58,6 +59,10 @@ def attach_cable_end(
         and item.has_target
         and item.entity_token == attachment.entity_token
         for item in connection.attachments
+    ) or any(
+        item.shielding_target is not None
+        and item.shielding_target.entity_token == attachment.entity_token
+        for item in connection.attachments
     ):
         raise ValueError("Each cable-end connection requires a unique target.")
     completed_attachment = replace(
@@ -68,9 +73,72 @@ def attach_cable_end(
         metadata=existing.metadata,
         ordered_control_ids=existing.ordered_control_ids,
         visual_overrides=existing.visual_overrides,
+        shielding_target=existing.shielding_target,
     )
     updated_connection = _replace_cable_end_attachment(
         connection, attachment_id, completed_attachment
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
+def attach_cable_end_shielding(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    target: CableEndTarget,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Attach a non-geometric shielding relationship to one shielded leaf connection.
+    """
+    if not isinstance(target, CableEndTarget):
+        raise ValueError("Cable-end shielding target is invalid.")
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    if connection.attachment_children(attachment_id):
+        raise ValueError("Shielding can connect only from a final connection node.")
+    group = next(
+        (item for item in definition.cable_groups if connection_id in item.connection_ids),
+        None,
+    )
+    if group is None:
+        raise ValueError("Shielding connections require an assigned cable group.")
+    materials = definition.cable_end_attachment_materials(group, connection_id, attachment_id)
+    if not materials.shielding.strip():
+        raise ValueError("This final connection does not specify shielding.")
+    if target.entity_token in connection.member_tokens:
+        raise ValueError("A shielding relationship cannot target its own guide geometry.")
+    occupied_tokens = {
+        token
+        for item in connection.attachments
+        for token in (
+            item.entity_token if item.has_target else "",
+            (
+                item.shielding_target.entity_token
+                if item.shielding_target is not None and item.attachment_id != attachment_id
+                else ""
+            ),
+        )
+        if token
+    }
+    if target.entity_token in occupied_tokens:
+        raise ValueError("Each cable-end relationship requires a unique target.")
+    updated_attachment = replace(attachment, shielding_target=target)
+    updated_connection = _replace_cable_end_attachment(
+        connection, attachment_id, updated_attachment
     )
     updated = replace(
         definition,
@@ -233,6 +301,49 @@ def set_cable_end_attachment_properties(
     persist_definition(harness_id, original, updated, gateway)
 
 
+def set_cable_end_attachment_shielding(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    shielding: Optional[str],
+    metadata: Metadata,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace connector metadata and its shielding inheritance override atomically.
+
+    A null value resumes inheritance. An explicit empty string interrupts inherited
+    shielding for the selected node and all descendants that continue to inherit.
+    """
+    if shielding is not None and not isinstance(shielding, str):
+        raise ValueError("Connection shielding override must be text or null.")
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    normalized = None if shielding is None else shielding.strip()
+    updated_attachment = replace(
+        attachment,
+        metadata=metadata,
+        visual_overrides=replace(attachment.visual_overrides, shielding=normalized),
+    )
+    updated_connection = _replace_cable_end_attachment(
+        connection, attachment_id, updated_attachment
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
 def set_cable_end_attachment_visual_overrides(
     harness_id: UUID,
     connection_id: UUID,
@@ -348,7 +459,10 @@ def remove_cable_end_attachment(
         if attachment.attachment_id not in removed_attachment_ids
     )
     remaining = tuple(
-        replace(attachment, visual_overrides=CableVisualOverrides())
+        replace(
+            attachment,
+            visual_overrides=CableVisualOverrides(shielding=attachment.visual_overrides.shielding),
+        )
         if sum(
             candidate.parent_attachment_id == attachment.parent_attachment_id
             for candidate in remaining

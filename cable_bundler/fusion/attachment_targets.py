@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -10,7 +10,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ..domain import AttachmentTargetKind, CableEndAttachment
+from ..domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
 
 
 def _cast(entity_type: object, entity: object) -> Optional[object]:
@@ -62,7 +62,7 @@ def attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
 
 def resolve_attachment_target(
     design: adsk.fusion.Design,
-    attachment: CableEndAttachment,
+    attachment: Union[CableEndAttachment, CableEndTarget],
 ) -> Optional[object]:
     """
     Resolve the saved token only when it still identifies the expected entity kind.
@@ -78,7 +78,7 @@ def resolve_attachment_target(
 
 def attachment_display_name(
     design: Optional[adsk.fusion.Design],
-    attachment: CableEndAttachment,
+    attachment: Union[CableEndAttachment, CableEndTarget],
 ) -> str:
     """
     Resolve a live inherited name while retaining the saved fallback when disconnected.

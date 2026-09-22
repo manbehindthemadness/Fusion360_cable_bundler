@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
+from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
 from tests.fusion_ui_support import (
     UUID,
     Any,
@@ -508,7 +508,17 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
     state = attachments._AttachCableEndCommandState(
         harness_id, connection_id, attachment_id, (), pending
     )
-    attachment = SimpleNamespace(display_name="Battery GND")
+    target = CableEndTarget(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "battery-ground",
+        "Battery GND",
+    )
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "battery-ground",
+        "Battery GND",
+        attachment_id=attachment_id,
+    )
     definition = object()
     component = object()
     design = object()
@@ -523,7 +533,7 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
     attach = Mock()
     refresh_generated = Mock(return_value=1)
     send = Mock()
-    monkeypatch.setitem(vars(attachments), "_read_attachment_inputs", lambda *_args: attachment)
+    monkeypatch.setitem(vars(attachments), "_read_attachment_inputs", lambda *_args: target)
     monkeypatch.setitem(vars(attachments), "_create_harness_gateway", lambda _app: gateway)
     monkeypatch.setitem(vars(attachments), "attach_cable_end", attach)
     monkeypatch.setitem(vars(attachments), "loads", lambda _serialized: definition)
@@ -550,6 +560,58 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
         application,
         "Attached cable end to Battery GND. Updated 1 generated cable group.",
     )
+    assert not args.executeFailed
+
+
+def test_shielding_attachment_completion_skips_geometry_refresh(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Persist the secondary relationship without rebuilding solids or route previews.
+    """
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    pending = CableEndAttachment(None, attachment_id=attachment_id)
+    state = attachments._AttachCableEndCommandState(
+        harness_id, connection_id, attachment_id, (), pending, "shielding"
+    )
+    target = CableEndTarget(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "shield-stud",
+        "Shield stud",
+    )
+    application = SimpleNamespace(activeViewport=SimpleNamespace(refresh=Mock()))
+    gateway = object()
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    attach = Mock()
+    refresh_generated = Mock()
+    refresh_preview = Mock()
+    send = Mock()
+    monkeypatch.setitem(vars(attachments), "_read_attachment_inputs", lambda *_args: target)
+    monkeypatch.setitem(vars(attachments), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(attachments), "attach_cable_end_shielding", attach)
+    monkeypatch.setitem(
+        vars(attachments), "refresh_generated_cable_groups_for_connection", refresh_generated
+    )
+    monkeypatch.setitem(vars(attachments), "_refresh_active_preview", refresh_preview)
+    monkeypatch.setitem(vars(attachments), "_send_palette_state", send)
+    args = SimpleNamespace(
+        command=SimpleNamespace(commandInputs=object()),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+
+    attachments._AttachCableEndExecuteHandler(state).notify(args)
+
+    attach.assert_called_once_with(harness_id, connection_id, attachment_id, target, gateway)
+    refresh_generated.assert_not_called()
+    refresh_preview.assert_not_called()
+    application.activeViewport.refresh.assert_not_called()
+    send.assert_called_once_with(application, "Connected shielding to Shield stud.")
     assert not args.executeFailed
 
 
@@ -606,7 +668,7 @@ def test_cable_end_attachment_picker_opens_for_an_unresolved_saved_target(
         destroy=accepted_event,
     )
     addin_module._runtime.pending_cable_end_attachment.prepare(
-        (harness_id, connection_id, attachment_id)
+        (harness_id, connection_id, attachment_id, "main")
     )
 
     addin_module._AttachCableEndCreatedHandler().notify(SimpleNamespace(command=command))
@@ -623,6 +685,37 @@ def test_cable_end_attachment_picker_opens_for_an_unresolved_saved_target(
         addin_module.CABLE_END_ATTACHMENT_NAME_INPUT_ID,
         "Connection Name",
         "Bulkhead",
+    )
+
+
+def test_cable_end_attachment_launcher_preserves_shielding_relationship(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Carry the selected submenu relationship into the shared native picker command.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    command_definition = SimpleNamespace(execute=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(
+            commandDefinitions=SimpleNamespace(itemById=lambda _identity: command_definition)
+        )
+    )
+    payload = (
+        f'{{"harnessId":"{harness_id}","connectionId":"{connection_id}",'
+        f'"attachmentId":"{attachment_id}","relationship":"shielding"}}'
+    )
+
+    launchers = importlib.import_module("cable_bundler.fusion.ui.launchers")
+    launchers._open_attach_cable_end_command(application, payload)
+
+    assert addin_module._runtime.pending_cable_end_attachment.consume() == (
+        harness_id,
+        connection_id,
+        attachment_id,
+        "shielding",
     )
 
 

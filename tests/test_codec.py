@@ -15,6 +15,7 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     AutoTransitionPreset,
     CableEndAttachment,
+    CableEndTarget,
     CableVisualOverrides,
     DefinitionParseError,
     HarnessDefinition,
@@ -172,7 +173,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 23])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 24])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -320,7 +321,17 @@ def test_round_trip_preserves_connection_construction_overrides(
         manufacturer="Branch maker",
         part_number="BR-01",
     )
-    attachment = CableEndAttachment(None, attachment_id=UUID(int=83), visual_overrides=overrides)
+    shielding_target = CableEndTarget(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "shield-token",
+        "Shield stud",
+    )
+    attachment = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=83),
+        visual_overrides=overrides,
+        shielding_target=shielding_target,
+    )
     definition = replace(
         valid_harness,
         connections=(replace(valid_harness.connections[0], attachment=attachment),),
@@ -328,8 +339,10 @@ def test_round_trip_preserves_connection_construction_overrides(
 
     restored = loads(dumps(definition))
 
-    assert restored.connections[0].attachment is not None
-    assert restored.connections[0].attachment.visual_overrides == overrides
+    restored_attachment = restored.connections[0].attachment
+    assert restored_attachment is not None
+    assert restored_attachment.visual_overrides == overrides
+    assert restored_attachment.shielding_target == shielding_target
 
 
 def test_migrates_schema_19_with_inherited_connection_construction(
@@ -417,6 +430,29 @@ def test_migrates_schema_21_with_empty_shielding(
     migrated_attachment = migrated.connections[0].attachment
     assert migrated_attachment is not None
     assert migrated_attachment.visual_overrides.shielding is None
+
+
+def test_migrates_schema_22_without_shielding_targets(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve current connection nodes when shielding relationships are introduced.
+    """
+    attachment = CableEndAttachment(None, attachment_id=UUID(int=88))
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 22
+    del payload["connections"][0]["attachment"]["shielding_target"]
+
+    migrated = loads(json.dumps(payload))
+
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated_attachment is not None
+    assert migrated_attachment.shielding_target is None
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

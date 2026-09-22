@@ -64,6 +64,13 @@ def _attachment_payload(
         if design is not None
         else attachment.has_target and gateway.is_entity_token_resolvable(attachment.entity_token)
     )
+    shielding_target = attachment.shielding_target
+    shielding_connected = (
+        resolve_attachment_target(design, shielding_target) is not None
+        if design is not None and shielding_target is not None
+        else shielding_target is not None
+        and gateway.is_entity_token_resolvable(shielding_target.entity_token)
+    )
     return {
         "attachmentId": str(attachment.attachment_id),
         "parentAttachmentId": (
@@ -76,6 +83,15 @@ def _attachment_payload(
         "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,
         "metadata": _metadata_payload(attachment.metadata),
         "connected": connected,
+        "shieldingTarget": (
+            None
+            if shielding_target is None
+            else {
+                "targetKind": shielding_target.target_kind.value,
+                "name": attachment_display_name(design, shielding_target),
+                "connected": shielding_connected,
+            }
+        ),
         "orderedControlIds": [str(control_id) for control_id in attachment.ordered_control_ids],
         "visualOverrides": _visual_overrides_payload(attachment.visual_overrides),
     }
