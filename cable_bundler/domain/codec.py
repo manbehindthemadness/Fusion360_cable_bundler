@@ -85,11 +85,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 15 are migratable)",
+            "(schemas 12 through 16 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -115,7 +115,7 @@ def loads(serialized: str) -> HarnessDefinition:
         _parse_standalone_end(
             item,
             f"$.standalone_ends[{index}]",
-            require_controls=schema_version == SCHEMA_VERSION,
+            require_controls=schema_version >= 16,
         )
         for index, item in enumerate(_require_list(payload, "standalone_ends", "$.standalone_ends"))
     )
@@ -182,21 +182,14 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "additional_entity_tokens": list(connection.additional_entity_tokens),
                 "metadata": _metadata_to_list(connection.metadata),
                 "attachment": (
-                    {
-                        "target_kind": (
-                            connection.attachment.target_kind.value
-                            if connection.attachment.target_kind is not None
-                            else None
-                        ),
-                        "entity_token": connection.attachment.entity_token,
-                        "inherited_name": connection.attachment.inherited_name,
-                        "name": connection.attachment.name,
-                        "parameters": list(connection.attachment.parameters),
-                        "metadata": _metadata_to_list(connection.attachment.metadata),
-                    }
+                    _attachment_to_dict(connection.attachment)
                     if connection.attachment is not None
                     else None
                 ),
+                "additional_attachments": [
+                    _attachment_to_dict(attachment)
+                    for attachment in connection.additional_attachments
+                ],
                 **(
                     {
                         "member_interpolations": [
@@ -283,6 +276,23 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         ],
     }
     return payload
+
+
+def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
+    """
+    Convert one ordered external connection node to JSON-compatible primitives.
+    """
+    return {
+        "target_kind": (
+            attachment.target_kind.value if attachment.target_kind is not None else None
+        ),
+        "entity_token": attachment.entity_token,
+        "inherited_name": attachment.inherited_name,
+        "name": attachment.name,
+        "parameters": list(attachment.parameters),
+        "metadata": _metadata_to_list(attachment.metadata),
+        "attachment_id": str(attachment.attachment_id),
+    }
 
 
 def _color_to_dict(color: CableColor) -> dict[str, object]:
@@ -566,8 +576,31 @@ def _parse_connection(raw_value: object, path: str) -> Connection:
         interpolation=parse_interpolation(value.get("interpolation", {}), f"{path}.interpolation"),
         metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
         attachment=_parse_attachment(value.get("attachment"), f"{path}.attachment"),
+        additional_attachments=_parse_additional_attachments(value, path),
     )
     return connection
+
+
+def _parse_additional_attachments(
+    value: Mapping[str, Any],
+    path: str,
+) -> tuple[CableEndAttachment, ...]:
+    """
+    Parse required connection nodes from the optional ordered extension list.
+    """
+    raw_items = _require_list(
+        {"additional_attachments": [], **value},
+        "additional_attachments",
+        f"{path}.additional_attachments",
+    )
+    attachments: list[CableEndAttachment] = []
+    for index, item in enumerate(raw_items):
+        item_path = f"{path}.additional_attachments[{index}]"
+        attachment = _parse_attachment(item, item_path)
+        if attachment is None:
+            raise DefinitionParseError(item_path, "expected a connection object")
+        attachments.append(attachment)
+    return tuple(attachments)
 
 
 def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachment]:
@@ -606,6 +639,11 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
             name=_require_str(value, "name", f"{path}.name"),
             parameters=tuple(parameters),
             metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
+            attachment_id=(
+                _require_uuid(value, "attachment_id", f"{path}.attachment_id")
+                if "attachment_id" in value
+                else UUID(int=0)
+            ),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error

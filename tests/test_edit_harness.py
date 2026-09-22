@@ -91,6 +91,8 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     Persist attachment lifecycle independently of assignment and target geometry.
     """
     connection_id = valid_harness.connections[0].connection_id
+    first_attachment_id = UUID(int=701)
+    second_attachment_id = UUID(int=702)
     attachment = CableEndAttachment(
         AttachmentTargetKind.JOINT_ORIGIN,
         "joint-origin-token",
@@ -98,14 +100,29 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     )
     gateway = _recording_gateway(valid_harness)
 
-    add_cable_end_connection(valid_harness.harness_id, connection_id, gateway)
+    add_cable_end_connection(
+        valid_harness.harness_id,
+        connection_id,
+        gateway,
+        id_factory=lambda: first_attachment_id,
+    )
+    add_cable_end_connection(
+        valid_harness.harness_id,
+        connection_id,
+        gateway,
+        id_factory=lambda: second_attachment_id,
+    )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment == CableEndAttachment(None)
+    assert tuple(item.attachment_id for item in stored.connections[0].attachments) == (
+        first_attachment_id,
+        second_attachment_id,
+    )
 
     with pytest.raises(ValueError, match="attachment is invalid"):
         attach_cable_end(
             valid_harness.harness_id,
             connection_id,
+            second_attachment_id,
             CableEndAttachment(None),
             gateway,
         )
@@ -113,35 +130,48 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     rename_cable_end_attachment(
         valid_harness.harness_id,
         connection_id,
+        second_attachment_id,
         " Bulkhead socket ",
         gateway,
     )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment is not None
-    assert stored.connections[0].attachment.name == "Bulkhead socket"
+    assert stored.connections[0].attachments[1].name == "Bulkhead socket"
 
     set_cable_end_attachment_properties(
         valid_harness.harness_id,
         connection_id,
+        second_attachment_id,
         (("connector", "J1"),),
         gateway,
     )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment is not None
-    assert stored.connections[0].attachment.metadata == (("connector", "J1"),)
+    assert stored.connections[0].attachments[1].metadata == (("connector", "J1"),)
 
-    attach_cable_end(valid_harness.harness_id, connection_id, attachment, gateway)
-    stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment == replace(
+    attach_cable_end(
+        valid_harness.harness_id,
+        connection_id,
+        second_attachment_id,
         attachment,
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachments[1] == replace(
+        attachment,
+        attachment_id=second_attachment_id,
         name="Bulkhead socket",
         metadata=(("connector", "J1"),),
     )
     assert stored.cable_groups == valid_harness.cable_groups
 
-    remove_cable_end_attachment(valid_harness.harness_id, connection_id, gateway)
+    remove_cable_end_attachment(
+        valid_harness.harness_id,
+        connection_id,
+        first_attachment_id,
+        gateway,
+    )
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment is None
+    assert stored.connections[0].attachment == stored.connections[0].attachments[0]
+    assert stored.connections[0].attachment.attachment_id == second_attachment_id
     assert stored.cable_groups == valid_harness.cable_groups
 
 

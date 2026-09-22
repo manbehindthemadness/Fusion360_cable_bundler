@@ -82,15 +82,23 @@ def test_round_trip_preserves_unattached_cable_end_connection(
     """
     Preserve a connection node before a Fusion target has been selected.
     """
+    first = CableEndAttachment(None, attachment_id=UUID(int=801))
+    second = CableEndAttachment(None, attachment_id=UUID(int=802))
     definition = replace(
         valid_harness,
         connections=(
-            replace(valid_harness.connections[0], attachment=CableEndAttachment(None)),
+            replace(
+                valid_harness.connections[0],
+                attachment=first,
+                additional_attachments=(second,),
+            ),
             valid_harness.connections[1],
         ),
     )
 
-    assert loads(dumps(definition)) == definition
+    restored = loads(dumps(definition))
+    assert restored == definition
+    assert restored.connections[0].attachments == (first, second)
 
 
 def test_metadata_round_trip_is_optional_and_does_not_change_schema(
@@ -162,7 +170,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 17])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 18])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,

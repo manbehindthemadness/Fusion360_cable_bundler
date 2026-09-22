@@ -91,16 +91,20 @@ function cableGroupDetailsTopology(harness, group) {
       connection?.name || "Missing end",
     );
     if (location) connect(`connection:${connectionId}`, `pathway:${location.pathwayId}`);
-    if (connection?.attachment) {
-      const attachmentId = `attachment:${connectionId}`;
+    const attachments = connection?.attachments || (
+      connection?.attachment ? [connection.attachment] : []
+    );
+    attachments.forEach((attachment, attachmentIndex) => {
+      const attachmentId = attachment.attachmentId || `legacy-${attachmentIndex}`;
+      const nodeId = `attachment:${connectionId}:${attachmentId}`;
       addNode(
-        attachmentId,
+        nodeId,
         "attachment",
-        { ...connection.attachment, connectionId },
-        connection.attachment.name || "Unnamed connection",
+        { ...attachment, connectionId },
+        attachment.name || "Unnamed connection",
       );
-      connect(`connection:${connectionId}`, attachmentId);
-    }
+      connect(`connection:${connectionId}`, nodeId);
+    });
   });
   activeJunctionIds.forEach((junctionId) => {
     const junction = junctions.get(junctionId);
@@ -674,6 +678,7 @@ function renameCableGroupAttachment(harness, attachment) {
     void mutate("rename_cable_end_attachment", {
       harnessId: harness.harnessId,
       connectionId: attachment.connectionId,
+      attachmentId: attachment.attachmentId,
       name: input.value,
     }, "Saving connection name…");
   });
@@ -698,7 +703,9 @@ function cableGroupAttachmentContextItems(harness, attachment) {
   return [
     {
       label: "Connect",
-      action: () => connectCableEnd(harness, attachment.connectionId),
+      action: () => connectCableEnd(
+        harness, attachment.connectionId, attachment.attachmentId,
+      ),
       disabled: Boolean(attachment.targetKind),
       title: attachment.targetKind ? "This connection already has a target" : "",
     },
@@ -711,6 +718,7 @@ function cableGroupAttachmentContextItems(harness, attachment) {
       action: () => mutate("remove_cable_end_attachment", {
         harnessId: harness.harnessId,
         connectionId: attachment.connectionId,
+        attachmentId: attachment.attachmentId,
       }, `Deleting connection ${attachment.name}…`),
     },
     {

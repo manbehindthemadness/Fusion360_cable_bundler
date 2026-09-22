@@ -39,6 +39,8 @@ class CableGroupRouteLeg:
     end_connection_id: Optional[UUID]
     control_steps: tuple[CableGroupControlStep, ...]
     pathway_ids: tuple[UUID, ...]
+    diameter_mm: Optional[float] = None
+    is_connection_branch: bool = False
 
 
 @dataclass(frozen=True)

@@ -28,13 +28,14 @@ from .pathways import _native_fusion_entity
 @dataclass(frozen=True)
 class _AttachCableEndCommandState:
     """
-    Retain the selected end and geometry that cannot target itself.
+    Retain the selected node and geometry unavailable as a target.
     """
 
     harness_id: UUID
     connection_id: UUID
+    attachment_id: UUID
     excluded_entities: tuple[object, ...]
-    attachment: Optional[CableEndAttachment] = None
+    attachment: CableEndAttachment
 
 
 def _surface_parameters(
@@ -112,7 +113,7 @@ def _read_attachment_inputs(
         inherited_name=attachment_target_name(entity, kind),
         name=name.strip(),
         parameters=parameters,
-        metadata=state.attachment.metadata if state.attachment is not None else (),
+        metadata=state.attachment.metadata,
     )
 
 
@@ -123,7 +124,7 @@ class _AttachCableEndPreSelectHandler(adsk.core.SelectionEventHandler):
 
     def __init__(self, state: _AttachCableEndCommandState) -> None:
         """
-        Retain geometry excluded from attachment.
+        Retain guide and previously connected geometry excluded from attachment.
         """
         super().__init__()
         self._state = state
@@ -178,6 +179,7 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
             attach_cable_end(
                 self._state.harness_id,
                 self._state.connection_id,
+                self._state.attachment_id,
                 attachment,
                 gateway,
             )
@@ -221,7 +223,7 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         request = _runtime.pending_cable_end_attachment.consume()
         if request is None:
             raise RuntimeError("No cable end was selected for connection.")
-        harness_id, connection_id = request
+        harness_id, connection_id, attachment_id = request
         application = adsk.core.Application.get()
         design = _require_active_design(application)
         gateway = _create_harness_gateway(application)
@@ -232,20 +234,28 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         )
         if connection is None:
             raise ValueError("Selected cable end no longer exists.")
-        if connection.attachment is None:
-            raise ValueError("Selected cable end does not have a connection node.")
-        if connection.attachment.has_target:
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == attachment_id),
+            None,
+        )
+        if attachment is None:
+            raise ValueError("Selected cable-end connection no longer exists.")
+        if attachment.has_target:
             raise ValueError("Selected cable-end connection already has a target.")
         excluded_entities = tuple(
             _native_fusion_entity(entity)
-            for token in connection.member_tokens
+            for token in (
+                *connection.member_tokens,
+                *(item.entity_token for item in connection.attachments if item.has_target),
+            )
             for entity in (design.findEntityByToken(token) or ())
         )
         state = _AttachCableEndCommandState(
             harness_id,
             connection_id,
+            attachment_id,
             excluded_entities,
-            connection.attachment,
+            attachment,
         )
         inputs = args.command.commandInputs
         selection_input = inputs.addSelectionInput(
@@ -273,7 +283,7 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addStringValueInput(
                 CABLE_END_ATTACHMENT_NAME_INPUT_ID,
                 "Connection Name",
-                connection.attachment.name,
+                attachment.name,
             )
             is None
         ):

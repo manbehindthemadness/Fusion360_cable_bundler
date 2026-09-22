@@ -25,9 +25,11 @@ from .support import (
 from .types import HarnessEditGateway
 
 
+# noinspection DuplicatedCode
 def attach_cable_end(
     harness_id: UUID,
     connection_id: UUID,
+    attachment_id: UUID,
     attachment: CableEndAttachment,
     gateway: HarnessEditGateway,
 ) -> None:
@@ -45,18 +47,27 @@ def attach_cable_end(
     )
     if connection is None:
         raise ValueError("Selected cable end has a missing connection.")
-    if connection.attachment is None:
-        raise ValueError("Add a connection node before selecting its target.")
-    if connection.attachment.has_target:
+    existing = _cable_end_attachment(connection, attachment_id)
+    if existing.has_target:
         raise ValueError("Selected cable-end connection already has a target.")
     if attachment.entity_token in connection.member_tokens:
         raise ValueError("A cable end cannot attach to its own guide geometry.")
+    if any(
+        item.attachment_id != attachment_id
+        and item.has_target
+        and item.entity_token == attachment.entity_token
+        for item in connection.attachments
+    ):
+        raise ValueError("Each cable-end connection requires a unique target.")
     completed_attachment = replace(
         attachment,
-        name=attachment.name or connection.attachment.name,
-        metadata=connection.attachment.metadata,
+        attachment_id=attachment_id,
+        name=attachment.name or existing.name,
+        metadata=existing.metadata,
     )
-    updated_connection = replace(connection, attachment=completed_attachment)
+    updated_connection = _replace_cable_end_attachment(
+        connection, attachment_id, completed_attachment
+    )
     updated = replace(
         definition,
         connections=tuple(
@@ -67,11 +78,13 @@ def attach_cable_end(
     persist_definition(harness_id, original, updated, gateway)
 
 
+# noinspection DuplicatedCode
 def add_cable_end_connection(
     harness_id: UUID,
     connection_id: UUID,
     gateway: HarnessEditGateway,
-) -> None:
+    id_factory: Callable[[], UUID] = uuid4,
+) -> CableEndAttachment:
     """
     Persist an unattached external connection node for one cable end.
     """
@@ -84,9 +97,14 @@ def add_cable_end_connection(
     )
     if connection is None:
         raise ValueError("Selected cable end has a missing connection.")
-    if connection.attachment is not None:
-        raise ValueError("Selected cable end already has a connection node.")
-    updated_connection = replace(connection, attachment=CableEndAttachment(None))
+    attachment = CableEndAttachment(None, attachment_id=id_factory())
+    if connection.attachment is None:
+        updated_connection = replace(connection, attachment=attachment)
+    else:
+        updated_connection = replace(
+            connection,
+            additional_attachments=(*connection.additional_attachments, attachment),
+        )
     updated = replace(
         definition,
         connections=tuple(
@@ -95,11 +113,13 @@ def add_cable_end_connection(
         ),
     )
     persist_definition(harness_id, original, updated, gateway)
+    return attachment
 
 
 def rename_cable_end_attachment(
     harness_id: UUID,
     connection_id: UUID,
+    attachment_id: UUID,
     name: str,
     gateway: HarnessEditGateway,
 ) -> None:
@@ -113,11 +133,11 @@ def rename_cable_end_attachment(
         (item for item in definition.connections if item.connection_id == connection_id),
         None,
     )
-    if connection is None or connection.attachment is None:
-        raise ValueError("Selected cable end does not have a connection attachment.")
-    updated_connection = replace(
-        connection,
-        attachment=replace(connection.attachment, name=name.strip()),
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    updated_connection = _replace_cable_end_attachment(
+        connection, attachment_id, replace(attachment, name=name.strip())
     )
     updated = replace(
         definition,
@@ -132,6 +152,7 @@ def rename_cable_end_attachment(
 def set_cable_end_attachment_properties(
     harness_id: UUID,
     connection_id: UUID,
+    attachment_id: UUID,
     metadata: Metadata,
     gateway: HarnessEditGateway,
 ) -> None:
@@ -143,11 +164,11 @@ def set_cable_end_attachment_properties(
         (item for item in definition.connections if item.connection_id == connection_id),
         None,
     )
-    if connection is None or connection.attachment is None:
-        raise ValueError("Selected cable end does not have a connection attachment.")
-    updated_connection = replace(
-        connection,
-        attachment=replace(connection.attachment, metadata=metadata),
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    updated_connection = _replace_cable_end_attachment(
+        connection, attachment_id, replace(attachment, metadata=metadata)
     )
     updated = replace(
         definition,
@@ -162,6 +183,7 @@ def set_cable_end_attachment_properties(
 def remove_cable_end_attachment(
     harness_id: UUID,
     connection_id: UUID,
+    attachment_id: UUID,
     gateway: HarnessEditGateway,
 ) -> None:
     """
@@ -172,9 +194,19 @@ def remove_cable_end_attachment(
         (item for item in definition.connections if item.connection_id == connection_id),
         None,
     )
-    if connection is None or connection.attachment is None:
-        raise ValueError("Selected cable end does not have a connection attachment.")
-    updated_connection = replace(connection, attachment=None)
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    _cable_end_attachment(connection, attachment_id)
+    remaining = tuple(
+        attachment
+        for attachment in connection.attachments
+        if attachment.attachment_id != attachment_id
+    )
+    updated_connection = replace(
+        connection,
+        attachment=remaining[0] if remaining else None,
+        additional_attachments=remaining[1:],
+    )
     updated = replace(
         definition,
         connections=tuple(
@@ -183,6 +215,41 @@ def remove_cable_end_attachment(
         ),
     )
     persist_definition(harness_id, original, updated, gateway)
+
+
+def _cable_end_attachment(
+    connection: Connection,
+    attachment_id: UUID,
+) -> CableEndAttachment:
+    """
+    Resolve one external connection node by its stable identity.
+    """
+    attachment = next(
+        (item for item in connection.attachments if item.attachment_id == attachment_id),
+        None,
+    )
+    if attachment is None:
+        raise ValueError("Selected cable-end connection does not exist.")
+    return attachment
+
+
+def _replace_cable_end_attachment(
+    connection: Connection,
+    attachment_id: UUID,
+    replacement: CableEndAttachment,
+) -> Connection:
+    """
+    Replace one external connection node without changing collection order.
+    """
+    attachments = tuple(
+        replacement if item.attachment_id == attachment_id else item
+        for item in connection.attachments
+    )
+    return replace(
+        connection,
+        attachment=attachments[0],
+        additional_attachments=attachments[1:],
+    )
 
 
 # noinspection DuplicatedCode
@@ -529,6 +596,7 @@ def rename_standalone_end(
     persist_definition(harness_id, original, updated, gateway)
 
 
+# noinspection DuplicatedCode
 def set_cable_end_properties(
     harness_id: UUID,
     connection_id: UUID,

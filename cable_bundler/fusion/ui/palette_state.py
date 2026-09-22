@@ -26,6 +26,7 @@ from ...application import (
 from ...domain import (
     CableAppearanceReference,
     CableColor,
+    CableEndAttachment,
     CableMaterialOverrides,
     CableMaterialSettings,
     CableStripe,
@@ -47,6 +48,29 @@ from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
 )
+
+
+def _attachment_payload(
+    design: Optional[adsk.fusion.Design],
+    gateway: Any,
+    attachment: CableEndAttachment,
+) -> dict[str, object]:
+    """
+    Serialize one independently addressable cable-end connection node.
+    """
+    connected = (
+        resolve_attachment_target(design, attachment) is not None
+        if design is not None
+        else attachment.has_target and gateway.is_entity_token_resolvable(attachment.entity_token)
+    )
+    return {
+        "attachmentId": str(attachment.attachment_id),
+        "name": attachment_display_name(design, attachment),
+        "nameOverride": attachment.name,
+        "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,
+        "metadata": _metadata_payload(attachment.metadata),
+        "connected": connected,
+    }
 
 
 def _send_palette_state(
@@ -186,28 +210,14 @@ def serialize_palette_state(
                         "name": connection.name,
                         "metadata": _metadata_payload(connection.metadata),
                         "attachment": (
-                            {
-                                "name": attachment_display_name(design, connection.attachment),
-                                "nameOverride": connection.attachment.name,
-                                "targetKind": (
-                                    connection.attachment.target_kind.value
-                                    if connection.attachment.target_kind is not None
-                                    else None
-                                ),
-                                "metadata": _metadata_payload(connection.attachment.metadata),
-                                "connected": resolve_attachment_target(
-                                    design, connection.attachment
-                                )
-                                is not None
-                                if design is not None
-                                else connection.attachment.has_target
-                                and gateway.is_entity_token_resolvable(
-                                    connection.attachment.entity_token
-                                ),
-                            }
+                            _attachment_payload(design, gateway, connection.attachment)
                             if connection.attachment is not None
                             else None
                         ),
+                        "attachments": [
+                            _attachment_payload(design, gateway, attachment)
+                            for attachment in connection.attachments
+                        ],
                         "hasLinkedGeometry": all(
                             gateway.is_entity_token_resolvable(token)
                             for token in connection.member_tokens

@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -416,6 +416,7 @@ class CableEndAttachment:
     name: str = ""
     parameters: tuple[float, ...] = ()
     metadata: Metadata = ()
+    attachment_id: UUID = UUID(int=0)
 
     def __post_init__(self) -> None:
         """
@@ -450,6 +451,8 @@ class CableEndAttachment:
                 "Face attachments require two surface parameters; other targets require none."
             )
         _validate_metadata(self.metadata, "Cable-end connection metadata")
+        if not isinstance(self.attachment_id, UUID):
+            raise ValueError("Cable-end connection identity is invalid.")
 
     @property
     def display_name(self) -> str:
@@ -483,12 +486,34 @@ class Connection:
     member_interpolations: tuple[Optional[InterpolationSettings], ...] = ()
     metadata: Metadata = ()
     attachment: Optional[CableEndAttachment] = None
+    additional_attachments: tuple[CableEndAttachment, ...] = ()
 
     def __post_init__(self) -> None:
         """
         Require unambiguous searchable cable-end metadata.
         """
         _validate_metadata(self.metadata, "Cable-end metadata")
+        if not isinstance(self.additional_attachments, tuple) or any(
+            not isinstance(item, CableEndAttachment) for item in self.additional_attachments
+        ):
+            raise ValueError("Additional cable-end connections must be an ordered tuple.")
+        if self.attachment is None and self.additional_attachments:
+            raise ValueError("Additional cable-end connections require a primary connection.")
+        attachment_ids = tuple(item.attachment_id for item in self.attachments)
+        if len(set(attachment_ids)) != len(attachment_ids):
+            raise ValueError("Cable-end connection identities must be unique.")
+        target_tokens = tuple(item.entity_token for item in self.attachments if item.has_target)
+        if len(set(target_tokens)) != len(target_tokens):
+            raise ValueError("Cable-end connection targets must be unique.")
+
+    @property
+    def attachments(self) -> tuple[CableEndAttachment, ...]:
+        """
+        Return every external connection node in stable display order.
+        """
+        return (
+            (self.attachment,) if self.attachment is not None else ()
+        ) + self.additional_attachments
 
     @property
     def member_settings(self) -> tuple[InterpolationSettings, ...]:

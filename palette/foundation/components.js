@@ -353,8 +353,8 @@ function endRoutingContextItems(harness, connectionId, includeProperties = true)
         {
           label: "Connection",
           action: () => addCableEndConnection(harness, connectionId),
-          disabled: !connection || Boolean(connection.attachment),
-          title: connection?.attachment ? "This cable end already has a connection" : "",
+          disabled: !connection,
+          title: !connection ? "This cable end is unavailable" : "",
         },
         {
           label: "Guides",

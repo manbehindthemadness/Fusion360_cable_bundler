@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid5
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -208,7 +209,14 @@ def solve_cable_group_routes(
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing {position} connection.")
             member_frames = connection_profile_frames(design, connection, profile_frames)
-            connection_attachment_frame(design, connection, member_frames[0], profile_frames)
+            for attachment in connection.attachments:
+                connection_attachment_frame(
+                    design,
+                    connection,
+                    attachment,
+                    member_frames[0],
+                    profile_frames,
+                )
     control_frame_snapshot = tuple(sorted(frames.items(), key=lambda item: str(item[0])))
     profile_frame_snapshot = tuple(sorted(profile_frames.items()))
     cached = _route_solve_cache
@@ -467,18 +475,109 @@ def solve_cable_group_routes(
         auto_transition_fraction=auto_transition_fraction,
     )
     solve_notices.extend(_collision_notice(item) for item in collisions)
+    branch_routes, branch_legs = _connection_branch_routes(
+        design,
+        definition,
+        connections,
+        profile_frames,
+        auto_transition_fraction,
+    )
+    solved_routes = (*separated_routes, *branch_routes)
+    solved_legs = (*legs, *branch_legs)
     _route_solve_cache = _RouteSolveCache(
         design,
         definition,
         control_frame_snapshot,
         profile_frame_snapshot,
-        separated_routes,
-        legs,
+        solved_routes,
+        solved_legs,
         tuple(solve_notices),
     )
     if notices is not None:
         notices.extend(solve_notices)
-    return separated_routes, legs
+    return solved_routes, solved_legs
+
+
+def _connection_branch_routes(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    connections: dict[UUID, Connection],
+    cache: dict[str, ProfileFrame],
+    auto_transition_fraction: float,
+) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
+    """
+    Build reduced-diameter target branches for ends with multiple connections.
+    """
+    routes: list[RoutePreview] = []
+    legs: list[CableGroupRouteLeg] = []
+    for group in definition.cable_groups:
+        for connection_id in group.connection_ids:
+            connection = connections.get(connection_id)
+            if connection is None or len(connection.attachments) <= 1:
+                continue
+            guide = connection_profile_frames(design, connection, cache)[0]
+            branch_diameter_mm = group.diameter_mm / len(connection.attachments)
+            for index, attachment in enumerate(connection.attachments):
+                target = connection_attachment_frame(
+                    design,
+                    connection,
+                    attachment,
+                    guide,
+                    cache,
+                )
+                if target is None:
+                    continue
+                route_id = uuid5(
+                    attachment.attachment_id,
+                    f"{group.cable_group_id}:{connection_id}:connection-branch",
+                )
+                origin = _clockface_branch_origin(
+                    guide,
+                    index,
+                    len(connection.attachments),
+                    group.diameter_mm,
+                    branch_diameter_mm,
+                )
+                label = f"{group.name or 'Cable group'} · {attachment.display_name}"
+                raw_route = RoutePreview(route_id, label, (target.origin, origin))
+                route = fair_route(
+                    raw_route,
+                    (target.normal, guide.normal),
+                    minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
+                    auto_transition_fraction=auto_transition_fraction,
+                )
+                routes.append(route)
+                legs.append(
+                    CableGroupRouteLeg(
+                        route_id,
+                        group.cable_group_id,
+                        label,
+                        connection_id,
+                        None,
+                        (),
+                        (),
+                        diameter_mm=branch_diameter_mm,
+                        is_connection_branch=True,
+                    )
+                )
+    return tuple(routes), tuple(legs)
+
+
+def _clockface_branch_origin(
+    guide: ProfileFrame,
+    index: int,
+    count: int,
+    parent_diameter_mm: float,
+    branch_diameter_mm: float,
+) -> Vector3:
+    """
+    Place one branch center on an even clock face inside the parent envelope.
+    """
+    radius_mm = max(0.0, (parent_diameter_mm - branch_diameter_mm) * 0.5)
+    angle = math.pi * 0.5 - math.tau * index / count
+    return guide.origin.translated(guide.u_direction, math.cos(angle) * radius_mm).translated(
+        guide.v_direction, math.sin(angle) * radius_mm
+    )
 
 
 def connection_profile_frames(
@@ -505,11 +604,16 @@ def connection_route_frames(
     Prepend one resolved external attachment to the end's native guide frames.
     """
     member_frames = connection_profile_frames(design, connection, cache)
-    attachment_frame = connection_attachment_frame(
-        design,
-        connection,
-        member_frames[0],
-        cache,
+    attachment_frame = (
+        connection_attachment_frame(
+            design,
+            connection,
+            connection.attachments[0],
+            member_frames[0],
+            cache,
+        )
+        if len(connection.attachments) == 1
+        else None
     )
     return (attachment_frame, *member_frames) if attachment_frame is not None else member_frames
 
@@ -517,16 +621,14 @@ def connection_route_frames(
 def connection_attachment_frame(
     design: adsk.fusion.Design,
     connection: Connection,
+    attachment: CableEndAttachment,
     adjacent_frame: ProfileFrame,
     cache: dict[str, ProfileFrame],
 ) -> Optional[ProfileFrame]:
     """
     Resolve and cache the external contact frame for one attached cable end.
     """
-    attachment = connection.attachment
-    if attachment is None:
-        return None
-    key = f"attachment:{connection.connection_id}"
+    key = f"attachment:{connection.connection_id}:{attachment.attachment_id}"
     if key not in cache:
         frame = _attachment_frame(design, attachment, adjacent_frame)
         if frame is None:

@@ -295,12 +295,13 @@ def _open_attach_cable_end_command(
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
+    attachment_id = _read_payload_uuid(payload, "attachmentId", "connection node")
     command_definition = application.userInterface.commandDefinitions.itemById(
         ATTACH_CABLE_END_COMMAND_ID
     )
     if command_definition is None:
         raise RuntimeError("Fusion Connect Cable End command is unavailable.")
-    _runtime.pending_cable_end_attachment.prepare((harness_id, connection_id))
+    _runtime.pending_cable_end_attachment.prepare((harness_id, connection_id, attachment_id))
     try:
         if not command_definition.execute():
             raise RuntimeError("Fusion did not open the Connect Cable End command.")

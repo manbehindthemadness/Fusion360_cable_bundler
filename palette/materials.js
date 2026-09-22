@@ -412,7 +412,10 @@ function openCableEndAttachmentProperties(harness, attachment) {
   if (!attachment) return;
   openEntityMetadataProperties(
     harness, attachment, "Connection Properties", "connection-properties",
-    "set_cable_end_attachment_properties", { connectionId: attachment.connectionId },
+    "set_cable_end_attachment_properties", {
+      connectionId: attachment.connectionId,
+      attachmentId: attachment.attachmentId,
+    },
   );
 }
 

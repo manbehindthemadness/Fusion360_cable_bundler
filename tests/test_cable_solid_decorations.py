@@ -345,17 +345,29 @@ def test_generated_solids_visibility_round_trip_preserves_prior_state(
     assert stripe_group.isVisible
 
 
-def test_connection_completion_rebuilds_only_its_generated_cable_group(
+def test_connection_completion_rebuilds_its_group_with_branch_sweep_options(
     cable_solids: _CableSolidsModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Replace affected output in place while preserving mode, visibility, and neighbors.
+    Replace affected output with reduced branch diameters while preserving its state.
     """
     group = valid_harness.cable_groups[0]
     route = _straight_route(704, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    leg = SimpleNamespace(route_id=route.cable_id, cable_group_id=group.cable_group_id)
+    branch = _straight_route(705, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 2.0, 0.0))
+    leg = SimpleNamespace(
+        route_id=route.cable_id,
+        cable_group_id=group.cable_group_id,
+        diameter_mm=None,
+        is_connection_branch=False,
+    )
+    branch_leg = SimpleNamespace(
+        route_id=branch.cable_id,
+        cable_group_id=group.cable_group_id,
+        diameter_mm=group.diameter_mm / 2.0,
+        is_connection_branch=True,
+    )
 
     def occurrence(identity: UUID, *, visible: bool) -> Any:
         """
@@ -401,7 +413,10 @@ def test_connection_completion_rebuilds_only_its_generated_cable_group(
     monkeypatch.setattr(
         cable_solids,
         "solve_cable_group_centerlines",
-        lambda _design, _definition, _notices: ((route,), (leg,)),
+        lambda _design, _definition, _notices: (
+            (route, branch),
+            (leg, branch_leg),
+        ),
     )
     monkeypatch.setattr(cable_solids, "world_to_harness", lambda _design, _harness: transform)
     monkeypatch.setattr(cable_solids, "build_cable_group_solid", build)
@@ -417,9 +432,13 @@ def test_connection_completion_rebuilds_only_its_generated_cable_group(
     assert updated == 1
     add_occurrence.assert_called_once_with(matrix)
     assert build.call_args.args[0] is replacement.component
-    assert build.call_args.args[4] == (route,)
+    assert build.call_args.args[4] == (route, branch)
     assert build.call_args.args[-1] == "finalized"
-    assert build.call_args.kwargs == {"is_visible": False}
+    assert build.call_args.kwargs == {
+        "is_visible": False,
+        "route_diameters_mm": (group.diameter_mm, group.diameter_mm / 2.0),
+        "connection_branch_indices": frozenset({1}),
+    }
     assert replacement.isLightBulbOn is False
     previous.deleteMe.assert_called_once_with()
     unrelated.deleteMe.assert_not_called()

@@ -15,7 +15,9 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
+from ...domain import loads
 from .. import highlight_route_preview
+from ..cable_solids import refresh_generated_cable_groups_for_connection
 from .commands.refines import reconcile_active_refines
 from .constants import (
     COMMAND_NAME,
@@ -61,6 +63,7 @@ from .payloads import (
 )
 from .runtime import runtime as _runtime
 from .support import (
+    _create_harness_gateway,
     _log_to_fusion,
     _report_failure,
     _require_active_design,
@@ -87,12 +90,16 @@ class PaletteEditPolicy:
     reconcile_refines: bool = False
     apply_generated_materials: bool = False
     ensure_preview_visible: bool = False
+    refresh_connection_geometry: bool = False
 
 
 _DEFAULT_EDIT_POLICY = PaletteEditPolicy()
 _PALETTE_EDIT_POLICIES = {action: _DEFAULT_EDIT_POLICY for action in _PALETTE_EDIT_NAMES}
 _PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refines=True)
 _PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
+_CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)
+_PALETTE_EDIT_POLICIES["add_cable_end_connection"] = _CONNECTION_GEOMETRY_EDIT_POLICY
+_PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = _CONNECTION_GEOMETRY_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["remove_pathway"] = PaletteEditPolicy(reconcile_refines=True)
 _PALETTE_EDIT_POLICIES["remove_junction"] = PaletteEditPolicy(reconcile_refines=True)
 _MATERIAL_EDIT_POLICY = PaletteEditPolicy(
@@ -204,6 +211,22 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 reconcile_active_refines(application)
             if policy.apply_generated_materials:
                 notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
+            if policy.refresh_connection_geometry:
+                payload = _read_palette_payload(data)
+                connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
+                gateway = _create_harness_gateway(application)
+                definition = loads(gateway.read_harness_definition(harness_id))
+                updated_count = refresh_generated_cable_groups_for_connection(
+                    _require_active_design(application),
+                    gateway.harness_component(harness_id),
+                    definition,
+                    connection_id,
+                )
+                if updated_count:
+                    notice = (
+                        f"{notice} Updated {updated_count} generated cable "
+                        f"group{'s' if updated_count != 1 else ''}."
+                    )
             warning = _refresh_active_preview(
                 application,
                 harness_id,

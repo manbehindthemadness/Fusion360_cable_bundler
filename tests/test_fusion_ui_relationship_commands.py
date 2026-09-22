@@ -417,7 +417,10 @@ def test_cable_end_attachment_picker_reads_supported_target_and_optional_name(
         addin_module.CABLE_END_ATTACHMENT_TARGET_INPUT_ID: selection_input,
         addin_module.CABLE_END_ATTACHMENT_NAME_INPUT_ID: name_input,
     }
-    state = addin_module._AttachCableEndCommandState(UUID(int=1), UUID(int=2), ())
+    pending = CableEndAttachment(None, attachment_id=UUID(int=3))
+    state = addin_module._AttachCableEndCommandState(
+        UUID(int=1), UUID(int=2), pending.attachment_id, (), pending
+    )
 
     attachment = addin_module._read_attachment_inputs(
         SimpleNamespace(itemById=inputs_by_id.get),
@@ -500,7 +503,11 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
     attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)
-    state = attachments._AttachCableEndCommandState(harness_id, connection_id, ())
+    attachment_id = UUID(int=3)
+    pending = CableEndAttachment(None, attachment_id=attachment_id)
+    state = attachments._AttachCableEndCommandState(
+        harness_id, connection_id, attachment_id, (), pending
+    )
     attachment = SimpleNamespace(display_name="Battery GND")
     definition = object()
     component = object()
@@ -536,7 +543,7 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
 
     attachments._AttachCableEndExecuteHandler(state).notify(args)
 
-    attach.assert_called_once_with(harness_id, connection_id, attachment, gateway)
+    attach.assert_called_once_with(harness_id, connection_id, attachment_id, attachment, gateway)
     refresh_generated.assert_called_once_with(design, component, definition, connection_id)
     viewport.refresh.assert_called_once_with()
     send.assert_called_once_with(
@@ -555,10 +562,11 @@ def test_cable_end_attachment_picker_enables_the_agreed_target_set(
     """
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
     application = object()
     connection = SimpleNamespace(
         connection_id=connection_id,
-        attachment=CableEndAttachment(None, name="Bulkhead"),
+        attachments=(CableEndAttachment(None, name="Bulkhead", attachment_id=attachment_id),),
         member_tokens=("guide-token",),
     )
     gateway = SimpleNamespace(read_harness_definition=Mock(return_value="definition"))
@@ -590,7 +598,9 @@ def test_cable_end_attachment_picker_enables_the_agreed_target_set(
         execute=accepted_event,
         destroy=accepted_event,
     )
-    addin_module._runtime.pending_cable_end_attachment.prepare((harness_id, connection_id))
+    addin_module._runtime.pending_cable_end_attachment.prepare(
+        (harness_id, connection_id, attachment_id)
+    )
 
     addin_module._AttachCableEndCreatedHandler().notify(SimpleNamespace(command=command))
 

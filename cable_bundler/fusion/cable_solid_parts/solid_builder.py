@@ -50,6 +50,8 @@ def build_cable_group_solid(
     output_mode: str = SOLID_OUTPUT_MODE,
     *,
     is_visible: bool = True,
+    route_diameters_mm: tuple[float, ...] = (),
+    connection_branch_indices: frozenset[int] = frozenset(),
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
@@ -58,18 +60,30 @@ def build_cable_group_solid(
         raise ValueError("A cable group requires at least one routed leg.")
     if output_mode not in {SOLID_OUTPUT_MODE, FINALIZED_OUTPUT_MODE}:
         raise ValueError(f"Unsupported cable output mode: {output_mode}")
-    construction_segments, _start_junctions, _end_junctions = prepare_group_sweep_segments(routes)
+    diameters = route_diameters_mm or (group.diameter_mm,) * len(routes)
+    if len(diameters) != len(routes):
+        raise ValueError("Every cable-group route requires one sweep diameter.")
+    if any(index < 0 or index >= len(routes) for index in connection_branch_indices):
+        raise ValueError("Cable-end branch route indices are invalid.")
+    main_route_indices = tuple(
+        index for index in range(len(routes)) if index not in connection_branch_indices
+    )
+    main_routes = tuple(routes[index] for index in main_route_indices)
+    construction_segments, _start_junctions, _end_junctions = prepare_group_sweep_segments(
+        main_routes
+    )
     local_routes = tuple(route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
     leg_lengths = [0.0] * len(routes)
     for segment in construction_segments:
         route = segment.route
-        leg_number = segment.source_route_index + 1
+        route_index = main_route_indices[segment.source_route_index]
+        leg_number = route_index + 1
         section_name = f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Diameter"
         body, length_mm = _build_route_sweep(
             component,
             route,
-            group.diameter_mm,
+            diameters[route_index],
             transform,
             f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Centerline",
             section_name,
@@ -79,8 +93,22 @@ def build_cable_group_solid(
         if segment.segment_count > 1:
             body.name += f" Segment {segment.segment_index + 1}"
         bodies.append(body)
-        leg_lengths[segment.source_route_index] += length_mm
-    if component.bRepBodies.count != len(construction_segments):
+        leg_lengths[route_index] += length_mm
+    for route_index in sorted(connection_branch_indices):
+        branch_number = route_index + 1
+        body, length_mm = _build_route_sweep(
+            component,
+            routes[route_index],
+            diameters[route_index],
+            transform,
+            f"Cable Connection Branch {branch_number} Centerline",
+            f"Cable Connection Branch {branch_number} Diameter",
+            f"Cable Connection Branch {branch_number} Sweep",
+        )
+        body.name = f"Cable Group {group_index + 1} Connection Branch {branch_number}"
+        bodies.append(body)
+        leg_lengths[route_index] = length_mm
+    if component.bRepBodies.count != len(construction_segments) + len(connection_branch_indices):
         raise RuntimeError("Fusion did not retain one solid body per cable-group segment.")
     total_length_mm = sum(leg_lengths)
     component.name = f"Cable Group {group_index + 1}_{total_length_mm:.2f}mm"
@@ -101,7 +129,18 @@ def build_cable_group_solid(
                     "length_mm": length_mm,
                     "route_curves_mm": route_metadata(route),
                 }
-                for route, length_mm in zip(local_routes, leg_lengths)
+                for index, (route, length_mm) in enumerate(zip(local_routes, leg_lengths))
+                if index not in connection_branch_indices
+            ],
+            "connection_branches": [
+                {
+                    "route_id": str(local_routes[index].cable_id),
+                    "label": local_routes[index].cable_number,
+                    "diameter_mm": diameters[index],
+                    "length_mm": leg_lengths[index],
+                    "route_curves_mm": route_metadata(local_routes[index]),
+                }
+                for index in sorted(connection_branch_indices)
             ],
             **material_metadata(materials),
         },
@@ -120,7 +159,7 @@ def build_cable_group_solid(
         clear_group_stripe_graphics(stripe_graphics_owner, group.cable_group_id)
         replace_group_stripe_bodies(
             component,
-            local_routes,
+            tuple(local_routes[index] for index in main_route_indices),
             materials.stripes,
             group.diameter_mm / 2.0,
             design,
@@ -128,7 +167,7 @@ def build_cable_group_solid(
     else:
         replace_group_stripe_graphics(
             stripe_graphics_owner,
-            local_routes,
+            tuple(local_routes[index] for index in main_route_indices),
             materials.stripes,
             group.diameter_mm / 2.0,
             group.cable_group_id,

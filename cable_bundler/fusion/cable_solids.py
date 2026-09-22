@@ -142,6 +142,21 @@ def generate_cable_group_solids(
                 )
             created.append(occurrence)
             try:
+                branch_indices = frozenset(
+                    index
+                    for index, (leg, _route) in enumerate(group_legs)
+                    if leg.is_connection_branch
+                )
+                branch_options = (
+                    {
+                        "route_diameters_mm": tuple(
+                            leg.diameter_mm or group.diameter_mm for leg, _route in group_legs
+                        ),
+                        "connection_branch_indices": branch_indices,
+                    }
+                    if branch_indices
+                    else {}
+                )
                 build_cable_group_solid(
                     occurrence.component,
                     harness,
@@ -153,6 +168,7 @@ def generate_cable_group_solids(
                     definition.cable_group_materials(group),
                     design,
                     output_mode,
+                    **branch_options,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
@@ -237,6 +253,22 @@ def refresh_generated_cable_groups_for_connection(
                     f"Fusion could not update Cable Group {group_index + 1} geometry."
                 )
             created.append(occurrence)
+            group_legs = tuple(leg for leg in legs if leg.cable_group_id == group.cable_group_id)
+            branch_indices = frozenset(
+                index
+                for index, leg in enumerate(group_legs)
+                if getattr(leg, "is_connection_branch", False)
+            )
+            branch_options = (
+                {
+                    "route_diameters_mm": tuple(
+                        getattr(leg, "diameter_mm", None) or group.diameter_mm for leg in group_legs
+                    ),
+                    "connection_branch_indices": branch_indices,
+                }
+                if branch_indices
+                else {}
+            )
             build_cable_group_solid(
                 occurrence.component,
                 harness,
@@ -249,6 +281,7 @@ def refresh_generated_cable_groups_for_connection(
                 design,
                 generated_cable_group_output_mode(previous),
                 is_visible=previous.isLightBulbOn,
+                **branch_options,
             )
             occurrence.isLightBulbOn = previous.isLightBulbOn
         for occurrence in previous_by_id.values():

@@ -173,6 +173,7 @@ def _apply_palette_edit(
         remove_cable_end_attachment(
             harness_id,
             _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
             gateway,
         )
         return "Detached cable end."
@@ -257,6 +258,7 @@ def _apply_palette_edit(
         rename_cable_end_attachment(
             harness_id,
             _read_payload_uuid(payload, "connectionId", "cable end"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
             name,
             gateway,
         )
@@ -432,6 +434,7 @@ def _apply_palette_edit(
         set_cable_end_attachment_properties(
             harness_id,
             _read_payload_uuid(payload, "connectionId", "cable-end connection"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
             _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
             gateway,
         )

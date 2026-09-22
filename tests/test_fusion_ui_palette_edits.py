@@ -9,6 +9,7 @@ from tests.fusion_ui_support import (
     SimpleNamespace,
     _PaletteLifecycleModule,
     cast,
+    dumps,
     json,
     pytest,
     sys,
@@ -204,6 +205,7 @@ def test_palette_edits_rename_and_remove_cable_end_attachment(
     """
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
     gateway = object()
     rename = Mock()
     remove = Mock()
@@ -218,6 +220,7 @@ def test_palette_edits_rename_and_remove_cable_end_attachment(
             {
                 "harnessId": str(harness_id),
                 "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
                 "name": "Bulkhead pin",
             }
         ),
@@ -225,11 +228,19 @@ def test_palette_edits_rename_and_remove_cable_end_attachment(
     remove_notice = addin_module._apply_palette_edit(
         object(),
         "remove_cable_end_attachment",
-        json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
+            }
+        ),
     )
 
-    rename.assert_called_once_with(harness_id, connection_id, "Bulkhead pin", gateway)
-    remove.assert_called_once_with(harness_id, connection_id, gateway)
+    rename.assert_called_once_with(
+        harness_id, connection_id, attachment_id, "Bulkhead pin", gateway
+    )
+    remove.assert_called_once_with(harness_id, connection_id, attachment_id, gateway)
     assert rename_notice == "Saved connection name."
     assert remove_notice == "Detached cable end."
 
@@ -604,6 +615,7 @@ def test_palette_edit_saves_identity_owned_metadata(
     """
     harness_id = UUID(int=1)
     identity = UUID(int=2)
+    attachment_id = UUID(int=3)
     gateway = object()
     save = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
@@ -616,12 +628,18 @@ def test_palette_edit_saves_identity_owned_metadata(
             {
                 "harnessId": str(harness_id),
                 identity_key: str(identity),
+                "attachmentId": str(attachment_id),
                 "metadata": [{"key": "location", "value": "P2"}],
             }
         ),
     )
 
-    save.assert_called_once_with(harness_id, identity, (("location", "P2"),), gateway)
+    expected = (
+        (harness_id, identity, attachment_id, (("location", "P2"),), gateway)
+        if action == "set_cable_end_attachment_properties"
+        else (harness_id, identity, (("location", "P2"),), gateway)
+    )
+    save.assert_called_once_with(*expected)
     assert result == notice
 
 
@@ -735,4 +753,69 @@ def test_junction_deletion_runs_in_one_native_transaction(
     refreshed.assert_called_once_with(application, harness_id, ensure_visible=False)
     application.activeViewport.refresh.assert_called_once_with()
     sent.assert_called_once_with(application, "Deleted junction.")
+    assert not args.executeFailed
+
+
+@pytest.mark.parametrize(
+    ("action", "notice"),
+    (
+        ("add_cable_end_connection", "Added connection."),
+        ("remove_cable_end_attachment", "Detached cable end."),
+    ),
+)
+def test_connection_count_edit_rebuilds_affected_generated_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: object,
+    action: str,
+    notice: str,
+) -> None:
+    """
+    Rebuild persisted branch solids when the number of end connections changes.
+    """
+    document = object()
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    design = object()
+    component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=Mock(return_value=dumps(valid_harness)),
+        harness_component=Mock(return_value=component),
+    )
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    applied = Mock(return_value=notice)
+    refreshed_geometry = Mock(return_value=1)
+    refreshed_preview = Mock(return_value="")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", applied)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(
+        addin_module,
+        "refresh_generated_cable_groups_for_connection",
+        refreshed_geometry,
+    )
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed_preview)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps(
+        {
+            "harnessId": str(harness_id),
+            "connectionId": str(connection_id),
+            "attachmentId": str(UUID(int=3)),
+        }
+    )
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler((action, payload, document)).notify(args)
+
+    refreshed_geometry.assert_called_once_with(
+        design,
+        component,
+        valid_harness,
+        connection_id,
+    )
+    refreshed_preview.assert_called_once_with(application, harness_id, ensure_visible=False)
+    sent.assert_called_once_with(application, f"{notice} Updated 1 generated cable group.")
     assert not args.executeFailed

@@ -75,6 +75,82 @@ def test_attached_connection_prepends_external_contact_frame(
     assert frames == (target_frame, member_frame)
 
 
+def test_multiple_connections_create_divided_clockface_branches(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Divide branch diameters and keep their guide origins inside the parent envelope.
+    """
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    first = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "target-1",
+        "Target 1",
+        attachment_id=UUID(int=91),
+    )
+    second = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "target-2",
+        "Target 2",
+        attachment_id=UUID(int=92),
+    )
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=first,
+        additional_attachments=(second,),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+    )
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    targets = {
+        first.attachment_id: replace(guide, origin=Vector3(-5.0, 0.0, 10.0)),
+        second.attachment_id: replace(guide, origin=Vector3(5.0, 0.0, 10.0)),
+    }
+    monkeypatch.setattr(
+        route_solver,
+        "connection_profile_frames",
+        lambda _design, _connection, _cache: (guide,),
+    )
+    monkeypatch.setattr(
+        route_solver,
+        "connection_attachment_frame",
+        lambda _design, _connection, attachment, _guide, _cache: targets[attachment.attachment_id],
+    )
+    monkeypatch.setattr(route_solver, "fair_route", lambda route, *_args, **_kwargs: route)
+
+    routes, legs = route_solver._connection_branch_routes(
+        object(),
+        definition,
+        {item.connection_id: item for item in definition.connections},
+        {},
+        definition.auto_transition_preset.span_fraction,
+    )
+
+    group = definition.cable_groups[0]
+    assert len(routes) == 2
+    assert tuple(leg.diameter_mm for leg in legs) == (
+        group.diameter_mm / 2.0,
+        group.diameter_mm / 2.0,
+    )
+    assert all(leg.is_connection_branch for leg in legs)
+    origins = tuple(route.points[-1] for route in routes)
+    branch_radius = group.diameter_mm / 4.0
+    assert tuple(
+        coordinate for point in origins for coordinate in (point.x, point.y, point.z)
+    ) == pytest.approx((0.0, branch_radius, 0.0, 0.0, -branch_radius, 0.0))
+
+
 def test_undersized_gate_warns_through_public_product_solver(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
