@@ -168,12 +168,14 @@
 .relationship-map-context-menu .context-menu-toggle input {
   margin: 0 5px;
 }
-.block-diagram-viewport > .relationship-map-context-menu {
+.block-diagram-viewport > .relationship-map-context-menu,
+.cable-group-details-popup > .relationship-map-context-menu {
   display: inline-grid;
   grid-template-columns: max-content;
   width: fit-content;
 }
-.block-diagram-viewport > .relationship-map-context-menu button { width: auto; }
+.block-diagram-viewport > .relationship-map-context-menu button,
+.cable-group-details-popup > .relationship-map-context-menu button { width: auto; }
 .relationship-map-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -415,10 +415,6 @@ function activateJunctionNode(harness, junction) {
 /** Return the junction actions shared by master and Cable Details diagram nodes. */
 function junctionNodeContextItems(harness, junction) {
   return [
-    {
-      label: "Open junction configuration",
-      action: () => activateJunctionNode(harness, junction),
-    },
     { label: "Delete", action: () => removeJunction(harness, junction) },
     { label: "Properties", action: () => openJunctionProperties(harness, junction) },
   ];

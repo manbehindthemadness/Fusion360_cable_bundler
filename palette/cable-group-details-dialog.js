@@ -68,10 +68,13 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
       title: attachment.connected ? "This connection already has a target" : "",
     },
     ...(attachment.connected ? [{
-      label: "Refine",
-      action: () => addConnectionRefine(
-        harness, attachment.connectionId, attachment.attachmentId,
-      ),
+      label: "Add",
+      items: [{
+        label: "Refine",
+        action: () => addConnectionRefine(
+          harness, attachment.connectionId, attachment.attachmentId,
+        ),
+      }],
     }] : []),
     {
       label: "Rename",

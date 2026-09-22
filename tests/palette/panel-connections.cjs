@@ -105,7 +105,13 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     menu.children.find((item) => item.textContent === 'Connect').disabled,
     true,
   );
-  menu.children.find((item) => item.textContent === 'Refine').events.click();
+  const addRefine = contextMenuBranch(menu, 'Add');
+  assert.deepEqual(
+    addRefine.children[1].children.map((item) => item.textContent),
+    ['Refine'],
+  );
+  assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
+  addRefine.children[1].children[0].events.click();
   assert.equal(calls[2].action, 'add_connection_refine');
   assert.equal(calls[2].payload.connectionId, 'a1');
   assert.equal(calls[2].payload.attachmentId, 'connection-2');
@@ -129,6 +135,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     menu.children.find((item) => item.textContent === 'Connect').disabled,
     false,
   );
+  assert.equal(contextMenuBranch(menu, 'Add'), undefined);
   assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
   menu.children.find((item) => item.textContent === 'Rename').events.click();
   const renameDialog = context.document.body.querySelector('.connection-name-popup');
@@ -241,9 +248,9 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   addBranch.children[1].children[0].events.click();
   invokeContextMenu(node('junction:j1'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Open junction configuration', 'Delete', 'Properties',
+    'Delete', 'Properties',
   ]);
-  menu.children[1].events.click();
+  menu.children[0].events.click();
 
   assert.deepEqual(actions, [
     ['open-pathway', 'p'],
