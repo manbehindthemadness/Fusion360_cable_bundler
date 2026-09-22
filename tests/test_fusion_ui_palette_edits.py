@@ -94,6 +94,30 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     assert notice == "Deleted standalone end."
 
 
+def test_palette_edit_adds_unattached_cable_end_connection(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Persist the connection node before the native target picker is opened.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    gateway = object()
+    add = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "add_cable_end_connection", add)
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "add_cable_end_connection",
+        json.dumps({"harnessId": str(harness_id), "connectionId": str(connection_id)}),
+    )
+
+    add.assert_called_once_with(harness_id, connection_id, gateway)
+    assert notice == "Added cable-end connection."
+
+
 @pytest.mark.parametrize(
     ("action", "identity_key", "service_name", "notice"),
     [

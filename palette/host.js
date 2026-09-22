@@ -271,6 +271,13 @@ async function connectCableEnd(harness, connectionId) {
   }
 }
 
+function addCableEndConnection(harness, connectionId) {
+  mutate("add_cable_end_connection", {
+    harnessId: harness.harnessId,
+    connectionId,
+  }, "Adding connection…");
+}
+
 async function addEndRefine(harness, connectionId) {
   appendNotice("Select a refine location on this end’s routing span…");
   try {

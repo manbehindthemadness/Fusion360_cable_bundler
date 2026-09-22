@@ -335,6 +335,9 @@ function cableGroupLabel(harness, group) {
 
 /** Return end-owned routing actions shared by every end representation. */
 function endRoutingContextItems(harness, connectionId, includeProperties = true) {
+  const connection = (harness.connections || []).find(
+    (candidate) => candidate.connectionId === connectionId,
+  );
   const end = (harness.standaloneEnds || []).find(
     (candidate) => candidate.connectionId === connectionId,
   );
@@ -347,6 +350,12 @@ function endRoutingContextItems(harness, connectionId, includeProperties = true)
     {
       label: "Add",
       items: [
+        {
+          label: "Connection",
+          action: () => addCableEndConnection(harness, connectionId),
+          disabled: !connection || Boolean(connection.attachment),
+          title: connection?.attachment ? "This cable end already has a connection" : "",
+        },
         {
           label: "Guides",
           action: () => appendEndGuides(harness, connectionId),

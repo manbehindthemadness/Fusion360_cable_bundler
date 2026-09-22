@@ -13,6 +13,7 @@ import adsk.fusion
 from ...application import (
     CableEditorPairing,
     CableEditorRename,
+    add_cable_end_connection,
     move_pathway_gate,
     remove_cable_end_attachment,
     remove_end_control,
@@ -69,6 +70,13 @@ def _apply_palette_edit(
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     gateway = _create_harness_gateway(application)
+    if action == "add_cable_end_connection":
+        add_cable_end_connection(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable end"),
+            gateway,
+        )
+        return "Added cable-end connection."
     if action == "move_pathway_gate":
         move_pathway_gate(
             harness_id,

@@ -34,7 +34,7 @@ def attach_cable_end(
     """
     Attach one existing cable end to an external Fusion target.
     """
-    if not isinstance(attachment, CableEndAttachment):
+    if not isinstance(attachment, CableEndAttachment) or not attachment.has_target:
         raise ValueError("Cable-end attachment is invalid.")
     original, definition = read_definition(harness_id, gateway)
     if all(end.connection_id != connection_id for end in definition.standalone_ends):
@@ -45,11 +45,48 @@ def attach_cable_end(
     )
     if connection is None:
         raise ValueError("Selected cable end has a missing connection.")
-    if connection.attachment is not None:
-        raise ValueError("Selected cable end is already attached.")
+    if connection.attachment is None:
+        raise ValueError("Add a connection node before selecting its target.")
+    if connection.attachment.has_target:
+        raise ValueError("Selected cable-end connection already has a target.")
     if attachment.entity_token in connection.member_tokens:
         raise ValueError("A cable end cannot attach to its own guide geometry.")
-    updated_connection = replace(connection, attachment=attachment)
+    completed_attachment = replace(
+        attachment,
+        name=attachment.name or connection.attachment.name,
+        metadata=connection.attachment.metadata,
+    )
+    updated_connection = replace(connection, attachment=completed_attachment)
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
+def add_cable_end_connection(
+    harness_id: UUID,
+    connection_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Persist an unattached external connection node for one cable end.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+        raise ValueError("Selected cable end does not exist in this harness.")
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end has a missing connection.")
+    if connection.attachment is not None:
+        raise ValueError("Selected cable end already has a connection node.")
+    updated_connection = replace(connection, attachment=CableEndAttachment(None))
     updated = replace(
         definition,
         connections=tuple(

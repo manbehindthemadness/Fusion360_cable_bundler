@@ -183,7 +183,11 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "metadata": _metadata_to_list(connection.metadata),
                 "attachment": (
                     {
-                        "target_kind": connection.attachment.target_kind.value,
+                        "target_kind": (
+                            connection.attachment.target_kind.value
+                            if connection.attachment.target_kind is not None
+                            else None
+                        ),
                         "entity_token": connection.attachment.entity_token,
                         "inherited_name": connection.attachment.inherited_name,
                         "name": connection.attachment.name,
@@ -584,13 +588,19 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
             raise DefinitionParseError(parameter_path, "expected a finite number")
         parameters.append(parameter)
     try:
-        return CableEndAttachment(
-            target_kind=_require_enum(
+        raw_target_kind = value.get("target_kind")
+        target_kind = (
+            None
+            if raw_target_kind is None
+            else _require_enum(
                 AttachmentTargetKind,
                 value,
                 "target_kind",
                 f"{path}.target_kind",
-            ),
+            )
+        )
+        return CableEndAttachment(
+            target_kind=target_kind,
             entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
             inherited_name=_require_str(value, "inherited_name", f"{path}.inherited_name"),
             name=_require_str(value, "name", f"{path}.name"),

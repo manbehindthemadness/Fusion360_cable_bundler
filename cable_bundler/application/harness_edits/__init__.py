@@ -3,6 +3,7 @@ Focused transactional edits for persisted harness definitions.
 """
 
 from .ends import (
+    add_cable_end_connection,
     add_end_refine,
     append_end_guides,
     attach_cable_end,
@@ -51,6 +52,7 @@ __all__ = [
     "HarnessEditError",
     "HarnessEditGateway",
     "PathwaySegmentResult",
+    "add_cable_end_connection",
     "add_end_refine",
     "attach_cable_end",
     "add_junction",

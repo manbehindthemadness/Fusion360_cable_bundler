@@ -690,20 +690,18 @@ function renameCableGroupAttachment(harness, attachment) {
 
 /** Return Cable Details actions for attaching one physical cable end. */
 function cableGroupDetailsEndContextItems(harness, connection) {
-  return [
-    {
-      label: "Connect",
-      action: () => connectCableEnd(harness, connection.connectionId),
-      disabled: Boolean(connection.attachment),
-      title: connection.attachment ? "Delete the existing connection before reconnecting" : "",
-    },
-    ...endRoutingContextItems(harness, connection.connectionId),
-  ];
+  return endRoutingContextItems(harness, connection.connectionId);
 }
 
 /** Return actions for one diagram-only connection node. */
 function cableGroupAttachmentContextItems(harness, attachment) {
   return [
+    {
+      label: "Connect",
+      action: () => connectCableEnd(harness, attachment.connectionId),
+      disabled: Boolean(attachment.targetKind),
+      title: attachment.targetKind ? "This connection already has a target" : "",
+    },
     {
       label: "Rename",
       action: () => renameCableGroupAttachment(harness, attachment),

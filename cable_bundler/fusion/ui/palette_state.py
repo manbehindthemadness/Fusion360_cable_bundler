@@ -189,14 +189,19 @@ def serialize_palette_state(
                             {
                                 "name": attachment_display_name(design, connection.attachment),
                                 "nameOverride": connection.attachment.name,
-                                "targetKind": connection.attachment.target_kind.value,
+                                "targetKind": (
+                                    connection.attachment.target_kind.value
+                                    if connection.attachment.target_kind is not None
+                                    else None
+                                ),
                                 "metadata": _metadata_payload(connection.attachment.metadata),
                                 "connected": resolve_attachment_target(
                                     design, connection.attachment
                                 )
                                 is not None
                                 if design is not None
-                                else gateway.is_entity_token_resolvable(
+                                else connection.attachment.has_target
+                                and gateway.is_entity_token_resolvable(
                                     connection.attachment.entity_token
                                 ),
                             }

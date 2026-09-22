@@ -76,6 +76,23 @@ def test_round_trip_preserves_optional_cable_end_attachment(
     assert legacy_definition.connections[0].attachment.metadata == ()
 
 
+def test_round_trip_preserves_unattached_cable_end_connection(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve a connection node before a Fusion target has been selected.
+    """
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(valid_harness.connections[0], attachment=CableEndAttachment(None)),
+            valid_harness.connections[1],
+        ),
+    )
+
+    assert loads(dumps(definition)) == definition
+
+
 def test_metadata_round_trip_is_optional_and_does_not_change_schema(
     valid_harness: HarnessDefinition,
 ) -> None:

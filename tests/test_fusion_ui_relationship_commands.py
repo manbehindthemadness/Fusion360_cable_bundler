@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cable_bundler.domain import CableEndAttachment
 from tests.fusion_ui_support import (
     UUID,
     Any,
@@ -557,7 +558,7 @@ def test_cable_end_attachment_picker_enables_the_agreed_target_set(
     application = object()
     connection = SimpleNamespace(
         connection_id=connection_id,
-        attachment=None,
+        attachment=CableEndAttachment(None, name="Bulkhead"),
         member_tokens=("guide-token",),
     )
     gateway = SimpleNamespace(read_harness_definition=Mock(return_value="definition"))
@@ -604,7 +605,7 @@ def test_cable_end_attachment_picker_enables_the_agreed_target_set(
     command_inputs.addStringValueInput.assert_called_once_with(
         addin_module.CABLE_END_ATTACHMENT_NAME_INPUT_ID,
         "Connection Name",
-        "",
+        "Bulkhead",
     )
 
 

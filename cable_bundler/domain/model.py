@@ -404,29 +404,29 @@ class RefineGeometry:
 @dataclass(frozen=True)
 class CableEndAttachment:
     """
-    Retain one optional external termination target for a physical cable end.
+    Retain one external connection node and its optional Fusion target.
 
-    A blank name inherits the live target name. The saved inherited name remains
-    available when Fusion can no longer resolve the target.
+    A node with no target persists for later connection. Once connected, a blank
+    name inherits the live target name and retains its saved fallback.
     """
 
-    target_kind: AttachmentTargetKind
-    entity_token: str
-    inherited_name: str
+    target_kind: Optional[AttachmentTargetKind]
+    entity_token: str = ""
+    inherited_name: str = ""
     name: str = ""
     parameters: tuple[float, ...] = ()
     metadata: Metadata = ()
 
     def __post_init__(self) -> None:
         """
-        Require a resolvable identity shape and finite target parameters.
+        Require either an empty target or a complete identity with finite parameters.
         """
-        if not isinstance(self.target_kind, AttachmentTargetKind):
+        if self.target_kind is not None and not isinstance(self.target_kind, AttachmentTargetKind):
             raise ValueError("Cable-end attachment target kind is invalid.")
-        if not isinstance(self.entity_token, str) or not self.entity_token.strip():
-            raise ValueError("Cable-end attachment requires a Fusion entity token.")
-        if not isinstance(self.inherited_name, str) or not self.inherited_name.strip():
-            raise ValueError("Cable-end attachment requires an inherited target name.")
+        if not isinstance(self.entity_token, str):
+            raise ValueError("Cable-end attachment entity token must be text.")
+        if not isinstance(self.inherited_name, str):
+            raise ValueError("Cable-end attachment inherited name must be text.")
         if not isinstance(self.name, str):
             raise ValueError("Cable-end attachment name must be text.")
         if not isinstance(self.parameters, tuple) or any(
@@ -436,6 +436,14 @@ class CableEndAttachment:
             for value in self.parameters
         ):
             raise ValueError("Cable-end attachment parameters must be finite numbers.")
+        if self.target_kind is None and (
+            self.entity_token.strip() or self.inherited_name.strip() or self.parameters
+        ):
+            raise ValueError("An unattached cable-end connection cannot retain target data.")
+        if self.target_kind is not None and (
+            not self.entity_token.strip() or not self.inherited_name.strip()
+        ):
+            raise ValueError("A connected cable-end attachment requires target identity.")
         expected_count = 2 if self.target_kind is AttachmentTargetKind.FACE else 0
         if len(self.parameters) != expected_count:
             raise ValueError(
@@ -448,7 +456,14 @@ class CableEndAttachment:
         """
         Return the explicit alias or the saved inherited target name.
         """
-        return self.name.strip() or self.inherited_name.strip()
+        return self.name.strip() or self.inherited_name.strip() or "Connection"
+
+    @property
+    def has_target(self) -> bool:
+        """
+        Return whether this saved connection node owns a Fusion target.
+        """
+        return self.target_kind is not None
 
 
 @dataclass(frozen=True)

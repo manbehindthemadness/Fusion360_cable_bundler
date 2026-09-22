@@ -67,6 +67,8 @@ def resolve_attachment_target(
     """
     Resolve the saved token only when it still identifies the expected entity kind.
     """
+    if not attachment.has_target:
+        return None
     entities = design.findEntityByToken(attachment.entity_token) or ()
     return next(
         (entity for entity in entities if attachment_target_kind(entity) is attachment.target_kind),
@@ -86,6 +88,6 @@ def attachment_display_name(
     entity = resolve_attachment_target(design, attachment) if design is not None else None
     return (
         attachment_target_name(entity, attachment.target_kind)
-        if entity is not None
-        else attachment.inherited_name
+        if entity is not None and attachment.target_kind is not None
+        else attachment.display_name
     )

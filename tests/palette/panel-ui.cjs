@@ -531,7 +531,7 @@ test('Cable Details header shows and renames its cable group', () => {
   assert.equal(calls[0].payload.name, 'Cabin data');
 });
 
-test('master end menu groups end-owned guide and refine actions under Add', () => {
+test('master end menu groups connection and routing actions under Add', () => {
   const { context } = palette();
   const definition = harness();
   definition.pathways[0].orderedControlIds = ['c1'];
@@ -553,14 +553,14 @@ test('master end menu groups end-owned guide and refine actions under Add', () =
   let addBranch = contextMenuBranch(menu, 'Add');
   assert.deepEqual(
     addBranch.children[1].children.map((item) => item.textContent),
-    ['Guides', 'Refine'],
+    ['Connection', 'Guides', 'Refine'],
   );
-  addBranch.children[1].children[0].events.click();
+  addBranch.children[1].children[1].events.click();
   end.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: end,
   });
   addBranch = contextMenuBranch(menu, 'Add');
-  addBranch.children[1].children[1].events.click();
+  addBranch.children[1].children[2].events.click();
 
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
@@ -778,14 +778,14 @@ test('Cable Details end nodes and rows share Add routing submenus', () => {
   let addBranch = contextMenuBranch(menu, 'Add');
   assert.deepEqual(
     addBranch.children[1].children.map((item) => item.textContent),
-    ['Guides', 'Refine'],
+    ['Connection', 'Guides', 'Refine'],
   );
-  addBranch.children[1].children[0].events.click();
+  addBranch.children[1].children[1].events.click();
   member.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: member,
   });
   addBranch = contextMenuBranch(menu, 'Add');
-  addBranch.children[1].children[1].events.click();
+  addBranch.children[1].children[2].events.click();
 
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
   assert.equal(menu.children.at(-1).textContent, 'Properties');
@@ -811,6 +811,23 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   endNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: endNode,
   });
+  contextMenuBranch(menu, 'Add').children[1].children
+    .find((item) => item.textContent === 'Connection').events.click();
+  assert.equal(calls[0].action, 'add_cable_end_connection');
+  assert.equal(calls[0].payload.connectionId, 'a1');
+
+  connection.attachment = {
+    name: 'Connection', nameOverride: '', targetKind: null, connected: false, metadata: [],
+  };
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  details = context.document.body.querySelector('.cable-group-details-popup');
+  let attachmentNode = descendants(details, (node) => (
+    node.dataset.nodeId === 'attachment:a1'
+  ))[0];
+  menu = details.querySelector('.relationship-map-context-menu');
+  attachmentNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
+  });
   menu.children.find((item) => item.textContent === 'Connect').events.click();
   assert.deepEqual(nativeActions, ['a1']);
 
@@ -820,7 +837,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   };
   context.openCableGroupDetails(definition, 'g1', 'a1');
   details = context.document.body.querySelector('.cable-group-details-popup');
-  const attachmentNode = descendants(details, (node) => (
+  attachmentNode = descendants(details, (node) => (
     node.dataset.nodeId === 'attachment:a1'
   ))[0];
   const labels = descendants(attachmentNode, (node) => node.tag === 'text');
@@ -849,16 +866,9 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(input.placeholder, 'J1 socket');
   input.value = 'Bulkhead pin';
   renameDialog.querySelector('form').events.submit({ preventDefault() {} });
-  assert.equal(calls[0].action, 'rename_cable_end_attachment');
-  assert.equal(calls[0].payload.connectionId, 'a1');
-  assert.equal(calls[0].payload.name, 'Bulkhead pin');
-
-  disconnectedNode.events.contextmenu({
-    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
-  });
-  menu.children.find((item) => item.textContent === 'Delete').events.click();
-  assert.equal(calls[1].action, 'remove_cable_end_attachment');
+  assert.equal(calls[1].action, 'rename_cable_end_attachment');
   assert.equal(calls[1].payload.connectionId, 'a1');
+  assert.equal(calls[1].payload.name, 'Bulkhead pin');
 
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
@@ -876,6 +886,13 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(JSON.stringify(calls[2].payload.metadata), JSON.stringify([
     { key: 'connector', value: 'J2' },
   ]));
+
+  disconnectedNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
+  });
+  menu.children.find((item) => item.textContent === 'Delete').events.click();
+  assert.equal(calls[3].action, 'remove_cable_end_attachment');
+  assert.equal(calls[3].payload.connectionId, 'a1');
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {

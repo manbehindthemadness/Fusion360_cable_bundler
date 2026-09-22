@@ -34,6 +34,7 @@ class _AttachCableEndCommandState:
     harness_id: UUID
     connection_id: UUID
     excluded_entities: tuple[object, ...]
+    attachment: Optional[CableEndAttachment] = None
 
 
 def _surface_parameters(
@@ -111,6 +112,7 @@ def _read_attachment_inputs(
         inherited_name=attachment_target_name(entity, kind),
         name=name.strip(),
         parameters=parameters,
+        metadata=state.attachment.metadata if state.attachment is not None else (),
     )
 
 
@@ -230,14 +232,21 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         )
         if connection is None:
             raise ValueError("Selected cable end no longer exists.")
-        if connection.attachment is not None:
-            raise ValueError("Selected cable end is already attached.")
+        if connection.attachment is None:
+            raise ValueError("Selected cable end does not have a connection node.")
+        if connection.attachment.has_target:
+            raise ValueError("Selected cable-end connection already has a target.")
         excluded_entities = tuple(
             _native_fusion_entity(entity)
             for token in connection.member_tokens
             for entity in (design.findEntityByToken(token) or ())
         )
-        state = _AttachCableEndCommandState(harness_id, connection_id, excluded_entities)
+        state = _AttachCableEndCommandState(
+            harness_id,
+            connection_id,
+            excluded_entities,
+            connection.attachment,
+        )
         inputs = args.command.commandInputs
         selection_input = inputs.addSelectionInput(
             CABLE_END_ATTACHMENT_TARGET_INPUT_ID,
@@ -264,7 +273,7 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs.addStringValueInput(
                 CABLE_END_ATTACHMENT_NAME_INPUT_ID,
                 "Connection Name",
-                "",
+                connection.attachment.name,
             )
             is None
         ):

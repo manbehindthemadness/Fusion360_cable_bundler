@@ -14,6 +14,7 @@ import pytest
 from cable_bundler.application import (
     CableEditorPairing,
     HarnessEditGateway,
+    add_cable_end_connection,
     add_end_refine,
     add_junction,
     append_end_guides,
@@ -97,10 +98,17 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     )
     gateway = _recording_gateway(valid_harness)
 
-    attach_cable_end(valid_harness.harness_id, connection_id, attachment, gateway)
+    add_cable_end_connection(valid_harness.harness_id, connection_id, gateway)
     stored = loads(gateway.serialized_definition)
-    assert stored.connections[0].attachment == attachment
-    assert stored.cable_groups == valid_harness.cable_groups
+    assert stored.connections[0].attachment == CableEndAttachment(None)
+
+    with pytest.raises(ValueError, match="attachment is invalid"):
+        attach_cable_end(
+            valid_harness.harness_id,
+            connection_id,
+            CableEndAttachment(None),
+            gateway,
+        )
 
     rename_cable_end_attachment(
         valid_harness.harness_id,
@@ -121,6 +129,15 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     stored = loads(gateway.serialized_definition)
     assert stored.connections[0].attachment is not None
     assert stored.connections[0].attachment.metadata == (("connector", "J1"),)
+
+    attach_cable_end(valid_harness.harness_id, connection_id, attachment, gateway)
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment == replace(
+        attachment,
+        name="Bulkhead socket",
+        metadata=(("connector", "J1"),),
+    )
+    assert stored.cable_groups == valid_harness.cable_groups
 
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, gateway)
     stored = loads(gateway.serialized_definition)

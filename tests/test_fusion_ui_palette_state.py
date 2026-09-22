@@ -136,7 +136,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         valid_harness,
         connections=(
             replace(valid_harness.connections[0], attachment=attachment),
-            valid_harness.connections[1],
+            replace(valid_harness.connections[1], attachment=CableEndAttachment(None)),
         ),
     )
     gateway = SimpleNamespace(is_entity_token_resolvable=lambda token: token == "attachment-token")
@@ -154,7 +154,13 @@ def test_palette_state_reports_attachment_and_connection_status(
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
     }
-    assert payload["harnesses"][0]["connections"][1]["attachment"] is None
+    assert payload["harnesses"][0]["connections"][1]["attachment"] == {
+        "connected": False,
+        "name": "Connection",
+        "nameOverride": "",
+        "targetKind": None,
+        "metadata": [],
+    }
 
 
 def test_palette_state_resolves_cable_metadata_overrides(
