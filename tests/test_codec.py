@@ -173,7 +173,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 24])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 25])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -401,35 +401,44 @@ def test_migrates_schema_20_connections_as_root_nodes(
     assert all(item.parent_attachment_id is None for item in migrated.connections[0].attachments)
 
 
-def test_migrates_schema_21_with_empty_shielding(
+@pytest.mark.parametrize(
+    ("schema_version", "removed_fields"),
+    ((21, ("shielding", "dielectric_material")), (23, ("dielectric_material",))),
+)
+def test_migrates_legacy_construction_fields_with_empty_values(
     valid_harness: HarnessDefinition,
+    schema_version: int,
+    removed_fields: tuple[str, ...],
 ) -> None:
     """
-    Default shielding fields introduced after schema 21 without guessing construction.
+    Default later construction fields without guessing materials for legacy harnesses.
     """
     attachment = CableEndAttachment(
         None,
         attachment_id=UUID(int=87),
-        visual_overrides=CableVisualOverrides(conductor_material="Aluminum"),
+        visual_overrides=CableVisualOverrides(conductor_material="Aluminum", shielding="Foil"),
     )
     definition = replace(
         valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, shielding="Foil"),
         connections=(replace(valid_harness.connections[0], attachment=attachment),),
     )
     payload = json.loads(dumps(definition))
-    payload["schema_version"] = 21
-    del payload["material_defaults"]["shielding"]
-    del payload["cable_groups"][0]["material_overrides"]["shielding"]
-    del payload["connections"][0]["attachment"]["visual_overrides"]["shielding"]
+    payload["schema_version"] = schema_version
+    for field in removed_fields:
+        del payload["material_defaults"][field]
+        del payload["cable_groups"][0]["material_overrides"][field]
+        del payload["connections"][0]["attachment"]["visual_overrides"][field]
 
     migrated = loads(json.dumps(payload))
 
     assert migrated.schema_version == SCHEMA_VERSION
-    assert migrated.material_defaults.shielding == ""
-    assert migrated.cable_groups[0].material_overrides.shielding is None
     migrated_attachment = migrated.connections[0].attachment
     assert migrated_attachment is not None
-    assert migrated_attachment.visual_overrides.shielding is None
+    for field in removed_fields:
+        assert getattr(migrated.material_defaults, field) == ""
+        assert getattr(migrated.cable_groups[0].material_overrides, field) is None
+        assert getattr(migrated_attachment.visual_overrides, field) is None
 
 
 def test_migrates_schema_22_without_shielding_targets(

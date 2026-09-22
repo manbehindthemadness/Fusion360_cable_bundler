@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 23
+SCHEMA_VERSION = 24
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -255,6 +255,7 @@ class CableMaterialSettings:
     stripes: tuple[CableStripe, ...] = ()
     conductor_material: str = "Copper"
     shielding: str = ""
+    dielectric_material: str = ""
     manufacturer: str = ""
     part_number: str = ""
     notes: str = ""
@@ -277,9 +278,17 @@ class CableMaterialSettings:
             isinstance(stripe, CableStripe) for stripe in self.stripes
         ):
             raise ValueError("Cable stripes must be an ordered tuple of stripe definitions.")
-        for value in (self.shielding, self.manufacturer, self.part_number, self.notes):
+        for value in (
+            self.shielding,
+            self.dielectric_material,
+            self.manufacturer,
+            self.part_number,
+            self.notes,
+        ):
             if not isinstance(value, str):
                 raise ValueError("Cable catalog metadata must be text.")
+        if not self.shielding.strip() and self.dielectric_material.strip():
+            raise ValueError("Dielectric material requires shielding.")
 
 
 @dataclass(frozen=True)
@@ -297,6 +306,7 @@ class CableMaterialOverrides:
     stripes: Optional[tuple[CableStripe, ...]] = None
     conductor_material: Optional[str] = None
     shielding: Optional[str] = None
+    dielectric_material: Optional[str] = None
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
     notes: Optional[str] = None
@@ -312,7 +322,13 @@ class CableMaterialOverrides:
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
-        for value in (self.shielding, self.manufacturer, self.part_number, self.notes):
+        for value in (
+            self.shielding,
+            self.dielectric_material,
+            self.manufacturer,
+            self.part_number,
+            self.notes,
+        ):
             if value is not None and not isinstance(value, str):
                 raise ValueError("Cable catalog metadata overrides must be text.")
 
@@ -320,6 +336,12 @@ class CableMaterialOverrides:
         """
         Merge these field-level overrides over harness defaults.
         """
+        shielding = parent.shielding if self.shielding is None else self.shielding
+        dielectric_material = (
+            parent.dielectric_material
+            if self.dielectric_material is None
+            else self.dielectric_material
+        )
         return CableMaterialSettings(
             insulation_material=(
                 parent.insulation_material
@@ -334,7 +356,8 @@ class CableMaterialOverrides:
                 if self.conductor_material is None
                 else self.conductor_material
             ),
-            shielding=parent.shielding if self.shielding is None else self.shielding,
+            shielding=shielding,
+            dielectric_material=dielectric_material if shielding.strip() else "",
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes if self.notes is None else self.notes,
@@ -358,6 +381,7 @@ class CableVisualOverrides:
     insulation_material: Optional[str] = None
     conductor_material: Optional[str] = None
     shielding: Optional[str] = None
+    dielectric_material: Optional[str] = None
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
 
@@ -378,7 +402,12 @@ class CableVisualOverrides:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
-        for value in (self.shielding, self.manufacturer, self.part_number):
+        for value in (
+            self.shielding,
+            self.dielectric_material,
+            self.manufacturer,
+            self.part_number,
+        ):
             if value is not None and not isinstance(value, str):
                 raise ValueError("Connection catalog metadata overrides must be text.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
@@ -387,6 +416,12 @@ class CableVisualOverrides:
         """
         Merge branch material and visual overrides over resolved group materials.
         """
+        shielding = parent.shielding if self.shielding is None else self.shielding
+        dielectric_material = (
+            parent.dielectric_material
+            if self.dielectric_material is None
+            else self.dielectric_material
+        )
         return CableMaterialSettings(
             insulation_material=(
                 parent.insulation_material
@@ -401,7 +436,8 @@ class CableVisualOverrides:
                 if self.conductor_material is None
                 else self.conductor_material
             ),
-            shielding=parent.shielding if self.shielding is None else self.shielding,
+            shielding=shielding,
+            dielectric_material=dielectric_material if shielding.strip() else "",
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes,
@@ -905,8 +941,17 @@ class HarnessDefinition:
         )
         if len(siblings) > 1:
             return attachment.visual_overrides.resolve(parent)
-        shielding = attachment.visual_overrides.shielding
-        return parent if shielding is None else replace(parent, shielding=shielding)
+        shielding_override = attachment.visual_overrides.shielding
+        dielectric_override = attachment.visual_overrides.dielectric_material
+        shielding = parent.shielding if shielding_override is None else shielding_override
+        dielectric_material = (
+            parent.dielectric_material if dielectric_override is None else dielectric_override
+        )
+        return replace(
+            parent,
+            shielding=shielding,
+            dielectric_material=dielectric_material if shielding.strip() else "",
+        )
 
     def cable_end_attachment_diameter(
         self,

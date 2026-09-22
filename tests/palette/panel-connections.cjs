@@ -186,7 +186,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   const properties = context.document.body.querySelector('.connection-properties');
   assert.equal(properties.open, true);
   const propertyFields = descendants(properties, (node) => node.tag === 'input');
-  assert.equal(propertyFields.length, 13);
+  assert.equal(propertyFields.length, 15);
   assert.equal(propertyFields[0].value, '0.75');
   propertyFields[0].value = '0.6';
   propertyFields[1].checked = true;
@@ -195,13 +195,17 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[5].checked = true;
   propertyFields[5].events.change();
   propertyFields[6].value = 'Foil';
+  propertyFields[6].events.input();
   propertyFields[7].checked = true;
   propertyFields[7].events.change();
-  propertyFields[8].value = 'Branch maker';
+  propertyFields[8].value = 'FEP';
   propertyFields[9].checked = true;
   propertyFields[9].events.change();
-  propertyFields[10].value = 'BR-01';
-  propertyFields[12].value = 'J2';
+  propertyFields[10].value = 'Branch maker';
+  propertyFields[11].checked = true;
+  propertyFields[11].events.change();
+  propertyFields[12].value = 'BR-01';
+  propertyFields[14].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
   assert.equal(calls[5].action, 'set_cable_end_attachment_properties');
   assert.equal(calls[5].payload.connectionId, 'a1');
@@ -210,6 +214,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(calls[5].payload.insulationMaterial, 'ETFE');
   assert.equal(calls[5].payload.conductorMaterial, null);
   assert.equal(calls[5].payload.shielding, 'Foil');
+  assert.equal(calls[5].payload.dielectricMaterial, 'FEP');
   assert.equal(calls[5].payload.manufacturer, 'Branch maker');
   assert.equal(calls[5].payload.partNumber, 'BR-01');
   assert.equal(JSON.stringify(calls[5].payload.metadata), JSON.stringify([
@@ -327,15 +332,23 @@ asyncTest('connection Properties place shielding above custom metadata', async (
   const fields = descendants(dialog, (item) => item.tag === 'input');
   assert.equal(fields[1].value, 'Foil');
   assert.equal(fields[1].disabled, true);
+  assert.equal(fields[3].value, '');
+  assert.equal(fields[3].disabled, true);
   fields[0].checked = true;
   fields[0].events.change();
   fields[1].value = '';
+  fields[1].events.input();
+  const dielectricLabel = descendants(
+    dialog, (item) => item.textContent === 'Dielectric Material',
+  )[0];
+  assert.equal(dielectricLabel.parentElement.parentElement.hidden, true);
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
 
   assert.equal(calls[0].action, 'set_cable_end_attachment_shielding');
   assert.equal(calls[0].payload.connectionId, 'a1');
   assert.equal(calls[0].payload.attachmentId, 'connector');
   assert.equal(calls[0].payload.shielding, '');
+  assert.equal(calls[0].payload.dielectricMaterial, null);
   assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([]));
 });
 

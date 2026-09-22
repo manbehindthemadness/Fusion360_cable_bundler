@@ -355,6 +355,8 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
           ? overrides.conductorMaterial : settings.conductorMaterial,
         shielding: isCableGroup && !isConnectionBranch
           ? overrides.shielding : settings.shielding,
+        dielectricMaterial: isCableGroup && !isConnectionBranch
+          ? overrides.dielectricMaterial : settings.dielectricMaterial,
         mainColor: hasOverrides && !colorToggle.checked ? null
           : colorFromHex(colorName.value, colorPicker.value),
         appearance: hasOverrides && !colorToggle.checked ? null : appearance,

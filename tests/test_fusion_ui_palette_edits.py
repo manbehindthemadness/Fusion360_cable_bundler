@@ -480,6 +480,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
                 "shielding": "Braided copper",
+                "dielectricMaterial": "FEP",
                 "manufacturer": "",
                 "partNumber": "WB-42",
                 "metadataOverrides": [{"key": "drawing-zone", "value": "B4"}],
@@ -494,6 +495,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         "ETFE",
         None,
         "Braided copper",
+        "FEP",
         "",
         "WB-42",
         (("drawing-zone", "B4"),),
@@ -524,6 +526,7 @@ def test_palette_edit_saves_harness_properties_without_visual_materials(
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": "Tinned Copper",
                 "shielding": "Foil",
+                "dielectricMaterial": "PE",
                 "manufacturer": "Acme",
                 "partNumber": "WB-42",
                 "metadata": [{"key": "project", "value": "Orion"}],
@@ -536,6 +539,7 @@ def test_palette_edit_saves_harness_properties_without_visual_materials(
         "ETFE",
         "Tinned Copper",
         "Foil",
+        "PE",
         "Acme",
         "WB-42",
         (("project", "Orion"),),
@@ -738,6 +742,7 @@ def test_palette_edit_saves_connection_properties(
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
                 "shielding": "",
+                "dielectricMaterial": None,
                 "manufacturer": "Branch maker",
                 "partNumber": "BR-01",
                 "metadata": [{"key": "location", "value": "P2"}],
@@ -755,6 +760,7 @@ def test_palette_edit_saves_connection_properties(
         insulation_material="ETFE",
         conductor_material=None,
         shielding="",
+        dielectric_material=None,
         manufacturer="Branch maker",
         part_number="BR-01",
     )
@@ -784,11 +790,12 @@ def test_palette_edit_saves_connection_shielding_override(
                 "connectionId": str(connection_id),
                 "attachmentId": str(attachment_id),
                 "shielding": "",
+                "dielectricMaterial": None,
             }
         ),
     )
 
-    save.assert_called_once_with(harness_id, connection_id, attachment_id, "", (), gateway)
+    save.assert_called_once_with(harness_id, connection_id, attachment_id, "", None, (), gateway)
     assert result == "Saved cable-end connection shielding."
 
 

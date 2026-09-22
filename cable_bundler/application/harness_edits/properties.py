@@ -63,6 +63,7 @@ def set_harness_properties(
     insulation_material: str,
     conductor_material: str,
     shielding: str,
+    dielectric_material: str,
     manufacturer: str,
     part_number: str,
     metadata: Metadata,
@@ -77,6 +78,7 @@ def set_harness_properties(
         insulation_material=insulation_material,
         conductor_material=conductor_material,
         shielding=shielding,
+        dielectric_material=dielectric_material,
         manufacturer=manufacturer,
         part_number=part_number,
     )

@@ -56,6 +56,39 @@ test('material color context menus copy and paste between swatches', () => {
   assert.equal(swatches[2].value, '#ff0000');
 });
 
+asyncTest('dielectric material appears only while shielding is enabled', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openHarnessProperties(definition);
+
+  const dialog = context.document.body.querySelector('.harness-properties');
+  const materialFields = descendants(
+    dialog, (node) => node.className === 'material-field',
+  );
+  const shielding = materialFields.find(
+    (field) => descendants(field, (node) => node.textContent === 'Shielding').length,
+  );
+  const dielectric = materialFields.find(
+    (field) => descendants(field, (node) => node.textContent === 'Dielectric Material').length,
+  );
+  assert.equal(dielectric.hidden, true);
+  shielding.querySelector('input').value = 'Foil';
+  shielding.querySelector('input').events.input();
+  assert.equal(dielectric.hidden, false);
+  dielectric.querySelector('input').value = 'FEP';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_harness_properties');
+  assert.equal(calls[0].payload.shielding, 'Foil');
+  assert.equal(calls[0].payload.dielectricMaterial, 'FEP');
+});
+
 asyncTest('connected cable metadata inherits until explicitly overridden', async () => {
   const { context } = palette();
   const definition = harness();
@@ -85,6 +118,7 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
 
   assert.equal(calls[0].action, 'set_cable_group_properties');
   assert.equal(calls[0].payload.shielding, null);
+  assert.equal(calls[0].payload.dielectricMaterial, null);
   assert.equal(JSON.stringify(calls[0].payload.metadataOverrides), JSON.stringify([
     { key: 'project', value: 'Apollo' },
   ]));

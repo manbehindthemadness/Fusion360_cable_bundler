@@ -99,6 +99,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         insulation_material="ETFE",
         conductor_material="Aluminum",
         shielding="Braided copper",
+        dielectric_material="FEP",
         manufacturer="Branch maker",
         part_number="BR-01",
     )
@@ -109,6 +110,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.visual_overrides.insulation_material == "ETFE"
     assert saved_attachment.visual_overrides.conductor_material == "Aluminum"
     assert saved_attachment.visual_overrides.shielding == "Braided copper"
+    assert saved_attachment.visual_overrides.dielectric_material == "FEP"
     assert saved_attachment.visual_overrides.manufacturer == "Branch maker"
     assert saved_attachment.visual_overrides.part_number == "BR-01"
 
@@ -118,6 +120,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
             valid_harness.harness_id,
             group.cable_group_id,
             1.0,
+            None,
             None,
             None,
             None,
@@ -606,6 +609,7 @@ def test_sets_and_clears_connector_shielding_inheritance(
         connection_id,
         attachment_id,
         "  ",
+        "ignored while unshielded",
         (("connector", "J1"),),
         gateway,
     )
@@ -613,12 +617,14 @@ def test_sets_and_clears_connector_shielding_inheritance(
     saved_attachment = stored.connections[0].attachment
     assert saved_attachment is not None
     assert saved_attachment.visual_overrides.shielding == ""
+    assert saved_attachment.visual_overrides.dielectric_material == "ignored while unshielded"
     assert saved_attachment.metadata == (("connector", "J1"),)
 
     set_cable_end_attachment_shielding(
-        valid_harness.harness_id, connection_id, attachment_id, None, (), gateway
+        valid_harness.harness_id, connection_id, attachment_id, None, None, (), gateway
     )
     stored = loads(gateway.serialized_definition)
     saved_attachment = stored.connections[0].attachment
     assert saved_attachment is not None
     assert saved_attachment.visual_overrides.shielding is None
+    assert saved_attachment.visual_overrides.dielectric_material is None

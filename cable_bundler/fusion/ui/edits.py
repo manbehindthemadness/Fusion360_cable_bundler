@@ -427,6 +427,7 @@ def _apply_property_edit(
                 "insulationMaterial": payload.get("insulationMaterial"),
                 "conductorMaterial": payload.get("conductorMaterial"),
                 "shielding": payload.get("shielding"),
+                "dielectricMaterial": payload.get("dielectricMaterial"),
                 "manufacturer": payload.get("manufacturer"),
                 "partNumber": payload.get("partNumber"),
             }
@@ -438,6 +439,7 @@ def _apply_property_edit(
             property_materials.insulation_material,
             property_materials.conductor_material,
             property_materials.shielding,
+            property_materials.dielectric_material,
             property_materials.manufacturer,
             property_materials.part_number,
             _read_metadata(payload.get("metadataOverrides", []), "Cable metadata overrides"),
@@ -456,6 +458,7 @@ def _apply_property_edit(
             insulation_material,
             conductor_material,
             shielding,
+            dielectric_material,
             manufacturer,
             part_number,
             metadata,
@@ -465,6 +468,7 @@ def _apply_property_edit(
             insulation_material,
             conductor_material,
             shielding,
+            dielectric_material,
             manufacturer,
             part_number,
             metadata,
@@ -524,6 +528,7 @@ def _apply_property_edit(
                     "insulationMaterial": payload.get("insulationMaterial"),
                     "conductorMaterial": payload.get("conductorMaterial"),
                     "shielding": payload.get("shielding"),
+                    "dielectricMaterial": payload.get("dielectricMaterial"),
                     "manufacturer": payload.get("manufacturer"),
                     "partNumber": payload.get("partNumber"),
                 }
@@ -551,6 +556,7 @@ def _apply_property_edit(
                 insulation_material=property_overrides.insulation_material,
                 conductor_material=property_overrides.conductor_material,
                 shielding=property_overrides.shielding,
+                dielectric_material=property_overrides.dielectric_material,
                 manufacturer=property_overrides.manufacturer,
                 part_number=property_overrides.part_number,
             )
@@ -559,11 +565,15 @@ def _apply_property_edit(
         shielding = payload.get("shielding")
         if shielding is not None and not isinstance(shielding, str):
             raise ValueError("Connection shielding override must be text or null.")
+        dielectric_material = payload.get("dielectricMaterial")
+        if dielectric_material is not None and not isinstance(dielectric_material, str):
+            raise ValueError("Connection dielectric-material override must be text or null.")
         set_cable_end_attachment_shielding(
             harness_id,
             _read_payload_uuid(payload, "connectionId", "cable-end connection"),
             _read_payload_uuid(payload, "attachmentId", "connection node"),
             shielding,
+            dielectric_material,
             _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
             gateway,
         )

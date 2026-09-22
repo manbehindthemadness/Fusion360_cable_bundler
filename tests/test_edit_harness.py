@@ -340,6 +340,7 @@ def test_edits_group_construction_and_visual_overrides(
         "ETFE",
         "Tinned Copper",
         "Braided copper",
+        "FEP",
         "Maker",
         "WG-01",
         (("drawing-zone", "B4"),),
@@ -394,6 +395,7 @@ def test_harness_properties_flow_into_group_inheritance(
         "PTFE",
         "Silver Copper",
         "Foil",
+        "FEP",
         "Parent Maker",
         "PARENT-1",
         (("project", "Orion"),),
@@ -404,6 +406,7 @@ def test_harness_properties_flow_into_group_inheritance(
     materials = stored.cable_group_materials(stored.cable_groups[0])
     assert materials.insulation_material == "PTFE"
     assert materials.shielding == "Foil"
+    assert materials.dielectric_material == "FEP"
     assert materials.part_number == "PARENT-1"
     assert stored.cable_group_metadata(stored.cable_groups[0]) == (("project", "Orion"),)
 

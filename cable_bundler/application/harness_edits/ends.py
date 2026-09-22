@@ -331,6 +331,7 @@ def set_cable_end_attachment_properties(
     insulation_material: Optional[str] = None,
     conductor_material: Optional[str] = None,
     shielding: Optional[str] = None,
+    dielectric_material: Optional[str] = None,
     manufacturer: Optional[str] = None,
     part_number: Optional[str] = None,
 ) -> None:
@@ -364,6 +365,7 @@ def set_cable_end_attachment_properties(
             insulation_material=insulation_material,
             conductor_material=conductor_material,
             shielding=shielding,
+            dielectric_material=dielectric_material,
             manufacturer=manufacturer,
             part_number=part_number,
         )
@@ -389,17 +391,20 @@ def set_cable_end_attachment_shielding(
     connection_id: UUID,
     attachment_id: UUID,
     shielding: Optional[str],
+    dielectric_material: Optional[str],
     metadata: Metadata,
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Replace connector metadata and its shielding inheritance override atomically.
+    Replace connector metadata and its shielding construction overrides atomically.
 
     A null value resumes inheritance. An explicit empty string interrupts inherited
     shielding for the selected node and all descendants that continue to inherit.
     """
     if shielding is not None and not isinstance(shielding, str):
         raise ValueError("Connection shielding override must be text or null.")
+    if dielectric_material is not None and not isinstance(dielectric_material, str):
+        raise ValueError("Connection dielectric-material override must be text or null.")
     original, definition = read_definition(harness_id, gateway)
     connection = next(
         (item for item in definition.connections if item.connection_id == connection_id),
@@ -409,10 +414,15 @@ def set_cable_end_attachment_shielding(
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
     normalized = None if shielding is None else shielding.strip()
+    normalized_dielectric = None if dielectric_material is None else dielectric_material.strip()
     updated_attachment = replace(
         attachment,
         metadata=metadata,
-        visual_overrides=replace(attachment.visual_overrides, shielding=normalized),
+        visual_overrides=replace(
+            attachment.visual_overrides,
+            shielding=normalized,
+            dielectric_material=normalized_dielectric,
+        ),
     )
     updated_connection = _replace_cable_end_attachment(
         connection, attachment_id, updated_attachment
@@ -544,7 +554,10 @@ def remove_cable_end_attachment(
     remaining = tuple(
         replace(
             attachment,
-            visual_overrides=CableVisualOverrides(shielding=attachment.visual_overrides.shielding),
+            visual_overrides=CableVisualOverrides(
+                shielding=attachment.visual_overrides.shielding,
+                dielectric_material=attachment.visual_overrides.dielectric_material,
+            ),
         )
         if sum(
             candidate.parent_attachment_id == attachment.parent_attachment_id

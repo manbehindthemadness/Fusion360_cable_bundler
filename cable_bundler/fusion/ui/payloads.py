@@ -316,6 +316,12 @@ def _read_material_settings(raw_value: object) -> CableMaterialSettings:
         shielding=_read_material_text(
             {"shielding": "", **raw_value}, "shielding", "Shielding", required=False
         ),
+        dielectric_material=_read_material_text(
+            {"dielectricMaterial": "", **raw_value},
+            "dielectricMaterial",
+            "Dielectric material",
+            required=False,
+        ),
         manufacturer=_read_material_text(raw_value, "manufacturer", "Manufacturer", required=False),
         part_number=_read_material_text(raw_value, "partNumber", "Part number", required=False),
         notes=_read_material_text(raw_value, "notes", "Notes", required=False),
@@ -347,7 +353,9 @@ def _read_metadata(raw_value: object, label: str = "Metadata") -> Metadata:
     return tuple(entries)
 
 
-def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, str, Metadata]:
+def _read_harness_properties(
+    raw_value: object,
+) -> tuple[str, str, str, str, str, str, Metadata]:
     """
     Parse inheritable construction and catalog properties supplied by the palette.
     """
@@ -358,6 +366,12 @@ def _read_harness_properties(raw_value: object) -> tuple[str, str, str, str, str
         _read_material_text(raw_value, "conductorMaterial", "Conductor material", required=True),
         _read_material_text(
             {"shielding": "", **raw_value}, "shielding", "Shielding", required=False
+        ),
+        _read_material_text(
+            {"dielectricMaterial": "", **raw_value},
+            "dielectricMaterial",
+            "Dielectric material",
+            required=False,
         ),
         _read_material_text(raw_value, "manufacturer", "Manufacturer", required=False),
         _read_material_text(raw_value, "partNumber", "Part number", required=False),
@@ -397,6 +411,7 @@ def _read_material_overrides(raw_value: object) -> CableMaterialOverrides:
         ),
         conductor_material=optional_text("conductorMaterial", "Conductor material", required=True),
         shielding=optional_text("shielding", "Shielding"),
+        dielectric_material=optional_text("dielectricMaterial", "Dielectric material"),
         manufacturer=optional_text("manufacturer", "Manufacturer"),
         part_number=optional_text("partNumber", "Part number"),
         notes=optional_text("notes", "Notes"),
@@ -434,6 +449,16 @@ def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
             None
             if raw_value.get("shielding") is None
             else _read_material_text(raw_value, "shielding", "Shielding", required=False)
+        ),
+        dielectric_material=(
+            None
+            if raw_value.get("dielectricMaterial") is None
+            else _read_material_text(
+                raw_value,
+                "dielectricMaterial",
+                "Dielectric material",
+                required=False,
+            )
         ),
         manufacturer=(
             None

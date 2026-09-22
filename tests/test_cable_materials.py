@@ -28,6 +28,7 @@ def test_cable_group_resolves_each_override_independently(
     defaults = CableMaterialSettings(
         insulation_material="PTFE",
         shielding="Foil",
+        dielectric_material="PE",
         main_color=CableColor("Blue", 0, 0, 255),
         manufacturer="Parent maker",
         notes="Parent note",
@@ -35,6 +36,7 @@ def test_cable_group_resolves_each_override_independently(
     overrides = CableMaterialOverrides(
         main_color=CableColor("Red", 255, 0, 0),
         shielding="Braided copper",
+        dielectric_material="FEP",
         manufacturer="",
     )
     definition = replace(valid_harness, material_defaults=defaults)
@@ -45,6 +47,7 @@ def test_cable_group_resolves_each_override_independently(
     assert resolved.insulation_material == "PTFE"
     assert resolved.main_color.name == "Red"
     assert resolved.shielding == "Braided copper"
+    assert resolved.dielectric_material == "FEP"
     assert resolved.manufacturer == ""
     assert resolved.notes == "Parent note"
 
@@ -216,7 +219,7 @@ def test_connection_shielding_override_applies_without_a_divided_branch(
         "root-profile",
         "Root",
         attachment_id=UUID(int=721),
-        visual_overrides=CableVisualOverrides(shielding="Foil"),
+        visual_overrides=CableVisualOverrides(shielding="Foil", dielectric_material="FEP"),
     )
     child = CableEndAttachment(
         None,
@@ -238,8 +241,20 @@ def test_connection_shielding_override_applies_without_a_divided_branch(
     )
     assert (
         definition.cable_end_attachment_materials(
+            group, connection.connection_id, root.attachment_id
+        ).dielectric_material
+        == "FEP"
+    )
+    assert (
+        definition.cable_end_attachment_materials(
             group, connection.connection_id, child.attachment_id
         ).shielding
+        == ""
+    )
+    assert (
+        definition.cable_end_attachment_materials(
+            group, connection.connection_id, child.attachment_id
+        ).dielectric_material
         == ""
     )
 

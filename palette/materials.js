@@ -243,7 +243,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
       update();
     }
     form.append(wrapper);
-    controls[key] = { input, toggle };
+    controls[key] = { input, toggle, wrapper };
   };
   addMaterialField(
     "insulationMaterial", "Insulation Material", catalog.insulationMaterials,
@@ -252,6 +252,14 @@ function openPropertiesDialog(harness, cableGroup = null) {
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials,
   );
   addMaterialField("shielding", "Shielding");
+  addMaterialField("dielectricMaterial", "Dielectric Material");
+  const updateDielectricVisibility = () => {
+    controls.dielectricMaterial.wrapper.hidden
+      = controls.shielding.input.value.trim() === "";
+  };
+  controls.shielding.input.addEventListener("input", updateDielectricVisibility);
+  controls.shielding.toggle?.addEventListener("change", updateDielectricVisibility);
+  updateDielectricVisibility();
   addMaterialField("manufacturer", "Manufacturer");
   addMaterialField("partNumber", "Part Number");
   const metadataEditor = createMetadataEditor(
@@ -270,6 +278,8 @@ function openPropertiesDialog(harness, cableGroup = null) {
     const insulationMaterial = fieldValue("insulationMaterial");
     const conductorMaterial = fieldValue("conductorMaterial");
     const shielding = fieldValue("shielding");
+    const dielectricMaterial = controls.dielectricMaterial.wrapper.hidden
+      ? (isCableGroup ? null : "") : fieldValue("dielectricMaterial");
     const manufacturer = fieldValue("manufacturer");
     const partNumber = fieldValue("partNumber");
     if (insulationMaterial !== null && !insulationMaterial.trim()) {
@@ -293,6 +303,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             insulationMaterial,
             conductorMaterial,
             shielding,
+            dielectricMaterial,
             manufacturer,
             partNumber,
             metadataOverrides: metadataEditor.read(),
@@ -302,6 +313,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             insulationMaterial,
             conductorMaterial,
             shielding,
+            dielectricMaterial,
             manufacturer,
             partNumber,
             metadata: metadataEditor.read(),
@@ -444,19 +456,29 @@ function cableEndAttachmentParentMaterials(cableGroup, connection, attachment) {
   const siblings = cableEndAttachmentSiblings(connection, parent);
   const overrides = parent.visualOverrides || {};
   if (siblings.length <= 1) {
-    return overrides.shielding === null || overrides.shielding === undefined
-      ? inherited : { ...inherited, shielding: overrides.shielding };
+    const shielding = overrides.shielding ?? inherited.shielding;
+    const dielectricMaterial = overrides.dielectricMaterial ?? inherited.dielectricMaterial;
+    return {
+      ...inherited,
+      shielding,
+      dielectricMaterial: shielding?.trim() ? dielectricMaterial : "",
+    };
   }
-  return {
+  const resolved = {
     ...inherited,
     ...Object.fromEntries(
       [
-        "insulationMaterial", "conductorMaterial", "shielding", "manufacturer", "partNumber",
+        "insulationMaterial", "conductorMaterial", "shielding", "dielectricMaterial",
+        "manufacturer", "partNumber",
         "mainColor", "appearance", "stripes",
       ]
         .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
         .map((key) => [key, overrides[key]]),
     ),
+  };
+  return {
+    ...resolved,
+    dielectricMaterial: resolved.shielding?.trim() ? resolved.dielectricMaterial : "",
   };
 }
 
@@ -466,40 +488,63 @@ function cableEndAttachmentMaterials(cableGroup, connection, attachment) {
   const siblings = cableEndAttachmentSiblings(connection, attachment);
   const overrides = attachment.visualOverrides || {};
   if (siblings.length <= 1) {
-    return overrides.shielding === null || overrides.shielding === undefined
-      ? inherited : { ...inherited, shielding: overrides.shielding };
+    const shielding = overrides.shielding ?? inherited.shielding;
+    const dielectricMaterial = overrides.dielectricMaterial ?? inherited.dielectricMaterial;
+    return {
+      ...inherited,
+      shielding,
+      dielectricMaterial: shielding?.trim() ? dielectricMaterial : "",
+    };
   }
-  return {
+  const resolved = {
     ...inherited,
     ...Object.fromEntries(
-      ["insulationMaterial", "conductorMaterial", "shielding", "manufacturer", "partNumber"]
+      [
+        "insulationMaterial", "conductorMaterial", "shielding", "dielectricMaterial",
+        "manufacturer", "partNumber",
+      ]
         .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
         .map((key) => [key, overrides[key]]),
     ),
   };
+  return {
+    ...resolved,
+    dielectricMaterial: resolved.shielding?.trim() ? resolved.dielectricMaterial : "",
+  };
 }
 
-/** Append one optional shielding override above the owning entity's metadata fields. */
-function appendShieldingOverrideControl(form, inherited, override) {
-  const { wrapper, header, input } = createMaterialTextField(
-    { shielding: override ?? inherited }, "shielding", "Shielding", [],
-  );
-  const toggleLabel = document.createElement("label");
-  const toggle = document.createElement("input");
-  const toggleText = document.createElement("span");
-  toggle.type = "checkbox";
-  toggle.checked = override !== null && override !== undefined;
-  toggleText.textContent = "Override";
-  const update = () => {
-    input.disabled = !toggle.checked;
-    if (!toggle.checked) input.value = inherited;
+/** Append shielding and its conditionally available dielectric override. */
+function appendShieldingOverrideControls(form, inherited, overrides) {
+  const addControl = (key, labelText) => {
+    const { wrapper, header, input } = createMaterialTextField(
+      { [key]: overrides[key] ?? inherited[key] }, key, labelText, [],
+    );
+    const toggleLabel = document.createElement("label");
+    const toggle = document.createElement("input");
+    const toggleText = document.createElement("span");
+    toggle.type = "checkbox";
+    toggle.checked = overrides[key] !== null && overrides[key] !== undefined;
+    toggleText.textContent = "Override";
+    const update = () => {
+      input.disabled = !toggle.checked;
+      if (!toggle.checked) input.value = inherited[key];
+    };
+    toggle.addEventListener("change", update);
+    toggleLabel.append(toggle, toggleText);
+    header.append(toggleLabel);
+    update();
+    form.append(wrapper);
+    return { input, toggle, wrapper };
   };
-  toggle.addEventListener("change", update);
-  toggleLabel.append(toggle, toggleText);
-  header.append(toggleLabel);
-  update();
-  form.append(wrapper);
-  return { input, toggle };
+  const shielding = addControl("shielding", "Shielding");
+  const dielectricMaterial = addControl("dielectricMaterial", "Dielectric Material");
+  const updateDielectricVisibility = () => {
+    dielectricMaterial.wrapper.hidden = shielding.input.value.trim() === "";
+  };
+  shielding.input.addEventListener("input", updateDielectricVisibility);
+  shielding.toggle.addEventListener("change", updateDielectricVisibility);
+  updateDielectricVisibility();
+  return { shielding, dielectricMaterial };
 }
 
 /** Open construction overrides and metadata owned by one divided connection branch. */
@@ -529,8 +574,8 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     );
     heading.textContent = "Connection Properties";
     form.append(heading);
-    const shieldingControl = appendShieldingOverrideControl(
-      form, inheritedMaterials.shielding || "", overrides.shielding,
+    const shieldingControls = appendShieldingOverrideControls(
+      form, inheritedMaterials, overrides,
     );
     const metadataEditor = createMetadataEditor(attachment.metadata || []);
     form.append(metadataEditor.wrapper);
@@ -543,8 +588,12 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
           harnessId: harness.harnessId,
           connectionId: attachment.connectionId,
           attachmentId: attachment.attachmentId,
-          shielding: shieldingControl.toggle.checked
-            ? shieldingControl.input.value.trim() : null,
+          shielding: shieldingControls.shielding.toggle.checked
+            ? shieldingControls.shielding.input.value.trim() : null,
+          dielectricMaterial: shieldingControls.dielectricMaterial.wrapper.hidden
+            ? null
+            : (shieldingControls.dielectricMaterial.toggle.checked
+              ? shieldingControls.dielectricMaterial.input.value.trim() : null),
           metadata: metadataEditor.read(),
         });
         if (response.ok) dialog.close();
@@ -602,7 +651,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     header.append(toggleLabel);
     update();
     form.append(wrapper);
-    materialControls[key] = { input, toggle };
+    materialControls[key] = { input, toggle, wrapper };
   };
   const catalog = currentState.catalog || { insulationMaterials: [], conductorMaterials: [] };
   addMaterialOverride(
@@ -612,6 +661,14 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
   );
   addMaterialOverride("shielding", "Shielding", []);
+  addMaterialOverride("dielectricMaterial", "Dielectric Material", []);
+  const updateDielectricVisibility = () => {
+    materialControls.dielectricMaterial.wrapper.hidden
+      = materialControls.shielding.input.value.trim() === "";
+  };
+  materialControls.shielding.input.addEventListener("input", updateDielectricVisibility);
+  materialControls.shielding.toggle.addEventListener("change", updateDielectricVisibility);
+  updateDielectricVisibility();
   addMaterialOverride("manufacturer", "Manufacturer", []);
   addMaterialOverride("partNumber", "Part Number", []);
   const metadataEditor = createMetadataEditor(attachment.metadata || []);
@@ -638,6 +695,10 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         ? materialControls.conductorMaterial.input.value.trim() : null;
       const shielding = materialControls.shielding.toggle.checked
         ? materialControls.shielding.input.value.trim() : null;
+      const dielectricMaterial = materialControls.dielectricMaterial.wrapper.hidden
+        ? null
+        : (materialControls.dielectricMaterial.toggle.checked
+          ? materialControls.dielectricMaterial.input.value.trim() : null);
       const manufacturer = materialControls.manufacturer.toggle.checked
         ? materialControls.manufacturer.input.value.trim() : null;
       const partNumber = materialControls.partNumber.toggle.checked
@@ -655,6 +716,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         insulationMaterial,
         conductorMaterial,
         shielding,
+        dielectricMaterial,
         manufacturer,
         partNumber,
         metadata: metadataEditor.read(),

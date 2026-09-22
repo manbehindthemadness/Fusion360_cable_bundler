@@ -237,6 +237,7 @@ function descendants(root, predicate) {
 function harness() {
   const materialDefaults = {
     insulationMaterial: 'PVC', conductorMaterial: 'Copper', shielding: '',
+    dielectricMaterial: '',
     mainColor: { name: 'Black', hex: '#202020' }, appearance: null, stripes: [],
     manufacturer: '', partNumber: '', notes: '',
   };
@@ -251,6 +252,7 @@ function harness() {
     cableGroupId: `g${i}`, name: '', connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
     materials: materialDefaults,
     materialOverrides: { insulationMaterial: null, conductorMaterial: null, shielding: null,
+      dielectricMaterial: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,
       partNumber: null, notes: null },
     metadata: [], metadataOverrides: [],
@@ -260,7 +262,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 23, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 24, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,
