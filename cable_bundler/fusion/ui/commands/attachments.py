@@ -15,7 +15,11 @@ import adsk.fusion
 
 from ....application import attach_cable_end
 from ....domain import AttachmentTargetKind, CableEndAttachment, loads
-from ...attachment_targets import attachment_target_kind, attachment_target_name
+from ...attachment_targets import (
+    attachment_target_kind,
+    attachment_target_name,
+    resolve_attachment_target,
+)
 from ...cable_solids import refresh_generated_cable_groups_for_connection
 from ..constants import CABLE_END_ATTACHMENT_NAME_INPUT_ID, CABLE_END_ATTACHMENT_TARGET_INPUT_ID
 from ..palette_state import _send_palette_state
@@ -240,7 +244,7 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         )
         if attachment is None:
             raise ValueError("Selected cable-end connection no longer exists.")
-        if attachment.has_target:
+        if resolve_attachment_target(design, attachment) is not None:
             raise ValueError("Selected cable-end connection already has a target.")
         excluded_entities = tuple(
             _native_fusion_entity(entity)

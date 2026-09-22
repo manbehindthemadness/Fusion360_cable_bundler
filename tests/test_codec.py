@@ -15,6 +15,7 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     AutoTransitionPreset,
     CableEndAttachment,
+    CableVisualOverrides,
     DefinitionParseError,
     HarnessDefinition,
     JunctionDefinition,
@@ -72,8 +73,9 @@ def test_round_trip_preserves_optional_cable_end_attachment(
     legacy_payload = json.loads(serialized)
     legacy_payload["connections"][0]["attachment"].pop("metadata")
     legacy_definition = loads(json.dumps(legacy_payload))
-    assert legacy_definition.connections[0].attachment is not None
-    assert legacy_definition.connections[0].attachment.metadata == ()
+    legacy_attachment = legacy_definition.connections[0].attachment
+    assert legacy_attachment is not None
+    assert legacy_attachment.metadata == ()
 
 
 def test_round_trip_preserves_unattached_cable_end_connection(
@@ -170,7 +172,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 19])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 20])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,
@@ -276,8 +278,32 @@ def test_migrates_schema_17_with_empty_connection_controls(
     migrated = loads(json.dumps(payload))
 
     assert migrated.schema_version == SCHEMA_VERSION
-    assert migrated.connections[0].attachment is not None
-    assert migrated.connections[0].attachment.ordered_control_ids == ()
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.ordered_control_ids == ()
+
+
+def test_migrates_schema_18_with_inherited_connection_visuals(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve existing connection nodes when branch material overrides are introduced.
+    """
+    attachment = CableEndAttachment(None, attachment_id=UUID(int=82))
+    definition = replace(
+        valid_harness,
+        connections=(replace(valid_harness.connections[0], attachment=attachment),),
+    )
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 18
+    del payload["connections"][0]["attachment"]["visual_overrides"]
+
+    migrated = loads(json.dumps(payload))
+
+    assert migrated.schema_version == SCHEMA_VERSION
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.visual_overrides == CableVisualOverrides()
 
 
 @pytest.mark.parametrize("preset", ["", "very_loose", 4, None])

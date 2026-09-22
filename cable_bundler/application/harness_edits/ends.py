@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from ...domain import (
     CableEndAttachment,
+    CableVisualOverrides,
     Connection,
     ControlKind,
     ControlStructure,
@@ -34,7 +35,7 @@ def attach_cable_end(
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Attach one existing cable end to an external Fusion target.
+    Attach or reconnect one existing cable end to an external Fusion target.
     """
     if not isinstance(attachment, CableEndAttachment) or not attachment.has_target:
         raise ValueError("Cable-end attachment is invalid.")
@@ -48,8 +49,6 @@ def attach_cable_end(
     if connection is None:
         raise ValueError("Selected cable end has a missing connection.")
     existing = _cable_end_attachment(connection, attachment_id)
-    if existing.has_target:
-        raise ValueError("Selected cable-end connection already has a target.")
     if attachment.entity_token in connection.member_tokens:
         raise ValueError("A cable end cannot attach to its own guide geometry.")
     if any(
@@ -65,6 +64,7 @@ def attach_cable_end(
         name=attachment.name or existing.name,
         metadata=existing.metadata,
         ordered_control_ids=existing.ordered_control_ids,
+        visual_overrides=existing.visual_overrides,
     )
     updated_connection = _replace_cable_end_attachment(
         connection, attachment_id, completed_attachment
@@ -181,6 +181,43 @@ def set_cable_end_attachment_properties(
     persist_definition(harness_id, original, updated, gateway)
 
 
+def set_cable_end_attachment_visual_overrides(
+    harness_id: UUID,
+    connection_id: UUID,
+    attachment_id: UUID,
+    overrides: CableVisualOverrides,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Replace branch visuals for one node on a multi-connection cable end.
+    """
+    if not isinstance(overrides, CableVisualOverrides):
+        raise ValueError("Connection material overrides are invalid.")
+    original, definition = read_definition(harness_id, gateway)
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        raise ValueError("Selected cable end does not exist.")
+    if len(connection.attachments) <= 1:
+        raise ValueError("A single connection inherits its cable-group materials.")
+    attachment = _cable_end_attachment(connection, attachment_id)
+    updated_connection = _replace_cable_end_attachment(
+        connection,
+        attachment_id,
+        replace(attachment, visual_overrides=overrides),
+    )
+    updated = replace(
+        definition,
+        connections=tuple(
+            updated_connection if item.connection_id == connection_id else item
+            for item in definition.connections
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+
+
 def remove_cable_end_attachment(
     harness_id: UUID,
     connection_id: UUID,
@@ -203,6 +240,8 @@ def remove_cable_end_attachment(
         for attachment in connection.attachments
         if attachment.attachment_id != attachment_id
     )
+    if len(remaining) == 1:
+        remaining = (replace(remaining[0], visual_overrides=CableVisualOverrides()),)
     updated_connection = replace(
         connection,
         attachment=remaining[0] if remaining else None,

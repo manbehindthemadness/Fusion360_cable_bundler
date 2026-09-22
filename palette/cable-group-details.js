@@ -315,7 +315,8 @@ function routeCableGroupDetailsEdges(topology) {
       ? first : second;
     const end = start === first ? second : first;
     return { ...edge, start, end, startY: start.y, endY: end.y };
-  }).sort((left, right) => (
+  });
+  routed.sort((left, right) => (
     left.start.depth - right.start.depth
     || left.start.row - right.start.row
     || left.end.row - right.end.row
@@ -601,7 +602,7 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     } else if (node.kind === "attachment") {
       groupNode.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
-        showContextMenu(event, cableGroupAttachmentContextItems(harness, node.item));
+        showContextMenu(event, cableGroupAttachmentContextItems(harness, group, node.item));
       });
     } else if (node.kind === "pathway") {
       const pathwayId = node.id.slice("pathway:".length);

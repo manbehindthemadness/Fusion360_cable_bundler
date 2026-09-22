@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cable_bundler.domain import CableEndAttachment
+from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
 from tests.fusion_ui_support import (
     UUID,
     Any,
@@ -553,20 +553,27 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
     assert not args.executeFailed
 
 
-def test_cable_end_attachment_picker_enables_the_agreed_target_set(
+def test_cable_end_attachment_picker_opens_for_an_unresolved_saved_target(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Configure profiles, faces, origins, circular edges, and authored point targets.
+    Reconnect a stale node while retaining the agreed set of selectable target types.
     """
     harness_id = UUID(int=1)
     connection_id = UUID(int=2)
     attachment_id = UUID(int=3)
     application = object()
+    stale_attachment = CableEndAttachment(
+        AttachmentTargetKind.JOINT_ORIGIN,
+        "missing-joint-token",
+        "Missing joint",
+        name="Bulkhead",
+        attachment_id=attachment_id,
+    )
     connection = SimpleNamespace(
         connection_id=connection_id,
-        attachments=(CableEndAttachment(None, name="Bulkhead", attachment_id=attachment_id),),
+        attachments=(stale_attachment,),
         member_tokens=("guide-token",),
     )
     gateway = SimpleNamespace(read_harness_definition=Mock(return_value="definition"))

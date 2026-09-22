@@ -16,7 +16,14 @@ from uuid import UUID
 
 import pytest
 
-from cable_bundler.domain import CableColor, CableStripe, HarnessDefinition, StripePattern
+from cable_bundler.domain import (
+    CableColor,
+    CableEndAttachment,
+    CableStripe,
+    CableVisualOverrides,
+    HarnessDefinition,
+    StripePattern,
+)
 from cable_bundler.routing import CubicBezier, RoutePreview, StripeMeshResult, Vector3
 from cable_bundler.routing.geometry import difference, dot, unit
 
@@ -66,7 +73,11 @@ class _CableSolidsModule(Protocol):
         tuple[tuple[_SweepSegment, StripeMeshResult], ...],
     ]
     restore_cable_group_stripe_graphics: Callable[[object, object], int]
+    apply_cable_group_materials: Callable[[object, object, HarnessDefinition], int]
     generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
+    generated_cable_group_output_mode: Callable[[object], str]
+    clear_group_stripe_graphics: Callable[..., None]
+    cable_appearance: Callable[..., object]
     refresh_changed_generated_cable_groups: Callable[..., int]
     refresh_generated_cable_groups_for_connection: Callable[..., int]
     solve_cable_group_centerlines: Callable[..., object]
@@ -118,6 +129,7 @@ def cable_solids(monkeypatch: pytest.MonkeyPatch) -> Iterator[_CableSolidsModule
             setattr(fusion_package, name, previous)
 
 
+# noinspection DuplicatedCode
 def _straight_route(identity: int, start: Vector3, end: Vector3) -> RoutePreview:
     """
     Build one exact straight route with stable identity.
@@ -217,6 +229,104 @@ def test_restores_transient_stripes_from_generated_routes(
     assert replace_graphics.call_args.args[3] == group.diameter_mm / 2.0
     assert replace_graphics.call_args.args[4] == group.cable_group_id
     assert replace_graphics.call_args.kwargs == {"is_visible": False}
+
+
+def test_applies_connection_branch_appearance_and_stripe_overrides(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Recolor and redecorate each generated branch from its persistent node owner.
+    """
+    inherited_stripe = CableStripe(CableColor("White", 255, 255, 255), 0.2)
+    first = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=920),
+        visual_overrides=CableVisualOverrides(
+            main_color=CableColor("Red", 255, 0, 0),
+            stripes=(),
+        ),
+    )
+    second = CableEndAttachment(None, attachment_id=UUID(int=921))
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=first,
+        additional_attachments=(second,),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+        material_defaults=replace(
+            valid_harness.material_defaults,
+            stripes=(inherited_stripe,),
+        ),
+    )
+    group = definition.cable_groups[0]
+    main = _straight_route(922, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    branch_a = _straight_route(923, Vector3(10.0, 0.0, 0.0), Vector3(15.0, 2.0, 0.0))
+    branch_b = _straight_route(924, Vector3(10.0, 0.0, 0.0), Vector3(15.0, -2.0, 0.0))
+
+    def encoded(route: RoutePreview) -> list[list[list[float]]]:
+        """
+        Encode exact local curves for generated metadata.
+        """
+        return [
+            [
+                [point.x, point.y, point.z]
+                for point in (curve.start, curve.control_a, curve.control_b, curve.end)
+            ]
+            for curve in route.curves
+        ]
+
+    metadata = {
+        "cable_group_id": str(group.cable_group_id),
+        "route_legs": [
+            {
+                "route_id": str(main.cable_id),
+                "label": main.cable_number,
+                "route_curves_mm": encoded(main),
+            }
+        ],
+        "connection_branches": [
+            {
+                "route_id": str(route.cable_id),
+                "label": route.cable_number,
+                "diameter_mm": group.diameter_mm / 2.0,
+                "attachment_id": str(attachment.attachment_id),
+                "route_curves_mm": encoded(route),
+            }
+            for route, attachment in ((branch_a, first), (branch_b, second))
+        ],
+    }
+    attribute = SimpleNamespace(value=json.dumps(metadata))
+    bodies = [SimpleNamespace(appearance=None) for _index in range(3)]
+    component = SimpleNamespace(
+        attributes=SimpleNamespace(itemByName=lambda *_args: attribute),
+        bRepBodies=SimpleNamespace(count=len(bodies), item=lambda index: bodies[index]),
+    )
+    occurrence = SimpleNamespace(component=component, isLightBulbOn=True)
+    replace_graphics = Mock(return_value=1)
+    monkeypatch.setattr(
+        cable_solids,
+        "generated_cable_group_occurrences",
+        lambda _harness: (occurrence,),
+    )
+    monkeypatch.setattr(cable_solids, "generated_cable_group_output_mode", lambda _item: "solids")
+    monkeypatch.setattr(cable_solids, "clear_group_stripe_graphics", Mock())
+    monkeypatch.setattr(cable_solids, "_replace_group_stripe_graphics", replace_graphics)
+    monkeypatch.setattr(
+        cable_solids,
+        "cable_appearance",
+        lambda _design, color, _appearance=None: color.name,
+    )
+
+    assert cable_solids.apply_cable_group_materials(object(), object(), definition) == 1
+
+    assert [body.appearance for body in bodies] == ["Black", "Red", "Black"]
+    decorations = replace_graphics.call_args.kwargs["branch_decorations"]
+    assert decorations[0][1] == ()
+    assert decorations[1][1] == (inherited_stripe,)
 
 
 def test_replacing_harness_owned_stripes_preserves_other_cable_groups(
@@ -611,10 +721,12 @@ def test_propagates_decoration_through_a_downstream_junction(
     upstream_end = _radial(by_identity[10], "end")
     assert _radial(by_identity[13], "start") == pytest.approx(upstream_end)
     assert _radial(by_identity[14], "start") == pytest.approx(upstream_end)
-    assert by_identity[13].start is not None
-    assert by_identity[14].start is not None
-    assert by_identity[13].start.repeat_phase_mm == pytest.approx(3.0)
-    assert by_identity[14].start.repeat_phase_mm == pytest.approx(3.0)
+    left_start = by_identity[13].start
+    right_start = by_identity[14].start
+    assert left_start is not None
+    assert right_start is not None
+    assert left_start.repeat_phase_mm == pytest.approx(3.0)
+    assert right_start.repeat_phase_mm == pytest.approx(3.0)
 
 
 def test_continues_across_an_internally_split_pass_through_route(

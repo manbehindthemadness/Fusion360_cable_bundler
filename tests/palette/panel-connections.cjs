@@ -40,11 +40,13 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
 
   const firstAttachment = {
     attachmentId: 'connection-1', name: 'Connection 1', nameOverride: '',
-    targetKind: null, connected: false, metadata: [],
+    targetKind: /** @type {string|null} */ (null), connected: false, metadata: [],
+    visualOverrides: { mainColor: null, appearance: null, stripes: null },
   };
   const secondAttachment = {
     attachmentId: 'connection-2', name: 'Connection 2', nameOverride: '',
     targetKind: null, connected: false, metadata: [],
+    visualOverrides: { mainColor: null, appearance: null, stripes: null },
   };
   connection.attachment = firstAttachment;
   connection.attachments = [firstAttachment];
@@ -77,11 +79,13 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   });
   menu.children.find((item) => item.textContent === 'Connect').events.click();
   assert.deepEqual(nativeActions, [['a1', 'connection-2']]);
+  assert.equal(menu.children.some((item) => item.textContent === 'Materials'), true);
 
   const connectedAttachment = {
     attachmentId: 'connection-2',
     name: 'J1 socket', nameOverride: '', targetKind: 'joint_origin', connected: true,
     metadata: [{ key: 'connector', value: 'J1' }],
+    visualOverrides: { mainColor: null, appearance: null, stripes: null },
   };
   connection.attachments[1] = connectedAttachment;
   context.openCableGroupDetails(definition, 'g1', 'a1');
@@ -97,6 +101,10 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   attachmentNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: attachmentNode,
   });
+  assert.equal(
+    menu.children.find((item) => item.textContent === 'Connect').disabled,
+    true,
+  );
   menu.children.find((item) => item.textContent === 'Refine').events.click();
   assert.equal(calls[2].action, 'add_connection_refine');
   assert.equal(calls[2].payload.connectionId, 'a1');
@@ -117,6 +125,10 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
   });
+  assert.equal(
+    menu.children.find((item) => item.textContent === 'Connect').disabled,
+    false,
+  );
   assert.equal(menu.children.some((item) => item.textContent === 'Refine'), false);
   menu.children.find((item) => item.textContent === 'Rename').events.click();
   const renameDialog = context.document.body.querySelector('.connection-name-popup');
@@ -154,6 +166,14 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(calls[5].action, 'remove_cable_end_attachment');
   assert.equal(calls[5].payload.connectionId, 'a1');
   assert.equal(calls[5].payload.attachmentId, 'connection-2');
+
+  disconnectedNode.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
+  });
+  menu.children.find((item) => item.textContent === 'Materials').events.click();
+  const materials = context.document.body.querySelector('.material-options');
+  assert.equal(materials.open, true);
+  assert.equal(materials.querySelector('h2').textContent, 'Connection Materials');
 });
 
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {

@@ -17,6 +17,8 @@ import adsk.fusion
 
 from ..application import CableGroupRouteLeg
 from ..domain import (
+    CableGroupDefinition,
+    CableMaterialSettings,
     HarnessDefinition,
     validate_harness,
 )
@@ -32,6 +34,7 @@ from .cable_solid_parts.constants import (
 )
 from .cable_solid_parts.materials import cable_appearance, material_metadata
 from .cable_solid_parts.metadata import (
+    connection_branches_from_metadata,
     group_geometry_routes_from_metadata,
     group_routes_from_metadata,
     route_in_component_space,
@@ -104,6 +107,43 @@ class CableSolidVisibilityState:
     stripe_groups: tuple[tuple[_VisibilityGraphicsGroup, bool], ...]
 
 
+def _leg_materials(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> CableMaterialSettings:
+    """
+    Resolve group materials or one connection branch's visual overrides.
+    """
+    attachment_id = getattr(leg, "attachment_id", None)
+    connection_id = getattr(leg, "start_connection_id", None)
+    if not isinstance(attachment_id, UUID) or not isinstance(connection_id, UUID):
+        return definition.cable_group_materials(group)
+    return definition.cable_end_attachment_materials(
+        group,
+        connection_id,
+        attachment_id,
+    )
+
+
+def _attachment_materials(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    attachment_id: Optional[UUID],
+) -> CableMaterialSettings:
+    """
+    Resolve saved branch materials, falling back for legacy generated metadata.
+    """
+    if attachment_id is None:
+        return definition.cable_group_materials(group)
+    for connection in definition.connections:
+        if any(item.attachment_id == attachment_id for item in connection.attachments):
+            return definition.cable_end_attachment_materials(
+                group, connection.connection_id, attachment_id
+            )
+    return definition.cable_group_materials(group)
+
+
 def generate_cable_group_solids(
     design: adsk.fusion.Design,
     harness: adsk.fusion.Component,
@@ -156,6 +196,12 @@ def generate_cable_group_solids(
                             leg.diameter_mm or group.diameter_mm for leg, _route in group_legs
                         ),
                         "connection_branch_indices": branch_indices,
+                        "route_materials": tuple(
+                            _leg_materials(definition, group, leg) for leg, _route in group_legs
+                        ),
+                        "route_attachment_ids": tuple(
+                            leg.attachment_id for leg, _route in group_legs
+                        ),
                     }
                     if branch_indices
                     else {}
@@ -351,12 +397,23 @@ def _refresh_generated_cable_groups(
                 for index, leg in enumerate(group_legs)
                 if getattr(leg, "is_connection_branch", False)
             )
+            attachment_ids = tuple(getattr(leg, "attachment_id", None) for leg in group_legs)
             branch_options = (
                 {
                     "route_diameters_mm": tuple(
                         getattr(leg, "diameter_mm", None) or group.diameter_mm for leg in group_legs
                     ),
                     "connection_branch_indices": branch_indices,
+                    **(
+                        {
+                            "route_materials": tuple(
+                                _leg_materials(definition, group, leg) for leg in group_legs
+                            ),
+                            "route_attachment_ids": attachment_ids,
+                        }
+                        if any(attachment_ids)
+                        else {}
+                    ),
                 }
                 if branch_indices
                 else {}
@@ -565,14 +622,27 @@ def apply_cable_group_materials(
         if group is None:
             continue
         materials = definition.cable_group_materials(group)
+        branches = connection_branches_from_metadata(metadata)
+        branch_materials = tuple(
+            _attachment_materials(definition, group, branch.attachment_id) for branch in branches
+        )
         bodies = component.bRepBodies
         if bodies.count == 0:
             raise RuntimeError(f"Generated Cable Group {group_id} has no bodies to color.")
+        main_body_count = bodies.count - len(branches)
+        if main_body_count < 1:
+            raise RuntimeError(f"Generated Cable Group {group_id} has invalid branch bodies.")
         appearance = cable_appearance(design, materials.main_color, materials.appearance)
-        for body_index in range(bodies.count):
+        for body_index in range(main_body_count):
             body = bodies.item(body_index)
             if body is not None:
                 body.appearance = appearance
+        for branch_index, branch_settings in enumerate(branch_materials):
+            body = bodies.item(main_body_count + branch_index)
+            if body is not None:
+                body.appearance = cable_appearance(
+                    design, branch_settings.main_color, branch_settings.appearance
+                )
         routes = group_routes_from_metadata(metadata)
         if not routes and materials.stripes:
             raise RuntimeError(
@@ -587,6 +657,10 @@ def apply_cable_group_materials(
                 materials.stripes,
                 group.diameter_mm / 2.0,
                 design,
+                branch_decorations=tuple(
+                    (branch.route, settings.stripes, branch.diameter_mm / 2.0)
+                    for branch, settings in zip(branches, branch_materials)
+                ),
             )
         else:
             _replace_group_stripe_graphics(
@@ -596,6 +670,10 @@ def apply_cable_group_materials(
                 group.diameter_mm / 2.0,
                 group_id,
                 is_visible=occurrence.isLightBulbOn,
+                branch_decorations=tuple(
+                    (branch.route, settings.stripes, branch.diameter_mm / 2.0)
+                    for branch, settings in zip(branches, branch_materials)
+                ),
             )
         metadata.update(material_metadata(materials))
         attribute.value = json.dumps(metadata, sort_keys=True)
@@ -636,6 +714,7 @@ def restore_cable_group_stripe_graphics(
             continue
         stripes = definition.cable_group_materials(group).stripes
         routes = group_routes_from_metadata(metadata)
+        branches = connection_branches_from_metadata(metadata)
         if not routes and stripes:
             raise RuntimeError(
                 "Generated cable-group metadata has no routes for restoring stripe patterns."
@@ -648,5 +727,19 @@ def restore_cable_group_stripe_graphics(
             group.diameter_mm / 2.0,
             group_id,
             is_visible=occurrence.isLightBulbOn,
+            **(
+                {
+                    "branch_decorations": tuple(
+                        (
+                            branch.route,
+                            _attachment_materials(definition, group, branch.attachment_id).stripes,
+                            branch.diameter_mm / 2.0,
+                        )
+                        for branch in branches
+                    )
+                }
+                if branches
+                else {}
+            ),
         )
     return restored

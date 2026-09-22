@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from typing import Optional
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -37,6 +38,13 @@ from .stripes import (
 from .sweep_geometry import is_straight, prepare_group_sweep_segments
 
 
+def _optional_uuid_text(value: Optional[UUID]) -> Optional[str]:
+    """
+    Convert optional generated-owner identity to JSON-compatible text.
+    """
+    return None if value is None else str(value)
+
+
 def build_cable_group_solid(
     component: adsk.fusion.Component,
     stripe_graphics_owner: adsk.fusion.Component,
@@ -52,6 +60,8 @@ def build_cable_group_solid(
     is_visible: bool = True,
     route_diameters_mm: tuple[float, ...] = (),
     connection_branch_indices: frozenset[int] = frozenset(),
+    route_materials: tuple[CableMaterialSettings, ...] = (),
+    route_attachment_ids: tuple[Optional[UUID], ...] = (),
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
@@ -65,6 +75,12 @@ def build_cable_group_solid(
         raise ValueError("Every cable-group route requires one sweep diameter.")
     if any(index < 0 or index >= len(routes) for index in connection_branch_indices):
         raise ValueError("Cable-end branch route indices are invalid.")
+    materials_by_route = route_materials or (materials,) * len(routes)
+    if len(materials_by_route) != len(routes):
+        raise ValueError("Every cable-group route requires material settings.")
+    attachment_ids = route_attachment_ids or (None,) * len(routes)
+    if len(attachment_ids) != len(routes):
+        raise ValueError("Every cable-group route requires attachment identity metadata.")
     main_route_indices = tuple(
         index for index in range(len(routes)) if index not in connection_branch_indices
     )
@@ -93,6 +109,11 @@ def build_cable_group_solid(
         if segment.segment_count > 1:
             body.name += f" Segment {segment.segment_index + 1}"
         bodies.append(body)
+        body.appearance = cable_appearance(
+            design,
+            materials_by_route[route_index].main_color,
+            materials_by_route[route_index].appearance,
+        )
         leg_lengths[route_index] += length_mm
     for route_index in sorted(connection_branch_indices):
         branch_number = route_index + 1
@@ -107,14 +128,16 @@ def build_cable_group_solid(
         )
         body.name = f"Cable Group {group_index + 1} Connection Branch {branch_number}"
         bodies.append(body)
+        body.appearance = cable_appearance(
+            design,
+            materials_by_route[route_index].main_color,
+            materials_by_route[route_index].appearance,
+        )
         leg_lengths[route_index] = length_mm
     if component.bRepBodies.count != len(construction_segments) + len(connection_branch_indices):
         raise RuntimeError("Fusion did not retain one solid body per cable-group segment.")
     total_length_mm = sum(leg_lengths)
     component.name = f"Cable Group {group_index + 1}_{total_length_mm:.2f}mm"
-    appearance = cable_appearance(design, materials.main_color, materials.appearance)
-    for body in bodies:
-        body.appearance = appearance
     metadata = json.dumps(
         {
             "harness_id": str(harness_id),
@@ -137,6 +160,7 @@ def build_cable_group_solid(
                     "route_id": str(local_routes[index].cable_id),
                     "label": local_routes[index].cable_number,
                     "diameter_mm": diameters[index],
+                    "attachment_id": _optional_uuid_text(attachment_ids[index]),
                     "length_mm": leg_lengths[index],
                     "route_curves_mm": route_metadata(local_routes[index]),
                 }
@@ -163,6 +187,14 @@ def build_cable_group_solid(
             materials.stripes,
             group.diameter_mm / 2.0,
             design,
+            branch_decorations=tuple(
+                (
+                    local_routes[index],
+                    materials_by_route[index].stripes,
+                    diameters[index] / 2.0,
+                )
+                for index in sorted(connection_branch_indices)
+            ),
         )
     else:
         replace_group_stripe_graphics(
@@ -172,6 +204,14 @@ def build_cable_group_solid(
             group.diameter_mm / 2.0,
             group.cable_group_id,
             is_visible=is_visible,
+            branch_decorations=tuple(
+                (
+                    local_routes[index],
+                    materials_by_route[index].stripes,
+                    diameters[index] / 2.0,
+                )
+                for index in sorted(connection_branch_indices)
+            ),
         )
 
 

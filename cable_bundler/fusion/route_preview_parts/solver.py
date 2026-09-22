@@ -614,6 +614,7 @@ def _connection_branch_routes(
                         (),
                         diameter_mm=branch_diameter_mm,
                         is_connection_branch=True,
+                        attachment_id=attachment.attachment_id,
                     )
                 )
     return tuple(routes), tuple(legs)

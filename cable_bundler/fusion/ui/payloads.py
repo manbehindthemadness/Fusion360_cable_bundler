@@ -15,6 +15,7 @@ from ...domain import (
     CableMaterialOverrides,
     CableMaterialSettings,
     CableStripe,
+    CableVisualOverrides,
     Metadata,
     StripePattern,
 )
@@ -392,4 +393,25 @@ def _read_material_overrides(raw_value: object) -> CableMaterialOverrides:
         manufacturer=optional_text("manufacturer", "Manufacturer"),
         part_number=optional_text("partNumber", "Part number"),
         notes=optional_text("notes", "Notes"),
+    )
+
+
+def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
+    """
+    Parse nullable branch visuals; null values retain cable-group inheritance.
+    """
+    if not isinstance(raw_value, dict):
+        raise ValueError("Connection material overrides must be an object.")
+    return CableVisualOverrides(
+        main_color=(
+            None
+            if raw_value.get("mainColor") is None
+            else _read_material_color(raw_value.get("mainColor"))
+        ),
+        appearance=_read_appearance_reference(raw_value.get("appearance")),
+        stripes=(
+            None
+            if raw_value.get("stripes") is None
+            else _read_material_stripes(raw_value.get("stripes"))
+        ),
     )

@@ -159,6 +159,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
         "orderedControlIds": [],
+        "visualOverrides": {"mainColor": None, "appearance": None, "stripes": None},
     }
     assert connection["attachments"] == [connection["attachment"]]
     assert payload["harnesses"][0]["connections"][1]["attachment"] == {
@@ -169,6 +170,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "targetKind": None,
         "metadata": [],
         "orderedControlIds": [],
+        "visualOverrides": {"mainColor": None, "appearance": None, "stripes": None},
     }
 
 

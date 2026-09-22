@@ -17,6 +17,8 @@ import adsk.fusion
 from ..application import CableGroupRouteLeg
 from ..domain import (
     CableColor,
+    CableGroupDefinition,
+    CableMaterialSettings,
     HarnessDefinition,
 )
 from ..routing import (
@@ -39,6 +41,23 @@ _PREVIEW_COLORS = (
     (220, 153, 42),
     (37, 153, 165),
 )
+
+
+def _route_materials(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> CableMaterialSettings:
+    """
+    Resolve group materials or the visual overrides for one connection branch.
+    """
+    if leg.attachment_id is None or leg.start_connection_id is None:
+        return definition.cable_group_materials(group)
+    return definition.cable_end_attachment_materials(
+        group,
+        leg.start_connection_id,
+        leg.attachment_id,
+    )
 
 
 @dataclass
@@ -189,6 +208,7 @@ def show_route_previews(
     preview_group.id = f"{PREVIEW_GROUP_ID}:{uuid4()}"
     preview_group.name = f"{definition.name} Route Preview"
     route_group_ids = {leg.route_id: leg.cable_group_id for leg in legs}
+    legs_by_id = {leg.route_id: leg for leg in legs}
     groups_by_id = {group.cable_group_id: group for group in definition.cable_groups}
     try:
         for index, route in enumerate(routes):
@@ -197,7 +217,7 @@ def show_route_previews(
                 preview_group,
                 route,
                 index,
-                definition.cable_group_materials(cable_group).main_color,
+                _route_materials(definition, cable_group, legs_by_id[route.cable_id]).main_color,
             )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         preview_group.deleteMe()
@@ -413,14 +433,23 @@ def _refresh_cable_group_preview(
     old_groups = {item.cable_group_id: item for item in state.definition.cable_groups}
     new_groups = {item.cable_group_id: item for item in definition.cable_groups}
     route_group_ids = {leg.route_id: leg.cable_group_id for leg in legs}
+    legs_by_id = {leg.route_id: leg for leg in legs}
     warnings: list[str] = solve_notices
     for route in routes:
         group_id = route_group_ids[route.cable_id]
         old_group = old_groups.get(group_id)
         new_group = new_groups[group_id]
-        color_changed = old_group is None or (
-            state.definition.cable_group_materials(old_group).main_color
-            != definition.cable_group_materials(new_group).main_color
+        new_materials = _route_materials(definition, new_group, legs_by_id[route.cable_id])
+        old_materials = None
+        if old_group is not None and state.routes.get(route.cable_id) == route:
+            try:
+                old_materials = _route_materials(
+                    state.definition, old_group, legs_by_id[route.cable_id]
+                )
+            except ValueError:
+                pass
+        color_changed = (
+            old_materials is None or old_materials.main_color != new_materials.main_color
         )
         if state.routes.get(route.cable_id) == route and not color_changed:
             continue
@@ -433,7 +462,7 @@ def _refresh_cable_group_preview(
                 group,
                 route,
                 color_index,
-                definition.cable_group_materials(new_group).main_color,
+                new_materials.main_color,
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             for child in _cable_graphics(group, {route.cable_id}):

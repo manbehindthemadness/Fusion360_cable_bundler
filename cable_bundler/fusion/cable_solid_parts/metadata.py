@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
+from typing import Optional
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -16,6 +18,17 @@ from ...routing import (
     RoutePreview,
     Vector3,
 )
+
+
+@dataclass(frozen=True)
+class ConnectionBranchRoute:
+    """
+    Restore one generated connection branch and its material-owner identity.
+    """
+
+    route: RoutePreview
+    diameter_mm: float
+    attachment_id: Optional[UUID]
 
 
 def world_to_harness(
@@ -149,9 +162,20 @@ def group_geometry_routes_from_metadata(
     Restore every main and reduced-diameter branch route stored for one group.
     """
     routes = list(group_routes_from_metadata(metadata))
+    routes.extend(branch.route for branch in connection_branches_from_metadata(metadata))
+    return tuple(routes)
+
+
+def connection_branches_from_metadata(
+    metadata: dict[str, object],
+) -> tuple[ConnectionBranchRoute, ...]:
+    """
+    Restore generated branch routes, diameters, and optional saved attachment IDs.
+    """
     encoded_branches = metadata.get("connection_branches", [])
     if not isinstance(encoded_branches, list):
         raise RuntimeError("Generated cable-group branch metadata is malformed.")
+    branches: list[ConnectionBranchRoute] = []
     for encoded_branch in encoded_branches:
         if not isinstance(encoded_branch, dict):
             raise RuntimeError("Generated cable-group branch metadata is malformed.")
@@ -163,5 +187,24 @@ def group_geometry_routes_from_metadata(
             raise RuntimeError("Generated cable-group branch metadata is malformed.") from error
         if not isinstance(label, str):
             raise RuntimeError("Generated cable-group branch metadata is malformed.")
-        routes.append(_route_from_encoded(route_id, label, encoded))
-    return tuple(routes)
+        raw_diameter = encoded_branch.get("diameter_mm", metadata.get("diameter_mm", 1.0))
+        if isinstance(raw_diameter, bool) or not isinstance(raw_diameter, (int, float)):
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        diameter_mm = float(raw_diameter)
+        raw_attachment_id = encoded_branch.get("attachment_id")
+        if raw_attachment_id is not None and not isinstance(raw_attachment_id, str):
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        try:
+            attachment_id = None if raw_attachment_id is None else UUID(raw_attachment_id)
+        except ValueError as error:
+            raise RuntimeError("Generated cable-group branch metadata is malformed.") from error
+        if not math.isfinite(diameter_mm) or diameter_mm <= 0.0:
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        branches.append(
+            ConnectionBranchRoute(
+                _route_from_encoded(route_id, label, encoded),
+                diameter_mm,
+                attachment_id,
+            )
+        )
+    return tuple(branches)

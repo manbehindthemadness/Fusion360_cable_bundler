@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -222,6 +222,27 @@ class CableStripe:
             raise ValueError("Dashed and helical stripes require a positive repeat length.")
 
 
+def _validate_visual_overrides(
+    main_color: Optional[CableColor],
+    appearance: Optional[CableAppearanceReference],
+    stripes: Optional[tuple[CableStripe, ...]],
+) -> None:
+    """
+    Validate the shared appearance and stripe inheritance contract.
+    """
+    if main_color is not None and not isinstance(main_color, CableColor):
+        raise ValueError("Main color override must be a cable color.")
+    if appearance is not None and not isinstance(appearance, CableAppearanceReference):
+        raise ValueError("Main appearance override must reference a Fusion appearance.")
+    if main_color is None and appearance is not None:
+        raise ValueError("A main appearance override requires a main color override.")
+    if stripes is not None and (
+        not isinstance(stripes, tuple)
+        or not all(isinstance(stripe, CableStripe) for stripe in stripes)
+    ):
+        raise ValueError("Stripe override must be an ordered tuple of stripe definitions.")
+
+
 @dataclass(frozen=True)
 class CableMaterialSettings:
     """
@@ -288,19 +309,7 @@ class CableMaterialOverrides:
         ):
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
-        if self.main_color is not None and not isinstance(self.main_color, CableColor):
-            raise ValueError("Main color override must be a cable color.")
-        if self.appearance is not None and not isinstance(
-            self.appearance, CableAppearanceReference
-        ):
-            raise ValueError("Main appearance override must reference a Fusion appearance.")
-        if self.main_color is None and self.appearance is not None:
-            raise ValueError("A main appearance override requires a main color override.")
-        if self.stripes is not None and (
-            not isinstance(self.stripes, tuple)
-            or not all(isinstance(stripe, CableStripe) for stripe in self.stripes)
-        ):
-            raise ValueError("Stripe override must be an ordered tuple of stripe definitions.")
+        _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
         for value in (self.manufacturer, self.part_number, self.notes):
             if value is not None and not isinstance(value, str):
                 raise ValueError("Cable catalog metadata overrides must be text.")
@@ -326,6 +335,38 @@ class CableMaterialOverrides:
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes if self.notes is None else self.notes,
+        )
+
+
+@dataclass(frozen=True)
+class CableVisualOverrides:
+    """
+    Override branch visuals; null inherits and an empty stripe tuple suppresses.
+    """
+
+    main_color: Optional[CableColor] = None
+    appearance: Optional[CableAppearanceReference] = None
+    stripes: Optional[tuple[CableStripe, ...]] = None
+
+    def __post_init__(self) -> None:
+        """
+        Validate explicit visual overrides while retaining inheritance markers.
+        """
+        _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
+
+    def resolve(self, parent: CableMaterialSettings) -> CableMaterialSettings:
+        """
+        Merge branch visuals over resolved group materials.
+        """
+        return CableMaterialSettings(
+            insulation_material=parent.insulation_material,
+            main_color=parent.main_color if self.main_color is None else self.main_color,
+            appearance=parent.appearance if self.main_color is None else self.appearance,
+            stripes=parent.stripes if self.stripes is None else self.stripes,
+            conductor_material=parent.conductor_material,
+            manufacturer=parent.manufacturer,
+            part_number=parent.part_number,
+            notes=parent.notes,
         )
 
 
@@ -418,6 +459,7 @@ class CableEndAttachment:
     metadata: Metadata = ()
     attachment_id: UUID = UUID(int=0)
     ordered_control_ids: tuple[UUID, ...] = ()
+    visual_overrides: CableVisualOverrides = CableVisualOverrides()
 
     def __post_init__(self) -> None:
         """
@@ -462,6 +504,8 @@ class CableEndAttachment:
             raise ValueError("Cable-end connection controls must be unique.")
         if self.ordered_control_ids and not self.has_target:
             raise ValueError("A cable-end connection requires a target before it can own controls.")
+        if not isinstance(self.visual_overrides, CableVisualOverrides):
+            raise ValueError("Cable-end connection visual overrides are invalid.")
 
     @property
     def display_name(self) -> str:
@@ -708,6 +752,34 @@ class HarnessDefinition:
         Resolve one connected cable group's material settings from parent defaults.
         """
         return group.material_overrides.resolve(self.material_defaults)
+
+    def cable_end_attachment_materials(
+        self,
+        group: CableGroupDefinition,
+        connection_id: UUID,
+        attachment_id: UUID,
+    ) -> CableMaterialSettings:
+        """
+        Resolve branch visuals, inheriting the group for a single connection.
+        """
+        if connection_id not in group.connection_ids:
+            raise ValueError("Cable-end connection does not belong to the cable group.")
+        connection = next(
+            (item for item in self.connections if item.connection_id == connection_id),
+            None,
+        )
+        if connection is None:
+            raise ValueError("Cable-end connection references a missing cable end.")
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == attachment_id),
+            None,
+        )
+        if attachment is None:
+            raise ValueError("Cable-end connection does not exist.")
+        parent = self.cable_group_materials(group)
+        if len(connection.attachments) == 1:
+            return parent
+        return attachment.visual_overrides.resolve(parent)
 
     def cable_group_metadata(self, group: CableGroupDefinition) -> Metadata:
         """

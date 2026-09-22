@@ -6,7 +6,7 @@
     {
       "id": "M0-DOM-001",
       "area": "persistence",
-      "behavior": "Schema-v18 definitions round-trip deterministically, schemas 12 through 17 migrate in memory, and unsupported legacy or future versions fail explicitly.",
+      "behavior": "Schema-v19 definitions round-trip deterministically, schemas 12 through 18 migrate in memory, and unsupported legacy or future versions fail explicitly.",
       "status": "automated",
       "layers": ["pytest"],
       "evidence": ["tests/test_codec.py"],
@@ -51,10 +51,10 @@
     {
       "id": "M0-REL-002",
       "area": "external-connections",
-      "behavior": "Cable ends persist multiple unattached or attached connection nodes, connection-owned metadata and refines survive edits, and multiple targets produce deterministic reduced-diameter clock-face branches.",
+      "behavior": "Cable ends persist multiple unattached or attached connection nodes, connection-owned metadata and refines survive edits, and multiple targets produce deterministic reduced-diameter clock-face branches with independent appearance and stripe overrides.",
       "status": "automated",
       "layers": ["pytest", "palette"],
-      "evidence": ["tests/test_edit_connections.py", "tests/test_route_solve_cache.py", "tests/test_palette.cjs", "tests/test_fusion_ui_relationship_commands.py"],
+      "evidence": ["tests/test_edit_connections.py", "tests/test_cable_materials.py", "tests/test_cable_solid_decorations.py", "tests/test_route_solve_cache.py", "tests/test_palette.cjs", "tests/test_fusion_ui_relationship_commands.py"],
       "capabilities": []
     },
     {

@@ -53,15 +53,19 @@ function cableGroupDetailsEndContextItems(harness, connection) {
 }
 
 /** Return actions for one diagram-only connection node. */
-function cableGroupAttachmentContextItems(harness, attachment) {
+function cableGroupAttachmentContextItems(harness, group, attachment) {
+  const connection = harness.connections.find(
+    (candidate) => candidate.connectionId === attachment.connectionId,
+  );
+  const hasBranchMaterials = (connection?.attachments || []).length > 1;
   return [
     {
       label: "Connect",
       action: () => connectCableEnd(
         harness, attachment.connectionId, attachment.attachmentId,
       ),
-      disabled: Boolean(attachment.targetKind),
-      title: attachment.targetKind ? "This connection already has a target" : "",
+      disabled: attachment.connected,
+      title: attachment.connected ? "This connection already has a target" : "",
     },
     ...(attachment.connected ? [{
       label: "Refine",
@@ -73,6 +77,10 @@ function cableGroupAttachmentContextItems(harness, attachment) {
       label: "Rename",
       action: () => renameCableGroupAttachment(harness, attachment),
     },
+    ...(hasBranchMaterials ? [{
+      label: "Materials",
+      action: () => openMaterialOptions(harness, group, attachment),
+    }] : []),
     {
       label: "Delete",
       action: () => mutate("remove_cable_end_attachment", {

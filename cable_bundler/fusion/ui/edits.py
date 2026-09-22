@@ -34,6 +34,7 @@ from ...application import (
     rename_standalone_end,
     save_cable_editor,
     set_cable_end_attachment_properties,
+    set_cable_end_attachment_visual_overrides,
     set_cable_end_properties,
     set_cable_group_material_overrides,
     set_cable_group_properties,
@@ -56,6 +57,7 @@ from .payloads import (
     _read_palette_payload,
     _read_payload_offset,
     _read_payload_uuid,
+    _read_visual_overrides,
 )
 from .support import _create_harness_gateway
 
@@ -493,6 +495,15 @@ def _apply_property_edit(
             gateway,
         )
         return "Saved cable-end connection properties."
+    if action == "set_cable_end_attachment_visual_overrides":
+        set_cable_end_attachment_visual_overrides(
+            harness_id,
+            _read_payload_uuid(payload, "connectionId", "cable-end connection"),
+            _read_payload_uuid(payload, "attachmentId", "connection node"),
+            _read_visual_overrides(payload.get("overrides")),
+            gateway,
+        )
+        return "Saved cable-end connection materials."
     if action in {"rename_harness", "rename_junction", "rename_pathway"}:
         name = payload.get("name")
         if not isinstance(name, str):

@@ -114,6 +114,7 @@ _PALETTE_EDIT_POLICIES["set_harness_material_defaults"] = _MATERIAL_EDIT_POLICY
 _GROUP_APPEARANCE_EDIT_POLICY = PaletteEditPolicy(ensure_preview_visible=True)
 _PALETTE_EDIT_POLICIES["set_cable_group_properties"] = _GROUP_APPEARANCE_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["set_cable_group_material_overrides"] = _MATERIAL_EDIT_POLICY
+_PALETTE_EDIT_POLICIES["set_cable_end_attachment_visual_overrides"] = _MATERIAL_EDIT_POLICY
 
 
 def _launch_create_harness(application: adsk.core.Application, _data: str) -> None:

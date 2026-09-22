@@ -30,6 +30,7 @@ from ...domain import (
     CableMaterialOverrides,
     CableMaterialSettings,
     CableStripe,
+    CableVisualOverrides,
     HarnessDefinition,
 )
 from ..attachment_targets import attachment_display_name, resolve_attachment_target
@@ -71,6 +72,7 @@ def _attachment_payload(
         "metadata": _metadata_payload(attachment.metadata),
         "connected": connected,
         "orderedControlIds": [str(control_id) for control_id in attachment.ordered_control_ids],
+        "visualOverrides": _visual_overrides_payload(attachment.visual_overrides),
     }
 
 
@@ -531,4 +533,21 @@ def _material_overrides_payload(overrides: CableMaterialOverrides) -> dict[str, 
         "manufacturer": overrides.manufacturer,
         "partNumber": overrides.part_number,
         "notes": overrides.notes,
+    }
+
+
+def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, object]:
+    """
+    Preserve branch-only visual inheritance markers at the palette boundary.
+    """
+    return {
+        "mainColor": (
+            None if overrides.main_color is None else _color_payload(overrides.main_color)
+        ),
+        "appearance": _appearance_reference_payload(overrides.appearance),
+        "stripes": (
+            None
+            if overrides.stripes is None
+            else [_stripe_payload(stripe) for stripe in overrides.stripes]
+        ),
     }

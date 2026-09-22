@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cable_bundler.domain import CableVisualOverrides
 from tests.fusion_ui_support import (
     UUID,
     CableColor,
@@ -38,6 +39,16 @@ from tests.fusion_ui_support import (
             "set_cable_group_material_overrides",
             {"cableGroupId": str(UUID(int=2)), "overrides": {}},
             "Saved connected-cable material overrides.",
+            "Applied materials to 1 generated cable group.",
+        ),
+        (
+            "set_cable_end_attachment_visual_overrides",
+            {
+                "connectionId": str(UUID(int=3)),
+                "attachmentId": str(UUID(int=4)),
+                "overrides": {},
+            },
+            "Saved cable-end connection materials.",
             "Applied materials to 1 generated cable group.",
         ),
         (
@@ -84,6 +95,48 @@ def test_material_save_applies_existing_bodies_and_preview(
         f"{edit_notice} {geometry_notice}",
     )
     assert not args.executeFailed
+
+
+def test_palette_edit_saves_connection_visual_overrides(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse branch appearance and stripe inheritance through the dedicated service.
+    """
+    harness_id = UUID(int=1)
+    connection_id = UUID(int=2)
+    attachment_id = UUID(int=3)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_cable_end_attachment_visual_overrides", save)
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        "set_cable_end_attachment_visual_overrides",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "connectionId": str(connection_id),
+                "attachmentId": str(attachment_id),
+                "overrides": {
+                    "mainColor": {"name": "Red", "red": 255, "green": 0, "blue": 0},
+                    "appearance": None,
+                    "stripes": [],
+                },
+            }
+        ),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        connection_id,
+        attachment_id,
+        CableVisualOverrides(main_color=CableColor("Red", 255, 0, 0), stripes=()),
+        gateway,
+    )
+    assert result == "Saved cable-end connection materials."
 
 
 def test_connected_cable_property_save_refreshes_only_group_preview(

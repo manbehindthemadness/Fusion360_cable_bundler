@@ -178,6 +178,10 @@ def test_multiple_connections_create_divided_clockface_branches(
         group.diameter_mm / 2.0,
     )
     assert all(leg.is_connection_branch for leg in legs)
+    assert tuple(leg.attachment_id for leg in legs) == (
+        first.attachment_id,
+        second.attachment_id,
+    )
     assert routes[0].points[1] == refine_frame.origin
     origins = tuple(route.points[-1] for route in routes)
     branch_radius = group.diameter_mm / 4.0

@@ -88,13 +88,14 @@ def replace_group_stripe_graphics(
     cable_group_id: UUID,
     *,
     is_visible: bool = True,
+    branch_decorations: tuple[tuple[RoutePreview, tuple[CableStripe, ...], float], ...] = (),
 ) -> int:
     """
     Replace all leg-owned stripe meshes for one multi-body cable group.
     """
     clear_group_stripe_graphics(graphics_owner, cable_group_id)
     groups = graphics_owner.customGraphicsGroups
-    if not stripes:
+    if not stripes and not any(branch_stripes for _, branch_stripes, _ in branch_decorations):
         return 0
     group = groups.add()
     if group is None:
@@ -102,15 +103,35 @@ def replace_group_stripe_graphics(
     group.id = f"{GENERATED_STRIPE_GROUP_ID}:{cable_group_id}"
     group.name = "Cable Group Solid Stripes"
     group.isVisible = is_visible
+    created = _add_stripe_graphics(group, routes, stripes, cable_radius_mm, "Cable Group Leg")
+    for branch_index, (route, branch_stripes, radius_mm) in enumerate(branch_decorations):
+        created += _add_stripe_graphics(
+            group,
+            (route,),
+            branch_stripes,
+            radius_mm,
+            f"Cable Connection Branch {branch_index + 1}",
+        )
+    return created
+
+
+def _add_stripe_graphics(
+    group: adsk.fusion.CustomGraphicsGroup,
+    routes: tuple[RoutePreview, ...],
+    stripes: tuple[CableStripe, ...],
+    cable_radius_mm: float,
+    name_prefix: str,
+) -> int:
+    """
+    Append stripe meshes for one continuous route set without clearing siblings.
+    """
+    if not routes or not stripes:
+        return 0
     segments, start_junctions, end_junctions = prepare_group_sweep_segments(routes)
     created = 0
     for stripe_index, stripe in enumerate(stripes):
         decorated_segments = build_continuous_segment_stripes(
-            segments,
-            start_junctions,
-            end_junctions,
-            stripe,
-            cable_radius_mm,
+            segments, start_junctions, end_junctions, stripe, cable_radius_mm
         )
         for segment, result in decorated_segments:
             if not result.vertices or not result.triangle_indices:
@@ -127,17 +148,18 @@ def replace_group_stripe_graphics(
             stripe_mesh = group.addMesh(coordinates, list(result.triangle_indices), [], [])
             if stripe_mesh is None:
                 raise RuntimeError("Fusion did not draw a cable-group stripe.")
+            segment_suffix = (
+                f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else ""
+            )
+            route_suffix = (
+                f" {segment.source_route_index + 1}" if name_prefix == "Cable Group Leg" else ""
+            )
             stripe_mesh.name = (
-                f"Cable Group Leg {segment.source_route_index + 1}"
-                + (f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else "")
-                + f" Stripe {stripe_index + 1}"
+                f"{name_prefix}{route_suffix}{segment_suffix} Stripe {stripe_index + 1}"
             )
             stripe_mesh.cullMode = adsk.fusion.CustomGraphicsCullModes.CustomGraphicsCullNone
             stripe_color = adsk.core.Color.create(
-                stripe.color.red,
-                stripe.color.green,
-                stripe.color.blue,
-                255,
+                stripe.color.red, stripe.color.green, stripe.color.blue, 255
             )
             stripe_effect = adsk.fusion.CustomGraphicsSolidColorEffect.create(stripe_color)
             if stripe_effect is None:
@@ -153,6 +175,8 @@ def replace_group_stripe_bodies(
     stripes: tuple[CableStripe, ...],
     cable_radius_mm: float,
     design: adsk.fusion.Design,
+    *,
+    branch_decorations: tuple[tuple[RoutePreview, tuple[CableStripe, ...], float], ...] = (),
 ) -> int:
     """
     Replace transient stripe presentation with persistent renderable mesh bodies.
@@ -165,7 +189,35 @@ def replace_group_stripe_bodies(
         body = mesh_bodies.item(body_index)
         if body is not None and body.deleteMe() is False:
             raise RuntimeError("Fusion could not delete an obsolete cable stripe body.")
-    if not stripes:
+    if not stripes and not any(branch_stripes for _, branch_stripes, _ in branch_decorations):
+        return 0
+    created = _add_stripe_bodies(
+        mesh_bodies, routes, stripes, cable_radius_mm, design, "Cable Group Leg"
+    )
+    for branch_index, (route, branch_stripes, radius_mm) in enumerate(branch_decorations):
+        created += _add_stripe_bodies(
+            mesh_bodies,
+            (route,),
+            branch_stripes,
+            radius_mm,
+            design,
+            f"Cable Connection Branch {branch_index + 1}",
+        )
+    return created
+
+
+def _add_stripe_bodies(
+    mesh_bodies: adsk.fusion.MeshBodies,
+    routes: tuple[RoutePreview, ...],
+    stripes: tuple[CableStripe, ...],
+    cable_radius_mm: float,
+    design: adsk.fusion.Design,
+    name_prefix: str,
+) -> int:
+    """
+    Append persistent stripe mesh bodies for one continuous route set.
+    """
+    if not routes or not stripes:
         return 0
     segments, start_junctions, end_junctions = prepare_group_sweep_segments(routes)
     created = 0
@@ -194,11 +246,13 @@ def replace_group_stripe_bodies(
             )
             if body is None:
                 raise RuntimeError("Fusion did not create a renderable cable stripe body.")
-            body.name = (
-                f"Cable Group Leg {segment.source_route_index + 1}"
-                + (f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else "")
-                + f" Stripe {stripe_index + 1}"
+            segment_suffix = (
+                f" Segment {segment.segment_index + 1}" if segment.segment_count > 1 else ""
             )
+            route_suffix = (
+                f" {segment.source_route_index + 1}" if name_prefix == "Cable Group Leg" else ""
+            )
+            body.name = f"{name_prefix}{route_suffix}{segment_suffix} Stripe {stripe_index + 1}"
             body.appearance = appearance
             created += 1
     return created

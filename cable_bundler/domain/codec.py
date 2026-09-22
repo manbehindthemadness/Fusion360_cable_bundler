@@ -34,6 +34,7 @@ from .model import (
     CableMaterialOverrides,
     CableMaterialSettings,
     CableStripe,
+    CableVisualOverrides,
     Connection,
     ControlKind,
     ControlStructure,
@@ -72,11 +73,11 @@ def loads(serialized: str) -> HarnessDefinition:
 
     payload = _require_mapping(raw_payload, "$")
     schema_version = _require_int(payload, "schema_version", "$.schema_version")
-    if schema_version not in (12, 13, 14, 15, 16, 17, SCHEMA_VERSION):
+    if schema_version not in (12, 13, 14, 15, 16, 17, 18, SCHEMA_VERSION):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 17 are migratable)",
+            "(schemas 12 through 18 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -280,6 +281,24 @@ def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
         "metadata": _metadata_to_list(attachment.metadata),
         "attachment_id": str(attachment.attachment_id),
         "ordered_control_ids": [str(control_id) for control_id in attachment.ordered_control_ids],
+        "visual_overrides": _visual_overrides_to_dict(attachment.visual_overrides),
+    }
+
+
+def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, object]:
+    """
+    Convert branch-only visual overrides while preserving null inheritance.
+    """
+    return {
+        "main_color": None
+        if overrides.main_color is None
+        else _color_to_dict(overrides.main_color),
+        "appearance": _appearance_to_dict(overrides.appearance),
+        "stripes": (
+            None
+            if overrides.stripes is None
+            else [_stripe_to_dict(item) for item in overrides.stripes]
+        ),
     }
 
 
@@ -641,6 +660,28 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
                         f"{path}.ordered_control_ids",
                     )
                 )
+            ),
+            visual_overrides=_parse_visual_overrides(
+                value.get("visual_overrides", {}), f"{path}.visual_overrides"
+            ),
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverrides:
+    """
+    Parse optional branch visual overrides from current or migrated data.
+    """
+    value = _require_mapping(raw_value, path)
+    raw_color = value.get("main_color")
+    raw_stripes = value.get("stripes")
+    try:
+        return CableVisualOverrides(
+            main_color=None if raw_color is None else _parse_color(raw_color, f"{path}.main_color"),
+            appearance=_parse_appearance(value.get("appearance"), f"{path}.appearance"),
+            stripes=(
+                None if raw_stripes is None else _parse_stripes(raw_stripes, f"{path}.stripes")
             ),
         )
     except ValueError as error:

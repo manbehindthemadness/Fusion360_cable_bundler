@@ -1,24 +1,31 @@
 /** Open visual material and stripe options for a harness or cable group. */
+/* global currentState */
 
-function openMaterialOptions(harness, cableGroup = null) {
+function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const isCableGroup = cableGroup !== null;
-  const hasOverrides = isCableGroup;
+  const isConnectionBranch = attachment !== null;
+  const hasOverrides = isCableGroup || isConnectionBranch;
   const settings = isCableGroup ? cableGroup.materials : harness.materialDefaults;
-  const overrides = isCableGroup ? cableGroup.materialOverrides : null;
+  const overrides = isConnectionBranch
+    ? attachment.visualOverrides : (isCableGroup ? cableGroup.materialOverrides : null);
   const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
   let hasAppliedChanges = false;
   let cancelInProgress = false;
-  const catalog = currentState.catalog || {
+  const catalog = currentState["catalog"] || {
     insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
   };
   const { dialog, form, heading, note, error, actions, cancel, save } = createOptionsDialog(
     "cable-options material-options",
   );
   const apply = document.createElement("button");
-  heading.textContent = isCableGroup ? "Connected Cable Group Materials" : "Harness Materials";
-  note.textContent = isCableGroup
-    ? "Checked visual fields override this harness for the connected cable group."
-    : "These visual values are inherited by connected cable groups without overrides.";
+  heading.textContent = isConnectionBranch
+    ? "Connection Materials"
+    : (isCableGroup ? "Connected Cable Group Materials" : "Harness Materials");
+  note.textContent = isConnectionBranch
+    ? "Checked visual fields override this connected cable group for this branch."
+    : (isCableGroup
+      ? "Checked visual fields override this harness for the connected cable group."
+      : "These visual values are inherited by connected cable groups without overrides.");
   form.append(heading, note);
 
   const addOverrideToggle = (header, key, update) => {
@@ -93,7 +100,7 @@ function openMaterialOptions(harness, cableGroup = null) {
     appearanceSelect.disabled = true;
     const response = await send("get_library_appearances", { libraryId });
     if (!response.ok) throw new Error(response.error || "Could not read Fusion appearances.");
-    loadedAppearances = response.appearances;
+    loadedAppearances = response["appearances"];
     setOptions(appearanceSelect, loadedAppearances, selectedId, "Select appearance");
     updateColor();
   };
@@ -106,7 +113,7 @@ function openMaterialOptions(harness, cableGroup = null) {
         setOptions(appearanceSelect, [], "", "Appearances unavailable");
         return;
       }
-      loadedLibraries = response.libraries;
+      loadedLibraries = response["libraries"];
       const selectedLibrary = settings.appearance?.libraryId || loadedLibraries[0]?.id || "";
       setOptions(librarySelect, loadedLibraries, selectedLibrary, "Select library");
       if (selectedLibrary && appearanceSource.value === "library") {
@@ -337,30 +344,41 @@ function openMaterialOptions(harness, cableGroup = null) {
         };
       }
       const materials = {
-        insulationMaterial: isCableGroup
+        insulationMaterial: isCableGroup && !isConnectionBranch
           ? overrides.insulationMaterial : settings.insulationMaterial,
-        conductorMaterial: isCableGroup
+        conductorMaterial: isCableGroup && !isConnectionBranch
           ? overrides.conductorMaterial : settings.conductorMaterial,
         mainColor: hasOverrides && !colorToggle.checked ? null
           : colorFromHex(colorName.value, colorPicker.value),
         appearance: hasOverrides && !colorToggle.checked ? null : appearance,
         stripes: hasOverrides && !stripeToggle.checked ? null : readStripes(),
-        manufacturer: isCableGroup ? overrides.manufacturer : settings.manufacturer,
-        partNumber: isCableGroup ? overrides.partNumber : settings.partNumber,
-        notes: isCableGroup ? overrides.notes : settings.notes,
+        manufacturer: isCableGroup && !isConnectionBranch
+          ? overrides.manufacturer : settings.manufacturer,
+        partNumber: isCableGroup && !isConnectionBranch
+          ? overrides.partNumber : settings.partNumber,
+        notes: isCableGroup && !isConnectionBranch ? overrides.notes : settings.notes,
       };
       apply.disabled = true;
       cancel.disabled = true;
       save.disabled = true;
       const response = await send(
-        isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults",
-        isCableGroup
+        isConnectionBranch
+          ? "set_cable_end_attachment_visual_overrides"
+          : (isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults"),
+        isConnectionBranch
+          ? {
+            harnessId: harness.harnessId,
+            connectionId: attachment.connectionId,
+            attachmentId: attachment.attachmentId,
+            overrides: materials,
+          }
+          : (isCableGroup
           ? {
             harnessId: harness.harnessId,
             cableGroupId: cableGroup.cableGroupId,
             overrides: materials,
           }
-          : { harnessId: harness.harnessId, materials },
+          : { harnessId: harness.harnessId, materials }),
       );
       if (response.ok) {
         hasAppliedChanges = !closeAfter;
@@ -388,14 +406,23 @@ function openMaterialOptions(harness, cableGroup = null) {
     error.textContent = "Restoring saved options…";
     try {
       const response = await send(
-        isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults",
-        isCableGroup
+        isConnectionBranch
+          ? "set_cable_end_attachment_visual_overrides"
+          : (isCableGroup ? "set_cable_group_material_overrides" : "set_harness_material_defaults"),
+        isConnectionBranch
+          ? {
+            harnessId: harness.harnessId,
+            connectionId: attachment.connectionId,
+            attachmentId: attachment.attachmentId,
+            overrides: originalMaterials,
+          }
+          : (isCableGroup
           ? {
             harnessId: harness.harnessId,
             cableGroupId: cableGroup.cableGroupId,
             overrides: originalMaterials,
           }
-          : { harnessId: harness.harnessId, materials: originalMaterials },
+          : { harnessId: harness.harnessId, materials: originalMaterials }),
       );
       if (!response.ok) {
         error.textContent = response.error || "Could not restore cable materials.";
