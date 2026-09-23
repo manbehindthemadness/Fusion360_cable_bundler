@@ -35,6 +35,7 @@ from ...refine_graphics import (
     build_pathway_spine,
     clear_refine_spine,
     draw_refine_editor,
+    has_refine_graphics,
     place_refine,
     reconcile_refine_graphics,
 )
@@ -725,12 +726,17 @@ class _RefineActiveSelectionHandler(adsk.core.ActiveSelectionEventHandler):
             selections = args.currentSelection
             if len(selections) != 1:
                 return
-            entity = selections[0].entity
-            parent = getattr(entity, "parent", None)
+            entity = adsk.fusion.CustomGraphicsLines.cast(selections[0].entity)
+            if entity is None:
+                return
+            application = adsk.core.Application.get()
+            design = adsk.fusion.Design.cast(application.activeProduct)
+            if design is None or not has_refine_graphics(design):
+                return
+            parent = entity.parent
             if getattr(parent, "id", None) != REFINE_GRAPHICS_GROUP_ID:
                 return
             control_id = UUID(entity.id)
-            application = adsk.core.Application.get()
             results = load_harnesses(_create_harness_gateway(application))
             match = None
             for result in results:

@@ -369,15 +369,23 @@ def test_selecting_persistent_refine_opens_transform_editor(
     definition = replace(valid_harness, controls=(*valid_harness.controls, refine))
     command_definition = SimpleNamespace(execute=Mock(return_value=True))
     selections = SimpleNamespace(clear=Mock(return_value=True))
+    design = object()
     application = SimpleNamespace(
+        activeProduct=design,
         userInterface=SimpleNamespace(
             activeSelections=selections,
             commandDefinitions=SimpleNamespace(itemById=lambda _identity: command_definition),
-        )
+        ),
     )
     core_module = sys.modules["adsk.core"]
     core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    fusion_module.CustomGraphicsLines = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value
+    )
     refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
+    monkeypatch.setitem(vars(refine_commands), "has_refine_graphics", lambda value: value is design)
     monkeypatch.setitem(
         vars(refine_commands),
         "load_harnesses",
@@ -401,6 +409,45 @@ def test_selecting_persistent_refine_opens_transform_editor(
         definition.harness_id,
         refine_id,
     )
+
+
+def test_selection_handler_ignores_native_entities_without_refine_graphics(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Leave unrelated designs untouched before reading unsafe native properties.
+    """
+
+    class OffsetPlane:
+        @property
+        def parent(self) -> object:
+            raise RuntimeError("InternalValidationError : fragment")
+
+    design = object()
+    application = SimpleNamespace(activeProduct=design)
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    cast_graphics = Mock()
+    fusion_module.CustomGraphicsLines = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=cast_graphics
+    )
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
+    monkeypatch.setitem(vars(refine_commands), "has_refine_graphics", lambda _design: False)
+    load = Mock()
+    report_failure = Mock()
+    monkeypatch.setitem(vars(refine_commands), "load_harnesses", load)
+    monkeypatch.setitem(vars(refine_commands), "_report_failure", report_failure)
+
+    addin_module._RefineActiveSelectionHandler().notify(
+        SimpleNamespace(currentSelection=[SimpleNamespace(entity=OffsetPlane())])
+    )
+
+    cast_graphics.assert_called_once()
+    load.assert_not_called()
+    report_failure.assert_not_called()
 
 
 def test_refine_reconciliation_redraws_changed_geometry_with_same_identity(
