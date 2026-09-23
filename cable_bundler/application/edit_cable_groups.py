@@ -55,6 +55,7 @@ class _MutableCableGroup:
     material_overrides: CableMaterialOverrides
     metadata_overrides: Metadata
     name: str
+    conductor_diameter_mm: Optional[float]
 
 
 def save_cable_editor(
@@ -130,6 +131,7 @@ def save_cable_editor(
             group.material_overrides,
             group.metadata_overrides,
             group.name,
+            group.conductor_diameter_mm,
         )
         for group in definition.cable_groups
     ]
@@ -167,6 +169,7 @@ def save_cable_editor(
                     CableMaterialOverrides(),
                     (),
                     "",
+                    None,
                 )
             )
         elif left_index is None:
@@ -189,6 +192,7 @@ def save_cable_editor(
             group.material_overrides,
             group.metadata_overrides,
             group.name,
+            group.conductor_diameter_mm,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -228,6 +232,8 @@ def set_cable_group_properties(
     part_number: Optional[str],
     metadata_overrides: Metadata,
     gateway: HarnessEditGateway,
+    *,
+    conductor_diameter_mm: Optional[float] = None,
 ) -> None:
     """
     Replace one connected cable group's construction properties atomically.
@@ -239,6 +245,16 @@ def set_cable_group_properties(
         or diameter_mm <= 0
     ):
         raise ValueError("Cable-group diameter must be a finite positive value.")
+    if conductor_diameter_mm is not None and (
+        isinstance(conductor_diameter_mm, bool)
+        or not isinstance(conductor_diameter_mm, (int, float))
+        or not math.isfinite(conductor_diameter_mm)
+        or conductor_diameter_mm <= 0
+        or conductor_diameter_mm > diameter_mm
+    ):
+        raise ValueError(
+            "Conductor diameter must be positive and no larger than the cable diameter."
+        )
     _update_cable_group(
         harness_id,
         cable_group_id,
@@ -246,6 +262,7 @@ def set_cable_group_properties(
         lambda group: replace(
             group,
             diameter_mm=diameter_mm,
+            conductor_diameter_mm=conductor_diameter_mm,
             material_overrides=replace(
                 group.material_overrides,
                 insulation_material=insulation_material,

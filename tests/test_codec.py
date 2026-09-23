@@ -92,6 +92,49 @@ def test_round_trip_and_schema_24_migration_preserve_pullback_settings(
     assert migrated_attachment.visual_overrides.pullback is None
 
 
+def test_round_trip_and_schema_25_migration_preserve_conductor_diameters(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist explicit conductor diameters and default earlier files to Auto.
+    """
+    attachment = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=812),
+        visual_overrides=CableVisualOverrides(
+            diameter_mm=0.6,
+            conductor_diameter_mm=0.4,
+        ),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(valid_harness.connections[0], attachment=attachment),
+            *valid_harness.connections[1:],
+        ),
+        cable_groups=(replace(valid_harness.cable_groups[0], conductor_diameter_mm=1.1),),
+    )
+
+    restored = loads(dumps(definition))
+    assert restored.cable_groups[0].conductor_diameter_mm == 1.1
+    restored_attachment = restored.connections[0].attachment
+    assert restored_attachment is not None
+    assert restored_attachment.visual_overrides.conductor_diameter_mm == 0.4
+
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 25
+    del payload["cable_groups"][0]["conductor_diameter_mm"]
+    del payload["connections"][0]["attachment"]["visual_overrides"]["conductor_diameter_mm"]
+    migrated = loads(json.dumps(payload))
+    assert migrated.cable_groups[0].conductor_diameter_mm is None
+    assert migrated.cable_groups[0].resolved_conductor_diameter_mm == (
+        migrated.cable_groups[0].diameter_mm * 0.75
+    )
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.visual_overrides.conductor_diameter_mm is None
+
+
 def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> None:
     """
     Produce stable persisted text for the same immutable definition.
@@ -226,7 +269,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 26])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 27])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,

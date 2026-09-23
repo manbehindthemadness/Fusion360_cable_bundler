@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import replace
 from typing import Optional
@@ -328,6 +329,7 @@ def set_cable_end_attachment_properties(
     gateway: HarnessEditGateway,
     *,
     diameter_mm: Optional[float] = None,
+    conductor_diameter_mm: Optional[float] = None,
     insulation_material: Optional[str] = None,
     conductor_material: Optional[str] = None,
     shielding: Optional[str] = None,
@@ -349,6 +351,16 @@ def set_cable_end_attachment_properties(
     branch_overrides = attachment.visual_overrides
     group_diameter_mm: Optional[float] = None
     if diameter_mm is not None:
+        if conductor_diameter_mm is not None and (
+            isinstance(conductor_diameter_mm, bool)
+            or not isinstance(conductor_diameter_mm, (int, float))
+            or not math.isfinite(conductor_diameter_mm)
+            or conductor_diameter_mm <= 0
+            or conductor_diameter_mm > diameter_mm
+        ):
+            raise ValueError(
+                "Conductor diameter must be positive and no larger than the connection diameter."
+            )
         siblings = connection.attachment_children(attachment.parent_attachment_id)
         if len(siblings) <= 1:
             raise ValueError("A single connection inherits its parent properties.")
@@ -362,6 +374,7 @@ def set_cable_end_attachment_properties(
         branch_overrides = replace(
             branch_overrides,
             diameter_mm=diameter_mm,
+            conductor_diameter_mm=conductor_diameter_mm,
             insulation_material=insulation_material,
             conductor_material=conductor_material,
             shielding=shielding,

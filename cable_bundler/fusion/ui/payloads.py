@@ -460,8 +460,14 @@ def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
         isinstance(diameter, bool) or not isinstance(diameter, (int, float))
     ):
         raise ValueError("Connection diameter must be a number in millimeters.")
+    conductor_diameter = raw_value.get("conductorDiameterMm")
+    if conductor_diameter is not None and (
+        isinstance(conductor_diameter, bool) or not isinstance(conductor_diameter, (int, float))
+    ):
+        raise ValueError("Conductor diameter must be a number in millimeters or null for Auto.")
     return CableVisualOverrides(
         diameter_mm=diameter,
+        conductor_diameter_mm=conductor_diameter,
         insulation_material=(
             None
             if raw_value.get("insulationMaterial") is None

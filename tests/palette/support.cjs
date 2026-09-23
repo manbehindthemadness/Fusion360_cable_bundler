@@ -252,6 +252,7 @@ function harness() {
   ]);
   const cableGroups = [1, 2, 3].map((i) => ({
     cableGroupId: `g${i}`, name: '', connectionIds: [`a${i}`, `b${i}`], diameterMm: 1.5,
+    conductorDiameterMm: null, resolvedConductorDiameterMm: 1.125,
     materials: materialDefaults,
     materialOverrides: { insulationMaterial: null, conductorMaterial: null, shielding: null,
       dielectricMaterial: null,
@@ -264,7 +265,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 25, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 26, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,

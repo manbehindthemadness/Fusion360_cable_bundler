@@ -369,6 +369,8 @@ def _cable_group_payloads(
             "name": group.name,
             "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
             "diameterMm": group.diameter_mm,
+            "conductorDiameterMm": group.conductor_diameter_mm,
+            "resolvedConductorDiameterMm": group.resolved_conductor_diameter_mm,
             "materials": _material_settings_payload(definition.cable_group_materials(group)),
             "materialOverrides": _material_overrides_payload(group.material_overrides),
             "metadata": _metadata_payload(definition.cable_group_metadata(group)),
@@ -582,6 +584,7 @@ def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, obje
     """
     return {
         "diameterMm": overrides.diameter_mm,
+        "conductorDiameterMm": overrides.conductor_diameter_mm,
         "insulationMaterial": overrides.insulation_material,
         "conductorMaterial": overrides.conductor_material,
         "shielding": overrides.shielding,

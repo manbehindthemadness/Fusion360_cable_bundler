@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 25
+SCHEMA_VERSION = 26
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -430,6 +430,7 @@ class CableVisualOverrides:
     appearance: Optional[CableAppearanceReference] = None
     stripes: Optional[tuple[CableStripe, ...]] = None
     diameter_mm: Optional[float] = None
+    conductor_diameter_mm: Optional[float] = None
     insulation_material: Optional[str] = None
     conductor_material: Optional[str] = None
     shielding: Optional[str] = None
@@ -449,6 +450,13 @@ class CableVisualOverrides:
             or self.diameter_mm <= 0.0
         ):
             raise ValueError("Connection diameter override must be finite and positive.")
+        if self.conductor_diameter_mm is not None and (
+            isinstance(self.conductor_diameter_mm, bool)
+            or not isinstance(self.conductor_diameter_mm, (int, float))
+            or not math.isfinite(self.conductor_diameter_mm)
+            or self.conductor_diameter_mm <= 0.0
+        ):
+            raise ValueError("Conductor diameter must be finite and positive when specified.")
         for value, label in (
             (self.insulation_material, "Insulation material"),
             (self.conductor_material, "Conductor material"),
@@ -921,12 +929,32 @@ class CableGroupDefinition:
     material_overrides: CableMaterialOverrides = CableMaterialOverrides()
     metadata_overrides: Metadata = ()
     name: str = ""
+    conductor_diameter_mm: Optional[float] = None
 
     def __post_init__(self) -> None:
         """
         Require unambiguous searchable metadata overrides.
         """
         _validate_metadata(self.metadata_overrides, "Cable metadata overrides")
+        if self.conductor_diameter_mm is not None and (
+            isinstance(self.conductor_diameter_mm, bool)
+            or not isinstance(self.conductor_diameter_mm, (int, float))
+            or not math.isfinite(self.conductor_diameter_mm)
+            or self.conductor_diameter_mm <= 0.0
+            or self.conductor_diameter_mm > self.diameter_mm
+        ):
+            raise ValueError(
+                "Cable-group conductor diameter must be positive and no larger than its diameter."
+            )
+
+    @property
+    def resolved_conductor_diameter_mm(self) -> float:
+        """
+        Return the configured conductor diameter or the automatic 75% value.
+        """
+        if self.conductor_diameter_mm is None:
+            return self.diameter_mm * 0.75
+        return self.conductor_diameter_mm
 
 
 @dataclass(frozen=True)
@@ -1033,6 +1061,23 @@ class HarnessDefinition:
             return parent_diameter_mm
         diameter_mm = attachment.visual_overrides.diameter_mm
         return parent_diameter_mm / len(siblings) if diameter_mm is None else diameter_mm
+
+    def cable_end_attachment_conductor_diameter(
+        self,
+        group: CableGroupDefinition,
+        connection_id: UUID,
+        attachment_id: UUID,
+    ) -> float:
+        """
+        Return a connector's configured conductor diameter or automatic 75% value.
+        """
+        _connection, attachment = self._cable_end_attachment_context(
+            group, connection_id, attachment_id
+        )
+        configured = attachment.visual_overrides.conductor_diameter_mm
+        if configured is not None:
+            return configured
+        return self.cable_end_attachment_diameter(group, connection_id, attachment_id) * 0.75
 
     def _cable_end_attachment_context(
         self,

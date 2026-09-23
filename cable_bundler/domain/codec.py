@@ -90,12 +90,13 @@ def loads(serialized: str) -> HarnessDefinition:
         22,
         23,
         24,
+        25,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 24 are migratable)",
+            "(schemas 12 through 25 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -274,6 +275,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "cable_group_id": str(group.cable_group_id),
                 "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
                 "diameter_mm": group.diameter_mm,
+                "conductor_diameter_mm": group.conductor_diameter_mm,
                 "material_overrides": _material_overrides_to_dict(group.material_overrides),
                 "metadata_overrides": _metadata_to_list(group.metadata_overrides),
                 "name": group.name,
@@ -332,6 +334,7 @@ def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, obje
     """
     return {
         "diameter_mm": overrides.diameter_mm,
+        "conductor_diameter_mm": overrides.conductor_diameter_mm,
         "insulation_material": overrides.insulation_material,
         "conductor_material": overrides.conductor_material,
         "shielding": overrides.shielding,
@@ -800,6 +803,9 @@ def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverride
     try:
         return CableVisualOverrides(
             diameter_mm=_optional_float(value.get("diameter_mm"), f"{path}.diameter_mm"),
+            conductor_diameter_mm=_optional_float(
+                value.get("conductor_diameter_mm"), f"{path}.conductor_diameter_mm"
+            ),
             insulation_material=_optional_str(
                 value.get("insulation_material"), f"{path}.insulation_material"
             ),
@@ -1034,6 +1040,9 @@ def _parse_cable_group(
             for index, raw_id in enumerate(raw_connection_ids)
         ),
         diameter_mm=_require_float(value, "diameter_mm", f"{path}.diameter_mm"),
+        conductor_diameter_mm=_optional_float(
+            value.get("conductor_diameter_mm"), f"{path}.conductor_diameter_mm"
+        ),
         material_overrides=parse_material_overrides(
             value.get("material_overrides"), f"{path}.material_overrides"
         ),

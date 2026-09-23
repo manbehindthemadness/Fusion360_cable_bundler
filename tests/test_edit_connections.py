@@ -96,6 +96,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         (("connector", "J1"),),
         gateway,
         diameter_mm=0.6,
+        conductor_diameter_mm=0.45,
         insulation_material="ETFE",
         conductor_material="Aluminum",
         shielding="Braided copper",
@@ -107,6 +108,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     saved_attachment = stored.connections[0].attachments[1]
     assert saved_attachment.metadata == (("connector", "J1"),)
     assert saved_attachment.visual_overrides.diameter_mm == 0.6
+    assert saved_attachment.visual_overrides.conductor_diameter_mm == 0.45
     assert saved_attachment.visual_overrides.insulation_material == "ETFE"
     assert saved_attachment.visual_overrides.conductor_material == "Aluminum"
     assert saved_attachment.visual_overrides.shielding == "Braided copper"
@@ -563,6 +565,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         (),
         gateway,
         diameter_mm=0.6,
+        conductor_diameter_mm=0.45,
         insulation_material="ETFE",
         conductor_material="Aluminum",
         shielding="Braided copper",
@@ -577,6 +580,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     assert stored.connections[0].attachments[0].visual_overrides == replace(
         overrides,
         diameter_mm=0.6,
+        conductor_diameter_mm=0.45,
         insulation_material="ETFE",
         conductor_material="Aluminum",
         shielding="Braided copper",

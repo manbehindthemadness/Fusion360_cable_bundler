@@ -124,6 +124,10 @@ def test_palette_state_contains_complete_group_definition(
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]
     assert cable_group["diameterMm"] == valid_harness.cable_groups[0].diameter_mm
+    assert cable_group["conductorDiameterMm"] is None
+    assert cable_group["resolvedConductorDiameterMm"] == (
+        valid_harness.cable_groups[0].diameter_mm * 0.75
+    )
     assert cable_group["materialOverrides"]["pullback"] is None
     assert harness["metadata"] == []
     assert cable_group["metadata"] == []
@@ -188,6 +192,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "orderedControlIds": [],
         "visualOverrides": {
             "diameterMm": None,
+            "conductorDiameterMm": None,
             "insulationMaterial": None,
             "conductorMaterial": None,
             "shielding": None,
@@ -213,6 +218,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "orderedControlIds": [],
         "visualOverrides": {
             "diameterMm": None,
+            "conductorDiameterMm": None,
             "insulationMaterial": None,
             "conductorMaterial": None,
             "shielding": None,

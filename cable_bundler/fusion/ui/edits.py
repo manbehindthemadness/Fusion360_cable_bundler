@@ -422,6 +422,11 @@ def _apply_property_edit(
         diameter = payload.get("diameterMm")
         if isinstance(diameter, bool) or not isinstance(diameter, (int, float)):
             raise ValueError("Cable-group diameter must be a number in millimeters.")
+        conductor_diameter = payload.get("conductorDiameterMm")
+        if conductor_diameter is not None and (
+            isinstance(conductor_diameter, bool) or not isinstance(conductor_diameter, (int, float))
+        ):
+            raise ValueError("Conductor diameter must be a number in millimeters or null for Auto.")
         property_materials = _read_material_overrides(
             {
                 "insulationMaterial": payload.get("insulationMaterial"),
@@ -444,6 +449,7 @@ def _apply_property_edit(
             property_materials.part_number,
             _read_metadata(payload.get("metadataOverrides", []), "Cable metadata overrides"),
             gateway,
+            conductor_diameter_mm=conductor_diameter,
         )
         return "Saved connected-cable properties."
     if action == "set_harness_material_defaults":
@@ -525,6 +531,7 @@ def _apply_property_edit(
             _read_visual_overrides(
                 {
                     "diameterMm": payload.get("diameterMm"),
+                    "conductorDiameterMm": payload.get("conductorDiameterMm"),
                     "insulationMaterial": payload.get("insulationMaterial"),
                     "conductorMaterial": payload.get("conductorMaterial"),
                     "shielding": payload.get("shielding"),
@@ -553,6 +560,7 @@ def _apply_property_edit(
                 metadata,
                 gateway,
                 diameter_mm=property_overrides.diameter_mm,
+                conductor_diameter_mm=property_overrides.conductor_diameter_mm,
                 insulation_material=property_overrides.insulation_material,
                 conductor_material=property_overrides.conductor_material,
                 shielding=property_overrides.shielding,

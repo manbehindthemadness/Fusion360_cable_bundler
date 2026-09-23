@@ -147,9 +147,11 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
   const row = dialog.querySelector('.metadata-row');
   const value = row.querySelector('.metadata-value');
   const override = descendants(row, (node) => node.type === 'checkbox')[0];
+  const conductorDiameter = dialog.querySelector('.conductor-diameter-field').querySelector('input');
   assert.equal(descendants(dialog, (node) => node.textContent === 'Shielding').length, 1);
   assert.equal(value.value, 'Orion');
   assert.equal(value.disabled, true);
+  assert.equal(conductorDiameter.value, 'auto');
   override.checked = true;
   override.events.change();
   value.value = 'Apollo';
@@ -158,6 +160,7 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
   assert.equal(calls[0].action, 'set_cable_group_properties');
   assert.equal(calls[0].payload.shielding, null);
   assert.equal(calls[0].payload.dielectricMaterial, null);
+  assert.equal(calls[0].payload.conductorDiameterMm, null);
   assert.equal(JSON.stringify(calls[0].payload.metadataOverrides), JSON.stringify([
     { key: 'project', value: 'Apollo' },
   ]));

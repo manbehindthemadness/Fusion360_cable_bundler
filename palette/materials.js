@@ -88,6 +88,46 @@ function createMaterialTextField(settings, key, labelText, suggestions = [], mul
   return { wrapper, header, input };
 }
 
+/** Build an Auto-or-millimeter conductor diameter tied to an outer diameter input. */
+function createConductorDiameterField(outerDiameter, configuredDiameterMm) {
+  const wrapper = document.createElement("div");
+  const header = document.createElement("div");
+  const label = document.createElement("strong");
+  const hint = document.createElement("span");
+  const input = document.createElement("input");
+  wrapper.className = "material-field conductor-diameter-field";
+  header.className = "material-field-heading";
+  label.textContent = "Conductor Diameter (mm)";
+  hint.className = "conductor-diameter-hint";
+  input.type = "text";
+  input.className = "filter";
+  input.value = configuredDiameterMm == null ? "auto" : `${configuredDiameterMm}`;
+  const updateHint = () => {
+    const diameterMm = Number(outerDiameter.value);
+    hint.textContent = Number.isFinite(diameterMm) && diameterMm > 0
+      ? `Auto = ${(diameterMm * 0.75).toFixed(3).replace(/\.?0+$/, "")} mm (75%)`
+      : "Auto = 75% of diameter";
+  };
+  const read = () => {
+    const value = input.value.trim();
+    if (value.toLocaleLowerCase() === "auto") return null;
+    const conductorDiameterMm = Number(value);
+    const outerDiameterMm = Number(outerDiameter.value);
+    if (!Number.isFinite(conductorDiameterMm) || conductorDiameterMm <= 0) {
+      throw new Error("Conductor diameter must be Auto or a positive number in millimeters.");
+    }
+    if (Number.isFinite(outerDiameterMm) && conductorDiameterMm > outerDiameterMm) {
+      throw new Error("Conductor diameter cannot exceed the cable or connection diameter.");
+    }
+    return conductorDiameterMm;
+  };
+  outerDiameter.addEventListener("input", updateHint);
+  header.append(label, hint);
+  wrapper.append(header, input);
+  updateHint();
+  return { wrapper, input, hint, read };
+}
+
 /** Build an ordered key/value editor with optional parent inheritance controls. */
 function createMetadataEditor(parentEntries, overrideEntries = null) {
   const wrapper = document.createElement("section");
@@ -211,6 +251,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   form.append(heading, note);
 
   let diameter = null;
+  let conductorDiameter = null;
   if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
@@ -251,6 +292,12 @@ function openPropertiesDialog(harness, cableGroup = null) {
   addMaterialField(
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials,
   );
+  if (isCableGroup) {
+    conductorDiameter = createConductorDiameterField(
+      diameter, cableGroup.conductorDiameterMm,
+    );
+    form.append(conductorDiameter.wrapper);
+  }
   addMaterialField("shielding", "Shielding");
   addMaterialField("dielectricMaterial", "Dielectric Material");
   const updateDielectricVisibility = () => {
@@ -272,6 +319,15 @@ function openPropertiesDialog(harness, cableGroup = null) {
     if (isCableGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
       error.textContent = "Enter a positive diameter in millimeters.";
       return;
+    }
+    let conductorDiameterMm = null;
+    if (isCableGroup) {
+      try {
+        conductorDiameterMm = conductorDiameter.read();
+      } catch (failure) {
+        error.textContent = failure.message;
+        return;
+      }
     }
     const fieldValue = (key) => isCableGroup && !controls[key].toggle.checked
       ? null : controls[key].input.value;
@@ -300,6 +356,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             harnessId: harness.harnessId,
             cableGroupId: cableGroup.cableGroupId,
             diameterMm,
+            conductorDiameterMm,
             insulationMaterial,
             conductorMaterial,
             shielding,
@@ -661,6 +718,10 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   addMaterialOverride(
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
   );
+  const conductorDiameter = createConductorDiameterField(
+    diameter, overrides.conductorDiameterMm,
+  );
+  form.append(conductorDiameter.wrapper);
   addMaterialOverride("shielding", "Shielding", []);
   addMaterialOverride("dielectricMaterial", "Dielectric Material", []);
   const updateDielectricVisibility = () => {
@@ -681,6 +742,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
       if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
         throw new Error("Diameter must be a positive number.");
       }
+      const conductorDiameterMm = conductorDiameter.read();
       const combinedDiameter = siblings.reduce((total, candidate) => {
         if (candidate.attachmentId === attachment.attachmentId) return total + diameterMm;
         return total + (candidate.visualOverrides?.diameterMm ?? inheritedDiameter);
@@ -714,6 +776,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         connectionId: attachment.connectionId,
         attachmentId: attachment.attachmentId,
         diameterMm,
+        conductorDiameterMm,
         insulationMaterial,
         conductorMaterial,
         shielding,

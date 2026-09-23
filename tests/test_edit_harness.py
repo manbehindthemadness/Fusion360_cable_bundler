@@ -345,6 +345,7 @@ def test_edits_group_construction_and_visual_overrides(
         "WG-01",
         (("drawing-zone", "B4"),),
         gateway,
+        conductor_diameter_mm=1.8,
     )
     set_cable_group_material_overrides(
         valid_harness.harness_id,
@@ -355,6 +356,8 @@ def test_edits_group_construction_and_visual_overrides(
 
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].diameter_mm == 2.4
+    assert stored.cable_groups[0].conductor_diameter_mm == 1.8
+    assert stored.cable_groups[0].resolved_conductor_diameter_mm == 1.8
     main_color = stored.cable_groups[0].material_overrides.main_color
     assert main_color is not None
     assert main_color.name == "Red"

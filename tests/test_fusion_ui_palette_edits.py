@@ -477,6 +477,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
                 "harnessId": str(harness_id),
                 "cableGroupId": str(cable_group_id),
                 "diameterMm": 2.75,
+                "conductorDiameterMm": 2.0,
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
                 "shielding": "Braided copper",
@@ -500,6 +501,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         "WB-42",
         (("drawing-zone", "B4"),),
         gateway,
+        conductor_diameter_mm=2.0,
     )
     assert notice == "Saved connected-cable properties."
 
@@ -739,6 +741,7 @@ def test_palette_edit_saves_connection_properties(
                 "connectionId": str(connection_id),
                 "attachmentId": str(attachment_id),
                 "diameterMm": 0.6,
+                "conductorDiameterMm": 0.45,
                 "insulationMaterial": "ETFE",
                 "conductorMaterial": None,
                 "shielding": "",
@@ -757,6 +760,7 @@ def test_palette_edit_saves_connection_properties(
         (("location", "P2"),),
         gateway,
         diameter_mm=0.6,
+        conductor_diameter_mm=0.45,
         insulation_material="ETFE",
         conductor_material=None,
         shielding="",

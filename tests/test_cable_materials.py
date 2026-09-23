@@ -120,6 +120,7 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
         inherited.attachment,
         visual_overrides=CableVisualOverrides(
             diameter_mm=0.6,
+            conductor_diameter_mm=0.45,
             insulation_material="ETFE",
             conductor_material="Aluminum",
             shielding="Foil",
@@ -170,6 +171,18 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
             group, connection.connection_id, second.attachment_id
         )
         == group.diameter_mm / 2.0
+    )
+    assert (
+        multiple.cable_end_attachment_conductor_diameter(
+            group, connection.connection_id, overridden.attachment_id
+        )
+        == 0.45
+    )
+    assert (
+        multiple.cable_end_attachment_conductor_diameter(
+            group, connection.connection_id, second.attachment_id
+        )
+        == group.diameter_mm / 2.0 * 0.75
     )
 
 
