@@ -1,1 +1,3 @@
-"""Internal route-preview solving services."""
+"""
+Internal route-preview solving services.
+"""

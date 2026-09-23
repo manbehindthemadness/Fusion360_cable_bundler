@@ -1,4 +1,6 @@
-"""Generated cable appearance lookup and persistent material metadata."""
+"""
+Generated cable appearance lookup and persistent material metadata.
+"""
 
 from __future__ import annotations
 

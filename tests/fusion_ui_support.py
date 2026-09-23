@@ -1,4 +1,6 @@
-"""Shared Fusion UI test doubles, fixtures, and deterministic helpers."""
+"""
+Shared Fusion UI test doubles, fixtures, and deterministic helpers.
+"""
 
 # ruff: noqa: F401
 

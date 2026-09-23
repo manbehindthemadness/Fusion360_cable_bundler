@@ -3,22 +3,26 @@ Pure application domain for harness definitions and validation.
 """
 
 from .codec import DefinitionParseError, dumps, loads
-from .model import (
-    DEFAULT_CABLE_DIAMETER_MM,
-    SCHEMA_VERSION,
-    AttachmentTargetKind,
-    AutoTransitionPreset,
+from .materials import (
     CableAppearanceReference,
     CableColor,
-    CableEndAttachment,
-    CableEndTarget,
-    CableGroupDefinition,
     CableMaterialOverrides,
     CableMaterialSettings,
     CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
     CableWeldSettings,
+    PullbackMode,
+    StripePattern,
+)
+from .model import (
+    DEFAULT_CABLE_DIAMETER_MM,
+    SCHEMA_VERSION,
+    AttachmentTargetKind,
+    AutoTransitionPreset,
+    CableEndAttachment,
+    CableEndTarget,
+    CableGroupDefinition,
     Connection,
     ControlKind,
     ControlStructure,
@@ -28,11 +32,9 @@ from .model import (
     Metadata,
     PathwayDefinition,
     PathwayEndpoint,
-    PullbackMode,
     RefineGeometry,
     RoutingMode,
     StandaloneEndDefinition,
-    StripePattern,
 )
 from .naming import next_available_name
 from .validation import ValidationIssue, validate_harness

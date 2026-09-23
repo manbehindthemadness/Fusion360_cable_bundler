@@ -9,15 +9,14 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Optional, Type, TypeVar
 from uuid import UUID
 
+from .materials import PullbackMode, StripePattern
 from .model import (
     AttachmentTargetKind,
     AutoTransitionPreset,
     ControlKind,
     InterpolationSettings,
     PathwayEndpoint,
-    PullbackMode,
     RoutingMode,
-    StripePattern,
 )
 
 EnumType = TypeVar(

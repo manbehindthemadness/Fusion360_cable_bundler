@@ -1,6 +1,6 @@
 /* global require, __dirname */
 const {
-  Element, assert, descendants, harness, palette, readPaletteStyles, test,
+  assert, descendants, harness, palette, test,
 } = require('./support.cjs');
 
 /** Return a branching topology with three full-width pathways at its root depth. */
@@ -123,7 +123,7 @@ test('group-only palette state drives pathway occupancy', () => {
   const { context } = palette();
   const definition = harness();
 
-  assert.equal(definition.schemaVersion, 26);
+  assert.equal(definition.schemaVersion, 27);
   assert.equal(Object.hasOwn(definition, 'cables'), false);
   assert.equal(Object.hasOwn(definition, 'profiles'), false);
   assert.deepEqual(

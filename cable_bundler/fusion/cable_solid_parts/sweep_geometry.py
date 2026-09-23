@@ -1,4 +1,6 @@
-"""Split, orient, and classify routed curves for solid sweeps."""
+"""
+Split, orient, and classify routed curves for solid sweeps.
+"""
 
 from __future__ import annotations
 

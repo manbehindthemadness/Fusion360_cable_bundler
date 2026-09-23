@@ -1,4 +1,6 @@
-"""Focused Fusion UI regressions for palette."""
+"""
+Focused Fusion UI regressions for palette.
+"""
 
 from __future__ import annotations
 

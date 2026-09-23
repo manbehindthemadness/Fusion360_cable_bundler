@@ -1,4 +1,6 @@
-"""Selection placement and preview helpers for add-refine commands."""
+"""
+Selection placement and preview helpers for add-refine commands.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,6 @@
-"""Geometry, radius, and transform input conversion for refine commands."""
+"""
+Geometry, radius, and transform input conversion for refine commands.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,6 @@
-"""Focused Fusion UI regressions for viewport."""
+"""
+Focused Fusion UI regressions for viewport.
+"""
 
 from __future__ import annotations
 

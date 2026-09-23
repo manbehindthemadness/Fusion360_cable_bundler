@@ -1,4 +1,6 @@
-"""Focused Fusion UI regressions for native commands."""
+"""
+Focused Fusion UI regressions for native commands.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,6 @@
-"""Native Fusion command for attaching one cable end to external geometry."""
+"""
+Native Fusion command for attaching one cable end to external geometry.
+"""
 
 from __future__ import annotations
 

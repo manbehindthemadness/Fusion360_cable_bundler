@@ -1,4 +1,6 @@
-"""Build target-conforming solder-weld bodies at finalized cable endpoints."""
+"""
+Build target-conforming solder-weld bodies at finalized cable endpoints.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +24,9 @@ from .sweep_geometry import split_route_for_pullback
 
 @dataclass(frozen=True)
 class WeldEndpoint:
-    """Describe one resolved leaf weld and its optional conforming target face."""
+    """
+    Describe one resolved leaf weld and its optional conforming target face.
+    """
 
     attachment_id: UUID
     target_face: Optional[adsk.fusion.BRepFace]
@@ -30,7 +34,9 @@ class WeldEndpoint:
     settings: CableWeldSettings
 
     def __post_init__(self) -> None:
-        """Require usable identity, sizing, and target geometry."""
+        """
+        Require usable identity, sizing, and target geometry.
+        """
         if not isinstance(self.attachment_id, UUID):
             raise ValueError("Weld attachment identity is invalid.")
         if (
@@ -45,18 +51,24 @@ class WeldEndpoint:
 
     @property
     def diameter_mm(self) -> float:
-        """Return the configured maximum weld diameter in millimeters."""
+        """
+        Return the configured maximum weld diameter in millimeters.
+        """
         return self.conductor_diameter_mm * self.settings.value / 100.0
 
     @property
     def radius_mm(self) -> float:
-        """Return both the maximum weld radius and requested axial reach."""
+        """
+        Return both the maximum weld radius and requested axial reach.
+        """
         return self.diameter_mm / 2.0
 
 
 @dataclass(frozen=True)
 class WeldBuildResult:
-    """Return the retained weld body and its applied axial reach."""
+    """
+    Return the retained weld body and its applied axial reach.
+    """
 
     body: adsk.fusion.BRepBody
     length_mm: float
@@ -69,7 +81,9 @@ def _persist_temporary_body(
     *,
     hidden: bool = True,
 ) -> adsk.fusion.BRepBody:
-    """Persist one transient body in the generated component."""
+    """
+    Persist one transient body in the generated component.
+    """
     design = component.parentDesign
     if design is not None and design.designType == adsk.fusion.DesignTypes.DirectDesignType:
         result_body = component.bRepBodies.add(temporary_body)
@@ -104,7 +118,9 @@ def _build_weld_ball(
     radius_mm: float,
     name: str,
 ) -> adsk.fusion.BRepBody:
-    """Create a separate spherical weld fallback at a local connection point."""
+    """
+    Create a separate spherical weld fallback at a local connection point.
+    """
     manager = adsk.fusion.TemporaryBRepManager.get()
     if manager is None:
         raise RuntimeError("Fusion temporary B-Rep services are unavailable.")
@@ -127,9 +143,27 @@ def _build_weld_ball(
 
 
 def _remove_failed_helper(body: Optional[adsk.fusion.BRepBody]) -> None:
-    """Remove one retained helper before changing to spherical fallback geometry."""
+    """
+    Remove one retained helper before changing to spherical fallback geometry.
+    """
     if body is not None and body.isValid and not body.deleteMe():
         raise RuntimeError("Fusion could not remove failed weld helper geometry.")
+
+
+def _remove_failed_construction(
+    sketches: list[adsk.fusion.Sketch],
+    planes: list[adsk.fusion.ConstructionPlane],
+) -> None:
+    """
+    Remove construction features left by a rejected conforming weld.
+
+    Sketches are removed before their supporting planes so Fusion can release
+    feature dependencies in reverse creation order.
+    """
+    for label, entities in (("sketch", reversed(sketches)), ("plane", reversed(planes))):
+        for entity in entities:
+            if entity.isValid and not entity.deleteMe():
+                raise RuntimeError(f"Fusion could not remove failed weld {label} geometry.")
 
 
 def _log_face_fallback(
@@ -138,7 +172,9 @@ def _log_face_fallback(
     stage: str,
     error: Exception,
 ) -> None:
-    """Record a recoverable face-conformance failure in Fusion's file log."""
+    """
+    Record a recoverable face-conformance failure in Fusion's file log.
+    """
     adsk.core.Application.log(
         (
             "Cable Bundler used spherical weld fallback: "
@@ -159,7 +195,9 @@ def _local_target_patch(
     radius_cm: float,
     name: str,
 ) -> adsk.fusion.BRepBody:
-    """Trim a target-face copy to the weld footprint in component coordinates."""
+    """
+    Trim a target-face copy to the weld footprint in component coordinates.
+    """
     manager = adsk.fusion.TemporaryBRepManager.get()
     if manager is None:
         raise RuntimeError("Fusion temporary B-Rep services are unavailable.")
@@ -196,7 +234,9 @@ def _local_axis_edge(
     conductor_point: adsk.core.Point3D,
     name: str,
 ) -> tuple[adsk.fusion.BRepBody, adsk.fusion.BRepEdge]:
-    """Create a hidden local guide body whose longest edge is the true 3D weld axis."""
+    """
+    Create a hidden local guide body whose longest edge is the true 3D weld axis.
+    """
     manager = adsk.fusion.TemporaryBRepManager.get()
     if manager is None:
         raise RuntimeError("Fusion temporary B-Rep services are unavailable.")
@@ -287,6 +327,8 @@ def build_weld_body(
     local_target_surface: Optional[adsk.fusion.BRepBody] = None
     axis_body: Optional[adsk.fusion.BRepBody] = None
     conforming_body: Optional[adsk.fusion.BRepBody] = None
+    construction_planes: list[adsk.fusion.ConstructionPlane] = []
+    construction_sketches: list[adsk.fusion.Sketch] = []
     try:
         local_conductor_point = fusion_point(conductor_point, transform)
         local_target_surface = _local_target_patch(
@@ -338,10 +380,12 @@ def build_weld_body(
             plane = component.constructionPlanes.add(plane_input)
             if plane is None:
                 raise RuntimeError("Fusion did not create a weld section plane.")
+            construction_planes.append(plane)
             plane.name = f"{name} {label} Diameter"
             section = component.sketches.add(plane)
             if section is None:
                 raise RuntimeError("Fusion did not create a weld section sketch.")
+            construction_sketches.append(section)
             section.name = f"{name} {label} Diameter"
             center_point = lerp(target_point, conductor_point, parameter)
             center = section.modelToSketchSpace(fusion_point(center_point, transform))
@@ -404,6 +448,7 @@ def build_weld_body(
             _remove_failed_helper(conforming_body)
             _remove_failed_helper(local_target_surface)
             _remove_failed_helper(axis_body)
+            _remove_failed_construction(construction_sketches, construction_planes)
             _log_face_fallback(endpoint, name, stage, face_error)
             ball = _build_weld_ball(component, local_target_point, endpoint.radius_mm, name)
         except (AttributeError, RuntimeError, TypeError, ValueError) as fallback_error:

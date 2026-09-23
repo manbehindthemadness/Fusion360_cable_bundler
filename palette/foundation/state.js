@@ -45,7 +45,13 @@ function writePreference(key, value) {
   catch (_error) { /* Palette storage is an optional convenience. */ }
 }
 
-let currentState = { harnesses: [], notice: "" };
+let currentState = {
+  harnesses: [],
+  notice: "",
+  catalog: {
+    insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
+  },
+};
 let selectedHarnessKey = readSession("cableBundler.selectedHarness") || "";
 let openPathwayPopupId = "";
 let openJunctionPopupId = "";

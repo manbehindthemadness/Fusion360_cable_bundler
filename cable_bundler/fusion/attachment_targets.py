@@ -1,7 +1,10 @@
-"""Resolve the supported Fusion targets used by cable-end attachments."""
+"""
+Resolve the supported Fusion targets used by cable-end attachments.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Optional, Union
 
 # noinspection PyUnresolvedReferences
@@ -13,12 +16,23 @@ import adsk.fusion
 from ..domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
 
 
+def _invoke_cast(
+    cast_function: Callable[[object], Optional[object]], entity: object
+) -> Optional[object]:
+    """
+    Invoke a Fusion cast function after its callable boundary has been validated.
+    """
+    return cast_function(entity)
+
+
 def _cast(entity_type: object, entity: object) -> Optional[object]:
     """
     Cast an entity through one Fusion type without assuming a live host in tests.
     """
-    cast = getattr(entity_type, "cast", None)
-    return cast(entity) if callable(cast) else None
+    cast_function = getattr(entity_type, "cast", None)
+    if cast_function is None or not callable(cast_function):
+        return None
+    return _invoke_cast(cast_function, entity)
 
 
 def attachment_target_kind(entity: object) -> Optional[AttachmentTargetKind]:

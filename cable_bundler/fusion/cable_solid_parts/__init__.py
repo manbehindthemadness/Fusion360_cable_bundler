@@ -1,1 +1,3 @@
-"""Internal solid-generation, decoration, and material services."""
+"""
+Internal solid-generation, decoration, and material services.
+"""

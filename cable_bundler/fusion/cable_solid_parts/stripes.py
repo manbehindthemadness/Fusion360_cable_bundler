@@ -1,4 +1,6 @@
-"""Create and replace Custom Graphics stripe decorations for generated cables."""
+"""
+Create and replace Custom Graphics stripe decorations for generated cables.
+"""
 
 from __future__ import annotations
 

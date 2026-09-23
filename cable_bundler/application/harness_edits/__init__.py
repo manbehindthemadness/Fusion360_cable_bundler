@@ -2,24 +2,26 @@
 Focused transactional edits for persisted harness definitions.
 """
 
-from .ends import (
+from .attachments import (
     add_cable_end_connection,
-    add_connection_refine,
-    add_end_refine,
-    append_end_guides,
     attach_cable_end,
     attach_cable_end_shielding,
     disconnect_cable_end_main,
     disconnect_cable_end_shielding,
     remove_cable_end_attachment,
-    remove_end_control,
-    remove_end_guide,
-    remove_standalone_end,
     rename_cable_end_attachment,
-    rename_standalone_end,
     set_cable_end_attachment_properties,
     set_cable_end_attachment_shielding,
     set_cable_end_attachment_visual_overrides,
+)
+from .ends import (
+    add_connection_refine,
+    add_end_refine,
+    append_end_guides,
+    remove_end_control,
+    remove_end_guide,
+    remove_standalone_end,
+    rename_standalone_end,
     set_cable_end_properties,
     switch_standalone_end,
 )

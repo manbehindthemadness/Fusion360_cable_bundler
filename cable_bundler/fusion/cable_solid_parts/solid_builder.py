@@ -1,4 +1,6 @@
-"""Build persistent Fusion sweep bodies for one routed cable group."""
+"""
+Build persistent Fusion sweep bodies for one routed cable group.
+"""
 
 from __future__ import annotations
 
@@ -79,7 +81,9 @@ def _branch_weld_metadata(
     endpoint: Optional[WeldEndpoint],
     route: RoutePreview,
 ) -> dict[str, object]:
-    """Serialize optional branch weld geometry without unsafe null access."""
+    """
+    Serialize optional branch weld geometry without unsafe null access.
+    """
     if endpoint is None:
         return {
             "weld_diameter_mm": 0.0,

@@ -1,4 +1,6 @@
-"""Probe conforming and spherical welds inside an isolated live Fusion design."""
+"""
+Probe conforming and spherical welds inside an isolated live Fusion design.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +20,9 @@ from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
 
 
 def _point_coordinate(point: object, name: str) -> float:
-    """Read one finite numeric coordinate from host-owned point geometry."""
+    """
+    Read one finite numeric coordinate from host-owned point geometry.
+    """
     value = getattr(point, name, None)
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise RuntimeError(f"Fusion returned an invalid target-point {name}-coordinate.")
@@ -26,7 +30,9 @@ def _point_coordinate(point: object, name: str) -> float:
 
 
 def _straight_route(start: Vector3, end: Vector3) -> RoutePreview:
-    """Create one exact straight cubic route between millimeter points."""
+    """
+    Create one exact straight cubic route between millimeter points.
+    """
     first = Vector3(
         start.x + (end.x - start.x) / 3.0,
         start.y + (end.y - start.y) / 3.0,
@@ -45,7 +51,9 @@ def _rectangle_profile(
     component: adsk.fusion.Component,
     half_size_cm: float,
 ) -> adsk.fusion.Profile:
-    """Create a centered rectangle on the component YZ plane."""
+    """
+    Create a centered rectangle on the component YZ plane.
+    """
     sketch = component.sketches.add(component.yZConstructionPlane)
     lines = sketch.sketchCurves.sketchLines
     lines.addTwoPointRectangle(
@@ -59,7 +67,9 @@ def _rectangle_profile(
 
 
 def _planar_target(component: adsk.fusion.Component) -> tuple[adsk.fusion.BRepFace, Vector3]:
-    """Create a planar target whose connection point is the origin."""
+    """
+    Create a planar target whose connection point is the origin.
+    """
     profile = _rectangle_profile(component, 0.4)
     extrude = component.features.extrudeFeatures.addSimple(
         profile,
@@ -73,7 +83,9 @@ def _planar_target(component: adsk.fusion.Component) -> tuple[adsk.fusion.BRepFa
 
 
 def _curved_target(component: adsk.fusion.Component) -> tuple[adsk.fusion.BRepFace, Vector3]:
-    """Create a cylindrical target with a known outward connection point."""
+    """
+    Create a cylindrical target with a known outward connection point.
+    """
     sketch = component.sketches.add(component.yZConstructionPlane)
     circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(
         adsk.core.Point3D.create(1.5, 0.0, 0.0),
@@ -103,7 +115,9 @@ def _curved_target(component: adsk.fusion.Component) -> tuple[adsk.fusion.BRepFa
 
 
 def _oblique_target(component: adsk.fusion.Component) -> tuple[adsk.fusion.BRepFace, Vector3]:
-    """Create a planar target proxy in a rotated and translated occurrence."""
+    """
+    Create a planar target proxy in a rotated and translated occurrence.
+    """
     transform = adsk.core.Matrix3D.create()
     axis = adsk.core.Vector3D.create(0.0, 1.0, 1.0)
     if not axis.normalize() or not transform.setToRotation(
@@ -139,7 +153,9 @@ def _probe_case(
         tuple[adsk.fusion.BRepFace, Vector3],
     ],
 ) -> dict[str, object]:
-    """Build one production weld against a generated target and report its body."""
+    """
+    Build one production weld against a generated target and report its body.
+    """
     target_face, start = target_factory(root)
     normal_result, normal = target_face.evaluator.getNormalAtPoint(
         adsk.core.Point3D.create(start.x / 10.0, start.y / 10.0, start.z / 10.0)
@@ -178,7 +194,9 @@ def _probe_ball_case(
     label: str,
     target_face: Optional[adsk.fusion.BRepFace],
 ) -> dict[str, object]:
-    """Build one production spherical fallback and report its retained body."""
+    """
+    Build one production spherical fallback and report its retained body.
+    """
     start = Vector3(10.0 if target_face is not None else 0.0, 0.0, 0.0)
     end = Vector3(start.x + 10.0, start.y, start.z)
     occurrence = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
@@ -212,7 +230,9 @@ def _capture_case(
     target_point_mm: list[float],
     target_normal: list[float],
 ) -> dict[str, object]:
-    """Capture one close isometric view centered on a probe contact point."""
+    """
+    Capture one close isometric view centered on a probe contact point.
+    """
     stem, separator, suffix = capture_path.rpartition(".")
     case_path = f"{stem}_{label}.{suffix}" if separator else f"{capture_path}_{label}.png"
     viewport = application.activeViewport
@@ -240,7 +260,9 @@ def _capture_case(
 
 
 def run_projection_probe(capture_path: str = "") -> dict[str, object]:
-    """Run all weld cases, optionally capture the viewport, and close unsaved."""
+    """
+    Run all weld cases, optionally capture the viewport, and close unsaved.
+    """
     application = adsk.core.Application.get()
     if application is None:
         raise RuntimeError("Fusion is unavailable for the weld projection probe.")

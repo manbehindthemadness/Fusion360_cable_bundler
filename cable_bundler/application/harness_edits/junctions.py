@@ -1,4 +1,6 @@
-"""Junction creation, relationship, naming, and deletion edits."""
+"""
+Junction creation, relationship, naming, and deletion edits.
+"""
 
 from __future__ import annotations
 

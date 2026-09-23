@@ -1,4 +1,6 @@
-"""Shared definition lookup, topology, and persistence helpers for harness edits."""
+"""
+Shared definition lookup, topology, and persistence helpers for harness edits.
+"""
 
 from __future__ import annotations
 

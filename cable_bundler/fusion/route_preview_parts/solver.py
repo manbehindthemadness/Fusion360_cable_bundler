@@ -1,4 +1,6 @@
-"""Resolve Fusion route inputs into deterministic centerline solutions."""
+"""
+Resolve Fusion route inputs into deterministic centerline solutions.
+"""
 
 from __future__ import annotations
 

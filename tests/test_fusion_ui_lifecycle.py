@@ -1,4 +1,6 @@
-"""Focused Fusion UI regressions for lifecycle."""
+"""
+Focused Fusion UI regressions for lifecycle.
+"""
 
 from __future__ import annotations
 

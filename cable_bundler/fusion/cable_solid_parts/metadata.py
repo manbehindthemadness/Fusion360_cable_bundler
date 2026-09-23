@@ -1,4 +1,6 @@
-"""Coordinate transforms and persistent route metadata for generated solids."""
+"""
+Coordinate transforms and persistent route metadata for generated solids.
+"""
 
 from __future__ import annotations
 

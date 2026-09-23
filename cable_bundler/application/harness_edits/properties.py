@@ -1,4 +1,6 @@
-"""Harness material, construction, and interpolation edits."""
+"""
+Harness material, construction, and interpolation edits.
+"""
 
 from __future__ import annotations
 

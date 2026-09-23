@@ -1,1 +1,3 @@
-"""Shared state and input helpers for refine commands."""
+"""
+Shared state and input helpers for refine commands.
+"""

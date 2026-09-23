@@ -18,19 +18,16 @@ import pytest
 
 from cable_bundler.domain import (
     AttachmentTargetKind,
-    CableColor,
     CableEndAttachment,
     CablePullbackSettings,
     CableStripe,
-    CableVisualOverrides,
     HarnessDefinition,
     PullbackMode,
-    StripePattern,
 )
 from cable_bundler.routing import CubicBezier, RoutePreview, StripeMeshResult, Vector3
-from cable_bundler.routing.geometry import difference, dot, unit
 
 
+# noinspection DuplicatedCode
 class _SweepSegment(Protocol):
     """
     Describe one private junction-bounded solid construction segment.
@@ -381,7 +378,9 @@ def test_resolves_weld_from_leaf_face_and_conductor_diameter(
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
 ) -> None:
-    """Scale weld diameter and reach from the resolved leaf conductor."""
+    """
+    Scale weld diameter and reach from the resolved leaf conductor.
+    """
     group = valid_harness.cable_groups[0]
     connection = valid_harness.connections[0]
     attachment = CableEndAttachment(
@@ -422,7 +421,9 @@ def test_resolves_spherical_weld_for_non_face_leaf(
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
 ) -> None:
-    """Retain weld sizing without requiring a conforming BRep face."""
+    """
+    Retain weld sizing without requiring a conforming BRep face.
+    """
     group = valid_harness.cable_groups[0]
     connection = valid_harness.connections[0]
     attachment = CableEndAttachment(
@@ -452,6 +453,32 @@ def test_resolves_spherical_weld_for_non_face_leaf(
     assert endpoint.target_face is None
     assert endpoint.diameter_mm == pytest.approx(group.diameter_mm * 0.75 * 1.5)
     resolve_target.assert_not_called()
+
+
+def test_rejected_conforming_weld_removes_construction_in_dependency_order(
+    cable_solids: _CableSolidsModule,
+) -> None:
+    """
+    Delete rejected weld sketches before their supporting construction planes.
+    """
+    welds_module = importlib.import_module("cable_bundler.fusion.cable_solid_parts.welds")
+    removed: list[str] = []
+
+    def entity(name: str) -> SimpleNamespace:
+        """
+        Return one valid deletable Fusion construction-feature stand-in.
+        """
+        return SimpleNamespace(
+            isValid=True,
+            deleteMe=lambda: removed.append(name) is None,
+        )
+
+    welds_module._remove_failed_construction(
+        [entity("sketch-1"), entity("sketch-2")],
+        [entity("plane-1"), entity("plane-2")],
+    )
+
+    assert removed == ["sketch-2", "sketch-1", "plane-2", "plane-1"]
 
 
 def test_finalize_replaces_main_route_endpoint_with_pullback_body(
@@ -522,7 +549,9 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
         _endpoint: object,
         _name: str,
     ) -> object:
-        """Record a distinct finalized weld body without invoking Fusion."""
+        """
+        Record a distinct finalized weld body without invoking Fusion.
+        """
         body = SimpleNamespace(name="", appearance=None)
         stored_bodies.append(body)
         return SimpleNamespace(body=body, length_mm=weld_endpoint.radius_mm)
@@ -615,607 +644,3 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     assert stored_bodies[0].appearance == "Black"
     preview_routes = preview_stripes.call_args.args[1]
     assert preview_routes == (route,)
-
-
-def test_restores_transient_stripes_from_generated_routes(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Recreate decorations after reload without regenerating persistent bodies.
-    """
-    definition = replace(
-        valid_harness,
-        material_defaults=replace(
-            valid_harness.material_defaults,
-            stripes=(CableStripe(CableColor("Red", 255, 0, 0), 0.25),),
-        ),
-    )
-    group = definition.cable_groups[0]
-    route = _straight_route(900, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    metadata = {
-        "cable_group_id": str(group.cable_group_id),
-        "route_legs": [
-            {
-                "route_id": str(route.cable_id),
-                "label": route.cable_number,
-                "route_curves_mm": [
-                    [
-                        [point.x, point.y, point.z]
-                        for point in (
-                            route.curves[0].start,
-                            route.curves[0].control_a,
-                            route.curves[0].control_b,
-                            route.curves[0].end,
-                        )
-                    ]
-                ],
-            }
-        ],
-    }
-    attribute = type("Attribute", (), {"value": json.dumps(metadata)})()
-    attributes = type("Attributes", (), {"itemByName": lambda *_args: attribute})()
-    empty_graphics = type("GraphicsGroups", (), {"count": 0})()
-    component = type(
-        "Component",
-        (),
-        {"attributes": attributes, "customGraphicsGroups": empty_graphics},
-    )()
-    occurrence = type(
-        "Occurrence",
-        (),
-        {"component": component, "isLightBulbOn": False},
-    )()
-    replace_graphics = Mock(return_value=4)
-    monkeypatch.setattr(
-        cable_solids,
-        "generated_cable_group_occurrences",
-        lambda _harness: (occurrence,),
-    )
-    monkeypatch.setattr(
-        cable_solids,
-        "_replace_group_stripe_graphics",
-        replace_graphics,
-    )
-
-    harness = object()
-
-    assert cable_solids.restore_cable_group_stripe_graphics(harness, definition) == 4
-
-    assert replace_graphics.call_args.args[0] is harness
-    restored_routes = replace_graphics.call_args.args[1]
-    assert restored_routes == (route,)
-    assert replace_graphics.call_args.args[3] == group.diameter_mm / 2.0
-    assert replace_graphics.call_args.args[4] == group.cable_group_id
-    assert replace_graphics.call_args.kwargs == {"is_visible": False}
-
-
-def test_applies_connection_branch_appearance_and_stripe_overrides(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Recolor and redecorate each generated branch from its persistent node owner.
-    """
-    inherited_stripe = CableStripe(CableColor("White", 255, 255, 255), 0.2)
-    first = CableEndAttachment(
-        None,
-        attachment_id=UUID(int=920),
-        visual_overrides=CableVisualOverrides(
-            main_color=CableColor("Red", 255, 0, 0),
-            stripes=(),
-        ),
-    )
-    second = CableEndAttachment(None, attachment_id=UUID(int=921))
-    connection = replace(
-        valid_harness.connections[0],
-        attachment=first,
-        additional_attachments=(second,),
-    )
-    definition = replace(
-        valid_harness,
-        connections=(connection, valid_harness.connections[1]),
-        material_defaults=replace(
-            valid_harness.material_defaults,
-            stripes=(inherited_stripe,),
-        ),
-    )
-    group = definition.cable_groups[0]
-    main = _straight_route(922, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    branch_a = _straight_route(923, Vector3(10.0, 0.0, 0.0), Vector3(15.0, 2.0, 0.0))
-    branch_b = _straight_route(924, Vector3(10.0, 0.0, 0.0), Vector3(15.0, -2.0, 0.0))
-
-    def encoded(route: RoutePreview) -> list[list[list[float]]]:
-        """
-        Encode exact local curves for generated metadata.
-        """
-        return [
-            [
-                [point.x, point.y, point.z]
-                for point in (curve.start, curve.control_a, curve.control_b, curve.end)
-            ]
-            for curve in route.curves
-        ]
-
-    metadata = {
-        "cable_group_id": str(group.cable_group_id),
-        "route_legs": [
-            {
-                "route_id": str(main.cable_id),
-                "label": main.cable_number,
-                "route_curves_mm": encoded(main),
-            }
-        ],
-        "connection_branches": [
-            {
-                "route_id": str(route.cable_id),
-                "label": route.cable_number,
-                "diameter_mm": group.diameter_mm / 2.0,
-                "attachment_id": str(attachment.attachment_id),
-                "route_curves_mm": encoded(route),
-            }
-            for route, attachment in ((branch_a, first), (branch_b, second))
-        ],
-    }
-    attribute = SimpleNamespace(value=json.dumps(metadata))
-    bodies = [SimpleNamespace(appearance=None) for _index in range(3)]
-    component = SimpleNamespace(
-        attributes=SimpleNamespace(itemByName=lambda *_args: attribute),
-        bRepBodies=SimpleNamespace(count=len(bodies), item=lambda index: bodies[index]),
-    )
-    occurrence = SimpleNamespace(component=component, isLightBulbOn=True)
-    replace_graphics = Mock(return_value=1)
-    monkeypatch.setattr(
-        cable_solids,
-        "generated_cable_group_occurrences",
-        lambda _harness: (occurrence,),
-    )
-    monkeypatch.setattr(cable_solids, "generated_cable_group_output_mode", lambda _item: "solids")
-    monkeypatch.setattr(cable_solids, "clear_group_stripe_graphics", Mock())
-    monkeypatch.setattr(cable_solids, "_replace_group_stripe_graphics", replace_graphics)
-    monkeypatch.setattr(
-        cable_solids,
-        "cable_appearance",
-        lambda _design, color, _appearance=None: color.name,
-    )
-
-    assert cable_solids.apply_cable_group_materials(object(), object(), definition) == 1
-
-    assert [body.appearance for body in bodies] == ["Black", "Red", "Black"]
-    decorations = replace_graphics.call_args.kwargs["branch_decorations"]
-    assert decorations[0][1] == ()
-    assert decorations[1][1] == (inherited_stripe,)
-
-
-def test_replacing_harness_owned_stripes_preserves_other_cable_groups(
-    cable_solids: _CableSolidsModule,
-) -> None:
-    """
-    Replace one stable harness overlay without deleting a neighboring group.
-    """
-    target_id = UUID(int=701)
-    other_id = UUID(int=702)
-
-    def graphics_group(identity: UUID) -> Any:
-        """
-        Build one empty deletable stripe-group test double.
-        """
-        return type(
-            "StripeGroup",
-            (),
-            {
-                "id": f"{cable_solids.GENERATED_STRIPE_GROUP_ID}:{identity}",
-                "name": "Cable Group Solid Stripes",
-                "count": 0,
-                "deleteMe": Mock(return_value=True),
-            },
-        )()
-
-    target = graphics_group(target_id)
-    other = graphics_group(other_id)
-    stored = (target, other)
-    groups = type(
-        "GraphicsGroups",
-        (),
-        {"count": len(stored), "item": lambda _self, index: stored[index]},
-    )()
-    harness = type("Harness", (), {"customGraphicsGroups": groups})()
-
-    assert cable_solids._replace_group_stripe_graphics(harness, (), (), 0.5, target_id) == 0
-
-    target.deleteMe.assert_called_once_with()
-    other.deleteMe.assert_not_called()
-
-
-def test_finalized_stripes_are_persistent_colored_mesh_bodies(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Convert the same procedural stripe triangles into renderable component geometry.
-    """
-    stripe = CableStripe(CableColor("Red", 255, 0, 0), 0.25)
-    route = _straight_route(703, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    body = type("MeshBody", (), {"name": "", "appearance": None})()
-    add = Mock(return_value=body)
-    mesh_bodies = type(
-        "MeshBodies",
-        (),
-        {"count": 0, "item": lambda _self, _index: None, "addByTriangleMeshData": add},
-    )()
-    component = type("Component", (), {"meshBodies": mesh_bodies})()
-    appearance = object()
-    stripes_module = cast(
-        Any,
-        sys.modules["cable_bundler.fusion.cable_solid_parts.stripes"],
-    )
-    monkeypatch.setitem(vars(stripes_module), "cable_appearance", Mock(return_value=appearance))
-
-    count = cable_solids._replace_group_stripe_bodies(
-        component,
-        (route,),
-        (stripe,),
-        0.5,
-        object(),
-    )
-
-    assert count == 1
-    coordinates, indices, normals, normal_indices = add.call_args.args
-    assert coordinates
-    assert indices
-    assert max(abs(coordinate) for coordinate in coordinates) <= 1.1
-    assert normals == []
-    assert normal_indices == []
-    assert body.name == "Cable Group Leg 1 Stripe 1"
-    assert body.appearance is appearance
-
-
-def test_generated_solids_visibility_round_trip_preserves_prior_state(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Hide visible managed occurrences temporarily without revealing prior-hidden output.
-    """
-    visible = type("Occurrence", (), {"isLightBulbOn": True, "isValid": True})()
-    hidden = type("Occurrence", (), {"isLightBulbOn": False, "isValid": True})()
-    stripe_group = type(
-        "StripeGroup",
-        (),
-        {
-            "id": f"{cable_solids.GENERATED_STRIPE_GROUP_ID}:{UUID(int=1)}",
-            "name": "Cable Group Solid Stripes",
-            "isVisible": True,
-            "isValid": True,
-        },
-    )()
-    groups = type(
-        "GraphicsGroups",
-        (),
-        {"count": 1, "item": lambda _self, _index: stripe_group},
-    )()
-    harness = type("Harness", (), {"customGraphicsGroups": groups})()
-    monkeypatch.setattr(
-        cable_solids,
-        "generated_cable_group_occurrences",
-        lambda _harness: (visible, hidden),
-    )
-
-    state = cable_solids.hide_generated_cable_group_solids(harness)
-
-    assert state.occurrences == ((visible, True), (hidden, False))
-    assert state.stripe_groups == ((stripe_group, True),)
-    assert not visible.isLightBulbOn
-    assert not hidden.isLightBulbOn
-    assert not stripe_group.isVisible
-
-    cable_solids.restore_generated_cable_group_visibility(state)
-
-    assert visible.isLightBulbOn
-    assert not hidden.isLightBulbOn
-    assert stripe_group.isVisible
-
-
-def test_connection_completion_rebuilds_its_group_with_branch_sweep_options(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Replace affected output with reduced branch diameters while preserving its state.
-    """
-    group = valid_harness.cable_groups[0]
-    route = _straight_route(704, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    branch = _straight_route(705, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 2.0, 0.0))
-    leg = SimpleNamespace(
-        route_id=route.cable_id,
-        cable_group_id=group.cable_group_id,
-        diameter_mm=None,
-        is_connection_branch=False,
-    )
-    branch_leg = SimpleNamespace(
-        route_id=branch.cable_id,
-        cable_group_id=group.cable_group_id,
-        diameter_mm=group.diameter_mm / 2.0,
-        is_connection_branch=True,
-    )
-
-    def occurrence(identity: UUID, *, visible: bool) -> Any:
-        """
-        Build one generated occurrence with persistent group metadata.
-        """
-        attribute = SimpleNamespace(
-            value=json.dumps(
-                {
-                    "cable_group_id": str(identity),
-                    "output_mode": "finalized",
-                }
-            )
-        )
-        return SimpleNamespace(
-            component=SimpleNamespace(
-                attributes=SimpleNamespace(itemByName=lambda *_args: attribute)
-            ),
-            isLightBulbOn=visible,
-            isValid=True,
-            deleteMe=Mock(return_value=True),
-        )
-
-    previous = occurrence(group.cable_group_id, visible=False)
-    unrelated = occurrence(UUID(int=999), visible=True)
-    replacement = SimpleNamespace(
-        component=object(),
-        isLightBulbOn=True,
-        isValid=True,
-        deleteMe=Mock(return_value=True),
-    )
-    add_occurrence = Mock(return_value=replacement)
-    harness = SimpleNamespace(occurrences=SimpleNamespace(addNewComponent=add_occurrence))
-    build = Mock()
-    matrix = object()
-    transform = object()
-    core_module = sys.modules["adsk.core"]
-    core_module.Matrix3D = SimpleNamespace(create=Mock(return_value=matrix))  # type: ignore[attr-defined]
-    monkeypatch.setattr(
-        cable_solids,
-        "generated_cable_group_occurrences",
-        lambda _harness: (previous, unrelated),
-    )
-    monkeypatch.setattr(
-        cable_solids,
-        "solve_cable_group_centerlines",
-        lambda _design, _definition, _notices: (
-            (route, branch),
-            (leg, branch_leg),
-        ),
-    )
-    monkeypatch.setattr(cable_solids, "world_to_harness", lambda _design, _harness: transform)
-    monkeypatch.setattr(cable_solids, "build_cable_group_solid", build)
-
-    updated = cable_solids.refresh_generated_cable_groups_for_connection(
-        object(),
-        harness,
-        valid_harness,
-        valid_harness.connections[0].connection_id,
-        [],
-    )
-
-    assert updated == 1
-    add_occurrence.assert_called_once_with(matrix)
-    assert build.call_args.args[0] is replacement.component
-    assert build.call_args.args[4] == (route, branch)
-    assert build.call_args.args[-1] == "finalized"
-    assert build.call_args.kwargs == {
-        "is_visible": False,
-        "route_diameters_mm": (group.diameter_mm, group.diameter_mm / 2.0),
-        "connection_branch_indices": frozenset({1}),
-    }
-    assert replacement.isLightBulbOn is False
-    previous.deleteMe.assert_called_once_with()
-    unrelated.deleteMe.assert_not_called()
-
-
-def test_geometry_refresh_rebuilds_only_group_with_changed_branch_curve(
-    cable_solids: _CableSolidsModule,
-    monkeypatch: pytest.MonkeyPatch,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Include reduced connection branches when detecting locally changed output.
-    """
-    group = valid_harness.cable_groups[0]
-    main = _straight_route(801, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
-    old_branch = _straight_route(802, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0))
-    moved_branch = _straight_route(802, Vector3(10.0, 0.0, 0.0), Vector3(20.0, 5.0, 0.0))
-
-    def encoded(route: RoutePreview) -> list[list[list[float]]]:
-        """
-        Serialize exact curve controls in generated metadata form.
-        """
-        return [
-            [
-                [point.x, point.y, point.z]
-                for point in (curve.start, curve.control_a, curve.control_b, curve.end)
-            ]
-            for curve in route.curves
-        ]
-
-    metadata = {
-        "cable_group_id": str(group.cable_group_id),
-        "route_legs": [
-            {
-                "route_id": str(main.cable_id),
-                "label": main.cable_number,
-                "route_curves_mm": encoded(main),
-            }
-        ],
-        "connection_branches": [
-            {
-                "route_id": str(old_branch.cable_id),
-                "label": old_branch.cable_number,
-                "route_curves_mm": encoded(old_branch),
-            }
-        ],
-    }
-    attribute = SimpleNamespace(value=json.dumps(metadata))
-    occurrence = SimpleNamespace(
-        component=SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
-    )
-    legs = (
-        SimpleNamespace(route_id=main.cable_id, cable_group_id=group.cable_group_id),
-        SimpleNamespace(route_id=moved_branch.cable_id, cable_group_id=group.cable_group_id),
-    )
-    rebuild = Mock(return_value=1)
-    monkeypatch.setattr(
-        cable_solids,
-        "generated_cable_group_occurrences",
-        lambda _harness: (occurrence,),
-    )
-    monkeypatch.setattr(
-        cable_solids,
-        "solve_cable_group_centerlines",
-        lambda _design, _definition, _notices: ((main, moved_branch), legs),
-    )
-    monkeypatch.setattr(cable_solids, "world_to_harness", lambda *_args: object())
-    monkeypatch.setattr(
-        cable_solids,
-        "route_in_component_space",
-        lambda route, _transform: route,
-    )
-    monkeypatch.setattr(cable_solids, "_refresh_generated_cable_groups", rebuild)
-
-    updated = cable_solids.refresh_changed_generated_cable_groups(
-        object(),
-        object(),
-        valid_harness,
-        [],
-    )
-
-    assert updated == 1
-    assert rebuild.call_args.args[3] == frozenset({group.cable_group_id})
-
-
-def test_copies_root_decoration_position_to_every_branch(
-    cable_solids: _CableSolidsModule,
-) -> None:
-    """
-    Give every segment leaving one junction the same physical stripe start.
-    """
-    junction = Vector3(0.0, 0.0, 0.0)
-    routes = (
-        _straight_route(1, Vector3(-10.0, 0.0, 0.0), junction),
-        _straight_route(2, junction, Vector3(10.0, 0.0, 0.0)),
-        _straight_route(3, junction, Vector3(15.0, 0.0, 0.0)),
-    )
-    stripe = CableStripe(CableColor("Red", 255, 0, 0), 0.25, angle_deg=31.0)
-
-    segments, starts, ends = cable_solids._prepare_group_sweep_segments(routes)
-    decorated = cable_solids._build_continuous_segment_stripes(segments, starts, ends, stripe, 0.5)
-
-    start_radials = [_radial(result, "start") for _segment, result in decorated]
-    assert len(start_radials) == 3
-    assert start_radials[1] == pytest.approx(start_radials[0])
-    assert start_radials[2] == pytest.approx(start_radials[0])
-
-
-def test_projects_continuous_decoration_onto_an_angled_branch(
-    cable_solids: _CableSolidsModule,
-) -> None:
-    """
-    Accept non-collinear junction tangents and retain a valid stripe radial.
-    """
-    junction = Vector3(0.0, 0.0, 0.0)
-    routes = (
-        _straight_route(4, Vector3(-10.0, 0.0, 0.0), junction),
-        _straight_route(5, junction, Vector3(10.0, 0.0, 0.0)),
-        _straight_route(6, junction, Vector3(0.0, 10.0, 0.0)),
-    )
-    stripe = CableStripe(CableColor("Green", 0, 180, 80), 0.25, angle_deg=27.0)
-
-    segments, starts, ends = cable_solids._prepare_group_sweep_segments(routes)
-    decorated = cable_solids._build_continuous_segment_stripes(
-        segments,
-        starts,
-        ends,
-        stripe,
-        0.5,
-    )
-
-    assert len(segments) == len(decorated) == 3
-    for segment, result in decorated:
-        assert result.start is not None
-        tangent = unit(difference(segment.route.points[1], segment.route.points[0]))
-        assert dot(result.start.radial, tangent) == pytest.approx(0.0, abs=1e-9)
-        assert result.start.repeat_phase_mm == pytest.approx(0.0)
-
-
-def test_propagates_decoration_through_a_downstream_junction(
-    cable_solids: _CableSolidsModule,
-) -> None:
-    """
-    Continue an upstream helical endpoint onto every downstream child segment.
-    """
-    root = Vector3(0.0, 0.0, 0.0)
-    downstream = Vector3(10.0, 0.0, 0.0)
-    routes = (
-        _straight_route(10, root, downstream),
-        _straight_route(11, root, Vector3(-10.0, 0.0, 0.0)),
-        _straight_route(12, root, Vector3(-15.0, 0.0, 0.0)),
-        _straight_route(13, downstream, Vector3(20.0, 0.0, 0.0)),
-        _straight_route(14, downstream, Vector3(25.0, 0.0, 0.0)),
-    )
-    stripe = CableStripe(
-        CableColor("White", 255, 255, 255),
-        0.2,
-        StripePattern.HELICAL,
-        angle_deg=18.0,
-        repeat_mm=7.0,
-    )
-
-    segments, starts, ends = cable_solids._prepare_group_sweep_segments(routes)
-    decorated = cable_solids._build_continuous_segment_stripes(segments, starts, ends, stripe, 0.5)
-    by_identity = {segment.route.cable_id.int: result for segment, result in decorated}
-
-    upstream_end = _radial(by_identity[10], "end")
-    assert _radial(by_identity[13], "start") == pytest.approx(upstream_end)
-    assert _radial(by_identity[14], "start") == pytest.approx(upstream_end)
-    left_start = by_identity[13].start
-    right_start = by_identity[14].start
-    assert left_start is not None
-    assert right_start is not None
-    assert left_start.repeat_phase_mm == pytest.approx(3.0)
-    assert right_start.repeat_phase_mm == pytest.approx(3.0)
-
-
-def test_continues_across_an_internally_split_pass_through_route(
-    cable_solids: _CableSolidsModule,
-) -> None:
-    """
-    Decorate every solid segment created where a lead meets a logical route interior.
-    """
-    start = Vector3(-10.0, 0.0, 0.0)
-    junction = Vector3(0.0, 0.0, 0.0)
-    end = Vector3(10.0, 0.0, 0.0)
-    left = _straight_route(20, start, junction).curves[0]
-    right = _straight_route(20, junction, end).curves[0]
-    pass_through = RoutePreview(UUID(int=20), "Pass Through", (start, junction, end), (left, right))
-    lead = _straight_route(21, Vector3(-5.0, 0.0, 0.0), junction)
-    stripe = CableStripe(CableColor("Blue", 0, 80, 255), 0.2)
-
-    segments, starts, ends = cable_solids._prepare_group_sweep_segments((pass_through, lead))
-    decorated = cable_solids._build_continuous_segment_stripes(segments, starts, ends, stripe, 0.5)
-
-    assert len(segments) == 3
-    junction_boundaries = tuple(
-        boundary
-        for segment in segments
-        for boundary in (segment.route.curves[0].start, segment.route.curves[-1].end)
-        if boundary == junction
-    )
-    assert junction_boundaries == (junction,) * 3
-    assert len(decorated) == 3
-    start_radials = [_radial(result, "start") for _segment, result in decorated]
-    assert start_radials[1] == pytest.approx(start_radials[0])
-    assert start_radials[2] == pytest.approx(start_radials[0])

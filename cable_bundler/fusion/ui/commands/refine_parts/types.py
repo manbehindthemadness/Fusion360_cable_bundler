@@ -1,4 +1,6 @@
-"""State contracts shared by add-refine command handlers."""
+"""
+State contracts shared by add-refine command handlers.
+"""
 
 from __future__ import annotations
 

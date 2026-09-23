@@ -6,7 +6,7 @@
     {
       "id": "M0-DOM-001",
       "area": "persistence",
-      "behavior": "Schema-v19 definitions round-trip deterministically, schemas 12 through 18 migrate in memory, and unsupported legacy or future versions fail explicitly.",
+      "behavior": "Schema-v27 definitions round-trip deterministically, schemas 12 through 26 migrate in memory, and unsupported legacy or future versions fail explicitly.",
       "status": "automated",
       "layers": ["pytest"],
       "evidence": ["tests/test_codec.py"],

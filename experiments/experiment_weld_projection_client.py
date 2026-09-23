@@ -1,4 +1,6 @@
-"""Launch the isolated weld local-frame probe through the Fusion MCP server."""
+"""
+Launch the isolated weld local-frame probe through the Fusion MCP server.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +15,9 @@ CAPTURE_PATH = "/private/tmp/cable_bundler_weld_projection.png"
 
 
 def _fusion_script() -> str:
-    """Return the Fusion-hosted entry point for the production geometry probe."""
+    """
+    Return the Fusion-hosted entry point for the production geometry probe.
+    """
     root = json.dumps(str(PROJECT_ROOT))
     prefix = json.dumps(RESULT_PREFIX)
     capture_path = json.dumps(CAPTURE_PATH)
@@ -35,7 +39,9 @@ def run(_context):
 
 
 def _execution_message(tool_result: dict[str, object]) -> str:
-    """Extract the script's captured standard output from an MCP tool result."""
+    """
+    Extract the script's captured standard output from an MCP tool result.
+    """
     content = tool_result.get("content")
     if not isinstance(content, list) or not content:
         raise RuntimeError(f"Fusion MCP returned no result content: {tool_result!r}")
@@ -52,7 +58,9 @@ def _execution_message(tool_result: dict[str, object]) -> str:
 
 
 def main() -> int:
-    """Execute the probe and return nonzero unless all geometry cases pass."""
+    """
+    Execute the probe and return nonzero unless all geometry cases pass.
+    """
     client = McpClient(DEFAULT_MCP_URL, timeout_seconds=120.0)
     try:
         client.initialize()
