@@ -182,10 +182,10 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     (candidate) => candidate.connectionId === attachment.connectionId,
   ) : null;
   const settings = isConnectionBranch && connection
-    ? cableEndAttachmentParentMaterials(cableGroup, connection, attachment)
+    ? cableEndAttachmentMaterials(cableGroup, connection, attachment)
     : (isCableGroup ? cableGroup.materials : harness.materialDefaults);
   const overrides = isConnectionBranch
-    ? attachment.visualOverrides : (isCableGroup ? cableGroup.materialOverrides : null);
+    ? (attachment.visualOverrides || {}) : (isCableGroup ? cableGroup.materialOverrides : null);
   const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
   let hasAppliedChanges = false;
   let cancelInProgress = false;

@@ -477,6 +477,7 @@ def set_cable_end_attachment_visual_overrides(
         main_color=overrides.main_color,
         appearance=overrides.appearance,
         stripes=overrides.stripes,
+        pullback=overrides.pullback,
     )
     updated_connection = _replace_cable_end_attachment(
         connection,

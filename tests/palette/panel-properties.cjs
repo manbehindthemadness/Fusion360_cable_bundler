@@ -95,6 +95,52 @@ asyncTest('pullback defaults to 200 percent and saves distance and appearance da
   assert.equal(save.payload.materials.pullback.appearance, null);
 });
 
+asyncTest('connection material overrides populate again when reopened', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  const attachment = {
+    attachmentId: 'connection-1', connectionId: 'a1', parentAttachmentId: null,
+    visualOverrides: {
+      mainColor: { name: 'Red', hex: '#ff0000' }, appearance: null,
+      stripes: [{
+        color: { name: 'Blue', hex: '#0000ff' }, widthMm: 0.3,
+        pattern: 'longitudinal', angleDeg: 0, repeatMm: null,
+      }],
+      pullback: {
+        mode: 'distance', value: 6.25,
+        color: { name: 'Green', hex: '#00ff00' }, appearance: null,
+      },
+    },
+  };
+  connection.attachments = [attachment, {
+    attachmentId: 'connection-2', connectionId: 'a1', parentAttachmentId: null,
+    visualOverrides: {},
+  }];
+  context.send = async (action) => (
+    action === 'get_appearance_libraries'
+      ? { ok: true, libraries: [] }
+      : { ok: true }
+  );
+
+  context.openMaterialOptions(definition, group, attachment);
+
+  const dialog = context.document.body.querySelector('.material-options');
+  const swatches = descendants(dialog, (node) => node.type === 'color');
+  const pullback = descendants(dialog, (node) => node.className === 'material-field').find(
+    (field) => descendants(field, (node) => node.textContent === 'Pullback').length,
+  );
+  const pullbackMode = descendants(pullback, (node) => node.tag === 'select')[0];
+  const pullbackAmount = descendants(pullback, (node) => node.type === 'number')[0];
+
+  assert.equal(swatches[0].value, '#ff0000');
+  assert.equal(swatches[1].value, '#0000ff');
+  assert.equal(swatches[2].value, '#00ff00');
+  assert.equal(pullbackMode.value, 'distance');
+  assert.equal(pullbackAmount.value, '6.25');
+});
+
 asyncTest('dielectric material appears only while shielding is enabled', async () => {
   const { context } = palette();
   const definition = harness();

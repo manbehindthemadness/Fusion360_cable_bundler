@@ -28,8 +28,10 @@ from cable_bundler.domain import (
     CableColor,
     CableEndAttachment,
     CableEndTarget,
+    CablePullbackSettings,
     CableVisualOverrides,
     HarnessDefinition,
+    PullbackMode,
     RefineGeometry,
     loads,
 )
@@ -546,7 +548,11 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     connection_id = valid_harness.connections[0].connection_id
     first_id = UUID(int=711)
     second_id = UUID(int=712)
-    overrides = CableVisualOverrides(main_color=CableColor("Red", 255, 0, 0), stripes=())
+    overrides = CableVisualOverrides(
+        main_color=CableColor("Red", 255, 0, 0),
+        stripes=(),
+        pullback=CablePullbackSettings(PullbackMode.DISTANCE, 6.25),
+    )
     gateway = _recording_gateway(valid_harness)
     add_cable_end_connection(
         valid_harness.harness_id, connection_id, gateway, id_factory=lambda: first_id
@@ -591,7 +597,8 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     remove_cable_end_attachment(valid_harness.harness_id, connection_id, second_id, gateway)
     stored = loads(gateway.serialized_definition)
     assert stored.connections[0].attachments[0].visual_overrides == CableVisualOverrides(
-        shielding="Braided copper"
+        shielding="Braided copper",
+        pullback=overrides.pullback,
     )
 
 
