@@ -33,6 +33,7 @@ from ...domain import (
     CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
+    CableWeldSettings,
     HarnessDefinition,
 )
 from ..attachment_targets import attachment_display_name, resolve_attachment_target
@@ -562,6 +563,17 @@ def _pullback_payload(settings: CablePullbackSettings) -> dict[str, object]:
     }
 
 
+def _weld_payload(settings: CableWeldSettings) -> dict[str, object]:
+    """
+    Convert persisted weld settings for the Materials dialog.
+    """
+    return {
+        "value": settings.value,
+        "color": _color_payload(settings.color),
+        "appearance": _appearance_reference_payload(settings.appearance),
+    }
+
+
 def _material_settings_payload(settings: CableMaterialSettings) -> dict[str, object]:
     """
     Convert resolved material settings for editing and display.
@@ -578,6 +590,7 @@ def _material_settings_payload(settings: CableMaterialSettings) -> dict[str, obj
         "partNumber": settings.part_number,
         "notes": settings.notes,
         "pullback": _pullback_payload(settings.pullback),
+        "weld": _weld_payload(settings.weld),
     }
 
 
@@ -603,6 +616,7 @@ def _material_overrides_payload(overrides: CableMaterialOverrides) -> dict[str, 
         "partNumber": overrides.part_number,
         "notes": overrides.notes,
         "pullback": (None if overrides.pullback is None else _pullback_payload(overrides.pullback)),
+        "weld": None if overrides.weld is None else _weld_payload(overrides.weld),
     }
 
 
@@ -629,4 +643,5 @@ def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, obje
             else [_stripe_payload(stripe) for stripe in overrides.stripes]
         ),
         "pullback": (None if overrides.pullback is None else _pullback_payload(overrides.pullback)),
+        "weld": None if overrides.weld is None else _weld_payload(overrides.weld),
     }

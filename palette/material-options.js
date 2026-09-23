@@ -340,7 +340,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   };
   const pullbackAppearance = createAppearanceEditor(
     { color: pullbackSettings.color, appearance: pullbackSettings.appearance },
-    "Pullback", catalog, error, addOverrideToggle, "pullback",
+    "Insulation Pullback", catalog, error, addOverrideToggle, "pullback",
   );
   const pullbackAmount = document.createElement("div");
   const pullbackModeLabel = document.createElement("label");
@@ -384,6 +384,36 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   updatePullbackInputs();
   form.append(pullbackAppearance.wrapper);
 
+  const weldSettings = settings.weld || {
+    value: 150,
+    color: { name: "Silver", hex: "#C0C0C0" },
+    appearance: null,
+  };
+  const weldAppearance = createAppearanceEditor(
+    { color: weldSettings.color, appearance: weldSettings.appearance },
+    "Weld", catalog, error, addOverrideToggle, "weld",
+  );
+  const weldAmount = document.createElement("div");
+  const weldValueLabel = document.createElement("label");
+  const weldValue = document.createElement("input");
+  weldAmount.className = "appearance-library-controls pullback-amount";
+  weldValueLabel.textContent = "Amount (%)";
+  weldValue.type = "number";
+  weldValue.className = "filter";
+  weldValue.min = "0";
+  weldValue.step = "any";
+  weldValue.value = `${weldSettings.value}`;
+  weldValueLabel.append(weldValue);
+  weldAmount.append(weldValueLabel);
+  weldAppearance.wrapper.insertBefore(weldAmount, weldAppearance.appearanceSource);
+  const updateWeldInputs = () => {
+    weldValue.disabled = Boolean(weldAppearance.toggle && !weldAppearance.toggle.checked);
+  };
+  weldAppearance.toggle?.addEventListener("change", updateWeldInputs);
+  weldAppearance.update();
+  updateWeldInputs();
+  form.append(weldAppearance.wrapper);
+
   const readStripes = () => [...stripeList.children].map((row, index) => {
     const inputs = row.querySelectorAll("input");
     const pattern = row.querySelector("select").value;
@@ -410,10 +440,17 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     try {
       const selectedMainAppearance = mainAppearance.read();
       const selectedPullbackAppearance = pullbackAppearance.read();
+      const selectedWeldAppearance = weldAppearance.read();
       const pullbackValueNumber = Number(pullbackValue.value);
+      const weldValueNumber = Number(weldValue.value);
       if (selectedPullbackAppearance !== null
           && (!Number.isFinite(pullbackValueNumber) || pullbackValueNumber < 0)) {
         error.textContent = "Pullback needs a nonnegative percent or distance.";
+        return;
+      }
+      if (selectedWeldAppearance !== null
+          && (!Number.isFinite(weldValueNumber) || weldValueNumber < 0)) {
+        error.textContent = "Weld needs a nonnegative percentage.";
         return;
       }
       const materials = {
@@ -438,6 +475,11 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
           value: pullbackValueNumber,
           color: selectedPullbackAppearance.color,
           appearance: selectedPullbackAppearance.appearance,
+        },
+        weld: selectedWeldAppearance === null ? null : {
+          value: weldValueNumber,
+          color: selectedWeldAppearance.color,
+          appearance: selectedWeldAppearance.appearance,
         },
       };
       apply.disabled = true;
@@ -532,5 +574,5 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   dialog.append(form);
   document.body.append(dialog);
   dialog.showModal();
-  void Promise.all([mainAppearance.load(), pullbackAppearance.load()]);
+  void Promise.all([mainAppearance.load(), pullbackAppearance.load(), weldAppearance.load()]);
 }

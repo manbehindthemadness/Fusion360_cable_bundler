@@ -30,6 +30,7 @@ from cable_bundler.domain import (
     CableEndTarget,
     CablePullbackSettings,
     CableVisualOverrides,
+    CableWeldSettings,
     HarnessDefinition,
     PullbackMode,
     RefineGeometry,
@@ -552,6 +553,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
         main_color=CableColor("Red", 255, 0, 0),
         stripes=(),
         pullback=CablePullbackSettings(PullbackMode.DISTANCE, 6.25),
+        weld=CableWeldSettings(value=175.0),
     )
     gateway = _recording_gateway(valid_harness)
     add_cable_end_connection(
@@ -599,6 +601,7 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     assert stored.connections[0].attachments[0].visual_overrides == CableVisualOverrides(
         shielding="Braided copper",
         pullback=overrides.pullback,
+        weld=overrides.weld,
     )
 
 

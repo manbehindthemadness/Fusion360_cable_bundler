@@ -6,6 +6,7 @@ from cable_bundler.domain import (
     CableMaterialSettings,
     CablePullbackSettings,
     CableVisualOverrides,
+    CableWeldSettings,
     PullbackMode,
 )
 from tests.fusion_ui_support import (
@@ -135,6 +136,11 @@ def test_palette_edit_saves_connection_visual_overrides(
                         "color": {"name": "Copper", "red": 184, "green": 115, "blue": 51},
                         "appearance": None,
                     },
+                    "weld": {
+                        "value": 175,
+                        "color": {"name": "Silver", "red": 192, "green": 192, "blue": 192},
+                        "appearance": None,
+                    },
                 },
             }
         ),
@@ -151,6 +157,7 @@ def test_palette_edit_saves_connection_visual_overrides(
                 mode=PullbackMode.DISTANCE,
                 value=6.25,
             ),
+            weld=CableWeldSettings(value=175.0),
         ),
         gateway,
     )
@@ -186,6 +193,11 @@ def test_palette_edit_saves_harness_pullback_defaults(
             "color": {"name": "Copper", "red": 184, "green": 115, "blue": 51},
             "appearance": None,
         },
+        "weld": {
+            "value": 175,
+            "color": {"name": "Silver", "red": 192, "green": 192, "blue": 192},
+            "appearance": None,
+        },
     }
 
     result = addin_module._apply_palette_edit(
@@ -196,7 +208,10 @@ def test_palette_edit_saves_harness_pullback_defaults(
 
     save.assert_called_once_with(
         harness_id,
-        CableMaterialSettings(pullback=CablePullbackSettings(value=250.0)),
+        CableMaterialSettings(
+            pullback=CablePullbackSettings(value=250.0),
+            weld=CableWeldSettings(value=175.0),
+        ),
         gateway,
     )
     assert result == "Saved harness cable-material defaults."

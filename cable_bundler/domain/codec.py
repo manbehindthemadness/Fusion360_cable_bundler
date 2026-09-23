@@ -37,6 +37,7 @@ from .model import (
     CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
+    CableWeldSettings,
     Connection,
     ControlKind,
     ControlStructure,
@@ -91,12 +92,13 @@ def loads(serialized: str) -> HarnessDefinition:
         23,
         24,
         25,
+        26,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 25 are migratable)",
+            "(schemas 12 through 26 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -351,6 +353,7 @@ def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, obje
             else [_stripe_to_dict(item) for item in overrides.stripes]
         ),
         "pullback": (None if overrides.pullback is None else _pullback_to_dict(overrides.pullback)),
+        "weld": None if overrides.weld is None else _weld_to_dict(overrides.weld),
     }
 
 
@@ -425,6 +428,7 @@ def _materials_to_dict(settings: CableMaterialSettings) -> dict[str, object]:
         "part_number": settings.part_number,
         "notes": settings.notes,
         "pullback": _pullback_to_dict(settings.pullback),
+        "weld": _weld_to_dict(settings.weld),
     }
 
 
@@ -450,6 +454,7 @@ def _material_overrides_to_dict(overrides: CableMaterialOverrides) -> dict[str, 
         "part_number": overrides.part_number,
         "notes": overrides.notes,
         "pullback": (None if overrides.pullback is None else _pullback_to_dict(overrides.pullback)),
+        "weld": None if overrides.weld is None else _weld_to_dict(overrides.weld),
     }
 
 
@@ -459,6 +464,17 @@ def _pullback_to_dict(settings: CablePullbackSettings) -> dict[str, object]:
     """
     return {
         "mode": settings.mode.value,
+        "value": settings.value,
+        "color": _color_to_dict(settings.color),
+        "appearance": _appearance_to_dict(settings.appearance),
+    }
+
+
+def _weld_to_dict(settings: CableWeldSettings) -> dict[str, object]:
+    """
+    Convert weld settings to portable JSON-compatible values.
+    """
+    return {
         "value": settings.value,
         "color": _color_to_dict(settings.color),
         "appearance": _appearance_to_dict(settings.appearance),
@@ -570,6 +586,7 @@ def parse_material_settings(raw_value: object, path: str) -> CableMaterialSettin
             part_number=_require_str(value, "part_number", f"{path}.part_number"),
             notes=_require_str(value, "notes", f"{path}.notes"),
             pullback=_parse_pullback(value.get("pullback", {}), f"{path}.pullback"),
+            weld=_parse_weld(value.get("weld", {}), f"{path}.weld"),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
@@ -610,6 +627,11 @@ def parse_material_overrides(raw_value: object, path: str) -> CableMaterialOverr
                 None
                 if value.get("pullback") is None
                 else _parse_pullback(value.get("pullback"), f"{path}.pullback")
+            ),
+            weld=(
+                None
+                if value.get("weld") is None
+                else _parse_weld(value.get("weld"), f"{path}.weld")
             ),
         )
     except ValueError as error:
@@ -828,6 +850,11 @@ def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverride
                 if value.get("pullback") is None
                 else _parse_pullback(value.get("pullback"), f"{path}.pullback")
             ),
+            weld=(
+                None
+                if value.get("weld") is None
+                else _parse_weld(value.get("weld"), f"{path}.weld")
+            ),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
@@ -846,6 +873,30 @@ def _parse_pullback(raw_value: object, path: str) -> CablePullbackSettings:
                 if "mode" in value
                 else defaults.mode
             ),
+            value=(
+                _require_float(value, "value", f"{path}.value")
+                if "value" in value
+                else defaults.value
+            ),
+            color=(
+                _parse_color(value.get("color"), f"{path}.color")
+                if "color" in value
+                else defaults.color
+            ),
+            appearance=_parse_appearance(value.get("appearance"), f"{path}.appearance"),
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_weld(raw_value: object, path: str) -> CableWeldSettings:
+    """
+    Parse current weld settings or supply defaults for migrated data.
+    """
+    value = _require_mapping(raw_value, path)
+    defaults = CableWeldSettings()
+    try:
+        return CableWeldSettings(
             value=(
                 _require_float(value, "value", f"{path}.value")
                 if "value" in value

@@ -17,6 +17,7 @@ from ...domain import (
     CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
+    CableWeldSettings,
     Metadata,
     PullbackMode,
     StripePattern,
@@ -304,6 +305,25 @@ def _read_pullback_settings(raw_value: object) -> CablePullbackSettings:
         raise ValueError(f"Invalid pullback settings: {error}") from error
 
 
+def _read_weld_settings(raw_value: object) -> CableWeldSettings:
+    """
+    Parse one complete weld configuration supplied by the palette.
+    """
+    if not isinstance(raw_value, dict):
+        raise ValueError("Weld settings must be an object.")
+    value = raw_value.get("value")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("Weld percentage must be a number.")
+    try:
+        return CableWeldSettings(
+            value=float(value),
+            color=_read_material_color(raw_value.get("color")),
+            appearance=_read_appearance_reference(raw_value.get("appearance")),
+        )
+    except ValueError as error:
+        raise ValueError(f"Invalid weld settings: {error}") from error
+
+
 def _read_material_text(
     values: dict[str, object],
     key: str,
@@ -351,6 +371,7 @@ def _read_material_settings(raw_value: object) -> CableMaterialSettings:
         part_number=_read_material_text(raw_value, "partNumber", "Part number", required=False),
         notes=_read_material_text(raw_value, "notes", "Notes", required=False),
         pullback=_read_pullback_settings(raw_value.get("pullback")),
+        weld=_read_weld_settings(raw_value.get("weld")),
     )
 
 
@@ -446,6 +467,7 @@ def _read_material_overrides(raw_value: object) -> CableMaterialOverrides:
             if values.get("pullback") is None
             else _read_pullback_settings(values.get("pullback"))
         ),
+        weld=(None if values.get("weld") is None else _read_weld_settings(values.get("weld"))),
     )
 
 
@@ -522,5 +544,8 @@ def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
             None
             if raw_value.get("pullback") is None
             else _read_pullback_settings(raw_value.get("pullback"))
+        ),
+        weld=(
+            None if raw_value.get("weld") is None else _read_weld_settings(raw_value.get("weld"))
         ),
     )

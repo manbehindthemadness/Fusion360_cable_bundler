@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 27
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -145,6 +145,7 @@ class CableColor:
 
 DEFAULT_CABLE_COLOR = CableColor("Black", 32, 32, 32)
 DEFAULT_PULLBACK_COLOR = CableColor("Copper", 184, 115, 51)
+DEFAULT_WELD_COLOR = CableColor("Silver", 192, 192, 192)
 
 
 @dataclass(frozen=True)
@@ -217,6 +218,38 @@ class CablePullbackSettings:
             self.appearance, CableAppearanceReference
         ):
             raise ValueError("Pullback appearance must reference a Fusion appearance.")
+
+
+@dataclass(frozen=True)
+class CableWeldSettings:
+    """
+    Store the future weld percentage and its visual material.
+
+    The setting is persisted for later geometry work but currently has no effect
+    on preview or finalized cable solids.
+    """
+
+    value: float = 150.0
+    color: CableColor = DEFAULT_WELD_COLOR
+    appearance: Optional[CableAppearanceReference] = None
+
+    def __post_init__(self) -> None:
+        """
+        Require a nonnegative percentage and portable appearance.
+        """
+        if (
+            isinstance(self.value, bool)
+            or not isinstance(self.value, (int, float))
+            or not math.isfinite(self.value)
+            or self.value < 0.0
+        ):
+            raise ValueError("Weld percentage must be finite and nonnegative.")
+        if not isinstance(self.color, CableColor):
+            raise ValueError("Weld color must be a cable color.")
+        if self.appearance is not None and not isinstance(
+            self.appearance, CableAppearanceReference
+        ):
+            raise ValueError("Weld appearance must reference a Fusion appearance.")
 
 
 @dataclass(frozen=True)
@@ -305,6 +338,7 @@ class CableMaterialSettings:
     part_number: str = ""
     notes: str = ""
     pullback: CablePullbackSettings = CablePullbackSettings()
+    weld: CableWeldSettings = CableWeldSettings()
 
     def __post_init__(self) -> None:
         """
@@ -337,6 +371,8 @@ class CableMaterialSettings:
             raise ValueError("Dielectric material requires shielding.")
         if not isinstance(self.pullback, CablePullbackSettings):
             raise ValueError("Pullback must contain valid pullback settings.")
+        if not isinstance(self.weld, CableWeldSettings):
+            raise ValueError("Weld must contain valid weld settings.")
 
 
 @dataclass(frozen=True)
@@ -359,6 +395,7 @@ class CableMaterialOverrides:
     part_number: Optional[str] = None
     notes: Optional[str] = None
     pullback: Optional[CablePullbackSettings] = None
+    weld: Optional[CableWeldSettings] = None
 
     def __post_init__(self) -> None:
         """
@@ -373,6 +410,8 @@ class CableMaterialOverrides:
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
         if self.pullback is not None and not isinstance(self.pullback, CablePullbackSettings):
             raise ValueError("Pullback override must contain valid pullback settings.")
+        if self.weld is not None and not isinstance(self.weld, CableWeldSettings):
+            raise ValueError("Weld override must contain valid weld settings.")
         for value in (
             self.shielding,
             self.dielectric_material,
@@ -413,6 +452,7 @@ class CableMaterialOverrides:
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes if self.notes is None else self.notes,
             pullback=parent.pullback if self.pullback is None else self.pullback,
+            weld=parent.weld if self.weld is None else self.weld,
         )
 
 
@@ -438,6 +478,7 @@ class CableVisualOverrides:
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
     pullback: Optional[CablePullbackSettings] = None
+    weld: Optional[CableWeldSettings] = None
 
     def __post_init__(self) -> None:
         """
@@ -474,6 +515,8 @@ class CableVisualOverrides:
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
         if self.pullback is not None and not isinstance(self.pullback, CablePullbackSettings):
             raise ValueError("Pullback override must contain valid pullback settings.")
+        if self.weld is not None and not isinstance(self.weld, CableWeldSettings):
+            raise ValueError("Weld override must contain valid weld settings.")
 
     def resolve(self, parent: CableMaterialSettings) -> CableMaterialSettings:
         """
@@ -505,6 +548,7 @@ class CableVisualOverrides:
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes,
             pullback=parent.pullback if self.pullback is None else self.pullback,
+            weld=parent.weld if self.weld is None else self.weld,
         )
 
 

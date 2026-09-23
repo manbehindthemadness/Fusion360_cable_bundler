@@ -14,10 +14,12 @@ from cable_bundler.domain import (
     SCHEMA_VERSION,
     AttachmentTargetKind,
     AutoTransitionPreset,
+    CableColor,
     CableEndAttachment,
     CableEndTarget,
     CablePullbackSettings,
     CableVisualOverrides,
+    CableWeldSettings,
     DefinitionParseError,
     HarnessDefinition,
     JunctionDefinition,
@@ -133,6 +135,57 @@ def test_round_trip_and_schema_25_migration_preserve_conductor_diameters(
     migrated_attachment = migrated.connections[0].attachment
     assert migrated_attachment is not None
     assert migrated_attachment.visual_overrides.conductor_diameter_mm is None
+
+
+def test_round_trip_and_schema_26_migration_preserve_weld_settings(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist configured weld data and default it for the previous schema.
+    """
+    weld = CableWeldSettings(value=175.0, color=CableColor("Blue", 0, 0, 255))
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, weld=weld),
+        connections=(
+            replace(
+                valid_harness.connections[0],
+                attachment=CableEndAttachment(
+                    None,
+                    attachment_id=UUID(int=813),
+                    visual_overrides=CableVisualOverrides(weld=weld),
+                ),
+            ),
+            *valid_harness.connections[1:],
+        ),
+        cable_groups=(
+            replace(
+                valid_harness.cable_groups[0],
+                material_overrides=replace(
+                    valid_harness.cable_groups[0].material_overrides,
+                    weld=weld,
+                ),
+            ),
+        ),
+    )
+    restored = loads(dumps(definition))
+    assert restored.material_defaults.weld == weld
+    assert restored.cable_groups[0].material_overrides.weld == weld
+    restored_attachment = restored.connections[0].attachment
+    assert restored_attachment is not None
+    assert restored_attachment.visual_overrides.weld == weld
+
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 26
+    del payload["material_defaults"]["weld"]
+    del payload["cable_groups"][0]["material_overrides"]["weld"]
+    del payload["connections"][0]["attachment"]["visual_overrides"]["weld"]
+    migrated = loads(json.dumps(payload))
+    assert migrated.material_defaults.weld == CableWeldSettings()
+    assert migrated.cable_groups[0].material_overrides.weld is None
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.visual_overrides.weld is None
 
 
 def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> None:
@@ -269,7 +322,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 27])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 28])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,

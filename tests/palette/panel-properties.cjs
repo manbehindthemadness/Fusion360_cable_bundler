@@ -70,20 +70,30 @@ asyncTest('pullback defaults to 200 percent and saves distance and appearance da
 
   const dialog = context.document.body.querySelector('.material-options');
   const pullback = descendants(dialog, (node) => node.className === 'material-field').find(
-    (field) => descendants(field, (node) => node.textContent === 'Pullback').length,
+    (field) => descendants(field, (node) => node.textContent === 'Insulation Pullback').length,
+  );
+  const weld = descendants(dialog, (node) => node.className === 'material-field').find(
+    (field) => descendants(field, (node) => node.textContent === 'Weld').length,
   );
   const mode = descendants(pullback, (node) => node.tag === 'select')[0];
   const amount = descendants(pullback, (node) => node.type === 'number')[0];
   const color = descendants(pullback, (node) => node.type === 'color')[0];
+  const weldAmount = descendants(weld, (node) => node.type === 'number')[0];
+  const weldColor = descendants(weld, (node) => node.type === 'color')[0];
   assert.equal(descendants(pullback, (node) => node.textContent === 'Measurement').length, 1);
   assert.equal(mode.value, 'percent');
   assert.equal(amount.value, '200');
   assert.equal(amount.className, 'filter');
   assert.equal(color.value, '#B87333');
+  assert.equal(descendants(weld, (node) => node.textContent === 'Measurement').length, 0);
+  assert.equal(weldAmount.value, '150');
+  assert.equal(weldColor.value, '#C0C0C0');
 
   mode.value = 'distance';
   amount.value = '7.5';
   color.value = '#102030';
+  weldAmount.value = '175';
+  weldColor.value = '#a0b0c0';
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
 
   const save = calls.find((call) => call.action === 'set_harness_material_defaults');
@@ -93,6 +103,11 @@ asyncTest('pullback defaults to 200 percent and saves distance and appearance da
   assert.equal(save.payload.materials.pullback.color.green, 32);
   assert.equal(save.payload.materials.pullback.color.blue, 48);
   assert.equal(save.payload.materials.pullback.appearance, null);
+  assert.equal(save.payload.materials.weld.value, 175);
+  assert.equal(save.payload.materials.weld.color.red, 160);
+  assert.equal(save.payload.materials.weld.color.green, 176);
+  assert.equal(save.payload.materials.weld.color.blue, 192);
+  assert.equal(save.payload.materials.weld.appearance, null);
 });
 
 asyncTest('connection material overrides populate again when reopened', async () => {
@@ -129,7 +144,7 @@ asyncTest('connection material overrides populate again when reopened', async ()
   const dialog = context.document.body.querySelector('.material-options');
   const swatches = descendants(dialog, (node) => node.type === 'color');
   const pullback = descendants(dialog, (node) => node.className === 'material-field').find(
-    (field) => descendants(field, (node) => node.textContent === 'Pullback').length,
+    (field) => descendants(field, (node) => node.textContent === 'Insulation Pullback').length,
   );
   const pullbackMode = descendants(pullback, (node) => node.tag === 'select')[0];
   const pullbackAmount = descendants(pullback, (node) => node.type === 'number')[0];

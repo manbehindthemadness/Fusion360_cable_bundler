@@ -16,6 +16,7 @@ from cable_bundler.domain import (
     CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
+    CableWeldSettings,
     HarnessDefinition,
     PullbackMode,
 )
@@ -98,6 +99,31 @@ def test_pullback_defaults_and_overrides_inherit_as_one_setting(
     )
     assert (
         CableVisualOverrides(pullback=override).resolve(valid_harness.material_defaults).pullback
+        == override
+    )
+
+
+def test_weld_defaults_and_overrides_inherit_as_one_setting(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep percentage, color, and appearance together without affecting geometry.
+    """
+    default_weld = valid_harness.material_defaults.weld
+    assert default_weld.value == 150.0
+    assert default_weld.color.hex_rgb == "#C0C0C0"
+
+    override = CableWeldSettings(
+        value=175.0,
+        color=CableColor("Blue", 0, 0, 255),
+    )
+    assert CableMaterialOverrides().resolve(valid_harness.material_defaults).weld == default_weld
+    assert (
+        CableMaterialOverrides(weld=override).resolve(valid_harness.material_defaults).weld
+        == override
+    )
+    assert (
+        CableVisualOverrides(weld=override).resolve(valid_harness.material_defaults).weld
         == override
     )
 

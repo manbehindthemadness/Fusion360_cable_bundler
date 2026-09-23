@@ -548,7 +548,7 @@ function cableEndAttachmentParentMaterials(cableGroup, connection, attachment) {
       [
         "insulationMaterial", "conductorMaterial", "shielding", "dielectricMaterial",
         "manufacturer", "partNumber",
-        "mainColor", "appearance", "stripes", "pullback",
+        "mainColor", "appearance", "stripes", "pullback", "weld",
       ]
         .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
         .map((key) => [key, overrides[key]]),
@@ -580,7 +580,7 @@ function cableEndAttachmentMaterials(cableGroup, connection, attachment) {
       [
         "insulationMaterial", "conductorMaterial", "shielding", "dielectricMaterial",
         "manufacturer", "partNumber",
-        "mainColor", "appearance", "stripes", "pullback",
+        "mainColor", "appearance", "stripes", "pullback", "weld",
       ]
         .filter((key) => overrides[key] !== null && overrides[key] !== undefined)
         .map((key) => [key, overrides[key]]),

@@ -478,6 +478,7 @@ def set_cable_end_attachment_visual_overrides(
         appearance=overrides.appearance,
         stripes=overrides.stripes,
         pullback=overrides.pullback,
+        weld=overrides.weld,
     )
     updated_connection = _replace_cable_end_attachment(
         connection,
@@ -572,6 +573,7 @@ def remove_cable_end_attachment(
                 shielding=attachment.visual_overrides.shielding,
                 dielectric_material=attachment.visual_overrides.dielectric_material,
                 pullback=attachment.visual_overrides.pullback,
+                weld=attachment.visual_overrides.weld,
             ),
         )
         if sum(
