@@ -13,9 +13,11 @@ from cable_bundler.domain import (
     CableEndAttachment,
     CableMaterialOverrides,
     CableMaterialSettings,
+    CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
     HarnessDefinition,
+    PullbackMode,
 )
 
 
@@ -68,6 +70,36 @@ def test_base_visual_override_replaces_or_inherits_library_appearance(
 
     assert inherited.appearance == parent_appearance
     assert plain_red.appearance is None
+
+
+def test_pullback_defaults_and_overrides_inherit_as_one_setting(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep amount, unit mode, color, and appearance together across inheritance.
+    """
+    default_pullback = valid_harness.material_defaults.pullback
+    assert default_pullback.mode is PullbackMode.PERCENT
+    assert default_pullback.value == 200.0
+    assert default_pullback.color.hex_rgb == "#B87333"
+
+    override = CablePullbackSettings(
+        mode=PullbackMode.DISTANCE,
+        value=12.5,
+        color=CableColor("Blue", 0, 0, 255),
+    )
+    assert (
+        CableMaterialOverrides().resolve(valid_harness.material_defaults).pullback
+        == default_pullback
+    )
+    assert (
+        CableMaterialOverrides(pullback=override).resolve(valid_harness.material_defaults).pullback
+        == override
+    )
+    assert (
+        CableVisualOverrides(pullback=override).resolve(valid_harness.material_defaults).pullback
+        == override
+    )
 
 
 def test_connection_visuals_inherit_singly_and_override_each_branch(

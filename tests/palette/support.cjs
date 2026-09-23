@@ -240,6 +240,8 @@ function harness() {
     dielectricMaterial: '',
     mainColor: { name: 'Black', hex: '#202020' }, appearance: null, stripes: [],
     manufacturer: '', partNumber: '', notes: '',
+    pullback: { mode: 'percent', value: 200,
+      color: { name: 'Copper', hex: '#B87333' }, appearance: null },
   };
   const connections = [1, 2, 3].flatMap((i) => ['a', 'b'].map((end) => ({
     connectionId: `${end}${i}`, name: `${end}${i}`, hasLinkedGeometry: true, metadata: [],
@@ -254,7 +256,7 @@ function harness() {
     materialOverrides: { insulationMaterial: null, conductorMaterial: null, shielding: null,
       dielectricMaterial: null,
       mainColor: null, appearance: null, stripes: null, manufacturer: null,
-      partNumber: null, notes: null },
+      partNumber: null, notes: null, pullback: null },
     metadata: [], metadataOverrides: [],
     routeLegs: [{ routeId: `r${i}`, label: `Group ${i} Leg 1`,
       startConnectionId: `a${i}`, endConnectionId: `b${i}`,
@@ -262,7 +264,7 @@ function harness() {
   }));
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
-    schemaVersion: 24, routingMode: 'Routing Gates', status: 'valid',
+    schemaVersion: 25, routingMode: 'Routing Gates', status: 'valid',
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,

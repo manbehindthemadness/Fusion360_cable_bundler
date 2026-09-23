@@ -29,6 +29,7 @@ from ...domain import (
     CableEndAttachment,
     CableMaterialOverrides,
     CableMaterialSettings,
+    CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
     HarnessDefinition,
@@ -519,6 +520,18 @@ def _stripe_payload(stripe: CableStripe) -> dict[str, object]:
     }
 
 
+def _pullback_payload(settings: CablePullbackSettings) -> dict[str, object]:
+    """
+    Convert persisted pullback settings for the Materials dialog.
+    """
+    return {
+        "mode": settings.mode.value,
+        "value": settings.value,
+        "color": _color_payload(settings.color),
+        "appearance": _appearance_reference_payload(settings.appearance),
+    }
+
+
 def _material_settings_payload(settings: CableMaterialSettings) -> dict[str, object]:
     """
     Convert resolved material settings for editing and display.
@@ -534,6 +547,7 @@ def _material_settings_payload(settings: CableMaterialSettings) -> dict[str, obj
         "manufacturer": settings.manufacturer,
         "partNumber": settings.part_number,
         "notes": settings.notes,
+        "pullback": _pullback_payload(settings.pullback),
     }
 
 
@@ -558,6 +572,7 @@ def _material_overrides_payload(overrides: CableMaterialOverrides) -> dict[str, 
         "manufacturer": overrides.manufacturer,
         "partNumber": overrides.part_number,
         "notes": overrides.notes,
+        "pullback": (None if overrides.pullback is None else _pullback_payload(overrides.pullback)),
     }
 
 
@@ -582,4 +597,5 @@ def _visual_overrides_payload(overrides: CableVisualOverrides) -> dict[str, obje
             if overrides.stripes is None
             else [_stripe_payload(stripe) for stripe in overrides.stripes]
         ),
+        "pullback": (None if overrides.pullback is None else _pullback_payload(overrides.pullback)),
     }

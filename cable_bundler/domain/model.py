@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
-SCHEMA_VERSION = 24
+SCHEMA_VERSION = 25
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -144,6 +144,7 @@ class CableColor:
 
 
 DEFAULT_CABLE_COLOR = CableColor("Black", 32, 32, 32)
+DEFAULT_PULLBACK_COLOR = CableColor("Copper", 184, 115, 51)
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,50 @@ class CableAppearanceReference:
         ):
             if not isinstance(value, str) or not value.strip():
                 raise ValueError("Fusion appearance references require nonempty IDs and names.")
+
+
+class PullbackMode(str, Enum):
+    """
+    Identify how a cable pullback amount is measured.
+    """
+
+    PERCENT = "percent"
+    DISTANCE = "distance"
+
+
+@dataclass(frozen=True)
+class CablePullbackSettings:
+    """
+    Store the future pullback amount and its visual material selection.
+
+    Percent values are relative to the cable diameter. Distance values are in
+    millimeters. These settings are persisted for later diagram use only.
+    """
+
+    mode: PullbackMode = PullbackMode.PERCENT
+    value: float = 200.0
+    color: CableColor = DEFAULT_PULLBACK_COLOR
+    appearance: Optional[CableAppearanceReference] = None
+
+    def __post_init__(self) -> None:
+        """
+        Require a supported mode, nonnegative amount, and portable appearance.
+        """
+        if not isinstance(self.mode, PullbackMode):
+            raise ValueError("Pullback mode must be percent or distance.")
+        if (
+            isinstance(self.value, bool)
+            or not isinstance(self.value, (int, float))
+            or not math.isfinite(self.value)
+            or self.value < 0.0
+        ):
+            raise ValueError("Pullback value must be finite and nonnegative.")
+        if not isinstance(self.color, CableColor):
+            raise ValueError("Pullback color must be a cable color.")
+        if self.appearance is not None and not isinstance(
+            self.appearance, CableAppearanceReference
+        ):
+            raise ValueError("Pullback appearance must reference a Fusion appearance.")
 
 
 @dataclass(frozen=True)
@@ -259,6 +304,7 @@ class CableMaterialSettings:
     manufacturer: str = ""
     part_number: str = ""
     notes: str = ""
+    pullback: CablePullbackSettings = CablePullbackSettings()
 
     def __post_init__(self) -> None:
         """
@@ -289,6 +335,8 @@ class CableMaterialSettings:
                 raise ValueError("Cable catalog metadata must be text.")
         if not self.shielding.strip() and self.dielectric_material.strip():
             raise ValueError("Dielectric material requires shielding.")
+        if not isinstance(self.pullback, CablePullbackSettings):
+            raise ValueError("Pullback must contain valid pullback settings.")
 
 
 @dataclass(frozen=True)
@@ -310,6 +358,7 @@ class CableMaterialOverrides:
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
     notes: Optional[str] = None
+    pullback: Optional[CablePullbackSettings] = None
 
     def __post_init__(self) -> None:
         """
@@ -322,6 +371,8 @@ class CableMaterialOverrides:
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{label} override must not be empty.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
+        if self.pullback is not None and not isinstance(self.pullback, CablePullbackSettings):
+            raise ValueError("Pullback override must contain valid pullback settings.")
         for value in (
             self.shielding,
             self.dielectric_material,
@@ -361,6 +412,7 @@ class CableMaterialOverrides:
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes if self.notes is None else self.notes,
+            pullback=parent.pullback if self.pullback is None else self.pullback,
         )
 
 
@@ -384,6 +436,7 @@ class CableVisualOverrides:
     dielectric_material: Optional[str] = None
     manufacturer: Optional[str] = None
     part_number: Optional[str] = None
+    pullback: Optional[CablePullbackSettings] = None
 
     def __post_init__(self) -> None:
         """
@@ -411,6 +464,8 @@ class CableVisualOverrides:
             if value is not None and not isinstance(value, str):
                 raise ValueError("Connection catalog metadata overrides must be text.")
         _validate_visual_overrides(self.main_color, self.appearance, self.stripes)
+        if self.pullback is not None and not isinstance(self.pullback, CablePullbackSettings):
+            raise ValueError("Pullback override must contain valid pullback settings.")
 
     def resolve(self, parent: CableMaterialSettings) -> CableMaterialSettings:
         """
@@ -441,6 +496,7 @@ class CableVisualOverrides:
             manufacturer=parent.manufacturer if self.manufacturer is None else self.manufacturer,
             part_number=parent.part_number if self.part_number is None else self.part_number,
             notes=parent.notes,
+            pullback=parent.pullback if self.pullback is None else self.pullback,
         )
 
 

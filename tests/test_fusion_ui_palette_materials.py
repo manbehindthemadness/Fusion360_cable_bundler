@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from cable_bundler.domain import CableVisualOverrides
+from cable_bundler.domain import (
+    CableMaterialSettings,
+    CablePullbackSettings,
+    CableVisualOverrides,
+    PullbackMode,
+)
 from tests.fusion_ui_support import (
     UUID,
     CableColor,
@@ -124,6 +129,12 @@ def test_palette_edit_saves_connection_visual_overrides(
                     "mainColor": {"name": "Red", "red": 255, "green": 0, "blue": 0},
                     "appearance": None,
                     "stripes": [],
+                    "pullback": {
+                        "mode": "distance",
+                        "value": 6.25,
+                        "color": {"name": "Copper", "red": 184, "green": 115, "blue": 51},
+                        "appearance": None,
+                    },
                 },
             }
         ),
@@ -133,10 +144,62 @@ def test_palette_edit_saves_connection_visual_overrides(
         harness_id,
         connection_id,
         attachment_id,
-        CableVisualOverrides(main_color=CableColor("Red", 255, 0, 0), stripes=()),
+        CableVisualOverrides(
+            main_color=CableColor("Red", 255, 0, 0),
+            stripes=(),
+            pullback=CablePullbackSettings(
+                mode=PullbackMode.DISTANCE,
+                value=6.25,
+            ),
+        ),
         gateway,
     )
     assert result == "Saved cable-end connection materials."
+
+
+def test_palette_edit_saves_harness_pullback_defaults(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse a complete harness pullback selection at the palette boundary.
+    """
+    harness_id = UUID(int=1)
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "set_harness_material_defaults", save)
+    materials = {
+        "insulationMaterial": "PVC",
+        "mainColor": {"name": "Black", "red": 32, "green": 32, "blue": 32},
+        "appearance": None,
+        "stripes": [],
+        "conductorMaterial": "Copper",
+        "shielding": "",
+        "dielectricMaterial": "",
+        "manufacturer": "",
+        "partNumber": "",
+        "notes": "",
+        "pullback": {
+            "mode": "percent",
+            "value": 250,
+            "color": {"name": "Copper", "red": 184, "green": 115, "blue": 51},
+            "appearance": None,
+        },
+    }
+
+    result = addin_module._apply_palette_edit(
+        object(),
+        "set_harness_material_defaults",
+        json.dumps({"harnessId": str(harness_id), "materials": materials}),
+    )
+
+    save.assert_called_once_with(
+        harness_id,
+        CableMaterialSettings(pullback=CablePullbackSettings(value=250.0)),
+        gateway,
+    )
+    assert result == "Saved harness cable-material defaults."
 
 
 def test_connected_cable_property_save_refreshes_only_group_preview(

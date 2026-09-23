@@ -14,9 +14,11 @@ from ...domain import (
     CableColor,
     CableMaterialOverrides,
     CableMaterialSettings,
+    CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
     Metadata,
+    PullbackMode,
     StripePattern,
 )
 
@@ -279,6 +281,29 @@ def _read_material_stripes(raw_value: object) -> tuple[CableStripe, ...]:
     return tuple(stripes)
 
 
+def _read_pullback_settings(raw_value: object) -> CablePullbackSettings:
+    """
+    Parse one complete pullback configuration supplied by the palette.
+    """
+    if not isinstance(raw_value, dict):
+        raise ValueError("Pullback settings must be an object.")
+    mode = raw_value.get("mode")
+    value = raw_value.get("value")
+    if not isinstance(mode, str):
+        raise ValueError("Pullback mode must be text.")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("Pullback value must be a number.")
+    try:
+        return CablePullbackSettings(
+            mode=PullbackMode(mode),
+            value=float(value),
+            color=_read_material_color(raw_value.get("color")),
+            appearance=_read_appearance_reference(raw_value.get("appearance")),
+        )
+    except ValueError as error:
+        raise ValueError(f"Invalid pullback settings: {error}") from error
+
+
 def _read_material_text(
     values: dict[str, object],
     key: str,
@@ -325,6 +350,7 @@ def _read_material_settings(raw_value: object) -> CableMaterialSettings:
         manufacturer=_read_material_text(raw_value, "manufacturer", "Manufacturer", required=False),
         part_number=_read_material_text(raw_value, "partNumber", "Part number", required=False),
         notes=_read_material_text(raw_value, "notes", "Notes", required=False),
+        pullback=_read_pullback_settings(raw_value.get("pullback")),
     )
 
 
@@ -415,6 +441,11 @@ def _read_material_overrides(raw_value: object) -> CableMaterialOverrides:
         manufacturer=optional_text("manufacturer", "Manufacturer"),
         part_number=optional_text("partNumber", "Part number"),
         notes=optional_text("notes", "Notes"),
+        pullback=(
+            None
+            if values.get("pullback") is None
+            else _read_pullback_settings(values.get("pullback"))
+        ),
     )
 
 
@@ -480,5 +511,10 @@ def _read_visual_overrides(raw_value: object) -> CableVisualOverrides:
             None
             if raw_value.get("stripes") is None
             else _read_material_stripes(raw_value.get("stripes"))
+        ),
+        pullback=(
+            None
+            if raw_value.get("pullback") is None
+            else _read_pullback_settings(raw_value.get("pullback"))
         ),
     )

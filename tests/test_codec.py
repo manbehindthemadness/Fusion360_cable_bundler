@@ -16,10 +16,12 @@ from cable_bundler.domain import (
     AutoTransitionPreset,
     CableEndAttachment,
     CableEndTarget,
+    CablePullbackSettings,
     CableVisualOverrides,
     DefinitionParseError,
     HarnessDefinition,
     JunctionDefinition,
+    PullbackMode,
     dumps,
     loads,
 )
@@ -37,6 +39,57 @@ def test_round_trip_preserves_group_only_definition(valid_harness: HarnessDefini
     assert payload["auto_transition_preset"] == "tight"
     assert "profiles" not in payload
     assert "cables" not in payload
+
+
+def test_round_trip_and_schema_24_migration_preserve_pullback_settings(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist configured pullback data and default it for the previous schema.
+    """
+    pullback = CablePullbackSettings(mode=PullbackMode.DISTANCE, value=8.5)
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, pullback=pullback),
+        connections=(
+            replace(
+                valid_harness.connections[0],
+                attachment=CableEndAttachment(
+                    None,
+                    attachment_id=UUID(int=811),
+                    visual_overrides=CableVisualOverrides(pullback=pullback),
+                ),
+            ),
+            *valid_harness.connections[1:],
+        ),
+        cable_groups=(
+            replace(
+                valid_harness.cable_groups[0],
+                material_overrides=replace(
+                    valid_harness.cable_groups[0].material_overrides,
+                    pullback=pullback,
+                ),
+            ),
+        ),
+    )
+    restored = loads(dumps(definition))
+    assert restored.material_defaults.pullback == pullback
+    assert restored.cable_groups[0].material_overrides.pullback == pullback
+    restored_attachment = restored.connections[0].attachment
+    assert restored_attachment is not None
+    assert restored_attachment.visual_overrides.pullback == pullback
+
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 24
+    del payload["material_defaults"]["pullback"]
+    del payload["cable_groups"][0]["material_overrides"]["pullback"]
+    del payload["connections"][0]["attachment"]["visual_overrides"]["pullback"]
+    migrated = loads(json.dumps(payload))
+    assert migrated.material_defaults.pullback == CablePullbackSettings()
+    assert migrated.cable_groups[0].material_overrides.pullback is None
+    migrated_attachment = migrated.connections[0].attachment
+    assert migrated_attachment is not None
+    assert migrated_attachment.visual_overrides.pullback is None
 
 
 def test_serialization_is_deterministic(valid_harness: HarnessDefinition) -> None:
@@ -173,7 +226,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 25])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, 26])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,

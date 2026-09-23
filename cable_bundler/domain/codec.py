@@ -34,6 +34,7 @@ from .model import (
     CableGroupDefinition,
     CableMaterialOverrides,
     CableMaterialSettings,
+    CablePullbackSettings,
     CableStripe,
     CableVisualOverrides,
     Connection,
@@ -44,6 +45,7 @@ from .model import (
     JunctionPathwayRelationship,
     PathwayDefinition,
     PathwayEndpoint,
+    PullbackMode,
     RefineGeometry,
     RoutingMode,
     StandaloneEndDefinition,
@@ -87,12 +89,13 @@ def loads(serialized: str) -> HarnessDefinition:
         21,
         22,
         23,
+        24,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 23 are migratable)",
+            "(schemas 12 through 24 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -344,6 +347,7 @@ def _visual_overrides_to_dict(overrides: CableVisualOverrides) -> dict[str, obje
             if overrides.stripes is None
             else [_stripe_to_dict(item) for item in overrides.stripes]
         ),
+        "pullback": (None if overrides.pullback is None else _pullback_to_dict(overrides.pullback)),
     }
 
 
@@ -417,6 +421,7 @@ def _materials_to_dict(settings: CableMaterialSettings) -> dict[str, object]:
         "manufacturer": settings.manufacturer,
         "part_number": settings.part_number,
         "notes": settings.notes,
+        "pullback": _pullback_to_dict(settings.pullback),
     }
 
 
@@ -441,6 +446,19 @@ def _material_overrides_to_dict(overrides: CableMaterialOverrides) -> dict[str, 
         "manufacturer": overrides.manufacturer,
         "part_number": overrides.part_number,
         "notes": overrides.notes,
+        "pullback": (None if overrides.pullback is None else _pullback_to_dict(overrides.pullback)),
+    }
+
+
+def _pullback_to_dict(settings: CablePullbackSettings) -> dict[str, object]:
+    """
+    Convert pullback settings to portable JSON-compatible values.
+    """
+    return {
+        "mode": settings.mode.value,
+        "value": settings.value,
+        "color": _color_to_dict(settings.color),
+        "appearance": _appearance_to_dict(settings.appearance),
     }
 
 
@@ -548,6 +566,7 @@ def parse_material_settings(raw_value: object, path: str) -> CableMaterialSettin
             manufacturer=_require_str(value, "manufacturer", f"{path}.manufacturer"),
             part_number=_require_str(value, "part_number", f"{path}.part_number"),
             notes=_require_str(value, "notes", f"{path}.notes"),
+            pullback=_parse_pullback(value.get("pullback", {}), f"{path}.pullback"),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
@@ -584,6 +603,11 @@ def parse_material_overrides(raw_value: object, path: str) -> CableMaterialOverr
             manufacturer=_optional_str(value.get("manufacturer"), f"{path}.manufacturer"),
             part_number=_optional_str(value.get("part_number"), f"{path}.part_number"),
             notes=_optional_str(value.get("notes"), f"{path}.notes"),
+            pullback=(
+                None
+                if value.get("pullback") is None
+                else _parse_pullback(value.get("pullback"), f"{path}.pullback")
+            ),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
@@ -793,6 +817,40 @@ def _parse_visual_overrides(raw_value: object, path: str) -> CableVisualOverride
             stripes=(
                 None if raw_stripes is None else _parse_stripes(raw_stripes, f"{path}.stripes")
             ),
+            pullback=(
+                None
+                if value.get("pullback") is None
+                else _parse_pullback(value.get("pullback"), f"{path}.pullback")
+            ),
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_pullback(raw_value: object, path: str) -> CablePullbackSettings:
+    """
+    Parse current pullback settings or supply defaults for migrated data.
+    """
+    value = _require_mapping(raw_value, path)
+    defaults = CablePullbackSettings()
+    try:
+        return CablePullbackSettings(
+            mode=(
+                _require_enum(PullbackMode, value, "mode", f"{path}.mode")
+                if "mode" in value
+                else defaults.mode
+            ),
+            value=(
+                _require_float(value, "value", f"{path}.value")
+                if "value" in value
+                else defaults.value
+            ),
+            color=(
+                _parse_color(value.get("color"), f"{path}.color")
+                if "color" in value
+                else defaults.color
+            ),
+            appearance=_parse_appearance(value.get("appearance"), f"{path}.appearance"),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error

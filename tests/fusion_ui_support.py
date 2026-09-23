@@ -204,6 +204,7 @@ class _PaletteLifecycleModule(Protocol):
     set_cable_end_attachment_visual_overrides: Callable[..., None]
     set_cable_end_properties: Callable[..., None]
     set_harness_properties: Callable[..., None]
+    set_harness_material_defaults: Callable[..., None]
     set_junction_properties: Callable[..., None]
     set_pathway_end_properties: Callable[..., None]
     set_pathway_properties: Callable[..., None]

@@ -25,6 +25,7 @@
 .material-color-row input[type="color"] { width: 46px; height: 34px; padding: 2px; }
 .appearance-source { display: grid; gap: 6px; }
 .appearance-library-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pullback-amount { align-items: end; }
 .autocomplete { position: relative; }
 .autocomplete-suggestions { position: absolute; z-index: 20; top: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 4px 4px; box-shadow: 0 5px 12px #0003; }
 .autocomplete-suggestions[hidden] { display: none; }

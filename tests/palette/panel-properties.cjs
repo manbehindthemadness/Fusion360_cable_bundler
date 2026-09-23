@@ -56,6 +56,45 @@ test('material color context menus copy and paste between swatches', () => {
   assert.equal(swatches[2].value, '#ff0000');
 });
 
+asyncTest('pullback defaults to 200 percent and saves distance and appearance data', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    if (action === 'get_appearance_libraries') return { ok: true, libraries: [] };
+    return { ok: true };
+  };
+
+  context.openMaterialOptions(definition);
+
+  const dialog = context.document.body.querySelector('.material-options');
+  const pullback = descendants(dialog, (node) => node.className === 'material-field').find(
+    (field) => descendants(field, (node) => node.textContent === 'Pullback').length,
+  );
+  const mode = descendants(pullback, (node) => node.tag === 'select')[0];
+  const amount = descendants(pullback, (node) => node.type === 'number')[0];
+  const color = descendants(pullback, (node) => node.type === 'color')[0];
+  assert.equal(descendants(pullback, (node) => node.textContent === 'Measurement').length, 1);
+  assert.equal(mode.value, 'percent');
+  assert.equal(amount.value, '200');
+  assert.equal(amount.className, 'filter');
+  assert.equal(color.value, '#B87333');
+
+  mode.value = 'distance';
+  amount.value = '7.5';
+  color.value = '#102030';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const save = calls.find((call) => call.action === 'set_harness_material_defaults');
+  assert.equal(save.payload.materials.pullback.mode, 'distance');
+  assert.equal(save.payload.materials.pullback.value, 7.5);
+  assert.equal(save.payload.materials.pullback.color.red, 16);
+  assert.equal(save.payload.materials.pullback.color.green, 32);
+  assert.equal(save.payload.materials.pullback.color.blue, 48);
+  assert.equal(save.payload.materials.pullback.appearance, null);
+});
+
 asyncTest('dielectric material appears only while shielding is enabled', async () => {
   const { context } = palette();
   const definition = harness();

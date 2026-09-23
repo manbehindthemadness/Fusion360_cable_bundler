@@ -105,6 +105,18 @@ def test_palette_state_contains_complete_group_definition(
     assert harness["pathways"][0]["startMetadata"] == []
     assert harness["pathways"][0]["endMetadata"] == []
     assert harness["connections"][0]["metadata"] == []
+    assert harness["materialDefaults"]["pullback"] == {
+        "mode": "percent",
+        "value": 200.0,
+        "color": {
+            "name": "Copper",
+            "red": 184,
+            "green": 115,
+            "blue": 51,
+            "hex": "#B87333",
+        },
+        "appearance": None,
+    }
     cable_group = harness["cableGroups"][0]
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
     assert cable_group["name"] == ""
@@ -112,6 +124,7 @@ def test_palette_state_contains_complete_group_definition(
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]
     assert cable_group["diameterMm"] == valid_harness.cable_groups[0].diameter_mm
+    assert cable_group["materialOverrides"]["pullback"] is None
     assert harness["metadata"] == []
     assert cable_group["metadata"] == []
     assert cable_group["metadataOverrides"] == []
@@ -184,6 +197,7 @@ def test_palette_state_reports_attachment_and_connection_status(
             "mainColor": None,
             "appearance": None,
             "stripes": None,
+            "pullback": None,
         },
     }
     assert connection["attachments"] == [connection["attachment"]]
@@ -208,6 +222,7 @@ def test_palette_state_reports_attachment_and_connection_status(
             "mainColor": None,
             "appearance": None,
             "stripes": None,
+            "pullback": None,
         },
     }
 

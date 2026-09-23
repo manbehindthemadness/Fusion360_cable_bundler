@@ -15,6 +15,7 @@ from .model import (
     ControlKind,
     InterpolationSettings,
     PathwayEndpoint,
+    PullbackMode,
     RoutingMode,
     StripePattern,
 )
@@ -27,6 +28,7 @@ EnumType = TypeVar(
     StripePattern,
     AutoTransitionPreset,
     AttachmentTargetKind,
+    PullbackMode,
 )
 
 

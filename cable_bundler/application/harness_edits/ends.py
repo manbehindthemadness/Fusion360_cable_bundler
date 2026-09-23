@@ -557,6 +557,7 @@ def remove_cable_end_attachment(
             visual_overrides=CableVisualOverrides(
                 shielding=attachment.visual_overrides.shielding,
                 dielectric_material=attachment.visual_overrides.dielectric_material,
+                pullback=attachment.visual_overrides.pullback,
             ),
         )
         if sum(
