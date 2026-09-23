@@ -5,6 +5,7 @@ Build persistent cable-group solids from the exact curves used by previews.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import Optional, Protocol
 from uuid import UUID
@@ -20,6 +21,7 @@ from ..domain import (
     CableGroupDefinition,
     CableMaterialSettings,
     HarnessDefinition,
+    PullbackMode,
     validate_harness,
 )
 from ..routing import (
@@ -49,12 +51,18 @@ from .cable_solid_parts.stripes import (
     replace_group_stripe_bodies,
     replace_group_stripe_graphics,
 )
-from .cable_solid_parts.sweep_geometry import prepare_group_sweep_segments
+from .cable_solid_parts.sweep_geometry import (
+    prepare_group_sweep_segments,
+    split_route_endpoint_pullbacks,
+    split_route_for_pullback,
+)
 from .harness_gateway import ATTRIBUTE_GROUP
 from .route_preview import solve_cable_group_centerlines
 
 _build_continuous_segment_stripes = build_continuous_segment_stripes
 _prepare_group_sweep_segments = prepare_group_sweep_segments
+_split_route_for_pullback = split_route_for_pullback
+_split_route_endpoint_pullbacks = split_route_endpoint_pullbacks
 _replace_group_stripe_graphics = replace_group_stripe_graphics
 _replace_group_stripe_bodies = replace_group_stripe_bodies
 
@@ -62,6 +70,8 @@ __all__ = [
     "GENERATED_STRIPE_GROUP_ID",
     "_build_continuous_segment_stripes",
     "_prepare_group_sweep_segments",
+    "_split_route_for_pullback",
+    "_split_route_endpoint_pullbacks",
     "_replace_group_stripe_graphics",
     "_replace_group_stripe_bodies",
     "CableSolidVisibilityState",
@@ -137,11 +147,238 @@ def _attachment_materials(
     if attachment_id is None:
         return definition.cable_group_materials(group)
     for connection in definition.connections:
+        if connection.connection_id not in group.connection_ids:
+            continue
         if any(item.attachment_id == attachment_id for item in connection.attachments):
             return definition.cable_end_attachment_materials(
                 group, connection.connection_id, attachment_id
             )
     return definition.cable_group_materials(group)
+
+
+def _attachment_pullback_mm(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    attachment_id: Optional[UUID],
+    diameter_mm: float,
+) -> float:
+    """
+    Resolve one leaf connection's requested pullback distance in millimeters.
+
+    Intermediate connection nodes keep their complete insulation sweep. Percent
+    values use the resolved diameter of the leaf connection branch.
+    """
+    if attachment_id is None:
+        return 0.0
+    for connection in definition.connections:
+        if connection.connection_id not in group.connection_ids:
+            continue
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == attachment_id),
+            None,
+        )
+        if attachment is None:
+            continue
+        if connection.attachment_children(attachment_id):
+            return 0.0
+        settings = definition.cable_end_attachment_materials(
+            group,
+            connection.connection_id,
+            attachment_id,
+        ).pullback
+        if settings.mode is PullbackMode.DISTANCE:
+            return settings.value
+        return diameter_mm * settings.value / 100.0
+    return 0.0
+
+
+def _attachment_conductor_diameter_mm(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    attachment_id: Optional[UUID],
+    fallback_diameter_mm: float,
+) -> float:
+    """
+    Resolve conductor sizing within the attachment's owning cable group.
+    """
+    if attachment_id is None:
+        return fallback_diameter_mm * 0.75
+    for connection in definition.connections:
+        if connection.connection_id not in group.connection_ids:
+            continue
+        if any(item.attachment_id == attachment_id for item in connection.attachments):
+            return definition.cable_end_attachment_conductor_diameter(
+                group,
+                connection.connection_id,
+                attachment_id,
+            )
+    return fallback_diameter_mm * 0.75
+
+
+def _leg_pullback_mm(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> float:
+    """
+    Resolve pullback only for a routed leaf connection branch.
+    """
+    if not getattr(leg, "is_connection_branch", False):
+        return 0.0
+    diameter_mm = getattr(leg, "diameter_mm", None) or group.diameter_mm
+    return _attachment_pullback_mm(
+        definition,
+        group,
+        getattr(leg, "attachment_id", None),
+        diameter_mm,
+    )
+
+
+def _connection_endpoint_pullback(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    connection_id: Optional[UUID],
+) -> tuple[float, Optional[CableMaterialSettings], Optional[UUID], float]:
+    """
+    Resolve a single connected root node when it is also the chain leaf.
+    """
+    if connection_id is None:
+        return 0.0, None, None, 0.0
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        return 0.0, None, None, 0.0
+    roots = connection.attachment_children(None)
+    if len(roots) != 1:
+        return 0.0, None, None, 0.0
+    attachment = roots[0]
+    if not attachment.has_target or connection.attachment_children(attachment.attachment_id):
+        return 0.0, None, None, 0.0
+    materials = definition.cable_end_attachment_materials(
+        group,
+        connection_id,
+        attachment.attachment_id,
+    )
+    return (
+        _attachment_pullback_mm(
+            definition,
+            group,
+            attachment.attachment_id,
+            group.diameter_mm,
+        ),
+        materials,
+        attachment.attachment_id,
+        definition.cable_end_attachment_conductor_diameter(
+            group,
+            connection_id,
+            attachment.attachment_id,
+        ),
+    )
+
+
+def _leg_endpoint_pullbacks(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> tuple[
+    tuple[float, Optional[CableMaterialSettings], Optional[UUID], float],
+    tuple[float, Optional[CableMaterialSettings], Optional[UUID], float],
+]:
+    """
+    Resolve target-facing pullback options for both ends of one routed leg.
+    """
+    if getattr(leg, "is_connection_branch", False):
+        attachment_id = getattr(leg, "attachment_id", None)
+        distance_mm = _leg_pullback_mm(definition, group, leg)
+        materials = (
+            _leg_materials(definition, group, leg)
+            if distance_mm > 0.0 and attachment_id is not None
+            else None
+        )
+        connection_id = getattr(leg, "start_connection_id", None)
+        conductor_diameter_mm = (
+            definition.cable_end_attachment_conductor_diameter(
+                group,
+                connection_id,
+                attachment_id,
+            )
+            if isinstance(connection_id, UUID) and isinstance(attachment_id, UUID)
+            else 0.0
+        )
+        return (
+            distance_mm,
+            materials,
+            attachment_id,
+            conductor_diameter_mm,
+        ), (0.0, None, None, 0.0)
+    return (
+        _connection_endpoint_pullback(
+            definition,
+            group,
+            getattr(leg, "start_connection_id", None),
+        ),
+        _connection_endpoint_pullback(
+            definition,
+            group,
+            getattr(leg, "end_connection_id", None),
+        ),
+    )
+
+
+def _route_build_options(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    legs: tuple[CableGroupRouteLeg, ...],
+) -> dict[str, object]:
+    """
+    Build optional per-route diameter, material, identity, and pullback inputs.
+    """
+    branch_indices = frozenset(
+        index for index, leg in enumerate(legs) if getattr(leg, "is_connection_branch", False)
+    )
+    options: dict[str, object] = {}
+    if branch_indices:
+        attachment_ids = tuple(getattr(leg, "attachment_id", None) for leg in legs)
+        options.update(
+            {
+                "route_diameters_mm": tuple(
+                    getattr(leg, "diameter_mm", None) or group.diameter_mm for leg in legs
+                ),
+                "connection_branch_indices": branch_indices,
+            }
+        )
+        if any(attachment_ids):
+            options.update(
+                {
+                    "route_materials": tuple(
+                        _leg_materials(definition, group, leg) for leg in legs
+                    ),
+                    "route_attachment_ids": attachment_ids,
+                }
+            )
+    endpoint_options = tuple(_leg_endpoint_pullbacks(definition, group, leg) for leg in legs)
+    if any(start[0] > 0.0 or end[0] > 0.0 for start, end in endpoint_options):
+        options.update(
+            {
+                "route_pullbacks_mm": tuple(start[0] for start, _end in endpoint_options),
+                "route_end_pullbacks_mm": tuple(end[0] for _start, end in endpoint_options),
+                "route_pullback_materials": tuple(start[1] for start, _end in endpoint_options),
+                "route_end_pullback_materials": tuple(end[1] for _start, end in endpoint_options),
+                "route_pullback_attachment_ids": tuple(
+                    start[2] for start, _end in endpoint_options
+                ),
+                "route_end_pullback_attachment_ids": tuple(
+                    end[2] for _start, end in endpoint_options
+                ),
+                "route_pullback_diameters_mm": tuple(start[3] for start, _end in endpoint_options),
+                "route_end_pullback_diameters_mm": tuple(
+                    end[3] for _start, end in endpoint_options
+                ),
+            }
+        )
+    return options
 
 
 def generate_cable_group_solids(
@@ -185,26 +422,10 @@ def generate_cable_group_solids(
                 )
             created.append(occurrence)
             try:
-                branch_indices = frozenset(
-                    index
-                    for index, (leg, _route) in enumerate(group_legs)
-                    if leg.is_connection_branch
-                )
-                branch_options = (
-                    {
-                        "route_diameters_mm": tuple(
-                            leg.diameter_mm or group.diameter_mm for leg, _route in group_legs
-                        ),
-                        "connection_branch_indices": branch_indices,
-                        "route_materials": tuple(
-                            _leg_materials(definition, group, leg) for leg, _route in group_legs
-                        ),
-                        "route_attachment_ids": tuple(
-                            leg.attachment_id for leg, _route in group_legs
-                        ),
-                    }
-                    if branch_indices
-                    else {}
+                route_options = _route_build_options(
+                    definition,
+                    group,
+                    tuple(leg for leg, _route in group_legs),
                 )
                 build_cable_group_solid(
                     occurrence.component,
@@ -217,7 +438,7 @@ def generate_cable_group_solids(
                     definition.cable_group_materials(group),
                     design,
                     output_mode,
-                    **branch_options,
+                    **route_options,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
@@ -392,32 +613,7 @@ def _refresh_generated_cable_groups(
                 )
             created.append(occurrence)
             group_legs = tuple(leg for leg in legs if leg.cable_group_id == group.cable_group_id)
-            branch_indices = frozenset(
-                index
-                for index, leg in enumerate(group_legs)
-                if getattr(leg, "is_connection_branch", False)
-            )
-            attachment_ids = tuple(getattr(leg, "attachment_id", None) for leg in group_legs)
-            branch_options = (
-                {
-                    "route_diameters_mm": tuple(
-                        getattr(leg, "diameter_mm", None) or group.diameter_mm for leg in group_legs
-                    ),
-                    "connection_branch_indices": branch_indices,
-                    **(
-                        {
-                            "route_materials": tuple(
-                                _leg_materials(definition, group, leg) for leg in group_legs
-                            ),
-                            "route_attachment_ids": attachment_ids,
-                        }
-                        if any(attachment_ids)
-                        else {}
-                    ),
-                }
-                if branch_indices
-                else {}
-            )
+            route_options = _route_build_options(definition, group, group_legs)
             build_cable_group_solid(
                 occurrence.component,
                 harness,
@@ -430,7 +626,7 @@ def _refresh_generated_cable_groups(
                 design,
                 generated_cable_group_output_mode(previous),
                 is_visible=previous.isLightBulbOn,
-                **branch_options,
+                **route_options,
             )
             occurrence.isLightBulbOn = previous.isLightBulbOn
         for occurrence in previous_by_id.values():
@@ -592,6 +788,82 @@ def clear_cable_solids(harness: adsk.fusion.Component) -> int:
     return len(occurrences)
 
 
+def _main_pullbacks_from_metadata(
+    metadata: dict[str, object],
+) -> tuple[tuple[UUID, float, UUID, str, float, float], ...]:
+    """
+    Decode finalized main-route pullback body ownership in body order.
+    """
+    encoded = metadata.get("main_pullbacks", [])
+    if not isinstance(encoded, list):
+        raise RuntimeError("Generated cable-group pullback metadata is malformed.")
+    decoded: list[tuple[UUID, float, UUID, str, float, float]] = []
+    for item in encoded:
+        if not isinstance(item, dict):
+            raise RuntimeError("Generated cable-group pullback metadata is malformed.")
+        raw_attachment_id = item.get("attachment_id")
+        requested_mm = item.get("requested_mm")
+        raw_route_id = item.get("route_id")
+        boundary = item.get("boundary")
+        length_mm = item.get("length_mm")
+        diameter_mm = item.get("diameter_mm", 0.0)
+        if (
+            not isinstance(raw_attachment_id, str)
+            or not isinstance(raw_route_id, str)
+            or boundary not in ("start", "end")
+            or isinstance(requested_mm, bool)
+            or not isinstance(requested_mm, (int, float))
+            or not math.isfinite(requested_mm)
+            or requested_mm < 0.0
+            or isinstance(length_mm, bool)
+            or not isinstance(length_mm, (int, float))
+            or not math.isfinite(length_mm)
+            or length_mm < 0.0
+            or isinstance(diameter_mm, bool)
+            or not isinstance(diameter_mm, (int, float))
+            or not math.isfinite(diameter_mm)
+            or ("diameter_mm" in item and diameter_mm <= 0.0)
+        ):
+            raise RuntimeError("Generated cable-group pullback metadata is malformed.")
+        try:
+            attachment_id = UUID(raw_attachment_id)
+            route_id = UUID(raw_route_id)
+        except ValueError as error:
+            raise RuntimeError("Generated cable-group pullback metadata is malformed.") from error
+        decoded.append(
+            (
+                attachment_id,
+                float(requested_mm),
+                route_id,
+                boundary,
+                float(length_mm),
+                float(diameter_mm),
+            )
+        )
+    return tuple(decoded)
+
+
+def _expected_main_pullbacks(
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+) -> dict[UUID, tuple[float, float]]:
+    """
+    Resolve current single-node leaf pullbacks at the group's main-route ends.
+    """
+    expected: dict[UUID, tuple[float, float]] = {}
+    for connection_id in group.connection_ids:
+        distance_mm, _materials, attachment_id, conductor_diameter_mm = (
+            _connection_endpoint_pullback(
+                definition,
+                group,
+                connection_id,
+            )
+        )
+        if distance_mm > 0.0 and attachment_id is not None:
+            expected[attachment_id] = (distance_mm, conductor_diameter_mm)
+    return expected
+
+
 # noinspection DuplicatedCode
 def apply_cable_group_materials(
     design: adsk.fusion.Design,
@@ -601,12 +873,84 @@ def apply_cable_group_materials(
     """
     Apply resolved materials to existing generated cable-group components.
 
-    Material changes do not rebuild route solids. Stored component-local leg
-    curves are reused to replace stripe presentation over the grouped bodies.
+    Stored component-local leg curves are reused to replace stripe presentation.
+    Finalized groups are rebuilt only when a leaf pullback length or leaf status
+    changed, because those material settings also define body boundaries.
     """
     groups = {group.cable_group_id: group for group in definition.cable_groups}
+    occurrences = generated_cable_group_occurrences(harness)
+    pullback_changed_ids: set[UUID] = set()
+    for occurrence in occurrences:
+        if generated_cable_group_output_mode(occurrence) != FINALIZED_OUTPUT_MODE:
+            continue
+        attribute = occurrence.component.attributes.itemByName(
+            ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE
+        )
+        if attribute is None:
+            continue
+        try:
+            metadata = json.loads(attribute.value)
+            group_id = UUID(metadata["cable_group_id"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise RuntimeError("A generated cable group has invalid identity metadata.") from error
+        group = groups.get(group_id)
+        if group is None:
+            continue
+        stored_main_pullbacks = {
+            attachment_id: (requested_mm, diameter_mm)
+            for attachment_id, requested_mm, _route_id, _boundary, _length_mm, diameter_mm in (
+                _main_pullbacks_from_metadata(metadata)
+            )
+        }
+        expected_main_pullbacks = _expected_main_pullbacks(definition, group)
+        if stored_main_pullbacks.keys() != expected_main_pullbacks.keys() or any(
+            not math.isclose(
+                stored_main_pullbacks[attachment_id][0],
+                requested[0],
+                abs_tol=1e-6,
+            )
+            or not math.isclose(
+                stored_main_pullbacks[attachment_id][1],
+                requested[1],
+                abs_tol=1e-6,
+            )
+            for attachment_id, requested in expected_main_pullbacks.items()
+        ):
+            pullback_changed_ids.add(group_id)
+            continue
+        for branch in connection_branches_from_metadata(metadata):
+            requested_mm = _attachment_pullback_mm(
+                definition,
+                group,
+                branch.attachment_id,
+                branch.diameter_mm,
+            )
+            if not math.isclose(
+                requested_mm,
+                branch.pullback_requested_mm,
+                abs_tol=1e-6,
+            ) or not math.isclose(
+                _attachment_conductor_diameter_mm(
+                    definition,
+                    group,
+                    branch.attachment_id,
+                    branch.diameter_mm,
+                ),
+                branch.pullback_diameter_mm,
+                abs_tol=1e-6,
+            ):
+                pullback_changed_ids.add(group_id)
+                break
+    if pullback_changed_ids:
+        _refresh_generated_cable_groups(
+            design,
+            harness,
+            definition,
+            frozenset(pullback_changed_ids),
+        )
+        occurrences = generated_cable_group_occurrences(harness)
     applied = 0
-    for occurrence in generated_cable_group_occurrences(harness):
+    for occurrence in occurrences:
         component = occurrence.component
         attribute = component.attributes.itemByName(
             ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE
@@ -623,26 +967,73 @@ def apply_cable_group_materials(
             continue
         materials = definition.cable_group_materials(group)
         branches = connection_branches_from_metadata(metadata)
+        main_pullbacks = _main_pullbacks_from_metadata(metadata)
         branch_materials = tuple(
             _attachment_materials(definition, group, branch.attachment_id) for branch in branches
         )
         bodies = component.bRepBodies
         if bodies.count == 0:
             raise RuntimeError(f"Generated Cable Group {group_id} has no bodies to color.")
-        main_body_count = bodies.count - len(branches)
-        if main_body_count < 1:
+        branch_body_count = sum(
+            branch.insulation_body_count + branch.pullback_body_count for branch in branches
+        )
+        raw_main_insulation_body_count = metadata.get(
+            "main_insulation_body_count",
+            bodies.count - branch_body_count,
+        )
+        if (
+            isinstance(raw_main_insulation_body_count, bool)
+            or not isinstance(raw_main_insulation_body_count, int)
+            or raw_main_insulation_body_count < 0
+        ):
+            raise RuntimeError(f"Generated Cable Group {group_id} has invalid branch bodies.")
+        main_insulation_body_count = raw_main_insulation_body_count
+        if main_insulation_body_count + len(main_pullbacks) + branch_body_count != bodies.count:
             raise RuntimeError(f"Generated Cable Group {group_id} has invalid branch bodies.")
         appearance = cable_appearance(design, materials.main_color, materials.appearance)
-        for body_index in range(main_body_count):
+        for body_index in range(main_insulation_body_count):
             body = bodies.item(body_index)
             if body is not None:
                 body.appearance = appearance
-        for branch_index, branch_settings in enumerate(branch_materials):
-            body = bodies.item(main_body_count + branch_index)
+        body_index = main_insulation_body_count
+        for (
+            attachment_id,
+            _requested_mm,
+            _route_id,
+            _boundary,
+            _length_mm,
+            _diameter_mm,
+        ) in main_pullbacks:
+            pullback_materials = _attachment_materials(
+                definition,
+                group,
+                attachment_id,
+            ).pullback
+            body = bodies.item(body_index)
             if body is not None:
                 body.appearance = cable_appearance(
-                    design, branch_settings.main_color, branch_settings.appearance
+                    design,
+                    pullback_materials.color,
+                    pullback_materials.appearance,
                 )
+            body_index += 1
+        for branch, branch_settings in zip(branches, branch_materials):
+            if branch.insulation_body_count:
+                body = bodies.item(body_index)
+                if body is not None:
+                    body.appearance = cable_appearance(
+                        design, branch_settings.main_color, branch_settings.appearance
+                    )
+                body_index += 1
+            if branch.pullback_body_count:
+                body = bodies.item(body_index)
+                if body is not None:
+                    body.appearance = cable_appearance(
+                        design,
+                        branch_settings.pullback.color,
+                        branch_settings.pullback.appearance,
+                    )
+                body_index += 1
         routes = group_routes_from_metadata(metadata)
         if not routes and materials.stripes:
             raise RuntimeError(
@@ -651,16 +1042,43 @@ def apply_cable_group_materials(
         clear_group_stripe_graphics(component, group_id, include_legacy=True)
         clear_group_stripe_graphics(harness, group_id)
         if generated_cable_group_output_mode(occurrence) == FINALIZED_OUTPUT_MODE:
+            pullbacks_by_route: dict[UUID, dict[str, float]] = {}
+            for (
+                _attachment_id,
+                _requested_mm,
+                route_id,
+                boundary,
+                length_mm,
+                _diameter_mm,
+            ) in main_pullbacks:
+                pullbacks_by_route.setdefault(route_id, {})[boundary] = length_mm
+            insulation_routes = []
+            for route in routes:
+                route_pullbacks = pullbacks_by_route.get(route.cable_id, {})
+                insulation = split_route_endpoint_pullbacks(
+                    route,
+                    route_pullbacks.get("start", 0.0),
+                    route_pullbacks.get("end", 0.0),
+                ).insulation
+                if insulation is not None:
+                    insulation_routes.append(insulation)
+            branch_decorations = []
+            for branch, settings in zip(branches, branch_materials):
+                insulation = split_route_for_pullback(
+                    branch.route,
+                    branch.pullback_mm,
+                ).insulation
+                if insulation is not None:
+                    branch_decorations.append(
+                        (insulation, settings.stripes, branch.diameter_mm / 2.0)
+                    )
             replace_group_stripe_bodies(
                 component,
-                routes,
+                tuple(insulation_routes),
                 materials.stripes,
                 group.diameter_mm / 2.0,
                 design,
-                branch_decorations=tuple(
-                    (branch.route, settings.stripes, branch.diameter_mm / 2.0)
-                    for branch, settings in zip(branches, branch_materials)
-                ),
+                branch_decorations=tuple(branch_decorations),
             )
         else:
             _replace_group_stripe_graphics(

@@ -29,6 +29,11 @@ class ConnectionBranchRoute:
     route: RoutePreview
     diameter_mm: float
     attachment_id: Optional[UUID]
+    pullback_mm: float = 0.0
+    pullback_requested_mm: float = 0.0
+    pullback_diameter_mm: float = 0.75
+    insulation_body_count: int = 1
+    pullback_body_count: int = 0
 
 
 def world_to_harness(
@@ -200,11 +205,45 @@ def connection_branches_from_metadata(
             raise RuntimeError("Generated cable-group branch metadata is malformed.") from error
         if not math.isfinite(diameter_mm) or diameter_mm <= 0.0:
             raise RuntimeError("Generated cable-group branch metadata is malformed.")
+        raw_pullback = encoded_branch.get("pullback_mm", 0.0)
+        raw_pullback_requested = encoded_branch.get("pullback_requested_mm", raw_pullback)
+        raw_pullback_diameter = encoded_branch.get(
+            "pullback_diameter_mm",
+            diameter_mm * 0.75,
+        )
+        insulation_body_count = encoded_branch.get("insulation_body_count", 1)
+        pullback_body_count = encoded_branch.get("pullback_body_count", 0)
+        if (
+            isinstance(raw_pullback, bool)
+            or not isinstance(raw_pullback, (int, float))
+            or not math.isfinite(raw_pullback)
+            or raw_pullback < 0.0
+            or isinstance(raw_pullback_requested, bool)
+            or not isinstance(raw_pullback_requested, (int, float))
+            or not math.isfinite(raw_pullback_requested)
+            or raw_pullback_requested < 0.0
+            or isinstance(raw_pullback_diameter, bool)
+            or not isinstance(raw_pullback_diameter, (int, float))
+            or not math.isfinite(raw_pullback_diameter)
+            or raw_pullback_diameter <= 0.0
+            or raw_pullback_diameter > diameter_mm
+            or isinstance(insulation_body_count, bool)
+            or insulation_body_count not in (0, 1)
+            or isinstance(pullback_body_count, bool)
+            or pullback_body_count not in (0, 1)
+            or insulation_body_count + pullback_body_count < 1
+        ):
+            raise RuntimeError("Generated cable-group branch metadata is malformed.")
         branches.append(
             ConnectionBranchRoute(
                 _route_from_encoded(route_id, label, encoded),
                 diameter_mm,
                 attachment_id,
+                float(raw_pullback),
+                float(raw_pullback_requested),
+                float(raw_pullback_diameter),
+                insulation_body_count,
+                pullback_body_count,
             )
         )
     return tuple(branches)

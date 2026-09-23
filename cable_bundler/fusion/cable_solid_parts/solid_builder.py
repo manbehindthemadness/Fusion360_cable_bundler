@@ -19,6 +19,7 @@ from ...domain import (
 )
 from ...routing import (
     RoutePreview,
+    Vector3,
     tightest_bend,
 )
 from ..harness_gateway import ATTRIBUTE_GROUP
@@ -35,7 +36,12 @@ from .stripes import (
     replace_group_stripe_bodies,
     replace_group_stripe_graphics,
 )
-from .sweep_geometry import is_straight, prepare_group_sweep_segments
+from .sweep_geometry import (
+    is_straight,
+    prepare_group_sweep_segments,
+    split_route_endpoint_pullbacks,
+    split_route_for_pullback,
+)
 
 
 def _optional_uuid_text(value: Optional[UUID]) -> Optional[str]:
@@ -43,6 +49,28 @@ def _optional_uuid_text(value: Optional[UUID]) -> Optional[str]:
     Convert optional generated-owner identity to JSON-compatible text.
     """
     return None if value is None else str(value)
+
+
+def _route_endpoint_pullback_options(
+    point: Vector3,
+    route: RoutePreview,
+    start_distance_mm: float,
+    end_distance_mm: float,
+    start_materials: Optional[CableMaterialSettings],
+    end_materials: Optional[CableMaterialSettings],
+    start_attachment_id: Optional[UUID],
+    end_attachment_id: Optional[UUID],
+    start_diameter_mm: float,
+    end_diameter_mm: float,
+) -> tuple[float, Optional[CableMaterialSettings], Optional[UUID], float]:
+    """
+    Match an oriented construction-segment boundary to its logical route end.
+    """
+    if point == route.curves[0].start:
+        return start_distance_mm, start_materials, start_attachment_id, start_diameter_mm
+    if point == route.curves[-1].end:
+        return end_distance_mm, end_materials, end_attachment_id, end_diameter_mm
+    return 0.0, None, None, 0.0
 
 
 def build_cable_group_solid(
@@ -62,6 +90,14 @@ def build_cable_group_solid(
     connection_branch_indices: frozenset[int] = frozenset(),
     route_materials: tuple[CableMaterialSettings, ...] = (),
     route_attachment_ids: tuple[Optional[UUID], ...] = (),
+    route_pullbacks_mm: tuple[float, ...] = (),
+    route_end_pullbacks_mm: tuple[float, ...] = (),
+    route_pullback_materials: tuple[Optional[CableMaterialSettings], ...] = (),
+    route_end_pullback_materials: tuple[Optional[CableMaterialSettings], ...] = (),
+    route_pullback_attachment_ids: tuple[Optional[UUID], ...] = (),
+    route_end_pullback_attachment_ids: tuple[Optional[UUID], ...] = (),
+    route_pullback_diameters_mm: tuple[float, ...] = (),
+    route_end_pullback_diameters_mm: tuple[float, ...] = (),
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
@@ -81,6 +117,67 @@ def build_cable_group_solid(
     attachment_ids = route_attachment_ids or (None,) * len(routes)
     if len(attachment_ids) != len(routes):
         raise ValueError("Every cable-group route requires attachment identity metadata.")
+    pullbacks_mm = route_pullbacks_mm or (0.0,) * len(routes)
+    end_pullbacks_mm = route_end_pullbacks_mm or (0.0,) * len(routes)
+    if len(pullbacks_mm) != len(routes) or len(end_pullbacks_mm) != len(routes):
+        raise ValueError("Every cable-group route requires two endpoint pullback distances.")
+    if any(
+        isinstance(distance, bool)
+        or not isinstance(distance, (int, float))
+        or not math.isfinite(distance)
+        or distance < 0.0
+        for distance in (*pullbacks_mm, *end_pullbacks_mm)
+    ):
+        raise ValueError("Cable pullback distances must be finite and nonnegative.")
+    pullback_materials: tuple[Optional[CableMaterialSettings], ...] = (
+        route_pullback_materials if route_pullback_materials else (None,) * len(routes)
+    )
+    end_pullback_materials: tuple[Optional[CableMaterialSettings], ...] = (
+        route_end_pullback_materials if route_end_pullback_materials else (None,) * len(routes)
+    )
+    pullback_attachment_ids: tuple[Optional[UUID], ...] = (
+        route_pullback_attachment_ids if route_pullback_attachment_ids else (None,) * len(routes)
+    )
+    end_pullback_attachment_ids: tuple[Optional[UUID], ...] = (
+        route_end_pullback_attachment_ids
+        if route_end_pullback_attachment_ids
+        else (None,) * len(routes)
+    )
+    if not all(
+        len(values) == len(routes)
+        for values in (
+            pullback_materials,
+            end_pullback_materials,
+            pullback_attachment_ids,
+            end_pullback_attachment_ids,
+        )
+    ):
+        raise ValueError("Every cable-group route requires complete pullback endpoint data.")
+    pullback_diameters_mm = route_pullback_diameters_mm or tuple(
+        diameter * 0.75 for diameter in diameters
+    )
+    end_pullback_diameters_mm = route_end_pullback_diameters_mm or tuple(
+        diameter * 0.75 for diameter in diameters
+    )
+    if (
+        len(pullback_diameters_mm) != len(routes)
+        or len(end_pullback_diameters_mm) != len(routes)
+        or any(
+            isinstance(pullback_diameter, bool)
+            or not isinstance(pullback_diameter, (int, float))
+            or not math.isfinite(pullback_diameter)
+            or pullback_diameter < 0.0
+            or pullback_diameter > diameter
+            or (distance > 0.0 and pullback_diameter <= 0.0)
+            for pullback_diameter, diameter, distance in (
+                *zip(pullback_diameters_mm, diameters, pullbacks_mm),
+                *zip(end_pullback_diameters_mm, diameters, end_pullbacks_mm),
+            )
+        )
+    ):
+        raise ValueError(
+            "Active pullback diameters must be positive and no larger than their routes."
+        )
     main_route_indices = tuple(
         index for index in range(len(routes)) if index not in connection_branch_indices
     )
@@ -91,50 +188,218 @@ def build_cable_group_solid(
     local_routes = tuple(route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
     leg_lengths = [0.0] * len(routes)
+    branch_body_layout: dict[int, tuple[int, int, float]] = {}
+    branch_insulation_routes: dict[int, RoutePreview] = {}
+    main_insulation_body_count = 0
+    main_pullbacks: list[
+        tuple[RoutePreview, int, Optional[UUID], CableMaterialSettings, float, float, str, float]
+    ] = []
     for segment in construction_segments:
-        route = segment.route
         route_index = main_route_indices[segment.source_route_index]
+        source_route = routes[route_index]
+        route = segment.route
+        start_options = _route_endpoint_pullback_options(
+            route.curves[0].start,
+            source_route,
+            pullbacks_mm[route_index],
+            end_pullbacks_mm[route_index],
+            pullback_materials[route_index],
+            end_pullback_materials[route_index],
+            pullback_attachment_ids[route_index],
+            end_pullback_attachment_ids[route_index],
+            pullback_diameters_mm[route_index],
+            end_pullback_diameters_mm[route_index],
+        )
+        end_options = _route_endpoint_pullback_options(
+            route.curves[-1].end,
+            source_route,
+            pullbacks_mm[route_index],
+            end_pullbacks_mm[route_index],
+            pullback_materials[route_index],
+            end_pullback_materials[route_index],
+            pullback_attachment_ids[route_index],
+            end_pullback_attachment_ids[route_index],
+            pullback_diameters_mm[route_index],
+            end_pullback_diameters_mm[route_index],
+        )
+        split = split_route_endpoint_pullbacks(
+            route,
+            start_options[0] if output_mode == FINALIZED_OUTPUT_MODE else 0.0,
+            end_options[0] if output_mode == FINALIZED_OUTPUT_MODE else 0.0,
+        )
         leg_number = route_index + 1
-        section_name = f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Diameter"
+        if split.insulation is not None:
+            section_name = (
+                f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Diameter"
+            )
+            body, length_mm = _build_route_sweep(
+                component,
+                split.insulation,
+                diameters[route_index],
+                transform,
+                f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Centerline",
+                section_name,
+                f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Sweep",
+            )
+            body.name = f"Cable Group {group_index + 1} Leg {leg_number}"
+            if segment.segment_count > 1:
+                body.name += f" Segment {segment.segment_index + 1}"
+            bodies.append(body)
+            body.appearance = cable_appearance(
+                design,
+                materials_by_route[route_index].main_color,
+                materials_by_route[route_index].appearance,
+            )
+            leg_lengths[route_index] += length_mm
+            main_insulation_body_count += 1
+        for pullback_route, options, applied_length in (
+            (split.start_pullback, start_options, split.start_length_mm),
+            (split.end_pullback, end_options, split.end_length_mm),
+        ):
+            pullback_material = options[1]
+            if pullback_route is None or pullback_material is None:
+                continue
+            main_pullbacks.append(
+                (
+                    pullback_route,
+                    route_index,
+                    options[2],
+                    pullback_material,
+                    float(applied_length),
+                    float(options[0]),
+                    (
+                        "start"
+                        if source_route.curves[0].start
+                        in (pullback_route.curves[0].start, pullback_route.curves[-1].end)
+                        else "end"
+                    ),
+                    float(options[3]),
+                )
+            )
+    applied_main_pullbacks: dict[int, dict[str, float]] = {}
+    for (
+        _pullback_route,
+        route_index,
+        _attachment_id,
+        _pullback_material,
+        applied_length,
+        _requested_length,
+        boundary,
+        _pullback_diameter_mm,
+    ) in main_pullbacks:
+        applied_main_pullbacks.setdefault(route_index, {})[boundary] = applied_length
+    main_insulation_routes: list[RoutePreview] = []
+    for index in main_route_indices:
+        applied = applied_main_pullbacks.get(index, {})
+        insulation = split_route_endpoint_pullbacks(
+            routes[index],
+            applied.get("start", 0.0),
+            applied.get("end", 0.0),
+        ).insulation
+        if insulation is not None:
+            main_insulation_routes.append(route_in_component_space(insulation, transform))
+    main_pullback_metadata: list[dict[str, object]] = []
+    for pullback_number, (
+        pullback_route,
+        route_index,
+        attachment_id,
+        pullback_material,
+        applied_length,
+        requested_length,
+        boundary,
+        pullback_diameter_mm,
+    ) in enumerate(main_pullbacks, start=1):
         body, length_mm = _build_route_sweep(
             component,
-            route,
-            diameters[route_index],
+            pullback_route,
+            pullback_diameter_mm,
             transform,
-            f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Centerline",
-            section_name,
-            f"Cable Group Leg {leg_number} Segment {segment.segment_index + 1} Sweep",
+            f"Cable Group Pullback {pullback_number} Centerline",
+            f"Cable Group Pullback {pullback_number} Diameter",
+            f"Cable Group Pullback {pullback_number} Sweep",
         )
-        body.name = f"Cable Group {group_index + 1} Leg {leg_number}"
-        if segment.segment_count > 1:
-            body.name += f" Segment {segment.segment_index + 1}"
+        body.name = f"Cable Group {group_index + 1} Pullback {pullback_number}"
         bodies.append(body)
         body.appearance = cable_appearance(
             design,
-            materials_by_route[route_index].main_color,
-            materials_by_route[route_index].appearance,
+            pullback_material.pullback.color,
+            pullback_material.pullback.appearance,
         )
         leg_lengths[route_index] += length_mm
+        main_pullback_metadata.append(
+            {
+                "attachment_id": _optional_uuid_text(attachment_id),
+                "route_id": str(routes[route_index].cable_id),
+                "length_mm": applied_length,
+                "requested_mm": requested_length,
+                "boundary": boundary,
+                "diameter_mm": pullback_diameter_mm,
+            }
+        )
     for route_index in sorted(connection_branch_indices):
         branch_number = route_index + 1
-        body, length_mm = _build_route_sweep(
-            component,
+        split = split_route_for_pullback(
             routes[route_index],
-            diameters[route_index],
-            transform,
-            f"Cable Connection Branch {branch_number} Centerline",
-            f"Cable Connection Branch {branch_number} Diameter",
-            f"Cable Connection Branch {branch_number} Sweep",
+            pullbacks_mm[route_index] if output_mode == FINALIZED_OUTPUT_MODE else 0.0,
         )
-        body.name = f"Cable Group {group_index + 1} Connection Branch {branch_number}"
-        bodies.append(body)
-        body.appearance = cable_appearance(
-            design,
-            materials_by_route[route_index].main_color,
-            materials_by_route[route_index].appearance,
+        branch_materials = materials_by_route[route_index]
+        insulation_body_count = 0
+        pullback_body_count = 0
+        if split.insulation is not None:
+            body, length_mm = _build_route_sweep(
+                component,
+                split.insulation,
+                diameters[route_index],
+                transform,
+                f"Cable Connection Branch {branch_number} Centerline",
+                f"Cable Connection Branch {branch_number} Diameter",
+                f"Cable Connection Branch {branch_number} Sweep",
+            )
+            body.name = f"Cable Group {group_index + 1} Connection Branch {branch_number}"
+            bodies.append(body)
+            body.appearance = cable_appearance(
+                design,
+                branch_materials.main_color,
+                branch_materials.appearance,
+            )
+            leg_lengths[route_index] += length_mm
+            insulation_body_count = 1
+            branch_insulation_routes[route_index] = route_in_component_space(
+                split.insulation, transform
+            )
+        if split.pullback is not None:
+            body, length_mm = _build_route_sweep(
+                component,
+                split.pullback,
+                pullback_diameters_mm[route_index],
+                transform,
+                f"Cable Connection Branch {branch_number} Pullback Centerline",
+                f"Cable Connection Branch {branch_number} Pullback Diameter",
+                f"Cable Connection Branch {branch_number} Pullback Sweep",
+            )
+            body.name = f"Cable Group {group_index + 1} Connection Branch {branch_number} Pullback"
+            bodies.append(body)
+            body.appearance = cable_appearance(
+                design,
+                branch_materials.pullback.color,
+                branch_materials.pullback.appearance,
+            )
+            leg_lengths[route_index] += length_mm
+            pullback_body_count = 1
+        branch_body_layout[route_index] = (
+            insulation_body_count,
+            pullback_body_count,
+            split.pullback_length_mm,
         )
-        leg_lengths[route_index] = length_mm
-    if component.bRepBodies.count != len(construction_segments) + len(connection_branch_indices):
+    expected_body_count = (
+        main_insulation_body_count
+        + len(main_pullbacks)
+        + sum(
+            insulation_count + pullback_count
+            for insulation_count, pullback_count, _length_mm in branch_body_layout.values()
+        )
+    )
+    if component.bRepBodies.count != expected_body_count:
         raise RuntimeError("Fusion did not retain one solid body per cable-group segment.")
     total_length_mm = sum(leg_lengths)
     component.name = f"Cable Group {group_index + 1}_{total_length_mm:.2f}mm"
@@ -162,10 +427,19 @@ def build_cable_group_solid(
                     "diameter_mm": diameters[index],
                     "attachment_id": _optional_uuid_text(attachment_ids[index]),
                     "length_mm": leg_lengths[index],
+                    "pullback_mm": branch_body_layout[index][2],
+                    "pullback_requested_mm": (
+                        pullbacks_mm[index] if output_mode == FINALIZED_OUTPUT_MODE else 0.0
+                    ),
+                    "pullback_diameter_mm": pullback_diameters_mm[index],
+                    "insulation_body_count": branch_body_layout[index][0],
+                    "pullback_body_count": branch_body_layout[index][1],
                     "route_curves_mm": route_metadata(local_routes[index]),
                 }
                 for index in sorted(connection_branch_indices)
             ],
+            "main_insulation_body_count": main_insulation_body_count,
+            "main_pullbacks": main_pullback_metadata,
             **material_metadata(materials),
         },
         sort_keys=True,
@@ -183,17 +457,18 @@ def build_cable_group_solid(
         clear_group_stripe_graphics(stripe_graphics_owner, group.cable_group_id)
         replace_group_stripe_bodies(
             component,
-            tuple(local_routes[index] for index in main_route_indices),
+            tuple(main_insulation_routes),
             materials.stripes,
             group.diameter_mm / 2.0,
             design,
             branch_decorations=tuple(
                 (
-                    local_routes[index],
+                    branch_insulation_routes[index],
                     materials_by_route[index].stripes,
                     diameters[index] / 2.0,
                 )
                 for index in sorted(connection_branch_indices)
+                if index in branch_insulation_routes
             ),
         )
     else:

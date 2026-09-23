@@ -187,10 +187,10 @@ class PullbackMode(str, Enum):
 @dataclass(frozen=True)
 class CablePullbackSettings:
     """
-    Store the future pullback amount and its visual material selection.
+    Store the finalized leaf-connection pullback and its visual material.
 
     Percent values are relative to the cable diameter. Distance values are in
-    millimeters. These settings are persisted for later diagram use only.
+    millimeters. Preview and ordinary solid geometry do not use these settings.
     """
 
     mode: PullbackMode = PullbackMode.PERCENT

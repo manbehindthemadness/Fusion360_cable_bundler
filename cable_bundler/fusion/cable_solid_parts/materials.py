@@ -39,6 +39,22 @@ def material_metadata(materials: CableMaterialSettings) -> dict[str, object]:
         "manufacturer": materials.manufacturer,
         "part_number": materials.part_number,
         "notes": materials.notes,
+        "pullback": {
+            "mode": materials.pullback.mode.value,
+            "value": materials.pullback.value,
+            "color": materials.pullback.color.hex_rgb,
+            "color_name": materials.pullback.color.name,
+            "appearance": (
+                None
+                if materials.pullback.appearance is None
+                else {
+                    "library_id": materials.pullback.appearance.library_id,
+                    "library_name": materials.pullback.appearance.library_name,
+                    "appearance_id": materials.pullback.appearance.appearance_id,
+                    "appearance_name": materials.pullback.appearance.appearance_name,
+                }
+            ),
+        },
         "stripes": [
             {
                 "color": stripe.color.hex_rgb,
