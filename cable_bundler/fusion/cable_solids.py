@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import Optional, Protocol
+from typing import Optional, Protocol, cast
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -18,6 +18,7 @@ import adsk.fusion
 
 from ..application import CableGroupRouteLeg
 from ..domain import (
+    AttachmentTargetKind,
     CableGroupDefinition,
     CableMaterialSettings,
     HarnessDefinition,
@@ -27,6 +28,7 @@ from ..domain import (
 from ..routing import (
     RoutePreview,
 )
+from .attachment_targets import resolve_attachment_target
 from .cable_solid_parts.constants import (
     FINALIZED_OUTPUT_MODE,
     GENERATED_CABLE_GROUP_ATTRIBUTE,
@@ -56,6 +58,7 @@ from .cable_solid_parts.sweep_geometry import (
     split_route_endpoint_pullbacks,
     split_route_for_pullback,
 )
+from .cable_solid_parts.welds import WeldEndpoint
 from .harness_gateway import ATTRIBUTE_GROUP
 from .route_preview import solve_cable_group_centerlines
 
@@ -215,6 +218,53 @@ def _attachment_conductor_diameter_mm(
     return fallback_diameter_mm * 0.75
 
 
+def _attachment_weld_endpoint(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    attachment_id: Optional[UUID],
+) -> Optional[WeldEndpoint]:
+    """Resolve weld geometry only for a connected leaf BRep-face node."""
+    if attachment_id is None:
+        return None
+    for connection in definition.connections:
+        if connection.connection_id not in group.connection_ids:
+            continue
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == attachment_id),
+            None,
+        )
+        if attachment is None:
+            continue
+        if (
+            attachment.target_kind is not AttachmentTargetKind.FACE
+            or connection.attachment_children(attachment_id)
+        ):
+            return None
+        materials = definition.cable_end_attachment_materials(
+            group,
+            connection.connection_id,
+            attachment_id,
+        )
+        if materials.weld.value <= 1e-9:
+            return None
+        entity = resolve_attachment_target(design, attachment)
+        face = adsk.fusion.BRepFace.cast(entity)
+        if face is None:
+            raise ValueError(f"Weld target face is unavailable: {attachment.display_name}")
+        return WeldEndpoint(
+            attachment_id,
+            face,
+            definition.cable_end_attachment_conductor_diameter(
+                group,
+                connection.connection_id,
+                attachment_id,
+            ),
+            materials.weld,
+        )
+    return None
+
+
 def _leg_pullback_mm(
     definition: HarnessDefinition,
     group: CableGroupDefinition,
@@ -327,7 +377,68 @@ def _leg_endpoint_pullbacks(
     )
 
 
+def _connection_endpoint_weld(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    connection_id: Optional[UUID],
+) -> Optional[WeldEndpoint]:
+    """Resolve a weld for a single connected root node that is also a leaf."""
+    if connection_id is None:
+        return None
+    connection = next(
+        (item for item in definition.connections if item.connection_id == connection_id),
+        None,
+    )
+    if connection is None:
+        return None
+    roots = connection.attachment_children(None)
+    if len(roots) != 1:
+        return None
+    attachment = roots[0]
+    return _attachment_weld_endpoint(
+        design,
+        definition,
+        group,
+        attachment.attachment_id,
+    )
+
+
+def _leg_endpoint_welds(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> tuple[Optional[WeldEndpoint], Optional[WeldEndpoint]]:
+    """Resolve target-facing welds for both ends of one routed leg."""
+    if getattr(leg, "is_connection_branch", False):
+        return (
+            _attachment_weld_endpoint(
+                design,
+                definition,
+                group,
+                getattr(leg, "attachment_id", None),
+            ),
+            None,
+        )
+    return (
+        _connection_endpoint_weld(
+            design,
+            definition,
+            group,
+            getattr(leg, "start_connection_id", None),
+        ),
+        _connection_endpoint_weld(
+            design,
+            definition,
+            group,
+            getattr(leg, "end_connection_id", None),
+        ),
+    )
+
+
 def _route_build_options(
+    design: adsk.fusion.Design,
     definition: HarnessDefinition,
     group: CableGroupDefinition,
     legs: tuple[CableGroupRouteLeg, ...],
@@ -378,6 +489,14 @@ def _route_build_options(
                 ),
             }
         )
+    weld_options = tuple(_leg_endpoint_welds(design, definition, group, leg) for leg in legs)
+    if any(start is not None or end is not None for start, end in weld_options):
+        options.update(
+            {
+                "route_welds": tuple(start for start, _end in weld_options),
+                "route_end_welds": tuple(end for _start, end in weld_options),
+            }
+        )
     return options
 
 
@@ -423,6 +542,7 @@ def generate_cable_group_solids(
             created.append(occurrence)
             try:
                 route_options = _route_build_options(
+                    design,
                     definition,
                     group,
                     tuple(leg for leg, _route in group_legs),
@@ -613,7 +733,7 @@ def _refresh_generated_cable_groups(
                 )
             created.append(occurrence)
             group_legs = tuple(leg for leg in legs if leg.cable_group_id == group.cable_group_id)
-            route_options = _route_build_options(definition, group, group_legs)
+            route_options = _route_build_options(design, definition, group, group_legs)
             build_cable_group_solid(
                 occurrence.component,
                 harness,
@@ -864,6 +984,71 @@ def _expected_main_pullbacks(
     return expected
 
 
+def _main_welds_from_metadata(
+    metadata: dict[str, object],
+) -> tuple[tuple[UUID, UUID, str, float, float, float], ...]:
+    """Decode finalized main-route weld ownership in body order."""
+    encoded = metadata.get("main_welds", [])
+    if not isinstance(encoded, list):
+        raise RuntimeError("Generated cable-group weld metadata is malformed.")
+    decoded: list[tuple[UUID, UUID, str, float, float, float]] = []
+    for item in encoded:
+        if not isinstance(item, dict):
+            raise RuntimeError("Generated cable-group weld metadata is malformed.")
+        raw_attachment_id = item.get("attachment_id")
+        raw_route_id = item.get("route_id")
+        boundary = item.get("boundary")
+        diameter_mm = item.get("diameter_mm")
+        conductor_diameter_mm = item.get("conductor_diameter_mm")
+        length_mm = item.get("length_mm")
+        if (
+            not isinstance(raw_attachment_id, str)
+            or not isinstance(raw_route_id, str)
+            or boundary not in ("start", "end")
+            or any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value <= 0.0
+                for value in (diameter_mm, conductor_diameter_mm, length_mm)
+            )
+        ):
+            raise RuntimeError("Generated cable-group weld metadata is malformed.")
+        try:
+            attachment_id = UUID(raw_attachment_id)
+            route_id = UUID(raw_route_id)
+        except ValueError as error:
+            raise RuntimeError("Generated cable-group weld metadata is malformed.") from error
+        decoded.append(
+            (
+                attachment_id,
+                route_id,
+                boundary,
+                float(cast(float, diameter_mm)),
+                float(cast(float, conductor_diameter_mm)),
+                float(cast(float, length_mm)),
+            )
+        )
+    return tuple(decoded)
+
+
+def _expected_main_welds(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    group: CableGroupDefinition,
+) -> dict[UUID, tuple[float, float]]:
+    """Resolve current leaf-face weld diameters at the group's main-route ends."""
+    expected: dict[UUID, tuple[float, float]] = {}
+    for connection_id in group.connection_ids:
+        endpoint = _connection_endpoint_weld(design, definition, group, connection_id)
+        if endpoint is not None:
+            expected[endpoint.attachment_id] = (
+                endpoint.diameter_mm,
+                endpoint.conductor_diameter_mm,
+            )
+    return expected
+
+
 # noinspection DuplicatedCode
 def apply_cable_group_materials(
     design: adsk.fusion.Design,
@@ -874,12 +1059,12 @@ def apply_cable_group_materials(
     Apply resolved materials to existing generated cable-group components.
 
     Stored component-local leg curves are reused to replace stripe presentation.
-    Finalized groups are rebuilt only when a leaf pullback length or leaf status
-    changed, because those material settings also define body boundaries.
+    Finalized groups are rebuilt when leaf pullback or weld dimensions change,
+    because those material settings also define body boundaries.
     """
     groups = {group.cable_group_id: group for group in definition.cable_groups}
     occurrences = generated_cable_group_occurrences(harness)
-    pullback_changed_ids: set[UUID] = set()
+    geometry_changed_ids: set[UUID] = set()
     for occurrence in occurrences:
         if generated_cable_group_output_mode(occurrence) != FINALIZED_OUTPUT_MODE:
             continue
@@ -916,7 +1101,34 @@ def apply_cable_group_materials(
             )
             for attachment_id, requested in expected_main_pullbacks.items()
         ):
-            pullback_changed_ids.add(group_id)
+            geometry_changed_ids.add(group_id)
+            continue
+        stored_main_welds = {
+            attachment_id: (diameter_mm, conductor_diameter_mm)
+            for (
+                attachment_id,
+                _route_id,
+                _boundary,
+                diameter_mm,
+                conductor_diameter_mm,
+                _length_mm,
+            ) in _main_welds_from_metadata(metadata)
+        }
+        expected_main_welds = _expected_main_welds(design, definition, group)
+        if stored_main_welds.keys() != expected_main_welds.keys() or any(
+            not math.isclose(
+                stored_main_welds[attachment_id][0],
+                expected[0],
+                abs_tol=1e-6,
+            )
+            or not math.isclose(
+                stored_main_welds[attachment_id][1],
+                expected[1],
+                abs_tol=1e-6,
+            )
+            for attachment_id, expected in expected_main_welds.items()
+        ):
+            geometry_changed_ids.add(group_id)
             continue
         for branch in connection_branches_from_metadata(metadata):
             requested_mm = _attachment_pullback_mm(
@@ -939,14 +1151,37 @@ def apply_cable_group_materials(
                 branch.pullback_diameter_mm,
                 abs_tol=1e-6,
             ):
-                pullback_changed_ids.add(group_id)
+                geometry_changed_ids.add(group_id)
                 break
-    if pullback_changed_ids:
+            endpoint = _attachment_weld_endpoint(
+                design,
+                definition,
+                group,
+                branch.attachment_id,
+            )
+            if (branch.weld_body_count == 1) != (endpoint is not None) or (
+                endpoint is not None
+                and (
+                    not math.isclose(
+                        branch.weld_diameter_mm,
+                        endpoint.diameter_mm,
+                        abs_tol=1e-6,
+                    )
+                    or not math.isclose(
+                        branch.weld_conductor_diameter_mm,
+                        endpoint.conductor_diameter_mm,
+                        abs_tol=1e-6,
+                    )
+                )
+            ):
+                geometry_changed_ids.add(group_id)
+                break
+    if geometry_changed_ids:
         _refresh_generated_cable_groups(
             design,
             harness,
             definition,
-            frozenset(pullback_changed_ids),
+            frozenset(geometry_changed_ids),
         )
         occurrences = generated_cable_group_occurrences(harness)
     applied = 0
@@ -968,6 +1203,7 @@ def apply_cable_group_materials(
         materials = definition.cable_group_materials(group)
         branches = connection_branches_from_metadata(metadata)
         main_pullbacks = _main_pullbacks_from_metadata(metadata)
+        main_welds = _main_welds_from_metadata(metadata)
         branch_materials = tuple(
             _attachment_materials(definition, group, branch.attachment_id) for branch in branches
         )
@@ -975,7 +1211,8 @@ def apply_cable_group_materials(
         if bodies.count == 0:
             raise RuntimeError(f"Generated Cable Group {group_id} has no bodies to color.")
         branch_body_count = sum(
-            branch.insulation_body_count + branch.pullback_body_count for branch in branches
+            branch.insulation_body_count + branch.pullback_body_count + branch.weld_body_count
+            for branch in branches
         )
         raw_main_insulation_body_count = metadata.get(
             "main_insulation_body_count",
@@ -988,7 +1225,10 @@ def apply_cable_group_materials(
         ):
             raise RuntimeError(f"Generated Cable Group {group_id} has invalid branch bodies.")
         main_insulation_body_count = raw_main_insulation_body_count
-        if main_insulation_body_count + len(main_pullbacks) + branch_body_count != bodies.count:
+        if (
+            main_insulation_body_count + len(main_pullbacks) + len(main_welds) + branch_body_count
+            != bodies.count
+        ):
             raise RuntimeError(f"Generated Cable Group {group_id} has invalid branch bodies.")
         appearance = cable_appearance(design, materials.main_color, materials.appearance)
         for body_index in range(main_insulation_body_count):
@@ -1017,6 +1257,27 @@ def apply_cable_group_materials(
                     pullback_materials.appearance,
                 )
             body_index += 1
+        for (
+            attachment_id,
+            _route_id,
+            _boundary,
+            _diameter_mm,
+            _conductor_diameter_mm,
+            _length_mm,
+        ) in main_welds:
+            weld_materials = _attachment_materials(
+                definition,
+                group,
+                attachment_id,
+            ).weld
+            body = bodies.item(body_index)
+            if body is not None:
+                body.appearance = cable_appearance(
+                    design,
+                    weld_materials.color,
+                    weld_materials.appearance,
+                )
+            body_index += 1
         for branch, branch_settings in zip(branches, branch_materials):
             if branch.insulation_body_count:
                 body = bodies.item(body_index)
@@ -1032,6 +1293,15 @@ def apply_cable_group_materials(
                         design,
                         branch_settings.pullback.color,
                         branch_settings.pullback.appearance,
+                    )
+                body_index += 1
+            if branch.weld_body_count:
+                body = bodies.item(body_index)
+                if body is not None:
+                    body.appearance = cable_appearance(
+                        design,
+                        branch_settings.weld.color,
+                        branch_settings.weld.appearance,
                     )
                 body_index += 1
         routes = group_routes_from_metadata(metadata)

@@ -223,10 +223,10 @@ class CablePullbackSettings:
 @dataclass(frozen=True)
 class CableWeldSettings:
     """
-    Store the future weld percentage and its visual material.
+    Store a finalized leaf-face weld percentage and its visual material.
 
-    The setting is persisted for later geometry work but currently has no effect
-    on preview or finalized cable solids.
+    The percentage scales the resolved conductor diameter. Its resulting radius
+    also defines how far the weld reaches from the target into the conductor.
     """
 
     value: float = 150.0

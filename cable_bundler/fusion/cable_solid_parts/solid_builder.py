@@ -39,9 +39,11 @@ from .stripes import (
 from .sweep_geometry import (
     is_straight,
     prepare_group_sweep_segments,
+    reverse_route,
     split_route_endpoint_pullbacks,
     split_route_for_pullback,
 )
+from .welds import WeldEndpoint, build_weld_body
 
 
 def _optional_uuid_text(value: Optional[UUID]) -> Optional[str]:
@@ -73,6 +75,27 @@ def _route_endpoint_pullback_options(
     return 0.0, None, None, 0.0
 
 
+def _branch_weld_metadata(
+    endpoint: Optional[WeldEndpoint],
+    route: RoutePreview,
+) -> dict[str, object]:
+    """Serialize optional branch weld geometry without unsafe null access."""
+    if endpoint is None:
+        return {
+            "weld_diameter_mm": 0.0,
+            "weld_conductor_diameter_mm": 0.0,
+            "weld_length_mm": 0.0,
+        }
+    return {
+        "weld_diameter_mm": endpoint.diameter_mm,
+        "weld_conductor_diameter_mm": endpoint.conductor_diameter_mm,
+        "weld_length_mm": split_route_for_pullback(
+            route,
+            endpoint.radius_mm,
+        ).pullback_length_mm,
+    }
+
+
 def build_cable_group_solid(
     component: adsk.fusion.Component,
     stripe_graphics_owner: adsk.fusion.Component,
@@ -98,6 +121,8 @@ def build_cable_group_solid(
     route_end_pullback_attachment_ids: tuple[Optional[UUID], ...] = (),
     route_pullback_diameters_mm: tuple[float, ...] = (),
     route_end_pullback_diameters_mm: tuple[float, ...] = (),
+    route_welds: tuple[Optional[WeldEndpoint], ...] = (),
+    route_end_welds: tuple[Optional[WeldEndpoint], ...] = (),
 ) -> None:
     """
     Sweep every deterministic group leg from its own path-normal profile.
@@ -168,7 +193,7 @@ def build_cable_group_solid(
             or not math.isfinite(pullback_diameter)
             or pullback_diameter < 0.0
             or pullback_diameter > diameter
-            or (distance > 0.0 and pullback_diameter <= 0.0)
+            or (distance > 0.0 and pullback_diameter == 0.0)
             for pullback_diameter, diameter, distance in (
                 *zip(pullback_diameters_mm, diameters, pullbacks_mm),
                 *zip(end_pullback_diameters_mm, diameters, end_pullbacks_mm),
@@ -178,6 +203,10 @@ def build_cable_group_solid(
         raise ValueError(
             "Active pullback diameters must be positive and no larger than their routes."
         )
+    welds = route_welds or (None,) * len(routes)
+    end_welds = route_end_welds or (None,) * len(routes)
+    if len(welds) != len(routes) or len(end_welds) != len(routes):
+        raise ValueError("Every cable-group route requires two endpoint weld values.")
     main_route_indices = tuple(
         index for index in range(len(routes)) if index not in connection_branch_indices
     )
@@ -188,7 +217,7 @@ def build_cable_group_solid(
     local_routes = tuple(route_in_component_space(route, transform) for route in routes)
     bodies: list[adsk.fusion.BRepBody] = []
     leg_lengths = [0.0] * len(routes)
-    branch_body_layout: dict[int, tuple[int, int, float]] = {}
+    branch_body_layout: dict[int, tuple[int, int, int, float]] = {}
     branch_insulation_routes: dict[int, RoutePreview] = {}
     main_insulation_body_count = 0
     main_pullbacks: list[
@@ -336,6 +365,46 @@ def build_cable_group_solid(
                 "diameter_mm": pullback_diameter_mm,
             }
         )
+    main_weld_metadata: list[dict[str, object]] = []
+    main_weld_body_count = 0
+    if output_mode == FINALIZED_OUTPUT_MODE:
+        for route_index in main_route_indices:
+            for boundary, endpoint in (
+                ("start", welds[route_index]),
+                ("end", end_welds[route_index]),
+            ):
+                if endpoint is None:
+                    continue
+                target_route = (
+                    routes[route_index]
+                    if boundary == "start"
+                    else reverse_route(routes[route_index])
+                )
+                weld_number = main_weld_body_count + 1
+                result = build_weld_body(
+                    component,
+                    target_route,
+                    transform,
+                    endpoint,
+                    f"Cable Group {group_index + 1} Weld {weld_number}",
+                )
+                bodies.append(result.body)
+                result.body.appearance = cable_appearance(
+                    design,
+                    endpoint.settings.color,
+                    endpoint.settings.appearance,
+                )
+                main_weld_body_count += 1
+                main_weld_metadata.append(
+                    {
+                        "attachment_id": str(endpoint.attachment_id),
+                        "route_id": str(routes[route_index].cable_id),
+                        "boundary": boundary,
+                        "diameter_mm": endpoint.diameter_mm,
+                        "conductor_diameter_mm": endpoint.conductor_diameter_mm,
+                        "length_mm": result.length_mm,
+                    }
+                )
     for route_index in sorted(connection_branch_indices):
         branch_number = route_index + 1
         split = split_route_for_pullback(
@@ -345,6 +414,7 @@ def build_cable_group_solid(
         branch_materials = materials_by_route[route_index]
         insulation_body_count = 0
         pullback_body_count = 0
+        weld_body_count = 0
         if split.insulation is not None:
             body, length_mm = _build_route_sweep(
                 component,
@@ -386,17 +456,37 @@ def build_cable_group_solid(
             )
             leg_lengths[route_index] += length_mm
             pullback_body_count = 1
+        endpoint = welds[route_index]
+        if output_mode == FINALIZED_OUTPUT_MODE and endpoint is not None:
+            result = build_weld_body(
+                component,
+                routes[route_index],
+                transform,
+                endpoint,
+                f"Cable Group {group_index + 1} Connection Branch {branch_number} Weld",
+            )
+            bodies.append(result.body)
+            result.body.appearance = cable_appearance(
+                design,
+                endpoint.settings.color,
+                endpoint.settings.appearance,
+            )
+            weld_body_count = 1
         branch_body_layout[route_index] = (
             insulation_body_count,
             pullback_body_count,
+            weld_body_count,
             split.pullback_length_mm,
         )
     expected_body_count = (
         main_insulation_body_count
         + len(main_pullbacks)
+        + main_weld_body_count
         + sum(
-            insulation_count + pullback_count
-            for insulation_count, pullback_count, _length_mm in branch_body_layout.values()
+            insulation_count + pullback_count + weld_count
+            for insulation_count, pullback_count, weld_count, _length_mm in (
+                branch_body_layout.values()
+            )
         )
     )
     if component.bRepBodies.count != expected_body_count:
@@ -427,19 +517,25 @@ def build_cable_group_solid(
                     "diameter_mm": diameters[index],
                     "attachment_id": _optional_uuid_text(attachment_ids[index]),
                     "length_mm": leg_lengths[index],
-                    "pullback_mm": branch_body_layout[index][2],
+                    "pullback_mm": branch_body_layout[index][3],
                     "pullback_requested_mm": (
                         pullbacks_mm[index] if output_mode == FINALIZED_OUTPUT_MODE else 0.0
                     ),
                     "pullback_diameter_mm": pullback_diameters_mm[index],
                     "insulation_body_count": branch_body_layout[index][0],
                     "pullback_body_count": branch_body_layout[index][1],
+                    "weld_body_count": branch_body_layout[index][2],
+                    **_branch_weld_metadata(
+                        welds[index] if branch_body_layout[index][2] else None,
+                        routes[index],
+                    ),
                     "route_curves_mm": route_metadata(local_routes[index]),
                 }
                 for index in sorted(connection_branch_indices)
             ],
             "main_insulation_body_count": main_insulation_body_count,
             "main_pullbacks": main_pullback_metadata,
+            "main_welds": main_weld_metadata,
             **material_metadata(materials),
         },
         sort_keys=True,

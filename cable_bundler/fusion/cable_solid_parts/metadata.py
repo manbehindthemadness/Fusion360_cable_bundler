@@ -34,6 +34,10 @@ class ConnectionBranchRoute:
     pullback_diameter_mm: float = 0.75
     insulation_body_count: int = 1
     pullback_body_count: int = 0
+    weld_body_count: int = 0
+    weld_diameter_mm: float = 0.0
+    weld_conductor_diameter_mm: float = 0.0
+    weld_length_mm: float = 0.0
 
 
 def world_to_harness(
@@ -213,6 +217,13 @@ def connection_branches_from_metadata(
         )
         insulation_body_count = encoded_branch.get("insulation_body_count", 1)
         pullback_body_count = encoded_branch.get("pullback_body_count", 0)
+        weld_body_count = encoded_branch.get("weld_body_count", 0)
+        raw_weld_diameter = encoded_branch.get("weld_diameter_mm", 0.0)
+        raw_weld_conductor_diameter = encoded_branch.get(
+            "weld_conductor_diameter_mm",
+            0.0,
+        )
+        raw_weld_length = encoded_branch.get("weld_length_mm", 0.0)
         if (
             isinstance(raw_pullback, bool)
             or not isinstance(raw_pullback, (int, float))
@@ -231,7 +242,29 @@ def connection_branches_from_metadata(
             or insulation_body_count not in (0, 1)
             or isinstance(pullback_body_count, bool)
             or pullback_body_count not in (0, 1)
-            or insulation_body_count + pullback_body_count < 1
+            or isinstance(weld_body_count, bool)
+            or weld_body_count not in (0, 1)
+            or isinstance(raw_weld_diameter, bool)
+            or not isinstance(raw_weld_diameter, (int, float))
+            or not math.isfinite(raw_weld_diameter)
+            or raw_weld_diameter < 0.0
+            or isinstance(raw_weld_conductor_diameter, bool)
+            or not isinstance(raw_weld_conductor_diameter, (int, float))
+            or not math.isfinite(raw_weld_conductor_diameter)
+            or raw_weld_conductor_diameter < 0.0
+            or isinstance(raw_weld_length, bool)
+            or not isinstance(raw_weld_length, (int, float))
+            or not math.isfinite(raw_weld_length)
+            or raw_weld_length < 0.0
+            or (
+                weld_body_count == 1
+                and (
+                    raw_weld_diameter <= 0.0
+                    or raw_weld_conductor_diameter <= 0.0
+                    or raw_weld_length <= 0.0
+                )
+            )
+            or insulation_body_count + pullback_body_count + weld_body_count < 1
         ):
             raise RuntimeError("Generated cable-group branch metadata is malformed.")
         branches.append(
@@ -244,6 +277,10 @@ def connection_branches_from_metadata(
                 float(raw_pullback_diameter),
                 insulation_body_count,
                 pullback_body_count,
+                weld_body_count,
+                float(raw_weld_diameter),
+                float(raw_weld_conductor_diameter),
+                float(raw_weld_length),
             )
         )
     return tuple(branches)

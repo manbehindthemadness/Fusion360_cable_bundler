@@ -88,6 +88,7 @@ class _CableSolidsModule(Protocol):
     _split_route_for_pullback: Callable[[RoutePreview, float], _PullbackSplit]
     _split_route_endpoint_pullbacks: Callable[..., _EndpointPullbackSplit]
     _attachment_pullback_mm: Callable[..., float]
+    _attachment_weld_endpoint: Callable[..., Any]
     _connection_endpoint_pullback: Callable[..., tuple[float, object, Optional[UUID], float]]
     _build_continuous_segment_stripes: Callable[
         [
@@ -109,6 +110,7 @@ class _CableSolidsModule(Protocol):
     refresh_generated_cable_groups_for_connection: Callable[..., int]
     solve_cable_group_centerlines: Callable[..., object]
     world_to_harness: Callable[..., object]
+    resolve_attachment_target: Callable[..., object]
     route_in_component_space: Callable[..., RoutePreview]
     build_cable_group_solid: Callable[..., None]
     _refresh_generated_cable_groups: Callable[..., int]
@@ -374,6 +376,47 @@ def test_resolves_single_root_leaf_pullback_for_main_route_endpoint(
     assert conductor_diameter_mm == pytest.approx(group.diameter_mm * 0.75)
 
 
+def test_resolves_weld_from_leaf_face_and_conductor_diameter(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """Scale weld diameter and reach from the resolved leaf conductor."""
+    group = valid_harness.cable_groups[0]
+    connection = valid_harness.connections[0]
+    attachment = CableEndAttachment(
+        target_kind=AttachmentTargetKind.FACE,
+        entity_token="leaf-face",
+        inherited_name="Terminal Face",
+        parameters=(0.25, 0.75),
+        attachment_id=UUID(int=695),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=attachment),
+            *valid_harness.connections[1:],
+        ),
+    )
+    face = object()
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.BRepFace = SimpleNamespace(cast=lambda entity: entity)  # type: ignore[attr-defined]
+    monkeypatch.setattr(cable_solids, "resolve_attachment_target", lambda *_args: face)
+
+    endpoint = cable_solids._attachment_weld_endpoint(
+        object(),
+        definition,
+        group,
+        attachment.attachment_id,
+    )
+
+    assert endpoint is not None
+    assert endpoint.target_face is face
+    assert endpoint.conductor_diameter_mm == pytest.approx(group.diameter_mm * 0.75)
+    assert endpoint.diameter_mm == pytest.approx(group.diameter_mm * 0.75 * 1.5)
+    assert endpoint.radius_mm == pytest.approx(group.diameter_mm * 0.75 * 0.75)
+
+
 def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     cable_solids: _CableSolidsModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -390,6 +433,13 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     group = valid_harness.cable_groups[0]
     materials = valid_harness.material_defaults
     stored_bodies: list[Any] = []
+    welds_module = importlib.import_module("cable_bundler.fusion.cable_solid_parts.welds")
+    weld_endpoint = welds_module.WeldEndpoint(
+        UUID(int=697),
+        object(),
+        group.diameter_mm * 0.75,
+        materials.weld,
+    )
 
     class _Bodies:
         @property
@@ -427,6 +477,20 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     stripes = Mock(return_value=0)
     preview_stripes = Mock(return_value=0)
     monkeypatch.setitem(solid_builder.__dict__, "_build_route_sweep", build_sweep)
+
+    def build_weld(
+        _component: object,
+        _route: RoutePreview,
+        _transform: object,
+        _endpoint: object,
+        _name: str,
+    ) -> object:
+        """Record a distinct finalized weld body without invoking Fusion."""
+        body = SimpleNamespace(name="", appearance=None)
+        stored_bodies.append(body)
+        return SimpleNamespace(body=body, length_mm=weld_endpoint.radius_mm)
+
+    monkeypatch.setitem(solid_builder.__dict__, "build_weld_body", build_weld)
     monkeypatch.setitem(
         solid_builder.__dict__,
         "route_in_component_space",
@@ -458,9 +522,10 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
         route_pullback_attachment_ids=(UUID(int=697),),
         route_pullback_diameters_mm=(group.diameter_mm * 0.75,),
         route_end_pullback_diameters_mm=(0.0,),
+        route_welds=(weld_endpoint,),
     )
 
-    assert len(stored_bodies) == 2
+    assert len(stored_bodies) == 3
     assert stored_bodies[0].appearance == "Black"
     assert stored_bodies[0].diameter_mm == pytest.approx(group.diameter_mm)
     assert stored_bodies[0].route.curves[0].start.x == pytest.approx(2.4)
@@ -468,11 +533,20 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     assert stored_bodies[1].diameter_mm == pytest.approx(group.diameter_mm * 0.75)
     assert stored_bodies[1].route.curves[0].start.x == pytest.approx(0.0)
     assert stored_bodies[1].route.curves[-1].end.x == pytest.approx(2.4)
+    assert stored_bodies[2].appearance == "Silver"
     assert component.name.endswith("_10.00mm")
     metadata = json.loads(add_attribute.call_args.args[2])
     assert metadata["length_mm"] == pytest.approx(10.0)
     assert metadata["main_pullbacks"][0]["requested_mm"] == pytest.approx(2.4)
     assert metadata["main_pullbacks"][0]["diameter_mm"] == pytest.approx(group.diameter_mm * 0.75)
+    assert metadata["main_welds"][0]["diameter_mm"] == pytest.approx(group.diameter_mm * 0.75 * 1.5)
+    assert metadata["main_welds"][0]["length_mm"] == pytest.approx(group.diameter_mm * 0.75 * 0.75)
+    assert metadata["weld"] == {
+        "appearance": None,
+        "color": "#C0C0C0",
+        "color_name": "Silver",
+        "value": 150.0,
+    }
     stripe_routes = stripes.call_args.args[1]
     assert stripe_routes[0].curves[0].start.x == pytest.approx(2.4)
 
@@ -496,6 +570,7 @@ def test_finalize_replaces_main_route_endpoint_with_pullback_body(
         route_pullbacks_mm=(2.4,),
         route_pullback_materials=(materials,),
         route_pullback_attachment_ids=(UUID(int=697),),
+        route_welds=(weld_endpoint,),
     )
 
     assert len(stored_bodies) == 1

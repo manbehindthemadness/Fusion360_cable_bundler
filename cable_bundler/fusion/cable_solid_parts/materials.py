@@ -55,6 +55,21 @@ def material_metadata(materials: CableMaterialSettings) -> dict[str, object]:
                 }
             ),
         },
+        "weld": {
+            "value": materials.weld.value,
+            "color": materials.weld.color.hex_rgb,
+            "color_name": materials.weld.color.name,
+            "appearance": (
+                None
+                if materials.weld.appearance is None
+                else {
+                    "library_id": materials.weld.appearance.library_id,
+                    "library_name": materials.weld.appearance.library_name,
+                    "appearance_id": materials.weld.appearance.appearance_id,
+                    "appearance_name": materials.weld.appearance.appearance_name,
+                }
+            ),
+        },
         "stripes": [
             {
                 "color": stripe.color.hex_rgb,

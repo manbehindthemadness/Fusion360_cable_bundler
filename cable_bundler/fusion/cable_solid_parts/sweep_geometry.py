@@ -133,12 +133,12 @@ def split_route_endpoint_pullbacks(
             start_split.pullback_length_mm,
             0.0,
         )
-    reversed_insulation = _reverse_route(start_split.insulation)
+    reversed_insulation = reverse_route(start_split.insulation)
     end_split = split_route_for_pullback(reversed_insulation, end_distance_mm)
     return RouteEndpointPullbackSplit(
-        None if end_split.insulation is None else _reverse_route(end_split.insulation),
+        None if end_split.insulation is None else reverse_route(end_split.insulation),
         start_split.pullback,
-        None if end_split.pullback is None else _reverse_route(end_split.pullback),
+        None if end_split.pullback is None else reverse_route(end_split.pullback),
         start_split.pullback_length_mm,
         end_split.pullback_length_mm,
     )
@@ -462,7 +462,7 @@ def _orient_group_routes(
                 oriented[route_index] = routes[route_index]
                 next_junction = end_junction
             elif end_junction == junction_index:
-                oriented[route_index] = _reverse_route(routes[route_index])
+                oriented[route_index] = reverse_route(routes[route_index])
                 next_junction = start_junction
             else:
                 raise RuntimeError("Cable-group route topology changed during construction.")
@@ -499,7 +499,7 @@ def _junction_at(
     )
 
 
-def _reverse_route(route: RoutePreview) -> RoutePreview:
+def reverse_route(route: RoutePreview) -> RoutePreview:
     """
     Reverse only the construction traversal of one exact routed leg.
     """
