@@ -22,10 +22,10 @@ from .sweep_geometry import split_route_for_pullback
 
 @dataclass(frozen=True)
 class WeldEndpoint:
-    """Describe one resolved leaf-face weld and its inherited material."""
+    """Describe one resolved leaf weld and its optional conforming target face."""
 
     attachment_id: UUID
-    target_face: adsk.fusion.BRepFace
+    target_face: Optional[adsk.fusion.BRepFace]
     conductor_diameter_mm: float
     settings: CableWeldSettings
 
@@ -33,8 +33,6 @@ class WeldEndpoint:
         """Require usable identity, sizing, and target geometry."""
         if not isinstance(self.attachment_id, UUID):
             raise ValueError("Weld attachment identity is invalid.")
-        if self.target_face is None:
-            raise ValueError("Weld target face is unavailable.")
         if (
             isinstance(self.conductor_diameter_mm, bool)
             or not isinstance(self.conductor_diameter_mm, (int, float))
@@ -68,15 +66,17 @@ def _persist_temporary_body(
     component: adsk.fusion.Component,
     temporary_body: adsk.fusion.BRepBody,
     name: str,
+    *,
+    hidden: bool = True,
 ) -> adsk.fusion.BRepBody:
-    """Persist one transient helper body in the generated component."""
+    """Persist one transient body in the generated component."""
     design = component.parentDesign
     if design is not None and design.designType == adsk.fusion.DesignTypes.DirectDesignType:
         result_body = component.bRepBodies.add(temporary_body)
         if result_body is None:
             raise RuntimeError("Fusion could not persist a direct weld helper body.")
         result_body.name = name
-        result_body.isLightBulbOn = False
+        result_body.isLightBulbOn = not hidden
         return result_body
     base_feature = component.features.baseFeatures.add()
     if base_feature is None or not base_feature.startEdit():
@@ -94,8 +94,60 @@ def _persist_temporary_body(
         raise RuntimeError("Fusion did not retain the weld helper result.")
     base_feature.name = name
     result_body.name = name
-    result_body.isLightBulbOn = False
+    result_body.isLightBulbOn = not hidden
     return result_body
+
+
+def _build_weld_ball(
+    component: adsk.fusion.Component,
+    center: adsk.core.Point3D,
+    radius_mm: float,
+    name: str,
+) -> adsk.fusion.BRepBody:
+    """Create a separate spherical weld fallback at a local connection point."""
+    manager = adsk.fusion.TemporaryBRepManager.get()
+    if manager is None:
+        raise RuntimeError("Fusion temporary B-Rep services are unavailable.")
+    temporary_body = manager.createSphere(center, radius_mm / 10.0)
+    if temporary_body is None:
+        raise RuntimeError("Fusion could not create the fallback weld sphere.")
+    result_body = _persist_temporary_body(
+        component,
+        temporary_body,
+        name,
+        hidden=False,
+    )
+    if (
+        not result_body.isSolid
+        or not math.isfinite(result_body.volume)
+        or result_body.volume <= 0.0
+    ):
+        raise RuntimeError("Fusion produced an invalid fallback weld sphere.")
+    return result_body
+
+
+def _remove_failed_helper(body: Optional[adsk.fusion.BRepBody]) -> None:
+    """Remove one retained helper before changing to spherical fallback geometry."""
+    if body is not None and body.isValid and not body.deleteMe():
+        raise RuntimeError("Fusion could not remove failed weld helper geometry.")
+
+
+def _log_face_fallback(
+    endpoint: WeldEndpoint,
+    name: str,
+    stage: str,
+    error: Exception,
+) -> None:
+    """Record a recoverable face-conformance failure in Fusion's file log."""
+    adsk.core.Application.log(
+        (
+            "Cable Bundler used spherical weld fallback: "
+            f"name={name!r}, attachment_id={endpoint.attachment_id}, "
+            f"stage={stage!r}, error={error}"
+        ),
+        adsk.core.LogLevels.InfoLogLevel,
+        adsk.core.LogTypes.FileLogType,
+    )
 
 
 def _local_target_patch(
@@ -196,14 +248,14 @@ def build_weld_body(
     endpoint: WeldEndpoint,
     name: str,
 ) -> WeldBuildResult:
-    """Loft one bounded weld from a localized copy of the live target face.
+    """Build a conforming face weld or a spherical connection-point fallback.
 
-    The target-facing route must begin on ``endpoint.target_face``. The loft
-    reaches one configured weld radius along that route (clamped only by the
-    available route), surrounds the conductor without joining it, and uses the
-    target surface itself as its first section so curved and clipped footprints
-    are preserved. All helper geometry uses the generated component's local
-    coordinate frame.
+    The weld reaches one configured radius along the target-facing route,
+    clamped only by the available route. Face targets use a localized surface
+    section when possible. Other target kinds, and face operations Fusion
+    rejects, use a full sphere centered on the connection point. The sphere
+    naturally intersects the conductor at its radius without joining either
+    neighboring body.
     """
     if endpoint.radius_mm <= 1e-9:
         raise ValueError("Weld diameter must be positive to create geometry.")
@@ -223,9 +275,19 @@ def build_weld_body(
         (1.0, top_radius_mm, "Conductor"),
     )
 
+    local_target_point = fusion_point(target_point, transform)
+    if endpoint.target_face is None:
+        try:
+            ball = _build_weld_ball(component, local_target_point, endpoint.radius_mm, name)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            raise RuntimeError(f"create fallback weld sphere: {error}") from error
+        return WeldBuildResult(ball, split.pullback_length_mm)
+
     stage = "localize weld target face"
+    local_target_surface: Optional[adsk.fusion.BRepBody] = None
+    axis_body: Optional[adsk.fusion.BRepBody] = None
+    conforming_body: Optional[adsk.fusion.BRepBody] = None
     try:
-        local_target_point = fusion_point(target_point, transform)
         local_conductor_point = fusion_point(conductor_point, transform)
         local_target_surface = _local_target_patch(
             component,
@@ -311,6 +373,8 @@ def build_weld_body(
         target_section = target_profile if target_is_planar else local_target_face
         if target_is_planar and not local_target_surface.deleteMe():
             raise RuntimeError("Fusion could not remove the planar weld target helper.")
+        if target_is_planar:
+            local_target_surface = None
         if loft_input.loftSections.add(target_section) is None:
             raise RuntimeError("Fusion could not add the localized weld footprint.")
         for profile in loft_profiles:
@@ -322,18 +386,28 @@ def build_weld_body(
         loft = lofts.add(loft_input)
         if loft is None or loft.bodies.count != 1:
             raise RuntimeError("Fusion did not produce one weld body.")
-        kept_body = loft.bodies.item(0)
-        if kept_body is None or not kept_body.isSolid:
+        conforming_body = loft.bodies.item(0)
+        if conforming_body is None or not conforming_body.isSolid:
             raise RuntimeError("Fusion produced an invalid weld body.")
         loft.name = f"{name} Loft"
-        if not math.isfinite(kept_body.volume) or kept_body.volume <= 0.0:
+        if not math.isfinite(conforming_body.volume) or conforming_body.volume <= 0.0:
             raise RuntimeError("Fusion produced an invalid or empty weld body.")
         stage = "remove weld helper bodies"
         target_removed = target_is_planar or local_target_surface.deleteMe()
         axis_removed = axis_body.deleteMe()
         if not target_removed or not axis_removed:
             raise RuntimeError("Fusion could not remove the local weld helper bodies.")
-        kept_body.name = name
-        return WeldBuildResult(kept_body, split.pullback_length_mm)
-    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-        raise RuntimeError(f"{stage}: {error}") from error
+        conforming_body.name = name
+        return WeldBuildResult(conforming_body, split.pullback_length_mm)
+    except (AttributeError, RuntimeError, TypeError, ValueError) as face_error:
+        try:
+            _remove_failed_helper(conforming_body)
+            _remove_failed_helper(local_target_surface)
+            _remove_failed_helper(axis_body)
+            _log_face_fallback(endpoint, name, stage, face_error)
+            ball = _build_weld_ball(component, local_target_point, endpoint.radius_mm, name)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as fallback_error:
+            raise RuntimeError(
+                f"{stage}: {face_error}; create fallback weld sphere: {fallback_error}"
+            ) from fallback_error
+        return WeldBuildResult(ball, split.pullback_length_mm)

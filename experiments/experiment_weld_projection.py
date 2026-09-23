@@ -1,9 +1,9 @@
-"""Probe projected-face weld lofts inside an isolated live Fusion design."""
+"""Probe conforming and spherical welds inside an isolated live Fusion design."""
 
 from __future__ import annotations
 
 import math
-from typing import Callable
+from typing import Callable, Optional
 from uuid import uuid4
 
 # noinspection PyUnresolvedReferences
@@ -173,6 +173,38 @@ def _probe_case(
     }
 
 
+def _probe_ball_case(
+    root: adsk.fusion.Component,
+    label: str,
+    target_face: Optional[adsk.fusion.BRepFace],
+) -> dict[str, object]:
+    """Build one production spherical fallback and report its retained body."""
+    start = Vector3(10.0 if target_face is not None else 0.0, 0.0, 0.0)
+    end = Vector3(start.x + 10.0, start.y, start.z)
+    occurrence = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+    if occurrence is None:
+        raise RuntimeError("Fusion did not create the weld-ball probe component.")
+    occurrence.component.name = f"Weld Ball Probe {label.title()}"
+    result = build_weld_body(
+        occurrence.component,
+        _straight_route(start, end),
+        adsk.core.Matrix3D.create(),
+        WeldEndpoint(uuid4(), target_face, 2.0, CableWeldSettings()),
+        f"{label.title()} Weld",
+    )
+    if result.body.faces.count != 1:
+        raise RuntimeError("Fusion did not produce a one-face spherical weld fallback.")
+    return {
+        "bodyCount": occurrence.component.bRepBodies.count,
+        "faceCount": result.body.faces.count,
+        "isSolid": bool(result.body.isSolid),
+        "lengthMm": result.length_mm,
+        "targetNormal": [1.0, 0.0, 0.0],
+        "targetPointMm": [start.x, start.y, start.z],
+        "volumeCm3": result.body.volume,
+    }
+
+
 def _capture_case(
     application: adsk.core.Application,
     capture_path: str,
@@ -248,6 +280,32 @@ def run_projection_probe(capture_path: str = "") -> dict[str, object]:
                     )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 results[label] = {"status": "failed", "error": str(error)}
+        failed_face, _failed_start = _planar_target(root)
+        ball_cases = (
+            ("unanchored", None),
+            ("face_fallback", failed_face),
+        )
+        case_labels = tuple(label for label, _factory in cases) + tuple(
+            label for label, _target in ball_cases
+        )
+        for label, target_face in ball_cases:
+            try:
+                case_result = _probe_ball_case(root, label, target_face)
+                results[label] = {"status": "passed", **case_result}
+                if capture_path:
+                    target_point_mm = case_result["targetPointMm"]
+                    target_normal = case_result["targetNormal"]
+                    if not isinstance(target_point_mm, list) or not isinstance(target_normal, list):
+                        raise RuntimeError("The weld-ball probe omitted its target frame.")
+                    captures[label] = _capture_case(
+                        application,
+                        capture_path,
+                        label,
+                        target_point_mm,
+                        target_normal,
+                    )
+            except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+                results[label] = {"status": "failed", "error": str(error)}
         if capture_path:
             results["captures"] = captures
     finally:
@@ -264,14 +322,14 @@ def run_projection_probe(capture_path: str = "") -> dict[str, object]:
         "passed"
         if all(
             isinstance(results.get(label), dict) and results[label].get("status") == "passed"  # type: ignore[union-attr]
-            for label, _factory in cases
+            for label in case_labels
         )
         and close_result
         and (
             not capture_path
             or all(
                 isinstance(captures.get(label), dict) and captures[label].get("saved") is True  # type: ignore[union-attr]
-                for label, _factory in cases
+                for label in case_labels
             )
         )
         else "failed"

@@ -417,6 +417,43 @@ def test_resolves_weld_from_leaf_face_and_conductor_diameter(
     assert endpoint.radius_mm == pytest.approx(group.diameter_mm * 0.75 * 0.75)
 
 
+def test_resolves_spherical_weld_for_non_face_leaf(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """Retain weld sizing without requiring a conforming BRep face."""
+    group = valid_harness.cable_groups[0]
+    connection = valid_harness.connections[0]
+    attachment = CableEndAttachment(
+        target_kind=AttachmentTargetKind.CONSTRUCTION_POINT,
+        entity_token="leaf-point",
+        inherited_name="Terminal Point",
+        attachment_id=UUID(int=696),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=attachment),
+            *valid_harness.connections[1:],
+        ),
+    )
+    resolve_target = Mock(side_effect=AssertionError("Non-face weld resolved a target entity."))
+    monkeypatch.setattr(cable_solids, "resolve_attachment_target", resolve_target)
+
+    endpoint = cable_solids._attachment_weld_endpoint(
+        object(),
+        definition,
+        group,
+        attachment.attachment_id,
+    )
+
+    assert endpoint is not None
+    assert endpoint.target_face is None
+    assert endpoint.diameter_mm == pytest.approx(group.diameter_mm * 0.75 * 1.5)
+    resolve_target.assert_not_called()
+
+
 def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     cable_solids: _CableSolidsModule,
     monkeypatch: pytest.MonkeyPatch,

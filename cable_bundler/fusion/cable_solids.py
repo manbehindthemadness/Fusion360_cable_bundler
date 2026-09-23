@@ -224,7 +224,7 @@ def _attachment_weld_endpoint(
     group: CableGroupDefinition,
     attachment_id: Optional[UUID],
 ) -> Optional[WeldEndpoint]:
-    """Resolve weld geometry only for a connected leaf BRep-face node."""
+    """Resolve weld geometry for a connected leaf, optionally with a target face."""
     if attachment_id is None:
         return None
     for connection in definition.connections:
@@ -236,10 +236,7 @@ def _attachment_weld_endpoint(
         )
         if attachment is None:
             continue
-        if (
-            attachment.target_kind is not AttachmentTargetKind.FACE
-            or connection.attachment_children(attachment_id)
-        ):
+        if not attachment.has_target or connection.attachment_children(attachment_id):
             return None
         materials = definition.cable_end_attachment_materials(
             group,
@@ -248,10 +245,10 @@ def _attachment_weld_endpoint(
         )
         if materials.weld.value <= 1e-9:
             return None
-        entity = resolve_attachment_target(design, attachment)
-        face = adsk.fusion.BRepFace.cast(entity)
-        if face is None:
-            raise ValueError(f"Weld target face is unavailable: {attachment.display_name}")
+        face = None
+        if attachment.target_kind is AttachmentTargetKind.FACE:
+            entity = resolve_attachment_target(design, attachment)
+            face = adsk.fusion.BRepFace.cast(entity)
         return WeldEndpoint(
             attachment_id,
             face,
