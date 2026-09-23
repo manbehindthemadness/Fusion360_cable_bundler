@@ -88,8 +88,24 @@ function createMaterialTextField(settings, key, labelText, suggestions = [], mul
   return { wrapper, header, input };
 }
 
-/** Build an Auto-or-millimeter conductor diameter tied to an outer diameter input. */
-function createConductorDiameterField(outerDiameter, configuredDiameterMm) {
+/** Normalize a harness length-unit descriptor, retaining millimeters as fallback. */
+function cableLengthUnits(harness) {
+  const symbol = harness?.lengthUnits?.symbol;
+  const millimetersPerUnit = Number(harness?.lengthUnits?.millimetersPerUnit);
+  if (typeof symbol !== "string" || !symbol
+      || !Number.isFinite(millimetersPerUnit) || millimetersPerUnit <= 0) {
+    return { symbol: "mm", millimetersPerUnit: 1 };
+  }
+  return { symbol, millimetersPerUnit };
+}
+
+/** Format a persisted millimeter value in the active design length unit. */
+function displayLengthValue(valueMm, units) {
+  return `${Number((valueMm / units.millimetersPerUnit).toPrecision(8))}`;
+}
+
+/** Build an Auto-or-explicit conductor diameter tied to an outer diameter input. */
+function createConductorDiameterField(outerDiameter, configuredDiameterMm, units) {
   const wrapper = document.createElement("div");
   const header = document.createElement("div");
   const label = document.createElement("strong");
@@ -97,29 +113,32 @@ function createConductorDiameterField(outerDiameter, configuredDiameterMm) {
   const input = document.createElement("input");
   wrapper.className = "material-field conductor-diameter-field";
   header.className = "material-field-heading";
-  label.textContent = "Conductor Diameter (mm)";
+  label.textContent = `Conductor Diameter (${units.symbol})`;
   hint.className = "conductor-diameter-hint";
   input.type = "text";
   input.className = "filter";
-  input.value = configuredDiameterMm == null ? "auto" : `${configuredDiameterMm}`;
+  input.value = configuredDiameterMm == null
+    ? "auto" : displayLengthValue(configuredDiameterMm, units);
   const updateHint = () => {
-    const diameterMm = Number(outerDiameter.value);
-    hint.textContent = Number.isFinite(diameterMm) && diameterMm > 0
-      ? `Auto = ${(diameterMm * 0.75).toFixed(3).replace(/\.?0+$/, "")} mm (75%)`
+    const diameter = Number(outerDiameter.value);
+    hint.textContent = Number.isFinite(diameter) && diameter > 0
+      ? `Auto = ${Number((diameter * 0.75).toPrecision(8))} ${units.symbol} (75%)`
       : "Auto = 75% of diameter";
   };
   const read = () => {
     const value = input.value.trim();
     if (value.toLocaleLowerCase() === "auto") return null;
-    const conductorDiameterMm = Number(value);
-    const outerDiameterMm = Number(outerDiameter.value);
-    if (!Number.isFinite(conductorDiameterMm) || conductorDiameterMm <= 0) {
-      throw new Error("Conductor diameter must be Auto or a positive number in millimeters.");
+    const conductorDiameter = Number(value);
+    const outerDiameterValue = Number(outerDiameter.value);
+    if (!Number.isFinite(conductorDiameter) || conductorDiameter <= 0) {
+      throw new Error(
+        `Conductor diameter must be Auto or a positive number in ${units.symbol}.`,
+      );
     }
-    if (Number.isFinite(outerDiameterMm) && conductorDiameterMm > outerDiameterMm) {
+    if (Number.isFinite(outerDiameterValue) && conductorDiameter > outerDiameterValue) {
       throw new Error("Conductor diameter cannot exceed the cable or connection diameter.");
     }
-    return conductorDiameterMm;
+    return conductorDiameter * units.millimetersPerUnit;
   };
   outerDiameter.addEventListener("input", updateHint);
   header.append(label, hint);
@@ -241,6 +260,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   const settings = isCableGroup ? cableGroup.materials : harness.materialDefaults;
   const overrides = isCableGroup ? cableGroup.materialOverrides : null;
   const controls = {};
+  const units = cableLengthUnits(harness);
   const catalog = currentState.catalog || {
     insulationMaterials: [], conductorMaterials: [], colors: [], stripePatterns: [],
   };
@@ -255,12 +275,12 @@ function openPropertiesDialog(harness, cableGroup = null) {
   if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
-    diameterLabel.textContent = "Diameter (mm)";
+    diameterLabel.textContent = `Diameter (${units.symbol})`;
     diameter.type = "number";
     diameter.className = "filter";
     diameter.step = "any";
     diameter.required = true;
-    diameter.value = `${cableGroup.diameterMm}`;
+    diameter.value = displayLengthValue(cableGroup.diameterMm, units);
     diameterLabel.append(diameter);
     form.append(diameterLabel);
   }
@@ -294,7 +314,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   );
   if (isCableGroup) {
     conductorDiameter = createConductorDiameterField(
-      diameter, cableGroup.conductorDiameterMm,
+      diameter, cableGroup.conductorDiameterMm, units,
     );
     form.append(conductorDiameter.wrapper);
   }
@@ -315,9 +335,10 @@ function openPropertiesDialog(harness, cableGroup = null) {
   form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const diameterMm = isCableGroup ? Number(diameter.value) : null;
+    const diameterValue = isCableGroup ? Number(diameter.value) : null;
+    const diameterMm = isCableGroup ? diameterValue * units.millimetersPerUnit : null;
     if (isCableGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
-      error.textContent = "Enter a positive diameter in millimeters.";
+      error.textContent = `Enter a positive diameter in ${units.symbol}.`;
       return;
     }
     let conductorDiameterMm = null;
@@ -673,17 +694,18 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   }
   const parentDiameter = cableEndAttachmentParentDiameter(cableGroup, connection, attachment);
   const inheritedDiameter = parentDiameter / siblings.length;
+  const units = cableLengthUnits(harness);
   const { dialog, form, heading, error, actions, cancel, save } = createOptionsDialog(
     "cable-options connection-properties",
   );
   const diameterLabel = document.createElement("label");
   const diameter = document.createElement("input");
-  diameterLabel.textContent = "Diameter (mm)";
+  diameterLabel.textContent = `Diameter (${units.symbol})`;
   diameter.type = "number";
   diameter.className = "filter";
   diameter.step = "any";
   diameter.required = true;
-  diameter.value = `${overrides.diameterMm ?? inheritedDiameter}`;
+  diameter.value = displayLengthValue(overrides.diameterMm ?? inheritedDiameter, units);
   diameterLabel.append(diameter);
   heading.textContent = "Connection Properties";
   form.append(heading, diameterLabel);
@@ -719,7 +741,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     "conductorMaterial", "Conductor Material", catalog.conductorMaterials || [],
   );
   const conductorDiameter = createConductorDiameterField(
-    diameter, overrides.conductorDiameterMm,
+    diameter, overrides.conductorDiameterMm, units,
   );
   form.append(conductorDiameter.wrapper);
   addMaterialOverride("shielding", "Shielding", []);
@@ -738,7 +760,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const diameterMm = Number(diameter.value);
+      const diameterMm = Number(diameter.value) * units.millimetersPerUnit;
       if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
         throw new Error("Diameter must be a positive number.");
       }

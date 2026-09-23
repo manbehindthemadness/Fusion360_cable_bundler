@@ -5,6 +5,7 @@ Fusion UI services for palette state.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict
 from typing import Any, Callable, Optional, cast
 from uuid import UUID, uuid4
@@ -176,6 +177,31 @@ def _palette_theme_payload(application: adsk.core.Application) -> dict[str, str]
     }
 
 
+def _length_units_payload(design: Optional[adsk.fusion.Design]) -> dict[str, object]:
+    """
+    Describe the active design length unit as a millimeter conversion scale.
+
+    Millimeters remain the persistence boundary when Fusion has no active
+    design or does not expose a usable length-unit conversion.
+    """
+    fallback: dict[str, object] = {"symbol": "mm", "millimetersPerUnit": 1.0}
+    if design is None:
+        return fallback
+    units_manager = getattr(design, "unitsManager", None)
+    symbol = getattr(units_manager, "defaultLengthUnits", None)
+    convert = getattr(units_manager, "convert", None)
+    if not isinstance(symbol, str) or not symbol or not callable(convert):
+        return fallback
+    convert_units = cast(Callable[[float, str, str], float], convert)
+    try:
+        millimeters_per_unit = float(convert_units(1.0, symbol, "mm"))
+    except (RuntimeError, TypeError, ValueError):
+        return fallback
+    if not math.isfinite(millimeters_per_unit) or millimeters_per_unit <= 0.0:
+        return fallback
+    return {"symbol": symbol, "millimetersPerUnit": millimeters_per_unit}
+
+
 def serialize_palette_state(
     application: adsk.core.Application,
     notice: str = "",
@@ -192,6 +218,7 @@ def serialize_palette_state(
         if design_type is not None
         else None
     )
+    length_units = _length_units_payload(design)
     harnesses: list[dict[str, object]] = []
     for result in results:
         definition = result.definition
@@ -218,6 +245,7 @@ def serialize_palette_state(
                 "definitionName": definition.name,
                 "harnessId": str(definition.harness_id),
                 "schemaVersion": definition.schema_version,
+                "lengthUnits": length_units,
                 "routingMode": _ROUTING_MODE_LABELS[definition.routing_mode],
                 "gateDefaults": asdict(definition.gate_defaults),
                 "endDefaults": asdict(definition.end_defaults),

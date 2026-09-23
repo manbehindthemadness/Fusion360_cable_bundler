@@ -178,6 +178,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(calls[4].payload.attachmentId, 'connection-2');
   assert.equal(calls[4].payload.name, 'Bulkhead pin');
 
+  definition.lengthUnits = { symbol: 'cm', millimetersPerUnit: 10 };
   disconnectedNode.events.contextmenu({
     clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: disconnectedNode,
   });
@@ -187,13 +188,13 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(properties.open, true);
   const propertyFields = descendants(properties, (node) => node.tag === 'input');
   assert.equal(propertyFields.length, 16);
-  assert.equal(propertyFields[0].value, '0.75');
-  propertyFields[0].value = '0.6';
+  assert.equal(propertyFields[0].value, '0.075');
+  propertyFields[0].value = '0.06';
   propertyFields[1].checked = true;
   propertyFields[1].events.change();
   propertyFields[2].value = 'ETFE';
   assert.equal(propertyFields[5].value, 'auto');
-  propertyFields[5].value = '0.4';
+  propertyFields[5].value = '0.04';
   propertyFields[6].checked = true;
   propertyFields[6].events.change();
   propertyFields[7].value = 'Foil';
@@ -209,6 +210,8 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[13].value = 'BR-01';
   propertyFields[15].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls.length, 6,
+    descendants(properties, (node) => node.attributes.role === 'alert')[0].textContent);
   assert.equal(calls[5].action, 'set_cable_end_attachment_properties');
   assert.equal(calls[5].payload.connectionId, 'a1');
   assert.equal(calls[5].payload.attachmentId, 'connection-2');

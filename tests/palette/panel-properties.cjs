@@ -167,6 +167,44 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
   assert.equal(descendants(dialog, (node) => node.textContent === 'Notes').length, 0);
 });
 
+asyncTest('cable diameter fields use the active design length units', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const cableGroup = definition.cableGroups[0];
+  definition.lengthUnits = { symbol: 'in', millimetersPerUnit: 25.4 };
+  cableGroup.diameterMm = 25.4;
+  cableGroup.conductorDiameterMm = 12.7;
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableGroupProperties(definition, cableGroup);
+
+  const dialog = context.document.body.querySelector('.cable-group-properties');
+  const fields = descendants(dialog, (node) => node.tag === 'input');
+  const conductorDiameter = dialog.querySelector('.conductor-diameter-field');
+  assert.equal(fields[0].value, '1');
+  assert.equal(conductorDiameter.querySelector('input').value, '0.5');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Diameter (in)').length, 1);
+  assert.equal(
+    descendants(dialog, (node) => node.textContent === 'Conductor Diameter (in)').length,
+    1,
+  );
+  fields[0].value = '2';
+  fields[0].events.input();
+  conductorDiameter.querySelector('input').value = '0.75';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls.length, 1, descendants(dialog, (node) => node.attributes.role === 'alert')[0]
+    .textContent);
+  assert.equal(calls[0].payload.diameterMm, 50.8);
+  assert.ok(Math.abs(calls[0].payload.conductorDiameterMm - 19.05) < 1e-12);
+  assert.equal(conductorDiameter.querySelector('.conductor-diameter-hint').textContent,
+    'Auto = 1.5 in (75%)');
+});
+
 asyncTest('pathway Properties edits only pathway metadata', async () => {
   const { context } = palette();
   const definition = harness();

@@ -266,6 +266,7 @@ function harness() {
   return {
     harnessId: 'h', componentName: 'Harness_001', definitionName: 'Harness_001',
     schemaVersion: 26, routingMode: 'Routing Gates', status: 'valid',
+    lengthUnits: { symbol: 'mm', millimetersPerUnit: 1 },
     minimumClearanceMm: 0,
     autoTransitionPreset: 'tight',
     validationMessages: [], materialDefaults, metadata: [], controls: [], connections,

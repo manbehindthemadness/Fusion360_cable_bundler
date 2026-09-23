@@ -58,6 +58,31 @@ def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModul
     assert relative_resources == referenced_resources
 
 
+def test_length_units_payload_uses_the_active_design_conversion(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Send the design's preferred unit label and its exact millimeter scale.
+    """
+    design = SimpleNamespace(
+        unitsManager=SimpleNamespace(
+            defaultLengthUnits="in",
+            convert=lambda value, input_units, output_units: (
+                25.4 if value == 1.0 and input_units == "in" and output_units == "mm" else -1.0
+            ),
+        )
+    )
+
+    assert addin_module._length_units_payload(design) == {
+        "symbol": "in",
+        "millimetersPerUnit": 25.4,
+    }
+    assert addin_module._length_units_payload(None) == {
+        "symbol": "mm",
+        "millimetersPerUnit": 1.0,
+    }
+
+
 def test_palette_state_contains_complete_group_definition(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -87,6 +112,7 @@ def test_palette_state_contains_complete_group_definition(
     assert "profiles" not in harness
     assert "relationshipMap" not in harness
     assert harness["schemaVersion"] == valid_harness.schema_version
+    assert harness["lengthUnits"] == {"symbol": "mm", "millimetersPerUnit": 1.0}
     assert harness["hasRoutePreview"] is False
     assert harness["hasGeneratedSolids"] is False
     assert harness["hasFinalizedGeometry"] is False
