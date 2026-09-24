@@ -3,8 +3,16 @@
 let cancelActiveConnectionAssociationSelection = null;
 let nextConnectionAssociationGroupId = 0;
 
-/** Resolve terminal attachment nodes beneath one cable-end diagram node. */
-function connectionAssociationCandidates(harness, anchor) {
+/** Return the rendered identity of an association anchor. */
+function connectionAssociationNodeId(anchor) {
+  if (anchor.nodeKind) return `${anchor.nodeKind}:${anchor.nodeId}`;
+  return anchor.attachmentId
+    ? `attachment:${anchor.connectionId}:${anchor.attachmentId}`
+    : `connection:${anchor.connectionId}`;
+}
+
+/** Resolve terminals beneath a node, orienting route branches away from its peer. */
+function connectionAssociationCandidates(harness, anchor, peer = null) {
   if (anchor.nodeKind === "pathway" || anchor.nodeKind === "junction") {
     const dialog = document.body.querySelector(".cable-group-details-popup");
     const graphic = dialog?.querySelector(".cable-group-details-graphic");
@@ -19,14 +27,31 @@ function connectionAssociationCandidates(harness, anchor) {
       neighbors.get(left)?.add(right);
       neighbors.get(right)?.add(left);
     });
+    const depths = new Map([...nodes].map(([id, node]) => [id, Number(node.dataset.depth)]));
+    if (peer) {
+      const peerId = connectionAssociationNodeId(peer);
+      if (!nodes.has(peerId)) return [];
+      depths.clear();
+      depths.set(peerId, 0);
+      const queue = [peerId];
+      for (let index = 0; index < queue.length; index += 1) {
+        const current = queue[index];
+        neighbors.get(current).forEach((neighbor) => {
+          if (depths.has(neighbor)) return;
+          depths.set(neighbor, depths.get(current) + 1);
+          queue.push(neighbor);
+        });
+      }
+      if (!depths.has(startId)) return [];
+    }
     const reachable = new Set([startId]);
     const pending = [startId];
     while (pending.length) {
       const currentId = pending.pop();
-      const currentDepth = Number(nodes.get(currentId).dataset.depth);
+      const currentDepth = depths.get(currentId);
       (neighbors.get(currentId) || []).forEach((neighbor) => {
         if (reachable.has(neighbor)) return;
-        if (Number(nodes.get(neighbor).dataset.depth) <= currentDepth) return;
+        if (depths.get(neighbor) <= currentDepth) return;
         reachable.add(neighbor);
         pending.push(neighbor);
       });
@@ -103,7 +128,13 @@ function handleConnectionAssociationClick(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    const candidates = connectionAssociationCandidates(selection.harness, anchor);
+    const candidates = connectionAssociationCandidates(selection.harness, anchor, selection.source);
+    const sourceCandidates = connectionAssociationCandidates(
+      selection.harness, selection.source, anchor,
+    );
+    const sourceAnchor = selection.source.nodeKind
+      ? { ...selection.source, candidateAttachmentIds: sourceCandidates.map((item) => item.attachmentId) }
+      : selection.source;
     const targetAnchor = anchor.nodeKind
       ? { ...anchor, candidateAttachmentIds: candidates.map((item) => item.attachmentId) }
       : anchor;
@@ -112,9 +143,9 @@ function handleConnectionAssociationClick(event) {
     cancelActiveConnectionAssociationSelection = null;
     openConnectionAssociationPanel(
       selection.harness,
-      selection.sourceAnchor,
+      sourceAnchor,
       targetAnchor,
-      selection.sourceCandidates,
+      sourceCandidates,
       candidates,
       selection.sourceLabel,
       node.getAttribute("aria-label") || "Selected connection",
@@ -165,30 +196,23 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   const dialog = document.body.querySelector(".cable-group-details-popup");
   const container = dialog?.querySelector(".cable-group-details-graphic");
   if (!container) return;
-  const sourceCandidates = connectionAssociationCandidates(harness, source);
-  const sourceAnchor = source.nodeKind
-    ? { ...source, candidateAttachmentIds: sourceCandidates.map((item) => item.attachmentId) }
-    : source;
-  const sourceIds = new Set(sourceCandidates.map((item) => item.attachmentId));
   const eligible = new Set();
   const nodeElements = container.querySelectorAll(".cable-group-details-node");
   nodeElements.forEach((node) => {
     const anchor = connectionAssociationAnchorFromElement(node);
-    const candidates = connectionAssociationCandidates(harness, anchor);
+    const sourceCandidates = connectionAssociationCandidates(harness, source, anchor);
+    const sourceIds = new Set(sourceCandidates.map((item) => item.attachmentId));
+    const candidates = connectionAssociationCandidates(harness, anchor, source);
     const overlaps = candidates.some((candidate) => sourceIds.has(candidate.attachmentId));
     node.classList.remove(
       "connection-association-source",
       "connection-association-target",
       "connection-association-unavailable",
     );
-    const isSource = node.dataset.nodeId === (source.nodeKind
-      ? `${source.nodeKind}:${source.nodeId}`
-      : (source.attachmentId
-      ? `attachment:${source.connectionId}:${source.attachmentId}`
-      : `connection:${source.connectionId}`));
+    const isSource = node.dataset.nodeId === connectionAssociationNodeId(source);
     if (isSource) {
       node.classList.add("connection-association-source");
-    } else if (candidates.length && !overlaps) {
+    } else if (sourceCandidates.length && candidates.length && !overlaps) {
       eligible.add(node);
       node.classList.add("connection-association-target");
     } else {
@@ -211,8 +235,6 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   connectionAssociationSelection = {
     harness,
     source,
-    sourceAnchor,
-    sourceCandidates,
     sourceLabel: [...nodeElements]
       .find((node) => node.classList.contains("connection-association-source"))
       ?.getAttribute("aria-label") || "Selected connection",

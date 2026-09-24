@@ -62,10 +62,6 @@
 .connection-association-selecting .connection-association-unavailable {
   opacity: 0.36;
 }
-.connection-association-selecting .cable-group-details-node.pathway,
-.connection-association-selecting .cable-group-details-node.junction {
-  opacity: 0.34;
-}
 .create-cables-assignment-pool {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

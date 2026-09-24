@@ -42,6 +42,7 @@ class Element {
     this.events = {};
     this.attributes = {};
     this.classList = {
+      contains: (name) => (this.className || '').split(' ').includes(name),
       add: (...names) => {
         this.className = [...new Set([
           ...(this.className || '').split(' ').filter(Boolean), ...names,
@@ -119,6 +120,7 @@ class Element {
     this.attributes[key] = value;
     if (key === 'class') this.className = value;
   }
+  getAttribute(key) { return this.attributes[key] ?? null; }
   scrollIntoView() { this.scrolledIntoView = true; }
   getBoundingClientRect() {
     const width = Number.parseFloat(this.style.width) || this.clientWidth;

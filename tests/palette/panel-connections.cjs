@@ -3,6 +3,87 @@ const {
   assert, asyncTest, descendants, harness, palette, runInNewContext, test,
 } = require('./support.cjs');
 
+asyncTest('Cable Details associates upstream route nodes in either selection order', async () => {
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.connectionIds = ['a1', 'b1', 'a2'];
+  definition.pathways = ['power', 'controller', 'sensor'].map((pathwayId) => ({
+    pathwayId, name: pathwayId, orderedControlIds: [], metadata: [],
+  }));
+  definition.junctions = [{
+    junctionId: 'junction', controlId: 'junction-control', name: 'Controller junction',
+    pathwayRelationships: definition.pathways.map(({ pathwayId }) => ({
+      pathwayId, endpoint: pathwayId === 'power' ? 'end' : 'start',
+    })),
+  }];
+  definition.standaloneEnds = group.connectionIds.map((connectionId, index) => ({
+    connectionId, pathwayId: definition.pathways[index].pathwayId,
+    endpoint: index === 0 ? 'start' : 'end', orderedControlIds: [],
+  }));
+  group.routeLegs = [{
+    pathwayIds: definition.pathways.map(({ pathwayId }) => pathwayId),
+    controlSteps: [{ controlId: 'junction-control' }],
+  }];
+  definition.connections.forEach((connection) => {
+    connection.attachments = [{
+      attachmentId: `leaf-${connection.connectionId}`, name: connection.name,
+      connected: true, targetKind: 'face',
+    }];
+    connection.attachment = connection.attachments[0];
+  });
+  for (const routeId of ['pathway:power', 'junction:junction']) {
+    for (const peerId of ['connection:a1', 'connection:b1', 'pathway:controller',
+      routeId === 'pathway:power' ? 'junction:junction' : 'pathway:power']) {
+      for (const reverse of [false, true]) {
+        const { context, calls } = palette();
+        context.send = async (action, payload) => {
+          calls.push({ action, payload });
+          return { ok: true };
+        };
+        context.openCableGroupDetails(definition, group.cableGroupId, 'a1');
+        const details = context.document.body.querySelector('.cable-group-details-popup');
+        const nodes = details.querySelectorAll('.cable-group-details-node');
+        const source = nodes.find((node) => node.dataset.nodeId === (reverse ? peerId : routeId));
+        const target = nodes.find((node) => node.dataset.nodeId === (reverse ? routeId : peerId));
+        source.events.contextmenu({
+          target: source, clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {},
+        });
+        const associate = details.querySelector('.relationship-map-context-menu').children
+          .find((item) => item.textContent === 'Associate');
+        assert.equal(associate.disabled, false);
+        associate.events.click();
+        assert.equal(target.classList.contains('connection-association-target'), true,
+          `${source.dataset.nodeId} -> ${target.dataset.nodeId}`);
+        context.document.dispatchEvent({
+          type: 'click', target: { closest: () => target },
+          preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+        });
+        const editor = context.document.body.querySelector('.connection-associations-popup');
+        assert.equal(editor?.open, true);
+        assert.equal(context.document.events.click, undefined);
+        const pools = editor.querySelectorAll('.create-cables-end-pool');
+        const members = pools.map((pool) => descendants(pool, (node) => (
+          node.dataset.attachmentId !== undefined
+        )).map((node) => node.dataset.attachmentId));
+        assert.ok(members[0].length > 0 && members[1].length > 0);
+        assert.equal(members[0].some((id) => members[1].includes(id)), false);
+        const expected = routeId === 'pathway:power'
+          && ['connection:b1', 'pathway:controller'].includes(peerId)
+          ? ['leaf-a1', 'leaf-b1'] : ['leaf-a1', 'leaf-b1', 'leaf-a2'];
+        assert.deepEqual(new Set(members.flat()), new Set(expected));
+        await descendants(editor, (node) => node.tag === 'button' && node.textContent === 'Save')[0]
+          .events.click();
+        const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+        [payload.leftAnchor, payload.rightAnchor].forEach((anchor, index) => {
+          if (anchor.nodeKind) {
+            assert.deepEqual(new Set(anchor.candidateAttachmentIds), new Set(members[index]));
+          }
+        });
+      }
+    }
+  }
+});
+
 asyncTest('Association Editor extends one pair to three and five members by dropping on either card', async () => {
   const { context, calls } = palette();
   context.send = async (action, payload) => {
@@ -849,10 +930,11 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   node('pathway:p').events.click();
   node('junction:j1').events.click();
   invokeContextMenu(node('pathway:p'));
-  const addBranch = menu.children[0];
+  assert.equal(menu.children[0].textContent, 'Associate');
+  const addBranch = menu.children[1];
   assert.equal(addBranch.className, 'context-menu-branch');
   assert.equal(addBranch.children[0].textContent, 'Add');
-  assert.deepEqual(menu.children.slice(1).map((item) => item.textContent), [
+  assert.deepEqual(menu.children.slice(2).map((item) => item.textContent), [
     'Segment', 'Delete', 'Properties',
   ]);
   assert.deepEqual(
@@ -862,9 +944,9 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   addBranch.children[1].children[0].events.click();
   invokeContextMenu(node('junction:j1'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Delete', 'Properties',
+    'Associate', 'Delete', 'Properties',
   ]);
-  menu.children[0].events.click();
+  menu.children[1].events.click();
 
   assert.deepEqual(actions, [
     ['open-pathway', 'p'],
