@@ -76,6 +76,12 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(addConnection.disabled, false);
   addConnection.events.click();
   assert.equal(calls[1].action, 'add_cable_end_connection');
+  assert.equal(
+    context.cableGroupAttachmentContextItems(
+      definition, definition.cableGroups[0], firstAttachment,
+    ).some((item) => item.label === 'Materials'),
+    true,
+  );
 
   connection.attachments.push(secondAttachment);
   context.openCableGroupDetails(definition, 'g1', 'a1');

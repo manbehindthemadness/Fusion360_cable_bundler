@@ -57,11 +57,6 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
   const connection = harness.connections.find(
     (candidate) => candidate.connectionId === attachment.connectionId,
   );
-  const siblings = (connection?.attachments || []).filter(
-    (candidate) => (candidate.parentAttachmentId || null)
-      === (attachment.parentAttachmentId || null),
-  );
-  const hasBranchMaterials = siblings.length > 1;
   const canAddConnection = attachment.connected && attachment.targetKind === "profile";
   const hasChildren = (connection?.attachments || []).some(
     (candidate) => candidate.parentAttachmentId === attachment.attachmentId,
@@ -161,10 +156,10 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
       label: "Rename",
       action: () => renameCableGroupAttachment(harness, attachment),
     },
-    ...(hasBranchMaterials ? [{
+    {
       label: "Materials",
       action: () => openMaterialOptions(harness, group, attachment),
-    }] : []),
+    },
     {
       label: "Delete",
       action: () => mutate("remove_cable_end_attachment", {

@@ -612,7 +612,7 @@ class HarnessDefinition:
         attachment_id: UUID,
     ) -> CableMaterialSettings:
         """
-        Resolve branch visuals and connector-level shielding inheritance.
+        Resolve branch visuals plus connector-level shielding, pullback, and weld inheritance.
         """
         connection, attachment = self._cable_end_attachment_context(
             group, connection_id, attachment_id
@@ -627,8 +627,9 @@ class HarnessDefinition:
         )
         if len(siblings) > 1:
             return attachment.visual_overrides.resolve(parent)
-        shielding_override = attachment.visual_overrides.shielding
-        dielectric_override = attachment.visual_overrides.dielectric_material
+        overrides = attachment.visual_overrides
+        shielding_override = overrides.shielding
+        dielectric_override = overrides.dielectric_material
         shielding = parent.shielding if shielding_override is None else shielding_override
         dielectric_material = (
             parent.dielectric_material if dielectric_override is None else dielectric_override
@@ -637,6 +638,8 @@ class HarnessDefinition:
             parent,
             shielding=shielding,
             dielectric_material=dielectric_material if shielding.strip() else "",
+            pullback=parent.pullback if overrides.pullback is None else overrides.pullback,
+            weld=parent.weld if overrides.weld is None else overrides.weld,
         )
 
     def cable_end_attachment_diameter(

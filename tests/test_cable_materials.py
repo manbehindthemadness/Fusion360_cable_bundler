@@ -132,7 +132,7 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Apply per-node visuals only when one cable end owns multiple connections.
+    Apply pullback and weld singly, and all per-node visuals to divided connections.
     """
     group = valid_harness.cable_groups[0]
     connection = valid_harness.connections[0]
@@ -141,6 +141,8 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
         attachment=CableEndAttachment(None, attachment_id=UUID(int=701)),
     )
     red = CableColor("Red", 255, 0, 0)
+    pullback = CablePullbackSettings(PullbackMode.DISTANCE, 6.25)
+    weld = CableWeldSettings(value=175.0)
     assert inherited.attachment is not None
     overridden = replace(
         inherited.attachment,
@@ -154,6 +156,8 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
             part_number="BR-01",
             main_color=red,
             stripes=(CableStripe(CableColor("White", 255, 255, 255), 0.2),),
+            pullback=pullback,
+            weld=weld,
         ),
     )
     single = replace(
@@ -163,7 +167,12 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
 
     assert single.cable_end_attachment_materials(
         group, connection.connection_id, overridden.attachment_id
-    ) == replace(single.cable_group_materials(group), shielding="Foil")
+    ) == replace(
+        single.cable_group_materials(group),
+        shielding="Foil",
+        pullback=pullback,
+        weld=weld,
+    )
 
     second = CableEndAttachment(None, attachment_id=UUID(int=702))
     multiple_connection = replace(

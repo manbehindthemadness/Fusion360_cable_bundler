@@ -32,7 +32,7 @@ const CABLE_END_MATERIAL_OVERRIDE_KEYS = [
 function resolveCableEndMaterialOverrides(inherited, overrides, divided) {
   const keys = divided
     ? CABLE_END_MATERIAL_OVERRIDE_KEYS
-    : ["shielding", "dielectricMaterial"];
+    : ["shielding", "dielectricMaterial", "pullback", "weld"];
   const resolved = {
     ...inherited,
     ...Object.fromEntries(

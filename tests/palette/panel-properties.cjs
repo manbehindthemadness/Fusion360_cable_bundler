@@ -156,6 +156,50 @@ asyncTest('connection material overrides populate again when reopened', async ()
   assert.equal(pullbackAmount.value, '6.25');
 });
 
+asyncTest('single connection materials expose only pullback and weld overrides', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  const attachment = {
+    attachmentId: 'connection-1', connectionId: 'a1', parentAttachmentId: null,
+    visualOverrides: {},
+  };
+  connection.attachment = attachment;
+  connection.attachments = [attachment];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return action === 'get_appearance_libraries'
+      ? { ok: true, libraries: [] }
+      : { ok: true };
+  };
+
+  context.openMaterialOptions(definition, group, attachment);
+
+  const dialog = context.document.body.querySelector('.material-options');
+  const materialFields = descendants(
+    dialog, (node) => node.className === 'material-field',
+  );
+  const titles = materialFields.map((field) => field.querySelector('strong').textContent);
+  assert.equal(JSON.stringify(titles), JSON.stringify(['Insulation Pullback', 'Weld']));
+  materialFields.forEach((field) => {
+    const toggle = descendants(field, (node) => node.type === 'checkbox')[0];
+    toggle.checked = true;
+    toggle.events.change();
+  });
+  descendants(materialFields[0], (node) => node.type === 'number')[0].value = '7.5';
+  descendants(materialFields[1], (node) => node.type === 'number')[0].value = '180';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const save = calls.find(
+    (call) => call.action === 'set_cable_end_attachment_visual_overrides',
+  );
+  assert.equal(save.payload.overrides.mainColor, null);
+  assert.equal(save.payload.overrides.stripes, null);
+  assert.equal(save.payload.overrides.pullback.value, 7.5);
+  assert.equal(save.payload.overrides.weld.value, 180);
+});
+
 asyncTest('dielectric material appears only while shielding is enabled', async () => {
   const { context } = palette();
   const definition = harness();

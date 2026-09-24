@@ -540,11 +540,11 @@ def test_adds_and_prunes_connection_owned_refine(
     assert all(item.control_id != refine_id for item in stored.controls)
 
 
-def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_collapsed(
+def test_connection_visual_overrides_restrict_single_nodes_and_clear_when_collapsed(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Persist branch visuals only while a cable end has subdivided connection geometry.
+    Persist only pullback and weld until a cable end has subdivided connection geometry.
     """
     connection_id = valid_harness.connections[0].connection_id
     first_id = UUID(int=711)
@@ -559,10 +559,14 @@ def test_connection_visual_overrides_require_multiple_nodes_and_clear_when_colla
     add_cable_end_connection(
         valid_harness.harness_id, connection_id, gateway, id_factory=lambda: first_id
     )
-    with pytest.raises(ValueError, match="single connection inherits"):
-        set_cable_end_attachment_visual_overrides(
-            valid_harness.harness_id, connection_id, first_id, overrides, gateway
-        )
+    set_cable_end_attachment_visual_overrides(
+        valid_harness.harness_id, connection_id, first_id, overrides, gateway
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachments[0].visual_overrides == CableVisualOverrides(
+        pullback=overrides.pullback,
+        weld=overrides.weld,
+    )
     add_cable_end_connection(
         valid_harness.harness_id, connection_id, gateway, id_factory=lambda: second_id
     )

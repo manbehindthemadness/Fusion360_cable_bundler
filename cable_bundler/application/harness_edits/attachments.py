@@ -450,7 +450,7 @@ def set_cable_end_attachment_visual_overrides(
     gateway: HarnessEditGateway,
 ) -> None:
     """
-    Replace branch visuals for one node on a multi-connection cable end.
+    Replace eligible visual overrides for one cable-end connection node.
     """
     if not isinstance(overrides, CableVisualOverrides):
         raise ValueError("Connection material overrides are invalid.")
@@ -462,16 +462,21 @@ def set_cable_end_attachment_visual_overrides(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
-    if len(connection.attachment_children(attachment.parent_attachment_id)) <= 1:
-        raise ValueError("A single connection inherits its parent materials.")
-    visual_overrides = replace(
-        attachment.visual_overrides,
-        main_color=overrides.main_color,
-        appearance=overrides.appearance,
-        stripes=overrides.stripes,
-        pullback=overrides.pullback,
-        weld=overrides.weld,
-    )
+    if len(connection.attachment_children(attachment.parent_attachment_id)) > 1:
+        visual_overrides = replace(
+            attachment.visual_overrides,
+            main_color=overrides.main_color,
+            appearance=overrides.appearance,
+            stripes=overrides.stripes,
+            pullback=overrides.pullback,
+            weld=overrides.weld,
+        )
+    else:
+        visual_overrides = replace(
+            attachment.visual_overrides,
+            pullback=overrides.pullback,
+            weld=overrides.weld,
+        )
     updated_connection = _replace_cable_end_attachment(
         connection,
         attachment_id,

@@ -181,6 +181,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const connection = isConnectionBranch ? harness.connections.find(
     (candidate) => candidate.connectionId === attachment.connectionId,
   ) : null;
+  const hasFullVisualOverrides = !isConnectionBranch || (
+    connection && cableEndAttachmentSiblings(connection, attachment).length > 1
+  );
   const settings = isConnectionBranch && connection
     ? cableEndAttachmentMaterials(cableGroup, connection, attachment)
     : (isCableGroup ? cableGroup.materials : harness.materialDefaults);
@@ -200,7 +203,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     ? "Connection Materials"
     : (isCableGroup ? "Connected Cable Group Materials" : "Harness Materials");
   note.textContent = isConnectionBranch
-    ? "Checked visual fields override this connection node’s immediate parent."
+    ? (hasFullVisualOverrides
+      ? "Checked visual fields override this connection node’s immediate parent."
+      : "Pullback and weld can override this connection node’s immediate parent.")
     : (isCableGroup
       ? "Checked visual fields override this harness for the connected cable group."
       : "These visual values are inherited by connected cable groups without overrides.");
@@ -220,11 +225,11 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     return checkbox;
   };
 
-  const mainAppearance = createAppearanceEditor(
+  const mainAppearance = hasFullVisualOverrides ? createAppearanceEditor(
     { color: settings.mainColor, appearance: settings.appearance },
     "Main insulation appearance", catalog, error, addOverrideToggle, "mainColor",
-  );
-  form.append(mainAppearance.wrapper);
+  ) : null;
+  if (mainAppearance) form.append(mainAppearance.wrapper);
 
   const stripeWrapper = document.createElement("div");
   const stripeHeader = document.createElement("div");
@@ -330,7 +335,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   addStripe.addEventListener("click", () => appendStripe());
   updateStripes();
   stripeWrapper.append(stripeHeader, stripeList, addStripe);
-  form.append(stripeWrapper);
+  if (hasFullVisualOverrides) form.append(stripeWrapper);
 
   const pullbackSettings = settings.pullback || {
     mode: "percent",
@@ -438,7 +443,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   apply.textContent = "Apply";
   const applyMaterials = async (closeAfter) => {
     try {
-      const selectedMainAppearance = mainAppearance.read();
+      const selectedMainAppearance = mainAppearance?.read() ?? null;
       const selectedPullbackAppearance = pullbackAppearance.read();
       const selectedWeldAppearance = weldAppearance.read();
       const pullbackValueNumber = Number(pullbackValue.value);
@@ -464,7 +469,8 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
           ? overrides.dielectricMaterial : settings.dielectricMaterial,
         mainColor: selectedMainAppearance?.color ?? null,
         appearance: selectedMainAppearance?.appearance ?? null,
-        stripes: hasOverrides && !stripeToggle.checked ? null : readStripes(),
+        stripes: !hasFullVisualOverrides || (hasOverrides && !stripeToggle.checked)
+          ? null : readStripes(),
         manufacturer: isCableGroup && !isConnectionBranch
           ? overrides.manufacturer : settings.manufacturer,
         partNumber: isCableGroup && !isConnectionBranch
@@ -574,5 +580,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   dialog.append(form);
   document.body.append(dialog);
   dialog.showModal();
-  void Promise.all([mainAppearance.load(), pullbackAppearance.load(), weldAppearance.load()]);
+  void Promise.all([
+    ...(mainAppearance ? [mainAppearance.load()] : []),
+    pullbackAppearance.load(),
+    weldAppearance.load(),
+  ]);
 }
