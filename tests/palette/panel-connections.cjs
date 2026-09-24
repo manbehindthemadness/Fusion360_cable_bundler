@@ -461,6 +461,68 @@ test('Cable Details connection nodes form a parent-child chain', () => {
   assert.equal(edgeIds.includes('attachment:a1:child|connection:a1'), false);
 });
 
+test('Cable Details separates interleaved branches from multiple junctions', () => {
+  const { context } = palette();
+  const makeNode = (id, kind, neighbors) => ({
+    id, kind, item: null, label: id, neighbors: new Set(neighbors),
+  });
+  const topology = {
+    nodes: [
+      makeNode('connection:root', 'connection', ['pathway:root']),
+      makeNode('pathway:root', 'pathway', [
+        'connection:root', 'junction:controller', 'junction:ground',
+      ]),
+      makeNode('junction:controller', 'junction', [
+        'pathway:root', 'pathway:dallas', 'pathway:temp',
+      ]),
+      makeNode('junction:ground', 'junction', [
+        'pathway:root', 'pathway:battery', 'pathway:temp', 'pathway:chassis',
+      ]),
+      makeNode('pathway:battery', 'pathway', ['junction:ground']),
+      makeNode('pathway:chassis', 'pathway', ['junction:ground']),
+      makeNode('pathway:dallas', 'pathway', ['junction:controller']),
+      makeNode('pathway:temp', 'pathway', ['junction:controller', 'junction:ground']),
+    ],
+    edges: [
+      ['connection:root', 'pathway:root'],
+      ['pathway:root', 'junction:controller'],
+      ['pathway:root', 'junction:ground'],
+      ['junction:controller', 'pathway:dallas'],
+      ['junction:controller', 'pathway:temp'],
+      ['junction:ground', 'pathway:battery'],
+      ['junction:ground', 'pathway:temp'],
+      ['junction:ground', 'pathway:chassis'],
+    ].map(([leftId, rightId]) => ({ id: `${leftId}|${rightId}`, leftId, rightId })),
+  };
+
+  const layout = context.layoutCableGroupDetailsTopology(topology, 'root');
+  const row = (id) => layout.nodes.find((node) => node.id === id).row;
+  const routes = context.routeCableGroupDetailsEdges(layout);
+  const depths = new Map(layout.nodes.map((node) => [node.id, node.depth]));
+  const initialPositions = new Map();
+  [...new Set(depths.values())].forEach((depth) => {
+    topology.nodes.filter((node) => depths.get(node.id) === depth)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .forEach((node, index) => initialPositions.set(node.id, index));
+  });
+
+  assert.ok(context.cableGroupDetailsEdgeCrossingCount(
+    topology.edges, initialPositions, depths,
+  ) > 0);
+  assert.equal(layout.orderingScore.crossings, 0);
+  const routedCrossings = routes.flatMap((route, index) => routes.slice(index + 1).map((other) => {
+    if (route.start.depth !== other.start.depth
+      || route.end.depth !== other.end.depth
+      || route.start.id === other.start.id
+      || route.end.id === other.end.id) return 0;
+    return (route.startY - other.startY) * (route.endY - other.endY) < 0 ? 1 : 0;
+  })).reduce((total, crossing) => total + crossing, 0);
+  assert.equal(routedCrossings, 0);
+  assert.ok(row('pathway:dallas') < row('pathway:temp'));
+  assert.ok(row('pathway:temp') < row('pathway:battery'));
+  assert.ok(row('pathway:battery') < row('pathway:chassis'));
+});
+
 test('Cable Details pathway and junction nodes share master diagram interactions', () => {
   const { context } = palette();
   const definition = harness();
