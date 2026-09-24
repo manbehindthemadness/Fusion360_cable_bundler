@@ -33,6 +33,12 @@ from ..cable_solids import (
     generated_attachment_bodies,
     generated_cable_group_bodies,
 )
+from ..hover_graphics import (
+    clear_hover_widgets,
+    profile_point,
+    show_hover_widgets,
+    target_point,
+)
 from ..refine_graphics import (
     hide_refine_graphics,
     highlight_refine_graphics,
@@ -111,6 +117,8 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     design = _require_active_design(application)
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
+    clear_hover_widgets(design)
+    widget_targets: list[tuple[object, Union[CableEndAttachment, CableEndTarget]]] = []
     refine_ids: tuple[UUID, ...] = ()
     preview_connection_ids: tuple[UUID, ...] = ()
     preview_control_ids: tuple[UUID, ...] = ()
@@ -164,13 +172,14 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if attachment is None:
             raise ValueError("Selected cable-end connection no longer exists.")
         targets = (attachment, attachment.shielding_target)
-        attachment_entities = tuple(
-            entity
+        widget_targets = [
+            (entity, target)
             for target in targets
             if target is not None
             for entity in (resolve_attachment_target(design, target),)
             if entity is not None
-        )
+        ]
+        attachment_entities = tuple(entity for entity, _target in widget_targets)
         generated_attachment_ids = (member_id,)
         tokens = ()
     else:
@@ -241,6 +250,23 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             selections.clear()
             highlight_route_preview(design, None)
             raise RuntimeError("Fusion could not highlight the selected harness geometry.")
+    try:
+        # Aggregate pathway geometry belongs to its child gate nodes.
+        widget_points = (
+            [profile_point(profile) for profile in profiles]
+            if member_type not in {"pathway", "pathway_gates"}
+            else []
+        )
+        widget_points.extend(target_point(entity, target) for entity, target in widget_targets)
+        widget_points.extend(
+            adsk.core.Point3D.create(*(value / 10.0 for value in control.refine_geometry.origin_mm))
+            for control in definition.controls
+            if control.control_id in refine_ids and control.refine_geometry is not None
+        )
+        show_hover_widgets(design, tuple(widget_points))
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        # Decorative widgets must not disable the existing geometry highlight.
+        _log_to_fusion(f"Could not draw diagram hover widgets: {error}")
     application.activeViewport.refresh()
     return (
         preview_count
@@ -278,6 +304,7 @@ def _clear_highlight(application: adsk.core.Application) -> None:
     """
     highlight_route_preview(_require_active_design(application), None)
     highlight_refine_graphics(_require_active_design(application), ())
+    clear_hover_widgets(_require_active_design(application))
     if not application.userInterface.activeSelections.clear():
         raise RuntimeError("Fusion could not clear the viewport selection.")
     application.activeViewport.refresh()

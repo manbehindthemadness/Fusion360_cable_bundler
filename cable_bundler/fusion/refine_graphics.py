@@ -26,6 +26,7 @@ from ..routing import (
     sample_centerline,
 )
 from ..routing.geometry import cross, difference, dot, magnitude, unit
+from .graphics_styles import REFINE_COLOR as _REFINE_COLOR
 from .route_preview_parts.solver import (
     ProfileFrame,
     connection_attachment_parent_frame,
@@ -39,7 +40,6 @@ REFINE_GRAPHICS_GROUP_ID = "kev0.cable_bundler.refines"
 REFINE_SPINE_GROUP_ID = "kev0.cable_bundler.refine_spine"
 REFINE_SPINE_ENTITY_ID = "kev0.cable_bundler.refine_spine.curve"
 DEFAULT_REFINE_RADIUS_MM = 10.0
-_REFINE_COLOR = (232, 78, 180)
 _REFINE_HIGHLIGHT_COLOR = (255, 196, 62)
 _SPINE_COLOR = (42, 214, 226)
 RoutingFrame = Union[GateFrame, RefineFrame, ProfileFrame]

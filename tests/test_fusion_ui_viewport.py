@@ -18,6 +18,25 @@ from tests.fusion_ui_support import (
 )
 
 
+@pytest.fixture(autouse=True)
+def hover_widget_adapter(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Mock:
+    """
+    Isolate rendering while viewport tests exercise node ownership and selection.
+    """
+    import importlib
+
+    viewport = importlib.import_module("cable_bundler.fusion.ui.viewport")
+    monkeypatch.setitem(vars(viewport), "clear_hover_widgets", Mock())
+    shown = Mock()
+    monkeypatch.setitem(vars(viewport), "show_hover_widgets", shown)
+    monkeypatch.setitem(vars(viewport), "profile_point", lambda profile: profile)
+    monkeypatch.setitem(vars(viewport), "target_point", lambda entity, _target: entity)
+    return shown
+
+
 def test_finalize_hides_support_sketches_and_graphics_but_not_face_bodies(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -231,6 +250,7 @@ def test_pathway_hover_selects_only_its_gateway_profiles(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    hover_widget_adapter: Mock,
 ) -> None:
     """
     Highlight only profile-backed gates for a pathway node.
@@ -293,6 +313,7 @@ def test_pathway_hover_selects_only_its_gateway_profiles(
         control_ids=(),
     )
     refine_highlight.assert_called_once_with(design, ())
+    hover_widget_adapter.assert_called_once_with(design, ())
 
 
 # noinspection DuplicatedCode
@@ -300,6 +321,7 @@ def test_attachment_highlight_selects_targets_and_generated_sweep(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    hover_widget_adapter: Mock,
 ) -> None:
     """
     Select every resolvable Fusion target owned by one connection node.
@@ -322,13 +344,29 @@ def test_attachment_highlight_selects_targets_and_generated_sweep(
     )
     definition = replace(
         valid_harness,
-        connections=(replace(connection, attachment=attachment), *valid_harness.connections[1:]),
+        connections=(
+            replace(
+                connection,
+                attachment=attachment,
+                additional_attachments=(
+                    CableEndAttachment(
+                        AttachmentTargetKind.PROFILE,
+                        "child-token",
+                        "Child contact",
+                        attachment_id=UUID(int=702),
+                        parent_attachment_id=attachment.attachment_id,
+                    ),
+                ),
+            ),
+            *valid_harness.connections[1:],
+        ),
     )
     main_target = object()
     shielding_target = object()
     resolved = {
         "main-token": main_target,
         "shield-token": shielding_target,
+        "child-token": object(),
     }
     design = SimpleNamespace(
         rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0))
@@ -363,6 +401,7 @@ def test_attachment_highlight_selects_targets_and_generated_sweep(
     )
 
     assert addin_module._highlight_member(application, payload) == 3
+    hover_widget_adapter.assert_called_once_with(design, (main_target, shielding_target))
     assert [call.args[0] for call in selections.add.call_args_list] == [
         main_target,
         shielding_target,

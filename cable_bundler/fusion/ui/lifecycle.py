@@ -15,6 +15,7 @@ import adsk.fusion
 from ...application import HarnessLoadResult, load_harnesses
 from .. import clear_route_previews
 from ..cable_solids import restore_cable_group_stripe_graphics
+from ..hover_graphics import clear_hover_widgets
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import (
     has_route_previews,
@@ -368,6 +369,7 @@ def stop(_context: object) -> None:
         application = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(application.activeProduct)
         if design is not None:
+            clear_hover_widgets(design)
             clear_route_previews(design)
             clear_refine_spine(design)
             clear_refine_graphics(design)

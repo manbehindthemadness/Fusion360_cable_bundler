@@ -506,6 +506,14 @@ def test_refine_control_hover_highlights_persistent_marker(
         harness_component=lambda _harness_id: object(),
     )
     marker_highlight = Mock(return_value=1)
+    widget_show = Mock()
+    monkeypatch.setitem(vars(addin_module), "clear_hover_widgets", Mock())
+    monkeypatch.setitem(vars(addin_module), "show_hover_widgets", widget_show)
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.core"]),
+        "Point3D",
+        SimpleNamespace(create=lambda *coordinates: coordinates),
+    )
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "highlight_refine_graphics", marker_highlight)
@@ -519,6 +527,11 @@ def test_refine_control_hover_highlights_persistent_marker(
     )
 
     count = addin_module._highlight_member(application, payload)
+
+    assert refine.refine_geometry is not None
+    widget_show.assert_called_once_with(
+        design, (tuple(value / 10.0 for value in refine.refine_geometry.origin_mm),)
+    )
 
     assert count == 1
     marker_highlight.assert_called_once_with(design, (refine_id,))
