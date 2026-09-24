@@ -499,6 +499,28 @@ def clear_refine_graphics(design: adsk.fusion.Design) -> None:
     _clear_group(design, REFINE_GRAPHICS_GROUP_ID)
 
 
+def hide_refine_graphics(design: adsk.fusion.Design) -> int:
+    """
+    Hide the persistent refine-marker group while retaining its saved geometry.
+    """
+    group = _find_group(design, REFINE_GRAPHICS_GROUP_ID)
+    if group is None or not group.isVisible:
+        return 0
+    group.isVisible = False
+    return 1
+
+
+def reveal_refine_graphics(design: adsk.fusion.Design) -> int:
+    """
+    Reveal the persistent refine-marker group when it was hidden by Finalize.
+    """
+    group = _find_group(design, REFINE_GRAPHICS_GROUP_ID)
+    if group is None or group.isVisible:
+        return 0
+    group.isVisible = True
+    return 1
+
+
 def has_refine_graphics(design: adsk.fusion.Design) -> bool:
     """
     Report whether persistent refine Custom Graphics are API-visible.

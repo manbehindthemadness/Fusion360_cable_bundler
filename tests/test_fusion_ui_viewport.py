@@ -18,6 +18,126 @@ from tests.fusion_ui_support import (
 )
 
 
+def test_finalize_hides_support_sketches_and_graphics_but_not_face_bodies(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Hide construction aids without resolving or changing face attachment targets.
+    """
+    from dataclasses import replace
+
+    from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
+
+    connection = valid_harness.connections[0]
+    face_attachment = CableEndAttachment(
+        AttachmentTargetKind.FACE,
+        "face-token",
+        "Target face",
+        parameters=(0.25, 0.75),
+        attachment_id=UUID(int=910),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=face_attachment),
+            *valid_harness.connections[1:],
+        ),
+    )
+    shared_sketch = SimpleNamespace(
+        entityToken="shared-sketch-token",
+        isValid=True,
+        isLightBulbOn=True,
+    )
+    profile = SimpleNamespace(parentSketch=shared_sketch)
+    token_entities = {
+        token: [profile]
+        for token in {
+            *(token for item in definition.connections for token in item.member_tokens),
+            *(control.entity_token for control in definition.controls if control.entity_token),
+        }
+    }
+    stale_sketch = SimpleNamespace(
+        entityToken="stale-sketch-token",
+        isValid=True,
+        isLightBulbOn=True,
+    )
+    stale_profile = SimpleNamespace(isValid=False, parentSketch=stale_sketch)
+    first_token = next(iter(token_entities))
+    token_entities[first_token] = [stale_profile, profile]
+    design = SimpleNamespace(findEntityByToken=lambda token: token_entities.get(token, []))
+    hide_routes = Mock(return_value=1)
+    hide_refines = Mock(return_value=1)
+    resolve_target = Mock(side_effect=AssertionError("Face target body was resolved for hiding."))
+    monkeypatch.setattr(addin_module, "hide_route_previews", hide_routes)
+    monkeypatch.setattr(addin_module, "hide_refine_graphics", hide_refines)
+    monkeypatch.setattr(addin_module, "resolve_attachment_target", resolve_target)
+
+    assert addin_module._hide_finalized_supports(design, definition) == 3
+
+    assert not shared_sketch.isLightBulbOn
+    assert stale_sketch.isLightBulbOn
+    hide_routes.assert_called_once_with(design)
+    hide_refines.assert_called_once_with(design)
+    resolve_target.assert_not_called()
+
+    reveal_routes = Mock(return_value=1)
+    reveal_refines = Mock(return_value=1)
+    monkeypatch.setattr(addin_module, "reveal_route_previews", reveal_routes)
+    monkeypatch.setattr(addin_module, "reveal_refine_graphics", reveal_refines)
+
+    assert addin_module._show_render_supports(design, definition) == 3
+    assert shared_sketch.isLightBulbOn
+    reveal_routes.assert_called_once_with(design)
+    reveal_refines.assert_called_once_with(design)
+    resolve_target.assert_not_called()
+
+
+def test_finalize_hides_non_body_attachment_support(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Hide a connected construction point without affecting unrelated model bodies.
+    """
+    from dataclasses import replace
+
+    from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
+
+    connection = valid_harness.connections[0]
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "construction-point-token",
+        "Support point",
+        attachment_id=UUID(int=911),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(connection, attachment=attachment),
+            *valid_harness.connections[1:],
+        ),
+    )
+    support_point = SimpleNamespace(isLightBulbOn=True)
+    design = SimpleNamespace(findEntityByToken=lambda _token: [])
+    monkeypatch.setattr(addin_module, "hide_route_previews", Mock(return_value=0))
+    monkeypatch.setattr(addin_module, "hide_refine_graphics", Mock(return_value=0))
+    monkeypatch.setattr(addin_module, "reveal_route_previews", Mock(return_value=0))
+    monkeypatch.setattr(addin_module, "reveal_refine_graphics", Mock(return_value=0))
+    monkeypatch.setattr(
+        addin_module,
+        "resolve_attachment_target",
+        lambda _design, _target: support_point,
+    )
+
+    assert addin_module._hide_finalized_supports(design, definition) == 1
+    assert not support_point.isLightBulbOn
+    assert addin_module._show_render_supports(design, definition) == 1
+    assert support_point.isLightBulbOn
+
+
 @pytest.mark.parametrize(
     ("member_type", "identity_attribute", "expected_tokens"),
     [
@@ -263,6 +383,7 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     )
     send_state = Mock()
     clear_solids = Mock(return_value=2)
+    show_supports = Mock(return_value=4)
 
     def show(
         _design: object, _definition: HarnessDefinition, **kwargs: object
@@ -281,12 +402,14 @@ def test_preview_reports_dynamic_transition_adjustment_as_information(
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "show_route_previews", show)
     monkeypatch.setattr(addin_module, "clear_cable_solids", clear_solids)
+    monkeypatch.setattr(addin_module, "_show_render_supports", show_supports)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id)})
 
     assert addin_module._preview_routes(application, payload) == 3
 
     clear_solids.assert_called_once_with(component)
+    show_supports.assert_called_once_with(design, valid_harness)
     viewport.refresh.assert_called_once()
     notice = send_state.call_args.args[1]
     assert notice.startswith(
@@ -349,10 +472,14 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
         harness_component=Mock(return_value=component),
     )
     generate = Mock(return_value=2)
+    hide_supports = Mock(return_value=4)
+    show_supports = Mock(return_value=4)
     send_state = Mock()
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "generate_cable_group_solids", generate)
+    monkeypatch.setattr(addin_module, "_hide_finalized_supports", hide_supports)
+    monkeypatch.setattr(addin_module, "_show_render_supports", show_supports)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id), "replaceExisting": True})
 
@@ -373,5 +500,11 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
         notices,
         output_mode,
     )
+    if output_mode == "finalized":
+        hide_supports.assert_called_once_with(design, valid_harness)
+        show_supports.assert_not_called()
+    else:
+        hide_supports.assert_not_called()
+        show_supports.assert_called_once_with(design, valid_harness)
     viewport.refresh.assert_called_once_with()
     send_state.assert_called_once_with(application, expected_notice)

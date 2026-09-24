@@ -261,6 +261,36 @@ def clear_route_previews(design: adsk.fusion.Design) -> int:
     return deleted_count
 
 
+def hide_route_previews(design: adsk.fusion.Design) -> int:
+    """
+    Hide every Cable Bundler route-preview group without deleting its state.
+    """
+    hidden_count = 0
+    for groups in _design_graphics_collections(design):
+        for index in range(groups.count):
+            group = groups.item(index)
+            if group is None or not _is_preview_group(group) or not group.isVisible:
+                continue
+            group.isVisible = False
+            hidden_count += 1
+    return hidden_count
+
+
+def reveal_route_previews(design: adsk.fusion.Design) -> int:
+    """
+    Reveal every hidden Cable Bundler route-preview group.
+    """
+    revealed_count = 0
+    for groups in _design_graphics_collections(design):
+        for index in range(groups.count):
+            group = groups.item(index)
+            if group is None or not _is_preview_group(group) or group.isVisible:
+                continue
+            group.isVisible = True
+            revealed_count += 1
+    return revealed_count
+
+
 def has_route_previews(design: adsk.fusion.Design) -> bool:
     """
     Report whether the live Fusion object model exposes a Cable Bundler preview.

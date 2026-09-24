@@ -5,6 +5,7 @@ Fusion UI services for viewport.
 from __future__ import annotations
 
 import json
+from typing import Any, Union, cast
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -14,7 +15,14 @@ import adsk.core
 import adsk.fusion
 
 from ...application import plan_cable_group_routes
-from ...domain import ControlKind, HarnessDefinition, loads
+from ...domain import (
+    AttachmentTargetKind,
+    CableEndAttachment,
+    CableEndTarget,
+    ControlKind,
+    HarnessDefinition,
+    loads,
+)
 from .. import clear_route_previews, highlight_route_preview, show_route_previews
 from ..attachment_targets import resolve_attachment_target
 from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, SOLID_OUTPUT_MODE
@@ -25,8 +33,17 @@ from ..cable_solids import (
     generated_attachment_bodies,
     generated_cable_group_bodies,
 )
-from ..refine_graphics import highlight_refine_graphics
-from ..route_preview import highlight_route_members, refresh_route_previews
+from ..refine_graphics import (
+    hide_refine_graphics,
+    highlight_refine_graphics,
+    reveal_refine_graphics,
+)
+from ..route_preview import (
+    hide_route_previews,
+    highlight_route_members,
+    refresh_route_previews,
+    reveal_route_previews,
+)
 from .palette_state import (
     _send_palette_state,
 )
@@ -317,6 +334,7 @@ def _preview_routes(application: adsk.core.Application, serialized_data: str) ->
     notices: list[str] = []
     cleared_solids = clear_cable_solids(gateway.harness_component(harness_id))
     routes = show_route_previews(design, definition, notices=notices)
+    _show_render_supports(design, definition)
     application.activeViewport.refresh()
     summary = f"Previewing {len(routes)} cable-group route legs."
     if cleared_solids:
@@ -349,6 +367,129 @@ def _finalize_solids(application: adsk.core.Application, serialized_data: str) -
     return _generate_cable_geometry(application, serialized_data, FINALIZED_OUTPUT_MODE)
 
 
+def _set_support_sketch_visibility(
+    design: adsk.fusion.Design,
+    entity_token: str,
+    hidden_sketches: set[str],
+    *,
+    is_visible: bool,
+) -> int:
+    """
+    Set visibility on the valid sketch owning a persisted support entity token.
+    """
+    hidden_count = 0
+    for entity in design.findEntityByToken(entity_token):
+        if not getattr(entity, "isValid", True):
+            continue
+        sketch = cast(Any, getattr(entity, "parentSketch", None))
+        if sketch is None or not getattr(sketch, "isValid", True):
+            continue
+        sketch_token = getattr(sketch, "entityToken", "")
+        if not isinstance(sketch_token, str) or not sketch_token:
+            continue
+        if sketch_token in hidden_sketches:
+            continue
+        hidden_sketches.add(sketch_token)
+        if sketch.isLightBulbOn == is_visible:
+            continue
+        sketch.isLightBulbOn = is_visible
+        hidden_count += 1
+    return hidden_count
+
+
+def _set_attachment_support_visibility(
+    design: adsk.fusion.Design,
+    target: Union[CableEndAttachment, CableEndTarget],
+    hidden_sketches: set[str],
+    *,
+    is_visible: bool,
+) -> int:
+    """
+    Set one non-body attachment aid while preserving face-connected bodies.
+    """
+    target_kind = getattr(target, "target_kind", None)
+    if target_kind in {AttachmentTargetKind.PROFILE, AttachmentTargetKind.SKETCH_POINT}:
+        return _set_support_sketch_visibility(
+            design,
+            getattr(target, "entity_token", ""),
+            hidden_sketches,
+            is_visible=is_visible,
+        )
+    if target_kind in {AttachmentTargetKind.FACE, AttachmentTargetKind.CIRCULAR_EDGE, None}:
+        return 0
+    entity = resolve_attachment_target(design, target)
+    if entity is None or not hasattr(entity, "isLightBulbOn"):
+        return 0
+    if entity.isLightBulbOn == is_visible:
+        return 0
+    entity.isLightBulbOn = is_visible
+    return 1
+
+
+def _set_harness_support_visibility(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    *,
+    is_visible: bool,
+) -> int:
+    """
+    Set routing graphics, source sketches, and non-body attachment aids.
+    """
+    changed_count = (
+        reveal_route_previews(design) + reveal_refine_graphics(design)
+        if is_visible
+        else hide_route_previews(design) + hide_refine_graphics(design)
+    )
+    hidden_sketches: set[str] = set()
+    support_tokens = (
+        *(token for connection in definition.connections for token in connection.member_tokens),
+        *(control.entity_token for control in definition.controls if control.entity_token),
+    )
+    for token in support_tokens:
+        changed_count += _set_support_sketch_visibility(
+            design,
+            token,
+            hidden_sketches,
+            is_visible=is_visible,
+        )
+    for connection in definition.connections:
+        for attachment in connection.attachments:
+            changed_count += _set_attachment_support_visibility(
+                design,
+                attachment,
+                hidden_sketches,
+                is_visible=is_visible,
+            )
+            if attachment.shielding_target is not None:
+                changed_count += _set_attachment_support_visibility(
+                    design,
+                    attachment.shielding_target,
+                    hidden_sketches,
+                    is_visible=is_visible,
+                )
+    return changed_count
+
+
+def _hide_finalized_supports(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+) -> int:
+    """
+    Hide support geometry after finalized output replaces the working view.
+    """
+    return _set_harness_support_visibility(design, definition, is_visible=False)
+
+
+def _show_render_supports(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+) -> int:
+    """
+    Restore support geometry for route previews and ordinary solid output.
+    """
+    return _set_harness_support_visibility(design, definition, is_visible=True)
+
+
 def _generate_cable_geometry(
     application: adsk.core.Application,
     serialized_data: str,
@@ -365,14 +506,19 @@ def _generate_cable_geometry(
     gateway = _create_harness_gateway(application)
     definition = loads(gateway.read_harness_definition(harness_id))
     notices: list[str] = []
+    design = _require_active_design(application)
     count = generate_cable_group_solids(
-        _require_active_design(application),
+        design,
         gateway.harness_component(harness_id),
         definition,
         replace_existing,
         notices,
         output_mode,
     )
+    if output_mode == FINALIZED_OUTPUT_MODE:
+        _hide_finalized_supports(design, definition)
+    else:
+        _show_render_supports(design, definition)
     application.activeViewport.refresh()
     summary = (
         f"Finalized {count} cable-group geometries."
