@@ -100,7 +100,7 @@ def _apply_generated_materials(application: adsk.core.Application, harness_id: U
 
 def _highlight_member(application: adsk.core.Application, serialized_data: str) -> int:
     """
-    Emphasize linked profiles, route previews, and generated cable bodies.
+    Emphasize the Fusion geometry associated with one palette member.
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
@@ -113,7 +113,6 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     definition = loads(gateway.read_harness_definition(harness_id))
     refine_ids: tuple[UUID, ...] = ()
     preview_connection_ids: tuple[UUID, ...] = ()
-    preview_pathway_ids: tuple[UUID, ...] = ()
     preview_control_ids: tuple[UUID, ...] = ()
     generated_group_ids: tuple[UUID, ...] = ()
     generated_attachment_ids: tuple[UUID, ...] = ()
@@ -138,19 +137,14 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         pathway = next((item for item in definition.pathways if item.pathway_id == member_id), None)
         if pathway is None:
             raise ValueError("Selected pathway no longer exists.")
-        preview_pathway_ids = (member_id,)
-        generated_group_ids = _cable_group_ids_for_member(definition, "pathway", member_id)
         control_ids = pathway.ordered_control_ids
         controls = {control.control_id: control for control in definition.controls}
-        refine_ids = tuple(
-            control_id
-            for control_id in control_ids
-            if control_id in controls and controls[control_id].kind is ControlKind.REFINE
-        )
         tokens = tuple(
             controls[control_id].entity_token
             for control_id in control_ids
-            if control_id in controls and controls[control_id].entity_token
+            if control_id in controls
+            and controls[control_id].kind in {ControlKind.ROUTING_GATE, ControlKind.PROFILE_GATE}
+            and controls[control_id].entity_token
         )
     elif member_type == "cable_group":
         if all(group.cable_group_id != member_id for group in definition.cable_groups):
@@ -210,7 +204,6 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         design,
         generated_group_ids,
         connection_ids=preview_connection_ids,
-        pathway_ids=preview_pathway_ids,
         control_ids=preview_control_ids,
     )
     refine_count = highlight_refine_graphics(design, refine_ids)

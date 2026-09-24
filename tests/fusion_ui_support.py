@@ -254,6 +254,7 @@ class _PaletteLifecycleModule(Protocol):
     refresh_route_previews_with_result: Callable[..., object]
     _log_to_fusion: Callable[[str], None]
     _member_entity_tokens: Callable[[HarnessDefinition, str, UUID], tuple[str, ...]]
+    _cable_group_ids_for_member: Callable[[HarnessDefinition, str, UUID], tuple[UUID, ...]]
     _highlight_member: Callable[[object, str], int]
     _require_active_design: Callable[[object], object]
     highlight_route_preview: Callable[[object, object], int]

@@ -227,6 +227,74 @@ def test_connection_highlights_its_generated_cable_group_body(
     )
 
 
+def test_pathway_hover_selects_only_its_gateway_profiles(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Highlight only profile-backed gates for a pathway node.
+    """
+    from cable_bundler.domain import ControlKind
+
+    pathway = valid_harness.pathways[0]
+    controls = {control.control_id: control for control in valid_harness.controls}
+    profiles = {
+        controls[control_id].entity_token: object()
+        for control_id in pathway.ordered_control_ids
+        if control_id in controls
+        and controls[control_id].kind in {ControlKind.ROUTING_GATE, ControlKind.PROFILE_GATE}
+        and controls[control_id].entity_token
+    }
+    design = SimpleNamespace(
+        findEntityByToken=lambda token: [profiles[token]],
+        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0)),
+    )
+    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(activeSelections=selections),
+        activeViewport=SimpleNamespace(refresh=Mock()),
+    )
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _harness_id: dumps(valid_harness),
+        harness_component=Mock(return_value=object()),
+    )
+    sys.modules["adsk.fusion"].Profile = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda entity: entity
+    )
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    cable_groups = Mock(return_value=(UUID(int=881),))
+    generated_bodies = Mock(return_value=(object(),))
+    route_highlight = Mock(return_value=0)
+    refine_highlight = Mock(return_value=0)
+    monkeypatch.setattr(addin_module, "_cable_group_ids_for_member", cable_groups)
+    monkeypatch.setattr(addin_module, "generated_cable_group_bodies", generated_bodies)
+    monkeypatch.setattr(addin_module, "highlight_route_members", route_highlight)
+    monkeypatch.setattr(addin_module, "highlight_refine_graphics", refine_highlight)
+    payload = json.dumps(
+        {
+            "harnessId": str(valid_harness.harness_id),
+            "memberType": "pathway_gates",
+            "memberId": str(pathway.pathway_id),
+        }
+    )
+
+    result = addin_module._highlight_member(application, payload)
+
+    assert result == len(profiles)
+    assert [call.args[0] for call in selections.add.call_args_list] == list(profiles.values())
+    cable_groups.assert_not_called()
+    generated_bodies.assert_not_called()
+    route_highlight.assert_called_once_with(
+        design,
+        (),
+        connection_ids=(),
+        control_ids=(),
+    )
+    refine_highlight.assert_called_once_with(design, ())
+
+
 # noinspection DuplicatedCode
 def test_attachment_highlight_selects_targets_and_generated_sweep(
     addin_module: _PaletteLifecycleModule,
