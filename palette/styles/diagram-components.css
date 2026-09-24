@@ -66,6 +66,35 @@
   stroke: var(--muted);
   stroke-dasharray: 4 3;
 }
+.connection-physical-indicator {
+  color: var(--text);
+  pointer-events: none;
+}
+.connection-physical-indicator.disconnected { color: var(--muted); }
+.connection-physical-indicator path {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.connection-physical-indicator .plug-body {
+  fill: currentColor;
+  stroke-width: 2;
+}
+.connection-physical-indicator.disconnected .plug-body {
+  fill: none;
+  stroke-width: 2.7;
+}
+.connection-association-indicator { pointer-events: none; }
+.connection-association-indicator rect {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.connection-association-indicator text {
+  fill: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+}
 .connection-shielding-indicator.connected circle {
   fill: var(--accent);
   stroke: var(--surface);

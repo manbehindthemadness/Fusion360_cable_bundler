@@ -214,6 +214,107 @@ function shieldingConnectionFixture() {
   return { context, calls, definition, group, connection };
 }
 
+test('Cable Details badges only terminal physical connection nodes', () => {
+  const { context } = palette();
+  const definition = harness();
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  const parent = {
+    attachmentId: 'profile', name: 'Profile', parentAttachmentId: null,
+    targetKind: 'profile', connected: true, visualOverrides: {},
+  };
+  const child = {
+    attachmentId: 'terminal', name: 'Terminal', parentAttachmentId: 'profile',
+    targetKind: 'joint_origin', connected: true, visualOverrides: {},
+  };
+  connection.attachment = parent;
+  connection.attachments = [parent, child];
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+
+  const dialog = context.document.body.querySelector('.cable-group-details-popup');
+  const profileNode = descendants(dialog, (element) => (
+    element.dataset.nodeId === 'attachment:a1:profile'
+  ))[0];
+  const terminalNode = descendants(dialog, (element) => (
+    element.dataset.nodeId === 'attachment:a1:terminal'
+  ))[0];
+  assert.equal(profileNode.dataset.physicalConnection, 'false');
+  assert.equal(terminalNode.dataset.physicalConnection, 'true');
+  assert.equal(descendants(profileNode, (element) => (
+    element.className?.split(' ').includes('connection-physical-indicator')
+  )).length, 0);
+  const badges = descendants(terminalNode, (element) => (
+    element.className?.split(' ').includes('connection-physical-indicator')
+  ));
+  assert.equal(badges.length, 1);
+  assert.equal(badges[0].className.split(' ').includes('connected'), true);
+  assert.equal(descendants(badges[0], (element) => element.tag === 'path').length, 3);
+  assert.equal(descendants(badges[0], (element) => element.tag === 'text').length, 0);
+
+  child.connected = false;
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const refreshed = context.document.body.querySelector('.cable-group-details-popup');
+  const disconnected = descendants(refreshed, (element) => (
+    element.dataset.nodeId === 'attachment:a1:terminal'
+  ))[0];
+  const outline = descendants(disconnected, (element) => (
+    element.className?.split(' ').includes('connection-physical-indicator')
+  ))[0];
+  assert.equal(outline.className.split(' ').includes('disconnected'), true);
+});
+
+test('Cable Details gives associated terminal nodes matching numbered color badges', () => {
+  const { context } = palette();
+  const definition = harness();
+  const left = definition.connections.find((item) => item.connectionId === 'a1');
+  const right = definition.connections.find((item) => item.connectionId === 'b1');
+  const attachment = (attachmentId, parentAttachmentId = null) => ({
+    attachmentId, name: attachmentId, parentAttachmentId,
+    targetKind: 'profile', connected: true, visualOverrides: {},
+  });
+  left.attachments = [
+    attachment('parent'), attachment('left-a', 'parent'), attachment('left-b', 'parent'),
+  ];
+  left.attachment = left.attachments[0];
+  right.attachments = [
+    attachment('right-a'), attachment('right-b'),
+    attachment('right-extra'), attachment('unassociated'),
+  ];
+  right.attachment = right.attachments[0];
+  definition.attachmentAssociations = [
+    { associationId: 'group-b', attachmentIds: ['left-b', 'right-b'] },
+    { associationId: 'group-a', attachmentIds: ['left-a', 'right-a', 'right-extra'] },
+  ];
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+
+  const dialog = context.document.body.querySelector('.cable-group-details-popup');
+  const node = (connectionId, attachmentId) => descendants(dialog, (element) => (
+    element.dataset.nodeId === `attachment:${connectionId}:${attachmentId}`
+  ))[0];
+  const badge = (connectionId, attachmentId) => descendants(
+    node(connectionId, attachmentId),
+    (element) => element.className === 'connection-association-indicator',
+  )[0];
+  const firstLeft = badge('a1', 'left-a');
+  const firstRight = badge('b1', 'right-a');
+  const firstExtra = badge('b1', 'right-extra');
+  const secondLeft = badge('a1', 'left-b');
+  const secondRight = badge('b1', 'right-b');
+  assert.equal(firstLeft.dataset.groupNumber, '1');
+  assert.equal(firstRight.dataset.groupNumber, '1');
+  assert.equal(firstLeft.dataset.associationId, 'group-a');
+  assert.equal(firstLeft.children[0].attributes.fill, firstRight.children[0].attributes.fill);
+  assert.equal(firstExtra.dataset.groupNumber, '1');
+  assert.equal(firstExtra.children[0].attributes.fill, firstLeft.children[0].attributes.fill);
+  assert.equal(secondLeft.dataset.groupNumber, '2');
+  assert.equal(secondRight.dataset.groupNumber, '2');
+  assert.equal(secondLeft.children[0].attributes.fill, secondRight.children[0].attributes.fill);
+  assert.notEqual(firstLeft.children[0].attributes.fill, secondLeft.children[0].attributes.fill);
+  assert.equal(badge('a1', 'parent'), undefined);
+  assert.equal(badge('b1', 'unassociated'), undefined);
+});
+
 asyncTest('Cable Details connects detached ends and manages diagram-only connection nodes', async () => {
   const { context, calls } = palette();
   const definition = harness();

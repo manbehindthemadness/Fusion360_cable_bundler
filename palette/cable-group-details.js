@@ -7,6 +7,26 @@ const CABLE_GROUP_DETAILS_COLUMN_GAP = 80;
 const CABLE_GROUP_DETAILS_PADDING = 40;
 let cableGroupDetailsTextContext;
 
+/** Assign stable visible numbers and colors to persisted attachment groups. */
+function cableGroupDetailsAssociationBadges(harness) {
+  const badges = new Map();
+  const associations = (harness.attachmentAssociations || []).slice().sort((left, right) => (
+    String(left.associationId).localeCompare(String(right.associationId))
+  ));
+  associations.forEach((association, index) => {
+    const hue = Math.round((210 + index * 137.508) % 360);
+    const badge = {
+      number: index + 1,
+      color: `hsl(${hue}, 60%, 35%)`,
+      associationId: association.associationId,
+    };
+    (association.attachmentIds || []).forEach((attachmentId) => {
+      badges.set(attachmentId, badge);
+    });
+  });
+  return badges;
+}
+
 /** Return the authoritative pathway boundary occupied by every standalone end. */
 function cableGroupEndLocations(harness) {
   const locations = new Map();
@@ -432,11 +452,55 @@ function openCableEndRoutingPopup(harness, connectionId) {
   dialog.showModal();
 }
 
+/** Render the supplied plug artwork as a standalone terminal-connection icon. */
+function renderPhysicalConnectionIcon(node, connected) {
+  const state = connected ? "connected" : "disconnected";
+  const icon = svgElement("g", {
+    class: `connection-physical-indicator ${state}`,
+    role: "img",
+    "aria-label": `Physical connection ${state}`,
+  });
+  const graphic = svgElement("svg", {
+    x: node.x + node.width / 2 - 18,
+    y: node.y + node.height / 2 - 18,
+    width: 24,
+    height: 24,
+    viewBox: "-2 -2 52 52",
+    preserveAspectRatio: "xMidYMid meet",
+    "aria-hidden": "true",
+  });
+  graphic.append(
+    svgElement("path", {
+      class: "plug-body",
+      transform: "rotate(45 24 24)",
+      d: "M16 28 H32 V33 C32 37 30 40 26 41 V47 H22 V41 "
+        + "C18 40 16 37 16 33 Z",
+    }),
+    svgElement("path", {
+      class: "plug-body",
+      transform: "rotate(45 24 24)",
+      d: "M16 19 V16 C16 12 18 9 22 8 V1 H26 V8 "
+        + "C30 9 32 12 32 16 V19 Z",
+    }),
+    svgElement("path", {
+      class: "plug-body",
+      transform: "rotate(45 24 24)",
+      d: "M18 28 V24 A2 2 0 0 1 22 24 V28 "
+        + "M26 28 V24 A2 2 0 0 1 30 24 V28",
+    }),
+  );
+  const title = svgElement("title");
+  title.textContent = `Physical connection ${state}`;
+  icon.append(graphic, title);
+  return icon;
+}
+
 /** Render the routed pathways, junctions, and physical ends for one group. */
 function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, showContextMenu) {
   const topology = layoutCableGroupDetailsTopology(
     cableGroupDetailsTopology(harness, group), focusedConnectionId,
   );
+  const associationBadges = cableGroupDetailsAssociationBadges(harness);
   const svg = svgElement("svg", {
     class: "cable-group-details-svg",
     width: topology.width,
@@ -495,6 +559,40 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       const connection = harness.connections.find(
         (candidate) => candidate.connectionId === node.item.connectionId,
       );
+      const hasChildren = (connection?.attachments || []).some(
+        (candidate) => candidate.parentAttachmentId === node.item.attachmentId,
+      );
+      groupNode.dataset.physicalConnection = hasChildren ? "false" : "true";
+      if (!hasChildren) {
+        groupNode.append(renderPhysicalConnectionIcon(node, node.item.connected));
+        const association = associationBadges.get(node.item.attachmentId);
+        if (association) {
+          const number = `${association.number}`;
+          const badgeWidth = Math.max(18, number.length * 8 + 10);
+          const badgeX = node.x - node.width / 2 - 4;
+          const badgeY = node.y + node.height / 2 - 15;
+          const memberBadge = svgElement("g", {
+            class: "connection-association-indicator",
+            role: "img",
+            "aria-label": `Connection group ${number}`,
+            "data-association-id": association.associationId,
+            "data-group-number": number,
+          });
+          memberBadge.append(
+            svgElement("rect", {
+              x: badgeX, y: badgeY, width: badgeWidth, height: 18,
+              rx: 9, fill: association.color,
+            }),
+            svgElement("text", {
+              x: badgeX + badgeWidth / 2, y: badgeY + 12,
+            }),
+            svgElement("title"),
+          );
+          memberBadge.children[1].textContent = number;
+          memberBadge.children[2].textContent = `Connection group ${number}`;
+          groupNode.append(memberBadge);
+        }
+      }
       const shielding = connection
         ? cableEndAttachmentMaterials(group, connection, node.item).shielding : "";
       const hasShielding = typeof shielding === "string" && shielding.trim() !== "";
