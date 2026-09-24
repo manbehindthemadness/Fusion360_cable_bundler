@@ -548,6 +548,64 @@ def test_rejected_conforming_weld_removes_construction_in_dependency_order(
     assert removed == ["sketch-2", "sketch-1", "plane-2", "plane-1"]
 
 
+def test_conforming_weld_radius_is_clamped_to_target_face(
+    cable_solids: _CableSolidsModule,
+) -> None:
+    """
+    Keep every conforming loft section within the target-face boundary.
+    """
+    welds_module = importlib.import_module("cable_bundler.fusion.cable_solid_parts.welds")
+
+    assert welds_module._clamped_face_weld_radius_mm(4.0, 1.0, 2.5) == pytest.approx(2.5)
+    assert welds_module._clamped_face_weld_radius_mm(2.0, 1.0, 4.0) == pytest.approx(2.0)
+    assert welds_module._clamped_face_weld_radius_mm(4.0, 1.0, None) == pytest.approx(4.0)
+
+
+def test_face_smaller_than_pullback_end_rejects_conforming_weld(
+    cable_solids: _CableSolidsModule,
+) -> None:
+    """
+    Send an impossible target footprint through the spherical fallback path.
+    """
+    welds_module = importlib.import_module("cable_bundler.fusion.cable_solid_parts.welds")
+
+    with pytest.raises(RuntimeError, match="too small to contain the pullback end"):
+        welds_module._clamped_face_weld_radius_mm(4.0, 1.5, 1.5)
+    with pytest.raises(RuntimeError, match="too small to contain the pullback end"):
+        welds_module._clamped_face_weld_radius_mm(4.0, 1.5, 1.0)
+
+
+def test_target_face_clearance_uses_nearest_boundary_edge(
+    cable_solids: _CableSolidsModule,
+) -> None:
+    """
+    Measure the conservative weld footprint from its center to the closest edge.
+    """
+    welds_module = importlib.import_module("cable_bundler.fusion.cable_solid_parts.welds")
+    target_point = SimpleNamespace()
+
+    def edge(distance_cm: float) -> SimpleNamespace:
+        """
+        Build one evaluable face-boundary edge at a known distance.
+        """
+        closest_point = SimpleNamespace(distanceTo=lambda _point: distance_cm)
+        evaluator = SimpleNamespace(
+            getParameterAtPoint=lambda _point: (True, distance_cm),
+            getPointAtParameter=lambda _parameter: (True, closest_point),
+        )
+        return SimpleNamespace(evaluator=evaluator)
+
+    edges = (edge(0.42), edge(0.18), edge(0.31))
+    target_body = SimpleNamespace(
+        edges=SimpleNamespace(
+            count=len(edges),
+            item=lambda index: edges[index],
+        )
+    )
+
+    assert welds_module._target_face_clearance_mm(target_body, target_point) == pytest.approx(1.8)
+
+
 def test_finalize_replaces_main_route_endpoint_with_pullback_body(
     cable_solids: _CableSolidsModule,
     monkeypatch: pytest.MonkeyPatch,

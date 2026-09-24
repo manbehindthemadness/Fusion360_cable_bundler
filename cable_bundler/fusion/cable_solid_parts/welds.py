@@ -186,17 +186,65 @@ def _log_face_fallback(
     )
 
 
+def _target_face_clearance_mm(
+    target_body: adsk.fusion.BRepBody,
+    target_point: adsk.core.Point3D,
+) -> Optional[float]:
+    """
+    Return the shortest 3D distance from the weld center to a face boundary.
+
+    A copied closed face can have no boundary edges. In that case the face does
+    not impose a finite footprint limit and ``None`` is returned.
+    """
+    distances_cm: list[float] = []
+    for index in range(target_body.edges.count):
+        edge = target_body.edges.item(index)
+        if edge is None:
+            continue
+        parameter_result = edge.evaluator.getParameterAtPoint(target_point)
+        if not parameter_result[0]:
+            raise RuntimeError("Fusion could not locate the weld center relative to an edge.")
+        point_result = edge.evaluator.getPointAtParameter(parameter_result[1])
+        if not point_result[0]:
+            raise RuntimeError("Fusion could not evaluate a weld target edge.")
+        distance_cm = point_result[1].distanceTo(target_point)
+        if not math.isfinite(distance_cm) or distance_cm < 0.0:
+            raise RuntimeError("Fusion returned an invalid weld target edge distance.")
+        distances_cm.append(distance_cm)
+    return min(distances_cm) * 10.0 if distances_cm else None
+
+
+def _clamped_face_weld_radius_mm(
+    requested_radius_mm: float,
+    conductor_radius_mm: float,
+    target_clearance_mm: Optional[float],
+) -> float:
+    """
+    Cap a conforming weld to its face or reject an impossible footprint.
+
+    The target must contain the complete exposed conductor end. A face that
+    cannot do so uses the spherical fallback instead of producing a pinched or
+    overhanging face-conforming loft.
+    """
+    if target_clearance_mm is None:
+        return requested_radius_mm
+    if target_clearance_mm <= conductor_radius_mm + 1e-9:
+        raise RuntimeError("The weld target face is too small to contain the pullback end.")
+    return min(requested_radius_mm, target_clearance_mm)
+
+
 def _local_target_patch(
     component: adsk.fusion.Component,
     target_face: adsk.fusion.BRepFace,
     transform: adsk.core.Matrix3D,
     target_point: adsk.core.Point3D,
     conductor_point: adsk.core.Point3D,
-    radius_cm: float,
+    requested_radius_mm: float,
+    conductor_radius_mm: float,
     name: str,
-) -> adsk.fusion.BRepBody:
+) -> tuple[adsk.fusion.BRepBody, float]:
     """
-    Trim a target-face copy to the weld footprint in component coordinates.
+    Trim a target-face copy to a clamped weld footprint in component coordinates.
     """
     manager = adsk.fusion.TemporaryBRepManager.get()
     if manager is None:
@@ -204,6 +252,12 @@ def _local_target_patch(
     temporary_body = manager.copy(target_face)
     if temporary_body is None or not manager.transform(temporary_body, transform):
         raise RuntimeError("Fusion could not transform the weld target face locally.")
+    target_radius_mm = _clamped_face_weld_radius_mm(
+        requested_radius_mm,
+        conductor_radius_mm,
+        _target_face_clearance_mm(temporary_body, target_point),
+    )
+    radius_cm = target_radius_mm / 10.0
     direction = target_point.vectorTo(conductor_point)
     if direction.length <= 1e-9 or not direction.normalize():
         raise RuntimeError("Fusion could not normalize the local weld footprint axis.")
@@ -225,7 +279,7 @@ def _local_target_patch(
         adsk.fusion.BooleanTypes.IntersectionBooleanType,
     ):
         raise RuntimeError("Fusion could not trim the local weld target footprint.")
-    return _persist_temporary_body(component, temporary_body, name)
+    return _persist_temporary_body(component, temporary_body, name), target_radius_mm
 
 
 def _local_axis_edge(
@@ -308,12 +362,8 @@ def build_weld_body(
     chord = difference(conductor_point, target_point)
     if magnitude(chord) <= 1e-9:
         raise ValueError("Weld route endpoints must be distinct.")
-    top_radius_mm = min(endpoint.radius_mm, endpoint.conductor_diameter_mm / 2.0)
-    sections = (
-        (0.0, endpoint.radius_mm, "Target"),
-        (0.55, max(top_radius_mm, endpoint.radius_mm * 0.8), "Crown"),
-        (1.0, top_radius_mm, "Conductor"),
-    )
+    conductor_radius_mm = endpoint.conductor_diameter_mm / 2.0
+    top_radius_mm = min(endpoint.radius_mm, conductor_radius_mm)
 
     local_target_point = fusion_point(target_point, transform)
     if endpoint.target_face is None:
@@ -331,14 +381,20 @@ def build_weld_body(
     construction_sketches: list[adsk.fusion.Sketch] = []
     try:
         local_conductor_point = fusion_point(conductor_point, transform)
-        local_target_surface = _local_target_patch(
+        local_target_surface, target_radius_mm = _local_target_patch(
             component,
             endpoint.target_face,
             transform,
             local_target_point,
             local_conductor_point,
-            endpoint.radius_mm / 10.0,
+            endpoint.radius_mm,
+            conductor_radius_mm,
             f"{name} Local Target",
+        )
+        sections = (
+            (0.0, target_radius_mm, "Target"),
+            (0.55, max(top_radius_mm, target_radius_mm * 0.8), "Crown"),
+            (1.0, top_radius_mm, "Conductor"),
         )
         local_target_faces = tuple(
             face
