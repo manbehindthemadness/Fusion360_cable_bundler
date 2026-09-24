@@ -19,6 +19,7 @@ from cable_bundler.application import (
     add_end_refine,
     add_junction,
     append_end_guides,
+    attachment_association_candidates,
     remove_end_control,
     remove_end_guide,
     rename_cable_group,
@@ -40,6 +41,7 @@ from cable_bundler.application.edit_harness import set_interpolation
 from cable_bundler.application.harness_edits.support import prune_attachment_associations
 from cable_bundler.domain import (
     AttachmentAssociationDefinition,
+    AttachmentTargetKind,
     AutoTransitionPreset,
     CableColor,
     CableEndAttachment,
@@ -919,3 +921,71 @@ def test_attachment_associations_merge_complete_outside_groups(
             gateway,
         )
     assert loads(gateway.serialized_definition) == stored
+
+
+def test_attachment_associations_split_attachment_from_other_group_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Resolve an attachment's owner selection to the other cable-group ends.
+    """
+    owner, other = valid_harness.connections
+    group = valid_harness.cable_groups[0]
+    parent_id, first_id, second_id, other_id, association_id = (
+        UUID(int=940 + index) for index in range(5)
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                owner,
+                attachment=CableEndAttachment(
+                    AttachmentTargetKind.PROFILE,
+                    "split-profile",
+                    "Split profile",
+                    attachment_id=parent_id,
+                ),
+                additional_attachments=(
+                    CableEndAttachment(
+                        None, attachment_id=first_id, parent_attachment_id=parent_id
+                    ),
+                    CableEndAttachment(
+                        None, attachment_id=second_id, parent_attachment_id=parent_id
+                    ),
+                ),
+            ),
+            replace(other, attachment=CableEndAttachment(None, attachment_id=other_id)),
+        ),
+    )
+    left_anchor = AttachmentAssociationAnchor(
+        connection_id=owner.connection_id, attachment_id=parent_id
+    )
+    right_anchor = AttachmentAssociationAnchor(
+        connection_id=owner.connection_id,
+        node_kind="cableGroupRemainder",
+        node_id=group.cable_group_id,
+        candidate_attachment_ids=(other_id,),
+    )
+    assert attachment_association_candidates(definition, left_anchor) == (first_id, second_id)
+    assert attachment_association_candidates(definition, right_anchor) == (other_id,)
+
+    gateway = _recording_gateway(definition)
+    save_attachment_associations(
+        definition.harness_id,
+        left_anchor,
+        right_anchor,
+        (AttachmentAssociationGroup((first_id, other_id)),),
+        gateway,
+        id_factory=lambda: association_id,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.attachment_associations == (
+        AttachmentAssociationDefinition(association_id, (first_id, other_id)),
+    )
+
+    invalid_anchor = replace(right_anchor, candidate_attachment_ids=(first_id,))
+    with pytest.raises(ValueError, match="do not belong"):
+        attachment_association_candidates(definition, invalid_anchor)
+    incomplete_anchor = replace(right_anchor, candidate_attachment_ids=())
+    with pytest.raises(ValueError, match="changed since selection"):
+        attachment_association_candidates(definition, incomplete_anchor)

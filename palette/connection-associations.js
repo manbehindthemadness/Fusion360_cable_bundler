@@ -102,6 +102,61 @@ function connectionAssociationCandidates(harness, anchor, peer = null) {
   return result;
 }
 
+/** Divide an attachment/owner pair across its subtree and other cable-group ends. */
+function connectionAssociationPair(harness, source, target) {
+  let sourceCandidates = connectionAssociationCandidates(harness, source, target);
+  let targetCandidates = connectionAssociationCandidates(harness, target, source);
+  const sourceIds = new Set(sourceCandidates.map((item) => item.attachmentId));
+  const overlaps = targetCandidates.some((item) => sourceIds.has(item.attachmentId));
+  let sourceAnchor = source;
+  let targetAnchor = target;
+  let sourceLabel = null;
+  let targetLabel = null;
+  if (overlaps) {
+    const attachment = source.attachmentId ? source : target.attachmentId ? target : null;
+    const owner = source.attachmentId ? target : source;
+    const group = (harness.cableGroups || []).find((candidate) => (
+      candidate.cableGroupId === openCableGroupDetailsState?.cableGroupId
+    ));
+    if (!attachment || owner.nodeKind || owner.attachmentId ||
+        attachment.connectionId !== owner.connectionId ||
+        !group?.connectionIds.includes(owner.connectionId)) return null;
+    const otherCandidates = group.connectionIds
+      .filter((connectionId) => connectionId !== owner.connectionId)
+      .flatMap((connectionId) => connectionAssociationCandidates(harness, { connectionId }));
+    const otherAnchor = {
+      nodeKind: "cableGroupRemainder",
+      nodeId: group.cableGroupId,
+      connectionId: owner.connectionId,
+      candidateAttachmentIds: otherCandidates.map((item) => item.attachmentId),
+    };
+    if (source === owner) {
+      sourceCandidates = otherCandidates;
+      sourceAnchor = otherAnchor;
+      sourceLabel = `Other ${group.name} connections`;
+    } else {
+      targetCandidates = otherCandidates;
+      targetAnchor = otherAnchor;
+      targetLabel = `Other ${group.name} connections`;
+    }
+  }
+  if (!sourceCandidates.length || !targetCandidates.length) return null;
+  if (targetCandidates.some((item) => (
+    sourceCandidates.some((sourceItem) => sourceItem.attachmentId === item.attachmentId)
+  ))) return null;
+  if (sourceAnchor.nodeKind && sourceAnchor.nodeKind !== "cableGroupRemainder") {
+    sourceAnchor = {
+      ...sourceAnchor, candidateAttachmentIds: sourceCandidates.map((item) => item.attachmentId),
+    };
+  }
+  if (targetAnchor.nodeKind && targetAnchor.nodeKind !== "cableGroupRemainder") {
+    targetAnchor = {
+      ...targetAnchor, candidateAttachmentIds: targetCandidates.map((item) => item.attachmentId),
+    };
+  }
+  return { sourceAnchor, targetAnchor, sourceCandidates, targetCandidates, sourceLabel, targetLabel };
+}
+
 /** Clear node-selection styling and document-level listeners. */
 function clearConnectionAssociationSelection(container) {
   container.classList.remove("connection-association-selecting");
@@ -128,27 +183,19 @@ function handleConnectionAssociationClick(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    const candidates = connectionAssociationCandidates(selection.harness, anchor, selection.source);
-    const sourceCandidates = connectionAssociationCandidates(
-      selection.harness, selection.source, anchor,
-    );
-    const sourceAnchor = selection.source.nodeKind
-      ? { ...selection.source, candidateAttachmentIds: sourceCandidates.map((item) => item.attachmentId) }
-      : selection.source;
-    const targetAnchor = anchor.nodeKind
-      ? { ...anchor, candidateAttachmentIds: candidates.map((item) => item.attachmentId) }
-      : anchor;
+    const pair = connectionAssociationPair(selection.harness, selection.source, anchor);
+    if (!pair) return;
     clearConnectionAssociationSelection(selection.container);
     connectionAssociationSelection = null;
     cancelActiveConnectionAssociationSelection = null;
     openConnectionAssociationPanel(
       selection.harness,
-      sourceAnchor,
-      targetAnchor,
-      sourceCandidates,
-      candidates,
-      selection.sourceLabel,
-      node.getAttribute("aria-label") || "Selected connection",
+      pair.sourceAnchor,
+      pair.targetAnchor,
+      pair.sourceCandidates,
+      pair.targetCandidates,
+      pair.sourceLabel || selection.sourceLabel,
+      pair.targetLabel || node.getAttribute("aria-label") || "Selected connection",
     );
     return;
   }
@@ -200,10 +247,7 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   const nodeElements = container.querySelectorAll(".cable-group-details-node");
   nodeElements.forEach((node) => {
     const anchor = connectionAssociationAnchorFromElement(node);
-    const sourceCandidates = connectionAssociationCandidates(harness, source, anchor);
-    const sourceIds = new Set(sourceCandidates.map((item) => item.attachmentId));
-    const candidates = connectionAssociationCandidates(harness, anchor, source);
-    const overlaps = candidates.some((candidate) => sourceIds.has(candidate.attachmentId));
+    const pair = connectionAssociationPair(harness, source, anchor);
     node.classList.remove(
       "connection-association-source",
       "connection-association-target",
@@ -212,7 +256,7 @@ function beginCableGroupAttachmentAssociation(harness, source) {
     const isSource = node.dataset.nodeId === connectionAssociationNodeId(source);
     if (isSource) {
       node.classList.add("connection-association-source");
-    } else if (sourceCandidates.length && candidates.length && !overlaps) {
+    } else if (pair) {
       eligible.add(node);
       node.classList.add("connection-association-target");
     } else {

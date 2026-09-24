@@ -37,7 +37,7 @@ class AttachmentAssociationGroup:
 @dataclass(frozen=True)
 class AttachmentAssociationAnchor:
     """
-    Identify a cable end, attachment subtree, pathway, or junction in the diagram.
+    Identify a cable end, subtree, route node, or other ends of a cable group.
     """
 
     connection_id: Optional[UUID] = None
@@ -54,7 +54,21 @@ def attachment_association_candidates(
     """
     Return terminal attachment IDs represented by one selected diagram node.
     """
-    if anchor.node_kind in ("pathway", "junction"):
+    if anchor.node_kind == "cableGroupRemainder":
+        group = next(
+            (item for item in definition.cable_groups if item.cable_group_id == anchor.node_id),
+            None,
+        )
+        if group is None or anchor.connection_id not in group.connection_ids:
+            raise ValueError("Selected cable-group remainder no longer exists.")
+        connection_ids = set(group.connection_ids) - {anchor.connection_id}
+        roots = tuple(
+            attachment
+            for connection in definition.connections
+            if connection.connection_id in connection_ids
+            for attachment in connection.attachment_children(None)
+        )
+    elif anchor.node_kind in ("pathway", "junction"):
         graph: dict[tuple[str, UUID], set[tuple[str, UUID]]] = {
             ("pathway", pathway.pathway_id): set() for pathway in definition.pathways
         }
@@ -108,7 +122,7 @@ def attachment_association_candidates(
                 raise ValueError("Selected attachment node no longer exists.")
             roots = (selected,)
     leaves: list[UUID] = []
-    if anchor.node_kind in ("pathway", "junction"):
+    if anchor.node_kind in ("pathway", "junction", "cableGroupRemainder"):
         connection_by_attachment = {
             attachment.attachment_id: connection
             for connection in definition.connections
@@ -130,6 +144,8 @@ def attachment_association_candidates(
     requested = set(anchor.candidate_attachment_ids)
     if len(requested) != len(anchor.candidate_attachment_ids) or not requested.issubset(candidates):
         raise ValueError("Association candidates do not belong to the selected route node.")
+    if anchor.node_kind == "cableGroupRemainder" and requested != set(candidates):
+        raise ValueError("Cable-group association candidates changed since selection.")
     return tuple(item_id for item_id in candidates if item_id in requested)
 
 

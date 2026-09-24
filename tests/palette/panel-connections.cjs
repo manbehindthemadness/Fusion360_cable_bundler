@@ -208,6 +208,80 @@ asyncTest('Cable Details associates upstream route nodes in either selection ord
   }
 });
 
+asyncTest('Cable Details divides an attachment and its owner across the cable group', async () => {
+  for (const reverse of [false, true]) {
+    const { context, calls } = palette();
+    const definition = harness();
+    const group = definition.cableGroups[0];
+    group.name = 'Ground';
+    group.connectionIds = ['a1', 'b1', 'a2'];
+    definition.attachmentAssociations = [{
+      associationId: 'ground-link', attachmentIds: ['strap-1', 'leaf-a1'],
+    }];
+    const owner = definition.connections.find((connection) => connection.connectionId === 'b1');
+    owner.name = 'Chassis ground';
+    owner.attachments = [
+      { attachmentId: 'split', name: 'Gnd split 1', parentAttachmentId: null },
+      { attachmentId: 'strap-1', name: 'Ground strap 1', parentAttachmentId: 'split' },
+      { attachmentId: 'strap-2', name: 'Ground strap 2', parentAttachmentId: 'split' },
+    ];
+    owner.attachment = owner.attachments[0];
+    for (const connectionId of ['a1', 'a2']) {
+      const connection = definition.connections.find((item) => item.connectionId === connectionId);
+      connection.attachments = [{ attachmentId: `leaf-${connectionId}`, name: connectionId }];
+      connection.attachment = connection.attachments[0];
+    }
+    context.send = async (action, payload) => {
+      calls.push({ action, payload });
+      return { ok: true };
+    };
+    context.openCableGroupDetails(definition, 'g1', 'b1');
+    const details = context.document.body.querySelector('.cable-group-details-popup');
+    const nodes = details.querySelectorAll('.cable-group-details-node');
+    const attachment = nodes.find((node) => node.dataset.nodeId === 'attachment:b1:split');
+    const connection = nodes.find((node) => node.dataset.nodeId === 'connection:b1');
+    const source = reverse ? connection : attachment;
+    const target = reverse ? attachment : connection;
+    source.events.contextmenu({
+      target: source, clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {},
+    });
+    details.querySelector('.relationship-map-context-menu').children
+      .find((item) => item.textContent === 'Associate').events.click();
+    assert.equal(target.classList.contains('connection-association-target'), true);
+    context.document.dispatchEvent({
+      type: 'click', target: { closest: () => target },
+      preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    });
+    const editor = context.document.body.querySelector('.connection-associations-popup');
+    assert.equal(editor?.open, true);
+    const members = ['left', 'right'].map((side) => descendants(editor, (node) => (
+      node.dataset.attachmentId !== undefined && node.dataset.assignmentSide === side
+    )).map((node) => node.dataset.attachmentId));
+    const expected = reverse
+      ? [['leaf-a1', 'leaf-a2'], ['strap-1', 'strap-2']]
+      : [['strap-1', 'strap-2'], ['leaf-a1', 'leaf-a2']];
+    expected.forEach((ids, index) => {
+      assert.deepEqual(new Set(members[index]), new Set(ids));
+    });
+    const mapped = editor.querySelectorAll('.create-cables-assignment-row');
+    assert.equal(mapped.length, 1);
+    assert.deepEqual(
+      [mapped[0].children[0].children[0].dataset.attachmentId,
+        mapped[0].children[2].children[0].dataset.attachmentId],
+      reverse ? ['leaf-a1', 'strap-1'] : ['strap-1', 'leaf-a1'],
+    );
+    await descendants(editor, (node) => node.tag === 'button' && node.textContent === 'Save')[0]
+      .events.click();
+    const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+    const remainder = reverse ? payload.leftAnchor : payload.rightAnchor;
+    assert.equal(remainder.nodeKind, 'cableGroupRemainder');
+    assert.equal(remainder.nodeId, 'g1');
+    assert.equal(remainder.connectionId, 'b1');
+    assert.deepEqual([...remainder.candidateAttachmentIds], ['leaf-a1', 'leaf-a2']);
+    assert.equal(payload.associations[0].associationId, 'ground-link');
+  }
+});
+
 asyncTest('Association Editor extends one pair to three and five members by dropping on either card', async () => {
   const { context, calls } = palette();
   context.send = async (action, payload) => {

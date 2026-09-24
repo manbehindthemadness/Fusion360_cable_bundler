@@ -497,6 +497,40 @@ def test_palette_edit_saves_multirow_attachment_association(
     assert save.call_args.args[-1] is gateway
 
 
+def test_palette_edit_parses_cable_group_remainder_anchor(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Preserve the group and excluded owner in a partitioned association save.
+    """
+    harness_id, owner_id, group_id, leaf_id = (UUID(int=950 + index) for index in range(4))
+    gateway, save = _mock_palette_service(addin_module, monkeypatch, "save_attachment_associations")
+    addin_module._apply_palette_edit(
+        object(),
+        "save_attachment_associations",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "leftAnchor": {"connectionId": str(owner_id)},
+                "rightAnchor": {
+                    "nodeKind": "cableGroupRemainder",
+                    "nodeId": str(group_id),
+                    "connectionId": str(owner_id),
+                    "candidateAttachmentIds": [str(leaf_id)],
+                },
+                "associations": [],
+            }
+        ),
+    )
+    right_anchor = save.call_args.args[2]
+    assert right_anchor.node_kind == "cableGroupRemainder"
+    assert right_anchor.node_id == group_id
+    assert right_anchor.connection_id == owner_id
+    assert right_anchor.candidate_attachment_ids == (leaf_id,)
+    assert save.call_args.args[-1] is gateway
+
+
 def test_palette_edit_saves_connected_cable_properties_atomically(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

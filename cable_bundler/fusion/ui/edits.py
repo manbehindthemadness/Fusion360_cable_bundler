@@ -336,7 +336,7 @@ def _apply_attachment_association_edit(
 
     def parse_anchor(value: dict[str, object]) -> AttachmentAssociationAnchor:
         """
-        Parse a cable-end, attachment, pathway, or junction identity.
+        Parse a cable-end, attachment, route, or cable-group remainder identity.
         """
         node_kind = value.get("nodeKind", "connection")
         if node_kind in ("pathway", "junction"):
@@ -351,6 +351,23 @@ def _apply_attachment_association_edit(
                 candidate_attachment_ids=tuple(
                     _read_payload_uuid(
                         {"attachmentId": candidate}, "attachmentId", "route candidate"
+                    )
+                    for candidate in raw_candidates
+                ),
+            )
+        if node_kind == "cableGroupRemainder":
+            raw_candidates = value.get("candidateAttachmentIds")
+            if not isinstance(raw_candidates, list) or any(
+                not isinstance(candidate, str) for candidate in raw_candidates
+            ):
+                raise ValueError("Cable-group association candidates must be a list of identities.")
+            return AttachmentAssociationAnchor(
+                connection_id=_read_payload_uuid(value, "connectionId", "excluded cable end"),
+                node_kind=node_kind,
+                node_id=_read_payload_uuid(value, "nodeId", "cable group"),
+                candidate_attachment_ids=tuple(
+                    _read_payload_uuid(
+                        {"attachmentId": candidate}, "attachmentId", "cable-group candidate"
                     )
                     for candidate in raw_candidates
                 ),
