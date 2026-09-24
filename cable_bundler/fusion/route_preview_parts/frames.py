@@ -471,7 +471,26 @@ def _resolve_profile(design: adsk.fusion.Design, entity_token: str) -> adsk.fusi
 
     Fusion can return multiple entities for a persistent token after modeling
     operations split or remap its geometry. Invalid historical candidates must
-    not hide a later live profile in that result.
+    not hide a later live profile in that result. Edited sketches can also leave
+    their replacement profiles lazily unmaterialized until the profile
+    collections are read, so force that read and retry before reporting loss.
+    """
+    profile = _valid_profile_for_token(design, entity_token)
+    if profile is not None:
+        return profile
+    _materialize_sketch_profile_tokens(design)
+    profile = _valid_profile_for_token(design, entity_token)
+    if profile is not None:
+        return profile
+    raise RuntimeError("A route profile is missing or no longer resolves in Fusion.")
+
+
+def _valid_profile_for_token(
+    design: adsk.fusion.Design,
+    entity_token: str,
+) -> Optional[adsk.fusion.Profile]:
+    """
+    Return the first live profile among every entity resolved for one token.
     """
     for entity in design.findEntityByToken(entity_token) or ():
         profile = adsk.fusion.Profile.cast(entity)
@@ -482,7 +501,44 @@ def _resolve_profile(design: adsk.fusion.Design, entity_token: str) -> adsk.fusi
                 return profile
         except (AttributeError, RuntimeError):
             continue
-    raise RuntimeError("A route profile is missing or no longer resolves in Fusion.")
+    return None
+
+
+def _materialize_sketch_profile_tokens(design: adsk.fusion.Design) -> None:
+    """
+    Force Fusion to register lazily recreated profiles after a sketch edit.
+
+    Some geometry moves rebuild a sketch profile but leave its persistent-token
+    lookup empty until the owning profile collection and entity tokens are read.
+    Invalid unrelated sketches are ignored so they cannot prevent later sketches
+    from being materialized.
+    """
+    try:
+        components = design.allComponents
+        component_count = components.count
+    except (AttributeError, RuntimeError):
+        return
+    for component_index in range(component_count):
+        try:
+            component = components.item(component_index)
+            sketches = component.sketches
+            sketch_count = sketches.count
+        except (AttributeError, RuntimeError):
+            continue
+        for sketch_index in range(sketch_count):
+            try:
+                sketch = sketches.item(sketch_index)
+                profiles = sketch.profiles
+                profile_count = profiles.count
+            except (AttributeError, RuntimeError):
+                continue
+            for profile_index in range(profile_count):
+                try:
+                    profile = profiles.item(profile_index)
+                    if profile is not None:
+                        _ = profile.entityToken
+                except (AttributeError, RuntimeError):
+                    continue
 
 
 def _point_to_mm(point: adsk.core.Point3D) -> Vector3:

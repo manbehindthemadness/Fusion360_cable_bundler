@@ -4,7 +4,6 @@ Regressions for geometry-validated route-solve reuse.
 
 from __future__ import annotations
 
-import sys
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
@@ -58,9 +57,44 @@ def test_profile_resolution_skips_invalid_candidates_after_geometry_change(
     profile_type = SimpleNamespace(
         cast=lambda entity: entity if getattr(entity, "is_profile", False) else None
     )
-    monkeypatch.setitem(vars(sys.modules["adsk.fusion"]), "Profile", profile_type)
+    monkeypatch.setitem(vars(route_frames.adsk.fusion), "Profile", profile_type)
 
     assert route_frames._resolve_profile(design, "profile-token") is remapped
+
+
+def test_profile_resolution_materializes_lazy_profiles_after_sketch_move(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Retry a stored token after reading Fusion's lazily rebuilt sketch profiles.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+
+    del addin_module
+    state = {"materialized": False}
+    remapped = SimpleNamespace(is_profile=True, isValid=True)
+
+    class LazyProfile:
+        @property
+        def entityToken(self) -> str:
+            state["materialized"] = True
+            return "remapped-token"
+
+    collection = SimpleNamespace(count=1, item=lambda _index: LazyProfile())
+    sketch = SimpleNamespace(profiles=collection)
+    component = SimpleNamespace(sketches=SimpleNamespace(count=1, item=lambda _index: sketch))
+    design = SimpleNamespace(
+        allComponents=SimpleNamespace(count=1, item=lambda _index: component),
+        findEntityByToken=lambda _token: (remapped,) if state["materialized"] else (),
+    )
+    profile_type = SimpleNamespace(
+        cast=lambda entity: entity if getattr(entity, "is_profile", False) else None
+    )
+    monkeypatch.setitem(vars(route_frames.adsk.fusion), "Profile", profile_type)
+
+    assert route_frames._resolve_profile(design, "profile-token") is remapped
+    assert state["materialized"] is True
 
 
 def test_attached_connection_prepends_external_contact_frame(
