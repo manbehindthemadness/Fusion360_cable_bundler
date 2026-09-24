@@ -4,7 +4,9 @@ Regressions for geometry-validated route-solve reuse.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock
 from uuid import UUID
@@ -37,6 +39,28 @@ from cable_bundler.routing import (
 )
 from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
+
+
+def test_profile_resolution_skips_invalid_candidates_after_geometry_change(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Use a live remapped profile when Fusion retains an invalid historical match.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+
+    del addin_module
+    invalid = SimpleNamespace(is_profile=True, isValid=False)
+    remapped = SimpleNamespace(is_profile=True, isValid=True)
+    unrelated = SimpleNamespace(is_profile=False, isValid=True)
+    design = SimpleNamespace(findEntityByToken=lambda _entity_token: (invalid, unrelated, remapped))
+    profile_type = SimpleNamespace(
+        cast=lambda entity: entity if getattr(entity, "is_profile", False) else None
+    )
+    monkeypatch.setitem(vars(sys.modules["adsk.fusion"]), "Profile", profile_type)
+
+    assert route_frames._resolve_profile(design, "profile-token") is remapped
 
 
 def test_attached_connection_prepends_external_contact_frame(

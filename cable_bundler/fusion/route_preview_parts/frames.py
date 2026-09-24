@@ -467,13 +467,22 @@ def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> ProfileFram
 
 def _resolve_profile(design: adsk.fusion.Design, entity_token: str) -> adsk.fusion.Profile:
     """
-    Resolve one stored token to a Fusion sketch profile.
+    Resolve one stored token to a valid Fusion sketch profile.
+
+    Fusion can return multiple entities for a persistent token after modeling
+    operations split or remap its geometry. Invalid historical candidates must
+    not hide a later live profile in that result.
     """
-    entities = design.findEntityByToken(entity_token)
-    profile = adsk.fusion.Profile.cast(entities[0] if entities else None)
-    if profile is None:
-        raise RuntimeError("A route profile is missing or no longer resolves in Fusion.")
-    return profile
+    for entity in design.findEntityByToken(entity_token) or ():
+        profile = adsk.fusion.Profile.cast(entity)
+        if profile is None:
+            continue
+        try:
+            if profile.isValid:
+                return profile
+        except (AttributeError, RuntimeError):
+            continue
+    raise RuntimeError("A route profile is missing or no longer resolves in Fusion.")
 
 
 def _point_to_mm(point: adsk.core.Point3D) -> Vector3:
