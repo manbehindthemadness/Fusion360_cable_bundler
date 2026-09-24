@@ -210,9 +210,14 @@ def _request_deferred_palette_launch(
         _runtime.pending_native_dialog.prepare((action, data))
     except RuntimeError as error:
         raise RuntimeError("Another Harness Builder dialog is already opening.") from error
-    if not application.fireCustomEvent(_DEFERRED_PALETTE_LAUNCH_EVENT_ID):
-        _runtime.pending_native_dialog.clear()
-        raise RuntimeError("Fusion could not queue the Harness Builder dialog.")
+    if application.fireCustomEvent(_DEFERRED_PALETTE_LAUNCH_EVENT_ID):
+        return
+
+    # Fusion can reject the custom-event queue from a palette callback. Launch the
+    # command through the original palette path instead of losing the request.
+    _runtime.pending_native_dialog.clear()
+    launcher = _NATIVE_DIALOG_ACTIONS[action]
+    launcher(application, data)
 
 
 def _register_deferred_palette_launch(application: adsk.core.Application) -> None:
@@ -446,7 +451,10 @@ def _dispatch_palette_action(
         )
     launcher = _NATIVE_DIALOG_ACTIONS.get(action)
     if launcher is not None:
-        _request_deferred_palette_launch(application, action, data)
+        if action == "connect_cable_end":
+            launcher(application, data)
+        else:
+            _request_deferred_palette_launch(application, action, data)
         return json.dumps({"ok": True})
     if action == "clear_preview":
         count = _clear_preview(application)

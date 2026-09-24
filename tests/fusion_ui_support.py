@@ -120,6 +120,7 @@ class _PaletteLifecycleModule(Protocol):
     _remove_deferred_stripe_restore: Callable[[object], None]
     _register_deferred_palette_launch: Callable[[object], None]
     _remove_deferred_palette_launch: Callable[[object], None]
+    _request_deferred_palette_launch: Callable[[object, str, str], None]
     _remove_user_interface: Callable[[object], None]
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type

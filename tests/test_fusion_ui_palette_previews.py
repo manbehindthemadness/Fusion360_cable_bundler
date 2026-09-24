@@ -163,3 +163,85 @@ def test_palette_native_selector_launches_after_bridge_response(
     addin_module._DeferredPaletteLaunchHandler().notify(SimpleNamespace())
 
     opened.assert_called_once_with(application, data)
+
+
+@pytest.mark.parametrize("relationship", ("main", "shielding"))
+def test_connect_selector_launches_without_custom_event(
+    addin_module: _PaletteLifecycleModule,
+    relationship: str,
+) -> None:
+    """
+    Open either connection selector without relying on Fusion's custom-event queue.
+    """
+    command_definition = SimpleNamespace(execute=Mock(return_value=True))
+    application = SimpleNamespace(
+        fireCustomEvent=Mock(return_value=False),
+        userInterface=SimpleNamespace(
+            commandDefinitions=SimpleNamespace(itemById=lambda _identity: command_definition)
+        ),
+    )
+    core_module = sys.modules["adsk.core"]
+    vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
+    vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
+    harness_id, connection_id, attachment_id = (UUID(int=number) for number in (1, 2, 3))
+    data = json.dumps(
+        {
+            "harnessId": str(harness_id),
+            "connectionId": str(connection_id),
+            "attachmentId": str(attachment_id),
+            "relationship": relationship,
+        }
+    )
+    args = SimpleNamespace(action="connect_cable_end", data=data, returnData="")
+
+    addin_module._PaletteIncomingHandler().notify(args)
+
+    assert json.loads(args.returnData) == {"ok": True}
+    application.fireCustomEvent.assert_not_called()
+    command_definition.execute.assert_called_once_with()
+    assert addin_module._runtime.pending_cable_end_attachment.consume() == (
+        harness_id,
+        connection_id,
+        attachment_id,
+        relationship,
+    )
+    assert addin_module._runtime.pending_native_dialog.value is None
+
+
+def test_rejected_deferred_event_uses_direct_native_launcher(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep other native selectors usable when Fusion rejects the deferred event.
+    """
+    application = SimpleNamespace(fireCustomEvent=Mock(return_value=False))
+    opened = Mock()
+    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+
+    addin_module._request_deferred_palette_launch(application, "add_junction", "{}")
+
+    opened.assert_called_once_with(application, "{}")
+    assert addin_module._runtime.pending_native_dialog.value is None
+    application.fireCustomEvent.assert_called_once()
+
+
+def test_rejected_event_clears_request_before_direct_launcher_failure(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Leave no stale selector request if the direct native command cannot open.
+    """
+    application = SimpleNamespace(fireCustomEvent=Mock(return_value=False))
+    monkeypatch.setattr(
+        addin_module,
+        "_open_add_junction_command",
+        Mock(side_effect=RuntimeError("selector unavailable")),
+    )
+
+    with pytest.raises(RuntimeError, match="selector unavailable"):
+        addin_module._request_deferred_palette_launch(application, "add_junction", "{}")
+
+    assert addin_module._runtime.pending_native_dialog.value is None
+    application.fireCustomEvent.assert_called_once()
