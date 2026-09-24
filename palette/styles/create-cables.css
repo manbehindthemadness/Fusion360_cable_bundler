@@ -47,6 +47,22 @@
   user-select: none;
 }
 .create-cables-end-card[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
+.connection-associations-popup .create-association-list > .create-association-card[data-grouped="true"] {
+  width: calc(100% - 10px);
+  margin-left: 10px;
+}
+.connection-associations-popup .create-association-list > .create-association-card[data-grouped="true"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  bottom: 50%;
+  left: -7px;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.connection-associations-popup .create-association-list > .create-association-card[data-group-continuation="true"]::before { top: -6px; }
+.connection-associations-popup .create-association-list > .create-association-card[data-group-continues="true"]::before { bottom: -6px; }
 .connection-association-selecting .connection-association-source .relationship-node {
   stroke: var(--accent);
   stroke-width: 3px;

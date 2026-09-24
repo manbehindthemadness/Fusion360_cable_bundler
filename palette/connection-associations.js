@@ -267,10 +267,15 @@ function initialConnectionAssociationAssignments(harness, left, right) {
     groupSources.set(association.associationId, new Set([association.associationId]));
     const leftMembers = members.filter((id) => leftIds.has(id));
     const rightMembers = members.filter((id) => rightIds.has(id));
-    if (leftMembers.length && rightMembers.length &&
-        leftMembers.length + rightMembers.length === members.length) {
+    if (leftMembers.length && rightMembers.length) {
       leftMembers.forEach((id) => leftUsed.add(id));
       rightMembers.forEach((id) => rightUsed.add(id));
+      if (leftMembers.length + rightMembers.length !== members.length) {
+        [...leftMembers, ...rightMembers].forEach((id) => {
+          elsewhereIds.add(id);
+          outsideByMember.set(id, association.associationId);
+        });
+      }
       for (let index = 0; index < Math.max(leftMembers.length, rightMembers.length); index += 1) {
         rows.push({
           groupId: association.associationId,
@@ -287,10 +292,27 @@ function initialConnectionAssociationAssignments(harness, left, right) {
       }
     });
   });
+  const orderedPool = (items, used) => {
+    const available = items.map((item) => item.attachmentId).filter((id) => !used.has(id));
+    const groups = new Map();
+    available.forEach((id) => {
+      const groupId = outsideByMember.get(id);
+      if (!groupId) return;
+      if (!groups.has(groupId)) groups.set(groupId, []);
+      groups.get(groupId).push(id);
+    });
+    const emitted = new Set();
+    return available.flatMap((id) => {
+      if (emitted.has(id)) return [];
+      const members = groups.get(outsideByMember.get(id)) || [id];
+      members.forEach((memberId) => emitted.add(memberId));
+      return members;
+    });
+  };
   return {
     pools: {
-      left: left.map((item) => item.attachmentId).filter((id) => !leftUsed.has(id)),
-      right: right.map((item) => item.attachmentId).filter((id) => !rightUsed.has(id)),
+      left: orderedPool(left, leftUsed),
+      right: orderedPool(right, rightUsed),
     },
     rows,
     elsewhereIds,
@@ -656,13 +678,29 @@ function renderConnectionAssociationAssignments(
   };
   ["left", "right"].forEach((side) => {
     pools[side].list.replaceChildren();
-    assignments.pools[side].forEach((attachmentId) => {
+    const poolIds = assignments.pools[side];
+    const poolGroupCounts = new Map();
+    poolIds.forEach((id) => {
+      const groupId = assignments.outsideByMember.get(id);
+      if (groupId) poolGroupCounts.set(groupId, (poolGroupCounts.get(groupId) || 0) + 1);
+    });
+    poolIds.forEach((attachmentId, index) => {
       const item = groups[side].get(attachmentId);
       if (!item) return;
       const elsewhere = assignments.elsewhereIds.has(attachmentId);
       const card = renderConnectionAssociationCard(
         item, elsewhere, showContextMenu, cardContextItems,
       );
+      const groupId = assignments.outsideByMember.get(attachmentId);
+      if (poolGroupCounts.get(groupId) > 1) {
+        card.dataset.grouped = "true";
+        if (assignments.outsideByMember.get(poolIds[index - 1]) === groupId) {
+          card.dataset.groupContinuation = "true";
+        }
+        if (assignments.outsideByMember.get(poolIds[index + 1]) === groupId) {
+          card.dataset.groupContinues = "true";
+        }
+      }
       card.dataset.assignmentSide = side;
       card.dataset.assignmentLocation = "pool";
       surfaces.pools[side].cards.push(card);

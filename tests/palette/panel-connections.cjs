@@ -81,6 +81,52 @@ asyncTest('Association cards offer Details, Rename, and Delete in pools and rows
   assert.equal(dialog.open, false);
 });
 
+asyncTest('Association Editor initially maps cross-side groups and links same-side groups', async () => {
+  const { context, calls } = palette();
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  const items = (side, ids) => ids.map((attachmentId) => ({
+    attachmentId, connectionId: side, connectionName: side, label: attachmentId,
+  }));
+  const definition = { harnessId: 'h1', attachmentAssociations: [
+    { associationId: 'left-group', attachmentIds: ['l1', 'l2'] },
+    { associationId: 'right-group', attachmentIds: ['r1', 'r2'] },
+    { associationId: 'cross-group', attachmentIds: ['l4', 'r3', 'hidden'] },
+  ] };
+  context.openConnectionAssociationPanel(
+    definition, { connectionId: 'left' }, { connectionId: 'right' },
+    items('left', ['l1', 'l3', 'l2', 'l4']), items('right', ['r1', 'r2', 'r3']),
+    'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const poolLists = dialog.querySelectorAll('.create-association-list');
+  const cards = (list) => descendants(list, (node) => node.dataset.attachmentId !== undefined);
+  assert.deepEqual(cards(poolLists[0]).map((card) => card.dataset.attachmentId), ['l1', 'l2', 'l3']);
+  assert.deepEqual(cards(poolLists[1]).map((card) => card.dataset.attachmentId), ['r1', 'r2']);
+  for (const list of poolLists) {
+    const [first, second] = cards(list);
+    assert.equal(first.dataset.grouped, 'true');
+    assert.equal(first.dataset.groupContinues, 'true');
+    assert.equal(second.dataset.grouped, 'true');
+    assert.equal(second.dataset.groupContinuation, 'true');
+  }
+  assert.equal(cards(poolLists[0])[2].dataset.grouped, undefined);
+  const rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].children[0].children[0].dataset.attachmentId, 'l4');
+  assert.equal(rows[0].children[2].children[0].dataset.attachmentId, 'r3');
+
+  descendants(dialog, (node) => node.tag === 'button' && node.textContent === 'Save')[0]
+    .dispatchEvent({ type: 'click' });
+  await Promise.resolve();
+  const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+  assert.equal(payload.associations.length, 1);
+  assert.equal(payload.associations[0].associationId, 'cross-group');
+  assert.deepEqual([...payload.associations[0].attachmentIds], ['l4', 'r3', 'hidden']);
+});
+
 asyncTest('Cable Details associates upstream route nodes in either selection order', async () => {
   const definition = harness();
   const group = definition.cableGroups[0];
