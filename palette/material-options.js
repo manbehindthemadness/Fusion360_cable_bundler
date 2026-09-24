@@ -178,6 +178,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const isCableGroup = cableGroup !== null;
   const isConnectionBranch = attachment !== null;
   const hasOverrides = isCableGroup || isConnectionBranch;
+  const units = cableLengthUnits(harness);
   const connection = isConnectionBranch ? harness.connections.find(
     (candidate) => candidate.connectionId === attachment.connectionId,
   ) : null;
@@ -280,12 +281,13 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
       option.selected = item === value.pattern;
       pattern.append(option);
     });
-    const numericField = (labelText, input, initial) => {
+    const numericField = (labelText, input, initial, isLength = false) => {
       const label = document.createElement("label");
       label.textContent = labelText;
       input.type = "number";
       input.step = "any";
-      input.value = initial == null ? "" : `${initial}`;
+      input.value = initial == null
+        ? "" : (isLength ? displayLengthValue(initial, units) : `${initial}`);
       label.append(input);
       return label;
     };
@@ -300,7 +302,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     remove.title = "Remove stripe";
     remove.addEventListener("click", () => row.remove());
     values.append(
-      numericField("Width (mm)", width, value.widthMm),
+      numericField(`Width (${units.symbol})`, width, value.widthMm, true),
       numericField("Angle (deg)", angle, value.angleDeg),
       (() => {
         const label = document.createElement("label");
@@ -308,7 +310,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
         label.append(pattern);
         return label;
       })(),
-      numericField("Repeat (mm)", repeat, value.repeatMm),
+      numericField(`Repeat (${units.symbol})`, repeat, value.repeatMm, true),
     );
     row.append(picker, values, remove);
     stripeList.append(row);
@@ -367,10 +369,12 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   pullbackValue.className = "filter";
   pullbackValue.min = "0";
   pullbackValue.step = "any";
-  pullbackValue.value = `${pullbackSettings.value}`;
+  pullbackValue.value = pullbackSettings.mode === "distance"
+    ? displayLengthValue(pullbackSettings.value, units)
+    : `${pullbackSettings.value}`;
   const updatePullbackValueLabel = () => {
     pullbackValueText.textContent = pullbackMode.value === "percent"
-      ? "Amount (%)" : "Distance (mm)";
+      ? "Amount (%)" : `Distance (${units.symbol})`;
   };
   pullbackValueLabel.append(pullbackValueText, pullbackValue);
   pullbackMode.addEventListener("change", updatePullbackValueLabel);
@@ -434,7 +438,10 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     );
     return {
       color: colorFromHex(catalogColor?.name || "Custom", inputs[0].value),
-      widthMm: width, pattern, angleDeg: angle, repeatMm: repeat,
+      widthMm: persistedLengthValue(width, units),
+      pattern,
+      angleDeg: angle,
+      repeatMm: repeat == null ? null : persistedLengthValue(repeat, units),
     };
   });
 
@@ -478,7 +485,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
         notes: isCableGroup && !isConnectionBranch ? overrides.notes : settings.notes,
         pullback: selectedPullbackAppearance === null ? null : {
           mode: pullbackMode.value,
-          value: pullbackValueNumber,
+          value: pullbackMode.value === "distance"
+            ? persistedLengthValue(pullbackValueNumber, units)
+            : pullbackValueNumber,
           color: selectedPullbackAppearance.color,
           appearance: selectedPullbackAppearance.appearance,
         },

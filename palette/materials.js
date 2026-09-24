@@ -106,6 +106,11 @@ function displayLengthValue(valueMm, units) {
   return `${Number((valueMm / units.millimetersPerUnit).toPrecision(8))}`;
 }
 
+/** Convert a numeric value in the active design length unit to millimeters. */
+function persistedLengthValue(value, units) {
+  return Number(value) * units.millimetersPerUnit;
+}
+
 /** Build an Auto-or-explicit conductor diameter tied to an outer diameter input. */
 function createConductorDiameterField(outerDiameter, configuredDiameterMm, units) {
   const wrapper = document.createElement("div");
@@ -140,7 +145,7 @@ function createConductorDiameterField(outerDiameter, configuredDiameterMm, units
     if (Number.isFinite(outerDiameterValue) && conductorDiameter > outerDiameterValue) {
       throw new Error("Conductor diameter cannot exceed the cable or connection diameter.");
     }
-    return conductorDiameter * units.millimetersPerUnit;
+    return persistedLengthValue(conductorDiameter, units);
   };
   outerDiameter.addEventListener("input", updateHint);
   header.append(label, hint);
@@ -338,7 +343,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const diameterValue = isCableGroup ? Number(diameter.value) : null;
-    const diameterMm = isCableGroup ? diameterValue * units.millimetersPerUnit : null;
+    const diameterMm = isCableGroup ? persistedLengthValue(diameterValue, units) : null;
     if (isCableGroup && (!Number.isFinite(diameterMm) || diameterMm <= 0)) {
       error.textContent = `Enter a positive diameter in ${units.symbol}.`;
       return;

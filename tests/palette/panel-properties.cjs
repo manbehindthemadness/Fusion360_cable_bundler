@@ -110,6 +110,66 @@ asyncTest('pullback defaults to 200 percent and saves distance and appearance da
   assert.equal(save.payload.materials.weld.appearance, null);
 });
 
+asyncTest('material measurements use the active design length units', async () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.lengthUnits = { symbol: 'in', millimetersPerUnit: 25.4 };
+  definition.materialDefaults.stripes = [{
+    color: { name: 'White', hex: '#f5f5f5' },
+    widthMm: 25.4,
+    pattern: 'dashed',
+    angleDeg: 45,
+    repeatMm: 50.8,
+  }];
+  definition.materialDefaults.pullback = {
+    mode: 'distance', value: 76.2,
+    color: { name: 'Copper', hex: '#B87333' }, appearance: null,
+  };
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    if (action === 'get_appearance_libraries') return { ok: true, libraries: [] };
+    return { ok: true };
+  };
+
+  context.openMaterialOptions(definition);
+
+  const dialog = context.document.body.querySelector('.material-options');
+  const stripes = descendants(
+    dialog, (node) => node.className?.split(' ').includes('stripe-row'),
+  )[0];
+  const width = descendants(
+    stripes, (node) => node.tag === 'label' && node.textContent === 'Width (in)',
+  )[0].querySelector('input');
+  const repeat = descendants(
+    stripes, (node) => node.tag === 'label' && node.textContent === 'Repeat (in)',
+  )[0].querySelector('input');
+  const angle = descendants(
+    stripes, (node) => node.tag === 'label' && node.textContent === 'Angle (deg)',
+  )[0].querySelector('input');
+  const pullback = descendants(dialog, (node) => node.className === 'material-field').find(
+    (field) => descendants(field, (node) => node.textContent === 'Insulation Pullback').length,
+  );
+  const distanceLabel = descendants(
+    pullback, (node) => node.tag === 'span' && node.textContent === 'Distance (in)',
+  )[0];
+  const distance = distanceLabel.parentElement.querySelector('input');
+  assert.equal(width.value, '1');
+  assert.equal(repeat.value, '2');
+  assert.equal(angle.value, '45');
+  assert.equal(distance.value, '3');
+
+  width.value = '1.5';
+  repeat.value = '2.5';
+  distance.value = '3.5';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const save = calls.find((call) => call.action === 'set_harness_material_defaults');
+  assert.ok(Math.abs(save.payload.materials.stripes[0].widthMm - 38.1) < 1e-12);
+  assert.equal(save.payload.materials.stripes[0].repeatMm, 63.5);
+  assert.ok(Math.abs(save.payload.materials.pullback.value - 88.9) < 1e-12);
+});
+
 asyncTest('connection material overrides populate again when reopened', async () => {
   const { context } = palette();
   const definition = harness();

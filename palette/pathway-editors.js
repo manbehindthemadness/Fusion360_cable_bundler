@@ -79,6 +79,7 @@ function openInterpolationOptions(
   );
   const isDefaults = target === "defaults";
   const isEnd = target === "end";
+  const units = cableLengthUnits(harness);
   heading.textContent = isDefaults ? "Generation defaults" : `Interpolation · ${name}`;
   dialog.setAttribute("aria-label", heading.textContent);
   note.textContent = "Leave a distance blank for Auto. The harness relaxation preset sets Auto's preferred curve extent; safe bend minimums may expand it, crowded values are reduced to the feasible range, and crowded spans use a direct profile-to-profile curve when it preserves that radius. "
@@ -117,13 +118,14 @@ function openInterpolationOptions(
     ]) {
       const label = document.createElement("label");
       const input = document.createElement("input");
-      label.textContent = `${prefix}${text} (mm)`;
+      label.textContent = `${prefix}${text} (${units.symbol})`;
       input.type = "number";
       input.className = "filter";
       input.step = "any";
       input.min = "0";
       input.placeholder = "Auto";
-      input.value = initial?.[key] == null ? "" : `${initial[key]}`;
+      input.value = initial?.[key] == null
+        ? "" : displayLengthValue(initial[key], units);
       input.addEventListener("input", () => {
         useDefaults = false;
         updateStatus();
@@ -178,13 +180,13 @@ function openInterpolationOptions(
 
     const clearanceLabel = document.createElement("label");
     minimumClearance = document.createElement("input");
-    clearanceLabel.textContent = "Minimum member gap (mm)";
+    clearanceLabel.textContent = `Minimum member gap (${units.symbol})`;
     minimumClearance.type = "number";
     minimumClearance.className = "filter";
     minimumClearance.step = "any";
     minimumClearance.min = "0";
     minimumClearance.required = true;
-    minimumClearance.value = `${harness.minimumClearanceMm ?? 0}`;
+    minimumClearance.value = displayLengthValue(harness.minimumClearanceMm ?? 0, units);
     minimumClearance.setAttribute("aria-label", clearanceLabel.textContent);
     clearanceLabel.append(minimumClearance);
     form.append(clearanceLabel);
@@ -200,19 +202,23 @@ function openInterpolationOptions(
       updateStatus();
       for (const [key, input] of Object.entries(primary)) {
         const defaults = isEnd ? harness.endDefaults : harness.gateDefaults;
-        input.value = defaults?.[key] == null ? "" : `${defaults[key]}`;
+        input.value = defaults?.[key] == null
+          ? "" : displayLengthValue(defaults[key], units);
       }
     });
     form.append(reset);
   }
   const values = (inputs) => Object.fromEntries(Object.entries(inputs).map(([key, input]) => (
-    [key, input.value.trim() === "" ? null : Number(input.value)]
+    [
+      key,
+      input.value.trim() === "" ? null : persistedLengthValue(input.value, units),
+    ]
   )));
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (fields.some((input) => input.validity?.badInput || (input.value.trim() !== ""
       && (!Number.isFinite(Number(input.value)) || Number(input.value) < 0)))) {
-      error.textContent = "Enter nonnegative distances in millimeters, or leave blank for Auto.";
+      error.textContent = `Enter nonnegative distances in ${units.symbol}, or leave blank for Auto.`;
       return;
     }
     save.disabled = true;
@@ -225,7 +231,9 @@ function openInterpolationOptions(
         useDefaults,
         settings: values(primary),
         ...(ends ? { endDefaults: values(ends), applyExisting: applyExisting.checked } : {}),
-        ...(minimumClearance ? { minimumClearanceMm: Number(minimumClearance.value) } : {}),
+        ...(minimumClearance ? {
+          minimumClearanceMm: persistedLengthValue(minimumClearance.value, units),
+        } : {}),
         ...(autoTransitionPreset ? {
           autoTransitionPreset: autoTransitionPresets[Number(autoTransitionPreset.value)],
         } : {}),

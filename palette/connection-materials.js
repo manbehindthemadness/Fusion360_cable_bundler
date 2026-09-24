@@ -225,7 +225,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const diameterMm = Number(diameter.value) * units.millimetersPerUnit;
+    const diameterMm = persistedLengthValue(diameter.value, units);
     if (!Number.isFinite(diameterMm) || diameterMm <= 0) {
       error.textContent = "Diameter must be a positive number.";
       return;

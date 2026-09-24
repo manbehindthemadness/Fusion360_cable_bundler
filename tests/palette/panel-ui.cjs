@@ -324,6 +324,45 @@ test('generation defaults expose persisted generation preferences', () => {
   assert.equal(endpointLabels.length, 0);
 });
 
+asyncTest('routing measurements use the active design length units', async () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.lengthUnits = { symbol: 'in', millimetersPerUnit: 25.4 };
+  definition.gateDefaults = { approach_mm: 25.4, departure_mm: 50.8 };
+  definition.endDefaults = { approach_mm: 76.2, departure_mm: null };
+  definition.minimumClearanceMm = 2.54;
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openInterpolationOptions(definition, 'defaults');
+
+  const dialog = context.document.body.querySelector('.cable-options');
+  const field = (labelText) => descendants(
+    dialog, (node) => node.tag === 'label' && node.textContent === labelText,
+  )[0].querySelector('input');
+  assert.equal(field('Gates · Approach transition (in)').value, '1');
+  assert.equal(field('Gates · Departure transition (in)').value, '2');
+  assert.equal(field('Ends · Terminal-side transition (in)').value, '3');
+  assert.equal(field('Ends · Pathway-side transition (in)').value, '');
+  assert.equal(field('Minimum member gap (in)').value, '0.1');
+
+  field('Gates · Approach transition (in)').value = '1.5';
+  field('Ends · Pathway-side transition (in)').value = '4';
+  field('Minimum member gap (in)').value = '0.125';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'set_interpolation');
+  assert.ok(Math.abs(calls[0].payload.settings.approach_mm - 38.1) < 1e-12);
+  assert.ok(Math.abs(calls[0].payload.settings.departure_mm - 50.8) < 1e-12);
+  assert.ok(Math.abs(calls[0].payload.endDefaults.approach_mm - 76.2) < 1e-12);
+  assert.ok(Math.abs(calls[0].payload.endDefaults.departure_mm - 101.6) < 1e-12);
+  assert.ok(Math.abs(calls[0].payload.minimumClearanceMm - 3.175) < 1e-12);
+});
+
 test('empty pathway end opens the current pathway popup', () => {
   const { context } = palette();
   const definition = harness();
