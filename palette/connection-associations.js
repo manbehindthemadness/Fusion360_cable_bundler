@@ -513,6 +513,12 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
       if (assignments.rows[index - 1]?.groupId === assignment.groupId) {
         row.dataset.groupContinuation = "true";
       }
+      if (assignments.rows[index + 1]?.groupId === assignment.groupId) {
+        row.dataset.groupContinues = "true";
+      }
+      if (Boolean(assignment.left) !== Boolean(assignment.right)) {
+        row.dataset.groupSingleSide = assignment.left ? "left" : "right";
+      }
     }
     leftSlot.className = "create-cables-assignment-slot left";
     rightSlot.className = "create-cables-assignment-slot right";

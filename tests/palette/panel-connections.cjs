@@ -51,12 +51,17 @@ asyncTest('Association Editor extends one pair to three and five members by drop
   assert.equal(rows.length, 2);
   assert.equal(rows[1].children[2].children.length, 0);
   assert.equal(rows[1].dataset.grouped, 'true');
+  assert.equal(rows[0].dataset.groupContinues, 'true');
+  assert.equal(rows[1].dataset.groupContinuation, 'true');
+  assert.equal(rows[1].dataset.groupSingleSide, 'left');
 
   dropOn('r2', 'l1');
   dropOn('l3', 'r1');
   rows = dialog.querySelectorAll('.create-cables-assignment-row');
   assert.equal(rows.length, 3);
   assert.equal(rows[2].children[2].children.length, 0);
+  assert.equal(rows[1].dataset.groupContinues, 'true');
+  assert.equal(rows[2].dataset.groupSingleSide, 'left');
 
   const save = descendants(dialog, (element) => element.tag === 'button'
     && element.textContent === 'Save')[0];
