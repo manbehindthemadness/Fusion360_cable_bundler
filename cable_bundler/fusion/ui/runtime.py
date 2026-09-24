@@ -16,6 +16,39 @@ from ...application import HarnessLoadResult
 T = TypeVar("T")
 
 
+def register_custom_event(
+    application: adsk.core.Application,
+    event_id: str,
+    handler: object,
+    label: str,
+) -> adsk.core.CustomEvent:
+    """
+    Register and attach one retained Fusion custom-event handler.
+    """
+    event = application.registerCustomEvent(event_id)
+    if event is None:
+        raise RuntimeError(f"Fusion could not register {label}.")
+    if not event.add(handler):
+        application.unregisterCustomEvent(event_id)
+        raise RuntimeError(f"Fusion could not attach {label}.")
+    return event
+
+
+def remove_custom_event(
+    application: adsk.core.Application,
+    event_id: str,
+    event: Optional[adsk.core.CustomEvent],
+    handler: Optional[object],
+) -> None:
+    """
+    Detach and unregister one Fusion custom event when present.
+    """
+    if event is not None and handler is not None:
+        event.remove(handler)
+    if event is not None:
+        application.unregisterCustomEvent(event_id)
+
+
 @dataclass
 class PendingSlot(Generic[T]):
     """
@@ -126,12 +159,15 @@ class UiRuntime:
     pending_segment: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_refine_edit: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_palette_edit: PendingSlot[tuple[str, str, object]] = field(default_factory=PendingSlot)
+    pending_native_dialog: PendingSlot[tuple[str, str]] = field(default_factory=PendingSlot)
     last_command_error: str = ""
     last_diagram_qa_observation: Optional[dict[str, object]] = None
     damaged_harness_results: dict[str, HarnessLoadResult] = field(default_factory=dict)
     history_handler: Optional[object] = None
     deferred_stripe_restore_event: Optional[object] = None
     deferred_stripe_restore_handler: Optional[object] = None
+    deferred_palette_launch_event: Optional[object] = None
+    deferred_palette_launch_handler: Optional[object] = None
     stripe_restore_pending: bool = False
     active_selection_handler: Optional[object] = None
     document_saving_handler: Optional[object] = None
@@ -160,6 +196,7 @@ class UiRuntime:
         self.pending_segment.clear()
         self.pending_refine_edit.clear()
         self.pending_palette_edit.clear()
+        self.pending_native_dialog.clear()
 
     def capture_graphics_cache_preference(self, value: bool) -> None:
         """

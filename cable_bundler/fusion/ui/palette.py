@@ -20,6 +20,7 @@ from .. import highlight_route_preview
 from ..cable_solids import refresh_generated_cable_groups_for_connection
 from .commands.refines import reconcile_active_refines
 from .constants import (
+    COMMAND_ID,
     COMMAND_NAME,
     CREATE_COMMAND_ID,
     PALETTE_HTML_URL,
@@ -62,6 +63,7 @@ from .payloads import (
     _read_payload_uuid,
     read_diagram_qa_observation,
 )
+from .runtime import register_custom_event, remove_custom_event
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
@@ -120,6 +122,7 @@ _GROUP_APPEARANCE_EDIT_POLICY = PaletteEditPolicy(ensure_preview_visible=True)
 _PALETTE_EDIT_POLICIES["set_cable_group_properties"] = _GROUP_APPEARANCE_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["set_cable_group_material_overrides"] = _MATERIAL_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["set_cable_end_attachment_visual_overrides"] = _MATERIAL_EDIT_POLICY
+_DEFERRED_PALETTE_LAUNCH_EVENT_ID = f"{COMMAND_ID}_deferred_palette_launch"
 
 
 def _launch_create_harness(application: adsk.core.Application, _data: str) -> None:
@@ -169,6 +172,80 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "segment_pathway": lambda application, data: _open_segment_command(application, data),
     "edit_pathway_refine": _launch_refine_edit,
 }
+
+
+class _DeferredPaletteLaunchHandler(adsk.core.CustomEventHandler):
+    """
+    Open a native command after the palette bridge callback has returned.
+    """
+
+    # noinspection PyMethodMayBeStatic
+    def notify(self, _args: adsk.core.CustomEventArgs) -> None:
+        """
+        Consume and launch one queued native-dialog request.
+        """
+        request = _runtime.pending_native_dialog.consume()
+        if request is None:
+            return
+        action, data = request
+        launcher = _NATIVE_DIALOG_ACTIONS.get(action)
+        if launcher is None:
+            _log_to_fusion(f"Deferred palette launch is unsupported: {action}")
+            return
+        try:
+            launcher(adsk.core.Application.get(), data)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            _log_to_fusion(f"Could not open deferred Harness Builder command: {error}")
+
+
+def _request_deferred_palette_launch(
+    application: adsk.core.Application,
+    action: str,
+    data: str,
+) -> None:
+    """
+    Queue a native dialog for Fusion's next event turn.
+    """
+    try:
+        _runtime.pending_native_dialog.prepare((action, data))
+    except RuntimeError as error:
+        raise RuntimeError("Another Harness Builder dialog is already opening.") from error
+    if not application.fireCustomEvent(_DEFERRED_PALETTE_LAUNCH_EVENT_ID):
+        _runtime.pending_native_dialog.clear()
+        raise RuntimeError("Fusion could not queue the Harness Builder dialog.")
+
+
+def _register_deferred_palette_launch(application: adsk.core.Application) -> None:
+    """
+    Register the idle-queued native-dialog launcher.
+    """
+    _remove_deferred_palette_launch(application)
+    handler = _DeferredPaletteLaunchHandler()
+    event = register_custom_event(
+        application,
+        _DEFERRED_PALETTE_LAUNCH_EVENT_ID,
+        handler,
+        "deferred palette dialogs",
+    )
+    _runtime.deferred_palette_launch_event = event
+    _runtime.deferred_palette_launch_handler = handler
+
+
+def _remove_deferred_palette_launch(application: adsk.core.Application) -> None:
+    """
+    Remove the deferred native-dialog launcher and discard queued work.
+    """
+    event = _runtime.deferred_palette_launch_event
+    handler = _runtime.deferred_palette_launch_handler
+    remove_custom_event(
+        application,
+        _DEFERRED_PALETTE_LAUNCH_EVENT_ID,
+        event,
+        handler,
+    )
+    _runtime.deferred_palette_launch_event = None
+    _runtime.deferred_palette_launch_handler = None
+    _runtime.pending_native_dialog.clear()
 
 
 class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
@@ -369,7 +446,7 @@ def _dispatch_palette_action(
         )
     launcher = _NATIVE_DIALOG_ACTIONS.get(action)
     if launcher is not None:
-        launcher(application, data)
+        _request_deferred_palette_launch(application, action, data)
         return json.dumps({"ok": True})
     if action == "clear_preview":
         count = _clear_preview(application)
@@ -485,6 +562,10 @@ def _show_palette(application: adsk.core.Application) -> None:
             raise RuntimeError("Fusion did not register the palette navigation handler.")
         _runtime.handler_registry.retain(incoming_handler, navigation_handler)
         _log_to_fusion(f"Harness Builder requested palette file: {palette.htmlFileURL}")
+    try:
+        palette.isDockedInCanvas = False
+    except (AttributeError, RuntimeError) as error:
+        _log_to_fusion(f"Harness Builder could not reserve Fusion layout space: {error}")
     try:
         palette.dockingOption = adsk.core.PaletteDockingOptions.PaletteDockOptionsToVerticalOnly
         palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight

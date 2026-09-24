@@ -94,6 +94,7 @@ class _PaletteLifecycleModule(Protocol):
 
     _runtime: Any
     _DEFERRED_STRIPE_RESTORE_EVENT_ID: str
+    _DEFERRED_PALETTE_LAUNCH_EVENT_ID: str
     ADD_END_COMMAND_ID: str
     COMMAND_ID: str
     COMMAND_SPECS: tuple[Any, ...]
@@ -114,8 +115,11 @@ class _PaletteLifecycleModule(Protocol):
     _PaletteEditCreatedHandler: type
     _HistoryChangedHandler: type
     _DeferredStripeRestoreHandler: type
+    _DeferredPaletteLaunchHandler: type
     _register_deferred_stripe_restore: Callable[[object], None]
     _remove_deferred_stripe_restore: Callable[[object], None]
+    _register_deferred_palette_launch: Callable[[object], None]
+    _remove_deferred_palette_launch: Callable[[object], None]
     _remove_user_interface: Callable[[object], None]
     _DocumentSavingHandler: type
     _DocumentSavedHandler: type

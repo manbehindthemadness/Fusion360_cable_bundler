@@ -11,6 +11,29 @@ function contextMenuBranch(menu, label) {
   );
 }
 
+test('diagram hover requires a fresh panel interaction after the pointer leaves', () => {
+  const { context } = palette();
+  const highlights = [];
+  context.highlightMember = (_harness, memberType, memberId) => {
+    highlights.push([memberType, memberId]);
+  };
+  const diagram = context.renderRelationshipMap(harness());
+  const end = descendants(
+    diagram,
+    (node) => node.className === 'relationship-end-entry' && node.dataset.connectionId === 'a1',
+  )[0];
+
+  context.document.documentElement.dispatchEvent({ type: 'mouseleave' });
+  end.events.mouseenter();
+  assert.deepEqual(highlights, []);
+  assert.equal(diagram.className.includes('relationship-focus-active'), false);
+
+  context.document.dispatchEvent({ type: 'pointerdown' });
+  end.events.mouseenter();
+  assert.deepEqual(highlights, [['connection', 'a1']]);
+  assert.equal(diagram.className.includes('relationship-focus-active'), true);
+});
+
 test('Route Editor opens Details only for assigned cable ends', () => {
   const { context } = palette();
   const definition = harness();

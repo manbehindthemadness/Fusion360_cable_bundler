@@ -153,6 +153,7 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
   const calls = [];
   const intervals = [];
   const themeListeners = [];
+  let paletteFocused = true;
   const deviceTheme = {
     matches: prefersDark,
     addEventListener: (event, handler) => {
@@ -169,6 +170,7 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
       createElement: (tag) => new Element(tag),
       createElementNS: (_namespace, tag) => new Element(tag),
       getElementById: () => new Element('div'),
+      hasFocus: () => paletteFocused,
       addEventListener(event, handler) { this.events[event] = handler; },
       removeEventListener(event, handler) {
         if (this.events[event] === handler) delete this.events[event];
@@ -180,7 +182,12 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
     window: {
       innerWidth: 800,
       innerHeight: 700,
+      events: {},
       Event: class Event { constructor(type) { this.type = type; } },
+      addEventListener(event, handler) { this.events[event] = handler; },
+      dispatchEvent(event) {
+        if (this.events[event.type]) this.events[event.type](event);
+      },
       requestAnimationFrame: (callback) => callback(),
       matchMedia: () => deviceTheme,
       setInterval: (callback, delay) => {
@@ -208,12 +215,18 @@ function palette(storage = new Map(), preferences = storage, prefersDark = false
   const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)]
     .map((match) => readFileSync(join(__dirname, '..', '..', match[1]), 'utf8'));
   runInNewContext(scripts.join('\n'), context);
+  context.document.dispatchEvent({ type: 'pointerdown' });
   context.ui = runInNewContext('ui', context);
   context.intervals = intervals;
   context.deviceTheme = deviceTheme;
   context.changeDeviceTheme = (matches) => {
     deviceTheme.matches = matches;
     themeListeners.forEach((listener) => listener({ matches }));
+  };
+  context.setPaletteFocus = (focused) => {
+    paletteFocused = focused;
+    if (focused) context.document.dispatchEvent({ type: 'pointerdown' });
+    else context.window.dispatchEvent({ type: 'blur' });
   };
   context.mutate = (action, payload) => calls.push({ action, payload });
   return { context, calls };

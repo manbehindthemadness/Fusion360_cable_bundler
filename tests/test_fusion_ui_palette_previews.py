@@ -122,49 +122,44 @@ def test_clear_preview_palette_event_bypasses_model_edit_command(
     }
 
 
-def test_add_junction_palette_event_opens_native_selector(
+@pytest.mark.parametrize(
+    ("action", "launcher_name", "payload"),
+    (
+        ("add_junction", "_open_add_junction_command", {"harnessId": str(UUID(int=1))}),
+        (
+            "add_junction_relationship",
+            "_open_add_junction_relationship_command",
+            {"harnessId": str(UUID(int=1)), "junctionId": str(UUID(int=2))},
+        ),
+    ),
+)
+def test_palette_native_selector_launches_after_bridge_response(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    launcher_name: str,
+    payload: dict[str, str],
 ) -> None:
     """
-    Route the background-menu action through the dedicated Fusion command.
+    Return to the palette before opening a requested native Fusion selector.
     """
-    application = object()
+    application = SimpleNamespace(fireCustomEvent=Mock(return_value=True))
     core_module = sys.modules["adsk.core"]
     vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
     vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
     opened = Mock()
-    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
-    data = json.dumps({"harnessId": str(UUID(int=1))})
-    args = SimpleNamespace(action="add_junction", data=data, returnData="")
+    monkeypatch.setattr(addin_module, launcher_name, opened)
+    data = json.dumps(payload)
+    args = SimpleNamespace(action=action, data=data, returnData="")
 
     addin_module._PaletteIncomingHandler().notify(args)
 
-    opened.assert_called_once_with(application, data)
-    assert json.loads(args.returnData) == {"ok": True}
-
-
-def test_add_junction_relationship_palette_event_opens_native_selector(
-    addin_module: _PaletteLifecycleModule,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Route the popup action through the pathway-ending geometry command.
-    """
-    application = object()
-    core_module = sys.modules["adsk.core"]
-    vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
-    vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
-    opened = Mock()
-    monkeypatch.setattr(
-        addin_module,
-        "_open_add_junction_relationship_command",
-        opened,
+    opened.assert_not_called()
+    application.fireCustomEvent.assert_called_once_with(
+        addin_module._DEFERRED_PALETTE_LAUNCH_EVENT_ID
     )
-    data = json.dumps({"harnessId": str(UUID(int=1)), "junctionId": str(UUID(int=2))})
-    args = SimpleNamespace(action="add_junction_relationship", data=data, returnData="")
+    assert json.loads(args.returnData) == {"ok": True}
 
-    addin_module._PaletteIncomingHandler().notify(args)
+    addin_module._DeferredPaletteLaunchHandler().notify(SimpleNamespace())
 
     opened.assert_called_once_with(application, data)
-    assert json.loads(args.returnData) == {"ok": True}

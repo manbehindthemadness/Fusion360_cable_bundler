@@ -37,11 +37,14 @@ from .constants import (
 )
 from .palette import (
     _PaletteEditCreatedHandler,
+    _register_deferred_palette_launch,
+    _remove_deferred_palette_launch,
 )
 from .palette_state import (
     _send_palette_state,
 )
 from .registration import COMMAND_SPECS, register_commands
+from .runtime import register_custom_event, remove_custom_event
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
@@ -121,13 +124,13 @@ def _register_deferred_stripe_restore(application: adsk.core.Application) -> Non
     Register the idle-queued event used to restore undo/redo decorations.
     """
     _remove_deferred_stripe_restore(application)
-    event = application.registerCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
-    if event is None:
-        raise RuntimeError("Fusion could not register deferred stripe restoration.")
     handler = _DeferredStripeRestoreHandler()
-    if not event.add(handler):
-        application.unregisterCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
-        raise RuntimeError("Fusion could not attach deferred stripe restoration.")
+    event = register_custom_event(
+        application,
+        _DEFERRED_STRIPE_RESTORE_EVENT_ID,
+        handler,
+        "deferred stripe restoration",
+    )
     _runtime.deferred_stripe_restore_event = event
     _runtime.deferred_stripe_restore_handler = handler
 
@@ -138,10 +141,12 @@ def _remove_deferred_stripe_restore(application: adsk.core.Application) -> None:
     """
     event = _runtime.deferred_stripe_restore_event
     handler = _runtime.deferred_stripe_restore_handler
-    if event is not None and handler is not None:
-        event.remove(handler)
-    if event is not None:
-        application.unregisterCustomEvent(_DEFERRED_STRIPE_RESTORE_EVENT_ID)
+    remove_custom_event(
+        application,
+        _DEFERRED_STRIPE_RESTORE_EVENT_ID,
+        event,
+        handler,
+    )
     _runtime.deferred_stripe_restore_event = None
     _runtime.deferred_stripe_restore_handler = None
     _runtime.stripe_restore_pending = False
@@ -303,6 +308,7 @@ def start(_context: object) -> None:
         _remove_user_interface(user_interface)
         _register_palette_edit_commands(user_interface)
         _register_deferred_stripe_restore(application)
+        _register_deferred_palette_launch(application)
 
         _runtime.history_handler = _HistoryChangedHandler()
         if not user_interface.commandTerminated.add(_runtime.history_handler):
@@ -342,6 +348,7 @@ def start(_context: object) -> None:
                 active_application = application
                 _remove_document_handlers(active_application)
                 _remove_deferred_stripe_restore(active_application)
+                _remove_deferred_palette_launch(active_application)
                 if user_interface is not None:
                     _remove_user_interface(user_interface)
             except (AttributeError, RuntimeError, TypeError, ValueError) as cleanup_error:
@@ -366,6 +373,7 @@ def stop(_context: object) -> None:
             clear_refine_graphics(design)
         _remove_document_handlers(application)
         _remove_deferred_stripe_restore(application)
+        _remove_deferred_palette_launch(application)
         _remove_user_interface(application.userInterface)
         _runtime.handler_registry.clear()
         reset_preview_history()

@@ -183,6 +183,34 @@ def test_deferred_stripe_restore_event_registers_and_releases(
     assert addin_module._runtime.deferred_stripe_restore_handler is None
 
 
+def test_deferred_palette_launch_event_registers_and_releases(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep native dialogs outside the palette bridge callback lifetime.
+    """
+    event = SimpleNamespace(add=Mock(return_value=True), remove=Mock(return_value=True))
+    application = SimpleNamespace(
+        registerCustomEvent=Mock(return_value=event),
+        unregisterCustomEvent=Mock(return_value=True),
+    )
+
+    addin_module._register_deferred_palette_launch(application)
+
+    handler = addin_module._runtime.deferred_palette_launch_handler
+    assert handler is not None
+    event.add.assert_called_once_with(handler)
+
+    addin_module._remove_deferred_palette_launch(application)
+
+    event.remove.assert_called_once_with(handler)
+    application.unregisterCustomEvent.assert_called_once_with(
+        addin_module._DEFERRED_PALETTE_LAUNCH_EVENT_ID
+    )
+    assert addin_module._runtime.deferred_palette_launch_event is None
+    assert addin_module._runtime.deferred_palette_launch_handler is None
+
+
 def test_reload_restores_stripes_for_each_readable_harness(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

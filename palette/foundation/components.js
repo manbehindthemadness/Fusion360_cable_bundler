@@ -96,6 +96,26 @@ function optionsButton(title, handler, disabled = false) {
   return button;
 }
 
+let palettePointerInteractionsArmed = false;
+
+const armPalettePointerInteractions = () => {
+  palettePointerInteractionsArmed = true;
+};
+const disarmPalettePointerInteractions = () => {
+  palettePointerInteractionsArmed = false;
+};
+
+document.addEventListener("pointerdown", armPalettePointerInteractions, true);
+document.addEventListener("focusin", armPalettePointerInteractions, true);
+document.documentElement.addEventListener("mouseleave", disarmPalettePointerInteractions);
+window.addEventListener("blur", disarmPalettePointerInteractions);
+
+/** Return whether pointer-driven Fusion actions may run from this palette. */
+function paletteHasFocus() {
+  const browserHasFocus = typeof document.hasFocus !== "function" || document.hasFocus();
+  return palettePointerInteractionsArmed && browserHasFocus;
+}
+
 function hoverHighlight(node, onHover) {
   let active = false;
   const enabled = () => {
@@ -109,10 +129,11 @@ function hoverHighlight(node, onHover) {
   const clear = () => {
     if (!active) return;
     active = false;
+    if (!paletteHasFocus()) return;
     send("clear_highlight").catch(() => {});
   };
   node.addEventListener("mouseenter", () => {
-    if (!enabled()) return;
+    if (!paletteHasFocus() || !enabled()) return;
     active = true;
     onHover();
   });

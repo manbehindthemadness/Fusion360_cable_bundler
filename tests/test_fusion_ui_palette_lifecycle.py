@@ -60,6 +60,7 @@ def test_palette_opens_at_relationship_graphic_working_size(
 
     assert palettes.add.call_args.args[6:8] == (840, 760)
     assert palettes.add.call_args.args[3] is False
+    assert palette.isDockedInCanvas is False
     assert palette.dockingOption == "vertical"
     assert palette.dockingState == "right"
     assert palette.isVisible is True
@@ -79,6 +80,7 @@ def test_existing_palette_is_redocked_and_revealed(
 
     addin_module._show_palette(application)
 
+    assert palette.isDockedInCanvas is False
     assert palette.dockingState == "right"
     assert palette.dockingOption == "vertical"
     assert palette.isVisible is True

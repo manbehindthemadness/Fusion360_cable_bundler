@@ -72,7 +72,7 @@ function createRelationshipFocusController(container) {
       nodeIds: descriptor.nodeIds || [],
     };
     source.addEventListener("mouseenter", () => {
-      if (!pointerEnabled) return;
+      if (!paletteHasFocus() || !pointerEnabled) return;
       pointerFocus = focus;
       apply();
     });
