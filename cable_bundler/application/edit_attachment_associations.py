@@ -144,8 +144,9 @@ def save_attachment_associations(
     """
     Replace editable cross-panel associations while preserving those outside them.
 
-    Groups with a member outside the selected candidate sets, or members on
-    only one side, remain untouched and cannot be reassigned here.
+    Outside associations remain intact unless their complete membership is
+    explicitly brought into a submitted group. Multiple such associations may
+    be merged, but none may be split or silently lose a member.
     """
     if left_anchor == right_anchor:
         raise ValueError("Association nodes must be different.")
@@ -154,6 +155,16 @@ def save_attachment_associations(
     right_ids = set(attachment_association_candidates(definition, right_anchor))
     if left_ids.intersection(right_ids):
         raise ValueError("The selected nodes have overlapping terminal connections.")
+    selected_ids = left_ids | right_ids
+    protected_associations = {
+        association.association_id: association
+        for association in definition.attachment_associations
+        if not (
+            set(association.attachment_ids).issubset(selected_ids)
+            and bool(set(association.attachment_ids).intersection(left_ids))
+            and bool(set(association.attachment_ids).intersection(right_ids))
+        )
+    }
     normalized = tuple(
         group
         if isinstance(group, AttachmentAssociationGroup)
@@ -161,13 +172,36 @@ def save_attachment_associations(
         for group in groups
     )
     grouped_members: list[UUID] = []
+    consumed_protected_ids: set[UUID] = set()
     for group in normalized:
         members = group.attachment_ids
-        if len(members) < 2 or len(set(members)) != len(members):
+        member_ids = set(members)
+        if len(members) < 2 or len(member_ids) != len(members):
             raise ValueError("An association needs at least two distinct attachment nodes.")
-        if not set(members).issubset(left_ids | right_ids):
-            raise ValueError("An association contains a node outside the selected hierarchies.")
-        if not set(members).intersection(left_ids) or not set(members).intersection(right_ids):
+        if not member_ids.intersection(selected_ids):
+            raise ValueError("An association needs a node from a selected hierarchy.")
+        outside_members: set[UUID] = set()
+        protected_in_group: set[UUID] = set()
+        for association_id, association in protected_associations.items():
+            original_members = set(association.attachment_ids)
+            if not member_ids.intersection(original_members):
+                continue
+            if not original_members.intersection(selected_ids):
+                raise ValueError(
+                    "An association outside the selected hierarchies cannot be changed."
+                )
+            if not original_members.issubset(member_ids):
+                raise ValueError("An existing outside association cannot be split.")
+            consumed_protected_ids.add(association_id)
+            protected_in_group.add(association_id)
+            outside_members.update(original_members - selected_ids)
+        if member_ids - selected_ids != outside_members:
+            raise ValueError(
+                "An association contains an unrelated node outside the selected hierarchies."
+            )
+        if not protected_in_group and (
+            not member_ids.intersection(left_ids) or not member_ids.intersection(right_ids)
+        ):
             raise ValueError("An association needs a node from each selected hierarchy.")
         grouped_members.extend(members)
     if len(grouped_members) != len(set(grouped_members)):
@@ -186,7 +220,7 @@ def save_attachment_associations(
         if editable:
             reusable_ids[frozenset(members)] = association.association_id
             editable_ids.add(association.association_id)
-        else:
+        elif association.association_id not in consumed_protected_ids:
             retained.append(association)
 
     used_ids = {
@@ -208,8 +242,14 @@ def save_attachment_associations(
     for group in normalized:
         members = group.attachment_ids
         stable_key = frozenset(members)
-        if group.association_id is not None and group.association_id not in editable_ids:
+        if group.association_id is not None and group.association_id not in (
+            editable_ids | consumed_protected_ids
+        ):
             raise ValueError("Association identity is stale or outside the selected hierarchies.")
+        if group.association_id in protected_associations and not set(
+            protected_associations[group.association_id].attachment_ids
+        ).issubset(members):
+            raise ValueError("An outside association identity must stay with all its members.")
         association_id = group.association_id or reusable_ids.get(stable_key)
         if association_id in claimed_ids:
             raise ValueError("An association identity may be used only once.")

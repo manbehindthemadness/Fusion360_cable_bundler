@@ -39,6 +39,7 @@ from cable_bundler.application import (
 from cable_bundler.application.edit_harness import set_interpolation
 from cable_bundler.application.harness_edits.support import prune_attachment_associations
 from cable_bundler.domain import (
+    AttachmentAssociationDefinition,
     AutoTransitionPreset,
     CableColor,
     CableEndAttachment,
@@ -826,6 +827,95 @@ def test_attachment_associations_grow_to_odd_sized_groups_with_stable_identity(
                 AttachmentAssociationGroup(three_members, association_id),
                 AttachmentAssociationGroup((left_ids[1], right_ids[1])),
             ),
+            gateway,
+        )
+    assert loads(gateway.serialized_definition) == stored
+
+
+def test_attachment_associations_merge_complete_outside_groups(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Merge only explicitly imported outside groups and preserve their hidden members.
+    """
+    left_ids = tuple(UUID(int=810 + index) for index in range(3))
+    right_ids = tuple(UUID(int=820 + index) for index in range(3))
+    center_id, left_id, right_id = (UUID(int=830 + index) for index in range(3))
+    left_connection, right_connection = valid_harness.connections
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                left_connection,
+                attachment=CableEndAttachment(None, attachment_id=left_ids[0]),
+                additional_attachments=tuple(
+                    CableEndAttachment(None, attachment_id=item) for item in left_ids[1:]
+                ),
+            ),
+            replace(
+                right_connection,
+                attachment=CableEndAttachment(None, attachment_id=right_ids[0]),
+                additional_attachments=tuple(
+                    CableEndAttachment(None, attachment_id=item) for item in right_ids[1:]
+                ),
+            ),
+        ),
+        attachment_associations=(
+            AttachmentAssociationDefinition(center_id, (left_ids[1], right_ids[1])),
+            AttachmentAssociationDefinition(left_id, (left_ids[0], left_ids[2])),
+            AttachmentAssociationDefinition(right_id, (right_ids[0], right_ids[2])),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+    left_anchor = AttachmentAssociationAnchor(
+        connection_id=left_connection.connection_id,
+        candidate_attachment_ids=left_ids[:2],
+    )
+    right_anchor = AttachmentAssociationAnchor(
+        connection_id=right_connection.connection_id,
+        candidate_attachment_ids=right_ids[:2],
+    )
+    first_members = (left_ids[1], right_ids[1], left_ids[0], left_ids[2])
+
+    save_attachment_associations(
+        definition.harness_id,
+        left_anchor,
+        right_anchor,
+        (AttachmentAssociationGroup(first_members, center_id),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert {item.association_id for item in stored.attachment_associations} == {
+        center_id,
+        right_id,
+    }
+    assert (
+        next(
+            item for item in stored.attachment_associations if item.association_id == center_id
+        ).attachment_ids
+        == first_members
+    )
+
+    all_members = (*first_members, right_ids[0], right_ids[2])
+    save_attachment_associations(
+        definition.harness_id,
+        left_anchor,
+        right_anchor,
+        (AttachmentAssociationGroup(all_members, center_id),),
+        gateway,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.attachment_associations == (
+        AttachmentAssociationDefinition(center_id, all_members),
+    )
+
+    with pytest.raises(ValueError, match="cannot be split"):
+        save_attachment_associations(
+            definition.harness_id,
+            left_anchor,
+            right_anchor,
+            (AttachmentAssociationGroup(all_members[:-1], center_id),),
             gateway,
         )
     assert loads(gateway.serialized_definition) == stored

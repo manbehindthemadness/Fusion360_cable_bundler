@@ -95,6 +95,103 @@ test('Association Editor joins complete center pairs under one identity', () => 
   );
 });
 
+asyncTest('Association Editor merges associations brought in from elsewhere', async () => {
+  const { context, calls } = palette();
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  const items = (side) => ['1', '2'].map((suffix) => ({
+    attachmentId: `${side}${suffix}`, connectionId: side,
+    connectionName: side, label: `${side}${suffix}`,
+  }));
+  runInNewContext('openConnectionAssociationPanel', context)(
+    { harnessId: 'h1', attachmentAssociations: [
+      { associationId: 'center', attachmentIds: ['l2', 'r2'] },
+      { associationId: 'elsewhere-left', attachmentIds: ['l1', 'hidden-left'] },
+      { associationId: 'elsewhere-right', attachmentIds: ['r1', 'hidden-right'] },
+    ] },
+    { connectionId: 'l' }, { connectionId: 'r' },
+    items('l'), items('r'), 'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const dragOnto = (attachmentId, targetId) => {
+    const source = descendants(dialog, (element) => element.dataset.attachmentId === attachmentId
+      && element.dataset.assignmentLocation === 'pool')[0];
+    const target = descendants(dialog, (element) => element.dataset.attachmentId === targetId
+      && element.dataset.assignmentLocation === 'row')[0];
+    assert.equal(source.children[1].textContent.includes('Associated elsewhere'), true);
+    if (targetId.startsWith('r')) target.style.left = '150';
+    const bounds = target.getBoundingClientRect();
+    source.setPointerCapture = () => {};
+    source.hasPointerCapture = () => false;
+    source.dispatchEvent({
+      type: 'pointerdown', button: 0, pointerId: 1, target: { closest: () => null },
+      clientX: 0, clientY: 0,
+    });
+    source.dispatchEvent({
+      type: 'pointermove', pointerId: 1,
+      clientX: bounds.left + bounds.width / 2,
+      clientY: bounds.top + bounds.height / 2,
+      preventDefault() {},
+    });
+    source.dispatchEvent({ type: 'pointerup', pointerId: 1 });
+  };
+
+  dragOnto('l1', 'r2');
+  dragOnto('r1', 'l2');
+  const rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.equal(rows.length, 3);
+  assert.equal(descendants(dialog, (element) => element.dataset.assignmentLocation === 'pool'
+    && ['l1', 'r1'].includes(element.dataset.attachmentId)).length, 0);
+
+  const save = descendants(dialog, (element) => element.tag === 'button'
+    && element.textContent === 'Save')[0];
+  save.dispatchEvent({ type: 'click' });
+  await Promise.resolve();
+  const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+  assert.equal(payload.associations.length, 1);
+  assert.equal(payload.associations[0].associationId, 'center');
+  assert.deepEqual(new Set(payload.associations[0].attachmentIds),
+    new Set(['l1', 'l2', 'r1', 'r2', 'hidden-left', 'hidden-right']));
+});
+
+test('Association Editor can return an imported outside group to its pool', () => {
+  const { context } = palette();
+  const initial = runInNewContext('initialConnectionAssociationAssignments', context);
+  const assign = runInNewContext('assignConnectionAssociationItem', context);
+  const unassign = runInNewContext('unassignConnectionAssociationItem', context);
+  const assignments = initial({ attachmentAssociations: [
+    { associationId: 'center', attachmentIds: ['l2', 'r2'] },
+    { associationId: 'elsewhere', attachmentIds: ['l1', 'hidden'] },
+  ] }, [{ attachmentId: 'l1' }, { attachmentId: 'l2' }], [{ attachmentId: 'r2' }]);
+
+  assign(assignments, 'left', 'l1', { location: 'extend', rowIndex: 0 });
+  assert.equal(assignments.rows.length, 2);
+  assert.equal(assignments.groupSources.get('center').has('elsewhere'), true);
+
+  unassign(assignments, 'left', 1, 0);
+  assert.equal(assignments.rows.length, 1);
+  assert.deepEqual([...assignments.pools.left], ['l1']);
+  assert.equal(assignments.groupSources.get('center').has('elsewhere'), false);
+});
+
+test('Association Editor moves all visible members of an outside group into an empty center', () => {
+  const { context } = palette();
+  const initial = runInNewContext('initialConnectionAssociationAssignments', context);
+  const assign = runInNewContext('assignConnectionAssociationItem', context);
+  const assignments = initial({ attachmentAssociations: [
+    { associationId: 'elsewhere', attachmentIds: ['l1', 'l2', 'hidden'] },
+  ] }, [{ attachmentId: 'l1' }, { attachmentId: 'l2' }], [{ attachmentId: 'r1' }]);
+
+  assign(assignments, 'left', 'l2', { location: 'center', rowIndex: 0 });
+
+  assert.equal(assignments.rows.length, 2);
+  assert.deepEqual([...assignments.rows.map((row) => row.left.connectionId)], ['l1', 'l2']);
+  assert.equal(assignments.rows.every((row) => row.groupId === 'elsewhere'), true);
+  assert.equal(assignments.pools.left.length, 0);
+});
+
 /** Return the named submenu branch from a rendered context menu. */
 function contextMenuBranch(menu, label) {
   return menu.children.find(

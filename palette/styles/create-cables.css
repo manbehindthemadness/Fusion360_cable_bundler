@@ -47,10 +47,6 @@
   user-select: none;
 }
 .create-cables-end-card[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
-.create-association-card[data-association-locked="true"] {
-  cursor: not-allowed;
-  opacity: 0.72;
-}
 .connection-association-selecting .connection-association-source .relationship-node {
   stroke: var(--accent);
   stroke-width: 3px;

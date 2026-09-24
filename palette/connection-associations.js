@@ -233,15 +233,20 @@ function initialConnectionAssociationAssignments(harness, left, right) {
   const leftUsed = new Set();
   const rightUsed = new Set();
   const rows = [];
-  const lockedIds = new Set();
+  const elsewhereIds = new Set();
   const existingIds = new Set();
+  const associationMembers = new Map();
+  const outsideByMember = new Map();
+  const groupSources = new Map();
   (harness.attachmentAssociations || []).forEach((association) => {
     const members = association.attachmentIds || [];
+    existingIds.add(association.associationId);
+    associationMembers.set(association.associationId, members);
+    groupSources.set(association.associationId, new Set([association.associationId]));
     const leftMembers = members.filter((id) => leftIds.has(id));
     const rightMembers = members.filter((id) => rightIds.has(id));
     if (leftMembers.length && rightMembers.length &&
         leftMembers.length + rightMembers.length === members.length) {
-      existingIds.add(association.associationId);
       leftMembers.forEach((id) => leftUsed.add(id));
       rightMembers.forEach((id) => rightUsed.add(id));
       for (let index = 0; index < Math.max(leftMembers.length, rightMembers.length); index += 1) {
@@ -254,7 +259,10 @@ function initialConnectionAssociationAssignments(harness, left, right) {
         });
       }
     } else members.forEach((id) => {
-      if (leftIds.has(id) || rightIds.has(id)) lockedIds.add(id);
+      if (leftIds.has(id) || rightIds.has(id)) {
+        elsewhereIds.add(id);
+        outsideByMember.set(id, association.associationId);
+      }
     });
   });
   return {
@@ -263,9 +271,44 @@ function initialConnectionAssociationAssignments(harness, left, right) {
       right: right.map((item) => item.attachmentId).filter((id) => !rightUsed.has(id)),
     },
     rows,
-    lockedIds,
+    elsewhereIds,
     existingIds,
+    associationMembers,
+    outsideByMember,
+    groupSources,
+    selectedIds: new Set([...leftIds, ...rightIds]),
   };
+}
+
+/** Bring every visible member of an outside association into the center together. */
+function materializeOutsideConnectionAssociation(assignments, associationId, target) {
+  const members = new Set(assignments.associationMembers.get(associationId));
+  const visible = Object.fromEntries(["left", "right"].map((side) => [
+    side, assignments.pools[side].filter((id) => members.has(id)),
+  ]));
+  if (!visible.left.length && !visible.right.length) return;
+  const targetRow = ["extend", "pending"].includes(target.location)
+    ? assignments.rows[target.rowIndex] : null;
+  const targetRows = targetRow
+    ? assignments.rows.filter((row) => row.groupId === targetRow.groupId) : [];
+  const insertion = targetRows.length
+    ? assignments.rows.lastIndexOf(targetRows[targetRows.length - 1]) + 1
+    : Math.max(0, Math.min(target.rowIndex ?? assignments.rows.length, assignments.rows.length));
+  ["left", "right"].forEach((side) => {
+    assignments.pools[side] = assignments.pools[side].filter((id) => !members.has(id));
+  });
+  const rows = [];
+  for (let index = 0; index < Math.max(visible.left.length, visible.right.length); index += 1) {
+    rows.push({
+      groupId: associationId,
+      left: visible.left[index] ? { connectionId: visible.left[index] } : null,
+      right: visible.right[index] ? { connectionId: visible.right[index] } : null,
+    });
+  }
+  assignments.rows.splice(insertion, 0, ...rows);
+  if (targetRow) {
+    joinConnectionAssociationGroups(assignments, insertion, assignments.rows.indexOf(targetRow));
+  }
 }
 
 /** Move a pool attachment into a new row or the specified existing association. */
@@ -275,6 +318,11 @@ function assignConnectionAssociationItem(assignments, side, attachmentId, target
   const targetRow = ["extend", "pending"].includes(target.location)
     ? assignments.rows[target.rowIndex] : null;
   if (["extend", "pending"].includes(target.location) && !targetRow) return;
+  const outsideId = assignments.outsideByMember.get(attachmentId);
+  if (outsideId) {
+    materializeOutsideConnectionAssociation(assignments, outsideId, target);
+    return;
+  }
   assignments.pools[side].splice(poolIndex, 1);
   const item = { connectionId: attachmentId, returnIndex: poolIndex };
   if (target.location === "extend") {
@@ -305,6 +353,33 @@ function unassignConnectionAssociationItem(assignments, side, rowIndex, poolInde
   const row = assignments.rows[rowIndex];
   const item = row?.[side];
   if (!item) return;
+  const outsideId = assignments.outsideByMember.get(item.connectionId);
+  if (outsideId) {
+    const groupId = row.groupId;
+    assignments.rows.forEach((groupRow) => {
+      if (groupRow.groupId !== groupId) return;
+      ["left", "right"].forEach((memberSide) => {
+        const member = groupRow[memberSide];
+        if (member && assignments.outsideByMember.get(member.connectionId) === outsideId) {
+          assignments.pools[memberSide].push(member.connectionId);
+          groupRow[memberSide] = null;
+        }
+      });
+    });
+    assignments.rows = assignments.rows.filter((groupRow) => groupRow.left || groupRow.right);
+    const sources = assignments.groupSources.get(groupId);
+    sources?.delete(outsideId);
+    if (groupId === outsideId && assignments.rows.some((groupRow) => groupRow.groupId === groupId)) {
+      const replacement = [...sources].find((id) => assignments.existingIds.has(id))
+        || `new:${++nextConnectionAssociationGroupId}`;
+      assignments.rows.forEach((groupRow) => {
+        if (groupRow.groupId === groupId) groupRow.groupId = replacement;
+      });
+      assignments.groupSources.set(replacement, sources);
+    }
+    if (groupId === outsideId) assignments.groupSources.delete(groupId);
+    return;
+  }
   const pool = assignments.pools[side];
   pool.splice(Math.max(0, Math.min(poolIndex, pool.length)), 0, item.connectionId);
   row[side] = null;
@@ -322,13 +397,20 @@ function joinConnectionAssociationGroups(assignments, sourceRowIndex, targetRowI
   assignments.rows = assignments.rows.filter((row) => row.groupId !== source.groupId);
   const targetRows = assignments.rows.filter((row) => row.groupId === target.groupId);
   const insertIndex = assignments.rows.lastIndexOf(targetRows[targetRows.length - 1]) + 1;
+  const sources = new Set([
+    ...(assignments.groupSources.get(source.groupId) || []),
+    ...(assignments.groupSources.get(target.groupId) || []),
+  ]);
+  assignments.groupSources.delete(source.groupId);
+  assignments.groupSources.delete(target.groupId);
+  assignments.groupSources.set(groupId, sources);
   targetRows.forEach((row) => { row.groupId = groupId; });
   moving.forEach((row) => { row.groupId = groupId; });
   assignments.rows.splice(insertIndex, 0, ...moving);
 }
 
 /** Build one draggable terminal-connection card for an association pool or row. */
-function renderConnectionAssociationCard(item, locked = false) {
+function renderConnectionAssociationCard(item, elsewhere = false) {
   const card = document.createElement("div");
   const name = document.createElement("strong");
   const owner = document.createElement("small");
@@ -336,11 +418,10 @@ function renderConnectionAssociationCard(item, locked = false) {
   card.dataset.attachmentId = item.attachmentId;
   card.setAttribute("role", "listitem");
   name.textContent = item.label;
-  owner.textContent = locked ? `${item.connectionName} · Associated elsewhere` : item.connectionName;
+  owner.textContent = elsewhere ? `${item.connectionName} · Associated elsewhere` : item.connectionName;
   card.append(name, owner);
-  if (locked) {
-    card.dataset.associationLocked = "true";
-    card.title = "This connection is associated outside the selected hierarchies.";
+  if (elsewhere) {
+    card.title = "Drag to bring this connection and its existing association into the center.";
   } else card.title = `${item.label} · Drag to create or change an association`;
   return card;
 }
@@ -362,7 +443,17 @@ async function saveConnectionAssociations(
     }
     grouped.set(row.groupId, group);
   });
-  const associations = [...grouped].filter(([, group]) => group.left && group.right)
+  const associations = [...grouped].filter(([groupId, group]) => {
+    const sources = assignments.groupSources.get(groupId) || new Set();
+    sources.forEach((sourceId) => {
+      (assignments.associationMembers.get(sourceId) || []).forEach((memberId) => {
+        if (!assignments.selectedIds.has(memberId)) group.attachmentIds.push(memberId);
+      });
+    });
+    group.attachmentIds = [...new Set(group.attachmentIds)];
+    return group.attachmentIds.length >= 2 &&
+      ((group.left && group.right) || sources.size > 0);
+  })
     .map(([groupId, group]) => ({
       attachmentIds: group.attachmentIds,
       associationId: assignments.existingIds.has(groupId) ? groupId : null,
@@ -481,18 +572,16 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
     assignments.pools[side].forEach((attachmentId) => {
       const item = groups[side].get(attachmentId);
       if (!item) return;
-      const locked = assignments.lockedIds.has(attachmentId);
-      const card = renderConnectionAssociationCard(item, locked);
+      const elsewhere = assignments.elsewhereIds.has(attachmentId);
+      const card = renderConnectionAssociationCard(item, elsewhere);
       card.dataset.assignmentSide = side;
       card.dataset.assignmentLocation = "pool";
       surfaces.pools[side].cards.push(card);
       pools[side].list.append(card);
-      if (!locked) {
-        enableCableCreationDrag(card, { location: "pool", side }, surfaces,
-          (target) => handleConnectionAssociationDrop(
-            assignments, side, null, target, attachmentId, pools, center, harness, groups,
-          ), null, "association");
-      }
+      enableCableCreationDrag(card, { location: "pool", side }, surfaces,
+        (target) => handleConnectionAssociationDrop(
+          assignments, side, null, target, attachmentId, pools, center, harness, groups,
+        ), null, "association");
     });
     if (!pools[side].list.children.length) pools[side].list.append(emptyMessage("No available connections."));
   });
