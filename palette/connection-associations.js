@@ -432,7 +432,7 @@ function joinConnectionAssociationGroups(assignments, sourceRowIndex, targetRowI
 }
 
 /** Build one draggable terminal-connection card for an association pool or row. */
-function renderConnectionAssociationCard(item, elsewhere = false) {
+function renderConnectionAssociationCard(item, elsewhere, showContextMenu, contextItems) {
   const card = document.createElement("div");
   const name = document.createElement("strong");
   const owner = document.createElement("small");
@@ -445,6 +445,10 @@ function renderConnectionAssociationCard(item, elsewhere = false) {
   if (elsewhere) {
     card.title = "Drag to bring this connection and its existing association into the center.";
   } else card.title = `${item.label} · Drag to create or change an association`;
+  card.addEventListener("contextmenu", (event) => {
+    event.stopPropagation();
+    showContextMenu(event, contextItems(item));
+  });
   return card;
 }
 
@@ -506,6 +510,7 @@ function openConnectionAssociationPanel(
   if (prior?.open) prior.close();
   else prior?.remove();
   const dialog = document.createElement("dialog");
+  const showContextMenu = addContextMenu(dialog);
   const heading = document.createElement("h2");
   const layout = document.createElement("div");
   const leftPool = createConnectionAssociationPool(leftAnchor, leftItems, "left", leftLabel);
@@ -521,6 +526,50 @@ function openConnectionAssociationPanel(
     left: new Map(leftItems.map((item) => [item.attachmentId, item])),
     right: new Map(rightItems.map((item) => [item.attachmentId, item])),
   };
+  const pools = { left: leftPool, right: rightPool };
+  const cardContextItems = (item) => [{
+    label: "Details", disabled: true, title: "Connection details are coming soon",
+  }, {
+    label: "Rename",
+    action: () => {
+      const connection = harness.connections.find(
+        (candidate) => candidate.connectionId === item.connectionId,
+      );
+      const attachment = (connection?.attachments || []).find(
+        (candidate) => candidate.attachmentId === item.attachmentId,
+      );
+      if (!attachment) {
+        appendNotice("This connection is no longer available.", true);
+        return;
+      }
+      renameCableGroupAttachment(harness, { ...attachment, connectionId: item.connectionId },
+        (name) => {
+          item.label = name.trim() || attachment.name;
+          attachment.nameOverride = name;
+          if (name.trim()) attachment.name = item.label;
+          renderConnectionAssociationAssignments(
+            harness, assignments, groups, pools, centerContent, showContextMenu,
+            cardContextItems,
+          );
+        });
+    },
+  }, {
+    label: "Delete",
+    action: async () => {
+      appendNotice(`Deleting connection ${item.label}…`);
+      try {
+        const response = await send("remove_cable_end_attachment", {
+          harnessId: harness.harnessId,
+          connectionId: item.connectionId,
+          attachmentId: item.attachmentId,
+        });
+        if (response.ok) dialog.close();
+        else appendNotice(response.error || "Connection could not be deleted.", true);
+      } catch (error) {
+        appendNotice(error.message, true);
+      }
+    },
+  }];
   dialog.className = "connection-associations-popup";
   heading.textContent = "Connection Associations";
   layout.className = "create-cables-layout";
@@ -551,11 +600,25 @@ function openConnectionAssociationPanel(
     event.preventDefault();
     dialog.close();
   });
-  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (!openCableGroupDetailsState) return;
+    const currentHarness = currentState.harnesses.find(
+      (candidate) => candidate.harnessId === harness.harnessId,
+    );
+    if (currentHarness) {
+      openCableGroupDetails(
+        currentHarness,
+        openCableGroupDetailsState.cableGroupId,
+        openCableGroupDetailsState.connectionId,
+      );
+    }
+  });
   document.body.append(dialog);
   dialog.showModal();
   renderConnectionAssociationAssignments(
-    harness, assignments, groups, { left: leftPool, right: rightPool }, centerContent,
+    harness, assignments, groups, pools, centerContent,
+    showContextMenu, cardContextItems,
   );
 }
 
@@ -579,7 +642,9 @@ function createConnectionAssociationPool(anchor, items, side, label) {
 }
 
 /** Render staged pair rows using the Route Editor's drag markers and drop rules. */
-function renderConnectionAssociationAssignments(harness, assignments, groups, pools, center) {
+function renderConnectionAssociationAssignments(
+  harness, assignments, groups, pools, center, showContextMenu, cardContextItems,
+) {
   const surfaces = {
     center,
     markers: new Set(),
@@ -595,7 +660,9 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
       const item = groups[side].get(attachmentId);
       if (!item) return;
       const elsewhere = assignments.elsewhereIds.has(attachmentId);
-      const card = renderConnectionAssociationCard(item, elsewhere);
+      const card = renderConnectionAssociationCard(
+        item, elsewhere, showContextMenu, cardContextItems,
+      );
       card.dataset.assignmentSide = side;
       card.dataset.assignmentLocation = "pool";
       surfaces.pools[side].cards.push(card);
@@ -603,6 +670,7 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
       enableCableCreationDrag(card, { location: "pool", side }, surfaces,
         (target) => handleConnectionAssociationDrop(
           assignments, side, null, target, attachmentId, pools, center, harness, groups,
+          showContextMenu, cardContextItems,
         ), null, "association");
     });
     if (!pools[side].list.children.length) pools[side].list.append(emptyMessage("No available connections."));
@@ -641,7 +709,9 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
       if (attachmentId) {
         const item = groups[side].get(attachmentId);
         if (item) {
-          const card = renderConnectionAssociationCard(item);
+          const card = renderConnectionAssociationCard(
+            item, false, showContextMenu, cardContextItems,
+          );
           card.dataset.assignmentSide = side;
           card.dataset.assignmentLocation = "row";
           card.title = "Drag onto another association to combine groups; Option-drag to swap ends.";
@@ -651,6 +721,7 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
           }, surfaces,
             (target) => handleConnectionAssociationDrop(
               assignments, side, index, target, attachmentId, pools, center, harness, groups,
+              showContextMenu, cardContextItems,
             ), null, "association");
         }
       }
@@ -670,6 +741,7 @@ function renderConnectionAssociationAssignments(harness, assignments, groups, po
 /** Apply one pool, group, swap, or unassignment drop to staged associations. */
 function handleConnectionAssociationDrop(
   assignments, side, rowIndex, target, attachmentId, pools, center, harness, groups,
+  showContextMenu, cardContextItems,
 ) {
   if (["center", "pending", "extend"].includes(target.location)) {
     assignConnectionAssociationItem(assignments, side, attachmentId, target);
@@ -680,5 +752,7 @@ function handleConnectionAssociationDrop(
   } else if (target.location === "pool") {
     unassignConnectionAssociationItem(assignments, side, rowIndex, target.poolIndex);
   }
-  renderConnectionAssociationAssignments(harness, assignments, groups, pools, center);
+  renderConnectionAssociationAssignments(
+    harness, assignments, groups, pools, center, showContextMenu, cardContextItems,
+  );
 }

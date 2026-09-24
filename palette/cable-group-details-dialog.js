@@ -2,7 +2,7 @@
 /* global beginCableGroupAttachmentAssociation, cancelActiveConnectionAssociationSelection, connectionAssociationCandidates, openCableGroupDetailsState */
 
 /** Open a small modal editor for one diagram-only connection node name. */
-function renameCableGroupAttachment(harness, attachment) {
+function renameCableGroupAttachment(harness, attachment, onSaved = null) {
   const dialog = document.createElement("dialog");
   const form = document.createElement("form");
   const field = document.createElement("label");
@@ -29,12 +29,21 @@ function renameCableGroupAttachment(harness, attachment) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     dialog.close();
-    void mutate("rename_cable_end_attachment", {
+    const payload = {
       harnessId: harness.harnessId,
       connectionId: attachment.connectionId,
       attachmentId: attachment.attachmentId,
       name: input.value,
-    }, "Saving connection name…");
+    };
+    if (!onSaved) {
+      void mutate("rename_cable_end_attachment", payload, "Saving connection name…");
+      return;
+    }
+    appendNotice("Saving connection name…");
+    void send("rename_cable_end_attachment", payload).then((response) => {
+      if (response.ok) onSaved(input.value);
+      else appendNotice(response.error || "Connection name could not be saved.", true);
+    }).catch((error) => appendNotice(error.message, true));
   });
   dialog.addEventListener("close", () => dialog.remove());
   field.append(input);

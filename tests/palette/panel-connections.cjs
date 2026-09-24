@@ -3,6 +3,84 @@ const {
   assert, asyncTest, descendants, harness, palette, runInNewContext, test,
 } = require('./support.cjs');
 
+asyncTest('Association cards offer Details, Rename, and Delete in pools and rows', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  const left = ['a1', 'a2'].map((connectionId) => ({
+    attachmentId: `leaf-${connectionId}`, connectionId,
+    connectionName: connectionId, label: `Target ${connectionId}`,
+  }));
+  const right = [{
+    attachmentId: 'leaf-b1', connectionId: 'b1', connectionName: 'b1', label: 'Target b1',
+  }];
+  definition.attachmentAssociations = [{
+    associationId: 'linked', attachmentIds: ['leaf-a1', 'leaf-b1'],
+  }];
+  for (const item of [...left, ...right]) {
+    const connection = definition.connections.find((candidate) => (
+      candidate.connectionId === item.connectionId
+    ));
+    connection.attachments = [{
+      attachmentId: item.attachmentId, name: item.label, nameOverride: '',
+    }];
+  }
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    if (action === 'rename_cable_end_attachment') context.renderEditor(definition);
+    return { ok: true };
+  };
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
+  context.openConnectionAssociationPanel(
+    definition, { connectionId: 'a1' }, { connectionId: 'b1' },
+    left, right, 'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const menu = dialog.querySelector('.relationship-map-context-menu');
+  const card = (attachmentId) => descendants(dialog, (node) => (
+    node.dataset.attachmentId === attachmentId && node.dataset.assignmentLocation
+  ))[0];
+  const openMenu = (element) => {
+    let prevented = false;
+    element.events.contextmenu({
+      target: element, clientX: 20, clientY: 20,
+      preventDefault() { prevented = true; }, stopPropagation() {},
+    });
+    assert.equal(prevented, true);
+    assert.deepEqual(menu.children.map((child) => child.textContent), [
+      'Details', 'Rename', 'Delete',
+    ]);
+    assert.equal(menu.children[0].disabled, true);
+  };
+  openMenu(card('leaf-a1'));
+  openMenu(card('leaf-a2'));
+  menu.children[1].events.click();
+  const rename = context.document.body.querySelector('.connection-name-popup');
+  assert.equal(rename.open, true);
+  const input = rename.querySelector('input');
+  assert.equal(input.placeholder, 'Target a2');
+  input.value = 'Renamed terminal';
+  rename.querySelector('form').events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(rename.open, false);
+  assert.equal(calls[0].action, 'rename_cable_end_attachment');
+  assert.equal(calls[0].payload.attachmentId, 'leaf-a2');
+  assert.equal(calls[0].payload.name, 'Renamed terminal');
+  assert.equal(card('leaf-a2').querySelector('strong').textContent, 'Renamed terminal');
+  assert.equal(dialog.open, true);
+  assert.deepEqual(dialog.querySelectorAll('.create-cables-assignment-row').map((row) => (
+    row.children[0].children[0]?.dataset.attachmentId
+  )), ['leaf-a1']);
+  assert.equal(context.document.body.querySelector('.cable-group-details-popup'), details);
+  openMenu(card('leaf-b1'));
+  menu.children[2].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls[1].action, 'remove_cable_end_attachment');
+  assert.equal(calls[1].payload.connectionId, 'b1');
+  assert.equal(calls[1].payload.attachmentId, 'leaf-b1');
+  assert.equal(dialog.open, false);
+});
+
 asyncTest('Cable Details associates upstream route nodes in either selection order', async () => {
   const definition = harness();
   const group = definition.cableGroups[0];

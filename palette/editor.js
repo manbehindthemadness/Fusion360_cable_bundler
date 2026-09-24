@@ -110,8 +110,9 @@ function renderEditor(harness) {
     openCableEndRoutingPopup(harness, openCableEndRoutingPopupId);
   }
   const materialOptions = document.body.querySelector(".material-options");
-  // Keep the foreground material editor above its originating details dialog during refresh.
-  if (openCableGroupDetailsState && !materialOptions?.open) {
+  const associationEditor = document.body.querySelector(".connection-associations-popup");
+  // Keep foreground editors above their originating Cable Details dialog during refresh.
+  if (openCableGroupDetailsState && !materialOptions?.open && !associationEditor?.open) {
     openCableGroupDetails(
       harness,
       openCableGroupDetailsState.cableGroupId,
