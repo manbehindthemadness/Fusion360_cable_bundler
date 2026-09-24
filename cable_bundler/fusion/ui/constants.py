@@ -91,6 +91,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout" / "node-metrics.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout" / "layouts.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-layout" / "controller.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "cable-group-details-ordering.js",
     ADDIN_ROOT / "palette" / "cable-group-details.js",
     ADDIN_ROOT / "palette" / "cable-group-details-dialog.js",
     ADDIN_ROOT / "palette" / "diagrams" / "create-cables" / "model.js",
