@@ -25,11 +25,14 @@ class AttachmentAssociationPair:
 @dataclass(frozen=True)
 class AttachmentAssociationAnchor:
     """
-    Identify a cable-end root or one attachment subtree in the diagram.
+    Identify a cable end, attachment subtree, pathway, or junction in the diagram.
     """
 
-    connection_id: UUID
+    connection_id: Optional[UUID] = None
     attachment_id: Optional[UUID] = None
+    node_kind: str = "connection"
+    node_id: Optional[UUID] = None
+    candidate_attachment_ids: Optional[tuple[UUID, ...]] = None
 
 
 def attachment_association_candidates(
@@ -37,34 +40,85 @@ def attachment_association_candidates(
     anchor: AttachmentAssociationAnchor,
 ) -> tuple[UUID, ...]:
     """
-    Return terminal attachment IDs beneath one selected cable-end node.
+    Return terminal attachment IDs represented by one selected diagram node.
     """
-    connection = next(
-        (item for item in definition.connections if item.connection_id == anchor.connection_id),
-        None,
-    )
-    if connection is None:
-        raise ValueError("Selected cable-end node no longer exists.")
-    if anchor.attachment_id is None:
-        roots = connection.attachment_children(None)
+    if anchor.node_kind in ("pathway", "junction"):
+        graph: dict[tuple[str, UUID], set[tuple[str, UUID]]] = {
+            ("pathway", pathway.pathway_id): set() for pathway in definition.pathways
+        }
+        for junction in definition.junctions:
+            junction_key = ("junction", junction.junction_id)
+            graph.setdefault(junction_key, set())
+            for relationship in junction.pathway_relationships:
+                pathway_key = ("pathway", relationship.pathway_id)
+                graph.setdefault(pathway_key, set()).add(junction_key)
+                graph[junction_key].add(pathway_key)
+        start = (anchor.node_kind, anchor.node_id)
+        if anchor.node_id is None or start not in graph:
+            raise ValueError("Selected route node no longer exists.")
+        route_nodes = {start}
+        pending_nodes = [start]
+        while pending_nodes:
+            current = pending_nodes.pop()
+            for neighbor in graph[current] - route_nodes:
+                route_nodes.add(neighbor)
+                pending_nodes.append(neighbor)
+        connection_ids = {
+            end.connection_id for end in definition.standalone_ends
+            if ("pathway", end.pathway_id) in route_nodes
+        }
+        roots = tuple(
+            attachment
+            for connection in definition.connections
+            if connection.connection_id in connection_ids
+            for attachment in connection.attachment_children(None)
+        )
     else:
-        selected = next(
-            (item for item in connection.attachments if item.attachment_id == anchor.attachment_id),
+        connection = next(
+            (item for item in definition.connections if item.connection_id == anchor.connection_id),
             None,
         )
-        if selected is None:
-            raise ValueError("Selected attachment node no longer exists.")
-        roots = (selected,)
+        if connection is None:
+            raise ValueError("Selected cable-end node no longer exists.")
+        if anchor.attachment_id is None:
+            roots = connection.attachment_children(None)
+        else:
+            selected = next(
+                (item for item in connection.attachments if item.attachment_id == anchor.attachment_id),
+                None,
+            )
+            if selected is None:
+                raise ValueError("Selected attachment node no longer exists.")
+            roots = (selected,)
     leaves: list[UUID] = []
-    pending = list(roots)
+    if anchor.node_kind in ("pathway", "junction"):
+        connection_by_attachment = {
+            attachment.attachment_id: connection
+            for connection in definition.connections
+            for attachment in connection.attachments
+        }
+        pending = [
+            (connection_by_attachment[item.attachment_id], item)
+            for item in roots
+        ]
+    else:
+        pending = [(connection, item) for item in roots]
     while pending:
-        current = pending.pop()
-        children = connection.attachment_children(current.attachment_id)
+        owner, current = pending.pop()
+        children = owner.attachment_children(current.attachment_id)
         if children:
-            pending.extend(reversed(children))
+            pending.extend((owner, child) for child in reversed(children))
         else:
             leaves.append(current.attachment_id)
-    return tuple(leaves)
+    candidates = tuple(leaves)
+    if anchor.candidate_attachment_ids is None:
+        return candidates
+    requested = set(anchor.candidate_attachment_ids)
+    if len(requested) != len(anchor.candidate_attachment_ids) or not requested.issubset(
+        candidates
+    ):
+        raise ValueError("Association candidates do not belong to the selected route node.")
+    return tuple(item_id for item_id in candidates if item_id in requested)
 
 
 def save_attachment_associations(

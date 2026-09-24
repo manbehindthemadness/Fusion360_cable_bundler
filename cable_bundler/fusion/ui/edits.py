@@ -335,8 +335,27 @@ def _apply_attachment_association_edit(
 
     def parse_anchor(value: dict[str, object]) -> AttachmentAssociationAnchor:
         """
-        Parse a cable-end root or attachment-node identity.
+        Parse a cable-end, attachment, pathway, or junction identity.
         """
+        node_kind = value.get("nodeKind", "connection")
+        if node_kind in ("pathway", "junction"):
+            raw_candidates = value.get("candidateAttachmentIds")
+            if not isinstance(raw_candidates, list) or any(
+                not isinstance(candidate, str) for candidate in raw_candidates
+            ):
+                raise ValueError("Route association candidates must be a list of identities.")
+            return AttachmentAssociationAnchor(
+                node_kind=str(node_kind),
+                node_id=_read_payload_uuid(value, "nodeId", "route node"),
+                candidate_attachment_ids=tuple(
+                    _read_payload_uuid(
+                        {"attachmentId": candidate}, "attachmentId", "route candidate"
+                    )
+                    for candidate in raw_candidates
+                ),
+            )
+        if node_kind != "connection":
+            raise ValueError("Unsupported association node kind.")
         attachment_id = (
             _read_payload_uuid(value, "attachmentId", "attachment node")
             if value.get("attachmentId") is not None

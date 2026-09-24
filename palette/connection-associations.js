@@ -4,6 +4,44 @@ let cancelActiveConnectionAssociationSelection = null;
 
 /** Resolve terminal attachment nodes beneath one cable-end diagram node. */
 function connectionAssociationCandidates(harness, anchor) {
+  if (anchor.nodeKind === "pathway" || anchor.nodeKind === "junction") {
+    const dialog = document.body.querySelector(".cable-group-details-popup");
+    const graphic = dialog?.querySelector(".cable-group-details-graphic");
+    const nodes = new Map([...graphic?.querySelectorAll(".cable-group-details-node") || []]
+      .map((node) => [node.dataset.nodeId, node]));
+    const startId = `${anchor.nodeKind}:${anchor.nodeId}`;
+    if (!nodes.has(startId)) return [];
+    const neighbors = new Map([...nodes.keys()].map((id) => [id, new Set()]));
+    graphic.querySelectorAll(".cable-group-route-link").forEach((edge) => {
+      const left = edge.dataset.startNodeId;
+      const right = edge.dataset.endNodeId;
+      neighbors.get(left)?.add(right);
+      neighbors.get(right)?.add(left);
+    });
+    const reachable = new Set([startId]);
+    const pending = [startId];
+    while (pending.length) {
+      const currentId = pending.pop();
+      const currentDepth = Number(nodes.get(currentId).dataset.depth);
+      (neighbors.get(currentId) || []).forEach((neighbor) => {
+        if (reachable.has(neighbor)) return;
+        if (Number(nodes.get(neighbor).dataset.depth) <= currentDepth) return;
+        reachable.add(neighbor);
+        pending.push(neighbor);
+      });
+    }
+    const candidates = [];
+    reachable.forEach((id) => {
+      const node = nodes.get(id);
+      if (node?.classList.contains("connection")) {
+        candidates.push(...connectionAssociationCandidates(harness, {
+          connectionId: node.dataset.connectionId,
+          attachmentId: null,
+        }));
+      }
+    });
+    return candidates;
+  }
   const connection = harness.connections.find(
     (candidate) => candidate.connectionId === anchor.connectionId,
   );
@@ -58,20 +96,23 @@ let connectionAssociationSelection = null;
 function handleConnectionAssociationClick(event) {
   const selection = connectionAssociationSelection;
   if (!selection) return;
-  const node = event.target.closest?.(".cable-group-details-node.connection, .cable-group-details-node.attachment");
+  const node = event.target.closest?.(".cable-group-details-node");
   const anchor = node ? connectionAssociationAnchorFromElement(node) : null;
   if (node && selection.eligible.has(node)) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
     const candidates = connectionAssociationCandidates(selection.harness, anchor);
+    const targetAnchor = anchor.nodeKind
+      ? { ...anchor, candidateAttachmentIds: candidates.map((item) => item.attachmentId) }
+      : anchor;
     clearConnectionAssociationSelection(selection.container);
     connectionAssociationSelection = null;
     cancelActiveConnectionAssociationSelection = null;
     openConnectionAssociationPanel(
       selection.harness,
-      selection.source,
-      anchor,
+      selection.sourceAnchor,
+      targetAnchor,
       selection.sourceCandidates,
       candidates,
       selection.sourceLabel,
@@ -97,7 +138,7 @@ function handleConnectionAssociationKeyDown(event) {
     return;
   }
   if (!(["Enter", " "].includes(event.key))) return;
-  const node = event.target.closest?.(".cable-group-details-node.connection, .cable-group-details-node.attachment");
+  const node = event.target.closest?.(".cable-group-details-node");
   if (!node || !connectionAssociationSelection.eligible.has(node)) return;
   event.preventDefault();
   node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -105,6 +146,10 @@ function handleConnectionAssociationKeyDown(event) {
 
 /** Recover a selection anchor from a rendered diagram node. */
 function connectionAssociationAnchorFromElement(node) {
+  if (node.classList.contains("pathway") || node.classList.contains("junction")) {
+    const [nodeKind, nodeId] = node.dataset.nodeId.split(":");
+    return { nodeKind, nodeId };
+  }
   const connectionId = node.dataset.connectionId;
   return node.classList.contains("attachment")
     ? { connectionId, attachmentId: node.dataset.attachmentId }
@@ -120,11 +165,12 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   const container = dialog?.querySelector(".cable-group-details-graphic");
   if (!container) return;
   const sourceCandidates = connectionAssociationCandidates(harness, source);
+  const sourceAnchor = source.nodeKind
+    ? { ...source, candidateAttachmentIds: sourceCandidates.map((item) => item.attachmentId) }
+    : source;
   const sourceIds = new Set(sourceCandidates.map((item) => item.attachmentId));
   const eligible = new Set();
-  const nodeElements = container.querySelectorAll(
-    ".cable-group-details-node.connection, .cable-group-details-node.attachment",
-  );
+  const nodeElements = container.querySelectorAll(".cable-group-details-node");
   nodeElements.forEach((node) => {
     const anchor = connectionAssociationAnchorFromElement(node);
     const candidates = connectionAssociationCandidates(harness, anchor);
@@ -134,9 +180,12 @@ function beginCableGroupAttachmentAssociation(harness, source) {
       "connection-association-target",
       "connection-association-unavailable",
     );
-    if (node.dataset.nodeId === (source.attachmentId
+    const isSource = node.dataset.nodeId === (source.nodeKind
+      ? `${source.nodeKind}:${source.nodeId}`
+      : (source.attachmentId
       ? `attachment:${source.connectionId}:${source.attachmentId}`
-      : `connection:${source.connectionId}`)) {
+      : `connection:${source.connectionId}`));
+    if (isSource) {
       node.classList.add("connection-association-source");
     } else if (candidates.length && !overlaps) {
       eligible.add(node);
@@ -161,6 +210,7 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   connectionAssociationSelection = {
     harness,
     source,
+    sourceAnchor,
     sourceCandidates,
     sourceLabel: [...nodeElements]
       .find((node) => node.classList.contains("connection-association-source"))

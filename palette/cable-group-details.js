@@ -463,6 +463,7 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       role: node.kind === "attachment" ? "group" : "button",
       "aria-label": `${node.kind}: ${node.label}`,
       "data-node-id": node.id,
+      "data-depth": node.depth,
     });
     const shape = svgElement("rect", {
       class: `relationship-node ${node.kind}`,
@@ -565,7 +566,16 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       if (node.item) {
         groupNode.addEventListener("contextmenu", (event) => {
           event.stopPropagation();
-          showContextMenu(event, pathwayNodeContextItems(harness, node.item));
+          const anchor = { nodeKind: "pathway", nodeId: pathwayId };
+          showContextMenu(event, [
+            {
+              label: "Associate",
+              action: () => beginCableGroupAttachmentAssociation(harness, anchor),
+              disabled: connectionAssociationCandidates(harness, anchor).length === 0,
+              title: "Select another route node to associate its terminal connections",
+            },
+            ...pathwayNodeContextItems(harness, node.item),
+          ]);
         });
       }
     } else {
@@ -581,7 +591,16 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       if (node.item) {
         groupNode.addEventListener("contextmenu", (event) => {
           event.stopPropagation();
-          showContextMenu(event, junctionNodeContextItems(harness, node.item));
+          const anchor = { nodeKind: "junction", nodeId: junctionId };
+          showContextMenu(event, [
+            {
+              label: "Associate",
+              action: () => beginCableGroupAttachmentAssociation(harness, anchor),
+              disabled: connectionAssociationCandidates(harness, anchor).length === 0,
+              title: "Select another route node to associate its terminal connections",
+            },
+            ...junctionNodeContextItems(harness, node.item),
+          ]);
         });
       }
     }
