@@ -563,9 +563,9 @@ def _show_palette(application: adsk.core.Application) -> None:
         _runtime.handler_registry.retain(incoming_handler, navigation_handler)
         _log_to_fusion(f"Harness Builder requested palette file: {palette.htmlFileURL}")
     try:
-        palette.isDockedInCanvas = False
+        palette.isDockedInCanvas = True
     except (AttributeError, RuntimeError) as error:
-        _log_to_fusion(f"Harness Builder could not reserve Fusion layout space: {error}")
+        _log_to_fusion(f"Harness Builder could not restore in-canvas docking: {error}")
     try:
         palette.dockingOption = adsk.core.PaletteDockingOptions.PaletteDockOptionsToVerticalOnly
         palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
