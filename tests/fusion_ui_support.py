@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from types import CodeType, ModuleType, SimpleNamespace
-from typing import Any, Protocol, cast
+from typing import Any, Optional, Protocol, cast
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -227,12 +227,14 @@ class _PaletteLifecycleModule(Protocol):
     _finalize_solids: Callable[[object, str], int]
     generate_cable_group_solids: Callable[..., int]
     refresh_generated_cable_groups_for_connection: Callable[..., int]
+    resolve_attachment_target: Callable[[object, object], Optional[object]]
     _clear_preview: Callable[[object], int]
     _clear_highlight: Callable[[object], None]
     _clear_solids: Callable[[object, str], int]
     clear_route_previews: Callable[[object], int]
     clear_refine_spine: Callable[[object], None]
     clear_cable_solids: Callable[[object], int]
+    generated_attachment_bodies: Callable[..., tuple[object, ...]]
     generated_cable_group_bodies: Callable[..., tuple[object, ...]]
     generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
     generated_cable_group_output_mode: Callable[[object], str]

@@ -20,6 +20,7 @@ from .cable_solid_parts.constants import (
     GENERATED_OUTPUT_MODE_KEY,
     SOLID_OUTPUT_MODE,
 )
+from .cable_solid_parts.metadata import connection_branches_from_metadata
 from .cable_solid_parts.stripes import (
     clear_all_stripe_graphics,
     generated_stripe_graphics_groups,
@@ -154,6 +155,49 @@ def generated_cable_group_bodies(
     return tuple(bodies)
 
 
+def generated_attachment_bodies(
+    root: adsk.fusion.Component,
+    harness: adsk.fusion.Component,
+    attachment_id: UUID,
+) -> tuple[adsk.fusion.BRepBody, ...]:
+    """
+    Resolve generated sweep-body proxies owned by one cable-end attachment.
+
+    Malformed or legacy metadata is ignored because palette hover is a
+    best-effort interaction. Weld bodies are excluded because they are not
+    part of the attachment's swept cable segment.
+    """
+    bodies: list[adsk.fusion.BRepBody] = []
+    for occurrence in _cable_solid_services().generated_cable_group_occurrences(harness):
+        component = occurrence.component
+        attribute = component.attributes.itemByName(
+            ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE
+        )
+        if attribute is None:
+            continue
+        try:
+            metadata = json.loads(attribute.value)
+            branches = connection_branches_from_metadata(metadata)
+        except (AttributeError, TypeError, json.JSONDecodeError, RuntimeError):
+            continue
+        branch_body_count = sum(
+            branch.insulation_body_count + branch.pullback_body_count + branch.weld_body_count
+            for branch in branches
+        )
+        body_count = component.bRepBodies.count
+        if branch_body_count > body_count:
+            continue
+        body_index = body_count - branch_body_count
+        selected_indices: list[int] = []
+        for branch in branches:
+            sweep_body_count = branch.insulation_body_count + branch.pullback_body_count
+            if branch.attachment_id == attachment_id:
+                selected_indices.extend(range(body_index, body_index + sweep_body_count))
+            body_index += sweep_body_count + branch.weld_body_count
+        bodies.extend(_root_context_bodies_at_indices(root, component, selected_indices))
+    return tuple(bodies)
+
+
 def _root_context_bodies(
     root: adsk.fusion.Component,
     component: adsk.fusion.Component,
@@ -168,6 +212,27 @@ def _root_context_bodies(
         if root_occurrence is None:
             continue
         for body_index in range(root_occurrence.bRepBodies.count):
+            body = root_occurrence.bRepBodies.item(body_index)
+            if body is not None:
+                bodies.append(body)
+    return tuple(bodies)
+
+
+def _root_context_bodies_at_indices(
+    root: adsk.fusion.Component,
+    component: adsk.fusion.Component,
+    body_indices: list[int],
+) -> tuple[adsk.fusion.BRepBody, ...]:
+    """
+    Return selected generated-body proxies in every root assembly context.
+    """
+    bodies: list[adsk.fusion.BRepBody] = []
+    root_occurrences = root.allOccurrencesByComponent(component)
+    for occurrence_index in range(root_occurrences.count):
+        root_occurrence = root_occurrences.item(occurrence_index)
+        if root_occurrence is None:
+            continue
+        for body_index in body_indices:
             body = root_occurrence.bRepBodies.item(body_index)
             if body is not None:
                 bodies.append(body)

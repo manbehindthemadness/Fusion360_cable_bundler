@@ -54,6 +54,7 @@ from .cable_solid_parts.welds import WeldEndpoint
 from .cable_solid_visibility import (
     CableSolidVisibilityState,
     clear_cable_solids,
+    generated_attachment_bodies,
     generated_cable_group_bodies,
     generated_cable_group_output_mode,
     hide_generated_cable_group_solids,
@@ -82,6 +83,7 @@ __all__ = [
     "apply_cable_group_materials",
     "clear_cable_solids",
     "generate_cable_group_solids",
+    "generated_attachment_bodies",
     "generated_cable_group_output_mode",
     "generated_cable_group_bodies",
     "generated_cable_group_occurrences",

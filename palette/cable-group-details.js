@@ -637,6 +637,10 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
         showContextMenu(event, cableGroupDetailsEndContextItems(harness, node.item));
       });
     } else if (node.kind === "attachment") {
+      hoverHighlight(groupNode, () => highlightMember(
+        harness, "attachment", node.item.attachmentId,
+        { connectionId: node.item.connectionId },
+      ));
       groupNode.addEventListener("contextmenu", (event) => {
         event.stopPropagation();
         showContextMenu(event, cableGroupAttachmentContextItems(harness, group, node.item));

@@ -16,11 +16,13 @@ import adsk.fusion
 from ...application import plan_cable_group_routes
 from ...domain import ControlKind, HarnessDefinition, loads
 from .. import clear_route_previews, highlight_route_preview, show_route_previews
+from ..attachment_targets import resolve_attachment_target
 from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, SOLID_OUTPUT_MODE
 from ..cable_solids import (
     apply_cable_group_materials,
     clear_cable_solids,
     generate_cable_group_solids,
+    generated_attachment_bodies,
     generated_cable_group_bodies,
 )
 from ..refine_graphics import highlight_refine_graphics
@@ -97,6 +99,8 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     preview_pathway_ids: tuple[UUID, ...] = ()
     preview_control_ids: tuple[UUID, ...] = ()
     generated_group_ids: tuple[UUID, ...] = ()
+    generated_attachment_ids: tuple[UUID, ...] = ()
+    attachment_entities: tuple[object, ...] = ()
     if member_type == "junction":
         junction = next(
             (item for item in definition.junctions if item.junction_id == member_id),
@@ -135,6 +139,28 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if all(group.cable_group_id != member_id for group in definition.cable_groups):
             raise ValueError("Selected cable group no longer exists.")
         generated_group_ids = (member_id,)
+        tokens = ()
+    elif member_type == "attachment":
+        connection_id = _read_payload_uuid(payload, "connectionId", "cable end")
+        connections = {item.connection_id: item for item in definition.connections}
+        connection = connections.get(connection_id)
+        if connection is None:
+            raise ValueError("Selected cable end no longer exists.")
+        attachment = next(
+            (item for item in connection.attachments if item.attachment_id == member_id),
+            None,
+        )
+        if attachment is None:
+            raise ValueError("Selected cable-end connection no longer exists.")
+        targets = (attachment, attachment.shielding_target)
+        attachment_entities = tuple(
+            entity
+            for target in targets
+            if target is not None
+            for entity in (resolve_attachment_target(design, target),)
+            if entity is not None
+        )
+        generated_attachment_ids = (member_id,)
         tokens = ()
     else:
         tokens = _member_entity_tokens(definition, member_type, member_id)
@@ -191,13 +217,29 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         if generated_group_ids
         else ()
     )
-    for entity in (*profiles, *group_bodies):
+    attachment_bodies = tuple(
+        body
+        for attachment_id in generated_attachment_ids
+        for body in generated_attachment_bodies(
+            design.rootComponent,
+            gateway.harness_component(harness_id),
+            attachment_id,
+        )
+    )
+    for entity in (*profiles, *attachment_entities, *attachment_bodies, *group_bodies):
         if not selections.add(entity):
             selections.clear()
             highlight_route_preview(design, None)
             raise RuntimeError("Fusion could not highlight the selected harness geometry.")
     application.activeViewport.refresh()
-    return preview_count + refine_count + len(profiles) + len(group_bodies)
+    return (
+        preview_count
+        + refine_count
+        + len(profiles)
+        + len(attachment_entities)
+        + len(attachment_bodies)
+        + len(group_bodies)
+    )
 
 
 def _cable_group_ids_for_member(

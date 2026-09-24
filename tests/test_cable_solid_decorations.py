@@ -100,6 +100,7 @@ class _CableSolidsModule(Protocol):
     restore_cable_group_stripe_graphics: Callable[[object, object], int]
     apply_cable_group_materials: Callable[[object, object, HarnessDefinition], int]
     generated_cable_group_occurrences: Callable[[object], tuple[object, ...]]
+    generated_attachment_bodies: Callable[..., tuple[object, ...]]
     generated_cable_group_output_mode: Callable[[object], str]
     clear_group_stripe_graphics: Callable[..., None]
     cable_appearance: Callable[..., object]
@@ -117,6 +118,7 @@ class _CableSolidsModule(Protocol):
     _replace_group_stripe_bodies: Callable[..., int]
 
 
+# noinspection DuplicatedCode
 @pytest.fixture
 def cable_solids(monkeypatch: pytest.MonkeyPatch) -> Iterator[_CableSolidsModule]:
     """
@@ -153,6 +155,71 @@ def cable_solids(monkeypatch: pytest.MonkeyPatch) -> Iterator[_CableSolidsModule
                 delattr(fusion_package, name)
         else:
             setattr(fusion_package, name, previous)
+
+
+def test_generated_attachment_bodies_selects_only_matching_sweeps(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Select insulation and pullback proxies without selecting weld or adjacent bodies.
+    """
+    attachment_id = UUID(int=901)
+    route_curves = [[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0]]]
+    metadata = {
+        "route_legs": [],
+        "connection_branches": [
+            {
+                "route_id": str(UUID(int=902)),
+                "label": "Adjacent branch",
+                "diameter_mm": 1.0,
+                "attachment_id": str(UUID(int=903)),
+                "route_curves_mm": route_curves,
+            },
+            {
+                "route_id": str(UUID(int=904)),
+                "label": "Selected branch",
+                "diameter_mm": 1.0,
+                "attachment_id": str(attachment_id),
+                "route_curves_mm": route_curves,
+                "insulation_body_count": 1,
+                "pullback_body_count": 1,
+                "weld_body_count": 1,
+                "weld_diameter_mm": 1.2,
+                "weld_conductor_diameter_mm": 0.8,
+                "weld_length_mm": 0.5,
+            },
+        ],
+    }
+
+    def collection(items: list[object]) -> SimpleNamespace:
+        """
+        Provide the indexed Fusion collection surface used by the adapter.
+        """
+        return SimpleNamespace(count=len(items), item=lambda index: items[index])
+
+    native_bodies = [object() for _ in range(5)]
+    proxy_bodies = [object() for _ in range(5)]
+    component = SimpleNamespace(
+        attributes=SimpleNamespace(
+            itemByName=lambda _group, _name: SimpleNamespace(value=json.dumps(metadata))
+        ),
+        bRepBodies=collection(native_bodies),
+    )
+    occurrence = SimpleNamespace(component=component)
+    root_occurrence = SimpleNamespace(bRepBodies=collection(proxy_bodies))
+    root = SimpleNamespace(
+        allOccurrencesByComponent=lambda _component: collection([root_occurrence])
+    )
+    monkeypatch.setattr(
+        cable_solids,
+        "generated_cable_group_occurrences",
+        lambda _harness: (occurrence,),
+    )
+
+    assert cable_solids.generated_attachment_bodies(root, object(), attachment_id) == tuple(
+        proxy_bodies[2:4]
+    )
 
 
 # noinspection DuplicatedCode

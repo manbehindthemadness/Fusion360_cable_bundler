@@ -46,6 +46,7 @@ def test_resolves_palette_members_to_linked_geometry_tokens(
     )
 
 
+# noinspection DuplicatedCode
 def test_connection_highlights_its_generated_cable_group_body(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
@@ -103,6 +104,86 @@ def test_connection_highlights_its_generated_cable_group_body(
         design.rootComponent,
         harness_component,
         (group.cable_group_id,),
+    )
+
+
+# noinspection DuplicatedCode
+def test_attachment_highlight_selects_targets_and_generated_sweep(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Select every resolvable Fusion target owned by one connection node.
+    """
+    from dataclasses import replace
+
+    from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
+
+    connection = valid_harness.connections[0]
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "main-token",
+        "Main target",
+        attachment_id=UUID(int=701),
+        shielding_target=CableEndTarget(
+            AttachmentTargetKind.CONSTRUCTION_POINT,
+            "shield-token",
+            "Shield target",
+        ),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(replace(connection, attachment=attachment), *valid_harness.connections[1:]),
+    )
+    main_target = object()
+    shielding_target = object()
+    resolved = {
+        "main-token": main_target,
+        "shield-token": shielding_target,
+    }
+    design = SimpleNamespace(
+        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0))
+    )
+    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(activeSelections=selections),
+        activeViewport=SimpleNamespace(refresh=Mock()),
+    )
+    harness_component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _harness_id: dumps(definition),
+        harness_component=Mock(return_value=harness_component),
+    )
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(
+        addin_module,
+        "resolve_attachment_target",
+        lambda _design, target: resolved.get(target.entity_token),
+    )
+    sweep_body = object()
+    generated_bodies = Mock(return_value=(sweep_body,))
+    monkeypatch.setattr(addin_module, "generated_attachment_bodies", generated_bodies)
+    payload = json.dumps(
+        {
+            "harnessId": str(definition.harness_id),
+            "memberType": "attachment",
+            "memberId": str(attachment.attachment_id),
+            "connectionId": str(connection.connection_id),
+        }
+    )
+
+    assert addin_module._highlight_member(application, payload) == 3
+    assert [call.args[0] for call in selections.add.call_args_list] == [
+        main_target,
+        shielding_target,
+        sweep_body,
+    ]
+    generated_bodies.assert_called_once_with(
+        design.rootComponent,
+        harness_component,
+        attachment.attachment_id,
     )
 
 

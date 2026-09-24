@@ -397,6 +397,35 @@ test('shielding indicators distinguish connected and disconnected relationships'
   assert.equal(indicator.children[1].textContent, 'S−');
 });
 
+test('hovering a connection node highlights its Fusion attachment geometry', () => {
+  const { context } = palette();
+  const definition = harness();
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  const node = {
+    attachmentId: 'connected-node', parentAttachmentId: null, connectionId: 'a1',
+    name: 'Connected node', nameOverride: '', targetKind: 'profile',
+    connected: true, metadata: [], visualOverrides: {}, shieldingTarget: null,
+  };
+  connection.attachment = node;
+  connection.attachments = [node];
+  const highlights = [];
+  context.highlightMember = (_harness, memberType, memberId, extra) => {
+    highlights.push([memberType, memberId, extra]);
+  };
+
+  context.openCableGroupDetails(definition, 'g1', 'a1');
+  const details = context.document.body.querySelector('.cable-group-details-popup');
+  const rendered = descendants(details, (candidate) => (
+    candidate.dataset.nodeId === 'attachment:a1:connected-node'
+  ))[0];
+  rendered.events.mouseenter();
+
+  assert.equal(
+    JSON.stringify(highlights),
+    JSON.stringify([['attachment', 'connected-node', { connectionId: 'a1' }]]),
+  );
+});
+
 test('Cable Details connection nodes form a parent-child chain', () => {
   const { context } = palette();
   const definition = harness();
