@@ -20,7 +20,11 @@ from ..domain import (
     validate_harness,
 )
 from .edit_harness import HarnessEditGateway
-from .harness_edits.support import persist_definition, read_definition
+from .harness_edits.support import (
+    persist_definition,
+    prune_attachment_associations,
+    read_definition,
+)
 
 
 @dataclass(frozen=True)
@@ -150,6 +154,7 @@ def save_cable_editor(
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     for pairing in pairings:
         left_index = _cable_group_member_index(groups, pairing.left_connection_id)
@@ -198,19 +203,28 @@ def save_cable_editor(
         if len(group.connection_ids) >= 2
     )
     renamed_connections = {rename.connection_id: rename.name.strip() for rename in renames}
+    updated_connections = tuple(
+        replace(connection, name=renamed_connections[connection.connection_id])
+        if connection.connection_id in renamed_connections
+        else connection
+        for connection in definition.connections
+        if connection.connection_id not in deleted
+    )
     updated = replace(
         definition,
-        connections=tuple(
-            replace(connection, name=renamed_connections[connection.connection_id])
-            if connection.connection_id in renamed_connections
-            else connection
-            for connection in definition.connections
-            if connection.connection_id not in deleted
-        ),
+        connections=updated_connections,
         standalone_ends=tuple(
             end for end in definition.standalone_ends if end.connection_id not in deleted
         ),
         cable_groups=updated_groups,
+        attachment_associations=prune_attachment_associations(
+            definition.attachment_associations,
+            {
+                attachment.attachment_id
+                for connection in updated_connections
+                for attachment in connection.attachments
+            },
+        ),
     )
     group_issues = tuple(
         issue for issue in validate_harness(updated) if issue.path.startswith("cable_groups[")

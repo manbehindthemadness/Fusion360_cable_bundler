@@ -21,6 +21,7 @@ from ...domain import (
 from .attachments import _cable_end_attachment, _replace_cable_end_attachment
 from .support import (
     persist_definition,
+    prune_attachment_associations,
     prune_cable_groups,
     read_definition,
 )
@@ -66,6 +67,7 @@ def append_end_guides(
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     if len(set(new_member_ids)) != len(new_member_ids) or any(
         identity in existing_ids for identity in new_member_ids
@@ -276,6 +278,7 @@ def add_end_refine(
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     if control.control_id in existing_ids:
         raise ValueError("Generated refine identity is already in use.")
@@ -344,6 +347,7 @@ def add_connection_refine(
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     if control.control_id in existing_ids:
         raise ValueError("Generated refine identity is already in use.")
@@ -418,6 +422,15 @@ def remove_standalone_end(
         cable_groups=prune_cable_groups(
             definition.cable_groups,
             {connection.connection_id for connection in definition.connections} - {connection_id},
+        ),
+        attachment_associations=prune_attachment_associations(
+            definition.attachment_associations,
+            {
+                attachment.attachment_id
+                for connection in definition.connections
+                if connection.connection_id != connection_id
+                for attachment in connection.attachments
+            },
         ),
     )
     persist_definition(harness_id, original, updated, gateway)

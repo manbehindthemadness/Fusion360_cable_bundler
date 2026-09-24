@@ -354,6 +354,15 @@ def serialize_palette_state(
                     for end in definition.standalone_ends
                 ],
                 "cableGroups": cable_groups,
+                "attachmentAssociations": [
+                    {
+                        "associationId": str(association.association_id),
+                        "attachmentIds": [
+                            str(attachment_id) for attachment_id in association.attachment_ids
+                        ],
+                    }
+                    for association in definition.attachment_associations
+                ],
                 "cableGroupRouteError": cable_group_route_error,
                 "status": "draft" if result.validation_messages else "valid",
                 "validationMessages": result.validation_messages,

@@ -73,6 +73,7 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
     _validate_junctions(definition, issues)
     _validate_standalone_ends(definition, issues)
     _validate_cable_groups(definition, issues)
+    _validate_attachment_associations(definition, issues)
     return tuple(issues)
 
 
@@ -104,6 +105,18 @@ def _validate_unique_ids(
         *(
             (group.cable_group_id, f"cable_groups[{index}].cable_group_id")
             for index, group in enumerate(definition.cable_groups)
+        ),
+        *(
+            (association.association_id, f"attachment_associations[{index}].association_id")
+            for index, association in enumerate(definition.attachment_associations)
+        ),
+        *(
+            (
+                attachment.attachment_id,
+                f"connections[{connection_index}].attachments[{attachment_index}].attachment_id",
+            )
+            for connection_index, connection in enumerate(definition.connections)
+            for attachment_index, attachment in enumerate(connection.attachments)
         ),
     ]
     for identity, path in identities:
@@ -650,6 +663,43 @@ def _validate_cable_groups(
                 )
             else:
                 boundaries[location] = member_path
+
+
+def _validate_attachment_associations(
+    definition: HarnessDefinition,
+    issues: list[ValidationIssue],
+) -> None:
+    """
+    Require each association to reference two distinct, exclusively grouped nodes.
+    """
+    attachment_ids = {
+        attachment.attachment_id
+        for connection in definition.connections
+        for attachment in connection.attachments
+    }
+    memberships: dict[UUID, str] = {}
+    for association_index, association in enumerate(definition.attachment_associations):
+        path = f"attachment_associations[{association_index}]"
+        for member_index, attachment_id in enumerate(association.attachment_ids):
+            member_path = f"{path}.attachment_ids[{member_index}]"
+            _validate_reference(
+                attachment_id,
+                attachment_ids,
+                "missing_attachment_association_reference",
+                member_path,
+                issues,
+            )
+            previous_path = memberships.get(attachment_id)
+            if previous_path is not None:
+                issues.append(
+                    ValidationIssue(
+                        "duplicate_attachment_association_member",
+                        member_path,
+                        f"Attachment node is already associated at {previous_path}.",
+                    )
+                )
+            else:
+                memberships[attachment_id] = member_path
 
 
 def _validate_reference(

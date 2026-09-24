@@ -32,6 +32,7 @@ from .codec_support import require_str as _require_str
 from .codec_support import require_uuid as _require_uuid
 from .model import (
     SCHEMA_VERSION,
+    AttachmentAssociationDefinition,
     AttachmentTargetKind,
     AutoTransitionPreset,
     CableEndAttachment,
@@ -90,12 +91,13 @@ def loads(serialized: str) -> HarnessDefinition:
         24,
         25,
         26,
+        27,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 26 are migratable)",
+            "(schemas 12 through 27 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -129,6 +131,17 @@ def loads(serialized: str) -> HarnessDefinition:
         _parse_cable_group(item, f"$.cable_groups[{index}]")
         for index, item in enumerate(_require_list(payload, "cable_groups", "$.cable_groups"))
     )
+    raw_associations = payload.get("attachment_associations", [])
+    attachment_associations = tuple(
+        _parse_attachment_association(item, f"$.attachment_associations[{index}]")
+        for index, item in enumerate(
+            _require_list(
+                {"attachment_associations": raw_associations},
+                "attachment_associations",
+                "$",
+            )
+        )
+    )
     definition = HarnessDefinition(
         schema_version=SCHEMA_VERSION,
         harness_id=harness_id,
@@ -140,6 +153,7 @@ def loads(serialized: str) -> HarnessDefinition:
         junctions=junctions,
         standalone_ends=standalone_ends,
         cable_groups=cable_groups,
+        attachment_associations=attachment_associations,
         gate_defaults=parse_interpolation(payload.get("gate_defaults", {}), "$.gate_defaults"),
         end_defaults=parse_interpolation(payload.get("end_defaults", {}), "$.end_defaults"),
         material_defaults=parse_material_settings(
@@ -281,8 +295,33 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
             }
             for group in definition.cable_groups
         ],
+        "attachment_associations": [
+            {
+                "association_id": str(association.association_id),
+                "attachment_ids": [str(item) for item in association.attachment_ids],
+            }
+            for association in definition.attachment_associations
+        ],
     }
     return payload
+
+
+def _parse_attachment_association(value: Any, path: str) -> AttachmentAssociationDefinition:
+    """
+    Parse one two-node attachment association with precise field paths.
+    """
+    mapping = _require_mapping(value, path)
+    raw_ids = _require_list(mapping, "attachment_ids", path)
+    if len(raw_ids) != 2:
+        raise DefinitionParseError(f"{path}.attachment_ids", "expected exactly two node IDs")
+    attachment_ids = tuple(
+        _require_uuid({"id": raw_id}, "id", f"{path}.attachment_ids[{index}]")
+        for index, raw_id in enumerate(raw_ids)
+    )
+    return AttachmentAssociationDefinition(
+        association_id=_require_uuid(mapping, "association_id", path),
+        attachment_ids=attachment_ids,
+    )
 
 
 def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:

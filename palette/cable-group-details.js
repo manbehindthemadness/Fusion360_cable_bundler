@@ -487,6 +487,8 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
     if (node.kind === "connection") {
       kind.textContent = `Cable End · ${node.item?.attachment ? "Attached" : "Detached"}`;
     } else if (node.kind === "attachment") {
+      groupNode.dataset.connectionId = node.item.connectionId;
+      groupNode.dataset.attachmentId = node.item.attachmentId;
       kind.textContent = node.item.connected ? "Connected" : "Disconnected";
       groupNode.dataset.connected = node.item.connected ? "true" : "false";
       const connection = harness.connections.find(

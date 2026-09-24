@@ -25,6 +25,7 @@ from .support import (
     locked_pathway_control_indexes,
     pathway_deletion_ids,
     persist_definition,
+    prune_attachment_associations,
     prune_cable_groups,
     read_definition,
     replace_pathway,
@@ -107,6 +108,7 @@ def segment_pathway(
         *(candidate.pathway_id for candidate in definition.pathways),
         *(candidate.junction_id for candidate in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     if following_pathway_id in existing_ids or junction_id in existing_ids | {following_pathway_id}:
         raise ValueError("Generated pathway or junction identity is already in use.")
@@ -423,6 +425,15 @@ def remove_pathway(
         pathways=pathways,
         standalone_ends=standalone_ends,
         cable_groups=prune_cable_groups(definition.cable_groups, referenced_connection_ids),
+        attachment_associations=prune_attachment_associations(
+            definition.attachment_associations,
+            {
+                attachment.attachment_id
+                for connection in definition.connections
+                if connection.connection_id in referenced_connection_ids
+                for attachment in connection.attachments
+            },
+        ),
     )
     persist_definition(harness_id, original, updated, gateway)
 

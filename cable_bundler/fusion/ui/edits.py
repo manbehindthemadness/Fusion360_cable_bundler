@@ -13,6 +13,8 @@ import adsk.core
 import adsk.fusion
 
 from ...application import (
+    AttachmentAssociationAnchor,
+    AttachmentAssociationPair,
     CableEditorPairing,
     CableEditorRename,
     HarnessEditGateway,
@@ -34,6 +36,7 @@ from ...application import (
     rename_junction,
     rename_pathway,
     rename_standalone_end,
+    save_attachment_associations,
     save_cable_editor,
     set_cable_end_attachment_properties,
     set_cable_end_attachment_shielding,
@@ -97,6 +100,8 @@ def _apply_palette_edit(
         return _apply_topology_edit(action, payload, harness_id, gateway)
     if action == "save_cable_editor":
         return _apply_route_editor_edit(payload, harness_id, gateway)
+    if action == "save_attachment_associations":
+        return _apply_attachment_association_edit(payload, harness_id, gateway)
     return _apply_property_edit(action, payload, harness_id, gateway)
 
 
@@ -310,6 +315,56 @@ def _apply_route_editor_edit(
         gateway,
     )
     return "Saved Route Editor changes."
+
+
+def _apply_attachment_association_edit(
+    payload: dict[str, object],
+    harness_id: UUID,
+    gateway: HarnessEditGateway,
+) -> str:
+    """
+    Parse and persist the selected attachment association pairs.
+    """
+    left_anchor = payload.get("leftAnchor")
+    right_anchor = payload.get("rightAnchor")
+    raw_pairs = payload.get("associations")
+    if not isinstance(left_anchor, dict) or not isinstance(right_anchor, dict):
+        raise ValueError("Association anchors must be objects.")
+    if not isinstance(raw_pairs, list):
+        raise ValueError("Associations must be a list.")
+
+    def parse_anchor(value: dict[str, object]) -> AttachmentAssociationAnchor:
+        """
+        Parse a cable-end root or attachment-node identity.
+        """
+        attachment_id = (
+            _read_payload_uuid(value, "attachmentId", "attachment node")
+            if value.get("attachmentId") is not None
+            else None
+        )
+        return AttachmentAssociationAnchor(
+            _read_payload_uuid(value, "connectionId", "cable end"),
+            attachment_id,
+        )
+
+    pairs: list[AttachmentAssociationPair] = []
+    for index, raw_pair in enumerate(raw_pairs):
+        if not isinstance(raw_pair, dict):
+            raise ValueError(f"Association {index + 1} must be an object.")
+        pairs.append(
+            AttachmentAssociationPair(
+                _read_payload_uuid(raw_pair, "leftAttachmentId", "left connection node"),
+                _read_payload_uuid(raw_pair, "rightAttachmentId", "right connection node"),
+            )
+        )
+    save_attachment_associations(
+        harness_id,
+        parse_anchor(left_anchor),
+        parse_anchor(right_anchor),
+        tuple(pairs),
+        gateway,
+    )
+    return "Saved connection associations."
 
 
 def _apply_property_edit(

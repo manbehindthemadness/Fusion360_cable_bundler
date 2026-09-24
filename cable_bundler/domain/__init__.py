@@ -18,6 +18,7 @@ from .materials import (
 from .model import (
     DEFAULT_CABLE_DIAMETER_MM,
     SCHEMA_VERSION,
+    AttachmentAssociationDefinition,
     AttachmentTargetKind,
     AutoTransitionPreset,
     CableEndAttachment,
@@ -43,6 +44,7 @@ __all__ = [
     "DEFAULT_CABLE_DIAMETER_MM",
     "SCHEMA_VERSION",
     "AttachmentTargetKind",
+    "AttachmentAssociationDefinition",
     "AutoTransitionPreset",
     "Connection",
     "ControlKind",

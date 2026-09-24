@@ -8,6 +8,7 @@ from dataclasses import replace
 from uuid import UUID
 
 from ...domain import (
+    AttachmentAssociationDefinition,
     CableGroupDefinition,
     HarnessDefinition,
     JunctionDefinition,
@@ -146,6 +147,20 @@ def prune_cable_groups(
         for group in groups
     )
     return tuple(group for group in pruned if len(group.connection_ids) >= 2)
+
+
+def prune_attachment_associations(
+    associations: tuple[AttachmentAssociationDefinition, ...],
+    retained_attachment_ids: set[UUID],
+) -> tuple[AttachmentAssociationDefinition, ...]:
+    """
+    Remove associations whose attachment nodes were deleted with their owner.
+    """
+    return tuple(
+        association
+        for association in associations
+        if all(item in retained_attachment_ids for item in association.attachment_ids)
+    )
 
 
 def _related_pathway_endpoints(

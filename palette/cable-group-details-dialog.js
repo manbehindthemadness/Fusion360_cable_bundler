@@ -1,5 +1,5 @@
 /** Manage cable-details member actions and the refresh-stable modal dialog. */
-/* global openCableGroupDetailsState */
+/* global beginCableGroupAttachmentAssociation, cancelActiveConnectionAssociationSelection, connectionAssociationCandidates, openCableGroupDetailsState */
 
 /** Open a small modal editor for one diagram-only connection node name. */
 function renameCableGroupAttachment(harness, attachment) {
@@ -49,7 +49,16 @@ function renameCableGroupAttachment(harness, attachment) {
 
 /** Return Cable Details actions for attaching one physical cable end. */
 function cableGroupDetailsEndContextItems(harness, connection) {
-  return endRoutingContextItems(harness, connection.connectionId);
+  const anchor = { connectionId: connection.connectionId, attachmentId: null };
+  return [
+    {
+      label: "Associate",
+      action: () => beginCableGroupAttachmentAssociation(harness, anchor),
+      disabled: connectionAssociationCandidates(harness, anchor).length === 0,
+      title: "Select another connection hierarchy to associate its terminal nodes",
+    },
+    ...endRoutingContextItems(harness, connection.connectionId),
+  ];
 }
 
 /** Return actions for one diagram-only connection node. */
@@ -79,6 +88,18 @@ function cableGroupAttachmentContextItems(harness, group, attachment) {
     title: attachment.connected ? "This connection already has a main target" : "",
   };
   return [
+    {
+      label: "Associate",
+      action: () => beginCableGroupAttachmentAssociation(harness, {
+        connectionId: attachment.connectionId,
+        attachmentId: attachment.attachmentId,
+      }),
+      disabled: connectionAssociationCandidates(harness, {
+        connectionId: attachment.connectionId,
+        attachmentId: attachment.attachmentId,
+      }).length === 0,
+      title: "Select another connection hierarchy to associate its terminal nodes",
+    },
     hasShieldingConnection ? {
       label: "Connect",
       items: [
@@ -235,6 +256,9 @@ function focusCableGroupDetailsMember(members, connectionId) {
 
 /** Close the active cable-group details dialog and clear its refresh state. */
 function closeCableGroupDetails() {
+  if (cancelActiveConnectionAssociationSelection) {
+    cancelActiveConnectionAssociationSelection();
+  }
   const dialog = document.body.querySelector(".cable-group-details-popup");
   openCableGroupDetailsState = null;
   if (dialog?.open) dialog.close();
@@ -266,6 +290,9 @@ function cableGroupDetailsContextTargetIsInteractive(target, dialog) {
 function openCableGroupDetails(
   harness, cableGroupId, connectionId, options = {},
 ) {
+  if (cancelActiveConnectionAssociationSelection) {
+    cancelActiveConnectionAssociationSelection();
+  }
   closePathwayPopup();
   closeJunctionRelationships();
   closeCableEndRoutingPopup();

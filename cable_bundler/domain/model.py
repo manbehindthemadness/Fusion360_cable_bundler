@@ -16,7 +16,7 @@ from .materials import (
     CableVisualOverrides,
 )
 
-SCHEMA_VERSION = 27
+SCHEMA_VERSION = 28
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -560,6 +560,32 @@ class CableGroupDefinition:
 
 
 @dataclass(frozen=True)
+class AttachmentAssociationDefinition:
+    """
+    Associate two persistent cable-end attachment nodes.
+
+    The association does not alter the physical connection tree or cable-group
+    membership; it records an explicit relationship between terminal nodes.
+    """
+
+    association_id: UUID
+    attachment_ids: tuple[UUID, UUID]
+
+    def __post_init__(self) -> None:
+        """
+        Require two distinct stable attachment identities.
+        """
+        if not isinstance(self.association_id, UUID):
+            raise ValueError("Attachment association identity is invalid.")
+        if not isinstance(self.attachment_ids, tuple) or len(self.attachment_ids) != 2:
+            raise ValueError("An attachment association must contain exactly two nodes.")
+        if any(not isinstance(item, UUID) for item in self.attachment_ids):
+            raise ValueError("Attachment association members must be UUIDs.")
+        if self.attachment_ids[0] == self.attachment_ids[1]:
+            raise ValueError("An attachment node cannot be associated with itself.")
+
+
+@dataclass(frozen=True)
 class HarnessDefinition:
     """
     Store the complete logical definition independently of Fusion geometry.
@@ -583,11 +609,17 @@ class HarnessDefinition:
     minimum_clearance_mm: float = 0.0
     auto_transition_preset: AutoTransitionPreset = AutoTransitionPreset.TIGHT
     metadata: Metadata = ()
+    attachment_associations: tuple[AttachmentAssociationDefinition, ...] = ()
 
     def __post_init__(self) -> None:
         """
         Require valid harness-wide generation preferences.
         """
+        if not isinstance(self.attachment_associations, tuple) or any(
+            not isinstance(association, AttachmentAssociationDefinition)
+            for association in self.attachment_associations
+        ):
+            raise ValueError("Harness attachment associations must be an ordered tuple.")
         if (
             isinstance(self.minimum_clearance_mm, bool)
             or not isinstance(self.minimum_clearance_mm, (int, float))

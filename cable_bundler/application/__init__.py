@@ -25,6 +25,12 @@ from .create_harness import (
     create_empty_harness,
     suggest_harness_name,
 )
+from .edit_attachment_associations import (
+    AttachmentAssociationAnchor,
+    AttachmentAssociationPair,
+    attachment_association_candidates,
+    save_attachment_associations,
+)
 from .edit_cable_groups import (
     CableEditorPairing,
     CableEditorRename,
@@ -97,6 +103,8 @@ __all__ = [
     "PathwaySegmentResult",
     "CableEditorPairing",
     "CableEditorRename",
+    "AttachmentAssociationAnchor",
+    "AttachmentAssociationPair",
     "CableGroupControlStep",
     "CableGroupRouteLeg",
     "HarnessGateway",
@@ -110,6 +118,7 @@ __all__ = [
     "PathwayGateway",
     "PathwayUpdateError",
     "add_cable_end_connection",
+    "attachment_association_candidates",
     "add_connection_refine",
     "add_pathway",
     "add_end_refine",
@@ -143,6 +152,7 @@ __all__ = [
     "rename_pathway",
     "rename_standalone_end",
     "save_cable_editor",
+    "save_attachment_associations",
     "segment_pathway",
     "set_cable_end_attachment_properties",
     "set_cable_end_attachment_shielding",

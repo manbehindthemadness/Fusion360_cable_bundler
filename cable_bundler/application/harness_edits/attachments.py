@@ -18,7 +18,7 @@ from ...domain import (
     Connection,
     Metadata,
 )
-from .support import persist_definition, read_definition
+from .support import persist_definition, prune_attachment_associations, read_definition
 from .types import HarnessEditGateway
 
 
@@ -251,9 +251,26 @@ def add_cable_end_connection(
         parent = _cable_end_attachment(connection, parent_attachment_id)
         if parent.target_kind is not AttachmentTargetKind.PROFILE:
             raise ValueError("Child connections require a sketch-profile parent.")
+    attachment_id = id_factory()
+    existing_ids = {
+        definition.harness_id,
+        *(item.connection_id for item in definition.connections),
+        *(item.control_id for item in definition.controls),
+        *(item.pathway_id for item in definition.pathways),
+        *(item.junction_id for item in definition.junctions),
+        *(item.cable_group_id for item in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
+        *(
+            item.attachment_id
+            for cable_end in definition.connections
+            for item in cable_end.attachments
+        ),
+    }
+    if attachment_id in existing_ids:
+        raise ValueError("Generated cable-end connection identity is already in use.")
     attachment = CableEndAttachment(
         None,
-        attachment_id=id_factory(),
+        attachment_id=attachment_id,
         parent_attachment_id=parent_attachment_id,
     )
     if connection.attachment is None:
@@ -592,6 +609,10 @@ def remove_cable_end_attachment(
     )
     if group is not None:
         _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
+    updated_connections = tuple(
+        updated_connection if item.connection_id == connection_id else item
+        for item in definition.connections
+    )
     updated = replace(
         definition,
         controls=tuple(
@@ -602,9 +623,14 @@ def remove_cable_end_attachment(
                 for attachment in removed_attachments
             )
         ),
-        connections=tuple(
-            updated_connection if item.connection_id == connection_id else item
-            for item in definition.connections
+        connections=updated_connections,
+        attachment_associations=prune_attachment_associations(
+            definition.attachment_associations,
+            {
+                attachment.attachment_id
+                for connection_item in updated_connections
+                for attachment in connection_item.attachments
+            },
         ),
     )
     persist_definition(harness_id, original, updated, gateway)

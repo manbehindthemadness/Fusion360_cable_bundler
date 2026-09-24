@@ -4,6 +4,11 @@
   width: 900px;
   overflow: hidden;
 }
+.connection-associations-popup {
+  width: 900px;
+  overflow: hidden;
+}
+.connection-associations-popup > h2 { margin-bottom: 12px; }
 .create-cables-popup > h2 { margin-bottom: 12px; }
 .create-cables-layout {
   height: min(560px, 68vh);
@@ -42,6 +47,29 @@
   user-select: none;
 }
 .create-cables-end-card[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
+.create-association-card[data-association-locked="true"] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+.connection-association-selecting .connection-association-source .relationship-node {
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+.connection-association-selecting .connection-association-target {
+  cursor: crosshair;
+}
+.connection-association-selecting .connection-association-target .relationship-node {
+  stroke: var(--accent);
+  stroke-width: 2px;
+  filter: brightness(1.12);
+}
+.connection-association-selecting .connection-association-unavailable {
+  opacity: 0.36;
+}
+.connection-association-selecting .cable-group-details-node.pathway,
+.connection-association-selecting .cable-group-details-node.junction {
+  opacity: 0.34;
+}
 .create-cables-assignment-pool {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -105,4 +133,3 @@
 }
 .create-cables-assignment-content[data-drop-side="left"]::after { left: 0; }
 .create-cables-assignment-content[data-drop-side="right"]::after { right: 0; }
-

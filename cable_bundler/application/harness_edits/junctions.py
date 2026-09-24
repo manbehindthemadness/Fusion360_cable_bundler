@@ -87,6 +87,7 @@ def add_junction(
         *(pathway.pathway_id for pathway in definition.pathways),
         *(junction.junction_id for junction in definition.junctions),
         *(group.cable_group_id for group in definition.cable_groups),
+        *(association.association_id for association in definition.attachment_associations),
     }
     if control_id in existing_ids or junction_id in existing_ids | {control_id}:
         raise ValueError("Generated control or junction identity is already in use.")

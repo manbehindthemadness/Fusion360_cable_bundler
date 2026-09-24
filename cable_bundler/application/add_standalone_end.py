@@ -84,6 +84,7 @@ def add_standalone_end(
         (pathway.pathway_id for pathway in definition.pathways),
         (junction.junction_id for junction in definition.junctions),
         (group.cable_group_id for group in definition.cable_groups),
+        (association.association_id for association in definition.attachment_associations),
     )
     for identities in identity_groups:
         existing_ids.update(identities)
