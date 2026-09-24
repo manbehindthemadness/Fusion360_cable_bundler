@@ -12,6 +12,8 @@ from uuid import UUID
 import pytest
 
 from cable_bundler.application import (
+    AttachmentAssociationAnchor,
+    AttachmentAssociationGroup,
     CableEditorPairing,
     HarnessEditGateway,
     add_end_refine,
@@ -21,6 +23,7 @@ from cable_bundler.application import (
     remove_end_guide,
     rename_cable_group,
     rename_harness,
+    save_attachment_associations,
     save_cable_editor,
     segment_pathway,
     set_cable_end_properties,
@@ -34,9 +37,11 @@ from cable_bundler.application import (
     switch_standalone_end,
 )
 from cable_bundler.application.edit_harness import set_interpolation
+from cable_bundler.application.harness_edits.support import prune_attachment_associations
 from cable_bundler.domain import (
     AutoTransitionPreset,
     CableColor,
+    CableEndAttachment,
     CableMaterialOverrides,
     Connection,
     ControlKind,
@@ -746,3 +751,81 @@ def test_cable_editor_preserves_existing_group_name(
 
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].name == "Engine loom"
+
+
+def test_attachment_associations_grow_to_odd_sized_groups_with_stable_identity(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep one association identity as three and then five attachment nodes are grouped.
+    """
+    left_ids = tuple(UUID(int=710 + index) for index in range(3))
+    right_ids = tuple(UUID(int=720 + index) for index in range(2))
+    association_id = UUID(int=730)
+    left_connection, right_connection = valid_harness.connections
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                left_connection,
+                attachment=CableEndAttachment(None, attachment_id=left_ids[0]),
+                additional_attachments=tuple(
+                    CableEndAttachment(None, attachment_id=item) for item in left_ids[1:]
+                ),
+            ),
+            replace(
+                right_connection,
+                attachment=CableEndAttachment(None, attachment_id=right_ids[0]),
+                additional_attachments=(CableEndAttachment(None, attachment_id=right_ids[1]),),
+            ),
+        ),
+    )
+    gateway = _recording_gateway(definition)
+    left_anchor = AttachmentAssociationAnchor(connection_id=left_connection.connection_id)
+    right_anchor = AttachmentAssociationAnchor(connection_id=right_connection.connection_id)
+    three_members = (left_ids[0], right_ids[0], left_ids[1])
+
+    save_attachment_associations(
+        definition.harness_id,
+        left_anchor,
+        right_anchor,
+        (AttachmentAssociationGroup(three_members),),
+        gateway,
+        id_factory=lambda: association_id,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.attachment_associations[0].attachment_ids == three_members
+    assert stored.attachment_associations[0].association_id == association_id
+
+    five_members = (*three_members, right_ids[1], left_ids[2])
+    save_attachment_associations(
+        definition.harness_id,
+        left_anchor,
+        right_anchor,
+        (AttachmentAssociationGroup(five_members, association_id),),
+        gateway,
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.attachment_associations[0].attachment_ids == five_members
+    assert stored.attachment_associations[0].association_id == association_id
+    surviving = prune_attachment_associations(
+        stored.attachment_associations, set(five_members[:-1])
+    )
+    assert surviving[0].attachment_ids == five_members[:-1]
+    assert surviving[0].association_id == association_id
+    assert prune_attachment_associations(stored.attachment_associations, {five_members[0]}) == ()
+
+    with pytest.raises(ValueError, match="only one association"):
+        save_attachment_associations(
+            definition.harness_id,
+            left_anchor,
+            right_anchor,
+            (
+                AttachmentAssociationGroup(three_members, association_id),
+                AttachmentAssociationGroup((left_ids[1], right_ids[1])),
+            ),
+            gateway,
+        )
+    assert loads(gateway.serialized_definition) == stored

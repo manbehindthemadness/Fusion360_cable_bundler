@@ -27,6 +27,7 @@ from .create_harness import (
 )
 from .edit_attachment_associations import (
     AttachmentAssociationAnchor,
+    AttachmentAssociationGroup,
     AttachmentAssociationPair,
     attachment_association_candidates,
     save_attachment_associations,
@@ -104,6 +105,7 @@ __all__ = [
     "CableEditorPairing",
     "CableEditorRename",
     "AttachmentAssociationAnchor",
+    "AttachmentAssociationGroup",
     "AttachmentAssociationPair",
     "CableGroupControlStep",
     "CableGroupRouteLeg",

@@ -154,13 +154,16 @@ def prune_attachment_associations(
     retained_attachment_ids: set[UUID],
 ) -> tuple[AttachmentAssociationDefinition, ...]:
     """
-    Remove associations whose attachment nodes were deleted with their owner.
+    Retain surviving association members and their identity when possible.
     """
-    return tuple(
-        association
-        for association in associations
-        if all(item in retained_attachment_ids for item in association.attachment_ids)
-    )
+    pruned: list[AttachmentAssociationDefinition] = []
+    for association in associations:
+        members = tuple(
+            item for item in association.attachment_ids if item in retained_attachment_ids
+        )
+        if len(members) >= 2:
+            pruned.append(replace(association, attachment_ids=members))
+    return tuple(pruned)
 
 
 def _related_pathway_endpoints(

@@ -14,6 +14,7 @@ import adsk.fusion
 
 from ...application import (
     AttachmentAssociationAnchor,
+    AttachmentAssociationGroup,
     AttachmentAssociationPair,
     CableEditorPairing,
     CableEditorRename,
@@ -323,14 +324,14 @@ def _apply_attachment_association_edit(
     gateway: HarnessEditGateway,
 ) -> str:
     """
-    Parse and persist the selected attachment association pairs.
+    Parse and persist selected attachment association groups.
     """
     left_anchor = payload.get("leftAnchor")
     right_anchor = payload.get("rightAnchor")
-    raw_pairs = payload.get("associations")
+    raw_groups = payload.get("associations")
     if not isinstance(left_anchor, dict) or not isinstance(right_anchor, dict):
         raise ValueError("Association anchors must be objects.")
-    if not isinstance(raw_pairs, list):
+    if not isinstance(raw_groups, list):
         raise ValueError("Associations must be a list.")
 
     def parse_anchor(value: dict[str, object]) -> AttachmentAssociationAnchor:
@@ -366,21 +367,42 @@ def _apply_attachment_association_edit(
             attachment_id,
         )
 
-    pairs: list[AttachmentAssociationPair] = []
-    for index, raw_pair in enumerate(raw_pairs):
-        if not isinstance(raw_pair, dict):
+    groups: list[AttachmentAssociationGroup | AttachmentAssociationPair] = []
+    for index, raw_group in enumerate(raw_groups):
+        if not isinstance(raw_group, dict):
             raise ValueError(f"Association {index + 1} must be an object.")
-        pairs.append(
-            AttachmentAssociationPair(
-                _read_payload_uuid(raw_pair, "leftAttachmentId", "left connection node"),
-                _read_payload_uuid(raw_pair, "rightAttachmentId", "right connection node"),
+        raw_members = raw_group.get("attachmentIds")
+        if raw_members is None:
+            groups.append(
+                AttachmentAssociationPair(
+                    _read_payload_uuid(raw_group, "leftAttachmentId", "left connection node"),
+                    _read_payload_uuid(raw_group, "rightAttachmentId", "right connection node"),
+                )
+            )
+            continue
+        if not isinstance(raw_members, list) or any(
+            not isinstance(member, str) for member in raw_members
+        ):
+            raise ValueError(f"Association {index + 1} needs a list of attachment identities.")
+        association_id = (
+            _read_payload_uuid(raw_group, "associationId", "association")
+            if raw_group.get("associationId") is not None
+            else None
+        )
+        groups.append(
+            AttachmentAssociationGroup(
+                tuple(
+                    _read_payload_uuid({"attachmentId": member}, "attachmentId", "connection node")
+                    for member in raw_members
+                ),
+                association_id,
             )
         )
     save_attachment_associations(
         harness_id,
         parse_anchor(left_anchor),
         parse_anchor(right_anchor),
-        tuple(pairs),
+        tuple(groups),
         gateway,
     )
     return "Saved connection associations."

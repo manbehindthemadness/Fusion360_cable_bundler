@@ -670,7 +670,7 @@ def _validate_attachment_associations(
     issues: list[ValidationIssue],
 ) -> None:
     """
-    Require each association to reference two distinct, exclusively grouped nodes.
+    Require each association to reference distinct, exclusively grouped nodes.
     """
     attachment_ids = {
         attachment.attachment_id

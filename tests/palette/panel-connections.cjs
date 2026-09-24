@@ -1,7 +1,94 @@
 /* global require */
 const {
-  assert, asyncTest, descendants, harness, palette, test,
+  assert, asyncTest, descendants, harness, palette, runInNewContext, test,
 } = require('./support.cjs');
+
+asyncTest('Association Editor extends one pair to three and five members by dropping on either card', async () => {
+  const { context, calls } = palette();
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  const left = ['l1', 'l2', 'l3'].map((attachmentId) => ({
+    attachmentId, connectionId: 'left', connectionName: 'Left', label: attachmentId,
+  }));
+  const right = ['r1', 'r2'].map((attachmentId) => ({
+    attachmentId, connectionId: 'right', connectionName: 'Right', label: attachmentId,
+  }));
+  const open = runInNewContext('openConnectionAssociationPanel', context);
+  open(
+    { harnessId: 'h1', attachmentAssociations: [
+      { associationId: 'existing', attachmentIds: ['l1', 'r1'] },
+    ] },
+    { connectionId: 'left' }, { connectionId: 'right' },
+    left, right, 'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+
+  const dropOn = (attachmentId, targetId) => {
+    const source = descendants(dialog, (element) => element.dataset.attachmentId === attachmentId
+      && element.dataset.assignmentLocation === 'pool')[0];
+    const target = descendants(dialog, (element) => element.dataset.attachmentId === targetId
+      && element.dataset.assignmentLocation === 'row')[0];
+    if (targetId.startsWith('r')) target.style.left = '150';
+    const bounds = target.getBoundingClientRect();
+    const clientX = bounds.left + bounds.width / 2;
+    const clientY = bounds.top + bounds.height / 2;
+    source.setPointerCapture = () => {};
+    source.hasPointerCapture = () => false;
+    source.dispatchEvent({
+      type: 'pointerdown', button: 0, pointerId: 1, target: { closest: () => null },
+      clientX: 0, clientY: 0,
+    });
+    source.dispatchEvent({
+      type: 'pointermove', pointerId: 1, clientX, clientY, preventDefault() {},
+    });
+    source.dispatchEvent({ type: 'pointerup', pointerId: 1 });
+  };
+
+  dropOn('l2', 'r1');
+  let rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].children[2].children.length, 0);
+  assert.equal(rows[1].dataset.grouped, 'true');
+
+  dropOn('r2', 'l1');
+  dropOn('l3', 'r1');
+  rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.equal(rows.length, 3);
+  assert.equal(rows[2].children[2].children.length, 0);
+
+  const save = descendants(dialog, (element) => element.tag === 'button'
+    && element.textContent === 'Save')[0];
+  save.dispatchEvent({ type: 'click' });
+  await Promise.resolve();
+  const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+  assert.equal(payload.associations.length, 1);
+  assert.equal(payload.associations[0].associationId, 'existing');
+  assert.deepEqual([...payload.associations[0].attachmentIds], ['l1', 'r1', 'l2', 'r2', 'l3']);
+});
+
+test('Association Editor joins complete center pairs under one identity', () => {
+  const { context } = palette();
+  const initial = runInNewContext('initialConnectionAssociationAssignments', context);
+  const join = runInNewContext('joinConnectionAssociationGroups', context);
+  const left = ['l1', 'l2'].map((attachmentId) => ({ attachmentId }));
+  const right = ['r1', 'r2'].map((attachmentId) => ({ attachmentId }));
+  const assignments = initial({ attachmentAssociations: [
+    { associationId: 'first', attachmentIds: ['l1', 'r1'] },
+    { associationId: 'second', attachmentIds: ['l2', 'r2'] },
+  ] }, left, right);
+
+  join(assignments, 1, 0);
+
+  assert.equal(assignments.rows.length, 2);
+  assert.equal(assignments.rows[0].groupId, 'first');
+  assert.equal(assignments.rows[1].groupId, 'first');
+  assert.deepEqual(
+    [...assignments.rows.flatMap((row) => [row.left.connectionId, row.right.connectionId])],
+    ['l1', 'r1', 'l2', 'r2'],
+  );
+});
 
 /** Return the named submenu branch from a rendered context menu. */
 function contextMenuBranch(menu, label) {

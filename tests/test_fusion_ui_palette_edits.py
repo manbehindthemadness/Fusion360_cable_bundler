@@ -456,6 +456,47 @@ def test_palette_edit_saves_cable_editor_transaction(
     assert notice == "Saved Route Editor changes."
 
 
+def test_palette_edit_saves_multirow_attachment_association(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Preserve one association identity and ordered members in the palette payload.
+    """
+    harness_id = UUID(int=801)
+    left_connection_id = UUID(int=802)
+    right_connection_id = UUID(int=803)
+    association_id = UUID(int=804)
+    members = [UUID(int=810 + index) for index in range(3)]
+    gateway = object()
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "save_attachment_associations", save)
+
+    addin_module._apply_palette_edit(
+        object(),
+        "save_attachment_associations",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "leftAnchor": {"connectionId": str(left_connection_id)},
+                "rightAnchor": {"connectionId": str(right_connection_id)},
+                "associations": [
+                    {
+                        "associationId": str(association_id),
+                        "attachmentIds": [str(member) for member in members],
+                    }
+                ],
+            }
+        ),
+    )
+
+    saved_group = save.call_args.args[3][0]
+    assert saved_group.association_id == association_id
+    assert saved_group.attachment_ids == tuple(members)
+    assert save.call_args.args[-1] is gateway
+
+
 def test_palette_edit_saves_connected_cable_properties_atomically(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

@@ -79,8 +79,17 @@ function cableCreationContainsPoint(element, clientX, clientY) {
     clientY >= bounds.top && clientY <= bounds.bottom;
 }
 
-/** Add pathway-guide-style pointer dragging to one Route Editor card. */
-function enableCableCreationDrag(card, source, surfaces, onDrop, onActivate = null) {
+/** Find the center card beneath a pointer on either side of a row. */
+function cableCreationCardAtPoint(record, clientX, clientY) {
+  return [record.slots.left.children[0], record.slots.right.children[0]].find(
+    (candidate) => candidate && cableCreationContainsPoint(candidate, clientX, clientY),
+  );
+}
+
+/** Add pointer dragging under the Route or Association Editor drop policy. */
+function enableCableCreationDrag(
+  card, source, surfaces, onDrop, onActivate = null, dropPolicy = "route",
+) {
   let drag = null;
   let suppressActivation = false;
   const clearMarkers = () => {
@@ -118,13 +127,36 @@ function enableCableCreationDrag(card, source, surfaces, onDrop, onActivate = nu
     drag.target = null;
     clearMarkers();
     if (source.location === "pool") {
-      const pending = surfaces.rows.find((record) => record.pending);
-      if (pending && pending.emptySide === source.side) {
-        if (cableCreationContainsPoint(surfaces.center, event.clientX, event.clientY)) {
-          drag.target = { location: "pending", rowIndex: pending.index };
-          mark(pending.slots[source.side], "slot", source.side);
+      if (dropPolicy === "association") {
+        const groupTarget = surfaces.rows.find((record) => (
+          cableCreationCardAtPoint(record, event.clientX, event.clientY)
+        ));
+        if (groupTarget) {
+          drag.target = { location: "extend", rowIndex: groupTarget.index };
+          const targetCard = cableCreationCardAtPoint(
+            groupTarget, event.clientX, event.clientY,
+          );
+          mark(targetCard, "extend", source.side);
+          return;
         }
-        return;
+        const pendingTarget = surfaces.rows.find((record) => (
+          record.pending && record.emptySide === source.side &&
+          cableCreationContainsPoint(record.slots[source.side], event.clientX, event.clientY)
+        ));
+        if (pendingTarget) {
+          drag.target = { location: "pending", rowIndex: pendingTarget.index };
+          mark(pendingTarget.slots[source.side], "slot", source.side);
+          return;
+        }
+      } else {
+        const pending = surfaces.rows.find((record) => record.pending);
+        if (pending && pending.emptySide === source.side) {
+          if (cableCreationContainsPoint(surfaces.center, event.clientX, event.clientY)) {
+            drag.target = { location: "pending", rowIndex: pending.index };
+            mark(pending.slots[source.side], "slot", source.side);
+          }
+          return;
+        }
       }
       if (!cableCreationContainsPoint(surfaces.center, event.clientX, event.clientY)) return;
       const rowIndex = cableCreationInsertionIndex(
@@ -138,6 +170,17 @@ function enableCableCreationDrag(card, source, surfaces, onDrop, onActivate = nu
           rowIndex >= surfaces.rows.length ? "after" : "before", source.side);
       }
       return;
+    }
+    if (dropPolicy === "association" && !event.altKey) {
+      const groupTarget = surfaces.rows.find((record) => (
+        record.index !== source.rowIndex && record.groupId !== source.groupId &&
+        cableCreationCardAtPoint(record, event.clientX, event.clientY)
+      ));
+      if (groupTarget) {
+        drag.target = { location: "join", rowIndex: groupTarget.index };
+        mark(cableCreationCardAtPoint(groupTarget, event.clientX, event.clientY), "extend");
+        return;
+      }
     }
     const swapTarget = surfaces.rows.find((record) => {
       if (record.index === source.rowIndex) return false;

@@ -205,6 +205,7 @@ class _PaletteLifecycleModule(Protocol):
     rename_harness: Callable[[UUID, str, object], None]
     rename_standalone_end: Callable[[UUID, UUID, str, object], None]
     switch_standalone_end: Callable[[UUID, UUID, object], None]
+    save_attachment_associations: Callable[..., None]
     save_cable_editor: Callable[..., None]
     set_cable_end_attachment_properties: Callable[..., None]
     set_cable_end_attachment_shielding: Callable[..., None]

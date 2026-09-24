@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID, uuid4
 
 from ..domain import AttachmentAssociationDefinition, HarnessDefinition, validate_harness
@@ -20,6 +20,18 @@ class AttachmentAssociationPair:
 
     left_attachment_id: UUID
     right_attachment_id: UUID
+
+
+@dataclass(frozen=True)
+class AttachmentAssociationGroup:
+    """
+    Stage one association with each attachment listed once.
+
+    An existing identity may be retained while its membership changes.
+    """
+
+    attachment_ids: tuple[UUID, ...]
+    association_id: Optional[UUID] = None
 
 
 @dataclass(frozen=True)
@@ -64,7 +76,8 @@ def attachment_association_candidates(
                 route_nodes.add(neighbor)
                 pending_nodes.append(neighbor)
         connection_ids = {
-            end.connection_id for end in definition.standalone_ends
+            end.connection_id
+            for end in definition.standalone_ends
             if ("pathway", end.pathway_id) in route_nodes
         }
         roots = tuple(
@@ -84,7 +97,11 @@ def attachment_association_candidates(
             roots = connection.attachment_children(None)
         else:
             selected = next(
-                (item for item in connection.attachments if item.attachment_id == anchor.attachment_id),
+                (
+                    item
+                    for item in connection.attachments
+                    if item.attachment_id == anchor.attachment_id
+                ),
                 None,
             )
             if selected is None:
@@ -97,10 +114,7 @@ def attachment_association_candidates(
             for connection in definition.connections
             for attachment in connection.attachments
         }
-        pending = [
-            (connection_by_attachment[item.attachment_id], item)
-            for item in roots
-        ]
+        pending = [(connection_by_attachment[item.attachment_id], item) for item in roots]
     else:
         pending = [(connection, item) for item in roots]
     while pending:
@@ -114,9 +128,7 @@ def attachment_association_candidates(
     if anchor.candidate_attachment_ids is None:
         return candidates
     requested = set(anchor.candidate_attachment_ids)
-    if len(requested) != len(anchor.candidate_attachment_ids) or not requested.issubset(
-        candidates
-    ):
+    if len(requested) != len(anchor.candidate_attachment_ids) or not requested.issubset(candidates):
         raise ValueError("Association candidates do not belong to the selected route node.")
     return tuple(item_id for item_id in candidates if item_id in requested)
 
@@ -125,15 +137,15 @@ def save_attachment_associations(
     harness_id: UUID,
     left_anchor: AttachmentAssociationAnchor,
     right_anchor: AttachmentAssociationAnchor,
-    pairs: tuple[AttachmentAssociationPair, ...],
+    groups: tuple[Union[AttachmentAssociationGroup, AttachmentAssociationPair], ...],
     gateway: HarnessEditGateway,
     id_factory: Callable[[], UUID] = uuid4,
 ) -> None:
     """
-    Replace editable cross-panel pairs while preserving associations outside them.
+    Replace editable cross-panel associations while preserving those outside them.
 
-    Existing groups with one member outside the selected candidate sets, or two
-    members on the same side, remain untouched and cannot be reassigned here.
+    Groups with a member outside the selected candidate sets, or members on
+    only one side, remain untouched and cannot be reassigned here.
     """
     if left_anchor == right_anchor:
         raise ValueError("Association nodes must be different.")
@@ -142,25 +154,38 @@ def save_attachment_associations(
     right_ids = set(attachment_association_candidates(definition, right_anchor))
     if left_ids.intersection(right_ids):
         raise ValueError("The selected nodes have overlapping terminal connections.")
-    pair_members: list[UUID] = []
-    for pair in pairs:
-        if pair.left_attachment_id not in left_ids:
-            raise ValueError("An association contains a node outside the selected left hierarchy.")
-        if pair.right_attachment_id not in right_ids:
-            raise ValueError("An association contains a node outside the selected right hierarchy.")
-        pair_members.extend((pair.left_attachment_id, pair.right_attachment_id))
-    if len(pair_members) != len(set(pair_members)):
+    normalized = tuple(
+        group
+        if isinstance(group, AttachmentAssociationGroup)
+        else AttachmentAssociationGroup((group.left_attachment_id, group.right_attachment_id))
+        for group in groups
+    )
+    grouped_members: list[UUID] = []
+    for group in normalized:
+        members = group.attachment_ids
+        if len(members) < 2 or len(set(members)) != len(members):
+            raise ValueError("An association needs at least two distinct attachment nodes.")
+        if not set(members).issubset(left_ids | right_ids):
+            raise ValueError("An association contains a node outside the selected hierarchies.")
+        if not set(members).intersection(left_ids) or not set(members).intersection(right_ids):
+            raise ValueError("An association needs a node from each selected hierarchy.")
+        grouped_members.extend(members)
+    if len(grouped_members) != len(set(grouped_members)):
         raise ValueError("An attachment node may appear in only one association.")
 
     retained: list[AttachmentAssociationDefinition] = []
     reusable_ids: dict[frozenset[UUID], UUID] = {}
+    editable_ids: set[UUID] = set()
     for association in definition.attachment_associations:
         members = set(association.attachment_ids)
         left_member = members.intersection(left_ids)
         right_member = members.intersection(right_ids)
-        editable = len(members) == 2 and len(left_member) == 1 and len(right_member) == 1
+        editable = (
+            members.issubset(left_ids | right_ids) and bool(left_member) and bool(right_member)
+        )
         if editable:
             reusable_ids[frozenset(members)] = association.association_id
+            editable_ids.add(association.association_id)
         else:
             retained.append(association)
 
@@ -179,15 +204,21 @@ def save_attachment_associations(
         *(association.association_id for association in definition.attachment_associations),
     }
     updated_associations = list(retained)
-    for pair in pairs:
-        members = (pair.left_attachment_id, pair.right_attachment_id)
+    claimed_ids: set[UUID] = set()
+    for group in normalized:
+        members = group.attachment_ids
         stable_key = frozenset(members)
-        association_id = reusable_ids.get(stable_key)
+        if group.association_id is not None and group.association_id not in editable_ids:
+            raise ValueError("Association identity is stale or outside the selected hierarchies.")
+        association_id = group.association_id or reusable_ids.get(stable_key)
+        if association_id in claimed_ids:
+            raise ValueError("An association identity may be used only once.")
         if association_id is None:
             association_id = id_factory()
             if association_id in used_ids:
                 raise ValueError("Generated attachment-association identity is already in use.")
             used_ids.add(association_id)
+        claimed_ids.add(association_id)
         updated_associations.append(
             AttachmentAssociationDefinition(association_id, members),
         )

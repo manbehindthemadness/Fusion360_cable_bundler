@@ -308,12 +308,12 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
 
 def _parse_attachment_association(value: Any, path: str) -> AttachmentAssociationDefinition:
     """
-    Parse one two-node attachment association with precise field paths.
+    Parse one attachment association with precise field paths.
     """
     mapping = _require_mapping(value, path)
     raw_ids = _require_list(mapping, "attachment_ids", path)
-    if len(raw_ids) != 2:
-        raise DefinitionParseError(f"{path}.attachment_ids", "expected exactly two node IDs")
+    if len(raw_ids) < 2:
+        raise DefinitionParseError(f"{path}.attachment_ids", "expected at least two node IDs")
     attachment_ids = tuple(
         _require_uuid({"id": raw_id}, "id", f"{path}.attachment_ids[{index}]")
         for index, raw_id in enumerate(raw_ids)
