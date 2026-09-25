@@ -357,6 +357,27 @@ def test_loaded_harness_is_finalized_only_when_all_generated_groups_are(
     assert cable_solid_visibility.has_finalized_cable_group_output(object()) is expected
 
 
+@pytest.mark.parametrize("metadata", ([], None, 1, "finalized"))
+def test_generated_output_mode_treats_non_object_json_as_legacy_solids(
+    addin_module: _PaletteLifecycleModule,
+    metadata: object,
+) -> None:
+    """
+    Keep malformed generated metadata from aborting add-in startup.
+    """
+    from cable_bundler.fusion import cable_solid_visibility
+
+    occurrence = SimpleNamespace(
+        component=SimpleNamespace(
+            attributes=SimpleNamespace(
+                itemByName=lambda _group, _key: SimpleNamespace(value=json.dumps(metadata))
+            )
+        )
+    )
+
+    assert cable_solid_visibility.generated_cable_group_output_mode(occurrence) == "solids"
+
+
 def test_pending_slot_consumes_once_and_rejects_overlap(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

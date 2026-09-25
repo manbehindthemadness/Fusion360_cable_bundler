@@ -143,11 +143,11 @@ test('context menus size to their contents without fixed minimum widths', () => 
   );
   assert.match(
     styles,
-    /\.block-diagram-viewport > \.relationship-map-context-menu,[^{]*\.cable-group-details-popup > \.relationship-map-context-menu \{[^}]*display: inline-grid;[^}]*width: fit-content;/s,
+    /\.block-diagram-viewport > \.relationship-map-context-menu,[^{]*\.cable-group-details-popup > \.relationship-map-context-menu,[^{]*\.connection-associations-popup > \.relationship-map-context-menu \{[^}]*display: inline-grid;[^}]*width: fit-content;/s,
   );
   assert.match(
     styles,
-    /\.cable-group-details-popup > \.relationship-map-context-menu button \{ width: auto; }/s,
+    /\.cable-group-details-popup > \.relationship-map-context-menu button,[^{]*\.connection-associations-popup > \.relationship-map-context-menu button \{ width: auto; }/s,
   );
   assert.doesNotMatch(styles, /\.relationship-map-context-menu \{[^}]*min-width:/s);
   assert.doesNotMatch(styles, /\.context-menu-submenu \{[^}]*min-width:/s);

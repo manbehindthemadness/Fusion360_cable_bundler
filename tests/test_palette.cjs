@@ -5,6 +5,7 @@ const paletteSuites = [
   "master-layout-routing.cjs",
   "panel-ui.cjs",
   "panel-navigation.cjs",
+  "panel-associations.cjs",
   "panel-connections.cjs",
   "panel-properties.cjs",
   "master-style.cjs",

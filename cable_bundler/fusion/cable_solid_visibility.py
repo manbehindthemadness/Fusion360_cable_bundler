@@ -49,6 +49,8 @@ def generated_cable_group_output_mode(occurrence: adsk.fusion.Occurrence) -> str
         metadata = json.loads(attribute.value)
     except (TypeError, json.JSONDecodeError):
         return SOLID_OUTPUT_MODE
+    if not isinstance(metadata, dict):
+        return SOLID_OUTPUT_MODE
     mode = metadata.get(GENERATED_OUTPUT_MODE_KEY)
     return FINALIZED_OUTPUT_MODE if mode == FINALIZED_OUTPUT_MODE else SOLID_OUTPUT_MODE
 

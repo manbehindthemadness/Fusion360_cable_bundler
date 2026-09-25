@@ -322,7 +322,7 @@ def test_auto_transition_presets_expose_approved_span_fractions() -> None:
     }
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 11, 28])
+@pytest.mark.parametrize("version", [1, 2, 3, 11, SCHEMA_VERSION + 1])
 def test_rejects_unsupported_schema_versions(
     valid_harness: HarnessDefinition,
     version: int,

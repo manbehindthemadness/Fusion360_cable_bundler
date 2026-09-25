@@ -1,4 +1,6 @@
-"""Persist explicit groups between terminal cable-end attachment nodes."""
+"""
+Persist explicit groups between terminal cable-end attachment nodes.
+"""
 
 from __future__ import annotations
 
