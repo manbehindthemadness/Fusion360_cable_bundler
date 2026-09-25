@@ -37,6 +37,7 @@ from .edits import (
 )
 from .launchers import (
     _open_add_end_command,
+    _open_add_interface_command,
     _open_add_junction_command,
     _open_add_junction_relationship_command,
     _open_add_pathway_command,
@@ -153,6 +154,7 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "create_harness": _launch_create_harness,
     "add_pathway": lambda application, data: _open_add_pathway_command(application, data),
     "add_junction": lambda application, data: _open_add_junction_command(application, data),
+    "add_interface": lambda application, data: _open_add_interface_command(application, data),
     "add_junction_relationship": lambda application, data: _open_add_junction_relationship_command(
         application, data
     ),

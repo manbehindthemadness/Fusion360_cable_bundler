@@ -12,6 +12,7 @@ COMMAND_ID = "kev0_cable_bundler_harness_builder"
 CREATE_COMMAND_ID = "kev0_cable_bundler_create_harness"
 ADD_PATHWAY_COMMAND_ID = "kev0_cable_bundler_add_pathway"
 ADD_JUNCTION_COMMAND_ID = "kev0_cable_bundler_add_junction"
+ADD_INTERFACE_COMMAND_ID = "kev0_cable_bundler_add_interface"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_ID = "kev0_cable_bundler_add_junction_relationship"
 ADD_END_COMMAND_ID = "kev0_cable_bundler_add_end"
 ATTACH_CABLE_END_COMMAND_ID = "kev0_cable_bundler_attach_cable_end"
@@ -25,6 +26,7 @@ COMMAND_DESCRIPTION = "Create and edit cable, ribbon, and harness assemblies."
 CREATE_COMMAND_NAME = "Create Harness"
 ADD_PATHWAY_COMMAND_NAME = "Add Pathway"
 ADD_JUNCTION_COMMAND_NAME = "Add Junction"
+ADD_INTERFACE_COMMAND_NAME = "Add Interface"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_NAME = "Add Junction Relationship"
 ADD_END_COMMAND_NAME = "Add End"
 ATTACH_CABLE_END_COMMAND_NAME = "Connect Cable End"
@@ -45,6 +47,8 @@ PATHWAY_NAME_INPUT_ID = "pathway_name"
 PATHWAY_GATES_INPUT_ID = "pathway_gates"
 JUNCTION_NAME_INPUT_ID = "junction_name"
 JUNCTION_PROFILE_INPUT_ID = "junction_profile"
+INTERFACE_NAME_INPUT_ID = "interface_name"
+INTERFACE_TARGETS_INPUT_ID = "interface_targets"
 JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID = "junction_relationship_geometry"
 JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID = "junction_relationship_choice"
 STANDALONE_END_GUIDES_INPUT_ID = "standalone_end_guides"
@@ -120,6 +124,7 @@ PALETTE_EDIT_NAMES = {
     "update_junction_relationships": "Edit Junction Relationships",
     "remove_junction_relationship": "Remove Junction Relationship",
     "remove_junction": "Delete Junction",
+    "remove_interface": "Delete Interface",
     "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_end_control": "Remove Cable End Control",
@@ -131,6 +136,7 @@ PALETTE_EDIT_NAMES = {
     "rename_cable_group": "Rename Connected Cable",
     "rename_harness": "Rename Harness",
     "rename_junction": "Rename Junction",
+    "rename_interface": "Rename Interface",
     "rename_standalone_end": "Rename Standalone End",
     "rename_cable_end_attachment": "Rename Cable End Connection",
     "switch_standalone_end": "Switch Standalone End",

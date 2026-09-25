@@ -86,6 +86,7 @@ from .edit_harness import (
     update_junction_relationships,
     update_pathway_refine,
 )
+from .harness_edits.interfaces import add_interface, remove_interface, rename_interface
 from .load_harnesses import (
     DamagedHarnessGateway,
     HarnessLibraryGateway,
@@ -129,6 +130,7 @@ __all__ = [
     "disconnect_cable_end_main",
     "disconnect_cable_end_shielding",
     "add_junction",
+    "add_interface",
     "add_junction_relationship",
     "add_pathway_refine",
     "add_standalone_end",
@@ -140,6 +142,7 @@ __all__ = [
     "move_pathway_gate",
     "plan_cable_group_routes",
     "remove_junction",
+    "remove_interface",
     "remove_end_control",
     "remove_end_guide",
     "remove_pathway",
@@ -151,6 +154,7 @@ __all__ = [
     "rename_cable_group",
     "rename_harness",
     "rename_junction",
+    "rename_interface",
     "rename_pathway",
     "rename_standalone_end",
     "save_cable_editor",

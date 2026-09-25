@@ -42,6 +42,9 @@ from .model import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
+    InterfaceDefinition,
+    InterfaceTarget,
+    InterfaceTargetKind,
     JunctionDefinition,
     JunctionPathwayRelationship,
     PathwayDefinition,
@@ -92,12 +95,13 @@ def loads(serialized: str) -> HarnessDefinition:
         25,
         26,
         27,
+        28,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 27 are migratable)",
+            "(schemas 12 through 28 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -118,6 +122,12 @@ def loads(serialized: str) -> HarnessDefinition:
     junctions = tuple(
         _parse_junction(item, f"$.junctions[{index}]")
         for index, item in enumerate(_require_list(payload, "junctions", "$.junctions"))
+    )
+    interfaces = tuple(
+        _parse_interface(item, f"$.interfaces[{index}]")
+        for index, item in enumerate(
+            _require_list({"interfaces": [], **payload}, "interfaces", "$")
+        )
     )
     standalone_ends = tuple(
         _parse_standalone_end(
@@ -151,6 +161,7 @@ def loads(serialized: str) -> HarnessDefinition:
         controls=controls,
         pathways=pathways,
         junctions=junctions,
+        interfaces=interfaces,
         standalone_ends=standalone_ends,
         cable_groups=cable_groups,
         attachment_associations=attachment_associations,
@@ -273,6 +284,17 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "metadata": _metadata_to_list(junction.metadata),
             }
             for junction in definition.junctions
+        ],
+        "interfaces": [
+            {
+                "interface_id": str(interface.interface_id),
+                "name": interface.name,
+                "targets": [
+                    {"kind": target.kind.value, "entity_token": target.entity_token}
+                    for target in interface.targets
+                ],
+            }
+            for interface in definition.interfaces
         ],
         "standalone_ends": [
             {
@@ -690,6 +712,38 @@ def _parse_junction(
         pathway_relationships=relationships,
         metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
     )
+
+
+def _parse_interface(raw_value: object, path: str) -> InterfaceDefinition:
+    """
+    Parse one ordered group of Fusion geometry references.
+    """
+    value = _require_mapping(raw_value, path)
+    targets = tuple(
+        _parse_interface_target(item, f"{path}.targets[{index}]")
+        for index, item in enumerate(_require_list(value, "targets", f"{path}.targets"))
+    )
+    try:
+        return InterfaceDefinition(
+            interface_id=_require_uuid(value, "interface_id", f"{path}.interface_id"),
+            name=_require_str(value, "name", f"{path}.name"),
+            targets=targets,
+        )
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_interface_target(raw_value: object, path: str) -> InterfaceTarget:
+    """
+    Parse one typed Fusion token with a location-aware shape error.
+    """
+    value = _require_mapping(raw_value, path)
+    kind = _require_enum(InterfaceTargetKind, value, "kind", f"{path}.kind")
+    entity_token = _require_str(value, "entity_token", f"{path}.entity_token")
+    try:
+        return InterfaceTarget(kind=kind, entity_token=entity_token)
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
 
 
 def _parse_junction_relationship(

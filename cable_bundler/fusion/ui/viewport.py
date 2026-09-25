@@ -39,6 +39,7 @@ from ..hover_graphics import (
     show_hover_widgets,
     target_point,
 )
+from ..interface_targets import resolve_interface_target
 from ..refine_graphics import (
     hide_refine_graphics,
     highlight_refine_graphics,
@@ -125,7 +126,23 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     generated_group_ids: tuple[UUID, ...] = ()
     generated_attachment_ids: tuple[UUID, ...] = ()
     attachment_entities: tuple[object, ...] = ()
-    if member_type == "junction":
+    if member_type == "interface":
+        interface = next(
+            (item for item in definition.interfaces if item.interface_id == member_id),
+            None,
+        )
+        if interface is None:
+            raise ValueError("Selected Interface no longer exists.")
+        attachment_entities = tuple(
+            entity
+            for target in interface.targets
+            for entity in (resolve_interface_target(design, target),)
+            if entity is not None
+        )
+        if not attachment_entities:
+            raise ValueError("Interface targets no longer resolve in this design.")
+        tokens = ()
+    elif member_type == "junction":
         junction = next(
             (item for item in definition.junctions if item.junction_id == member_id),
             None,

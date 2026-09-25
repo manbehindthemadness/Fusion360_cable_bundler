@@ -15,6 +15,7 @@ import adsk.fusion
 
 from .constants import (
     ADD_END_COMMAND_ID,
+    ADD_INTERFACE_COMMAND_ID,
     ADD_JUNCTION_COMMAND_ID,
     ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     ADD_PATHWAY_COMMAND_ID,
@@ -104,6 +105,26 @@ def _open_add_junction_command(application: adsk.core.Application, serialized_da
             raise RuntimeError("Fusion did not open the Add Junction command.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_junction.clear()
+        raise
+
+
+def _open_add_interface_command(application: adsk.core.Application, serialized_data: str) -> None:
+    """
+    Open the native Interface picker for the palette-selected harness.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    command_definition = application.userInterface.commandDefinitions.itemById(
+        ADD_INTERFACE_COMMAND_ID
+    )
+    if command_definition is None:
+        raise RuntimeError("Fusion Add Interface command is unavailable.")
+    _runtime.pending_interface.prepare(harness_id)
+    try:
+        if not command_definition.execute():
+            raise RuntimeError("Fusion did not open the Add Interface command.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_interface.clear()
         raise
 
 

@@ -25,6 +25,7 @@ from .ends import (
     set_cable_end_properties,
     switch_standalone_end,
 )
+from .interfaces import add_interface, remove_interface, rename_interface
 from .junctions import (
     add_junction,
     add_junction_relationship,
@@ -68,12 +69,14 @@ __all__ = [
     "disconnect_cable_end_main",
     "disconnect_cable_end_shielding",
     "add_junction",
+    "add_interface",
     "add_junction_relationship",
     "add_pathway_refine",
     "append_end_guides",
     "append_pathway_gates",
     "move_pathway_gate",
     "remove_junction",
+    "remove_interface",
     "remove_junction_relationship",
     "remove_end_control",
     "remove_end_guide",
@@ -84,6 +87,7 @@ __all__ = [
     "rename_cable_end_attachment",
     "rename_harness",
     "rename_junction",
+    "rename_interface",
     "rename_pathway",
     "rename_standalone_end",
     "segment_pathway",

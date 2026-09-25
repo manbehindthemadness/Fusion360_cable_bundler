@@ -18,6 +18,8 @@
   --hover-surface: #f8f9fa;
   --junction-border: #76569d;
   --junction-surface: #f3edff;
+  --interface-border: #27847f;
+  --interface-surface: #e9f8f5;
   --muted: #68717a;
   --pathway-border: #b07b2e;
   --pathway-surface: #fff7e8;
@@ -54,6 +56,8 @@
   --hover-surface: #383f45;
   --junction-border: #b49ad4;
   --junction-surface: #382f47;
+  --interface-border: #74c8bb;
+  --interface-surface: #24433f;
   --muted: #adb6be;
   --pathway-border: #d3a35c;
   --pathway-surface: #403522;

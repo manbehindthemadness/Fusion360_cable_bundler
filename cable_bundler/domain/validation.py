@@ -12,6 +12,7 @@ from .model import (
     SCHEMA_VERSION,
     ControlKind,
     HarnessDefinition,
+    InterfaceTargetKind,
     JunctionDefinition,
     PathwayEndpoint,
     RoutingMode,
@@ -71,6 +72,7 @@ def validate_harness(definition: HarnessDefinition) -> tuple[ValidationIssue, ..
     _validate_controls(definition, issues)
     _validate_pathways(definition, issues)
     _validate_junctions(definition, issues)
+    _validate_interfaces(definition, issues)
     _validate_standalone_ends(definition, issues)
     _validate_cable_groups(definition, issues)
     _validate_attachment_associations(definition, issues)
@@ -103,6 +105,10 @@ def _validate_unique_ids(
             for index, junction in enumerate(definition.junctions)
         ),
         *(
+            (interface.interface_id, f"interfaces[{index}].interface_id")
+            for index, interface in enumerate(definition.interfaces)
+        ),
+        *(
             (group.cable_group_id, f"cable_groups[{index}].cable_group_id")
             for index, group in enumerate(definition.cable_groups)
         ),
@@ -131,6 +137,50 @@ def _validate_unique_ids(
             )
         else:
             seen[identity] = path
+
+
+def _validate_interfaces(
+    definition: HarnessDefinition,
+    issues: list[ValidationIssue],
+) -> None:
+    """
+    Check Interface names and reference shapes independently of routing.
+    """
+    names: set[str] = set()
+    for index, interface in enumerate(definition.interfaces):
+        path = f"interfaces[{index}]"
+        name = interface.name.strip().casefold()
+        if not name or name in names:
+            issues.append(
+                ValidationIssue(
+                    "invalid_interface_name",
+                    f"{path}.name",
+                    "Interface name must be unique and nonempty.",
+                )
+            )
+        names.add(name)
+        if not interface.targets or (
+            any(target.kind is InterfaceTargetKind.OCCURRENCE for target in interface.targets)
+            and len(interface.targets) != 1
+        ):
+            issues.append(
+                ValidationIssue(
+                    "invalid_interface_targets",
+                    f"{path}.targets",
+                    "Select bodies and sketches or one component occurrence.",
+                )
+            )
+        tokens: set[str] = set()
+        for target_index, target in enumerate(interface.targets):
+            if not target.entity_token.strip() or target.entity_token in tokens:
+                issues.append(
+                    ValidationIssue(
+                        "invalid_interface_target",
+                        f"{path}.targets[{target_index}]",
+                        "Interface target token must be unique and nonempty.",
+                    )
+                )
+            tokens.add(target.entity_token)
 
 
 def _validate_connections(

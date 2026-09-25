@@ -16,7 +16,7 @@ from .materials import (
     CableVisualOverrides,
 )
 
-SCHEMA_VERSION = 28
+SCHEMA_VERSION = 29
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -83,6 +83,16 @@ class AttachmentTargetKind(str, Enum):
     CIRCULAR_EDGE = "circular_edge"
     CONSTRUCTION_POINT = "construction_point"
     SKETCH_POINT = "sketch_point"
+
+
+class InterfaceTargetKind(str, Enum):
+    """
+    Identify the Fusion entity referenced by an Interface.
+    """
+
+    BODY = "body"
+    SKETCH = "sketch"
+    OCCURRENCE = "occurrence"
 
 
 class AutoTransitionPreset(str, Enum):
@@ -503,6 +513,56 @@ class JunctionDefinition:
 
 
 @dataclass(frozen=True)
+class InterfaceTarget:
+    """
+    Retain one selected Fusion entity and its expected kind.
+    """
+
+    kind: InterfaceTargetKind
+    entity_token: str
+
+    def __post_init__(self) -> None:
+        """
+        Reject targets that cannot be resolved later.
+        """
+        if not isinstance(self.kind, InterfaceTargetKind):
+            raise ValueError("Interface target kind is invalid.")
+        if not isinstance(self.entity_token, str) or not self.entity_token.strip():
+            raise ValueError("Interface target must have a Fusion entity token.")
+
+
+@dataclass(frozen=True)
+class InterfaceDefinition:
+    """
+    Group persistent geometry references independently of cable routing.
+    """
+
+    interface_id: UUID
+    name: str
+    targets: tuple[InterfaceTarget, ...]
+
+    def __post_init__(self) -> None:
+        """
+        Require one valid selection mode and no repeated target tokens.
+        """
+        if not isinstance(self.interface_id, UUID):
+            raise ValueError("Interface identity is invalid.")
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("Interface name must not be empty.")
+        if (
+            not isinstance(self.targets, tuple)
+            or not self.targets
+            or any(not isinstance(target, InterfaceTarget) for target in self.targets)
+        ):
+            raise ValueError("Interface must contain at least one target.")
+        if any(target.kind is InterfaceTargetKind.OCCURRENCE for target in self.targets):
+            if len(self.targets) != 1:
+                raise ValueError("A component occurrence must be the only Interface target.")
+        if len({target.entity_token for target in self.targets}) != len(self.targets):
+            raise ValueError("Interface targets must not repeat.")
+
+
+@dataclass(frozen=True)
 class StandaloneEndDefinition:
     """
     Attach one physical end to a pathway boundary before or after cable assignment.
@@ -610,6 +670,7 @@ class HarnessDefinition:
     auto_transition_preset: AutoTransitionPreset = AutoTransitionPreset.TIGHT
     metadata: Metadata = ()
     attachment_associations: tuple[AttachmentAssociationDefinition, ...] = ()
+    interfaces: tuple[InterfaceDefinition, ...] = ()
 
     def __post_init__(self) -> None:
         """
@@ -620,6 +681,10 @@ class HarnessDefinition:
             for association in self.attachment_associations
         ):
             raise ValueError("Harness attachment associations must be an ordered tuple.")
+        if not isinstance(self.interfaces, tuple) or any(
+            not isinstance(interface, InterfaceDefinition) for interface in self.interfaces
+        ):
+            raise ValueError("Harness Interfaces must be an ordered tuple.")
         if (
             isinstance(self.minimum_clearance_mm, bool)
             or not isinstance(self.minimum_clearance_mm, (int, float))

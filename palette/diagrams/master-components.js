@@ -617,6 +617,7 @@ function addRelationshipMapContextMenu(workspace, harness) {
         items: [
           { label: "Pathway", action: addPathway },
           { label: "Junction", action: addJunction },
+          { label: "Interface", action: addInterface },
           { label: "Ending", action: addEnd },
         ],
       },
@@ -626,6 +627,54 @@ function addRelationshipMapContextMenu(workspace, harness) {
     ]);
   });
   return show;
+}
+
+/** Render reference-only Interface cards separately from route topology. */
+function renderRelationshipInterfaces(harness, query, showContextMenu) {
+  const interfaces = (harness.interfaces || []).filter((item) => (
+    !query || `${item.name} ${(item.targets || []).map((target) => target.kind).join(" ")}`
+      .toLocaleLowerCase().includes(query)
+  ));
+  if (!interfaces.length) return null;
+  const section = document.createElement("section");
+  const heading = document.createElement("small");
+  const cards = document.createElement("div");
+  section.className = "relationship-interfaces";
+  heading.textContent = "Interfaces";
+  cards.className = "relationship-interface-cards";
+  interfaces.forEach((item) => {
+    const card = document.createElement("button");
+    const name = document.createElement("strong");
+    const details = document.createElement("small");
+    const targets = item.targets || [];
+    const linked = targets.filter((target) => target.hasLinkedGeometry).length;
+    card.type = "button";
+    card.className = "relationship-interface-card";
+    card.dataset.interfaceId = item.interfaceId;
+    name.textContent = item.name;
+    details.textContent = targets.length === 1
+      ? `${targets[0].kind} · ${linked ? "linked" : "unlinked"}`
+      : `${targets.length} targets · ${linked} linked`;
+    card.addEventListener("click", () => highlightMember(harness, "interface", item.interfaceId));
+    card.addEventListener("contextmenu", (event) => {
+      event.stopPropagation();
+      showContextMenu(event, [
+        { label: "Select Geometry", action: () => highlightMember(harness, "interface", item.interfaceId) },
+        { label: "Rename", action: () => {
+          const value = window.prompt("Interface name", item.name);
+          if (value === null || !value.trim() || value.trim() === item.name) return;
+          void mutate("rename_interface", {
+            harnessId: harness.harnessId, interfaceId: item.interfaceId, name: value.trim(),
+          }, `Renaming ${item.name}…`);
+        } },
+        { label: "Delete", action: () => removeInterface(harness, item) },
+      ]);
+    });
+    card.append(name, details);
+    cards.append(card);
+  });
+  section.append(heading, cards);
+  return section;
 }
 
 function renderRelationshipPathwayNode(

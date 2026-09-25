@@ -242,6 +242,30 @@
 }
 .relationship-junction-hub strong { font-size: 12px; }
 .relationship-junction-hub small { color: var(--muted); }
+.relationship-interfaces { display: grid; gap: 8px; padding: 16px; width: max-content; min-width: 220px; }
+.relationship-interfaces > small { color: var(--muted); font-weight: 600; }
+.relationship-interface-cards { display: flex; flex-wrap: wrap; gap: 10px; }
+.relationship-interface-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: max-content;
+  min-width: 154px;
+  max-width: 320px;
+  min-height: 92px;
+  border: 1px solid var(--interface-border);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--interface-surface);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+.relationship-interface-card strong,
+.relationship-interface-card small { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.relationship-interface-card small { color: var(--muted); }
 .relationship-pathway-hub strong { font-size: 12px; }
 .relationship-pathway-hub small { color: var(--muted); }
 .relationship-connector {

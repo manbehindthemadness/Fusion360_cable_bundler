@@ -493,7 +493,7 @@ test('master diagram groups render and add actions into submenus', () => {
 
   assert.deepEqual(
     addBranch.children[1].children.map((item) => item.textContent),
-    ['Pathway', 'Junction', 'Ending'],
+    ['Pathway', 'Junction', 'Interface', 'Ending'],
   );
   assert.equal(preview.children[1].checked, true);
   assert.equal(solids.children[1].checked, false);
@@ -516,6 +516,22 @@ test('master diagram groups render and add actions into submenus', () => {
     'preview', 'clear-preview', 'solids', 'solids', 'clear-solids',
     'finalize', 'finalize', 'clear-solids',
   ]);
+});
+
+test('master diagram displays standalone Interface cards without pathways', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways = [];
+  definition.junctions = [];
+  definition.interfaces = [{
+    interfaceId: 'interface-1', name: 'Socket A',
+    targets: [{ kind: 'occurrence', hasLinkedGeometry: true }],
+  }];
+  const diagram = context.renderRelationshipMap(definition);
+  const cards = descendants(diagram, (node) => node.className === 'relationship-interface-card');
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].children[0].textContent, 'Socket A');
+  assert.equal(cards[0].children[1].textContent, 'occurrence · linked');
 });
 
 test('Cable Details Materials action opens group materials', () => {

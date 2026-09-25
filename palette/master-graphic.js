@@ -82,7 +82,7 @@ function renderRelationshipMap(harness) {
   toolbar.className = "relationship-map-toolbar";
   filter.className = "filter";
   filter.type = "search";
-  filter.placeholder = "Find a cable group, connection, or pathway…";
+  filter.placeholder = "Find a cable group, connection, pathway, or Interface…";
   filter.setAttribute("aria-label", "Filter master relationship graphic");
   filter.autocomplete = "off";
   filter.value = relationshipFilters.get(harnessKey(harness)) || "";
@@ -102,7 +102,7 @@ function renderRelationshipMap(harness) {
   let renderedStack = null;
   let renderedComponents = [];
   const redraw = () => {
-    if (!renderedStack) {
+    if (!renderedStack || !renderedComponents.length) {
       workspace.fit();
       return;
     }
@@ -135,6 +135,7 @@ function renderRelationshipMap(harness) {
     stack.className = "relationship-pathway-stack";
     stack.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
     stack.dataset.diagramLayout = RELATIONSHIP_DIAGRAM_LAYOUT;
+    const interfaceSection = renderRelationshipInterfaces(harness, query, showContextMenu);
     relationshipTopology(harness).forEach((component) => {
       const searchable = component.nodes.map((node) => {
         if (node.kind === "junction") return node.item.name || "";
@@ -184,11 +185,11 @@ function renderRelationshipMap(harness) {
       });
       renderedComponents.push(component);
     });
-    if (!renderedComponents.length) {
+    if (!renderedComponents.length && !interfaceSection) {
       const message = emptyMessage(
         harness.pathways.length || (harness.junctions || []).length
           ? "No relationships match this filter."
-          : "No pathways or junctions to display yet.",
+          : "No pathways, junctions, or Interfaces to display yet.",
       );
       message.className = "empty relationship-map-empty";
       workspace.stage.append(message);
@@ -198,8 +199,16 @@ function renderRelationshipMap(harness) {
       });
       return;
     }
-    workspace.stage.append(stack);
+    if (renderedComponents.length) workspace.stage.append(stack);
+    if (interfaceSection) workspace.stage.append(interfaceSection);
     renderedStack = stack;
+    if (!renderedComponents.length) {
+      window.requestAnimationFrame(() => {
+        if (restoreInitialView) restoreInitialView = false;
+        else workspace.fit();
+      });
+      return;
+    }
     window.requestAnimationFrame(() => {
       const selectedLayout = layoutRelationshipGraph(stack, renderedComponents, harness, {
         width: workspace.viewport.clientWidth,

@@ -26,6 +26,7 @@ from ...application import (
     remove_cable_end_attachment,
     remove_end_control,
     remove_end_guide,
+    remove_interface,
     remove_junction,
     remove_junction_relationship,
     remove_pathway,
@@ -34,6 +35,7 @@ from ...application import (
     rename_cable_end_attachment,
     rename_cable_group,
     rename_harness,
+    rename_interface,
     rename_junction,
     rename_pathway,
     rename_standalone_end,
@@ -80,6 +82,7 @@ _TOPOLOGY_ACTIONS = frozenset(
         "remove_end_control",
         "remove_pathway",
         "remove_junction",
+        "remove_interface",
         "remove_standalone_end",
         "remove_cable_end_attachment",
     )
@@ -228,6 +231,13 @@ def _apply_topology_edit(
             gateway,
         )
         return "Deleted junction."
+    if action == "remove_interface":
+        remove_interface(
+            harness_id,
+            _read_payload_uuid(payload, "interfaceId", "Interface"),
+            gateway,
+        )
+        return "Deleted Interface."
     if action == "remove_standalone_end":
         remove_standalone_end(
             harness_id,
@@ -708,7 +718,7 @@ def _apply_property_edit(
             gateway,
         )
         return "Saved cable-end connection materials."
-    if action in {"rename_harness", "rename_junction", "rename_pathway"}:
+    if action in {"rename_harness", "rename_junction", "rename_pathway", "rename_interface"}:
         name = payload.get("name")
         if not isinstance(name, str):
             raise ValueError("Rename request requires a text name.")
@@ -718,6 +728,13 @@ def _apply_property_edit(
             rename_junction(
                 harness_id,
                 _read_payload_uuid(payload, "junctionId", "junction"),
+                name,
+                gateway,
+            )
+        elif action == "rename_interface":
+            rename_interface(
+                harness_id,
+                _read_payload_uuid(payload, "interfaceId", "Interface"),
                 name,
                 gateway,
             )

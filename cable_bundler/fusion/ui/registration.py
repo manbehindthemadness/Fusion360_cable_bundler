@@ -13,6 +13,7 @@ import adsk.core
 from .commands.attachments import AttachCableEndCreatedHandler
 from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
+from .commands.interfaces import AddInterfaceCreatedHandler
 from .commands.junctions import (
     AddJunctionCreatedHandler,
     AddJunctionRelationshipCreatedHandler,
@@ -27,6 +28,8 @@ from .constants import (
     ADD_END_COMMAND_ID,
     ADD_END_COMMAND_NAME,
     ADD_END_RESOURCE_FOLDER,
+    ADD_INTERFACE_COMMAND_ID,
+    ADD_INTERFACE_COMMAND_NAME,
     ADD_JUNCTION_COMMAND_ID,
     ADD_JUNCTION_COMMAND_NAME,
     ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
@@ -95,6 +98,13 @@ COMMAND_SPECS = (
         "Create an unconnected junction from an unused sketch profile.",
         ADD_PATHWAY_RESOURCE_FOLDER,
         AddJunctionCreatedHandler,
+    ),
+    CommandSpec(
+        ADD_INTERFACE_COMMAND_ID,
+        ADD_INTERFACE_COMMAND_NAME,
+        "Reference selected bodies, sketches, or one component occurrence.",
+        ADD_PATHWAY_RESOURCE_FOLDER,
+        AddInterfaceCreatedHandler,
     ),
     CommandSpec(
         ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,

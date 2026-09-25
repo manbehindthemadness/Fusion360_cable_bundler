@@ -441,6 +441,31 @@ async function addJunction() {
   }
 }
 
+async function addInterface() {
+  const harness = currentState.harnesses.find(
+    (candidate) => harnessKey(candidate) === selectedHarnessKey,
+  );
+  if (!harness || harness.status === "damaged") return;
+  appendNotice("Select Interface bodies and sketches, or one component occurrence…");
+  try {
+    const response = await send("add_interface", { harnessId: harness.harnessId });
+    if (!response.ok) {
+      appendNotice(response.error || "Add Interface could not be opened.", true);
+    }
+  } catch (error) {
+    appendNotice(error.message, true);
+  }
+}
+
+function removeInterface(harness, interfaceItem) {
+  if (!window.confirm(`Delete Interface ${interfaceItem.name}? Fusion geometry will be kept. This can be undone in Fusion.`)) return;
+  void mutate(
+    "remove_interface",
+    { harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId },
+    `Deleting ${interfaceItem.name}…`,
+  );
+}
+
 async function addEnd() {
   const harness = currentState.harnesses.find(
     (candidate) => harnessKey(candidate) === selectedHarnessKey,

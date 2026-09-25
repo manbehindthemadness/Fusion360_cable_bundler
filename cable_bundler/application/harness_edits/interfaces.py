@@ -1,0 +1,92 @@
+"""
+Transactional edits for geometry-reference Interfaces.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import replace
+from uuid import UUID, uuid4
+
+from ...domain import InterfaceDefinition, InterfaceTarget, next_available_name, validate_harness
+from .support import persist_definition, read_definition
+from .types import HarnessEditGateway
+
+
+def add_interface(
+    harness_id: UUID,
+    name: str,
+    targets: tuple[InterfaceTarget, ...],
+    gateway: HarnessEditGateway,
+    id_factory: Callable[[], UUID] = uuid4,
+) -> InterfaceDefinition:
+    """
+    Persist one independent Interface without changing route topology.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    if not isinstance(name, str):
+        raise ValueError("Interface name must be text.")
+    interface = InterfaceDefinition(
+        interface_id=id_factory(),
+        name=next_available_name(name.strip(), (item.name for item in definition.interfaces)),
+        targets=targets,
+    )
+    updated = replace(definition, interfaces=(*definition.interfaces, interface))
+    if any(issue.code == "duplicate_id" for issue in validate_harness(updated)):
+        raise ValueError("Generated Interface identity is already in use.")
+    persist_definition(harness_id, original, updated, gateway)
+    return interface
+
+
+def rename_interface(
+    harness_id: UUID,
+    interface_id: UUID,
+    name: str,
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Rename one Interface while retaining identity and target order.
+    """
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Interface name must not be empty.")
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    if any(
+        item.interface_id != interface_id and item.name.casefold() == name.strip().casefold()
+        for item in definition.interfaces
+    ):
+        raise ValueError("Interface name is already in use.")
+    updated_interface = replace(current, name=name.strip())
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface
+
+
+def remove_interface(
+    harness_id: UUID,
+    interface_id: UUID,
+    gateway: HarnessEditGateway,
+) -> None:
+    """
+    Delete one reference-only Interface without changing its Fusion geometry.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    if all(item.interface_id != interface_id for item in definition.interfaces):
+        raise ValueError("Selected Interface no longer exists.")
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            item for item in definition.interfaces if item.interface_id != interface_id
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)

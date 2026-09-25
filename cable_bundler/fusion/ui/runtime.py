@@ -145,6 +145,7 @@ class UiRuntime:
     handler_registry: HandlerRegistry = field(default_factory=HandlerRegistry)
     pending_pathway: PendingSlot[UUID] = field(default_factory=PendingSlot)
     pending_junction: PendingSlot[UUID] = field(default_factory=PendingSlot)
+    pending_interface: PendingSlot[UUID] = field(default_factory=PendingSlot)
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot
     )
@@ -188,6 +189,7 @@ class UiRuntime:
         """
         self.pending_pathway.clear()
         self.pending_junction.clear()
+        self.pending_interface.clear()
         self.pending_junction_relationship.clear()
         self.pending_standalone_end.clear()
         self.pending_cable_end_attachment.clear()

@@ -42,6 +42,7 @@ from ..cable_solids import (
     generated_cable_group_occurrences,
     generated_cable_group_output_mode,
 )
+from ..interface_targets import resolve_interface_target
 from ..route_preview import has_route_preview_for_harness
 from .constants import PALETTE_ID
 from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
@@ -341,6 +342,21 @@ def serialize_palette_state(
                         "metadata": _metadata_payload(junction.metadata),
                     }
                     for junction in definition.junctions
+                ],
+                "interfaces": [
+                    {
+                        "interfaceId": str(interface.interface_id),
+                        "name": interface.name,
+                        "targets": [
+                            {
+                                "kind": target.kind.value,
+                                "hasLinkedGeometry": design is not None
+                                and resolve_interface_target(design, target) is not None,
+                            }
+                            for target in interface.targets
+                        ],
+                    }
+                    for interface in definition.interfaces
                 ],
                 "standaloneEnds": [
                     {
