@@ -53,6 +53,19 @@ def generated_cable_group_output_mode(occurrence: adsk.fusion.Occurrence) -> str
     return FINALIZED_OUTPUT_MODE if mode == FINALIZED_OUTPUT_MODE else SOLID_OUTPUT_MODE
 
 
+def has_finalized_cable_group_output(harness: adsk.fusion.Component) -> bool:
+    """
+    Report whether every generated cable group uses persistent finalized output.
+
+    A harness without generated output remains in its working state.
+    """
+    occurrences = _cable_solid_services().generated_cable_group_occurrences(harness)
+    return bool(occurrences) and all(
+        generated_cable_group_output_mode(occurrence) == FINALIZED_OUTPUT_MODE
+        for occurrence in occurrences
+    )
+
+
 class _VisibilityOccurrence(Protocol):
     """
     Expose the Fusion occurrence state needed for temporary solid hiding.

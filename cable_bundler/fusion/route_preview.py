@@ -318,20 +318,48 @@ def has_route_preview_for_harness(
     after a plugin reload, when Fusion can retain graphics but Python state is
     no longer available.
     """
-    expected_name = f"{definition.name} Route Preview"
     for groups in _design_graphics_collections(design):
         for index in range(groups.count):
             group = groups.item(index)
-            if group is None or not _is_preview_group(group):
-                continue
-            state = _preview_states.get(group.id)
-            if state is not None:
-                if state.definition.harness_id == definition.harness_id:
-                    return True
-                continue
-            if group.name == expected_name:
+            if group is not None and _preview_belongs_to_harness(group, definition):
                 return True
     return False
+
+
+def hide_route_preview_for_harness(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+) -> int:
+    """
+    Hide API-visible previews restored for one finalized harness.
+
+    Unidentified graphics and previews belonging to other harnesses are left alone.
+    """
+    hidden_count = 0
+    for groups in _design_graphics_collections(design):
+        for index in range(groups.count):
+            group = groups.item(index)
+            if group is None or not _preview_belongs_to_harness(group, definition):
+                continue
+            if group.isVisible:
+                group.isVisible = False
+                hidden_count += 1
+    return hidden_count
+
+
+def _preview_belongs_to_harness(
+    group: adsk.fusion.CustomGraphicsGroup,
+    definition: HarnessDefinition,
+) -> bool:
+    """
+    Match a live preview by cached identity or its persisted display name.
+    """
+    if not _is_preview_group(group):
+        return False
+    state = _preview_states.get(group.id)
+    if state is not None:
+        return state.definition.harness_id == definition.harness_id
+    return group.name == f"{definition.name} Route Preview"
 
 
 def _design_graphics_collections(

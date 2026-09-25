@@ -57,6 +57,7 @@ from .cable_solid_visibility import (
     generated_attachment_bodies,
     generated_cable_group_bodies,
     generated_cable_group_output_mode,
+    has_finalized_cable_group_output,
     hide_generated_cable_group_solids,
     restore_generated_cable_group_visibility,
 )
@@ -85,6 +86,7 @@ __all__ = [
     "generate_cable_group_solids",
     "generated_attachment_bodies",
     "generated_cable_group_output_mode",
+    "has_finalized_cable_group_output",
     "generated_cable_group_bodies",
     "generated_cable_group_occurrences",
     "hide_generated_cable_group_solids",

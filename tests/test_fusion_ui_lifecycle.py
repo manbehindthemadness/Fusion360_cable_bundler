@@ -5,6 +5,7 @@ Focused Fusion UI regressions for lifecycle.
 from __future__ import annotations
 
 from tests.fusion_ui_support import (
+    UUID,
     Any,
     HarnessDefinition,
     Mock,
@@ -13,7 +14,9 @@ from tests.fusion_ui_support import (
     _PaletteLifecycleModule,
     cast,
     importlib,
+    json,
     pytest,
+    replace,
     sys,
 )
 
@@ -244,6 +247,114 @@ def test_reload_restores_stripes_for_each_readable_harness(
 
     restore.assert_called_once_with(harness_component, valid_harness)
     application.activeViewport.refresh.assert_called_once()
+
+
+def test_reload_hides_previews_only_for_finalized_harnesses(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep working previews visible when another harness is finalized.
+    """
+    lifecycle = importlib.import_module("cable_bundler.fusion.ui.lifecycle")
+    working = object()
+    finalized = object()
+    working_definition = replace(
+        valid_harness,
+        harness_id=UUID("30000000-0000-0000-0000-000000000096"),
+        name="Working Harness",
+    )
+    results = (
+        SimpleNamespace(definition=working_definition, component_handle=working),
+        SimpleNamespace(definition=valid_harness, component_handle=finalized),
+        SimpleNamespace(definition=None, component_handle=object()),
+    )
+    hide = Mock(return_value=1)
+    monkeypatch.setitem(
+        vars(lifecycle),
+        "has_finalized_cable_group_output",
+        lambda component: component is finalized,
+    )
+    monkeypatch.setitem(vars(lifecycle), "hide_route_preview_for_harness", hide)
+    design = object()
+
+    assert lifecycle._hide_loaded_finalized_previews(design, results) == 1
+
+    hide.assert_called_once_with(design, valid_harness)
+
+
+def test_restored_route_preview_visibility_is_scoped_by_harness(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Hide a recovered finalized preview without touching another harness.
+    """
+    from cable_bundler.fusion import route_preview
+
+    finalized_group = SimpleNamespace(
+        id=f"{route_preview.PREVIEW_GROUP_ID}:finalized",
+        name=f"{valid_harness.name} Route Preview",
+        isVisible=True,
+    )
+    working_group = SimpleNamespace(
+        id=f"{route_preview.PREVIEW_GROUP_ID}:working",
+        name="Working Route Preview",
+        isVisible=True,
+    )
+    groups = SimpleNamespace(
+        count=2,
+        item=lambda index: (finalized_group, working_group)[index],
+    )
+    design = SimpleNamespace(
+        rootComponent=SimpleNamespace(customGraphicsGroups=groups),
+        allComponents=SimpleNamespace(count=0),
+    )
+
+    assert route_preview.hide_route_preview_for_harness(design, valid_harness) == 1
+    assert finalized_group.isVisible is False
+    assert working_group.isVisible is True
+
+
+@pytest.mark.parametrize(
+    ("modes", "expected"),
+    (
+        ((), False),
+        (("finalized",), True),
+        (("finalized", "solids"), False),
+    ),
+)
+def test_loaded_harness_is_finalized_only_when_all_generated_groups_are(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    modes: tuple[str, ...],
+    expected: bool,
+) -> None:
+    """
+    Base restored graphics visibility on persisted generated-output modes.
+    """
+    from cable_bundler.fusion import cable_solid_visibility
+
+    occurrences = tuple(
+        SimpleNamespace(
+            component=SimpleNamespace(
+                attributes=SimpleNamespace(
+                    itemByName=lambda _group, _key, mode=mode: SimpleNamespace(
+                        value=json.dumps({"output_mode": mode})
+                    )
+                )
+            )
+        )
+        for mode in modes
+    )
+    monkeypatch.setattr(
+        cable_solid_visibility,
+        "_cable_solid_services",
+        lambda: SimpleNamespace(generated_cable_group_occurrences=lambda _harness: occurrences),
+    )
+
+    assert cable_solid_visibility.has_finalized_cable_group_output(object()) is expected
 
 
 def test_pending_slot_consumes_once_and_rejects_overlap(

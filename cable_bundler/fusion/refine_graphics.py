@@ -431,10 +431,12 @@ def clear_candidate_refine(group: adsk.fusion.CustomGraphicsGroup) -> None:
 
 
 def reconcile_refine_graphics(
-    design: adsk.fusion.Design, definitions: tuple[HarnessDefinition, ...]
+    design: adsk.fusion.Design,
+    definitions: tuple[HarnessDefinition, ...],
+    hidden_control_ids: frozenset[UUID] = frozenset(),
 ) -> None:
     """
-    Recreate persistent refine markers from their complete saved geometry.
+    Recreate persistent refine markers with visibility for finalized harnesses.
     """
     expected = tuple(
         str(control.control_id)
@@ -460,6 +462,7 @@ def reconcile_refine_graphics(
             marker.id = str(control.control_id)
             marker.name = control.name
             marker.isSelectable = True
+            marker.isVisible = control.control_id not in hidden_control_ids
 
 
 def highlight_refine_graphics(design: adsk.fusion.Design, control_ids: tuple[UUID, ...]) -> int:
@@ -512,13 +515,21 @@ def hide_refine_graphics(design: adsk.fusion.Design) -> int:
 
 def reveal_refine_graphics(design: adsk.fusion.Design) -> int:
     """
-    Reveal the persistent refine-marker group when it was hidden by Finalize.
+    Reveal the persistent group and markers hidden during finalized-output load.
     """
     group = _find_group(design, REFINE_GRAPHICS_GROUP_ID)
-    if group is None or group.isVisible:
+    if group is None:
         return 0
-    group.isVisible = True
-    return 1
+    revealed_count = 0
+    if not group.isVisible:
+        group.isVisible = True
+        revealed_count += 1
+    for index in range(group.count):
+        marker = group.item(index)
+        if marker is not None and not marker.isVisible:
+            marker.isVisible = True
+            revealed_count += 1
+    return revealed_count
 
 
 def has_refine_graphics(design: adsk.fusion.Design) -> bool:

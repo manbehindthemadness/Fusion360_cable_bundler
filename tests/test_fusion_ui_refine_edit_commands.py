@@ -484,6 +484,95 @@ def test_refine_reconciliation_redraws_changed_geometry_with_same_identity(
     assert marker.id == str(refine_id)
 
 
+def test_refine_reconciliation_hides_only_finalized_harness_markers(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Restore mixed finalized and working harness markers independently.
+    """
+    from cable_bundler.fusion import refine_graphics
+
+    finalized_refine = _refine_control()
+    working_refine = replace(
+        finalized_refine,
+        control_id=UUID("30000000-0000-0000-0000-000000000098"),
+    )
+    finalized = replace(valid_harness, controls=(finalized_refine,))
+    working = replace(
+        valid_harness,
+        harness_id=UUID("30000000-0000-0000-0000-000000000097"),
+        controls=(working_refine,),
+    )
+    markers = (SimpleNamespace(), SimpleNamespace())
+    group = SimpleNamespace()
+    design = SimpleNamespace(
+        rootComponent=SimpleNamespace(
+            customGraphicsGroups=SimpleNamespace(add=Mock(return_value=group))
+        )
+    )
+    monkeypatch.setattr(refine_graphics, "clear_refine_graphics", Mock())
+    monkeypatch.setattr(refine_graphics, "_add_polyline", Mock(side_effect=markers))
+
+    refine_graphics.reconcile_refine_graphics(
+        design,
+        (finalized, working),
+        frozenset((finalized_refine.control_id,)),
+    )
+
+    assert markers[0].isVisible is False
+    assert markers[1].isVisible is True
+
+
+def test_active_refines_derive_hidden_markers_from_generated_output(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reapply finalized visibility whenever persistent markers are rebuilt.
+    """
+    refine_commands = importlib.import_module("cable_bundler.fusion.ui.commands.refines")
+    refine = _refine_control()
+    definition = replace(valid_harness, controls=(refine,))
+    component = object()
+    results = (SimpleNamespace(definition=definition, component_handle=component),)
+    reconcile = Mock()
+    monkeypatch.setitem(
+        vars(refine_commands), "_require_active_design", lambda _application: object()
+    )
+    monkeypatch.setitem(
+        vars(refine_commands), "_create_harness_gateway", lambda _application: object()
+    )
+    monkeypatch.setitem(vars(refine_commands), "load_harnesses", lambda _gateway: results)
+    monkeypatch.setitem(
+        vars(refine_commands), "has_finalized_cable_group_output", lambda _component: True
+    )
+    monkeypatch.setitem(vars(refine_commands), "reconcile_refine_graphics", reconcile)
+
+    refine_commands.reconcile_active_refines(object())
+
+    assert reconcile.call_args.args[1:] == ((definition,), frozenset((refine.control_id,)))
+
+
+def test_preview_reveals_markers_hidden_during_finalized_load(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Return loaded finalized markers to the working view on Preview Routes.
+    """
+    from cable_bundler.fusion import refine_graphics
+
+    marker = SimpleNamespace(isVisible=False)
+    group = SimpleNamespace(isVisible=True, count=1, item=lambda _index: marker)
+    monkeypatch.setattr(refine_graphics, "_find_group", lambda _design, _identity: group)
+
+    assert refine_graphics.reveal_refine_graphics(object()) == 1
+    assert marker.isVisible is True
+
+
 def test_refine_control_hover_highlights_persistent_marker(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

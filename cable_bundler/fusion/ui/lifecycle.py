@@ -14,11 +14,15 @@ import adsk.fusion
 
 from ...application import HarnessLoadResult, load_harnesses
 from .. import clear_route_previews
-from ..cable_solids import restore_cable_group_stripe_graphics
+from ..cable_solids import (
+    has_finalized_cable_group_output,
+    restore_cable_group_stripe_graphics,
+)
 from ..hover_graphics import clear_hover_widgets
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import (
     has_route_previews,
+    hide_route_preview_for_harness,
     reconcile_preview_history,
     reset_preview_history,
 )
@@ -278,6 +282,22 @@ def _restore_active_stripe_graphics(
     return _restore_loaded_stripe_graphics(application, results)
 
 
+def _hide_loaded_finalized_previews(
+    design: adsk.fusion.Design,
+    results: tuple[HarnessLoadResult, ...],
+) -> int:
+    """
+    Hide restored route graphics only for harnesses with finalized output.
+    """
+    hidden_count = 0
+    for result in results:
+        if result.definition is None or result.component_handle is None:
+            continue
+        if has_finalized_cable_group_output(result.component_handle):
+            hidden_count += hide_route_preview_for_harness(design, result.definition)
+    return hidden_count
+
+
 def _register_palette_edit_commands(
     user_interface: adsk.core.UserInterface,
 ) -> None:
@@ -341,8 +361,11 @@ def start(_context: object) -> None:
 
         design = adsk.fusion.Design.cast(application.activeProduct)
         if design is not None:
-            _restore_active_stripe_graphics(application)
+            results = load_harnesses(_create_harness_gateway(application))
+            _restore_loaded_stripe_graphics(application, results)
             reconcile_active_refines(application)
+            if _hide_loaded_finalized_previews(design, results):
+                application.activeViewport.refresh()
     except Exception:
         if application is not None:
             try:

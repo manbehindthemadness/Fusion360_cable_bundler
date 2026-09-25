@@ -24,6 +24,7 @@ from ....application import (
 )
 from ....domain import ControlKind, loads
 from ...cable_solids import (
+    has_finalized_cable_group_output,
     hide_generated_cable_group_solids,
     restore_generated_cable_group_visibility,
 )
@@ -759,12 +760,21 @@ class _RefineActiveSelectionHandler(adsk.core.ActiveSelectionEventHandler):
 
 def _reconcile_active_refines(application: adsk.core.Application) -> None:
     """
-    Recreate persistent refine markers from every healthy active definition.
+    Recreate markers while keeping finalized harness controls hidden.
     """
     design = _require_active_design(application)
     results = load_harnesses(_create_harness_gateway(application))
     definitions = tuple(result.definition for result in results if result.definition is not None)
-    reconcile_refine_graphics(design, definitions)
+    hidden_control_ids = frozenset(
+        control.control_id
+        for result in results
+        if result.definition is not None
+        and result.component_handle is not None
+        and has_finalized_cable_group_output(result.component_handle)
+        for control in result.definition.controls
+        if control.kind is ControlKind.REFINE
+    )
+    reconcile_refine_graphics(design, definitions, hidden_control_ids)
 
 
 def _finalize_refine_graphics(application: adsk.core.Application) -> None:
