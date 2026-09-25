@@ -108,6 +108,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "connection-association-selection.js",
     ADDIN_ROOT / "palette" / "connection-associations.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contacts.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-selection.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-components.js",
     ADDIN_ROOT / "palette" / "master-graphic.js",
     ADDIN_ROOT / "palette" / "editor.js",

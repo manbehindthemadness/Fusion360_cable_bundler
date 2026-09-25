@@ -121,7 +121,7 @@ function createBlockDiagramWorkspace(label, options = {}) {
     );
   }, { passive: false });
   viewport.addEventListener("pointerdown", (event) => {
-    if (event.button !== 1) return;
+    if (event.button !== 1 && !(event.button === 0 && options.panWithPrimaryButton?.())) return;
     event.preventDefault();
     pan = { pointerId: event.pointerId, x: event.clientX, y: event.clientY,
       offsetX, offsetY };

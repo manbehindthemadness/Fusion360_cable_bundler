@@ -6,7 +6,8 @@
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
   width: min(900px, 92vw);
-  height: min(640px, 88vh);
+  height: 92vh;
+  max-height: 92vh;
   overflow: hidden;
 }
 .interface-contacts-popup:not([open]) { display: none; }
@@ -22,15 +23,48 @@
 }
 .interface-contacts-diagram {
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--canvas);
 }
+.interface-contact-workspace { height: 100%; border: 0; border-radius: 0; }
+.interface-contact-tools { display: flex; gap: 4px; margin-right: auto; }
+.interface-contact-tools button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--focus-surface);
+}
+.interface-contact-count { min-width: 75px; color: var(--muted); text-align: right; }
 .interface-contact-cluster { fill: var(--surface); stroke: var(--border); }
 .interface-contact-heading { fill: var(--text); font-size: 12px; font-weight: 600; }
-.interface-contact-outline { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.interface-contact-outline {
+  fill: var(--accent);
+  fill-opacity: .18;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
 .interface-contact-point { fill: var(--accent); }
+.interface-contact-item[data-selected="true"] .interface-contact-outline {
+  fill: var(--interface-border);
+  fill-opacity: .35;
+  stroke: var(--interface-border);
+  stroke-width: 3;
+}
+.interface-contact-item[data-selected="true"] .interface-contact-point {
+  fill: var(--interface-border);
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+.interface-contact-item[data-selected="true"] text { fill: var(--interface-border); }
+.interface-contact-selection-area {
+  fill: var(--accent);
+  fill-opacity: .15;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
 .interface-contacts-popup .pathway-popup-actions { margin-top: 0; }
 
 .cable-group-details-popup {

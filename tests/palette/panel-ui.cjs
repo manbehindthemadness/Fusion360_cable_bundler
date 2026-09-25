@@ -534,7 +534,7 @@ test('master diagram displays standalone Interface cards without pathways', () =
   assert.equal(cards[0].children[1].textContent, 'occurrence · linked');
 });
 
-test('Select Contacts opens an empty Interface diagram with three modes', () => {
+test('Select Contacts opens an empty Interface diagram with Manual, Row, and Plane modes', () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -561,13 +561,17 @@ test('Select Contacts opens an empty Interface diagram with three modes', () => 
   assert.equal(dialog.children[0].textContent, 'Select Contacts · Socket A');
   const modes = dialog.children[1].children;
   assert.deepEqual(modes.map((button) => button.textContent), [
-    'Manual Select', 'Row Select', 'Plane Select',
+    'Manual', 'Row', 'Plane',
   ]);
   assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
   assert.equal(dialog.children[2].className, 'interface-contacts-diagram');
-  assert.equal(dialog.children[2].children.length, 0);
+  assert.equal(dialog.children[2].children[0].className,
+    'block-diagram-workspace interface-contact-workspace');
+  assert.equal(descendants(dialog.children[2], (node) => (
+    node.className === 'interface-contact-item'
+  )).length, 0);
   modes[0].events.click();
   assert.equal(launches[0].action, 'select_interface_contacts');
   assert.equal(launches[0].payload.interfaceId, 'interface-1');
@@ -590,14 +594,271 @@ test('Interface contacts keep positions within orientation clusters', () => {
     { contactId: 'c', kind: 'face', name: 'C', linked: true,
       normal: [1, 0, 0], loops: [[[0, 0, 0], [0, 10, 0], [0, 10, 10]]] },
   ]);
-  const svg = diagram.children[0];
+  const svg = diagram.contactState.svg;
   assert.equal(svg.children.length, 2);
   const firstPaths = descendants(svg.children[0], (node) => node.tag === 'path');
   assert.equal(firstPaths.length, 2);
   const firstX = Number(firstPaths[0].attributes.d.match(/M([\d.]+)/)[1]);
   const secondX = Number(firstPaths[1].attributes.d.match(/M([\d.]+)/)[1]);
-  assert.equal(Math.abs(secondX - firstX), 30);
+  const firstLoop = diagram.contactState.items[0].loops[0];
+  const padWidth = firstLoop[1][0] - firstLoop[0][0];
+  assert.equal(Math.abs(secondX - firstX) / padWidth, 3);
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
+});
+
+test('contact projection views asymmetric layouts from the picked face side', () => {
+  const { context } = palette();
+  for (const [normal, expectedRight, expectedUp] of [
+    [[0, 0, 2], [4, 0], [0, -2]],
+    [[0, 0, -2], [-4, 0], [0, -2]],
+  ]) {
+    const direction = context.contactOrientation(normal);
+    const right = context.contactPlanePoint([4, 0, 0], direction);
+    const up = context.contactPlanePoint([0, 2, 0], direction);
+    assert.ok(right.every((value, index) => value === expectedRight[index]));
+    assert.ok(up.every((value, index) => value === expectedUp[index]));
+    const diagram = context.document.createElement('div');
+    context.renderInterfaceContacts(diagram, [
+      { contactId: 'front', kind: 'face', linked: true, normal,
+        loops: [[[0, 0, 0], [4, 0, 0], [4, 2, 0]]] },
+      { contactId: 'back', kind: 'face', linked: true, normal: normal.map((value) => -value),
+        loops: [[[6, 0, 0], [7, 0, 0], [7, 1, 0]]] },
+    ]);
+    assert.equal(diagram.contactState.svg.children.length, 1);
+    const [front, back] = diagram.contactState.items;
+    const offset = back.loops[0][0][0] - front.loops[0][0][0];
+    assert.equal(Math.sign(offset), Math.sign(expectedRight[0]),
+      'opposite normals share the viewing side of the first picked face');
+  }
+});
+
+test('contact clusters retain their local layout when the parent tilts and rotates', () => {
+  const { context } = palette();
+  const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const contacts = [
+    { contactId: 'a', kind: 'face', linked: true, normal: [0, 0, 1], parentAxes: axes,
+      loops: [[[0, 0, 0], [4, 0, 0], [4, 1, 0]]] },
+    { contactId: 'b', kind: 'face', linked: true, normal: [0, 0, -1],
+      parentAxes: [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
+      loops: [[[2, 5, 0], [3, 5, 0], [3, 6, 0]]] },
+    { contactId: 'c', kind: 'face', linked: true, normal: [1, 0, 0], parentAxes: axes,
+      loops: [[[0, 0, 0], [0, 4, 0], [0, 4, 1]]] },
+  ];
+  const baseline = context.document.createElement('div');
+  context.renderInterfaceContacts(baseline, contacts);
+  for (const angle of [0.4, 1.2, Math.PI / 2, Math.PI]) {
+    const rotate = ([x, y, z]) => {
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      const tiltedY = c * y - s * z;
+      const tiltedZ = s * y + c * z;
+      return [c * x - s * tiltedY, s * x + c * tiltedY, tiltedZ];
+    };
+    const rotated = contacts.map((contact) => ({
+      ...contact,
+      normal: rotate(contact.normal), parentAxes: contact.parentAxes.map(rotate),
+      loops: contact.loops.map((loop) => loop.map((point) => (
+        rotate(point).map((value, index) => value + [10, -20, 30][index])
+      ))),
+    }));
+    const diagram = context.document.createElement('div');
+    context.renderInterfaceContacts(diagram, rotated);
+    assert.equal(diagram.contactState.svg.children.length, 2);
+    diagram.contactState.items.forEach((item, index) => {
+      item.loops[0].forEach((point, vertex) => {
+        point.forEach((value, axis) => assert.ok(
+          Math.abs(value - baseline.contactState.items[index].loops[0][vertex][axis]) < 1e-8,
+          'parent rotation must preserve the complete projected arrangement',
+        ));
+      });
+    });
+  }
+});
+
+test('small contact pads fit the diagram without strokes swallowing their gaps', () => {
+  const { context } = palette();
+  for (const modelScale of [0.01, 1, 1000]) {
+    const diagram = context.document.createElement('div');
+    const contacts = Array.from({ length: 7 }, (_unused, index) => {
+      const width = index < 5 ? 4 : 1.2;
+      return {
+        contactId: `pad-${index}`, kind: 'face', name: `Pad ${index}`, linked: true,
+        normal: [0, 0, 1],
+        loops: [[[0, index], [width, index], [width, index + 0.6], [0, index + 0.6]]
+          .map(([x, y]) => [(20 + x) * modelScale, (30 + y) * modelScale, 0])],
+      };
+    });
+    context.renderInterfaceContacts(diagram, contacts);
+    const { items, svg, diagramHeight } = diagram.contactState;
+    assert.equal(items.length, 7);
+    const loops = items.map((item) => item.loops[0]);
+    const width = loops[0][1][0] - loops[0][0][0];
+    const height = Math.abs(loops[0][2][1] - loops[0][1][1]);
+    assert.ok(height > 10, 'pad interiors remain visible at the initial display scale');
+    assert.ok(Math.abs(width / height - 4 / 0.6) < 1e-8);
+    for (let index = 1; index < loops.length; index += 1) {
+      assert.ok(loops[index - 1][2][1] - loops[index][0][1] > 3,
+        'neighboring pad strokes must not overlap');
+    }
+    assert.ok(loops[6][2][1] < diagramHeight);
+    assert.equal(svg.style.height, `${diagramHeight}px`, 'labels use display units');
+  }
+});
+
+/** Convert a diagram-space point into mock pointer coordinates. */
+function contactPointer(svg, x, y, pointerId = 1) {
+  const bounds = svg.getBoundingClientRect();
+  const [, , width, height] = svg.attributes.viewBox.split(' ').map(Number);
+  return {
+    button: 0, pointerId,
+    clientX: bounds.left + x * bounds.width / width,
+    clientY: bounds.top + y * bounds.height / height,
+    target: svg, preventDefault() {},
+  };
+}
+
+/** Return one contact's drawn group by its durable ID. */
+function contactItem(diagram, id) {
+  return descendants(diagram, (node) => node.dataset?.contactId === id)[0];
+}
+
+test('contact diagram zooms, pans, and box-selects individual contacts', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = [
+    { contactId: 'a', kind: 'profile', name: 'A', linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0], [10, 0, 0], [10, 10, 0]]] },
+    { contactId: 'b', kind: 'face', name: 'B', linked: true,
+      normal: [0, 0, 1], loops: [[[50, 0, 0], [60, 0, 0], [60, 10, 0]]] },
+  ];
+  context.renderInterfaceContacts(diagram, contacts);
+  const { workspace, svg } = diagram.contactState;
+  const viewport = workspace.viewport;
+  const firstPath = descendants(contactItem(diagram, 'a'), (node) => node.tag === 'path')[0];
+  const firstX = Number(firstPath.attributes.d.match(/M([\d.]+)/)[1]);
+  const firstY = Number(firstPath.attributes.d.match(/M[\d.]+ ([\d.]+)/)[1]);
+  const start = contactPointer(svg, firstX - 2, firstY - 2);
+  const end = contactPointer(svg, firstX + 12, firstY + 12);
+  viewport.events.pointerdown(start);
+  viewport.events.pointermove(end);
+  viewport.events.pointerup({ ...end, type: 'pointerup' });
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
+  assert.equal(contactItem(diagram, 'b').dataset.selected, 'false');
+  assert.equal(diagram.contactState.count.textContent, '1 selected');
+
+  const zoomBefore = workspace.zoomValue.textContent;
+  viewport.events.wheel({ deltaY: -1, clientX: 50, clientY: 50, preventDefault() {} });
+  assert.notEqual(workspace.zoomValue.textContent, zoomBefore);
+  const panButton = descendants(diagram, (node) => node.textContent === 'Pan' && node.tag === 'button')[0];
+  panButton.events.click();
+  const transformBefore = workspace.stage.style.transform;
+  viewport.events.pointerdown({ ...start, pointerId: 2 });
+  viewport.events.pointermove({ ...end, pointerId: 2 });
+  viewport.events.pointerup({ ...end, pointerId: 2, type: 'pointerup' });
+  assert.notEqual(workspace.stage.style.transform, transformBefore);
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
+  const boxButton = descendants(diagram, (node) => node.textContent === 'Box' && node.tag === 'button')[0];
+  boxButton.events.click();
+  const bounds = svg.getBoundingClientRect();
+  svg.getBoundingClientRect = () => ({ ...bounds, left: bounds.left + 40,
+    top: bounds.top + 20, width: bounds.width * 1.5, height: bounds.height * 1.5 });
+  const secondPath = descendants(contactItem(diagram, 'b'), (node) => node.tag === 'path')[0];
+  const secondX = Number(secondPath.attributes.d.match(/M([\d.]+)/)[1]);
+  const secondY = Number(secondPath.attributes.d.match(/M[\d.]+ ([\d.]+)/)[1]);
+  const secondStart = contactPointer(svg, secondX - 2, secondY - 2, 3);
+  const secondEnd = contactPointer(svg, secondX + 12, secondY + 12, 3);
+  viewport.events.pointerdown(secondStart);
+  viewport.events.pointermove(secondEnd);
+  viewport.events.pointerup({ ...secondEnd, type: 'pointerup' });
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'false');
+  assert.equal(contactItem(diagram, 'b').dataset.selected, 'true');
+});
+
+test('freeform selection treats multi-outline contacts as single items across refreshes', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = [
+    { contactId: 'a', kind: 'profile', name: 'A', linked: true, normal: [0, 0, 1], loops: [
+      [[0, 0, 0], [10, 0, 0], [10, 10, 0]],
+      [[15, 0, 0], [20, 0, 0], [20, 5, 0]],
+    ] },
+    { contactId: 'b', kind: 'face', name: 'B', linked: true,
+      normal: [0, 0, 1], loops: [[[50, 0, 0], [60, 0, 0], [60, 10, 0]]] },
+  ];
+  context.renderInterfaceContacts(diagram, contacts);
+  const freeform = descendants(diagram, (node) => (
+    node.tag === 'button' && node.textContent === 'Freeform'
+  ))[0];
+  freeform.events.click();
+  const svg = diagram.contactState.svg;
+  const viewport = diagram.contactState.workspace.viewport;
+  const [x, y] = diagram.contactState.items[0].loops[1][0];
+  const corners = [[x - 2, y - 2], [x + 7, y - 2], [x + 7, y + 7], [x - 2, y + 7]];
+  const points = corners.map(([pointX, pointY]) => contactPointer(svg, pointX, pointY));
+  viewport.events.pointerdown(points[0]);
+  points.slice(1).forEach((point) => viewport.events.pointermove(point));
+  viewport.events.pointerup({ ...points[0], type: 'pointerup' });
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
+  assert.equal(contactItem(diagram, 'b').dataset.selected, 'false');
+  const transform = diagram.contactState.workspace.stage.style.transform;
+  context.renderInterfaceContacts(diagram, contacts);
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
+  assert.equal(diagram.contactState.workspace.stage.style.transform, transform);
+});
+
+test('filled contact profiles preserve holes and select their interior as one item', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [{
+    contactId: 'ring', kind: 'face', linked: true, normal: [0, 0, 1], loops: [
+      [[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]],
+      [[4, 4, 0], [6, 4, 0], [6, 6, 0], [4, 6, 0]],
+    ],
+  }]);
+  const { items, svg, workspace } = diagram.contactState;
+  const paths = descendants(items[0].node, (node) => node.tag === 'path');
+  assert.equal(paths.length, 1);
+  assert.equal(paths[0].attributes['fill-rule'], 'evenodd');
+  assert.equal((paths[0].attributes.d.match(/M/g) || []).length, 2);
+  const [outer, hole] = items[0].loops;
+  const center = [(hole[0][0] + hole[2][0]) / 2, (hole[0][1] + hole[2][1]) / 2];
+  const holeArea = context.contactBox([center[0] - 1, center[1] - 1],
+    [center[0] + 1, center[1] + 1]);
+  assert.equal(context.contactIntersectsArea(items[0], holeArea), false);
+  const point = contactPointer(svg, (outer[0][0] + hole[0][0]) / 2, center[1]);
+  workspace.viewport.events.pointerdown({ ...point, target: paths[0] });
+  workspace.viewport.events.pointerup({ ...point, target: paths[0], type: 'pointerup' });
+  assert.equal(items[0].node.attributes['aria-selected'], 'true');
+});
+
+test('contact clicks select individual items with additive and toggle modifiers', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [
+    { contactId: 'a', kind: 'sketch_point', name: 'A', linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0]]] },
+    { contactId: 'b', kind: 'sketch_point', name: 'B', linked: true,
+      normal: [0, 0, 1], loops: [[[30, 0, 0]]] },
+  ]);
+  const viewport = diagram.contactState.workspace.viewport;
+  const svg = diagram.contactState.svg;
+  const click = (id, modifiers = {}) => {
+    const target = contactItem(diagram, id).children[1];
+    const point = contactPointer(svg, Number(target.attributes.cx), Number(target.attributes.cy));
+    viewport.events.pointerdown({ ...point, target, ...modifiers });
+    viewport.events.pointerup({ ...point, target, type: 'pointerup', ...modifiers });
+  };
+  click('a');
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
+  click('b', { shiftKey: true });
+  assert.equal(diagram.contactState.count.textContent, '2 selected');
+  click('a', { ctrlKey: true });
+  assert.equal(contactItem(diagram, 'a').dataset.selected, 'false');
+  assert.equal(contactItem(diagram, 'b').dataset.selected, 'true');
+  viewport.events.keydown({ key: 'Escape' });
+  assert.equal(diagram.contactState.count.textContent, '0 selected');
+  contactItem(diagram, 'b').events.keydown({ key: 'Enter', preventDefault() {} });
+  assert.equal(contactItem(diagram, 'b').attributes['aria-selected'], 'true');
 });
 
 test('Cable Details Materials action opens group materials', () => {

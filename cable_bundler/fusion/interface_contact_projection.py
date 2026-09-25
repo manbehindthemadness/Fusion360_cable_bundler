@@ -53,6 +53,33 @@ def _collection_items(collection: object) -> list[object]:
     return [item(index) for index in range(count)] if callable(item) else []
 
 
+def _parent_axes(entity: object) -> list[list[float]] | None:
+    """
+    Return the owning sketch or occurrence axes expressed in assembly space.
+
+    Root-component geometry uses the palette's identity-frame fallback. Missing
+    or unavailable host transforms also fall back without hiding the contact.
+    """
+    try:
+        sketch = getattr(entity, "parentSketch", None)
+        if sketch is not None:
+            x = _direction(getattr(sketch, "xDirection", None))
+            y = _direction(getattr(sketch, "yDirection", None))
+            if x is not None and y is not None:
+                return [x, y, _cross(x, y)]
+        occurrence = getattr(entity, "assemblyContext", None)
+        if occurrence is None:
+            occurrence = getattr(getattr(entity, "body", None), "assemblyContext", None)
+        transform = getattr(occurrence, "transform2", None)
+        if transform is None:
+            return None
+        _origin, x_axis, y_axis, z_axis = transform.getAsCoordinateSystem()
+        axes = [_direction(axis) for axis in (x_axis, y_axis, z_axis)]
+        return [axis for axis in axes if axis is not None] if all(axes) else None
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+
+
 def _curve_points(curve: object, sketch: object | None = None) -> list[list[float]]:
     """
     Sample a curve's outline to within 0.1 mm where Fusion permits.
@@ -106,10 +133,16 @@ def _face_loops(face: object) -> list[list[list[float]]]:
     Sample each B-rep edge loop in assembly/model coordinates.
     """
     loops = []
+    occurrence = getattr(face, "assemblyContext", None)
     for loop in _collection_items(getattr(face, "loops", None)):
         outline: list[list[float]] = []
         for coedge in _collection_items(getattr(loop, "coEdges", None)):
-            points = _curve_points(getattr(coedge, "edge", None))
+            edge = getattr(coedge, "edge", None)
+            if occurrence is not None and getattr(edge, "assemblyContext", None) is None:
+                create_proxy = getattr(edge, "createForAssemblyContext", None)
+                if callable(create_proxy):
+                    edge = create_proxy(occurrence)
+            points = _curve_points(edge)
             if getattr(coedge, "isOpposedToEdge", False):
                 points.reverse()
             outline.extend(points if not outline else points[1:])
@@ -149,6 +182,7 @@ def project_interface_contact(design: Any, contact: InterfaceContact) -> dict[st
         ),
         None,
     )
+    parent_axes = _parent_axes(entity) if entity is not None else None
     payload: dict[str, object] = {
         "contactId": str(contact.contact_id),
         "kind": contact.kind.value,
@@ -156,7 +190,8 @@ def project_interface_contact(design: Any, contact: InterfaceContact) -> dict[st
         if entity is not None
         else contact.kind.value,
         "linked": entity is not None,
-        "normal": [0.0, 0.0, 1.0],
+        "normal": parent_axes[2] if parent_axes is not None else [0.0, 0.0, 1.0],
+        "parentAxes": parent_axes,
         "loops": [],
     }
     if entity is None:
