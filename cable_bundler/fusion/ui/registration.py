@@ -13,6 +13,7 @@ import adsk.core
 from .commands.attachments import AttachCableEndCreatedHandler
 from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
+from .commands.interface_contacts import SelectInterfaceContactsCreatedHandler
 from .commands.interfaces import AddInterfaceCreatedHandler
 from .commands.junctions import (
     AddJunctionCreatedHandler,
@@ -53,6 +54,8 @@ from .constants import (
     EDIT_REFINE_COMMAND_NAME,
     SEGMENT_PATHWAY_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_NAME,
+    SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    SELECT_INTERFACE_CONTACTS_COMMAND_NAME,
 )
 from .palette import ShowPaletteCreatedHandler
 
@@ -105,6 +108,13 @@ COMMAND_SPECS = (
         "Reference selected bodies, sketches, or one component occurrence.",
         ADD_PATHWAY_RESOURCE_FOLDER,
         AddInterfaceCreatedHandler,
+    ),
+    CommandSpec(
+        SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+        SELECT_INTERFACE_CONTACTS_COMMAND_NAME,
+        "Select connection-compatible geometry on one Interface.",
+        ADD_PATHWAY_RESOURCE_FOLDER,
+        SelectInterfaceContactsCreatedHandler,
     ),
     CommandSpec(
         ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,

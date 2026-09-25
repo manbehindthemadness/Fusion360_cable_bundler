@@ -109,6 +109,11 @@ def _validate_unique_ids(
             for index, interface in enumerate(definition.interfaces)
         ),
         *(
+            (contact.contact_id, f"interfaces[{index}].contacts[{contact_index}].contact_id")
+            for index, interface in enumerate(definition.interfaces)
+            for contact_index, contact in enumerate(interface.contacts)
+        ),
+        *(
             (group.cable_group_id, f"cable_groups[{index}].cable_group_id")
             for index, group in enumerate(definition.cable_groups)
         ),

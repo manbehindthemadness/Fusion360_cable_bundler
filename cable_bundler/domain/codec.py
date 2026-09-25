@@ -42,6 +42,7 @@ from .model import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
+    InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
     InterfaceTargetKind,
@@ -96,12 +97,13 @@ def loads(serialized: str) -> HarnessDefinition:
         26,
         27,
         28,
+        29,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 28 are migratable)",
+            "(schemas 12 through 29 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -292,6 +294,14 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "targets": [
                     {"kind": target.kind.value, "entity_token": target.entity_token}
                     for target in interface.targets
+                ],
+                "contacts": [
+                    {
+                        "contact_id": str(contact.contact_id),
+                        "kind": contact.kind.value,
+                        "entity_token": contact.entity_token,
+                    }
+                    for contact in interface.contacts
                 ],
             }
             for interface in definition.interfaces
@@ -723,11 +733,18 @@ def _parse_interface(raw_value: object, path: str) -> InterfaceDefinition:
         _parse_interface_target(item, f"{path}.targets[{index}]")
         for index, item in enumerate(_require_list(value, "targets", f"{path}.targets"))
     )
+    contacts = tuple(
+        _parse_interface_contact(item, f"{path}.contacts[{index}]")
+        for index, item in enumerate(
+            _require_list({"contacts": [], **value}, "contacts", f"{path}.contacts")
+        )
+    )
     try:
         return InterfaceDefinition(
             interface_id=_require_uuid(value, "interface_id", f"{path}.interface_id"),
             name=_require_str(value, "name", f"{path}.name"),
             targets=targets,
+            contacts=contacts,
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
@@ -742,6 +759,21 @@ def _parse_interface_target(raw_value: object, path: str) -> InterfaceTarget:
     entity_token = _require_str(value, "entity_token", f"{path}.entity_token")
     try:
         return InterfaceTarget(kind=kind, entity_token=entity_token)
+    except ValueError as error:
+        raise DefinitionParseError(path, str(error)) from error
+
+
+def _parse_interface_contact(raw_value: object, path: str) -> InterfaceContact:
+    """
+    Parse one saved connection-compatible contact.
+    """
+    value = _require_mapping(raw_value, path)
+    try:
+        return InterfaceContact(
+            contact_id=_require_uuid(value, "contact_id", f"{path}.contact_id"),
+            kind=_require_enum(AttachmentTargetKind, value, "kind", f"{path}.kind"),
+            entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
+        )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error
 

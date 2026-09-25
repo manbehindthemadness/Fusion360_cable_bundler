@@ -13,6 +13,7 @@ CREATE_COMMAND_ID = "kev0_cable_bundler_create_harness"
 ADD_PATHWAY_COMMAND_ID = "kev0_cable_bundler_add_pathway"
 ADD_JUNCTION_COMMAND_ID = "kev0_cable_bundler_add_junction"
 ADD_INTERFACE_COMMAND_ID = "kev0_cable_bundler_add_interface"
+SELECT_INTERFACE_CONTACTS_COMMAND_ID = "kev0_cable_bundler_select_interface_contacts"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_ID = "kev0_cable_bundler_add_junction_relationship"
 ADD_END_COMMAND_ID = "kev0_cable_bundler_add_end"
 ATTACH_CABLE_END_COMMAND_ID = "kev0_cable_bundler_attach_cable_end"
@@ -27,6 +28,7 @@ CREATE_COMMAND_NAME = "Create Harness"
 ADD_PATHWAY_COMMAND_NAME = "Add Pathway"
 ADD_JUNCTION_COMMAND_NAME = "Add Junction"
 ADD_INTERFACE_COMMAND_NAME = "Add Interface"
+SELECT_INTERFACE_CONTACTS_COMMAND_NAME = "Select Interface Contacts"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_NAME = "Add Junction Relationship"
 ADD_END_COMMAND_NAME = "Add End"
 ATTACH_CABLE_END_COMMAND_NAME = "Connect Cable End"
@@ -49,6 +51,7 @@ JUNCTION_NAME_INPUT_ID = "junction_name"
 JUNCTION_PROFILE_INPUT_ID = "junction_profile"
 INTERFACE_NAME_INPUT_ID = "interface_name"
 INTERFACE_TARGETS_INPUT_ID = "interface_targets"
+INTERFACE_CONTACTS_INPUT_ID = "interface_contacts"
 JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID = "junction_relationship_geometry"
 JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID = "junction_relationship_choice"
 STANDALONE_END_GUIDES_INPUT_ID = "standalone_end_guides"
@@ -104,6 +107,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "diagrams" / "create-cables" / "controller.js",
     ADDIN_ROOT / "palette" / "connection-association-selection.js",
     ADDIN_ROOT / "palette" / "connection-associations.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "interface-contacts.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-components.js",
     ADDIN_ROOT / "palette" / "master-graphic.js",
     ADDIN_ROOT / "palette" / "editor.js",

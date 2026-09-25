@@ -16,7 +16,7 @@ from .materials import (
     CableVisualOverrides,
 )
 
-SCHEMA_VERSION = 29
+SCHEMA_VERSION = 30
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -532,6 +532,28 @@ class InterfaceTarget:
 
 
 @dataclass(frozen=True)
+class InterfaceContact:
+    """
+    Retain one ordered, independently addressable connection-compatible target.
+    """
+
+    contact_id: UUID
+    kind: AttachmentTargetKind
+    entity_token: str
+
+    def __post_init__(self) -> None:
+        """
+        Reject contacts that cannot be identified or resolved later.
+        """
+        if not isinstance(self.contact_id, UUID):
+            raise ValueError("Interface contact identity is invalid.")
+        if not isinstance(self.kind, AttachmentTargetKind):
+            raise ValueError("Interface contact kind is invalid.")
+        if not isinstance(self.entity_token, str) or not self.entity_token.strip():
+            raise ValueError("Interface contact must have a Fusion entity token.")
+
+
+@dataclass(frozen=True)
 class InterfaceDefinition:
     """
     Group persistent geometry references independently of cable routing.
@@ -540,6 +562,7 @@ class InterfaceDefinition:
     interface_id: UUID
     name: str
     targets: tuple[InterfaceTarget, ...]
+    contacts: tuple[InterfaceContact, ...] = ()
 
     def __post_init__(self) -> None:
         """
@@ -560,6 +583,14 @@ class InterfaceDefinition:
                 raise ValueError("A component occurrence must be the only Interface target.")
         if len({target.entity_token for target in self.targets}) != len(self.targets):
             raise ValueError("Interface targets must not repeat.")
+        if not isinstance(self.contacts, tuple) or any(
+            not isinstance(contact, InterfaceContact) for contact in self.contacts
+        ):
+            raise ValueError("Interface contacts are invalid.")
+        if len({contact.contact_id for contact in self.contacts}) != len(self.contacts):
+            raise ValueError("Interface contact identities must not repeat.")
+        if len({contact.entity_token for contact in self.contacts}) != len(self.contacts):
+            raise ValueError("Interface contacts must not repeat.")
 
 
 @dataclass(frozen=True)

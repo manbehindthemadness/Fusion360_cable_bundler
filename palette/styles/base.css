@@ -93,6 +93,7 @@ body {
 .junction-relationships-popup,
 .cable-end-routing-popup,
 .cable-group-details-popup,
+.interface-contacts-popup,
 .create-cables-popup {
   width: 620px;
   max-width: 92vw;
@@ -108,6 +109,7 @@ body {
 .junction-relationships-popup::backdrop,
 .cable-end-routing-popup::backdrop,
 .cable-group-details-popup::backdrop,
+.interface-contacts-popup::backdrop,
 .create-cables-popup::backdrop { background: #0005; }
 .pathway-popup > .pathway-popup-entry,
 .junction-relationships-popup > .pathway-popup-entry,

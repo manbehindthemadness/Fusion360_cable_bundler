@@ -14,6 +14,10 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
     CableEndTarget,
+    InterfaceContact,
+    InterfaceDefinition,
+    InterfaceTarget,
+    InterfaceTargetKind,
     JunctionDefinition,
 )
 from tests.fusion_ui_support import (
@@ -42,6 +46,41 @@ def _serialize_definition(
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
     return json.loads(serialize_palette_state(object(), ""))
+
+
+def test_palette_state_includes_saved_interface_contacts_without_live_design(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep disconnected contact identities visible until Fusion can resolve geometry.
+    """
+    contact = InterfaceContact(UUID(int=900), AttachmentTargetKind.FACE, "face")
+    interface = InterfaceDefinition(
+        UUID(int=901),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (contact,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    payload = _serialize_definition(
+        addin_module,
+        monkeypatch,
+        definition,
+        addin_module.serialize_palette_state,
+    )
+    projected = payload["harnesses"][0]["interfaces"][0]["contacts"]
+    assert projected == [
+        {
+            "contactId": str(contact.contact_id),
+            "kind": "face",
+            "name": "face",
+            "linked": False,
+            "normal": [0.0, 0.0, 1.0],
+            "loops": [],
+        }
+    ]
 
 
 def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModule) -> None:

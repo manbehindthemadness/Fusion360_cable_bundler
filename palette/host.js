@@ -28,6 +28,7 @@ function closeEditor() {
 function render(state) {
   const scrollTop = document.scrollingElement.scrollTop;
   currentState = state;
+  refreshInterfaceContacts();
   applyPaletteTheme(state.theme);
   appendNotice(state.notice);
   renderLibrary();

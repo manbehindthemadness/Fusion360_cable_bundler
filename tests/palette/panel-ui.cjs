@@ -534,6 +534,72 @@ test('master diagram displays standalone Interface cards without pathways', () =
   assert.equal(cards[0].children[1].textContent, 'occurrence · linked');
 });
 
+test('Select Contacts opens an empty Interface diagram with three modes', () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const definition = harness();
+  definition.interfaces = [{
+    interfaceId: 'interface-1', name: 'Socket A',
+    targets: [{ kind: 'occurrence', hasLinkedGeometry: true }],
+  }];
+  const rendered = context.renderRelationshipMap(definition);
+  const card = descendants(rendered, (node) => node.className === 'relationship-interface-card')[0];
+  card.events.contextmenu({
+    clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target: card,
+  });
+  const menu = descendants(
+    rendered, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
+  )[0];
+  menu.children[0].events.click();
+
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.children[0].textContent, 'Select Contacts · Socket A');
+  const modes = dialog.children[1].children;
+  assert.deepEqual(modes.map((button) => button.textContent), [
+    'Manual Select', 'Row Select', 'Plane Select',
+  ]);
+  assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
+    'true', 'false', 'false',
+  ]);
+  assert.equal(dialog.children[2].className, 'interface-contacts-diagram');
+  assert.equal(dialog.children[2].children.length, 0);
+  modes[0].events.click();
+  assert.equal(launches[0].action, 'select_interface_contacts');
+  assert.equal(launches[0].payload.interfaceId, 'interface-1');
+  modes[1].events.click();
+  assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
+    'false', 'true', 'false',
+  ]);
+  dialog.children[3].children[0].events.click();
+  assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
+});
+
+test('Interface contacts keep positions within orientation clusters', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [
+    { contactId: 'a', kind: 'profile', name: 'A', linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0], [10, 0, 0], [10, 10, 0]]] },
+    { contactId: 'b', kind: 'face', name: 'B', linked: true,
+      normal: [0, 0, -1], loops: [[[30, 0, 0], [40, 0, 0], [40, 10, 0]]] },
+    { contactId: 'c', kind: 'face', name: 'C', linked: true,
+      normal: [1, 0, 0], loops: [[[0, 0, 0], [0, 10, 0], [0, 10, 10]]] },
+  ]);
+  const svg = diagram.children[0];
+  assert.equal(svg.children.length, 2);
+  const firstPaths = descendants(svg.children[0], (node) => node.tag === 'path');
+  assert.equal(firstPaths.length, 2);
+  const firstX = Number(firstPaths[0].attributes.d.match(/M([\d.]+)/)[1]);
+  const secondX = Number(firstPaths[1].attributes.d.match(/M([\d.]+)/)[1]);
+  assert.equal(Math.abs(secondX - firstX), 30);
+  assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
+});
+
 test('Cable Details Materials action opens group materials', () => {
   const { context } = palette();
   const definition = harness();

@@ -659,7 +659,7 @@ function renderRelationshipInterfaces(harness, query, showContextMenu) {
     card.addEventListener("contextmenu", (event) => {
       event.stopPropagation();
       showContextMenu(event, [
-        { label: "Select Contacts", action: () => highlightMember(harness, "interface", item.interfaceId) },
+        { label: "Select Contacts", action: () => openInterfaceContacts(harness, item) },
         { label: "Rename", action: () => {
           const value = window.prompt("Interface name", item.name);
           if (value === null || !value.trim() || value.trim() === item.name) return;

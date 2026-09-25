@@ -10,10 +10,17 @@ from uuid import UUID
 
 import pytest
 
-from cable_bundler.application import add_interface, remove_interface, rename_interface
+from cable_bundler.application import (
+    add_interface,
+    add_interface_contacts,
+    remove_interface,
+    rename_interface,
+)
 from cable_bundler.domain import (
+    AttachmentTargetKind,
     DefinitionParseError,
     HarnessDefinition,
+    InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
     InterfaceTargetKind,
@@ -45,6 +52,60 @@ def test_interface_round_trip_and_previous_schema_migration(
     payload["schema_version"] = 28
     del payload["interfaces"]
     assert loads(json.dumps(payload)).interfaces == ()
+
+
+def test_interface_contacts_round_trip_and_schema_29_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep contact identity and order while older Interfaces gain no contacts.
+    """
+    target = InterfaceTarget(InterfaceTargetKind.BODY, "body")
+    contacts = (
+        InterfaceContact(UUID(int=805), AttachmentTargetKind.FACE, "face"),
+        InterfaceContact(UUID(int=806), AttachmentTargetKind.SKETCH_POINT, "point"),
+    )
+    interface = InterfaceDefinition(UUID(int=807), "Socket", (target,), contacts)
+    definition = replace(valid_harness, interfaces=(interface,))
+    assert loads(dumps(definition)).interfaces == (interface,)
+    payload = json.loads(dumps(definition))
+    payload["schema_version"] = 29
+    del payload["interfaces"][0]["contacts"]
+    assert loads(json.dumps(payload)).interfaces[0].contacts == ()
+
+
+def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Append only new picks without changing the identity of earlier contacts.
+    """
+    existing = InterfaceContact(UUID(int=808), AttachmentTargetKind.FACE, "face")
+    interface = InterfaceDefinition(
+        UUID(int=809),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (existing,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    new = InterfaceContact(UUID(int=810), AttachmentTargetKind.CIRCULAR_EDGE, "edge")
+    updated = add_interface_contacts(
+        definition.harness_id,
+        interface.interface_id,
+        (existing, new),
+        gateway,
+    )
+    assert updated.contacts == (existing, new)
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == (existing, new)
+    duplicate = InterfaceContact(definition.harness_id, AttachmentTargetKind.FACE, "other")
+    with pytest.raises(ValueError, match="identity is already in use"):
+        add_interface_contacts(
+            definition.harness_id,
+            interface.interface_id,
+            (duplicate,),
+            gateway,
+        )
 
 
 def test_interface_edit_sequence_preserves_routing(

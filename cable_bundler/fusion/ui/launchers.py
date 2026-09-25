@@ -25,6 +25,7 @@ from .constants import (
     COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
+    SELECT_INTERFACE_CONTACTS_COMMAND_ID,
 )
 from .payloads import (
     _read_palette_payload,
@@ -125,6 +126,29 @@ def _open_add_interface_command(application: adsk.core.Application, serialized_d
             raise RuntimeError("Fusion did not open the Add Interface command.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_interface.clear()
+        raise
+
+
+def _open_select_interface_contacts_command(
+    application: adsk.core.Application, serialized_data: str
+) -> None:
+    """
+    Open the native multi-target picker for one persisted Interface.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    definition = application.userInterface.commandDefinitions.itemById(
+        SELECT_INTERFACE_CONTACTS_COMMAND_ID
+    )
+    if definition is None:
+        raise RuntimeError("Fusion Select Interface Contacts command is unavailable.")
+    _runtime.pending_interface_contacts.prepare((harness_id, interface_id))
+    try:
+        if not definition.execute():
+            raise RuntimeError("Fusion did not open the Interface contact picker.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_interface_contacts.clear()
         raise
 
 

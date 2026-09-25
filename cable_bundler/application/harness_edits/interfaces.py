@@ -8,7 +8,13 @@ from collections.abc import Callable
 from dataclasses import replace
 from uuid import UUID, uuid4
 
-from ...domain import InterfaceDefinition, InterfaceTarget, next_available_name, validate_harness
+from ...domain import (
+    InterfaceContact,
+    InterfaceDefinition,
+    InterfaceTarget,
+    next_available_name,
+    validate_harness,
+)
 from .support import persist_definition, read_definition
 from .types import HarnessEditGateway
 
@@ -90,3 +96,36 @@ def remove_interface(
         ),
     )
     persist_definition(harness_id, original, updated, gateway)
+
+
+def add_interface_contacts(
+    harness_id: UUID,
+    interface_id: UUID,
+    contacts: tuple[InterfaceContact, ...],
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Append unique contacts in picker order without altering existing identities.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    existing_tokens = {contact.entity_token for contact in current.contacts}
+    additions = tuple(
+        contact for contact in contacts if contact.entity_token not in existing_tokens
+    )
+    updated_interface = replace(current, contacts=(*current.contacts, *additions))
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    if any(issue.code == "duplicate_id" for issue in validate_harness(updated)):
+        raise ValueError("Interface contact identity is already in use.")
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface

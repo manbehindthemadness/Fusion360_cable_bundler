@@ -1,5 +1,38 @@
 /* Master and Cable Details topology nodes, traces, and endpoint cards. */
 
+.interface-contacts-popup {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  width: min(900px, 92vw);
+  height: min(640px, 88vh);
+  overflow: hidden;
+}
+.interface-contacts-popup:not([open]) { display: none; }
+.interface-contacts-popup h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.interface-contacts-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.interface-contacts-modes [aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--focus-surface);
+}
+.interface-contacts-diagram {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas);
+}
+.interface-contact-cluster { fill: var(--surface); stroke: var(--border); }
+.interface-contact-heading { fill: var(--text); font-size: 12px; font-weight: 600; }
+.interface-contact-outline { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.interface-contact-point { fill: var(--accent); }
+.interface-contacts-popup .pathway-popup-actions { margin-top: 0; }
+
 .cable-group-details-popup {
   position: relative;
   display: grid;
