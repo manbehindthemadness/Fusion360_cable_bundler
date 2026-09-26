@@ -138,3 +138,49 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
     payload["contactIds"] = [str(item.contact_id) for item in contacts]
     with pytest.raises(ValueError, match="eight"):
         module._dispatch_palette_action(object(), "get_interface_contacts", json.dumps(payload))
+
+
+def test_rebuild_dispatch_clears_current_interface_and_native_references(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A manual rebuild clears both persistence layers before the next batch.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    interface_id = UUID(int=2)
+    harness_id = UUID(int=1)
+    interface = SimpleNamespace(interface_id=interface_id)
+    monkeypatch.setitem(
+        vars(module),
+        "_create_harness_gateway",
+        lambda _: SimpleNamespace(read_harness_definition=lambda _: "definition"),
+    )
+    monkeypatch.setitem(vars(module), "loads", lambda _: SimpleNamespace(interfaces=(interface,)))
+    clear_disk = Mock(return_value=True)
+    clear_native = Mock()
+    monkeypatch.setitem(vars(module), "clear_interface_contact_snapshot", clear_disk)
+    monkeypatch.setitem(vars(module), "clear_contact_resolutions", clear_native)
+    monkeypatch.setitem(vars(module), "disk_cache_available", lambda *_: True)
+    application = object()
+
+    result = json.loads(
+        module._dispatch_palette_action(
+            application,
+            "rebuild_interface_contacts_cache",
+            json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)}),
+        )
+    )
+
+    assert result == {"ok": True, "diskCacheAvailable": True, "diskCacheCleared": True}
+    clear_disk.assert_called_once_with(application, harness_id, interface_id)
+    clear_native.assert_called_once_with()
+
+    clear_disk.side_effect = PermissionError("denied")
+    with pytest.raises(RuntimeError, match="Could not clear"):
+        module._dispatch_palette_action(
+            application,
+            "rebuild_interface_contacts_cache",
+            json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)}),
+        )
+    clear_native.assert_called_once_with()

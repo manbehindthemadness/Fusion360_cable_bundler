@@ -323,6 +323,7 @@ function refreshInterfaceContacts() {
   }
   const dialog = document.body.querySelector(".interface-contacts-popup");
   if (!dialog?.open) return;
+  if (dialog.cacheRebuildPending) return;
   const harness = currentState.harnesses.find((item) => item.harnessId === dialog.dataset.harnessId);
   const interfaceItem = (harness?.interfaces || []).find((item) => (
     item.interfaceId === dialog.dataset.interfaceId
@@ -367,6 +368,7 @@ function hideInterfaceContactLoading(diagram) {
 function updateInterfaceContactData(dialog, contacts) {
   const diagram = dialog.children[2];
   dialog.contactMetadata = contacts;
+  if (dialog.cacheRebuildPending) return;
   const geometryKey = contactGeometryKey(contacts);
   const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName]));
   dialog.requestedGeometryKey = geometryKey;
@@ -416,6 +418,7 @@ function updateInterfaceContactData(dialog, contacts) {
     return;
   }
   dialog.contactRequestPending = true;
+  dialog.rebuildButton.disabled = true;
   showInterfaceContactLoading(diagram, contacts.length);
   void fetchInterfaceContactGeometry(dialog, contacts, geometryKey).then((response) => {
     if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return;
@@ -441,10 +444,44 @@ function updateInterfaceContactData(dialog, contacts) {
     }
   }).finally(() => {
     dialog.contactRequestPending = false;
+    if (dialog.open && !dialog.cacheRebuildPending) dialog.rebuildButton.disabled = false;
     if (dialog.open && dialog.requestedGeometryKey !== geometryKey) {
       updateInterfaceContactData(dialog, dialog.contactMetadata);
     }
   });
+}
+
+/** Discard the current Interface snapshot and refill it through the progress loader. */
+async function rebuildInterfaceContactCache(dialog) {
+  if (dialog.cacheRebuildPending || dialog.contactRequestPending) return;
+  const diagram = dialog.children[2];
+  dialog.cacheRebuildPending = true;
+  dialog.rebuildButton.disabled = true;
+  showInterfaceContactLoading(diagram, dialog.contactMetadata.length);
+  try {
+    const response = await send("rebuild_interface_contacts_cache", {
+      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+    });
+    if (!response.ok) throw new Error(response.error || "Could not clear contact cache.");
+    if (!dialog.open) return;
+    cachedContactGeometry = null;
+    dialog.loadedGeometryKey = null;
+    dialog.contactDisplayKey = null;
+    dialog.requestedGeometryKey = null;
+    dialog.cacheRebuildPending = false;
+    updateInterfaceContactData(dialog, dialog.contactMetadata);
+    if (!response.diskCacheAvailable) {
+      appendNotice("Contact outlines rebuilt in memory; save the design to enable disk caching.");
+    }
+  } catch (error) {
+    if (dialog.open) {
+      hideInterfaceContactLoading(diagram);
+      appendNotice(String(error), true);
+    }
+  } finally {
+    dialog.cacheRebuildPending = false;
+    if (dialog.open && !dialog.contactRequestPending) dialog.rebuildButton.disabled = false;
+  }
 }
 
 /** Yield to Fusion between bounded batches; closing or superseding stops further work. */
@@ -477,6 +514,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   const diagram = document.createElement("div");
   const actions = document.createElement("div");
   const close = document.createElement("button");
+  const rebuild = document.createElement("button");
   const buttons = [];
 
   dialog.className = "interface-contacts-popup";
@@ -537,7 +575,13 @@ function openInterfaceContacts(harness, interfaceItem) {
   close.className = "button";
   close.textContent = "Close";
   close.addEventListener("click", () => dialog.close());
-  actions.append(close);
+  rebuild.type = "button";
+  rebuild.className = "button";
+  rebuild.textContent = "Rebuild Cache";
+  rebuild.title = "Discard this Interface's cached outlines and resample them from Fusion";
+  rebuild.addEventListener("click", () => { void rebuildInterfaceContactCache(dialog); });
+  dialog.rebuildButton = rebuild;
+  actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
     // A cached SVG must not retain the old workspace's event handlers and state.

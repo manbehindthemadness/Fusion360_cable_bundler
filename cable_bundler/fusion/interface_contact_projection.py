@@ -184,15 +184,14 @@ def project_interface_contact(design: Any, contact: InterfaceContact) -> dict[st
         None,
     )
     parent_axes = _parent_axes(entity) if entity is not None else None
+    source_name = (
+        attachment_target_name(entity, contact.kind) if entity is not None else contact.kind.value
+    )
     payload: dict[str, object] = {
         "contactId": str(contact.contact_id),
         "kind": contact.kind.value,
-        "name": contact.name
-        or (
-            attachment_target_name(entity, contact.kind)
-            if entity is not None
-            else contact.kind.value
-        ),
+        "name": contact.name or source_name,
+        "sourceName": source_name,
         "assignedName": contact.name,
         "linked": entity is not None,
         "normal": parent_axes[2] if parent_axes is not None else [0.0, 0.0, 1.0],

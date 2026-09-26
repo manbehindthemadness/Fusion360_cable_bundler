@@ -18,6 +18,12 @@ import adsk.fusion
 from ...domain import loads
 from .. import highlight_route_preview
 from ..cable_solids import refresh_generated_cable_groups_for_connection
+from ..interface_contact_cache import clear_contact_resolutions
+from ..interface_contact_disk_cache import (
+    clear_interface_contact_snapshot,
+    disk_cache_available,
+    project_cached_contact_batch,
+)
 from ..interface_contact_projection import project_interface_contact
 from .commands.refines import reconcile_active_refines
 from .constants import (
@@ -464,15 +470,41 @@ def _dispatch_palette_action(
             raise ValueError("Request at most eight contact identities per geometry batch.")
         requested = set(requested_ids)
         design = _require_active_design(application)
+        selected = [
+            contact for contact in interface.contacts if str(contact.contact_id) in requested
+        ]
+        projections = project_cached_contact_batch(
+            application,
+            design,
+            harness_id,
+            interface_id,
+            selected,
+            project_interface_contact,
+        )
         return json.dumps(
             {
                 "ok": True,
-                "contacts": [
-                    project_interface_contact(design, contact)
-                    for contact in interface.contacts
-                    if str(contact.contact_id) in requested
-                ],
+                "contacts": projections,
                 "geometryRevision": _runtime.contact_geometry_revision,
+            }
+        )
+    if action == "rebuild_interface_contacts_cache":
+        payload = _read_palette_payload(data)
+        harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
+        if not any(item.interface_id == interface_id for item in definition.interfaces):
+            raise ValueError("Selected Interface no longer exists.")
+        try:
+            cleared = clear_interface_contact_snapshot(application, harness_id, interface_id)
+        except OSError as error:
+            raise RuntimeError("Could not clear the Interface contact disk cache.") from error
+        clear_contact_resolutions()
+        return json.dumps(
+            {
+                "ok": True,
+                "diskCacheAvailable": disk_cache_available(application, harness_id, interface_id),
+                "diskCacheCleared": cleared,
             }
         )
     if action == "get_theme":

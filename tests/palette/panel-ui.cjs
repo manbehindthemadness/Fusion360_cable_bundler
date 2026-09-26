@@ -719,6 +719,36 @@ asyncTest('Reopening unchanged contacts reuses bounded geometry and current name
   dialog.close();
 });
 
+asyncTest('Rebuild Cache clears the snapshot and resamples with progress', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = (action) => new Promise((resolve) => requests.push({ action, resolve }));
+  const contact = { contactId: 'a', name: 'Pad', assignedName: '', geometryRevision: 1 };
+  const projection = { contactId: 'a', linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]] };
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: [contact] });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  requests[0].resolve({ ok: true, contacts: [projection] });
+  await new Promise((resolve) => setImmediate(resolve));
+  const firstSvg = dialog.children[2].contactState.svg;
+  const rebuild = dialog.children[3].children[1];
+  assert.equal(rebuild.textContent, 'Rebuild Cache');
+  rebuild.events.click();
+  assert.equal(rebuild.disabled, true);
+  assert.equal(requests[1].action, 'rebuild_interface_contacts_cache');
+  assert.equal(dialog.children[2].querySelector('.interface-contact-loading').children[1].value, 0);
+  requests[1].resolve({ ok: true, diskCacheAvailable: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests[2].action, 'get_interface_contacts');
+  assert.equal(rebuild.disabled, true);
+  requests[2].resolve({ ok: true, contacts: [projection] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.notEqual(dialog.children[2].contactState.svg, firstSvg);
+  assert.equal(dialog.children[2].querySelector('.interface-contact-loading'), undefined);
+  assert.equal(rebuild.disabled, false);
+  dialog.close();
+});
+
 asyncTest('A name arriving during geometry loading is part of the cached image', async () => {
   const { context } = palette();
   const requests = [];
