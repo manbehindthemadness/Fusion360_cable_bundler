@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import traceback
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Callable
 
@@ -28,6 +28,7 @@ from ..interface_contact_disk_cache import (
     project_cached_contact_batch,
     read_complete_cached_contacts,
 )
+from ..interface_contact_naming import preview_interface_contact_names
 from ..interface_contact_projection import project_interface_contact
 from ..interface_contact_source import contact_source_signature
 from .commands.refines import reconcile_active_refines
@@ -462,7 +463,11 @@ def _dispatch_palette_action(
     """
     if action == "get_state":
         return serialize_palette_state(application)
-    if action in ("get_pos_import_boards", "pos_import_interface_contacts"):
+    if action in (
+        "get_pos_import_boards",
+        "preview_pos_import_interface_contacts",
+        "pos_import_interface_contacts",
+    ):
         payload = _read_palette_payload(data)
         harness_id = _read_payload_uuid(payload, "harnessId", "harness")
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
@@ -482,20 +487,16 @@ def _dispatch_palette_action(
                     ],
                 }
             )
+        if action == "pos_import_interface_contacts":
+            _open_palette_edit(application, action, data)
+            return json.dumps({"ok": True})
         version_id = payload.get("boardVersionId")
         matches = [board for board in boards if board.version_id == version_id]
         if len(matches) != 1:
             raise ValueError("The selected linked PCB changed; reopen Pos Import.")
         pads = read_linked_board_pads(application, matches[0])
-        prepared = json.dumps(
-            {
-                "harnessId": str(harness_id),
-                "interfaceId": str(interface_id),
-                "boardPads": [asdict(pad) for pad in pads],
-            }
-        )
-        _open_palette_edit(application, action, prepared)
-        return json.dumps({"ok": True})
+        preview = preview_interface_contact_names(application, harness_id, interface_id, pads)
+        return json.dumps({"ok": True, **preview})
     if action == "get_interface_contact_signatures":
         payload = _read_palette_payload(data)
         harness_id = _read_payload_uuid(payload, "harnessId", "harness")

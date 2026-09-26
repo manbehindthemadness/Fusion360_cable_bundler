@@ -65,7 +65,7 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
 });
 
-asyncTest('Pos Import confirms only the selected linked board version', async () => {
+asyncTest('Pos Import reviews skipped contacts before saving selected, custom, and blank names', async () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -74,6 +74,16 @@ asyncTest('Pos Import confirms only the selected linked board version', async ()
       return Promise.resolve({ ok: true, boards: [
         { name: 'Linked PCB', versionId: 'pcb-version' },
       ] });
+    }
+    if (action === 'preview_pos_import_interface_contacts') {
+      return Promise.resolve({ ok: true,
+        autoNames: [{ contactId: 'auto', name: 'J1.1' }],
+        unresolved: [
+          { contactId: 'choice', label: 'Contact 2', currentName: '', suggestions: ['J1.2', 'J2.2'] },
+          { contactId: 'custom', label: 'Contact 3', currentName: '', suggestions: ['J1.3'] },
+          { contactId: 'blank', label: 'Contact 4', currentName: 'old', suggestions: [] },
+        ],
+      });
     }
     return Promise.resolve({ ok: true });
   };
@@ -87,13 +97,30 @@ asyncTest('Pos Import confirms only the selected linked board version', async ()
   const form = naming.querySelector('.interface-contact-pos-import');
   assert.equal(form.children[0].textContent, 'Choose the linked 2D PCB to read pad names from:');
   assert.equal(form.children[1].children[0].textContent, 'Linked PCB');
-  assert.equal(form.children[2].disabled, false);
+  assert.equal(form.children[3].disabled, false);
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
+  await Promise.resolve();
   assert.deepEqual(launches.map((item) => item.action), [
-    'get_pos_import_boards', 'pos_import_interface_contacts',
+    'get_pos_import_boards', 'preview_pos_import_interface_contacts',
   ]);
   assert.equal(launches[1].payload.boardVersionId, 'pcb-version');
+  const rows = form.children[2].children;
+  rows[0].children[1].value = '1';
+  rows[1].children[1].value = 'custom';
+  rows[1].children[1].events.change();
+  rows[1].children[2].value = 'My pad';
+  rows[2].children[1].value = 'blank';
+  assert.equal(rows[1].children[2].hidden, false);
+  form.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches[2].action, 'pos_import_interface_contacts');
+  assert.deepEqual(JSON.parse(JSON.stringify(launches[2].payload.contactNames)), [
+    { contactId: 'auto', name: 'J1.1' },
+    { contactId: 'choice', name: 'J2.2' },
+    { contactId: 'custom', name: 'My pad' },
+    { contactId: 'blank', name: '' },
+  ]);
 });
 
 test('Contact hover highlights its Fusion target and clears on leave, refresh, and close', () => {

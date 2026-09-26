@@ -47,7 +47,6 @@ from ...application import (
     set_pathway_properties,
     switch_standalone_end,
 )
-from ...application.board_contact_import import BoardPad
 from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, PathwayEndpoint
 from ...domain.codec import parse_interpolation
@@ -179,15 +178,25 @@ def _apply_palette_edit(
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         if action == "load_brd_interface_contacts":
             return import_interface_contact_names(application, harness_id, interface_id, "file")
-        raw_pads = payload.get("boardPads")
+        raw_names = payload.get("contactNames")
         if (
-            not isinstance(raw_pads, list)
-            or not raw_pads
-            or any(not isinstance(item, dict) for item in raw_pads)
+            not isinstance(raw_names, list)
+            or len(raw_names) > 1024
+            or any(not isinstance(item, dict) for item in raw_names)
         ):
-            raise ValueError("Pos Import has no prepared linked PCB contacts.")
-        pads = [BoardPad(**item) for item in raw_pads]
-        return import_interface_contact_names(application, harness_id, interface_id, "linked", pads)
+            raise ValueError("Pos Import requires reviewed contact names.")
+        names: dict[UUID, str] = {}
+        for item in raw_names:
+            contact_id = _read_payload_uuid(item, "contactId", "contact")
+            name = item.get("name")
+            if contact_id in names or not isinstance(name, str) or len(name) > 80:
+                raise ValueError("Pos Import contains duplicate or invalid contact names.")
+            names[contact_id] = name
+        if names:
+            name_interface_contacts(
+                harness_id, interface_id, names, _create_harness_gateway(application)
+            )
+        return f"Applied {len(names)} reviewed Interface contact names."
     if action == "geo_import_interface_contacts":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         raw_ids = payload.get("contactIds")

@@ -11,6 +11,7 @@ import pytest
 from cable_bundler.application.board_contact_import import (
     BoardPad,
     ContactFootprint,
+    analyze_board_contacts,
     match_board_contacts,
     read_eagle_board,
 )
@@ -68,6 +69,49 @@ def test_through_hole_matching_uses_position_for_face_or_edge() -> None:
     assert match_board_contacts([solid], [pad]) == {"solid": pad}
     assert match_board_contacts([edge], [pad]) == {"edge": pad}
     assert match_board_contacts([solid, edge], [pad]) == {}
+
+
+def test_split_noncircular_face_matches_only_its_containing_pad() -> None:
+    """
+    Use a selected rectangular pad fragment without requiring a circular edge.
+    """
+    pad = BoardPad("U1.1", 1, 2, 0.8, 1.2, 1)
+    fragment = ContactFootprint("split", 1.3, 2.1, 0.2, 0.3, 1)
+    assert match_board_contacts([fragment], [pad]) == {"split": pad}
+    other_fragment = ContactFootprint("split", 0.7, 1.9, 0.2, 0.3, 1)
+    assert match_board_contacts([fragment, other_fragment], [pad]) == {"split": pad}
+    displaced = ContactFootprint("split", 2, 2, 0.2, 0.3, 1)
+    assert match_board_contacts([fragment, displaced], [pad]) == {}
+    overlapping = BoardPad("U2.1", 1.45, 2.1, 0.6, 0.8, 1)
+    assert match_board_contacts([fragment], [pad, overlapping]) == {}
+    unrelated = ContactFootprint("trace", 1.3, 2.1, 2.0, 0.3, 1)
+    assert match_board_contacts([unrelated], [pad]) == {}
+
+
+def test_analysis_exposes_ambiguous_and_disagreeing_fragment_pad_values() -> None:
+    """
+    Review receives every plausible value while automatic matching stays strict.
+    """
+    left = BoardPad("J1.1", 0, 0, 0.8, 0.8, 1)
+    right = BoardPad("J1.2", 1, 0, 0.8, 0.8, 1)
+    contacts = [
+        ContactFootprint("split", 0, 0, 0.2, 0.2, 1),
+        ContactFootprint("split", 1, 0, 0.2, 0.2, 1),
+        ContactFootprint("conflict", 0, 0, 0.2, 0.2, 1),
+        ContactFootprint("unmatched", 5, 5, 0.2, 0.2, 1),
+    ]
+    analysis = analyze_board_contacts(contacts, [left, right])
+    assert analysis.matches == {"conflict": left}
+    assert analysis.suggestions == {
+        "split": (left, right),
+        "unmatched": (),
+    }
+    assert analyze_board_contacts(
+        [ContactFootprint("ambiguous", 0, 0, 0.2, 0.2, 1)], [left, left]
+    ).suggestions == {"ambiguous": (left, left)}
+    assert analyze_board_contacts(
+        [ContactFootprint("a", 0, 0, 0.2, 0.2, 1), ContactFootprint("b", 0, 0, 0.2, 0.2, 1)], [left]
+    ).suggestions == {"a": (left,), "b": (left,)}
 
 
 def test_read_eagle_board_places_through_hole_contacts(tmp_path: Path) -> None:

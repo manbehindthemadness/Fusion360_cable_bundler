@@ -43,6 +43,16 @@ class ContactFootprint:
     hole_diameter_mm: float = 0.0
 
 
+@dataclass(frozen=True)
+class BoardContactAnalysis:
+    """
+    Keep automatic matches and possible pads for contacts needing review.
+    """
+
+    matches: dict[str, BoardPad]
+    suggestions: dict[str, tuple[BoardPad, ...]]
+
+
 def _angle(rotation: str) -> tuple[float, bool]:
     """
     Decode Eagle's optional mirror and spin prefixes.
@@ -173,24 +183,79 @@ def match_board_contacts(
     position_tolerance_mm: float = 0.1,
 ) -> dict[str, BoardPad]:
     """
-    Return unique one-to-one matches by board-local center and copper side.
+    Return unique one-to-one matches by board-local center or pad-contained fragment.
 
-    A 3D copper outline or hole may not have the nominal 2D pad dimensions.
-    Positional ambiguity is rejected rather than guessed from those dimensions.
+    Exact centers take precedence. A split noncircular face may instead leave a
+    small outer-boundary fragment inside one nominal pad. Every fragment of a
+    contact must identify the same unique pad; ambiguity is rejected.
+    """
+    return analyze_board_contacts(contacts, pads, position_tolerance_mm).matches
+
+
+def analyze_board_contacts(
+    contacts: Iterable[ContactFootprint],
+    pads: Iterable[BoardPad],
+    position_tolerance_mm: float = 0.1,
+) -> BoardContactAnalysis:
+    """
+    Preserve conservative matching and expose rejected candidates for review.
+
+    A split contact is automatic only if all fragments agree on one pad and
+    no other contact claims it. Suggestions include every fragment's possible
+    pads, including those rejected by disagreement or one-to-one conflicts.
     """
     footprints = tuple(contacts)
     board_pads = tuple(pads)
-    candidates: dict[str, list[int]] = {}
+    candidates: dict[str, set[int]] = {}
+    possible: dict[str, set[int]] = {}
     for contact in footprints:
-        candidates[contact.contact_id] = [
+        same_layer = [
             index
             for index, pad in enumerate(board_pads)
-            if contact.layer in (1, 16)
-            and pad.layer in (0, contact.layer)
-            and math.hypot(contact.x - pad.x, contact.y - pad.y) <= position_tolerance_mm
+            if contact.layer in (1, 16) and pad.layer in (0, contact.layer)
         ]
-    return {
-        contact_id: board_pads[indexes[0]]
+        centered = [
+            index
+            for index in same_layer
+            if math.hypot(contact.x - board_pads[index].x, contact.y - board_pads[index].y)
+            <= position_tolerance_mm
+        ]
+        projected = centered or [
+            index
+            for index in same_layer
+            if _fragment_within_pad(contact, board_pads[index], position_tolerance_mm)
+        ]
+        possible.setdefault(contact.contact_id, set()).update(projected)
+        if contact.contact_id in candidates:
+            candidates[contact.contact_id].intersection_update(projected)
+        else:
+            candidates[contact.contact_id] = set(projected)
+    matches = {
+        contact_id: board_pads[next(iter(indexes))]
         for contact_id, indexes in candidates.items()
-        if len(indexes) == 1 and sum(indexes[0] in other for other in candidates.values()) == 1
+        if len(indexes) == 1
+        and sum(next(iter(indexes)) in other for other in candidates.values()) == 1
     }
+    suggestions = {
+        contact_id: tuple(board_pads[index] for index in sorted(indexes))
+        for contact_id, indexes in possible.items()
+        if contact_id not in matches
+    }
+    return BoardContactAnalysis(matches, suggestions)
+
+
+def _fragment_within_pad(
+    contact: ContactFootprint,
+    pad: BoardPad,
+    tolerance_mm: float,
+) -> bool:
+    """
+    Admit a partial outer face only when its full bounds fit one pad's bounds.
+    """
+    if min(contact.width, contact.height, pad.width, pad.height) <= 0:
+        return False
+    allowance = max(tolerance_mm, 0.2)
+    return (
+        abs(contact.x - pad.x) + contact.width / 2 <= pad.width / 2 + allowance
+        and abs(contact.y - pad.y) + contact.height / 2 <= pad.height / 2 + allowance
+    )

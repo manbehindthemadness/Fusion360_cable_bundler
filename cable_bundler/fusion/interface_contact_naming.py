@@ -19,6 +19,7 @@ from ..application import name_interface_contacts
 from ..application.board_contact_import import (
     BoardPad,
     ContactFootprint,
+    analyze_board_contacts,
     match_board_contacts,
     read_eagle_board,
 )
@@ -30,6 +31,59 @@ from .interface_targets import resolve_interface_target
 from .ui.support import _create_harness_gateway, _require_active_design
 
 _ECAD_UNITS_PER_MM = 320_000.0
+
+
+def _linked_pad_name(pad: BoardPad) -> str:
+    """
+    Format one linked-board suggestion using the existing import convention.
+    """
+    return f"{pad.label} ({pad.signal})" if pad.signal else pad.label
+
+
+def preview_interface_contact_names(
+    application: adsk.core.Application,
+    harness_id: UUID,
+    interface_id: UUID,
+    pads: list[BoardPad],
+) -> dict[str, object]:
+    """
+    Prepare transient Pos Import choices without editing the harness.
+    """
+    design = _require_active_design(application)
+    gateway = _create_harness_gateway(application)
+    definition = loads(gateway.read_harness_definition(harness_id))
+    interface = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if interface is None:
+        raise ValueError("Selected Interface no longer exists.")
+    analysis = analyze_board_contacts(_contact_footprints(design, interface), pads)
+    auto_names = []
+    unresolved = []
+    for index, contact in enumerate(interface.contacts, start=1):
+        contact_id = str(contact.contact_id)
+        matched = analysis.matches.get(contact_id)
+        if matched is not None:
+            label = _linked_pad_name(matched)
+            if len(label) <= 80:
+                auto_names.append({"contactId": contact_id, "name": label})
+                continue
+        suggestions = list(
+            dict.fromkeys(
+                label
+                for pad in analysis.suggestions.get(contact_id, ())
+                if len(label := _linked_pad_name(pad)) <= 80
+            )
+        )
+        unresolved.append(
+            {
+                "contactId": contact_id,
+                "label": f"Contact {index}",
+                "currentName": contact.name,
+                "suggestions": suggestions,
+            }
+        )
+    return {"autoNames": auto_names, "unresolved": unresolved}
 
 
 def _items(collection: object) -> list[object]:
@@ -98,16 +152,10 @@ def _contact_footprints(
         ]
         first = projected[0]
         if first is None or any(
-            item is None
-            or item.layer != first.layer
-            or any(
-                abs(getattr(item, field) - getattr(first, field)) > 0.02
-                for field in ("x", "y", "width", "height", "hole_diameter_mm")
-            )
-            for item in projected[1:]
+            item is None or item.layer != first.layer for item in projected[1:]
         ):
             continue
-        footprints.append(first)
+        footprints.extend(item for item in projected if item is not None)
     return footprints
 
 
@@ -147,10 +195,10 @@ def _through_hole_footprint(
     axes: list[list[float]],
 ) -> ContactFootprint | None:
     """
-    Measure a planar circular hole analytically, avoiding copper outline tessellation.
+    Locate a planar pad from its outer circular edge before other geometry.
 
-    Unusual split-circle loops retain the conservative sampled fallback. Outer
-    dimensions are irrelevant to live through-hole matching and use hole diameter.
+    Partial outer arcs retain the original pad center when a face is split.
+    Other faces use the circular hole or sampled copper outline as a fallback.
     """
     path = getattr(getattr(face, "assemblyContext", None), "fullPathName", "")
     match = re.search(r"(?:^|\+)(1|16)-copper:\d+$", path)
@@ -163,7 +211,20 @@ def _through_hole_footprint(
             return None
         if abs(sum(a * b for a, b in zip(normal, axes[2]))) < 0.9999:
             return None
-        inner = [loop for loop in _items(face.loops) if not loop.isOuter]
+        loops = _items(face.loops)
+        outer = [loop for loop in loops if loop.isOuter]
+        if len(outer) == 1:
+            circular = _outer_circular_footprint(
+                outer[0],
+                getattr(face, "assemblyContext", None),
+                contact_id,
+                int(match.group(1)),
+                origin,
+                axes,
+            )
+            if circular is not None:
+                return circular
+        inner = [loop for loop in loops if not loop.isOuter]
         coedges = _items(inner[0].coEdges) if len(inner) == 1 else []
         if len(coedges) == 1:
             edge = _in_context(coedges[0].edge, getattr(face, "assemblyContext", None))
@@ -179,6 +240,47 @@ def _through_hole_footprint(
     except (AttributeError, RuntimeError, TypeError, ValueError):
         pass
     return _face_footprint(face, contact_id, board_path, origin, axes)
+
+
+def _outer_circular_footprint(
+    loop: object,
+    context: object,
+    contact_id: str,
+    layer: int,
+    origin: list[float],
+    axes: list[list[float]],
+) -> ContactFootprint | None:
+    """
+    Use concentric circular outer edges, including arcs of a split pad.
+
+    Conflicting centers or radii are not treated as one pad perimeter.
+    """
+    circles: list[tuple[float, float, float]] = []
+    for coedge in _items(getattr(loop, "coEdges", None)):
+        try:
+            edge = _in_context(coedge.edge, context)
+            curve = edge.geometry
+            if curve.objectType not in ("adsk::core::Circle3D", "adsk::core::Arc3D"):
+                continue
+            center = _xyz(curve.center)
+            radius = float(curve.radius) * 10
+            if center is None or not math.isfinite(radius) or radius <= 0:
+                continue
+            x, y, _ = _board_point(center, origin, axes)
+            if math.isfinite(x) and math.isfinite(y):
+                circles.append((x, y, radius))
+        except (AttributeError, RuntimeError, TypeError, ValueError, OverflowError):
+            continue
+    if not circles:
+        return None
+    x, y, radius = circles[0]
+    if any(
+        math.hypot(other_x - x, other_y - y) > 0.02 or abs(other_radius - radius) > 0.02
+        for other_x, other_y, other_radius in circles[1:]
+    ):
+        return None
+    diameter = 2 * radius
+    return ContactFootprint(contact_id, x, y, diameter, diameter, layer)
 
 
 def _face_footprint(
@@ -205,7 +307,12 @@ def _face_footprint(
         native_loops = _items(getattr(face, "loops", None))
     except (AttributeError, RuntimeError, TypeError, ValueError):
         return None
-    points = [point for loop in loops for point in loop]
+    outline = (
+        [loop for loop, native in zip(loops, native_loops) if native.isOuter]
+        if len(native_loops) == len(loops)
+        else loops
+    )
+    points = [point for loop in outline for point in loop]
     if len(points) < 3 or not all(math.isfinite(value) for point in points for value in point):
         return None
     if max(point[2] for point in points) - min(point[2] for point in points) > 0.15:

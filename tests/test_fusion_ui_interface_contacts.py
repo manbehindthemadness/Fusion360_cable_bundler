@@ -45,6 +45,92 @@ def test_contact_name_edit_routes_to_transactional_application_service(
     rename.assert_called_once_with(UUID(int=1), UUID(int=2), {UUID(int=3): "J5.2"}, gateway)
 
 
+def test_reviewed_pos_import_applies_names_and_blank_in_one_edit(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Apply final autocomplete decisions without keeping PCB conflict metadata.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    gateway = object()
+    rename = Mock()
+    monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(edits), "name_interface_contacts", rename)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactNames": [
+            {"contactId": str(UUID(int=3)), "name": "J1.2"},
+            {"contactId": str(UUID(int=4)), "name": ""},
+        ],
+    }
+    notice = edits._apply_palette_edit(
+        object(), "pos_import_interface_contacts", json.dumps(payload)
+    )
+    assert notice == "Applied 2 reviewed Interface contact names."
+    rename.assert_called_once_with(
+        UUID(int=1), UUID(int=2), {UUID(int=3): "J1.2", UUID(int=4): ""}, gateway
+    )
+    with pytest.raises(ValueError, match="duplicate or invalid"):
+        edits._apply_palette_edit(
+            object(),
+            "pos_import_interface_contacts",
+            json.dumps(
+                {
+                    **payload,
+                    "contactNames": payload["contactNames"] * 2,
+                }
+            ),
+        )
+
+
+def test_pos_import_preview_reads_only_the_selected_linked_board(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep preview read-only and bind suggestions to the selected PCB version.
+    """
+    palette_module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    harness_id, interface_id = UUID(int=1), UUID(int=2)
+    interface = SimpleNamespace(interface_id=interface_id)
+    boards = [SimpleNamespace(name="A", version_id="a"), SimpleNamespace(name="B", version_id="b")]
+    read = Mock(return_value=[])
+    preview = Mock(return_value={"autoNames": [], "unresolved": []})
+    edit = Mock()
+    monkeypatch.setitem(
+        vars(palette_module),
+        "_create_harness_gateway",
+        lambda _: SimpleNamespace(read_harness_definition=lambda _id: "saved"),
+    )
+    monkeypatch.setitem(
+        vars(palette_module), "loads", lambda _: SimpleNamespace(interfaces=(interface,))
+    )
+    monkeypatch.setitem(vars(palette_module), "_require_active_design", lambda _: object())
+    monkeypatch.setitem(vars(palette_module), "linked_interface_boards", lambda *_: boards)
+    monkeypatch.setitem(vars(palette_module), "read_linked_board_pads", read)
+    monkeypatch.setitem(vars(palette_module), "preview_interface_contact_names", preview)
+    monkeypatch.setitem(vars(palette_module), "_open_palette_edit", edit)
+    result = json.loads(
+        palette_module._dispatch_palette_action(
+            object(),
+            "preview_pos_import_interface_contacts",
+            json.dumps(
+                {
+                    "harnessId": str(harness_id),
+                    "interfaceId": str(interface_id),
+                    "boardVersionId": "b",
+                }
+            ),
+        )
+    )
+    assert result == {"ok": True, "autoNames": [], "unresolved": []}
+    assert read.call_args.args[1] is boards[1]
+    preview.assert_called_once()
+    edit.assert_not_called()
+
+
 def test_contact_details_edit_routes_value_and_pin_together(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

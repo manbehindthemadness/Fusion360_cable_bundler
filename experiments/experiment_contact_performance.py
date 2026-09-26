@@ -187,7 +187,7 @@ def _measure() -> None:
             report["cached_project_8_contacts_seconds"] = perf_counter() - projection_start
             for label, helper in (
                 ("sampled", "_face_footprint"),
-                ("analytic", "_through_hole_footprint"),
+                ("outer_or_analytic", "_through_hole_footprint"),
             ):
                 start = perf_counter()
                 results[label] = [
@@ -197,16 +197,11 @@ def _measure() -> None:
                 report[label + "_seconds"] = perf_counter() - start
             comparable = [
                 (a, b)
-                for a, b in zip(results["sampled"], results["analytic"])
+                for a, b in zip(results["sampled"], results["outer_or_analytic"])
                 if a is not None and b is not None and a.hole_diameter_mm > 0
             ]
-            report["matching_holes"] = len(comparable)
-            assert all(
-                abs(a.x - b.x) < 0.02
-                and abs(a.y - b.y) < 0.02
-                and abs(a.hole_diameter_mm - b.hole_diameter_mm) < 0.02
-                for a, b in comparable
-            )
+            report["matching_pad_centers"] = len(comparable)
+            assert all(abs(a.x - b.x) < 0.02 and abs(a.y - b.y) < 0.02 for a, b in comparable)
             if len(faces) > 1:
                 first, last = faces[0][0], faces[-1][0]
                 start, end = rows["describe_row_target"](first), rows["describe_row_target"](last)

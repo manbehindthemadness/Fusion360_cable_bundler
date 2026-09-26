@@ -59,7 +59,9 @@
   grid-template-columns: repeat(2, auto);
   gap: 8px;
   min-width: 280px;
-  max-width: min(420px, 80vw);
+  max-width: min(520px, 80vw);
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -69,6 +71,10 @@
 .interface-contact-pos-import > div { grid-column: 1 / -1; }
 .interface-contact-pos-import-choices { display: grid; gap: 6px; max-height: 180px; overflow-y: auto; }
 .interface-contact-pos-import-choices label { display: flex; align-items: center; gap: 6px; }
+.interface-contact-pos-import-review { display: grid; gap: 8px; max-height: 360px; overflow-y: auto; }
+.interface-contact-pos-import-review label { display: grid; gap: 4px; }
+.interface-contact-pos-import-review select,
+.interface-contact-pos-import-review input { min-width: 0; width: 100%; }
 .interface-contacts-modes [aria-pressed="true"] {
   background: var(--surface-subtle);
 }

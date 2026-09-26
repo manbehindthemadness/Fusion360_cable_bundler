@@ -476,13 +476,14 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
     serverMs, elapsedMs: Date.now() - started };
 }
 
-/** Choose an exact linked PCB before reading pad names for Pos Import. */
+/** Review linked PCB suggestions before applying ordinary contact names. */
 function openInterfacePosImport(naming, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-pos-import");
   if (existing) { existing.remove(); return; }
   const form = document.createElement("form");
   const message = document.createElement("div");
   const choices = document.createElement("div");
+  const review = document.createElement("div");
   const apply = document.createElement("button");
   const cancel = document.createElement("button");
   form.className = "interface-contact-pos-import";
@@ -492,7 +493,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   choices.className = "interface-contact-pos-import-choices";
   apply.type = "submit";
   apply.className = "button compact";
-  apply.textContent = "Open and Import";
+  apply.textContent = "Open and Review";
   apply.disabled = true;
   cancel.type = "button";
   cancel.className = "button compact";
@@ -504,20 +505,89 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
     event.stopPropagation();
     form.remove();
   });
+  let preview = null;
+  const decisions = [];
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const selected = Array.from(choices.querySelectorAll("input")).find((radio) => radio.checked);
-    if (!selected) return;
+    if (!preview) {
+      const selected = Array.from(choices.querySelectorAll("input")).find((radio) => radio.checked);
+      if (!selected) return;
+      apply.disabled = true;
+      void send("preview_pos_import_interface_contacts", {
+        harnessId, interfaceId, boardVersionId: selected.value,
+      }).then((response) => {
+        if (!response.ok) throw new Error(response.error || "Could not read PCB pad names.");
+        if (naming.querySelector(".interface-contact-pos-import") !== form) return;
+        preview = response;
+        choices.hidden = true;
+        message.textContent = `${response.autoNames.length} contacts matched automatically; `
+          + `${response.unresolved.length} need review.`;
+        review.className = "interface-contact-pos-import-review";
+        response.unresolved.forEach((contact) => {
+          const row = document.createElement("label");
+          const title = document.createElement("span");
+          const select = document.createElement("select");
+          const manual = document.createElement("input");
+          title.textContent = contact.currentName
+            ? `${contact.label} · ${contact.currentName}` : contact.label;
+          if (contact.currentName) {
+            const keep = document.createElement("option");
+            keep.value = "keep";
+            keep.textContent = `Keep current: ${contact.currentName}`;
+            select.append(keep);
+          }
+          const blank = document.createElement("option");
+          blank.value = "blank";
+          blank.textContent = "Leave blank";
+          select.append(blank);
+          select.value = contact.currentName ? "keep" : "blank";
+          contact.suggestions.forEach((name, index) => {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = name;
+            select.append(option);
+          });
+          const custom = document.createElement("option");
+          custom.value = "custom";
+          custom.textContent = "Type a name…";
+          select.append(custom);
+          manual.type = "text";
+          manual.maxLength = 80;
+          manual.placeholder = "Contact name";
+          manual.hidden = true;
+          select.addEventListener("change", () => { manual.hidden = select.value !== "custom"; });
+          row.append(title, select, manual);
+          review.append(row);
+          decisions.push({ contact, select, manual });
+        });
+        if (!response.unresolved.length) review.textContent = "All contacts have unique PCB pad names.";
+        apply.textContent = "Apply Names";
+      }).catch((error) => appendNotice(String(error), true))
+        .finally(() => { apply.disabled = false; });
+      return;
+    }
+    const contactNames = [...preview.autoNames];
+    for (const { contact, select, manual } of decisions) {
+      const name = select.value === "keep" ? contact.currentName
+        : select.value === "blank" ? ""
+        : select.value === "custom" ? manual.value.trim()
+          : contact.suggestions[Number(select.value)];
+      if (select.value === "custom" && !name) {
+        appendNotice(`Enter a name for ${contact.label}, or choose Leave blank.`, true);
+        return;
+      }
+      contactNames.push({ contactId: contact.contactId, name });
+    }
     apply.disabled = true;
     void send("pos_import_interface_contacts", {
-      harnessId, interfaceId, boardVersionId: selected.value,
+      harnessId, interfaceId, contactNames,
     }).then((response) => {
       if (!response.ok) throw new Error(response.error || "Could not import PCB pad names.");
       form.remove();
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(message, choices, apply, cancel);
+  form.append(message, choices, review, apply, cancel);
   naming.append(form);
   void send("get_pos_import_boards", { harnessId, interfaceId }).then((response) => {
     if (naming.querySelector(".interface-contact-pos-import") !== form) return;
