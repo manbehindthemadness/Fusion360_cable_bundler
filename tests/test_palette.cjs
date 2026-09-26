@@ -4,6 +4,8 @@ const paletteSuites = [
   "master-layout-state.cjs",
   "master-layout-routing.cjs",
   "panel-ui.cjs",
+  "panel-contact-geometry.cjs",
+  "panel-contact-interactions.cjs",
   "panel-navigation.cjs",
   "panel-associations.cjs",
   "panel-connections.cjs",

@@ -248,6 +248,11 @@ function descendants(root, predicate) {
     ? [...(predicate(child) ? [child] : []), ...descendants(child, predicate)] : []);
 }
 
+/** Return a contact's rendered group by its persistent identity. */
+function contactItem(diagram, id) {
+  return descendants(diagram, (node) => node.dataset?.contactId === id)[0];
+}
+
 /** Return three cable groups sharing one pathway. */
 function harness() {
   const materialDefaults = {
@@ -298,6 +303,7 @@ module.exports = {
   Element,
   assert,
   asyncTest,
+  contactItem,
   descendants,
   harness,
   join,
