@@ -16,7 +16,7 @@ from .materials import (
     CableVisualOverrides,
 )
 
-SCHEMA_VERSION = 30
+SCHEMA_VERSION = 31
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -540,6 +540,7 @@ class InterfaceContact:
     contact_id: UUID
     kind: AttachmentTargetKind
     entity_token: str
+    name: str = ""
 
     def __post_init__(self) -> None:
         """
@@ -551,6 +552,12 @@ class InterfaceContact:
             raise ValueError("Interface contact kind is invalid.")
         if not isinstance(self.entity_token, str) or not self.entity_token.strip():
             raise ValueError("Interface contact must have a Fusion entity token.")
+        if (
+            not isinstance(self.name, str)
+            or (self.name and not self.name.strip())
+            or len(self.name) > 80
+        ):
+            raise ValueError("Interface contact name must be text of at most 80 characters.")
 
 
 @dataclass(frozen=True)

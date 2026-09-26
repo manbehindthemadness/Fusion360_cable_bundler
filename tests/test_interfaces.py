@@ -13,6 +13,7 @@ import pytest
 from cable_bundler.application import (
     add_interface,
     add_interface_contacts,
+    name_interface_contacts,
     remove_interface,
     rename_interface,
 )
@@ -72,6 +73,36 @@ def test_interface_contacts_round_trip_and_schema_29_migration(
     payload["schema_version"] = 29
     del payload["interfaces"][0]["contacts"]
     assert loads(json.dumps(payload)).interfaces[0].contacts == ()
+
+
+def test_interface_contact_names_survive_round_trip_and_previous_schema(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist imported names while older contacts acquire empty names.
+    """
+    contact = InterfaceContact(UUID(int=811), AttachmentTargetKind.FACE, "face")
+    interface = InterfaceDefinition(
+        UUID(int=812),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (contact,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    updated = name_interface_contacts(
+        definition.harness_id, interface.interface_id, {contact.contact_id: "J1.2"}, gateway
+    )
+    assert updated.contacts[0].name == "J1.2"
+    assert loads(gateway.serialized_definition).interfaces[0].contacts[0].name == "J1.2"
+    cleared = name_interface_contacts(
+        definition.harness_id, interface.interface_id, {contact.contact_id: ""}, gateway
+    )
+    assert cleared.contacts[0].name == ""
+    previous = json.loads(dumps(definition))
+    previous["schema_version"] = 30
+    del previous["interfaces"][0]["contacts"][0]["name"]
+    assert loads(json.dumps(previous)).interfaces[0].contacts[0].name == ""
 
 
 def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(

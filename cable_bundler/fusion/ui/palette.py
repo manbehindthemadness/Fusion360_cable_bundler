@@ -159,6 +159,9 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "select_interface_contacts": lambda application, data: _open_select_interface_contacts_command(
         application, data
     ),
+    "load_brd_interface_contacts": lambda application, data: _open_palette_edit(
+        application, "load_brd_interface_contacts", data
+    ),
     "add_junction_relationship": lambda application, data: _open_add_junction_relationship_command(
         application, data
     ),

@@ -362,7 +362,8 @@ def serialize_palette_state(
                             else {
                                 "contactId": str(contact.contact_id),
                                 "kind": contact.kind.value,
-                                "name": contact.kind.value,
+                                "name": contact.name or contact.kind.value,
+                                "assignedName": contact.name,
                                 "linked": False,
                                 "normal": [0.0, 0.0, 1.0],
                                 "loops": [],

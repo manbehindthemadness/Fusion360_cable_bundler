@@ -25,7 +25,13 @@ from .ends import (
     set_cable_end_properties,
     switch_standalone_end,
 )
-from .interfaces import add_interface, add_interface_contacts, remove_interface, rename_interface
+from .interfaces import (
+    add_interface,
+    add_interface_contacts,
+    name_interface_contacts,
+    remove_interface,
+    rename_interface,
+)
 from .junctions import (
     add_junction,
     add_junction_relationship,
@@ -71,6 +77,7 @@ __all__ = [
     "add_junction",
     "add_interface",
     "add_interface_contacts",
+    "name_interface_contacts",
     "add_junction_relationship",
     "add_pathway_refine",
     "append_end_guides",

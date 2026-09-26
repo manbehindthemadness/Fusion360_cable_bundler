@@ -76,6 +76,7 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
             "contactId": str(contact.contact_id),
             "kind": "face",
             "name": "face",
+            "assignedName": "",
             "linked": False,
             "normal": [0.0, 0.0, 1.0],
             "loops": [],

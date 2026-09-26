@@ -5,14 +5,84 @@ Focused regressions for Interface contact picking and diagram projection.
 from __future__ import annotations
 
 import importlib
+import json
 import sys
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
 
 from cable_bundler.domain import AttachmentTargetKind, InterfaceContact
+
+
+def test_contact_name_edit_routes_to_transactional_application_service(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Route the clicked contact identity and text through the normal edit command.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    gateway = object()
+    rename = Mock()
+    monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(edits), "name_interface_contacts", rename)
+    notice = edits._apply_palette_edit(
+        object(),
+        "set_interface_contact_name",
+        json.dumps(
+            {
+                "harnessId": str(UUID(int=1)),
+                "interfaceId": str(UUID(int=2)),
+                "contactId": str(UUID(int=3)),
+                "name": "J5.2",
+            }
+        ),
+    )
+    assert notice == "Interface contact name updated."
+    rename.assert_called_once_with(UUID(int=1), UUID(int=2), {UUID(int=3): "J5.2"}, gateway)
+
+
+def test_live_board_reader_uses_placed_through_hole_signal_contacts(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Convert real ECAD units without applying element placement a second time.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    electron = ModuleType("adsk.electron")
+    electron.Board = SimpleNamespace(cast=lambda product: product)
+    monkeypatch.setitem(sys.modules, "adsk.electron", electron)
+    monkeypatch.setitem(vars(sys.modules["adsk"]), "electron", electron)
+    pad = SimpleNamespace(x=569920, y=13574720, diameter=438400, drill=326400)
+    contact = SimpleNamespace(name="03", pad=pad)
+    element = SimpleNamespace(name="J3", x=100, y=200, angle=270, mirror=True)
+    reference = SimpleNamespace(element=element, contact=contact)
+    smd_reference = SimpleNamespace(contact=SimpleNamespace(pad=None))
+    malformed_reference = SimpleNamespace(contact=None)
+    board = SimpleNamespace(
+        signals=_collection(
+            SimpleNamespace(
+                name="P1.09", contactRefs=_collection(reference, smd_reference, malformed_reference)
+            )
+        )
+    )
+    application = SimpleNamespace(
+        documents=_collection(SimpleNamespace(products=_collection(board)))
+    )
+    pads = module._live_board_pads(application)
+    assert len(pads) == 1
+    assert pads[0].label == "J3.03"
+    assert pads[0].signal == "P1.09"
+    assert (pads[0].x, pads[0].y, pads[0].layer) == pytest.approx((1.781, 42.421, 0))
+    assert (pads[0].width, pads[0].height, pads[0].drill_diameter_mm) == pytest.approx(
+        (1.37, 1.37, 1.02)
+    )
+    board.signals = _collection(SimpleNamespace(name="GND", contactRefs=_collection(smd_reference)))
+    with pytest.raises(ValueError, match="no connected through-hole pad data"):
+        module._live_board_pads(application)
 
 
 def _collection(*items: object) -> SimpleNamespace:
@@ -139,8 +209,9 @@ def test_projection_samples_profile_boundaries_and_keeps_mm_coordinates(
     )
     monkeypatch.setitem(vars(projection), "attachment_target_name", lambda _entity, _kind: "Socket")
     design = SimpleNamespace(findEntityByToken=lambda _token: [profile])
-    contact = InterfaceContact(UUID(int=901), AttachmentTargetKind.PROFILE, "profile")
+    contact = InterfaceContact(UUID(int=901), AttachmentTargetKind.PROFILE, "profile", "J5.2")
     payload = projection.project_interface_contact(design, contact)
+    assert payload["name"] == payload["assignedName"] == "J5.2"
     assert payload["normal"] == [0.0, 0.0, 1.0]
     assert payload["parentAxes"] == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     assert payload["loops"] == [[[30.0, 40.0, 0.0], [40.0, 40.0, 0.0], [40.0, 60.0, 0.0]]]

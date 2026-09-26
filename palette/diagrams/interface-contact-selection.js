@@ -96,6 +96,18 @@ function paintInterfaceContactSelection(state) {
   state.count.textContent = `${state.selectedIds.size} selected`;
 }
 
+/** Keep names legible in screen pixels once their pad has enough room. */
+function paintInterfaceContactLabels(state) {
+  state.items.forEach((item) => {
+    if (!item.label || !item.labelBounds) return;
+    const scale = state.viewScale || 1;
+    item.label.style.fontSize = `${11 / scale}px`;
+    const fits = item.labelBounds.width * scale >= item.label.textContent.length * 6 + 8
+      && item.labelBounds.height * scale >= 14;
+    item.label.style.display = fits ? "" : "none";
+  });
+}
+
 /** Apply replacement, additive, or toggle selection semantics. */
 function selectInterfaceContactIds(state, ids, event) {
   if (!event.shiftKey && !event.ctrlKey && !event.metaKey) state.selectedIds.clear();
@@ -176,6 +188,9 @@ function enableInterfaceContactSelection(state) {
     if (event.type === "pointercancel") return;
     if (!drag.moved) {
       selectInterfaceContactIds(state, drag.targetId ? [drag.targetId] : [], event);
+      if (drag.targetId && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        state.onEditContact?.(drag.targetId, event);
+      }
       return;
     }
     const end = contactDiagramPoint(state, event);
@@ -201,6 +216,10 @@ function ensureInterfaceContactWorkspace(diagram) {
   const workspace = createBlockDiagramWorkspace("Contact diagram", {
     contentSize: size, minScale: 0.2,
     panWithPrimaryButton: () => state.mode === "pan",
+    onViewChange: ({ scale }) => {
+      state.viewScale = scale;
+      paintInterfaceContactLabels(state);
+    },
   });
   const toolbar = workspace.root.children[0];
   const tools = document.createElement("div");
@@ -209,6 +228,7 @@ function ensureInterfaceContactWorkspace(diagram) {
   state = {
     workspace, size, count, items: [], selectedIds: new Set(), mode: "box",
     svg: null, diagramWidth: 600, diagramHeight: 300, drag: null, hasContacts: false,
+    contacts: [], viewScale: 1, onEditContact: null,
   };
   tools.className = "interface-contact-tools";
   tools.setAttribute("role", "group");
@@ -246,6 +266,7 @@ function updateInterfaceContactWorkspace(state, svg, items, contacts, dimensions
   state.drag = null;
   state.svg = svg;
   state.items = items;
+  state.contacts = contacts;
   state.diagramWidth = dimensions.diagramWidth;
   state.diagramHeight = dimensions.diagramHeight;
   state.size.width = dimensions.width;
@@ -254,6 +275,7 @@ function updateInterfaceContactWorkspace(state, svg, items, contacts, dimensions
   const available = new Set(contacts.map((contact) => contact.contactId));
   state.selectedIds = new Set([...state.selectedIds].filter((id) => available.has(id)));
   paintInterfaceContactSelection(state);
+  paintInterfaceContactLabels(state);
   if (!state.hasContacts && contacts.length) state.workspace.fit();
   state.hasContacts = contacts.length > 0;
 }

@@ -559,10 +559,12 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   assert.equal(dialog.open, true);
   assert.equal(dialog.children[0].textContent, 'Select Contacts · Socket A');
-  const modes = dialog.children[1].children;
+  const modes = dialog.children[1].children[0].children;
   assert.deepEqual(modes.map((button) => button.textContent), [
     'Manual', 'Row', 'Plane',
   ]);
+  const naming = dialog.children[1].children[1].children;
+  assert.deepEqual(naming.map((button) => button.textContent), ['Pos Import', 'Load brd']);
   assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
@@ -576,6 +578,11 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(launches[0].action, 'select_interface_contacts');
   assert.equal(launches[0].payload.interfaceId, 'interface-1');
   modes[1].events.click();
+  naming[0].events.click();
+  naming[1].events.click();
+  assert.deepEqual(launches.slice(1).map((item) => item.action), [
+    'pos_import_interface_contacts', 'load_brd_interface_contacts',
+  ]);
   assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
     'false', 'true', 'false',
   ]);
@@ -606,11 +613,50 @@ test('Interface contacts keep positions within orientation clusters', () => {
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
 });
 
+test('imported contact names appear on pads when there is room', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [{
+    contactId: 'pad-1', kind: 'face', name: 'J5.2', assignedName: 'J5.2', linked: true,
+    normal: [0, 0, 1], loops: [[[0, 0, 0], [3, 0, 0], [3, 1, 0], [0, 1, 0]]],
+  }]);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className === 'interface-contact-label'
+  ));
+  assert.equal(labels.length, 1);
+  assert.equal(labels[0].textContent, 'J5.2');
+});
+
+test('unnamed contacts have a distinct appearance and names appear as zoom permits', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [
+    { contactId: 'named', kind: 'face', name: 'A1', assignedName: 'A1', linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]] },
+    { contactId: 'unnamed', kind: 'face', name: 'Pad', assignedName: '', linked: true,
+      normal: [0, 0, 1], loops: [[[20, 0, 0], [21, 0, 0], [21, 1, 0]]] },
+  ]);
+  assert.equal(contactItem(diagram, 'named').dataset.named, 'true');
+  assert.equal(contactItem(diagram, 'unnamed').dataset.named, 'false');
+  assert.match(readPaletteStyles(), /\[data-named="false"\] \.interface-contact-outline/);
+  const label = descendants(contactItem(diagram, 'named'), (node) => (
+    node.className === 'interface-contact-label'
+  ))[0];
+  assert.equal(label.style.display, 'none');
+  const zoomIn = descendants(diagram, (node) => node.title === 'Zoom in')[0];
+  for (let index = 0; index < 20; index += 1) zoomIn.events.click();
+  assert.equal(label.style.display, '');
+  assert.equal(descendants(contactItem(diagram, 'named'), (node) => node.tag === 'title')[0]
+    .textContent, 'A1');
+  assert.match(descendants(contactItem(diagram, 'unnamed'), (node) => node.tag === 'title')[0]
+    .textContent, /Unnamed contact/);
+});
+
 test('contact projection views asymmetric layouts from the picked face side', () => {
   const { context } = palette();
   for (const [normal, expectedRight, expectedUp] of [
-    [[0, 0, 2], [4, 0], [0, -2]],
-    [[0, 0, -2], [-4, 0], [0, -2]],
+    [[0, 0, 2], [4, 0], [0, 2]],
+    [[0, 0, -2], [-4, 0], [0, 2]],
   ]) {
     const direction = context.contactOrientation(normal);
     const right = context.contactPlanePoint([4, 0, 0], direction);
@@ -630,6 +676,21 @@ test('contact projection views asymmetric layouts from the picked face side', ()
     assert.equal(Math.sign(offset), Math.sign(expectedRight[0]),
       'opposite normals share the viewing side of the first picked face');
   }
+});
+
+test('board contact projection keeps the small pads below the long pads', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [
+    { contactId: 'long', kind: 'face', linked: true, normal: [0, 0, 1],
+      parentAxes: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      loops: [[[0, 0, 0], [4, 0, 0], [4, 1, 0]]] },
+    { contactId: 'small', kind: 'face', linked: true, normal: [0, 0, 1],
+      parentAxes: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      loops: [[[0, 5, 0], [1, 5, 0], [1, 6, 0]]] },
+  ]);
+  assert.ok(diagram.contactState.items[1].loops[0][0][1]
+    > diagram.contactState.items[0].loops[0][0][1]);
 });
 
 test('contact clusters retain their local layout when the parent tilts and rotates', () => {
@@ -697,7 +758,7 @@ test('small contact pads fit the diagram without strokes swallowing their gaps',
     assert.ok(height > 10, 'pad interiors remain visible at the initial display scale');
     assert.ok(Math.abs(width / height - 4 / 0.6) < 1e-8);
     for (let index = 1; index < loops.length; index += 1) {
-      assert.ok(loops[index - 1][2][1] - loops[index][0][1] > 3,
+      assert.ok(loops[index][0][1] - loops[index - 1][2][1] > 3,
         'neighboring pad strokes must not overlap');
     }
     assert.ok(loops[6][2][1] < diagramHeight);
@@ -721,6 +782,44 @@ function contactPointer(svg, x, y, pointerId = 1) {
 function contactItem(diagram, id) {
   return descendants(diagram, (node) => node.dataset?.contactId === id)[0];
 }
+
+asyncTest('left clicking a contact edits its saved name without losing selection', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const contact = { contactId: 'pad-1', kind: 'face', name: 'Pad', assignedName: 'J5.2',
+    linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [3, 0, 0], [3, 1, 0], [0, 1, 0]]] };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [contact],
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  const state = diagram.contactState;
+  const [x, y] = state.items[0].loops[0][0];
+  const item = contactItem(diagram, 'pad-1');
+  const pointer = { ...contactPointer(state.svg, x, y), target: item };
+  state.workspace.viewport.events.pointerdown(pointer);
+  state.workspace.viewport.events.pointerup({ ...pointer, type: 'pointerup' });
+  assert.equal(item.dataset.selected, 'true');
+  const editor = diagram.querySelector('.interface-contact-name-editor');
+  assert.equal(editor.dataset.contactId, 'pad-1');
+  const input = editor.children[1];
+  assert.equal(input.value, 'J5.2');
+  input.value = 'J5.4';
+  editor.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches.length, 1);
+  assert.equal(launches[0].action, 'set_interface_contact_name');
+  assert.equal(launches[0].payload.harnessId, 'harness-1');
+  assert.equal(launches[0].payload.interfaceId, 'interface-1');
+  assert.equal(launches[0].payload.contactId, 'pad-1');
+  assert.equal(launches[0].payload.name, 'J5.4');
+  assert.equal(diagram.querySelector('.interface-contact-name-editor'), undefined);
+});
 
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {
   const { context } = palette();

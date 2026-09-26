@@ -129,3 +129,50 @@ def add_interface_contacts(
         raise ValueError("Interface contact identity is already in use.")
     persist_definition(harness_id, original, updated, gateway)
     return updated_interface
+
+
+def name_interface_contacts(
+    harness_id: UUID,
+    interface_id: UUID,
+    names: dict[UUID, str],
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Persist confidently matched contact names in one transaction.
+
+    Unmentioned contacts retain their names and identity. Unknown identities and
+    whitespace-only or oversized proposed names fail before the harness is written.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    known = {contact.contact_id for contact in current.contacts}
+    if not set(names).issubset(known):
+        raise ValueError("Contact naming request contains an unknown identity.")
+    if any(
+        not isinstance(name, str) or (name and not name.strip()) or len(name.strip()) > 80
+        for name in names.values()
+    ):
+        raise ValueError("Contact names must be text of at most 80 characters.")
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            replace(contact, name=names[contact.contact_id].strip())
+            if contact.contact_id in names
+            else contact
+            for contact in current.contacts
+        ),
+    )
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    if names:
+        persist_definition(harness_id, original, updated, gateway)
+    return updated_interface

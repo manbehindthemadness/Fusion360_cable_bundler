@@ -23,6 +23,7 @@ from ...application import (
     disconnect_cable_end_main,
     disconnect_cable_end_shielding,
     move_pathway_gate,
+    name_interface_contacts,
     remove_cable_end_attachment,
     remove_end_control,
     remove_end_guide,
@@ -55,9 +56,10 @@ from ...application import (
     switch_standalone_end,
     update_junction_relationships,
 )
-from ...application.edit_harness import set_interpolation
+from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, JunctionPathwayRelationship, PathwayEndpoint
 from ...domain.codec import parse_interpolation
+from ..interface_contact_naming import import_interface_contact_names
 from .payloads import (
     _read_harness_properties,
     _read_material_overrides,
@@ -99,6 +101,20 @@ def _apply_palette_edit(
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    if action == "set_interface_contact_name":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        contact_id = _read_payload_uuid(payload, "contactId", "contact")
+        name = payload.get("name")
+        if not isinstance(name, str):
+            raise ValueError("Contact name must be text.")
+        name_interface_contacts(
+            harness_id, interface_id, {contact_id: name}, _create_harness_gateway(application)
+        )
+        return "Interface contact name updated."
+    if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        source = "live" if action == "pos_import_interface_contacts" else "file"
+        return import_interface_contact_names(application, harness_id, interface_id, source)
     gateway = _create_harness_gateway(application)
     if action in _TOPOLOGY_ACTIONS:
         return _apply_topology_edit(action, payload, harness_id, gateway)

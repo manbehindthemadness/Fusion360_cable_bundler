@@ -4,7 +4,7 @@ function contactOrientation(normal) {
   return length > 1e-9 ? normal.map((value) => value / length) : [0, 0, 1];
 }
 
-/** View a cluster in its shared parent frame, converting model-up to SVG-down. */
+/** View a cluster in its shared parent frame with the board's observed down axis. */
 function contactPlanePoint(point, normal, parentAxes = null) {
   const validAxes = Array.isArray(parentAxes) && parentAxes.length === 3
     && parentAxes.every((axis) => Array.isArray(axis) && axis.length === 3
@@ -26,7 +26,7 @@ function contactPlanePoint(point, normal, parentAxes = null) {
   ];
   return [
     point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
-    -point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
+    point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
   ];
 }
 
@@ -95,13 +95,18 @@ function renderInterfaceContacts(diagram, contacts) {
     outlines.forEach(({ contact, loops }) => {
       const contactGroup = svgElement("g", {
         class: "interface-contact-item", "data-contact-id": contact.contactId,
+        "data-named": `${Boolean(contact.assignedName)}`,
         role: "option", "aria-selected": "false", tabindex: "0",
       });
+      contactGroup.setAttribute("aria-label", contact.assignedName || `Unnamed contact: ${contact.name}`);
       contactGroup.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         selectInterfaceContactIds(workspace, [contact.contactId], event);
       });
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = contact.assignedName || `Unnamed contact · ${contact.name}`;
+      contactGroup.append(title);
       const positionedLoops = [];
       if (!contact.linked || !loops.length || !loops.some((loop) => loop.length)) {
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -120,9 +125,6 @@ function renderInterfaceContacts(diagram, contacts) {
         items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops });
         return;
       }
-      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      title.textContent = contact.name;
-      contactGroup.append(title);
       const outlinePaths = [];
       loops.forEach((loop) => {
         if (!loop.length) return;
@@ -149,8 +151,28 @@ function renderInterfaceContacts(diagram, contacts) {
           d: outlinePaths.join(" "), class: "interface-contact-outline", "fill-rule": "evenodd",
         }));
       }
+      let nameLabel = null;
+      let labelBounds = null;
+      if (contact.assignedName && positionedLoops.length) {
+        const vertices = positionedLoops.flat();
+        const xs = vertices.map((point) => point[0]);
+        const ys = vertices.map((point) => point[1]);
+        const left = Math.min(...xs);
+        const right = Math.max(...xs);
+        const top = Math.min(...ys);
+        const bottom = Math.max(...ys);
+        nameLabel = svgElement("text", {
+          x: (left + right) / 2, y: (top + bottom) / 2,
+          class: "interface-contact-label", "text-anchor": "middle",
+          "dominant-baseline": "middle",
+        });
+        nameLabel.textContent = contact.assignedName;
+        labelBounds = { width: right - left, height: bottom - top };
+        contactGroup.append(nameLabel);
+      }
       group.append(contactGroup);
-      items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops });
+      items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops,
+        label: nameLabel, labelBounds });
     });
     svg.append(group);
     offsetX += clusterWidth + 18;
@@ -183,6 +205,8 @@ function openInterfaceContacts(harness, interfaceItem) {
   const dialog = document.createElement("dialog");
   const title = document.createElement("h2");
   const modes = document.createElement("div");
+  const toolbar = document.createElement("div");
+  const naming = document.createElement("div");
   const diagram = document.createElement("div");
   const actions = document.createElement("div");
   const close = document.createElement("button");
@@ -215,17 +239,40 @@ function openInterfaceContacts(harness, interfaceItem) {
     buttons.push(button);
     modes.append(button);
   });
+  toolbar.className = "interface-contacts-toolbar";
+  naming.className = "interface-contacts-naming";
+  naming.setAttribute("role", "group");
+  naming.setAttribute("aria-label", "Contact naming");
+  [["Pos Import", "pos_import_interface_contacts"],
+    ["Load brd", "load_brd_interface_contacts"]].forEach(([label, action]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button compact";
+    button.textContent = label;
+    button.addEventListener("click", () => {
+      void send(action, {
+        harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
+      }).catch((error) => appendNotice(String(error), true));
+    });
+    naming.append(button);
+  });
+  toolbar.append(modes, naming);
   diagram.className = "interface-contacts-diagram";
   diagram.setAttribute("role", "region");
   diagram.setAttribute("aria-label", "Contact diagram");
   renderInterfaceContacts(diagram, interfaceItem.contacts || []);
+  diagram.contactState.harnessId = harness.harnessId;
+  diagram.contactState.interfaceId = interfaceItem.interfaceId;
+  diagram.contactState.onEditContact = (contactId, event) => {
+    openInterfaceContactNameEditor(diagram, diagram.contactState, contactId, event);
+  };
   actions.className = "pathway-popup-actions";
   close.type = "button";
   close.className = "button";
   close.textContent = "Close";
   close.addEventListener("click", () => dialog.close());
   actions.append(close);
-  dialog.append(title, modes, diagram, actions);
+  dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
