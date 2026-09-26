@@ -253,3 +253,60 @@ def set_interface_contact_details(
     )
     persist_definition(harness_id, original, updated, gateway)
     return updated_interface
+
+
+def auto_pin_interface_contacts(
+    harness_id: UUID,
+    interface_id: UUID,
+    ordered_contact_ids: tuple[UUID, ...],
+    start: int,
+    overwrite: bool,
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Number contacts in diagram order, preserving Values and optionally existing pins.
+
+    Skipped assigned pins do not consume a number. The entire edit is persisted once.
+    """
+    if not ordered_contact_ids or len(set(ordered_contact_ids)) != len(ordered_contact_ids):
+        raise ValueError("Auto Pin requires distinct contact identities.")
+    if not isinstance(start, int) or isinstance(start, bool) or start < 0 or start > 1_000_000_000:
+        raise ValueError("Auto Pin Start must be an integer from 0 to 1000000000.")
+    if not isinstance(overwrite, bool):
+        raise ValueError("Auto Pin Overwrite must be a checkbox value.")
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    contacts = {contact.contact_id: contact for contact in current.contacts}
+    if not set(ordered_contact_ids).issubset(contacts):
+        raise ValueError("Auto Pin request contains an unknown contact identity.")
+    next_pin = start
+    replacements: dict[UUID, InterfaceContact] = {}
+    for contact_id in ordered_contact_ids:
+        contact = contacts[contact_id]
+        if contact.pin and not overwrite:
+            continue
+        replacements[contact_id] = replace(contact, pin=str(next_pin))
+        next_pin += 1
+    if not replacements or all(
+        contacts[contact_id] == updated for contact_id, updated in replacements.items()
+    ):
+        return current
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            replacements.get(contact.contact_id, contact) for contact in current.contacts
+        ),
+    )
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface

@@ -155,6 +155,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                     "load_brd_interface_contacts",
                     "set_interface_contact_name",
                     "set_interface_contact_details",
+                    "auto_pin_interface_contacts",
                     "rename_interface",
                 )
             }

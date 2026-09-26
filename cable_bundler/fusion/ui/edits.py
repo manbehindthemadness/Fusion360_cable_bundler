@@ -20,6 +20,7 @@ from ...application import (
     CableEditorRename,
     HarnessEditGateway,
     add_cable_end_connection,
+    auto_pin_interface_contacts,
     disconnect_cable_end_main,
     disconnect_cable_end_shielding,
     move_pathway_gate,
@@ -125,6 +126,25 @@ def _apply_palette_edit(
             harness_id, interface_id, contact_id, value, pin, _create_harness_gateway(application)
         )
         return "Interface contact updated."
+    if action == "auto_pin_interface_contacts":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        raw_ids = payload.get("contactIds")
+        if (
+            not isinstance(raw_ids, list)
+            or not raw_ids
+            or any(not isinstance(item, str) for item in raw_ids)
+        ):
+            raise ValueError("Auto Pin requires contact identities.")
+        contact_ids = tuple(UUID(item) for item in raw_ids)
+        auto_pin_interface_contacts(
+            harness_id,
+            interface_id,
+            contact_ids,
+            payload.get("start"),
+            payload.get("overwrite"),
+            _create_harness_gateway(application),
+        )
+        return "Interface contacts pinned."
     if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source = "live" if action == "pos_import_interface_contacts" else "file"

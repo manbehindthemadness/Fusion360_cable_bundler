@@ -32,7 +32,24 @@
 .interface-contacts-diagram [hidden] { display: none !important; }
 .interface-contacts-modes { display: flex; flex-wrap: wrap; gap: 8px; }
 .interface-contacts-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.interface-contacts-naming { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.interface-contacts-naming { position: relative; display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.interface-contact-auto-pin {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 12px #0003;
+}
+.interface-contact-auto-pin label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; white-space: nowrap; }
+.interface-contact-auto-pin input[type="number"] { width: 6rem; }
 .interface-contacts-modes [aria-pressed="true"] {
   border-color: var(--accent);
   background: var(--focus-surface);

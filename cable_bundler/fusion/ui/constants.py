@@ -150,6 +150,7 @@ PALETTE_EDIT_NAMES = {
     "load_brd_interface_contacts": "Load Interface Board",
     "set_interface_contact_name": "Name Interface Contact",
     "set_interface_contact_details": "Edit Interface Contact",
+    "auto_pin_interface_contacts": "Auto Pin Interface Contacts",
     "rename_standalone_end": "Rename Standalone End",
     "rename_cable_end_attachment": "Rename Cable End Connection",
     "switch_standalone_end": "Switch Standalone End",

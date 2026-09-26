@@ -77,6 +77,33 @@ def test_contact_details_edit_routes_value_and_pin_together(
         )
 
 
+def test_auto_pin_routes_order_and_policy_without_value(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Pass the visible contact sequence to one transactional pin-only edit.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    gateway = object()
+    update = Mock()
+    monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(edits), "auto_pin_interface_contacts", update)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactIds": [str(UUID(int=4)), str(UUID(int=3))],
+        "start": 7,
+        "overwrite": False,
+    }
+    notice = edits._apply_palette_edit(object(), "auto_pin_interface_contacts", json.dumps(payload))
+    assert notice == "Interface contacts pinned."
+    update.assert_called_once_with(
+        UUID(int=1), UUID(int=2), (UUID(int=4), UUID(int=3)), 7, False, gateway
+    )
+    assert "value" not in payload
+
+
 def test_contact_deletion_routes_selected_ids_as_one_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

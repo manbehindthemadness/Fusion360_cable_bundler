@@ -13,6 +13,7 @@ import pytest
 from cable_bundler.application import (
     add_interface,
     add_interface_contacts,
+    auto_pin_interface_contacts,
     name_interface_contacts,
     remove_interface,
     remove_interface_contacts,
@@ -150,6 +151,66 @@ def test_interface_contact_value_and_pin_persist_with_legacy_default(
             "x" * 81,
             gateway,
         )
+
+
+def test_auto_pin_preserves_values_and_skips_assigned_pins(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Number in requested order while skipped pins consume no number or edit.
+    """
+    contacts = tuple(
+        InterfaceContact(
+            UUID(int=820 + index),
+            AttachmentTargetKind.FACE,
+            f"face-{index}",
+            name=f"V{index}",
+            pin=pin,
+        )
+        for index, pin in enumerate(("", "P9", ""))
+    )
+    interface = InterfaceDefinition(
+        UUID(int=824), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "body"),), contacts
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    order = tuple(contact.contact_id for contact in reversed(contacts))
+
+    updated = auto_pin_interface_contacts(
+        definition.harness_id, interface.interface_id, order, 7, False, gateway
+    )
+
+    assert [contact.name for contact in updated.contacts] == ["V0", "V1", "V2"]
+    assert [contact.pin for contact in updated.contacts] == ["8", "P9", "7"]
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == updated.contacts
+    overwritten = auto_pin_interface_contacts(
+        definition.harness_id, interface.interface_id, order, 12, True, gateway
+    )
+    assert [contact.pin for contact in overwritten.contacts] == ["14", "13", "12"]
+    assert [contact.name for contact in overwritten.contacts] == ["V0", "V1", "V2"]
+
+
+def test_auto_pin_rejects_unknown_or_duplicate_contacts(valid_harness: HarnessDefinition) -> None:
+    """
+    Reject stale or ambiguous order before persisting any edit.
+    """
+    contact = InterfaceContact(UUID(int=825), AttachmentTargetKind.FACE, "face", name="VCC")
+    interface = InterfaceDefinition(
+        UUID(int=826),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (contact,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    arguments = (definition.harness_id, interface.interface_id)
+    with pytest.raises(ValueError, match="distinct"):
+        auto_pin_interface_contacts(*arguments, (contact.contact_id,) * 2, 1, False, gateway)
+    with pytest.raises(ValueError, match="unknown"):
+        auto_pin_interface_contacts(*arguments, (UUID(int=827),), 1, False, gateway)
+    with pytest.raises(ValueError, match="Start"):
+        auto_pin_interface_contacts(*arguments, (contact.contact_id,), True, False, gateway)
+    assert loads(gateway.serialized_definition).interfaces[0] == interface
 
 
 def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(

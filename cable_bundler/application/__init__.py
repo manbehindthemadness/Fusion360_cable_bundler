@@ -89,6 +89,7 @@ from .edit_harness import (
 from .harness_edits.interfaces import (
     add_interface,
     add_interface_contacts,
+    auto_pin_interface_contacts,
     name_interface_contacts,
     remove_interface,
     remove_interface_contacts,
@@ -140,6 +141,7 @@ __all__ = [
     "add_junction",
     "add_interface",
     "add_interface_contacts",
+    "auto_pin_interface_contacts",
     "name_interface_contacts",
     "set_interface_contact_details",
     "add_junction_relationship",

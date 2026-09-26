@@ -686,6 +686,14 @@ function openInterfaceContacts(harness, interfaceItem) {
   naming.className = "interface-contacts-naming";
   naming.setAttribute("role", "group");
   naming.setAttribute("aria-label", "Contact naming");
+  const autoPin = document.createElement("button");
+  autoPin.type = "button";
+  autoPin.className = "button compact";
+  autoPin.textContent = "Auto Pin";
+  autoPin.addEventListener("click", () => openInterfaceAutoPin(
+    naming, diagram, harness.harnessId, interfaceItem.interfaceId,
+  ));
+  naming.append(autoPin);
   [["Pos Import", "pos_import_interface_contacts"],
     ["Load brd", "load_brd_interface_contacts"]].forEach(([label, action]) => {
     const button = document.createElement("button");
