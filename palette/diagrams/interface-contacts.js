@@ -722,7 +722,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   diagram.contactState.deleteButton = remove;
   diagram.contactState.onDeleteContacts = async () => {
     const state = diagram.contactState;
-    if (!dialog.open || !state || state.deleting || state.workspace.root.hidden
+    if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
       || !state.selectedIds.size) return;
     const contactIds = [...state.selectedIds];
     state.deleting = true;
@@ -738,6 +738,27 @@ function openInterfaceContacts(harness, interfaceItem) {
     } finally {
       if (dialog.open && diagram.contactState === state) {
         state.deleting = false;
+        paintInterfaceContactSelection(state);
+      }
+    }
+  };
+  diagram.contactState.onClearPins = async () => {
+    const state = diagram.contactState;
+    if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
+      || !state.selectedIds.size) return;
+    const contactIds = [...state.selectedIds];
+    state.clearing = true;
+    paintInterfaceContactSelection(state);
+    try {
+      const response = await send("clear_interface_contact_pins", {
+        harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId, contactIds,
+      });
+      if (!response.ok) throw new Error(response.error || "Could not clear selected pins.");
+    } catch (error) {
+      if (dialog.open) appendNotice(String(error), true);
+    } finally {
+      if (dialog.open && diagram.contactState === state) {
+        state.clearing = false;
         paintInterfaceContactSelection(state);
       }
     }
@@ -760,6 +781,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
+    diagram.contactState.showContextMenu.close();
     diagram.contactState.items.forEach((item) => item.clearHover?.());
     // A cached SVG must not retain the old workspace's event handlers and state.
     if (cachedContactGeometry?.rendered?.svg === diagram.contactState.svg) {

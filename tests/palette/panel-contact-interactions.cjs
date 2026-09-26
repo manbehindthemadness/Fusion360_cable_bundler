@@ -13,7 +13,7 @@ function contactPointer(svg, x, y, pointerId = 1) {
   };
 }
 
-asyncTest('left clicking a contact edits its Value and Pin without losing selection', async () => {
+asyncTest('single click selects and double click edits one contact', async () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -33,8 +33,11 @@ asyncTest('left clicking a contact edits its Value and Pin without losing select
   const item = contactItem(diagram, 'pad-1');
   const pointer = { ...contactPointer(state.svg, x, y), target: item };
   state.workspace.viewport.events.pointerdown(pointer);
-  state.workspace.viewport.events.pointerup({ ...pointer, type: 'pointerup' });
+  state.workspace.viewport.events.pointerup({ ...pointer, type: 'pointerup', timeStamp: 1000 });
   assert.equal(item.dataset.selected, 'true');
+  assert.equal(diagram.querySelector('.interface-contact-details-editor'), undefined);
+  state.workspace.viewport.events.pointerdown(pointer);
+  state.workspace.viewport.events.pointerup({ ...pointer, type: 'pointerup', timeStamp: 1200 });
   const editor = diagram.querySelector('.interface-contact-details-editor');
   assert.equal(editor.dataset.contactId, 'pad-1');
   assert.equal(editor.children[0].textContent, 'Value');
@@ -77,6 +80,59 @@ asyncTest('left clicking a contact edits its Value and Pin without losing select
   assert.equal(unchanged.children[1].children[0].value, 'P8');
   unchanged.events.submit({ preventDefault() {} });
   assert.equal(launches.length, 2);
+});
+
+asyncTest('contact context menu closes on left press and acts on the selected group', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const contacts = ['a', 'b', 'c'].map((contactId, index) => ({
+    contactId, name: contactId, assignedName: `Value ${contactId}`, pin: `${index + 1}`,
+    linked: true, normal: [0, 0, 1],
+    loops: [[[index * 4, 0, 0], [index * 4 + 2, 0, 0], [index * 4 + 2, 2, 0]]],
+  }));
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts,
+  });
+  const diagram = context.document.body.querySelector('.interface-contacts-popup').children[2];
+  const state = diagram.contactState;
+  const viewport = state.workspace.viewport;
+  state.selectedIds.add('a');
+  state.selectedIds.add('b');
+  context.paintInterfaceContactSelection(state);
+  const rightClick = (id) => viewport.events.contextmenu({
+    target: contactItem(diagram, id), clientX: 50, clientY: 60,
+    preventDefault() {}, stopPropagation() {},
+  });
+  rightClick('a');
+  const menu = diagram.querySelector('.relationship-map-context-menu');
+  assert.equal(menu.hidden, false);
+  assert.deepEqual(menu.children.map((button) => button.textContent),
+    ['Edit', 'Clear', 'Delete']);
+  assert.equal(menu.children[0].disabled, true);
+  const background = contactPointer(state.svg, 0, 0);
+  viewport.events.pointerdown(background);
+  assert.equal(menu.hidden, true);
+  viewport.events.pointercancel({ ...background, type: 'pointercancel' });
+  rightClick('a');
+  menu.children[1].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[0].action, 'clear_interface_contact_pins');
+  assert.deepEqual(Array.from(launches[0].payload.contactIds), ['a', 'b']);
+  assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
+  rightClick('b');
+  menu.children[2].events.click();
+  await Promise.resolve();
+  assert.equal(launches[1].action, 'remove_interface_contacts');
+  assert.deepEqual(Array.from(launches[1].payload.contactIds), ['a', 'b']);
+  rightClick('c');
+  assert.deepEqual([...state.selectedIds], ['c']);
+  assert.equal(menu.children[0].disabled, false);
+  menu.children[0].events.click();
+  assert.equal(diagram.querySelector('.interface-contact-details-editor').dataset.contactId, 'c');
 });
 
 test('Auto Pin follows visual rows or columns, direction, and selected contacts', () => {

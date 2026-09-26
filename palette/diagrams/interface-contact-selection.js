@@ -95,7 +95,7 @@ function paintInterfaceContactSelection(state) {
   });
   state.count.textContent = `${state.selectedIds.size} selected`;
   if (state.deleteButton) state.deleteButton.disabled = !state.selectedIds.size
-    || state.deleting || state.workspace.root.hidden;
+    || state.deleting || state.clearing || state.workspace.root.hidden;
 }
 
 /** Keep interior Value and Pin text legible when the contact has enough room. */
@@ -168,6 +168,7 @@ function paintInterfaceContactDrag(state) {
 function enableInterfaceContactSelection(state) {
   const viewport = state.workspace.viewport;
   viewport.addEventListener("pointerdown", (event) => {
+    state.showContextMenu.close();
     if (event.button !== 0 || state.mode === "pan") return;
     event.preventDefault();
     viewport.focus();
@@ -203,14 +204,25 @@ function enableInterfaceContactSelection(state) {
     viewport.releasePointerCapture?.(event.pointerId);
     drag.overlay?.remove();
     state.drag = null;
-    if (event.type === "pointercancel") return;
-    if (!drag.moved) {
-      selectInterfaceContactIds(state, drag.targetId ? [drag.targetId] : [], event);
-      if (drag.targetId && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-        state.onEditContact?.(drag.targetId, event);
-      }
+    if (event.type === "pointercancel") {
+      state.lastClick = null;
       return;
     }
+    if (!drag.moved) {
+      selectInterfaceContactIds(state, drag.targetId ? [drag.targetId] : [], event);
+      const time = Number.isFinite(event.timeStamp) ? event.timeStamp : Date.now();
+      const previous = state.lastClick;
+      const doubleClick = drag.targetId && !event.shiftKey && !event.ctrlKey && !event.metaKey
+        && previous?.id === drag.targetId && time - previous.time >= 0
+        && time - previous.time <= 400
+        && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= 5;
+      state.lastClick = drag.targetId && !doubleClick && !event.shiftKey
+        && !event.ctrlKey && !event.metaKey
+        ? { id: drag.targetId, time, x: event.clientX, y: event.clientY } : null;
+      if (doubleClick) state.onEditContact?.(drag.targetId, event);
+      return;
+    }
+    state.lastClick = null;
     const end = contactDiagramPoint(state, event);
     const area = state.mode === "box" ? contactBox(drag.start, end) : [...drag.points, end];
     const selected = state.items.filter((item) => contactIntersectsArea(item, area))
@@ -219,9 +231,22 @@ function enableInterfaceContactSelection(state) {
   };
   viewport.addEventListener("pointerup", finish);
   viewport.addEventListener("pointercancel", finish);
+  viewport.addEventListener("contextmenu", (event) => {
+    state.lastClick = null;
+    const contactId = contactIdAtTarget(event.target, viewport);
+    if (!contactId) return;
+    event.stopPropagation();
+    if (!state.selectedIds.has(contactId)) selectInterfaceContactIds(state, [contactId], {});
+    state.showContextMenu(event, [
+      { label: "Edit", disabled: state.selectedIds.size !== 1,
+        action: () => state.onEditContact?.([...state.selectedIds][0], event) },
+      { label: "Clear", action: () => state.onClearPins?.() },
+      { label: "Delete", action: () => state.onDeleteContacts?.() },
+    ]);
+  });
   viewport.addEventListener("keydown", (event) => {
     if (event.key === "Delete" || event.key === "Del") {
-      if (state.selectedIds.size && !state.deleting) {
+      if (state.selectedIds.size && !state.deleting && !state.clearing) {
         event.preventDefault();
         state.onDeleteContacts?.();
       }
@@ -262,7 +287,8 @@ function ensureInterfaceContactWorkspace(diagram) {
     workspace, size, count, items: [], selectedIds: new Set(), mode: "box",
     svg: null, diagramWidth: 600, diagramHeight: 300, drag: null, hasContacts: false,
     contacts: [], viewScale: 1, onEditContact: null, onDeleteContacts: null,
-    deleteButton: null, deleting: false,
+    onClearPins: null, showContextMenu: null, lastClick: null,
+    deleteButton: null, deleting: false, clearing: false,
   };
   tools.className = "interface-contact-tools";
   tools.setAttribute("role", "group");
@@ -289,6 +315,7 @@ function ensureInterfaceContactWorkspace(diagram) {
   toolbar.append(count);
   workspace.root.classList.add("interface-contact-workspace");
   diagram.replaceChildren(workspace.root);
+  state.showContextMenu = addContextMenu(diagram, workspace.viewport);
   diagram.contactState = state;
   enableInterfaceContactSelection(state);
   return state;
@@ -296,9 +323,11 @@ function ensureInterfaceContactWorkspace(diagram) {
 
 /** Swap diagram content while preserving the selected contact IDs and current view. */
 function updateInterfaceContactWorkspace(state, svg, items, contacts, dimensions) {
+  state.showContextMenu.close();
   state.items.forEach((item) => item.clearHover?.());
   state.drag?.overlay?.remove();
   state.drag = null;
+  state.lastClick = null;
   state.svg = svg;
   state.items = items;
   state.contacts = contacts;

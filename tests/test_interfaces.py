@@ -14,6 +14,7 @@ from cable_bundler.application import (
     add_interface,
     add_interface_contacts,
     auto_pin_interface_contacts,
+    clear_interface_contact_pins,
     name_interface_contacts,
     remove_interface,
     remove_interface_contacts,
@@ -150,6 +151,44 @@ def test_interface_contact_value_and_pin_persist_with_legacy_default(
             "VCC",
             "x" * 81,
             gateway,
+        )
+
+
+def test_clear_interface_contact_pins_preserves_values_and_unselected_contacts(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Clear multiple pins in one persisted edit and reject unknown identities.
+    """
+    contacts = tuple(
+        InterfaceContact(
+            UUID(int=830 + index),
+            AttachmentTargetKind.FACE,
+            f"face-{index}",
+            f"Value {index}",
+            f"P{index}",
+        )
+        for index in range(3)
+    )
+    interface = InterfaceDefinition(
+        UUID(int=834), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "body"),), contacts
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+
+    updated = clear_interface_contact_pins(
+        definition.harness_id,
+        interface.interface_id,
+        (contacts[0].contact_id, contacts[2].contact_id),
+        gateway,
+    )
+
+    assert [contact.name for contact in updated.contacts] == ["Value 0", "Value 1", "Value 2"]
+    assert [contact.pin for contact in updated.contacts] == ["", "P1", ""]
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == updated.contacts
+    with pytest.raises(ValueError, match="known selected"):
+        clear_interface_contact_pins(
+            definition.harness_id, interface.interface_id, (UUID(int=899),), gateway
         )
 
 

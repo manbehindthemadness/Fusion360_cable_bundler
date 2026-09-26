@@ -61,6 +61,12 @@
   border-radius: 6px;
   background: var(--canvas);
 }
+.interface-contacts-diagram > .relationship-map-context-menu {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  width: fit-content;
+}
+.interface-contacts-diagram > .relationship-map-context-menu button { width: auto; }
 .interface-contact-workspace { height: 100%; border: 0; border-radius: 0; }
 .interface-contact-tools { display: flex; gap: 4px; margin-right: auto; }
 .interface-contact-tools button[aria-pressed="true"] {

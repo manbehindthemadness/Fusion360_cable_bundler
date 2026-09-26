@@ -345,6 +345,7 @@ function addContextMenu(root, returnFocus = null) {
     if (firstEnabled) firstEnabled.focus();
   };
   root.append(menu);
+  show.close = close;
   return show;
 }
 
