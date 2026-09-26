@@ -47,7 +47,7 @@ def preview_interface_contact_names(
     pads: list[BoardPad],
 ) -> dict[str, object]:
     """
-    Prepare transient Pos Import choices without editing the harness.
+    Prepare only actionable pad conflicts without editing unmatched contacts.
     """
     design = _require_active_design(application)
     gateway = _create_harness_gateway(application)
@@ -75,6 +75,8 @@ def preview_interface_contact_names(
                 if len(label := _linked_pad_name(pad)) <= 80
             )
         )
+        if not suggestions:
+            continue
         unresolved.append(
             {
                 "contactId": contact_id,

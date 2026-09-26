@@ -105,12 +105,12 @@ def test_pos_import_persists_connector_pin_and_signal(
     assert notice == "Named 1 of 2 Interface contacts; 1 unchanged."
 
 
-def test_pos_import_preview_reports_conflicts_and_unmatched_without_edit(
+def test_pos_import_preview_reports_only_conflicts_without_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Offer ambiguous PCB names and a blank fallback without persisting preview.
+    Offer ambiguous PCB names, leaving contacts without candidates untouched.
     """
     module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
     harness_id, interface_id = UUID(int=10), UUID(int=11)
@@ -147,12 +147,6 @@ def test_pos_import_preview_reports_conflicts_and_unmatched_without_edit(
                 "label": "Contact 2",
                 "currentName": "",
                 "suggestions": ["J1.2", "J2.2"],
-            },
-            {
-                "contactId": str(UUID(int=3)),
-                "label": "Contact 3",
-                "currentName": "old",
-                "suggestions": [],
             },
         ],
     }

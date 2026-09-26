@@ -81,7 +81,8 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
         unresolved: [
           { contactId: 'choice', label: 'Contact 2', currentName: '', suggestions: ['J1.2', 'J2.2'] },
           { contactId: 'custom', label: 'Contact 3', currentName: '', suggestions: ['J1.3'] },
-          { contactId: 'blank', label: 'Contact 4', currentName: 'old', suggestions: [] },
+          { contactId: 'blank', label: 'Contact 4', currentName: 'old', suggestions: ['J1.4', 'J2.4'] },
+          { contactId: 'no-match', label: 'Contact 5', currentName: 'saved', suggestions: [] },
         ],
       });
     }
@@ -106,6 +107,7 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
   ]);
   assert.equal(launches[1].payload.boardVersionId, 'pcb-version');
   const rows = form.children[2].children;
+  assert.equal(rows.length, 3);
   rows[0].children[1].value = '1';
   rows[1].children[1].value = 'custom';
   rows[1].children[1].events.change();
@@ -120,6 +122,37 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
     { contactId: 'choice', name: 'J2.2' },
     { contactId: 'custom', name: 'My pad' },
     { contactId: 'blank', name: '' },
+  ]);
+});
+
+asyncTest('Pos Import skips review when no contacts have conflicting PCB candidates', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    if (action === 'get_pos_import_boards') return Promise.resolve({
+      ok: true, boards: [{ name: 'PCB', versionId: 'version-1' }],
+    });
+    if (action === 'preview_pos_import_interface_contacts') return Promise.resolve({
+      ok: true, autoNames: [{ contactId: 'matched', name: 'J1.1' }],
+      unresolved: [{ contactId: 'no-match', label: 'Contact 2', suggestions: [] }],
+    });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [],
+  });
+  const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
+  naming.children[2].events.click();
+  await Promise.resolve();
+  const form = naming.querySelector('.interface-contact-pos-import');
+  form.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(form.children[2].children.length, 0);
+  assert.equal(launches[2].action, 'pos_import_interface_contacts');
+  assert.deepEqual(JSON.parse(JSON.stringify(launches[2].payload.contactNames)), [
+    { contactId: 'matched', name: 'J1.1' },
   ]);
 });
 
