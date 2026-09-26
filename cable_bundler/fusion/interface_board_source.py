@@ -5,11 +5,13 @@ Resolve and read the 2D PCB linked to an Interface's selected 3D occurrence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
-from ..application.board_contact_import import BoardPad
+from ..application.board_contact_import import BoardPad, read_eagle_board
 from ..domain import InterfaceDefinition, InterfaceTargetKind
-from .interface_contact_naming import _board_pads, _items
+from .interface_contact_naming import _items
 from .interface_targets import resolve_interface_target
 
 
@@ -77,7 +79,10 @@ def linked_interface_boards(design: Any, interface: InterfaceDefinition) -> list
 
 def read_linked_board_pads(application: Any, linked_board: LinkedBoard) -> list[BoardPad]:
     """
-    Read one chosen board outside a command, closing only a document we opened.
+    Export one linked board for all placed pads, then close only our document.
+
+    Signal contact references omit unconnected pads. A temporary Eagle export
+    includes those pads and their nominal sizes without changing the PCB.
     """
     try:
         import adsk.electron  # type: ignore[import-not-found]
@@ -109,7 +114,15 @@ def read_linked_board_pads(application: Any, linked_board: LinkedBoard) -> list[
                 boards.append(board)
         if len(boards) != 1:
             raise ValueError(f"Linked file {linked_board.name!r} does not expose one 2D PCB.")
-        pads = _board_pads(boards[0])
+        export_manager = boards[0].exportManager
+        with TemporaryDirectory(prefix="cable-bundler-pcb-") as directory:
+            path = Path(directory) / "linked.brd"
+            options = export_manager.createEagleBrdExportOptions(str(path))
+            if options is None or not export_manager.execute(options):
+                raise ValueError(f"Fusion could not export linked PCB {linked_board.name!r}.")
+            pads = read_eagle_board(path)
+        if not pads:
+            raise ValueError(f"Linked PCB {linked_board.name!r} has no usable contacts.")
     finally:
         if opened_here:
             if not document.close(False):

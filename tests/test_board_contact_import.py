@@ -122,6 +122,7 @@ def test_read_eagle_board_places_through_hole_contacts(tmp_path: Path) -> None:
     board.write_text(
         '<eagle><drawing><board><libraries><library name="L"><packages>'
         '<package name="P"><pad name="P1" x="1" y="0" drill="0.8" diameter="1.2"/>'
+        '<pad name="P2" x="2" y="0" drill="0.8" diameter="1.2"/>'
         '<smd name="S1" x="0" y="1" dx="0.6" dy="0.5" layer="1"/>'
         "</package></packages></library></libraries><elements>"
         '<element name="J1" library="L" package="P" x="10" y="20" rot="R90"/>'
@@ -130,11 +131,13 @@ def test_read_eagle_board_places_through_hole_contacts(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     pads = read_eagle_board(board)
-    assert {pad.label for pad in pads} == {"J1.P1", "J1.S1"}
+    assert {pad.label for pad in pads} == {"J1.P1", "J1.P2", "J1.S1"}
     through_hole = next(pad for pad in pads if pad.label == "J1.P1")
     assert (through_hole.x, through_hole.y, through_hole.layer) == pytest.approx((10, 21, 0))
     assert through_hole.drill_diameter_mm == pytest.approx(0.8)
     assert through_hole.signal == "GND"
+    unconnected = next(pad for pad in pads if pad.label == "J1.P2")
+    assert (unconnected.x, unconnected.y, unconnected.signal) == (10, 22, "")
 
 
 def test_read_eagle_board_handles_mirrored_placement_and_missing_file(tmp_path: Path) -> None:

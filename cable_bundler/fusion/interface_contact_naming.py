@@ -35,9 +35,9 @@ _ECAD_UNITS_PER_MM = 320_000.0
 
 def _linked_pad_name(pad: BoardPad) -> str:
     """
-    Format one linked-board suggestion using the existing import convention.
+    Mark an unconnected linked-board pad explicitly instead of omitting its net.
     """
-    return f"{pad.label} ({pad.signal})" if pad.signal else pad.label
+    return f"{pad.label} ({pad.signal or 'NC'})"
 
 
 def preview_interface_contact_names(

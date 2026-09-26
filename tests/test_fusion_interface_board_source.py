@@ -91,14 +91,19 @@ def test_temporary_linked_board_is_closed_after_pads_are_read(
     """
     module = importlib.import_module("cable_bundler.fusion.interface_board_source")
     electron = ModuleType("adsk.electron")
-    board = SimpleNamespace(signals=_collection())
+    options = object()
+    export_manager = SimpleNamespace(
+        createEagleBrdExportOptions=Mock(return_value=options),
+        execute=Mock(return_value=True),
+    )
+    board = SimpleNamespace(exportManager=export_manager)
     electron.Board = SimpleNamespace(cast=lambda product: product if product is board else None)
     electron.EcadDesign = SimpleNamespace(cast=lambda _product: None)
     monkeypatch.setitem(sys.modules, "adsk.electron", electron)
     monkeypatch.setitem(vars(sys.modules["adsk"]), "electron", electron)
     expected = [BoardPad("J1.1", 1, 2, 1, 1, 1)]
     reader = Mock(return_value=expected)
-    monkeypatch.setitem(vars(module), "_board_pads", reader)
+    monkeypatch.setitem(vars(module), "read_eagle_board", reader)
     original = SimpleNamespace(activate=Mock())
     linked_file = SimpleNamespace(versionId="pcb-version")
     document = SimpleNamespace(products=_collection(board), close=Mock(return_value=True))
@@ -115,6 +120,46 @@ def test_temporary_linked_board_is_closed_after_pads_are_read(
     application.documents = SimpleNamespace(count=0, item=None, open=open_document)
     linked = module.LinkedBoard(linked_file, "Selected PCB", "pcb-version")
     assert module.read_linked_board_pads(application, linked) == expected
-    reader.assert_called_once_with(board)
+    export_path = reader.call_args.args[0]
+    assert export_path.name == "linked.brd"
+    export_manager.createEagleBrdExportOptions.assert_called_once_with(str(export_path))
+    export_manager.execute.assert_called_once_with(options)
+    assert not export_path.parent.exists()
+    document.close.assert_called_once_with(False)
+    original.activate.assert_called_once_with()
+
+
+def test_failed_linked_export_closes_only_its_temporary_document(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Refuse an incomplete PCB export without leaking the opened document.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_board_source")
+    electron = ModuleType("adsk.electron")
+    board = SimpleNamespace(
+        exportManager=SimpleNamespace(createEagleBrdExportOptions=Mock(return_value=None))
+    )
+    electron.Board = SimpleNamespace(cast=lambda product: product if product is board else None)
+    electron.EcadDesign = SimpleNamespace(cast=lambda _product: None)
+    monkeypatch.setitem(sys.modules, "adsk.electron", electron)
+    monkeypatch.setitem(vars(sys.modules["adsk"]), "electron", electron)
+    original = SimpleNamespace(activate=Mock())
+    document = SimpleNamespace(products=_collection(board), close=Mock(return_value=True))
+    linked_file = SimpleNamespace(versionId="pcb-version")
+    application = SimpleNamespace(activeDocument=original)
+
+    def open_document(_data_file: object, _visible: bool) -> object:
+        """
+        Model Fusion activating the temporary electronics document.
+        """
+        application.activeDocument = document
+        return document
+
+    application.documents = SimpleNamespace(count=0, item=None, open=open_document)
+    linked = module.LinkedBoard(linked_file, "Selected PCB", "pcb-version")
+    with pytest.raises(ValueError, match="could not export linked PCB"):
+        module.read_linked_board_pads(application, linked)
     document.close.assert_called_once_with(False)
     original.activate.assert_called_once_with()

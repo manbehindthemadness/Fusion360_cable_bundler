@@ -116,7 +116,7 @@ def test_pos_import_preview_reports_only_conflicts_without_edit(
     harness_id, interface_id = UUID(int=10), UUID(int=11)
     contacts = tuple(
         SimpleNamespace(contact_id=UUID(int=index), name="old" if index == 3 else "")
-        for index in range(1, 4)
+        for index in range(1, 5)
     )
     interface = SimpleNamespace(interface_id=interface_id, contacts=contacts)
     gateway = SimpleNamespace(read_harness_definition=lambda _: "saved")
@@ -131,22 +131,27 @@ def test_pos_import_preview_reports_only_conflicts_without_edit(
         lambda *_: [
             ContactFootprint(str(UUID(int=1)), 0, 0, 0.2, 0.2, 1),
             ContactFootprint(str(UUID(int=2)), 1, 0, 0.2, 0.2, 1),
+            ContactFootprint(str(UUID(int=4)), 2, 0, 0.2, 0.2, 1),
         ],
     )
     pads = [
         BoardPad("J1.1", 0, 0, 0.5, 0.5, 1, "GND"),
         BoardPad("J1.2", 1, 0, 0.5, 0.5, 1),
         BoardPad("J2.2", 1, 0, 0.5, 0.5, 1),
+        BoardPad("J4.13", 2, 0, 1.37, 1.37, 0, "", 1.02),
     ]
     preview = module.preview_interface_contact_names(object(), harness_id, interface_id, pads)
     assert preview == {
-        "autoNames": [{"contactId": str(UUID(int=1)), "name": "J1.1 (GND)"}],
+        "autoNames": [
+            {"contactId": str(UUID(int=1)), "name": "J1.1 (GND)"},
+            {"contactId": str(UUID(int=4)), "name": "J4.13 (NC)"},
+        ],
         "unresolved": [
             {
                 "contactId": str(UUID(int=2)),
                 "label": "Contact 2",
                 "currentName": "",
-                "suggestions": ["J1.2", "J2.2"],
+                "suggestions": ["J1.2 (NC)", "J2.2 (NC)"],
             },
         ],
     }
