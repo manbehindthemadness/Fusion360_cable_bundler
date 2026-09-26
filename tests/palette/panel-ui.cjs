@@ -679,7 +679,7 @@ asyncTest('Closing contacts stops additional geometry batches', async () => {
 asyncTest('A complete warm cache loads many contacts in one request', async () => {
   const { context } = palette();
   const actions = [];
-  const contacts = Array.from({ length: 30 }, (_, index) => ({ contactId: `${index}`, geometryRevision: 0 }));
+  const contacts = Array.from({ length: 255 }, (_, index) => ({ contactId: `${index}`, geometryRevision: 0 }));
   context.send = async (action, payload) => {
     actions.push({ action, payload });
     return { ok: true, cacheComplete: true, contacts: contacts.map((item, index) => ({
@@ -690,10 +690,13 @@ asyncTest('A complete warm cache loads many contacts in one request', async () =
   context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(actions.map((item) => item.action), ['get_interface_contacts_cached']);
-  assert.equal(actions[0].payload.contactIds.length, 30);
+  assert.equal(actions[0].payload.contactIds.length, 255);
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
-  assert.equal(dialog.children[2].contactState.items.length, 30);
+  assert.equal(dialog.children[2].contactState.items.length, 255);
+  const diagram = dialog.children[2];
   dialog.close();
+  assert.equal(diagram.contactState, null);
+  assert.equal(diagram.children.length, 0);
 });
 
 asyncTest('Reopening unchanged contacts reuses bounded geometry and current names', async () => {

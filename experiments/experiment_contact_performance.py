@@ -5,6 +5,15 @@ Requires Fusion and the local MCP server. Run with readOnly=true, no active nati
 command. Uses isolated source modules without reloading the running add-in. Samples
 at most eight faces; reports timings and Python allocation retention, not a claim
 about Fusion's native heap. No selection, geometry, names, or attributes are changed.
+
+For end-to-end cache QA, enable Developer Mode and open the diagram after an
+add-in reload. Record the Contact load line: a complete warm snapshot should
+say "single warm read", report all hits and no misses, and finish under one
+second on the 255-contact reference board. Also check a cold rebuild, a native
+model edit, and a repeat open. This probe measures 20 full warm-cache reads and
+retained memory without clearing or writing the user's cache. Compare later
+passes with early passes for sustained growth; Fusion's allocator can retain
+memory, so one RSS increase alone is not proof of a leak.
 """
 
 from __future__ import annotations
@@ -16,6 +25,7 @@ import runpy
 import subprocess
 import tracemalloc
 from time import perf_counter
+from uuid import UUID
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -23,8 +33,12 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from cable_bundler.domain import loads
+from cable_bundler.domain import InterfaceDefinition, loads
 from cable_bundler.fusion.interface_contact_cache import clear_contact_resolutions
+from cable_bundler.fusion.interface_contact_disk_cache import (
+    describe_interface_contact_cache,
+    read_complete_cached_contacts,
+)
 from cable_bundler.fusion.interface_targets import resolve_interface_target
 
 
@@ -43,6 +57,62 @@ def _resident_bytes() -> int | None:
         return int(result.stdout.strip()) * 1024
     except (OSError, ValueError, subprocess.SubprocessError):
         return None
+
+
+def _measure_warm_snapshot(
+    application: adsk.core.Application,
+    harness_id: UUID,
+    interface: InterfaceDefinition,
+) -> dict[str, object]:
+    """
+    Measure complete warm reads and allocation retention without mutating the cache.
+    """
+    status = describe_interface_contact_cache(application, harness_id, interface.interface_id)
+    report: dict[str, object] = {"snapshot": status["snapshot"]}
+    contacts = interface.contacts
+    initial = read_complete_cached_contacts(
+        application, harness_id, interface.interface_id, contacts, 0
+    )
+    if initial is None:
+        report["reason"] = "No complete static snapshot for this Interface"
+        return report
+    report["contact_count"] = len(initial)
+    del initial
+
+    times: list[float] = []
+    for _ in range(20):
+        started = perf_counter()
+        projected = read_complete_cached_contacts(
+            application, harness_id, interface.interface_id, contacts, 0
+        )
+        times.append(perf_counter() - started)
+        if projected is None or len(projected) != len(contacts):
+            raise RuntimeError("Complete cache changed during performance probe.")
+        del projected
+    report["read_seconds_by_pass"] = times
+
+    owned_trace = not tracemalloc.is_tracing()
+    if owned_trace:
+        tracemalloc.start()
+    try:
+        retained: list[int] = []
+        resident: list[int | None] = []
+        for _ in range(20):
+            projected = read_complete_cached_contacts(
+                application, harness_id, interface.interface_id, contacts, 0
+            )
+            if projected is None or len(projected) != len(contacts):
+                raise RuntimeError("Complete cache changed during memory probe.")
+            del projected
+            gc.collect()
+            retained.append(tracemalloc.get_traced_memory()[0])
+            resident.append(_resident_bytes())
+        report["python_retained_bytes_by_pass"] = retained
+        report["fusion_resident_bytes_by_pass"] = resident
+    finally:
+        if owned_trace:
+            tracemalloc.stop()
+    return report
 
 
 def run(_context: object) -> None:
@@ -67,9 +137,11 @@ def _measure() -> None:
     if design is None:
         raise RuntimeError("Activate the PCB assembly first.")
     for attribute in design.findAttributes("kev0.cable_bundler", "harness_definition"):
-        for interface in loads(attribute.value).interfaces:
+        definition = loads(attribute.value)
+        for interface in definition.interfaces:
             if not interface.contacts:
                 continue
+            complete_cache = _measure_warm_snapshot(application, definition.harness_id, interface)
             board = resolve_interface_target(design, interface.targets[0])
             origin, axes = naming["_frame"](board)
             faces = []
@@ -93,11 +165,13 @@ def _measure() -> None:
                             "skipped_interface": interface.name,
                             "board_path": board.fullPathName,
                             "reason": "No comparable through-hole faces among 32 contacts",
+                            "complete_cache": complete_cache,
                         }
                     )
                 )
                 continue
             report = {"sample_count": len(faces), "saved_contacts": len(interface.contacts)}
+            report["complete_cache"] = complete_cache
             results = {}
             token_start = perf_counter()
             for contact in interface.contacts[:8]:

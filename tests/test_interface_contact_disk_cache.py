@@ -204,6 +204,161 @@ def test_complete_warm_snapshot_is_single_read_without_geometry_calls(
     assert cache.read_complete_cached_contacts(application, *ids, [contacts[0], changed], 0) is None
 
 
+def test_255_contact_warm_read_never_queries_source_geometry(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Keep the representative board load independent of contact-by-contact Fusion work.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    application = _application()
+    ids = (UUID(int=1), UUID(int=2))
+    contacts = tuple(
+        InterfaceContact(UUID(int=index + 10), AttachmentTargetKind.FACE, f"face-{index}")
+        for index in range(255)
+    )
+    cache.project_cached_contact_batch(application, object(), *ids, contacts, _projection)
+    source = Mock(side_effect=AssertionError("warm read touched live geometry"))
+    monkeypatch.setitem(vars(cache), "contact_source_signature", source)
+
+    projected = cache.read_complete_cached_contacts(application, *ids, contacts, 0)
+
+    assert projected is not None
+    assert len(projected) == 255
+    assert [item["contactId"] for item in projected] == [
+        str(contact.contact_id) for contact in contacts
+    ]
+    source.assert_not_called()
+
+
+def test_warm_snapshot_requires_current_tokens_and_valid_outlines(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Never return a partial fast response when one cached contact is stale or damaged.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    application = _application()
+    ids = (UUID(int=1), UUID(int=2))
+    contacts = (
+        InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "first"),
+        InterfaceContact(UUID(int=4), AttachmentTargetKind.FACE, "second"),
+    )
+    cache.project_cached_contact_batch(application, object(), *ids, contacts, _projection)
+    stale = InterfaceContact(contacts[1].contact_id, contacts[1].kind, "replacement")
+    assert cache.read_complete_cached_contacts(application, *ids, (contacts[0], stale), 0) is None
+
+    path = cache._snapshot_path(application, *ids)
+    assert path is not None
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    snapshot["entries"][str(contacts[1].contact_id)]["projection"]["loops"] = [
+        [[0.0, 0.0, 0.0], [float("nan"), 1.0, 0.0]]
+    ]
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 0) is None
+
+
+def test_warm_snapshot_resumes_after_revision_validation_and_rebuild_clears_it(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    A model edit requires one validation pass; manual rebuild removes the fast path.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    source = Mock(return_value="revision-1")
+    monkeypatch.setitem(vars(cache), "contact_source_signature", source)
+    application = _application()
+    ids = (UUID(int=1), UUID(int=2))
+    contacts = (
+        InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "first"),
+        InterfaceContact(UUID(int=4), AttachmentTargetKind.FACE, "second"),
+    )
+    cache.project_cached_contact_batch(application, object(), *ids, contacts, _projection)
+    source.reset_mock()
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 1) is None
+    assert source.call_count == 0
+
+    cache.project_cached_contact_batch(
+        application, object(), *ids, contacts[:1], _projection, geometry_revision=1
+    )
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 1) is None
+    cache.project_cached_contact_batch(
+        application, object(), *ids, contacts[1:], _projection, geometry_revision=1
+    )
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 1) is not None
+    assert source.call_count == 2
+
+    assert cache.clear_interface_contact_snapshot(application, *ids)
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 1) is None
+
+
+def test_validation_bookkeeping_is_bounded_by_snapshot_count(
+    addin_module: object, tmp_path: Path
+) -> None:
+    """
+    Revisiting many interfaces cannot retain unbounded validation sets.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    cache._validated_revisions.clear()
+    try:
+        first = tmp_path / "first.json"
+        for index in range(cache._MAX_VALIDATED_SNAPSHOTS + 1):
+            cache._validated_contacts(first if index == 0 else tmp_path / f"{index}.json", 1)
+        assert len(cache._validated_revisions) == cache._MAX_VALIDATED_SNAPSHOTS
+        assert first not in cache._validated_revisions
+    finally:
+        cache._validated_revisions.clear()
+
+
+def test_oversized_snapshot_stays_a_miss_without_blocking_projection(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The disk-size ceiling must not turn a valid contact into a loading failure.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    monkeypatch.setitem(vars(cache), "_MAX_SNAPSHOT_BYTES", 100)
+    application = _application()
+    ids = (UUID(int=1), UUID(int=2))
+    contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
+    projector = Mock(side_effect=_projection)
+
+    cache.project_cached_contact_batch(application, object(), *ids, [contact], projector)
+    cache.project_cached_contact_batch(application, object(), *ids, [contact], projector)
+
+    assert projector.call_count == 2
+    assert cache.read_complete_cached_contacts(application, *ids, [contact], 0) is None
+    assert not list((tmp_path / "cache").glob("contact-*.json"))
+    assert cache.describe_interface_contact_cache(application, *ids)["lastWrite"] == (
+        "snapshot exceeds 8 MB limit"
+    )
+
+
+def test_total_disk_budget_evicts_oldest_owned_snapshot(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Bound accumulated snapshots without touching unrelated files.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_MAX_TOTAL_BYTES", 25)
+    paths = [tmp_path / f"contact-{index}.json" for index in range(3)]
+    for index, path in enumerate(paths):
+        path.write_bytes(b"x" * 10)
+        os.utime(path, (index + 1, index + 1))
+    unrelated = tmp_path / "unrelated.json"
+    unrelated.write_bytes(b"z" * 10)
+
+    cache._prune_snapshots(tmp_path)
+
+    assert not paths[0].exists()
+    assert paths[1].exists() and paths[2].exists() and unrelated.exists()
+
+
 def test_cache_diagnostics_explain_eligibility_and_snapshot_write(
     addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

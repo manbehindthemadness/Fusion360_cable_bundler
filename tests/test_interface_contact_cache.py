@@ -158,7 +158,7 @@ def test_complete_cache_dispatch_reads_all_contacts_once(
     """
     module = importlib.import_module("cable_bundler.fusion.ui.palette")
     interface_id = UUID(int=2)
-    contacts = tuple(SimpleNamespace(contact_id=UUID(int=index + 10)) for index in range(24))
+    contacts = tuple(SimpleNamespace(contact_id=UUID(int=index + 10)) for index in range(255))
     interface = SimpleNamespace(interface_id=interface_id, contacts=contacts)
     read_definition = Mock(return_value="definition")
     monkeypatch.setitem(
@@ -184,10 +184,50 @@ def test_complete_cache_dispatch_reads_all_contacts_once(
     )
 
     assert result["cacheComplete"] is True
-    assert len(result["contacts"]) == 24
+    assert len(result["contacts"]) == 255
     assert isinstance(result["serverMs"], int)
     read_definition.assert_called_once_with(UUID(int=1))
     projection.assert_called_once()
+
+
+def test_complete_cache_dispatch_rejects_unknown_and_oversized_requests(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A malformed fast request cannot serve partial data or bypass its memory cap.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    interface_id = UUID(int=2)
+    contact = SimpleNamespace(contact_id=UUID(int=3))
+    interface = SimpleNamespace(interface_id=interface_id, contacts=(contact,))
+    read_definition = Mock(return_value="definition")
+    monkeypatch.setitem(
+        vars(module),
+        "_create_harness_gateway",
+        lambda _application: SimpleNamespace(read_harness_definition=read_definition),
+    )
+    monkeypatch.setitem(
+        vars(module), "loads", lambda _value: SimpleNamespace(interfaces=(interface,))
+    )
+    projection = Mock(return_value=[{"contactId": str(contact.contact_id)}])
+    monkeypatch.setitem(vars(module), "read_complete_cached_contacts", projection)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(interface_id),
+        "contactIds": [str(contact.contact_id), str(UUID(int=4))],
+    }
+    with pytest.raises(ValueError, match="no longer match"):
+        module._dispatch_palette_action(
+            object(), "get_interface_contacts_cached", json.dumps(payload)
+        )
+    payload["contactIds"] = [str(contact.contact_id)] * 1025
+    with pytest.raises(ValueError, match="1024"):
+        module._dispatch_palette_action(
+            object(), "get_interface_contacts_cached", json.dumps(payload)
+        )
+    projection.assert_not_called()
+    read_definition.assert_called_once()
 
 
 def test_rebuild_dispatch_clears_current_interface_and_native_references(
