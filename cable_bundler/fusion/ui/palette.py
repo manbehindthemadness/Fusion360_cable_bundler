@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import traceback
-from dataclasses import dataclass
 from time import perf_counter
 from typing import Callable
 
@@ -42,9 +41,7 @@ from .constants import (
     PALETTE_INITIAL_WIDTH,
     PALETTE_RESOURCE_FILES,
 )
-from .constants import (
-    PALETTE_EDIT_NAMES as _PALETTE_EDIT_NAMES,
-)
+from .constants import PALETTE_EDIT_NAMES as _PALETTE_EDIT_NAMES
 from .edits import (
     _apply_palette_edit,
 )
@@ -65,9 +62,10 @@ from .launchers import (
     _open_segment_command,
     _open_select_interface_contacts_command,
 )
+from .palette_edit_policy import _PALETTE_EDIT_POLICIES
+from .palette_request_scope import _stale_palette_document_request
 from .palette_state import (
     _appearance_libraries_payload,
-    _contact_palette_document_scope,
     _delete_damaged_harness,
     _library_appearances_payload,
     _palette_theme_payload,
@@ -99,98 +97,6 @@ from .viewport import (
     _refresh_active_preview,
 )
 
-_CONTACT_SCOPED_READS = frozenset(
-    (
-        "get_interface_contact_signatures",
-        "get_interface_contacts_cached",
-        "get_interface_contacts",
-        "get_interface_contact_cache_status",
-        "rebuild_interface_contacts_cache",
-    )
-)
-
-
-def _stale_palette_document_request(
-    application: adsk.core.Application, action: str, data: str
-) -> bool:
-    """
-    Ignore queued reads from a closing or different Fusion document.
-
-    An absent activeProduct attribute belongs only to lightweight test doubles;
-    a real Fusion application always exposes it, even during document closure.
-    """
-    if action != "get_state" and action not in _CONTACT_SCOPED_READS:
-        return False
-    try:
-        document = application.activeDocument
-    except AttributeError:
-        pass
-    except (RuntimeError, TypeError):
-        return True
-    else:
-        if document is None:
-            return True
-    try:
-        active_product = application.activeProduct
-    except AttributeError:
-        return False
-    except (RuntimeError, TypeError):
-        return True
-    try:
-        design = adsk.fusion.Design.cast(active_product)
-    except (AttributeError, RuntimeError, TypeError):
-        return True
-    if design is None:
-        return True
-    if action == "get_state":
-        return False
-    scope = _read_palette_payload(data).get("contactDocumentScope")
-    if not isinstance(scope, str) or not scope:
-        return False  # A palette loaded before this field existed.
-    try:
-        return scope != _contact_palette_document_scope(application, design)
-    except (AttributeError, RuntimeError, TypeError, ValueError):
-        return True
-
-
-@dataclass(frozen=True)
-class PaletteEditPolicy:
-    """
-    Describe post-transaction viewport work for one palette edit.
-    """
-
-    reconcile_refines: bool = False
-    apply_generated_materials: bool = False
-    ensure_preview_visible: bool = False
-    refresh_connection_geometry: bool = False
-
-
-_DEFAULT_EDIT_POLICY = PaletteEditPolicy()
-_PALETTE_EDIT_POLICIES = {action: _DEFAULT_EDIT_POLICY for action in _PALETTE_EDIT_NAMES}
-_PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refines=True)
-_PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
-_CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)
-_PALETTE_EDIT_POLICIES["add_cable_end_connection"] = _CONNECTION_GEOMETRY_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["disconnect_cable_end_relationship"] = PaletteEditPolicy(
-    reconcile_refines=True,
-    refresh_connection_geometry=True,
-)
-_PALETTE_EDIT_POLICIES["set_cable_end_attachment_properties"] = _CONNECTION_GEOMETRY_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["remove_cable_end_attachment"] = PaletteEditPolicy(
-    reconcile_refines=True,
-    refresh_connection_geometry=True,
-)
-_PALETTE_EDIT_POLICIES["remove_pathway"] = PaletteEditPolicy(reconcile_refines=True)
-_PALETTE_EDIT_POLICIES["remove_junction"] = PaletteEditPolicy(reconcile_refines=True)
-_MATERIAL_EDIT_POLICY = PaletteEditPolicy(
-    apply_generated_materials=True,
-    ensure_preview_visible=True,
-)
-_PALETTE_EDIT_POLICIES["set_harness_material_defaults"] = _MATERIAL_EDIT_POLICY
-_GROUP_APPEARANCE_EDIT_POLICY = PaletteEditPolicy(ensure_preview_visible=True)
-_PALETTE_EDIT_POLICIES["set_cable_group_properties"] = _GROUP_APPEARANCE_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["set_cable_group_material_overrides"] = _MATERIAL_EDIT_POLICY
-_PALETTE_EDIT_POLICIES["set_cable_end_attachment_visual_overrides"] = _MATERIAL_EDIT_POLICY
 _DEFERRED_PALETTE_LAUNCH_EVENT_ID = f"{COMMAND_ID}_deferred_palette_launch"
 
 

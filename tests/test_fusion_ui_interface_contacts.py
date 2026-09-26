@@ -191,8 +191,9 @@ def test_late_contact_signature_request_cannot_read_replacement_document(
     monkeypatch.setitem(
         vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda _: design)
     )
+    scope_module = importlib.import_module("cable_bundler.fusion.ui.palette_request_scope")
     monkeypatch.setitem(
-        vars(palette_module), "_contact_palette_document_scope", lambda *_: "new-document"
+        vars(scope_module), "_contact_palette_document_scope", lambda *_: "new-document"
     )
     gateway = Mock()
     monkeypatch.setitem(vars(palette_module), "_create_harness_gateway", gateway)
