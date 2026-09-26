@@ -184,16 +184,19 @@ function renderInterfaceContacts(diagram, contacts) {
 
 /** Refresh an open contact diagram when Fusion sends an updated harness state. */
 function refreshInterfaceContacts() {
-  if (cachedContactGeometry) {
-    const cachedHarness = currentState.harnesses.find((item) => (
-      item.harnessId === cachedContactGeometry.harnessId
-    ));
-    if (!(cachedHarness?.interfaces || []).some((item) => (
-      item.interfaceId === cachedContactGeometry.interfaceId
-    ))) cachedContactGeometry = null;
+  for (const [key, cached] of cachedContactGeometries) {
+    if (cached.documentScope !== (currentState.contactDocumentScope || "")) continue;
+    const harness = currentState.harnesses.find((item) => item.harnessId === cached.harnessId);
+    if (!(harness?.interfaces || []).some((item) => item.interfaceId === cached.interfaceId)) {
+      cachedContactGeometries.delete(key);
+    }
   }
   const dialog = document.body.querySelector(".interface-contacts-popup");
   if (!dialog?.open) return;
+  if (dialog.dataset.contactDocumentScope !== (currentState.contactDocumentScope || "")) {
+    dialog.close();
+    return;
+  }
   if (dialog.cacheRebuildPending) return;
   const harness = currentState.harnesses.find((item) => item.harnessId === dialog.dataset.harnessId);
   const interfaceItem = (harness?.interfaces || []).find((item) => (
@@ -248,8 +251,7 @@ function updateInterfaceContactData(dialog, contacts) {
   )));
   dialog.requestedGeometryKey = geometryKey;
   if (dialog.geometryValidationPending) return;
-  const priorCache = cachedContactGeometry?.harnessId === dialog.dataset.harnessId
-    && cachedContactGeometry.interfaceId === dialog.dataset.interfaceId ? cachedContactGeometry : null;
+  const priorCache = currentContactGeometry(dialog);
   const priorKey = dialog.loadedGeometryKey || priorCache?.geometryKey;
   const signatures = dialog.contactSignatures || priorCache?.signatures;
   if (priorKey && priorKey !== geometryKey && signatures
@@ -272,21 +274,21 @@ function updateInterfaceContactData(dialog, contacts) {
       } else {
         dialog.loadedGeometryKey = null;
         dialog.contactSignatures = null;
-        cachedContactGeometry = null;
+        forgetContactGeometry(dialog);
       }
     }).catch(() => {
       if (!dialog.open) return;
       dialog.loadedGeometryKey = null;
       dialog.contactSignatures = null;
-      cachedContactGeometry = null;
+      forgetContactGeometry(dialog);
     }).finally(() => {
       dialog.geometryValidationPending = null;
       if (dialog.open) updateInterfaceContactData(dialog, dialog.contactMetadata);
     });
     return;
   }
-  if (cachedContactGeometry && !matchingContactCache(dialog, geometryKey)) {
-    cachedContactGeometry = null;
+  if (currentContactGeometry(dialog) && !matchingContactCache(dialog, geometryKey)) {
+    forgetContactGeometry(dialog);
   }
   if (dialog.loadedGeometryKey === geometryKey) {
     hideInterfaceContactLoading(diagram);
@@ -413,7 +415,7 @@ async function rebuildInterfaceContactCache(dialog) {
     });
     if (!response.ok) throw new Error(response.error || "Could not clear contact cache.");
     if (!dialog.open) return;
-    cachedContactGeometry = null;
+    forgetContactGeometry(dialog);
     dialog.loadedGeometryKey = null;
     dialog.contactDisplayKey = null;
     dialog.contactSignatures = null;
@@ -651,6 +653,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   dialog.className = "interface-contacts-popup";
   dialog.dataset.harnessId = harness.harnessId;
   dialog.dataset.interfaceId = interfaceItem.interfaceId;
+  dialog.dataset.contactDocumentScope = currentState.contactDocumentScope || "";
   dialog.setAttribute("aria-label", `Select Contacts: ${interfaceItem.name}`);
   title.textContent = `Select Contacts · ${interfaceItem.name}`;
   modes.className = "interface-contacts-modes";
@@ -811,7 +814,7 @@ function openInterfaceContacts(harness, interfaceItem) {
     diagram.contactState.showContextMenu.close();
     diagram.contactState.items.forEach((item) => item.clearHover?.());
     // A cached SVG must not retain the old workspace's event handlers and state.
-    if (cachedContactGeometry?.rendered?.svg === diagram.contactState.svg) {
+    if (currentContactGeometry(dialog)?.rendered?.svg === diagram.contactState.svg) {
       diagram.contactState.workspace.stage.replaceChildren();
     }
     dialog.contactMetadata = [];

@@ -4,6 +4,7 @@ Fusion UI services for palette state.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import asdict
@@ -49,10 +50,28 @@ from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
 from .payloads import (
     _read_palette_payload,
 )
+from .runtime import _contact_document_key
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
 )
+
+
+def _contact_palette_document_scope(
+    application: adsk.core.Application, design: Optional[adsk.fusion.Design]
+) -> str:
+    """
+    Give palette-only geometry a stable, opaque identity for this open document.
+    """
+    saved = _contact_document_key(application)
+    if saved is not None:
+        source = json.dumps(saved, separators=(",", ":"))
+    else:
+        token = getattr(getattr(design, "rootComponent", None), "entityToken", "")
+        if not isinstance(token, str) or not token:
+            return ""
+        source = token
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
 def _attachment_payload(
@@ -363,7 +382,7 @@ def serialize_palette_state(
                                 "assignedName": contact.name,
                                 "pin": contact.pin,
                                 "orientationName": contact.orientation_name,
-                                "geometryRevision": _runtime.contact_geometry_revision,
+                                "geometryRevision": _runtime.contact_cache_revision(application),
                             }
                             for contact in interface.contacts
                         ],
@@ -404,6 +423,7 @@ def serialize_palette_state(
             "stripePatterns": [pattern.value for pattern in catalog.stripe_patterns],
         },
         "harnesses": harnesses,
+        "contactDocumentScope": _contact_palette_document_scope(application, design),
         "notice": notice or _runtime.last_command_error,
         "ok": True,
         "theme": _palette_theme_payload(application),

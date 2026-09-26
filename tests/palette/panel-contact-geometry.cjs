@@ -416,6 +416,51 @@ asyncTest('Reopening unchanged contacts reuses bounded geometry and current name
   dialog.close();
 });
 
+asyncTest('Switching documents restores each Interface image without resampling', async () => {
+  const { context } = palette();
+  const requests = [];
+  let activeDocument = 'first';
+  const contacts = [{ contactId: 'a', name: 'Pad', assignedName: '', geometryRevision: 0 }];
+  const definition = harness();
+  definition.interfaces = [{ interfaceId: 'i', name: 'Socket', contacts }];
+  context.send = (action) => {
+    requests.push([activeDocument, action]);
+    const x = activeDocument === 'first' ? 0 : 10;
+    return Promise.resolve({ ok: true, contacts: [{
+      contactId: 'a', linked: true, normal: [0, 0, 1],
+      loops: [[[x, 0, 0], [x + 1, 0, 0], [x + 1, 1, 0]]],
+    }] });
+  };
+  const showDocument = (scope) => context.render({
+    contactDocumentScope: scope, harnesses: [definition], notice: '',
+    theme: { mode: 'fixed', active: 'dark' },
+  });
+
+  showDocument('document-first');
+  context.openInterfaceContacts(definition, definition.interfaces[0]);
+  await new Promise((resolve) => setImmediate(resolve));
+  let dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const firstSvg = dialog.children[2].contactState.svg;
+
+  activeDocument = 'second';
+  showDocument('document-second');
+  assert.equal(dialog.open, false);
+  context.openInterfaceContacts(definition, definition.interfaces[0]);
+  await new Promise((resolve) => setImmediate(resolve));
+  dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const secondSvg = dialog.children[2].contactState.svg;
+  assert.notEqual(secondSvg, firstSvg);
+  dialog.close();
+
+  activeDocument = 'first';
+  showDocument('document-first');
+  context.openInterfaceContacts(definition, definition.interfaces[0]);
+  dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(dialog.children[2].contactState.svg, firstSvg);
+  assert.deepEqual(requests, [['first', 'get_interface_contacts'], ['second', 'get_interface_contacts']]);
+  dialog.close();
+});
+
 asyncTest('Rebuild Cache clears the snapshot and resamples with progress', async () => {
   const { context } = palette();
   const requests = [];

@@ -4,6 +4,7 @@ Focused Fusion UI regressions for palette state.
 
 from __future__ import annotations
 
+import importlib
 import re
 from collections.abc import Callable
 from dataclasses import replace
@@ -88,6 +89,31 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
             "geometryRevision": addin_module._runtime.contact_geometry_revision,
         }
     ]
+
+
+def test_contact_palette_scope_is_document_and_version_specific(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep copied Interface identities from sharing a rendered image across tabs.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette_state")
+
+    def application(identity: str, version: int) -> SimpleNamespace:
+        """
+        Represent a saved Fusion document without exposing its file ID to the palette.
+        """
+        return SimpleNamespace(
+            activeDocument=SimpleNamespace(
+                dataFile=SimpleNamespace(id=identity, versionNumber=version)
+            )
+        )
+
+    first = module._contact_palette_document_scope(application("first", 1), None)
+    assert len(first) == 64
+    assert first == module._contact_palette_document_scope(application("first", 1), None)
+    assert first != module._contact_palette_document_scope(application("second", 1), None)
+    assert first != module._contact_palette_document_scope(application("first", 2), None)
 
 
 def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModule) -> None:

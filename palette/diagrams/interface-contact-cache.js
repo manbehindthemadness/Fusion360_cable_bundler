@@ -1,6 +1,43 @@
-// Keep one bounded projection and vector-image snapshot across dialog closes.
+// Keep bounded projection and vector-image snapshots across document switches.
 const MAX_CONTACT_CACHE_BYTES = 4_000_000;
-let cachedContactGeometry = null;
+const MAX_CONTACT_CACHE_TOTAL_BYTES = 8_000_000;
+const MAX_CONTACT_CACHE_SNAPSHOTS = 4;
+const cachedContactGeometries = new Map();
+
+/** Include the saved document version so copied Interfaces cannot share geometry. */
+function contactSnapshotKey(dialog) {
+  return JSON.stringify([
+    dialog.dataset.contactDocumentScope || "",
+    dialog.dataset.harnessId,
+    dialog.dataset.interfaceId,
+  ]);
+}
+
+/** Find the snapshot belonging to one Interface without retaining Fusion objects. */
+function currentContactGeometry(dialog) {
+  const key = contactSnapshotKey(dialog);
+  const cached = cachedContactGeometries.get(key) || null;
+  if (cached) {
+    cachedContactGeometries.delete(key);
+    cachedContactGeometries.set(key, cached);
+  }
+  return cached;
+}
+
+/** Discard one Interface while leaving other documents' snapshots intact. */
+function forgetContactGeometry(dialog) {
+  cachedContactGeometries.delete(contactSnapshotKey(dialog));
+}
+
+/** Cap total palette memory after updating the most recently used snapshot. */
+function trimContactGeometryCache() {
+  const bytes = () => [...cachedContactGeometries.values()]
+    .reduce((total, cached) => total + (cached.cacheBytes || 0), 0);
+  while (cachedContactGeometries.size > MAX_CONTACT_CACHE_SNAPSHOTS
+    || bytes() > MAX_CONTACT_CACHE_TOTAL_BYTES) {
+    cachedContactGeometries.delete(cachedContactGeometries.keys().next().value);
+  }
+}
 
 /** Track contact membership and the last geometry-changing Fusion command. */
 function contactGeometryKey(contacts) {
@@ -9,10 +46,8 @@ function contactGeometryKey(contacts) {
 
 /** Reuse a snapshot only for the same Interface and geometry revision. */
 function matchingContactCache(dialog, geometryKey) {
-  const cached = cachedContactGeometry;
-  return cached?.harnessId === dialog.dataset.harnessId
-    && cached.interfaceId === dialog.dataset.interfaceId
-    && cached.geometryKey === geometryKey ? cached : null;
+  const cached = currentContactGeometry(dialog);
+  return cached?.geometryKey === geometryKey ? cached : null;
 }
 
 /** Return sampled geometry when it fits alongside the rendered image. */
@@ -23,14 +58,17 @@ function restoredContactGeometry(dialog, geometryKey) {
 /** Bound retained outline data without holding Fusion objects. */
 function rememberContactGeometry(dialog, geometryKey, contacts) {
   const size = JSON.stringify(contacts).length * 2;
-  cachedContactGeometry = {
+  cachedContactGeometries.set(contactSnapshotKey(dialog), {
+    documentScope: dialog.dataset.contactDocumentScope || "",
     harnessId: dialog.dataset.harnessId,
     interfaceId: dialog.dataset.interfaceId,
     geometryKey,
     contacts: size <= MAX_CONTACT_CACHE_BYTES ? contacts : null,
     signatures: contactSignatures(contacts),
     geometryBytes: size <= MAX_CONTACT_CACHE_BYTES ? size : 0,
-  };
+    cacheBytes: size <= MAX_CONTACT_CACHE_BYTES ? size : 0,
+  });
+  trimContactGeometryCache();
 }
 
 /** Retain only complete source fingerprints for a later model-change check. */
@@ -46,6 +84,7 @@ function rememberRenderedContactDiagram(dialog, geometryKey, displayKey) {
   if (!cached) return;
   if (state.items.length > 512) {
     cached.rendered = null;
+    cached.cacheBytes = cached.geometryBytes;
     return;
   }
   const outlineBytes = JSON.stringify(state.items.map((item) => item.loops)).length * 2;
@@ -54,6 +93,7 @@ function rememberRenderedContactDiagram(dialog, geometryKey, displayKey) {
   const imageBytes = outlineBytes + markupBytes;
   if (imageBytes > MAX_CONTACT_CACHE_BYTES) {
     cached.rendered = null;
+    cached.cacheBytes = cached.geometryBytes;
     return;
   }
   if (imageBytes + cached.geometryBytes > MAX_CONTACT_CACHE_BYTES) {
@@ -67,6 +107,8 @@ function rememberRenderedContactDiagram(dialog, geometryKey, displayKey) {
       diagramWidth: state.diagramWidth, diagramHeight: state.diagramHeight,
     },
   };
+  cached.cacheBytes = cached.geometryBytes + imageBytes;
+  trimContactGeometryCache();
 }
 
 /** Attach a cached vector image to a fresh workspace with fresh interaction state. */

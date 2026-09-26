@@ -554,7 +554,7 @@ def _dispatch_palette_action(
             harness_id,
             interface_id,
             contacts,
-            _runtime.contact_geometry_revision,
+            _runtime.contact_cache_revision(application),
         )
         return json.dumps(
             {
@@ -602,7 +602,7 @@ def _dispatch_palette_action(
             selected,
             project_interface_contact,
             diagnostics=cache_stats,
-            geometry_revision=_runtime.contact_geometry_revision,
+            geometry_revision=_runtime.contact_cache_revision(application),
         )
         for contact, projection in zip(selected, projections):
             projection["sourceSignature"] = contact_source_signature(design, contact)

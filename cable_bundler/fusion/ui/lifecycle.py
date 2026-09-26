@@ -165,7 +165,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             }
             metadata_commands.add(SELECT_INTERFACE_CONTACTS_COMMAND_ID)
             if args.commandId not in metadata_commands:
-                _runtime.contact_geometry_revision += 1
+                _runtime.mark_contact_model_edit(application)
                 clear_contact_resolutions()
             design = adsk.fusion.Design.cast(application.activeProduct)
             if design is None:

@@ -106,13 +106,15 @@ def test_linux_disk_cache_is_inactive_placeholder(
     assert not (tmp_path / "cache").exists()
 
 
-def _application(*, modified: bool = False, version: int = 3) -> SimpleNamespace:
+def _application(
+    *, modified: bool = False, version: int = 3, identity: str = "urn:example:board"
+) -> SimpleNamespace:
     """
     Provide one saved Fusion-like document without loading the host API.
     """
     document = SimpleNamespace(
         isModified=modified,
-        dataFile=SimpleNamespace(id="urn:example:board", versionNumber=version),
+        dataFile=SimpleNamespace(id=identity, versionNumber=version),
     )
     return SimpleNamespace(activeDocument=document)
 
@@ -202,6 +204,71 @@ def test_complete_warm_snapshot_is_single_read_without_geometry_calls(
     assert cache.read_complete_cached_contacts(application, *ids, contacts[:1], 0) is not None
     changed = InterfaceContact(UUID(int=5), AttachmentTargetKind.FACE, "face-5")
     assert cache.read_complete_cached_contacts(application, *ids, [contacts[0], changed], 0) is None
+
+
+def test_switching_documents_reuses_each_unchanged_saved_snapshot(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Release native references on tab changes without resampling either document.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    lifecycle: Any = importlib.import_module("cable_bundler.fusion.ui.lifecycle")
+    runtime: Any = lifecycle._runtime
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    first = _application(identity="urn:example:first")
+    second = _application(identity="urn:example:second")
+    ids = (UUID(int=1), UUID(int=2))
+    contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
+    projector = Mock(side_effect=_projection)
+    clear = Mock()
+    monkeypatch.setitem(vars(lifecycle), "clear_contact_resolutions", clear)
+    starting_revision = runtime.contact_geometry_revision
+    starting_document_revisions = runtime.contact_document_revisions.copy()
+    try:
+        for application in (first, second):
+            cache.project_cached_contact_batch(
+                application,
+                object(),
+                *ids,
+                [contact],
+                projector,
+                geometry_revision=runtime.contact_cache_revision(application),
+            )
+        assert projector.call_count == 2
+        assert cache._snapshot_path(first, *ids) != cache._snapshot_path(second, *ids)
+
+        lifecycle._ContactDocumentChangedHandler().notify(SimpleNamespace())
+        lifecycle._ContactDocumentChangedHandler().notify(SimpleNamespace())
+        assert clear.call_count == 2
+        assert runtime.contact_geometry_revision == starting_revision + 2
+        for application in (first, second):
+            cached = cache.read_complete_cached_contacts(
+                application, *ids, [contact], runtime.contact_cache_revision(application)
+            )
+            assert cached is not None
+            assert cached[0]["contactId"] == str(contact.contact_id)
+        assert projector.call_count == 2
+
+        runtime.mark_contact_model_edit(second)
+        assert runtime.contact_cache_revision(first) == 0
+        assert runtime.contact_cache_revision(second) == 1
+        assert (
+            cache.read_complete_cached_contacts(
+                first, *ids, [contact], runtime.contact_cache_revision(first)
+            )
+            is not None
+        )
+        assert (
+            cache.read_complete_cached_contacts(
+                second, *ids, [contact], runtime.contact_cache_revision(second)
+            )
+            is None
+        )
+    finally:
+        runtime.contact_geometry_revision = starting_revision
+        runtime.contact_document_revisions.clear()
+        runtime.contact_document_revisions.update(starting_document_revisions)
 
 
 def test_255_contact_warm_read_never_queries_source_geometry(

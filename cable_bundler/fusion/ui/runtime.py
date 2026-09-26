@@ -17,6 +17,27 @@ from ...application.interface_contact_rows import ContactSelectionMode
 T = TypeVar("T")
 
 
+def _contact_document_key(application: adsk.core.Application) -> Optional[tuple[str, int]]:
+    """
+    Identify a saved file version without retaining any Fusion document wrapper.
+    """
+    try:
+        data_file = application.activeDocument.dataFile
+        identity = data_file.id
+        version = data_file.versionNumber
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+    if (
+        not isinstance(identity, str)
+        or not identity
+        or isinstance(version, bool)
+        or not isinstance(version, int)
+        or version < 1
+    ):
+        return None
+    return identity, version
+
+
 def register_custom_event(
     application: adsk.core.Application,
     event_id: str,
@@ -167,6 +188,7 @@ class UiRuntime:
     pending_native_dialog: PendingSlot[tuple[str, str]] = field(default_factory=PendingSlot)
     last_command_error: str = ""
     contact_geometry_revision: int = 0
+    contact_document_revisions: dict[tuple[str, int], int] = field(default_factory=dict)
     last_diagram_qa_observation: Optional[dict[str, object]] = None
     damaged_harness_results: dict[str, HarnessLoadResult] = field(default_factory=dict)
     history_handler: Optional[object] = None
@@ -181,6 +203,27 @@ class UiRuntime:
     contact_document_handler: Optional[object] = None
     graphics_cache_restore_value: Optional[bool] = None
     graphics_cache_save_document: Optional[object] = None
+
+    def contact_cache_revision(self, application: adsk.core.Application) -> int:
+        """
+        Return the active saved document's model-edit epoch for disk validation.
+
+        Documents without a stable saved identity cannot use the disk cache, so
+        their global UI revision remains the conservative fallback.
+        """
+        key = _contact_document_key(application)
+        return (
+            self.contact_document_revisions.get(key, 0) if key else self.contact_geometry_revision
+        )
+
+    def mark_contact_model_edit(self, application: adsk.core.Application) -> None:
+        """
+        Invalidate the active document's outlines without invalidating other tabs.
+        """
+        self.contact_geometry_revision += 1
+        key = _contact_document_key(application)
+        if key is not None:
+            self.contact_document_revisions[key] = self.contact_document_revisions.get(key, 0) + 1
 
     @property
     def handlers(self) -> list[object]:
