@@ -287,6 +287,7 @@ function ensureInterfaceContactWorkspace(diagram) {
 
 /** Swap diagram content while preserving the selected contact IDs and current view. */
 function updateInterfaceContactWorkspace(state, svg, items, contacts, dimensions) {
+  state.items.forEach((item) => item.clearHover?.());
   state.drag?.overlay?.remove();
   state.drag = null;
   state.svg = svg;

@@ -246,6 +246,76 @@ def test_connection_highlights_its_generated_cable_group_body(
     )
 
 
+def test_contact_hover_selects_only_its_persistent_fusion_target(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    hover_widget_adapter: Mock,
+) -> None:
+    """
+    Scope contact identity to its Interface and select the matching target kind.
+    """
+    import importlib
+    from dataclasses import replace
+
+    from cable_bundler.domain import (
+        AttachmentTargetKind,
+        InterfaceContact,
+        InterfaceDefinition,
+        InterfaceTarget,
+        InterfaceTargetKind,
+    )
+
+    viewport = importlib.import_module("cable_bundler.fusion.ui.viewport")
+    contact = InterfaceContact(UUID(int=900), AttachmentTargetKind.FACE, "face-token")
+    interface = InterfaceDefinition(
+        UUID(int=901),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body-token"),),
+        (contact,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    wrong_kind = object()
+    face = object()
+    design = SimpleNamespace(
+        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0))
+    )
+    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(activeSelections=selections),
+        activeViewport=SimpleNamespace(refresh=Mock()),
+    )
+    gateway = SimpleNamespace(read_harness_definition=lambda _id: dumps(definition))
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    resolve = Mock(return_value=(wrong_kind, face))
+    monkeypatch.setitem(vars(viewport), "resolve_contact_entities", resolve)
+    monkeypatch.setitem(
+        vars(viewport),
+        "attachment_target_kind",
+        lambda entity: (
+            AttachmentTargetKind.PROFILE if entity is wrong_kind else AttachmentTargetKind.FACE
+        ),
+    )
+    monkeypatch.setitem(vars(viewport), "highlight_route_members", Mock(return_value=0))
+    monkeypatch.setitem(vars(viewport), "highlight_refine_graphics", Mock(return_value=0))
+    payload = {
+        "harnessId": str(definition.harness_id),
+        "memberType": "interface_contact",
+        "memberId": str(contact.contact_id),
+        "interfaceId": str(interface.interface_id),
+    }
+
+    assert addin_module._highlight_member(application, json.dumps(payload)) == 1
+
+    resolve.assert_called_once_with(design, "face-token")
+    selections.add.assert_called_once_with(face)
+    hover_widget_adapter.assert_called_once_with(design, ())
+    payload["interfaceId"] = str(UUID(int=902))
+    with pytest.raises(ValueError, match="Interface no longer exists"):
+        addin_module._highlight_member(application, json.dumps(payload))
+
+
 def test_pathway_hover_selects_only_its_gateway_profiles(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

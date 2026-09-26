@@ -232,6 +232,11 @@ function renderInterfaceContacts(diagram, contacts) {
         "data-named": `${Boolean(contact.assignedName)}`,
         role: "option", "aria-selected": "false", tabindex: "0",
       });
+      const clearHover = workspace.harnessId && workspace.interfaceId
+        ? hoverHighlight(contactGroup, () => highlightMember(
+          { harnessId: workspace.harnessId }, "interface_contact", contact.contactId,
+          { interfaceId: workspace.interfaceId },
+        )) : null;
       contactGroup.setAttribute("aria-label", contact.assignedName || `Unnamed contact: ${contact.name}`);
       const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
       title.textContent = contact.assignedName || `Unnamed contact · ${contact.name}`;
@@ -251,7 +256,7 @@ function renderInterfaceContacts(diagram, contacts) {
         ]);
         unavailableIndex += 1;
         group.append(contactGroup);
-        items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops });
+        items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops, clearHover });
         return;
       }
       const outlinePaths = [];
@@ -301,7 +306,7 @@ function renderInterfaceContacts(diagram, contacts) {
       }
       group.append(contactGroup);
       items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops,
-        label: nameLabel, labelBounds });
+        label: nameLabel, labelBounds, clearHover });
     });
     svg.append(group);
     offsetX += clusterWidth + 18;
@@ -717,6 +722,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
+    diagram.contactState.items.forEach((item) => item.clearHover?.());
     // A cached SVG must not retain the old workspace's event handlers and state.
     if (cachedContactGeometry?.rendered?.svg === diagram.contactState.svg) {
       diagram.contactState.workspace.stage.replaceChildren();

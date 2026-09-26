@@ -24,7 +24,7 @@ from ...domain import (
     loads,
 )
 from .. import clear_route_previews, highlight_route_preview, show_route_previews
-from ..attachment_targets import resolve_attachment_target
+from ..attachment_targets import attachment_target_kind, resolve_attachment_target
 from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, SOLID_OUTPUT_MODE
 from ..cable_solids import (
     apply_cable_group_materials,
@@ -39,6 +39,7 @@ from ..hover_graphics import (
     show_hover_widgets,
     target_point,
 )
+from ..interface_contact_cache import resolve_contact_entities
 from ..interface_targets import resolve_interface_target
 from ..refine_graphics import (
     hide_refine_graphics,
@@ -141,6 +142,30 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         )
         if not attachment_entities:
             raise ValueError("Interface targets no longer resolve in this design.")
+        tokens = ()
+    elif member_type == "interface_contact":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        interface = next(
+            (item for item in definition.interfaces if item.interface_id == interface_id),
+            None,
+        )
+        if interface is None:
+            raise ValueError("Selected Interface no longer exists.")
+        contact = next(
+            (item for item in interface.contacts if item.contact_id == member_id),
+            None,
+        )
+        if contact is None:
+            raise ValueError("Selected contact no longer belongs to this Interface.")
+        entity = next(
+            (
+                candidate
+                for candidate in resolve_contact_entities(design, contact.entity_token)
+                if attachment_target_kind(candidate) is contact.kind
+            ),
+            None,
+        )
+        attachment_entities = (entity,) if entity is not None else ()
         tokens = ()
     elif member_type == "junction":
         junction = next(

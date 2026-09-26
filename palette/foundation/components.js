@@ -116,6 +116,7 @@ function paletteHasFocus() {
   return palettePointerInteractionsArmed && browserHasFocus;
 }
 
+/** Bind palette-gated Fusion hover and return cleanup for removed nodes. */
 function hoverHighlight(node, onHover) {
   let active = false;
   const enabled = () => {
@@ -138,6 +139,7 @@ function hoverHighlight(node, onHover) {
     onHover();
   });
   node.addEventListener("mouseleave", clear);
+  return clear;
 }
 
 function memberRow(label, onReveal, actions = [], missing = false, clickToActivate = false) {

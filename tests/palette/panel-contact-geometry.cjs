@@ -62,6 +62,39 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
 });
 
+test('Contact hover highlights its Fusion target and clears on leave, refresh, and close', () => {
+  const { context } = palette();
+  const highlights = [];
+  const clears = [];
+  context.highlightMember = (_harness, type, id, extra) => {
+    highlights.push([type, id, extra.interfaceId]);
+  };
+  context.send = (action) => {
+    if (action === 'clear_highlight') clears.push(action);
+    return Promise.resolve({ ok: true });
+  };
+  const contacts = [{
+    contactId: 'pad-a', name: 'Pad A', linked: true, geometryRevision: 1,
+    normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+  }];
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts,
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  let item = contactItem(dialog.children[2], 'pad-a');
+  item.events.mouseenter();
+  assert.deepEqual(highlights, [['interface_contact', 'pad-a', 'i']]);
+  item.events.mouseleave();
+  assert.equal(clears.length, 1);
+  item.events.mouseenter();
+  context.renderInterfaceContacts(dialog.children[2], contacts);
+  assert.equal(clears.length, 2);
+  item = contactItem(dialog.children[2], 'pad-a');
+  item.events.mouseenter();
+  dialog.close();
+  assert.equal(clears.length, 3);
+});
+
 asyncTest('Delete button and Del key remove only selected Interface contacts', async () => {
   const { context } = palette();
   const requests = [];
