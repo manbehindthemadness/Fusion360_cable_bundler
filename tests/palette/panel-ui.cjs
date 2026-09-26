@@ -540,6 +540,10 @@ test('master diagram groups render and add actions into submenus', () => {
 
 test('master diagram displays standalone Interface cards without pathways', () => {
   const { context } = palette();
+  const highlights = [];
+  context.highlightMember = (_harness, memberType, memberId) => {
+    highlights.push([memberType, memberId]);
+  };
   const definition = harness();
   definition.pathways = [];
   definition.junctions = [];
@@ -552,6 +556,11 @@ test('master diagram displays standalone Interface cards without pathways', () =
   assert.equal(cards.length, 1);
   assert.equal(cards[0].children[0].textContent, 'Socket A');
   assert.equal(cards[0].children[1].textContent, 'occurrence · linked');
+  cards[0].events.click();
+  assert.deepEqual(highlights, [['interface', 'interface-1']]);
+  const contacts = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(contacts.open, true);
+  assert.equal(contacts.children[0].textContent, 'Select Contacts · Socket A');
 });
 
 test('Cable Details Materials action opens group materials', () => {
