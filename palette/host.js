@@ -164,7 +164,8 @@ function finalizeSolids() {
 
 async function refresh() {
   try {
-    render(await send("get_state"));
+    const response = await send("get_state");
+    if (!response.stale) render(response);
   } catch (error) {
     appendNotice(error.message, true);
   }

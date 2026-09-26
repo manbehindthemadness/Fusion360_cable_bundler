@@ -330,6 +330,57 @@ asyncTest('Unchanged contact sources keep the diagram across model revisions', a
   reopened.close();
 });
 
+asyncTest('A closing document quietly cancels its pending contact signature check', async () => {
+  const { context } = palette();
+  const actions = [];
+  context.send = async (action, payload) => {
+    actions.push({ action, payload });
+    if (action === 'get_interface_contact_signatures') return { ok: false, stale: true };
+    return { ok: true, contacts: [{
+      contactId: 'a', sourceSignature: 'source', linked: true, normal: [0, 0, 1],
+      loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }] };
+  };
+  const contact = { contactId: 'a', name: 'Pad', geometryRevision: 1 };
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts: [contact],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  context.updateInterfaceContactData(dialog, [{ ...contact, geometryRevision: 2 }]);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(dialog.open, false);
+  assert.deepEqual(actions.map((item) => item.action), [
+    'get_interface_contacts', 'get_interface_contact_signatures',
+  ]);
+  assert.equal(actions[1].payload.contactDocumentScope, '');
+  assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
+  assert.equal(context.ui.notice.children.length, 0);
+});
+
+asyncTest('A stale warm-cache reply closes the old contact dialog without retrying', async () => {
+  const { context } = palette();
+  const actions = [];
+  context.send = async (action, payload) => {
+    actions.push({ action, payload });
+    return { ok: false, stale: true };
+  };
+  const contacts = Array.from({ length: 17 }, (_, index) => ({
+    contactId: `${index}`, name: `Pad ${index}`, geometryRevision: 1,
+  }));
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts,
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(dialog.open, false);
+  assert.deepEqual(actions.map((item) => item.action), ['get_interface_contacts_cached']);
+  assert.equal(actions[0].payload.contactDocumentScope, '');
+  assert.equal(context.ui.notice.children.length, 0);
+});
+
 asyncTest('Closing contacts stops additional geometry batches', async () => {
   const { context } = palette();
   const requests = [];

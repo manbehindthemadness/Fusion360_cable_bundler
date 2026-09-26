@@ -41,6 +41,15 @@ test('palette follows fixed Fusion themes and live device theme rollovers', () =
   assert.equal(context.document.documentElement.dataset.theme, 'dark');
 });
 
+asyncTest('palette ignores a state reply from the document-closing gap', async () => {
+  const { context } = palette();
+  context.send = async () => ({ ok: false, stale: true });
+
+  await context.refresh();
+
+  assert.equal(context.ui.notice.children.length, 0);
+});
+
 test('unchanged Fusion state leaves the master diagram mounted', () => {
   const storage = new Map([['cableBundler.selectedHarness', 'h']]);
   const { context } = palette(storage);

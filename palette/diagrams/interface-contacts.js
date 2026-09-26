@@ -206,6 +206,23 @@ function refreshInterfaceContacts() {
   else dialog.close();
 }
 
+/** Scope asynchronous contact reads to the document that opened the dialog. */
+function interfaceContactRequest(dialog, extra = {}) {
+  return {
+    harnessId: dialog.dataset.harnessId,
+    interfaceId: dialog.dataset.interfaceId,
+    contactDocumentScope: dialog.dataset.contactDocumentScope,
+    ...extra,
+  };
+}
+
+/** A queued request from a closed project is no longer actionable. */
+function closeStaleInterfaceContactRequest(dialog, response) {
+  if (!response.stale) return false;
+  if (dialog.open) dialog.close();
+  return true;
+}
+
 /** Keep unresolved metadata out of the diagram while showing accessible load progress. */
 function showInterfaceContactLoading(diagram, total, loaded = 0, failed = false) {
   let status = diagram.querySelector(".interface-contact-loading");
@@ -258,10 +275,10 @@ function updateInterfaceContactData(dialog, contacts) {
     && contacts.length <= 1024 && Object.keys(signatures).length === contacts.length
     && contacts.every((item) => typeof signatures[item.contactId] === "string")) {
     dialog.geometryValidationPending = geometryKey;
-    void send("get_interface_contact_signatures", {
-      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+    void send("get_interface_contact_signatures", interfaceContactRequest(dialog, {
       contactIds: contacts.map((item) => item.contactId),
-    }).then((response) => {
+    })).then((response) => {
+      if (closeStaleInterfaceContactRequest(dialog, response)) return;
       if (!response.ok || !response.signatures) throw new Error(response.error || "Contact validation unavailable.");
       if (!dialog.open || contactGeometryKey(dialog.contactMetadata) !== geometryKey) return;
       const unchanged = contacts.every((item) => (
@@ -382,9 +399,8 @@ function updateInterfaceContactData(dialog, contacts) {
 /** Report one cold-load cache decision and timing in developer mode. */
 async function reportInterfaceContactCache(dialog, load, renderMs) {
   try {
-    const response = await send("get_interface_contact_cache_status", {
-      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
-    });
+    const response = await send("get_interface_contact_cache_status", interfaceContactRequest(dialog));
+    if (closeStaleInterfaceContactRequest(dialog, response)) return;
     if (!dialog.open) return;
     if (!response.ok || !response.cache) throw new Error(response.error || "Cache status unavailable.");
     const cache = response.cache;
@@ -410,9 +426,8 @@ async function rebuildInterfaceContactCache(dialog) {
   dialog.rebuildButton.disabled = true;
   showInterfaceContactLoading(diagram, dialog.contactMetadata.length);
   try {
-    const response = await send("rebuild_interface_contacts_cache", {
-      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
-    });
+    const response = await send("rebuild_interface_contacts_cache", interfaceContactRequest(dialog));
+    if (closeStaleInterfaceContactRequest(dialog, response)) return;
     if (!response.ok) throw new Error(response.error || "Could not clear contact cache.");
     if (!dialog.open) return;
     forgetContactGeometry(dialog);
@@ -440,10 +455,10 @@ async function rebuildInterfaceContactCache(dialog) {
 async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
   const started = Date.now();
   if (contacts.length > 16 && contacts.length <= 1024) {
-    const warm = await send("get_interface_contacts_cached", {
-      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+    const warm = await send("get_interface_contacts_cached", interfaceContactRequest(dialog, {
       contactIds: contacts.map((item) => item.contactId),
-    });
+    }));
+    if (closeStaleInterfaceContactRequest(dialog, warm)) return { ok: true, contacts: [] };
     if (!warm.ok) throw new Error(warm.error || "Contact cache unavailable.");
     if (warm.cacheComplete) {
       return { ok: true, contacts: warm.contacts, cacheBefore: { reason: "eligible", snapshot: "present" },
@@ -458,12 +473,12 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
   let serverMs = 0;
   for (let offset = 0; offset < contacts.length; offset += 8) {
     if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return { ok: true, contacts: [] };
-    const response = await send("get_interface_contacts", {
-      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+    const response = await send("get_interface_contacts", interfaceContactRequest(dialog, {
       contactIds: contacts.slice(offset, offset + 8).map((item) => item.contactId),
       diagnostics: developerModeEnabled,
       diagnosticFirstBatch: offset === 0,
-    });
+    }));
+    if (closeStaleInterfaceContactRequest(dialog, response)) return { ok: true, contacts: [] };
     if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
     if (response.cacheBefore) cacheBefore = response.cacheBefore;
     cacheHits += response.cacheStats?.hits || 0;

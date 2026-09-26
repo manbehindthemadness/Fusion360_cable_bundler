@@ -131,6 +131,107 @@ def test_pos_import_preview_reads_only_the_selected_linked_board(
     edit.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "action",
+    (
+        "get_state",
+        "get_interface_contact_signatures",
+        "get_interface_contacts_cached",
+        "get_interface_contacts",
+        "get_interface_contact_cache_status",
+        "rebuild_interface_contacts_cache",
+    ),
+)
+def test_closing_document_drops_queued_contact_requests_without_error_log(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+) -> None:
+    """
+    A palette callback can arrive after the design closes and before Untitled opens.
+    """
+    palette_module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    application = SimpleNamespace(activeProduct=None)
+    core = sys.modules["adsk.core"]
+    fusion = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(vars(core), "HTMLEventArgs", SimpleNamespace(cast=lambda value: value))
+    monkeypatch.setitem(vars(fusion), "Design", SimpleNamespace(cast=lambda _: None))
+    gateway = Mock()
+    failure = Mock()
+    monkeypatch.setitem(vars(palette_module), "_create_harness_gateway", gateway)
+    monkeypatch.setitem(vars(palette_module), "_report_failure", failure)
+    args = SimpleNamespace(
+        action=action,
+        data=json.dumps(
+            {
+                "harnessId": str(UUID(int=1)),
+                "interfaceId": str(UUID(int=2)),
+                "contactDocumentScope": "closing-document",
+            }
+        ),
+        returnData="",
+    )
+
+    palette_module._PaletteIncomingHandler().notify(args)
+
+    assert json.loads(args.returnData) == {"ok": False, "stale": True}
+    gateway.assert_not_called()
+    failure.assert_not_called()
+
+
+def test_late_contact_signature_request_cannot_read_replacement_document(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Reject an old dialog's request even after Fusion activates another design.
+    """
+    palette_module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    design = object()
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda _: design)
+    )
+    monkeypatch.setitem(
+        vars(palette_module), "_contact_palette_document_scope", lambda *_: "new-document"
+    )
+    gateway = Mock()
+    monkeypatch.setitem(vars(palette_module), "_create_harness_gateway", gateway)
+    result = json.loads(
+        palette_module._dispatch_palette_action(
+            SimpleNamespace(activeProduct=design),
+            "get_interface_contact_signatures",
+            json.dumps({"contactDocumentScope": "closed-document"}),
+        )
+    )
+
+    assert result == {"ok": False, "stale": True}
+    gateway.assert_not_called()
+
+
+def test_closing_document_is_stale_even_while_its_product_proxy_remains(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Fusion may release the document before its active-product proxy disappears.
+    """
+    palette_module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    design = object()
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda _: design)
+    )
+    gateway = Mock()
+    monkeypatch.setitem(vars(palette_module), "_create_harness_gateway", gateway)
+
+    result = json.loads(
+        palette_module._dispatch_palette_action(
+            SimpleNamespace(activeDocument=None, activeProduct=design), "get_state", "{}"
+        )
+    )
+
+    assert result == {"ok": False, "stale": True}
+    gateway.assert_not_called()
+
+
 def test_contact_details_edit_routes_value_and_pin_together(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,
