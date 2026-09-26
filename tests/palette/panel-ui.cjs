@@ -749,6 +749,35 @@ asyncTest('Rebuild Cache clears the snapshot and resamples with progress', async
   dialog.close();
 });
 
+asyncTest('Developer mode reports contact cache eligibility after loading', async () => {
+  const preferences = new Map([
+    ['cableBundler.developerMode', 'true'],
+    ['cableBundler.developerConsentVersion', '1'],
+  ]);
+  const { context } = palette(new Map(), preferences);
+  const actions = [];
+  context.send = async (action) => {
+    actions.push(action);
+    if (action === 'get_interface_contact_cache_status') {
+      return { ok: true, cache: { reason: 'document has unsaved changes', snapshot: 'unavailable' } };
+    }
+    return { ok: true, cacheBefore: { reason: 'document has unsaved changes', snapshot: 'unavailable' },
+      cacheStats: { hits: 0, misses: 1 }, serverMs: 18,
+      contacts: [{ contactId: 'a', linked: true, normal: [0, 0, 1],
+      loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]] }] };
+  };
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket',
+    contacts: [{ contactId: 'a', name: 'Pad', assignedName: '', geometryRevision: 1 }] });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(actions, ['get_interface_contacts', 'get_interface_contact_cache_status']);
+  assert.match(context.ui.notice.children.at(-1).textContent, /before document has unsaved changes/);
+  assert.match(context.ui.notice.children.at(-1).textContent, /0 hits \/ 1 misses/);
+  assert.match(context.ui.notice.children.at(-1).textContent, /document has unsaved changes/);
+  context.document.body.querySelector('.interface-contacts-popup').close();
+});
+
 asyncTest('A name arriving during geometry loading is part of the cached image', async () => {
   const { context } = palette();
   const requests = [];

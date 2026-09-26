@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import traceback
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Callable
 
 # noinspection PyUnresolvedReferences
@@ -21,6 +22,7 @@ from ..cable_solids import refresh_generated_cable_groups_for_connection
 from ..interface_contact_cache import clear_contact_resolutions
 from ..interface_contact_disk_cache import (
     clear_interface_contact_snapshot,
+    describe_interface_contact_cache,
     disk_cache_available,
     project_cached_contact_batch,
 )
@@ -452,6 +454,7 @@ def _dispatch_palette_action(
     if action == "get_state":
         return serialize_palette_state(application)
     if action == "get_interface_contacts":
+        started = perf_counter()
         payload = _read_palette_payload(data)
         harness_id = _read_payload_uuid(payload, "harnessId", "harness")
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
@@ -473,6 +476,13 @@ def _dispatch_palette_action(
         selected = [
             contact for contact in interface.contacts if str(contact.contact_id) in requested
         ]
+        diagnostic_request = payload.get("diagnostics") is True
+        cache_before = (
+            describe_interface_contact_cache(application, harness_id, interface_id)
+            if diagnostic_request and payload.get("diagnosticFirstBatch") is True
+            else None
+        )
+        cache_stats: dict[str, int] | None = {} if diagnostic_request else None
         projections = project_cached_contact_batch(
             application,
             design,
@@ -480,12 +490,27 @@ def _dispatch_palette_action(
             interface_id,
             selected,
             project_interface_contact,
+            diagnostics=cache_stats,
         )
+        result: dict[str, object] = {
+            "ok": True,
+            "contacts": projections,
+            "geometryRevision": _runtime.contact_geometry_revision,
+        }
+        if cache_before is not None:
+            result["cacheBefore"] = cache_before
+        if cache_stats is not None:
+            result["cacheStats"] = cache_stats
+            result["serverMs"] = round((perf_counter() - started) * 1000)
+        return json.dumps(result)
+    if action == "get_interface_contact_cache_status":
+        payload = _read_palette_payload(data)
+        harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         return json.dumps(
             {
                 "ok": True,
-                "contacts": projections,
-                "geometryRevision": _runtime.contact_geometry_revision,
+                "cache": describe_interface_contact_cache(application, harness_id, interface_id),
             }
         )
     if action == "rebuild_interface_contacts_cache":

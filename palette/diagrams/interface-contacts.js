@@ -430,13 +430,18 @@ function updateInterfaceContactData(dialog, contacts) {
     }
     rememberContactGeometry(dialog, geometryKey, response.contacts);
     hideInterfaceContactLoading(diagram);
+    const renderStarted = Date.now();
     renderInterfaceContacts(diagram, response.contacts.map((item) => ({ ...item, ...metadata.get(item.contactId) })));
     const currentDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => (
       [item.contactId, item.name, item.assignedName]
     )));
     rememberRenderedContactDiagram(dialog, geometryKey, currentDisplayKey);
+    const renderMs = Date.now() - renderStarted;
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = currentDisplayKey;
+    if (developerModeEnabled) {
+      void reportInterfaceContactCache(dialog, response, renderMs);
+    }
   }).catch((error) => {
     if (dialog.open && dialog.requestedGeometryKey === geometryKey) {
       showInterfaceContactLoading(diagram, contacts.length, 0, true);
@@ -449,6 +454,28 @@ function updateInterfaceContactData(dialog, contacts) {
       updateInterfaceContactData(dialog, dialog.contactMetadata);
     }
   });
+}
+
+/** Report one cold-load cache decision and timing in developer mode. */
+async function reportInterfaceContactCache(dialog, load, renderMs) {
+  try {
+    const response = await send("get_interface_contact_cache_status", {
+      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+    });
+    if (!dialog.open) return;
+    if (!response.ok || !response.cache) throw new Error(response.error || "Cache status unavailable.");
+    const cache = response.cache;
+    const details = [
+      `before ${load.cacheBefore?.reason || "unknown"} / ${load.cacheBefore?.snapshot || "unknown"}`,
+      `after ${cache.reason} / ${cache.snapshot}`,
+      `${load.cacheHits} hits / ${load.cacheMisses} misses`,
+    ];
+    if (Number.isFinite(cache.entries)) details.push(`${cache.entries} entries`);
+    if (cache.lastWrite) details.push(`last write ${cache.lastWrite}`);
+    appendNotice(`Contact load ${(load.elapsedMs / 1000).toFixed(1)} s (${load.serverMs} ms backend) + render ${renderMs} ms. Cache: ${details.join(", ")}.`);
+  } catch (error) {
+    if (dialog.open) appendNotice(`Contact cache diagnostics failed: ${String(error)}`, true);
+  }
 }
 
 /** Discard the current Interface snapshot and refill it through the progress loader. */
@@ -486,20 +513,32 @@ async function rebuildInterfaceContactCache(dialog) {
 
 /** Yield to Fusion between bounded batches; closing or superseding stops further work. */
 async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
+  const started = Date.now();
   const resolved = [];
+  let cacheBefore = null;
+  let cacheHits = 0;
+  let cacheMisses = 0;
+  let serverMs = 0;
   for (let offset = 0; offset < contacts.length; offset += 8) {
     if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return { ok: true, contacts: [] };
     const response = await send("get_interface_contacts", {
       harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
       contactIds: contacts.slice(offset, offset + 8).map((item) => item.contactId),
+      diagnostics: developerModeEnabled,
+      diagnosticFirstBatch: offset === 0,
     });
     if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
+    if (response.cacheBefore) cacheBefore = response.cacheBefore;
+    cacheHits += response.cacheStats?.hits || 0;
+    cacheMisses += response.cacheStats?.misses || 0;
+    serverMs += response.serverMs || 0;
     resolved.push(...response.contacts);
     if (dialog.open && dialog.requestedGeometryKey === geometryKey) {
       showInterfaceContactLoading(dialog.children[2], contacts.length, Math.min(offset + 8, contacts.length));
     }
   }
-  return { ok: true, contacts: resolved };
+  return { ok: true, contacts: resolved, cacheBefore, cacheHits, cacheMisses,
+    serverMs, elapsedMs: Date.now() - started };
 }
 
 /** Open the contact-selection workspace for one Interface. */

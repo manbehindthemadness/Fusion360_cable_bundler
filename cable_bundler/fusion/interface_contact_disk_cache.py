@@ -15,10 +15,12 @@ from typing import Any, Callable, Sequence
 from uuid import UUID
 
 from ..domain import InterfaceContact
+from .interface_contact_source import contact_source_signature
 
 _CACHE_FORMAT = 1
 _MAX_SNAPSHOT_BYTES = 8_000_000
 _MAX_TOTAL_BYTES = 64_000_000
+_last_write: tuple[Path, str] | None = None
 
 
 def _cache_root() -> Path:
@@ -45,8 +47,6 @@ def _snapshot_path(
     application: Any,
     harness_id: UUID,
     interface_id: UUID,
-    *,
-    require_clean: bool = True,
 ) -> Path | None:
     """
     Scope disk data to a cloud file version, not a copied document creation ID.
@@ -55,7 +55,7 @@ def _snapshot_path(
         return None  # No native Fusion client currently supports this cache path.
     try:
         document = application.activeDocument
-        if document is None or (require_clean and document.isModified):
+        if document is None:
             return None
         data_file = document.dataFile
         identity = data_file.id
@@ -76,9 +76,55 @@ def _snapshot_path(
 
 def disk_cache_available(application: Any, harness_id: UUID, interface_id: UUID) -> bool:
     """
-    Report whether the current saved document can safely use a disk snapshot.
+    Report whether a version-scoped snapshot can be used with source validation.
     """
     return _snapshot_path(application, harness_id, interface_id) is not None
+
+
+def describe_interface_contact_cache(
+    application: Any, harness_id: UUID, interface_id: UUID
+) -> dict[str, object]:
+    """
+    Explain cache eligibility and the current snapshot without exposing file identity.
+    """
+    if sys.platform.startswith("linux"):
+        return {"reason": "unsupported platform", "snapshot": "unavailable"}
+    try:
+        document = application.activeDocument
+        if document is None:
+            return {"reason": "no active document", "snapshot": "unavailable"}
+        data_file = document.dataFile
+        if data_file is None:
+            return {"reason": "document has no saved data file", "snapshot": "unavailable"}
+        identity = data_file.id
+        version = data_file.versionNumber
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return {"reason": "saved file identity unavailable", "snapshot": "unavailable"}
+    if not isinstance(identity, str) or not identity:
+        return {"reason": "saved file ID unavailable", "snapshot": "unavailable"}
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        return {"reason": "saved file version unavailable", "snapshot": "unavailable"}
+    path = _snapshot_path(application, harness_id, interface_id)
+    if path is None:
+        return {"reason": "cache scope changed during inspection", "snapshot": "unavailable"}
+    result: dict[str, object] = {"reason": "eligible", "snapshot": "missing"}
+    if _last_write is not None and _last_write[0] == path:
+        result["lastWrite"] = _last_write[1]
+    try:
+        size = path.stat().st_size
+    except FileNotFoundError:
+        return result
+    except OSError as error:
+        result["snapshot"] = f"unreadable ({type(error).__name__})"
+        return result
+    result["snapshotBytes"] = size
+    if size > _MAX_SNAPSHOT_BYTES:
+        result["snapshot"] = "oversized"
+        return result
+    entries = _read_snapshot(path)
+    result["snapshot"] = "present" if entries else "empty or invalid"
+    result["entries"] = len(entries)
+    return result
 
 
 def clear_interface_contact_snapshot(
@@ -90,10 +136,13 @@ def clear_interface_contact_snapshot(
     Return false when disk caching is unavailable. Propagate I/O failures so
     rebuild cannot silently serve a stale snapshot.
     """
-    path = _snapshot_path(application, harness_id, interface_id, require_clean=False)
+    global _last_write
+    path = _snapshot_path(application, harness_id, interface_id)
     if path is None:
         return False
     path.unlink(missing_ok=True)
+    if _last_write is not None and _last_write[0] == path:
+        _last_write = None
     return True
 
 
@@ -188,13 +237,16 @@ def _write_snapshot(path: Path, entries: dict[str, object]) -> None:
     """
     Atomically replace one small snapshot and leave no partial JSON on failure.
     """
+    global _last_write
     try:
         encoded = json.dumps(
             {"format": _CACHE_FORMAT, "entries": entries}, separators=(",", ":")
         ).encode("utf-8")
     except (TypeError, ValueError):
+        _last_write = (path, "serialization failed")
         return
     if len(encoded) > _MAX_SNAPSHOT_BYTES:
+        _last_write = (path, "snapshot exceeds 8 MB limit")
         return
     temporary: Path | None = None
     try:
@@ -204,7 +256,9 @@ def _write_snapshot(path: Path, entries: dict[str, object]) -> None:
             file.write(encoded)
         os.replace(temporary, path)
         _prune_snapshots(path.parent)
-    except OSError:
+        _last_write = (path, "written")
+    except OSError as error:
+        _last_write = (path, f"failed ({type(error).__name__})")
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
@@ -219,40 +273,70 @@ def project_cached_contact_batch(
     interface_id: UUID,
     contacts: Sequence[InterfaceContact],
     projector: Callable[[Any, InterfaceContact], dict[str, object]],
+    diagnostics: dict[str, int] | None = None,
 ) -> list[dict[str, object]]:
     """
     Reuse versioned disk outlines; project and persist only eligible misses.
 
-    Unsaved or modified designs bypass disk entirely. Names are always merged from
-    current harness data, while Fusion references and SVG nodes remain memory-only.
+    Dirty designs reuse only outlines whose live source revisions and placement
+    still match. Names come from current harness data, not saved SVG nodes.
     """
     path = _snapshot_path(application, harness_id, interface_id)
+    try:
+        modified = bool(application.activeDocument.isModified)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        modified = True
     entries = _read_snapshot(path)
     changed = False
+    hits = 0
+    misses = 0
     projections: list[dict[str, object]] = []
     for contact in contacts:
         key = str(contact.contact_id)
         record = entries.get(key)
         payload = None
+        signature_checked = bool(modified and path is not None)
+        signature = contact_source_signature(design, contact) if signature_checked else None
         if isinstance(record, dict) and record.get("token") == contact.entity_token:
             candidate = record.get("projection")
-            if _valid_projection(candidate, contact):
+            recorded_signature = record.get("sourceSignature")
+            if recorded_signature is not None and not signature_checked:
+                signature = contact_source_signature(design, contact)
+                signature_checked = True
+            source_matches = (not modified and recorded_signature is None) or (
+                signature is not None and recorded_signature == signature
+            )
+            if source_matches and _valid_projection(candidate, contact):
                 payload = dict(candidate)
+                hits += 1
                 payload["assignedName"] = contact.name
                 source_name = payload.get("sourceName")
                 payload["name"] = contact.name or (
                     source_name if isinstance(source_name, str) else contact.kind.value
                 )
         if payload is None:
+            misses += 1
             payload = projector(design, contact)
             if path is not None and _valid_projection(payload, contact):
+                if not signature_checked:
+                    signature = contact_source_signature(design, contact)
+                    signature_checked = True
+                if modified and signature is None:
+                    projections.append(payload)
+                    continue
                 stable = dict(payload)
                 source_name = stable.get("sourceName")
                 stable["name"] = source_name if isinstance(source_name, str) else contact.kind.value
                 stable.pop("assignedName", None)
-                entries[key] = {"token": contact.entity_token, "projection": stable}
+                entries[key] = {
+                    "token": contact.entity_token,
+                    "sourceSignature": signature,
+                    "projection": stable,
+                }
                 changed = True
         projections.append(payload)
     if path is not None and changed:
         _write_snapshot(path, entries)
+    if diagnostics is not None:
+        diagnostics.update(hits=hits, misses=misses)
     return projections

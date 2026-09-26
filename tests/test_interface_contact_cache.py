@@ -125,15 +125,24 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
     monkeypatch.setitem(vars(module), "_require_active_design", lambda _: "design")
     project = Mock(side_effect=lambda _design, contact: {"contactId": str(contact.contact_id)})
     monkeypatch.setitem(vars(module), "project_interface_contact", project)
+    describe = Mock(return_value={"reason": "eligible", "snapshot": "missing"})
+    monkeypatch.setitem(vars(module), "describe_interface_contact_cache", describe)
     payload = {
         "harnessId": str(UUID(int=1)),
         "interfaceId": str(interface_id),
         "contactIds": [str(contacts[2].contact_id)],
+        "diagnostics": True,
+        "diagnosticFirstBatch": True,
     }
+    application = object()
     result = json.loads(
-        module._dispatch_palette_action(object(), "get_interface_contacts", json.dumps(payload))
+        module._dispatch_palette_action(application, "get_interface_contacts", json.dumps(payload))
     )
     assert result["contacts"] == [{"contactId": str(contacts[2].contact_id)}]
+    assert result["cacheBefore"] == describe.return_value
+    assert result["cacheStats"] == {"hits": 0, "misses": 1}
+    assert isinstance(result["serverMs"], int)
+    describe.assert_called_once_with(application, UUID(int=1), interface_id)
     project.assert_called_once_with("design", contacts[2])
     payload["contactIds"] = [str(item.contact_id) for item in contacts]
     with pytest.raises(ValueError, match="eight"):
@@ -184,3 +193,30 @@ def test_rebuild_dispatch_clears_current_interface_and_native_references(
             json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)}),
         )
     clear_native.assert_called_once_with()
+
+
+def test_cache_status_dispatch_reports_read_only_diagnostics(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The palette can inspect cache eligibility without resolving any contacts.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    application = object()
+    harness_id = UUID(int=1)
+    interface_id = UUID(int=2)
+    describe = Mock(
+        return_value={"reason": "document has unsaved changes", "snapshot": "unavailable"}
+    )
+    monkeypatch.setitem(vars(module), "describe_interface_contact_cache", describe)
+
+    result = json.loads(
+        module._dispatch_palette_action(
+            application,
+            "get_interface_contact_cache_status",
+            json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)}),
+        )
+    )
+
+    assert result["cache"] == describe.return_value
+    describe.assert_called_once_with(application, harness_id, interface_id)

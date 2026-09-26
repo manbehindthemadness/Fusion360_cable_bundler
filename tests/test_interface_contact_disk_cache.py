@@ -146,13 +146,21 @@ def test_saved_projection_reuses_disk_but_merges_current_name(
     contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
     projector = Mock(side_effect=_projection)
     ids = (UUID(int=1), UUID(int=2))
+    first_stats: dict[str, int] = {}
+    second_stats: dict[str, int] = {}
 
-    first = cache.project_cached_contact_batch(application, object(), *ids, [contact], projector)
+    first = cache.project_cached_contact_batch(
+        application, object(), *ids, [contact], projector, diagnostics=first_stats
+    )
     renamed = InterfaceContact(contact.contact_id, contact.kind, contact.entity_token, "J1.1")
-    second = cache.project_cached_contact_batch(application, object(), *ids, [renamed], projector)
+    second = cache.project_cached_contact_batch(
+        application, object(), *ids, [renamed], projector, diagnostics=second_stats
+    )
     cleared = cache.project_cached_contact_batch(application, object(), *ids, [contact], projector)
 
     assert first[0]["name"] == "Pad"
+    assert first_stats == {"hits": 0, "misses": 1}
+    assert second_stats == {"hits": 1, "misses": 0}
     assert second[0]["name"] == second[0]["assignedName"] == "J1.1"
     assert cleared[0]["name"] == "Pad"
     assert projector.call_count == 1
@@ -164,11 +172,39 @@ def test_saved_projection_reuses_disk_but_merges_current_name(
     assert "assignedName" not in stored_projection
 
 
+def test_cache_diagnostics_explain_eligibility_and_snapshot_write(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Keep modified saved documents eligible for per-contact validation.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    ids = (UUID(int=1), UUID(int=2))
+    application = _application()
+    contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
+
+    assert cache.describe_interface_contact_cache(application, *ids) == {
+        "reason": "eligible",
+        "snapshot": "missing",
+    }
+    cache.project_cached_contact_batch(application, object(), *ids, [contact], _projection)
+    status = cache.describe_interface_contact_cache(application, *ids)
+    assert status["reason"] == "eligible"
+    assert status["snapshot"] == "present"
+    assert status["entries"] == 1
+    assert status["lastWrite"] == "written"
+    dirty_status = cache.describe_interface_contact_cache(_application(modified=True), *ids)
+    assert dirty_status["reason"] == "eligible"
+    assert dirty_status["snapshot"] == "present"
+
+
 def test_modified_or_unsaved_document_never_uses_disk(
     addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Avoid stale persistence when Fusion has not committed a stable version.
+    Avoid persistence when a dirty source cannot be validated or has no file ID.
     """
     cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
     monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
@@ -183,6 +219,51 @@ def test_modified_or_unsaved_document_never_uses_disk(
         )
     assert projector.call_count == 4
     assert not (tmp_path / "cache").exists()
+
+
+def test_modified_document_reuses_only_matching_source_signature(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Ignore graphics-only dirtiness but reproject a changed source revision.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    design = SimpleNamespace(source_signature="body-revision-1")
+
+    def source_signature(current_design: Any, _contact: InterfaceContact) -> str:
+        """
+        Model a cheap live revision and placement fingerprint.
+        """
+        return current_design.source_signature
+
+    monkeypatch.setitem(vars(cache), "contact_source_signature", source_signature)
+    contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
+    projector = Mock(side_effect=_projection)
+    ids = (UUID(int=1), UUID(int=2))
+    cache.project_cached_contact_batch(_application(), design, *ids, [contact], projector)
+
+    dirty = _application(modified=True)
+    diagnostics: dict[str, int] = {}
+    cache.project_cached_contact_batch(
+        dirty, design, *ids, [contact], projector, diagnostics=diagnostics
+    )
+    assert diagnostics == {"hits": 1, "misses": 0}
+    assert projector.call_count == 1
+
+    design.source_signature = "body-revision-2"
+    cache.project_cached_contact_batch(
+        dirty, design, *ids, [contact], projector, diagnostics=diagnostics
+    )
+    assert diagnostics == {"hits": 0, "misses": 1}
+    assert projector.call_count == 2
+
+    design.source_signature = "body-revision-1"
+    cache.project_cached_contact_batch(
+        _application(), design, *ids, [contact], projector, diagnostics=diagnostics
+    )
+    assert diagnostics == {"hits": 0, "misses": 1}
+    assert projector.call_count == 3
 
 
 def test_initially_named_contact_retains_unnamed_source_label(
@@ -289,6 +370,7 @@ def test_unwritable_cache_does_not_interrupt_projection(
     Security-policy or permission errors must not block the contact diagram.
     """
     cache = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
 
     def deny_directory(*_args: object, **_kwargs: object) -> None:
@@ -304,3 +386,7 @@ def test_unwritable_cache_does_not_interrupt_projection(
     )
 
     assert result[0]["name"] == "Pad"
+    status = cache.describe_interface_contact_cache(_application(), UUID(int=1), UUID(int=2))
+    assert status["reason"] == "eligible"
+    assert status["snapshot"] == "missing"
+    assert status["lastWrite"] == "failed (PermissionError)"

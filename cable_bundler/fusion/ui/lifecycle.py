@@ -4,6 +4,8 @@ Fusion UI services for lifecycle.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Optional
 
 # noinspection PyUnresolvedReferences
@@ -18,6 +20,7 @@ from ..cable_solids import (
     has_finalized_cable_group_output,
     restore_cable_group_stripe_graphics,
 )
+from ..harness_gateway import ATTRIBUTE_GROUP, DEFINITION_ATTRIBUTE_NAME
 from ..hover_graphics import clear_hover_widgets
 from ..interface_contact_cache import clear_contact_resolutions
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
@@ -73,6 +76,52 @@ _VIEW_COMMAND_IDS = frozenset(
 )
 _NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand",))
 _DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
+
+
+def _log_document_checkpoint(application: adsk.core.Application, stage: str) -> None:
+    """
+    Record read-only document state around reload without exposing design contents.
+
+    A changed definition digest indicates persisted harness content changed; a
+    changed modified flag with stable digest and model counts points to a host
+    graphics or other non-harness side effect. Diagnostic failures never block startup.
+    """
+    snapshot: dict[str, object] = {"stage": stage}
+    try:
+        document = application.activeDocument
+        snapshot["modified"] = document.isModified if document is not None else None
+        data_file = document.dataFile if document is not None else None
+        snapshot["savedVersion"] = data_file.versionNumber if data_file is not None else None
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        snapshot["documentError"] = type(error).__name__
+    try:
+        design = adsk.fusion.Design.cast(application.activeProduct)
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        snapshot["designError"] = type(error).__name__
+        design = None
+    if design is not None:
+        try:
+            snapshot["components"] = design.allComponents.count
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            snapshot["componentsError"] = type(error).__name__
+        try:
+            snapshot["timeline"] = design.timeline.count
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            snapshot["timelineError"] = type(error).__name__
+        try:
+            definitions = sorted(
+                attribute.value
+                for attribute in design.findAttributes(ATTRIBUTE_GROUP, DEFINITION_ATTRIBUTE_NAME)
+            )
+            encoded = json.dumps(definitions, separators=(",", ":")).encode("utf-8")
+            snapshot["harnessDefinitions"] = len(definitions)
+            snapshot["harnessDigest"] = hashlib.sha256(encoded).hexdigest()[:16]
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            snapshot["harnessError"] = type(error).__name__
+    try:
+        _log_to_fusion(f"Harness lifecycle checkpoint: {json.dumps(snapshot, sort_keys=True)}")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        pass
 
 
 class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
@@ -388,6 +437,7 @@ def start(_context: object) -> None:
     try:
         application = adsk.core.Application.get()
         user_interface = application.userInterface
+        _log_document_checkpoint(application, "start:entry")
         _remove_user_interface(user_interface)
         _register_palette_edit_commands(user_interface)
         _register_deferred_stripe_restore(application)
@@ -421,13 +471,18 @@ def start(_context: object) -> None:
         if not registered_panel_ids:
             raise RuntimeError(f"Fusion toolbar panels are unavailable: {', '.join(PANEL_IDS)}")
 
+        _log_document_checkpoint(application, "start:ui_registered")
         design = adsk.fusion.Design.cast(application.activeProduct)
         if design is not None:
             results = load_harnesses(_create_harness_gateway(application))
+            _log_document_checkpoint(application, "start:harnesses_loaded")
             _restore_loaded_stripe_graphics(application, results)
+            _log_document_checkpoint(application, "start:stripes_restored")
             reconcile_active_refines(application)
+            _log_document_checkpoint(application, "start:refines_reconciled")
             if _hide_loaded_finalized_previews(design, results):
                 application.activeViewport.refresh()
+            _log_document_checkpoint(application, "start:previews_hidden")
     except Exception:
         if application is not None:
             try:
@@ -453,12 +508,17 @@ def stop(_context: object) -> None:
     clear_contact_resolutions()
     try:
         application = adsk.core.Application.get()
+        _log_document_checkpoint(application, "stop:entry")
         design = adsk.fusion.Design.cast(application.activeProduct)
         if design is not None:
             clear_hover_widgets(design)
+            _log_document_checkpoint(application, "stop:hover_cleared")
             clear_route_previews(design)
+            _log_document_checkpoint(application, "stop:previews_cleared")
             clear_refine_spine(design)
+            _log_document_checkpoint(application, "stop:spine_cleared")
             clear_refine_graphics(design)
+            _log_document_checkpoint(application, "stop:refines_cleared")
         _remove_document_handlers(application)
         _remove_deferred_stripe_restore(application)
         _remove_deferred_palette_launch(application)
@@ -467,6 +527,7 @@ def stop(_context: object) -> None:
         reset_preview_history()
         _runtime.reset_pending_requests()
         _runtime.damaged_harness_results.clear()
+        _log_document_checkpoint(application, "stop:done")
     except Exception:
         _report_failure("stop")
         raise

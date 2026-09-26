@@ -21,6 +21,87 @@ from tests.fusion_ui_support import (
 )
 
 
+def test_lifecycle_checkpoint_reports_dirty_transition_without_editing_design(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Compare document state across lifecycle stages without writing to the model.
+    """
+    attribute = SimpleNamespace(value='{"name":"Harness"}')
+    design = SimpleNamespace(
+        allComponents=SimpleNamespace(count=2),
+        timeline=SimpleNamespace(count=3),
+        findAttributes=Mock(return_value=(attribute,)),
+    )
+    document = SimpleNamespace(
+        isModified=False,
+        dataFile=SimpleNamespace(versionNumber=75),
+    )
+    application = SimpleNamespace(activeDocument=document, activeProduct=design)
+    fusion_module = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(vars(fusion_module), "Design", SimpleNamespace(cast=lambda value: value))
+    log = Mock()
+    monkeypatch.setattr(addin_module, "_log_to_fusion", log)
+
+    addin_module._log_document_checkpoint(application, "stop:entry")
+    document.isModified = True
+    addin_module._log_document_checkpoint(application, "start:entry")
+
+    before = json.loads(log.call_args_list[0].args[0].split(": ", 1)[1])
+    after = json.loads(log.call_args_list[1].args[0].split(": ", 1)[1])
+    assert before["modified"] is False
+    assert after["modified"] is True
+    assert before["harnessDigest"] == after["harnessDigest"]
+    assert before["harnessDefinitions"] == after["harnessDefinitions"] == 1
+    assert before["components"] == after["components"] == 2
+    assert before["timeline"] == after["timeline"] == 3
+    assert after["savedVersion"] == 75
+    design.findAttributes.assert_called_with(
+        addin_module.ATTRIBUTE_GROUP,
+        addin_module.DEFINITION_ATTRIBUTE_NAME,
+    )
+
+
+def test_lifecycle_checkpoint_keeps_digest_when_timeline_is_unavailable(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A host-side timeline failure must not hide independent harness evidence.
+    """
+
+    class _UnavailableTimeline:
+        """
+        Model a Fusion timeline property that cannot be read in this state.
+        """
+
+        @property
+        def count(self) -> int:
+            """
+            Raise as the Fusion proxy does for an unavailable timeline.
+            """
+            raise RuntimeError("unavailable")
+
+    design = SimpleNamespace(
+        allComponents=SimpleNamespace(count=2),
+        timeline=_UnavailableTimeline(),
+        findAttributes=Mock(return_value=(SimpleNamespace(value="harness"),)),
+    )
+    application = SimpleNamespace(activeProduct=design, activeDocument=None)
+    fusion_module = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(vars(fusion_module), "Design", SimpleNamespace(cast=lambda value: value))
+    log = Mock()
+    monkeypatch.setattr(addin_module, "_log_to_fusion", log)
+
+    addin_module._log_document_checkpoint(application, "start:entry")
+
+    snapshot = json.loads(log.call_args.args[0].split(": ", 1)[1])
+    assert snapshot["timelineError"] == "RuntimeError"
+    assert snapshot["harnessDefinitions"] == 1
+    assert "harnessDigest" in snapshot
+
+
 def test_save_with_active_preview_temporarily_disables_graphics_cache(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
