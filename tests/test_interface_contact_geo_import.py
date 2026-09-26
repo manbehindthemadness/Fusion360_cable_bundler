@@ -38,6 +38,11 @@ def test_geo_import_fills_only_empty_values_from_explicit_names(
         InterfaceContact(UUID(int=902), AttachmentTargetKind.FACE, "unnamed"),
         InterfaceContact(UUID(int=903), AttachmentTargetKind.FACE, "ambiguous"),
         InterfaceContact(UUID(int=904), AttachmentTargetKind.PROFILE, "sketch-e"),
+        InterfaceContact(UUID(int=906), AttachmentTargetKind.FACE, "partially-named"),
+        InterfaceContact(UUID(int=907), AttachmentTargetKind.FACE, "missing"),
+        InterfaceContact(UUID(int=908), AttachmentTargetKind.FACE, "wrong-kind"),
+        InterfaceContact(UUID(int=909), AttachmentTargetKind.FACE, "overlong"),
+        InterfaceContact(UUID(int=910), AttachmentTargetKind.FACE, "unnamed-conflict"),
     )
     interface = InterfaceDefinition(
         UUID(int=905), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "shell"),), contacts
@@ -59,6 +64,15 @@ def test_geo_import_fills_only_empty_values_from_explicit_names(
         "body-b": (face("Would Replace"),),
         "unnamed": (face(""),),
         "ambiguous": (face("First"), face("Second")),
+        "partially-named": (face("Body3"), face("")),
+        "missing": (),
+        "wrong-kind": (
+            SimpleNamespace(
+                kind=AttachmentTargetKind.PROFILE, parentSketch=SimpleNamespace(name="Sketch")
+            ),
+        ),
+        "overlong": (face("x" * 81),),
+        "unnamed-conflict": (face(""), face("First"), face("Second")),
         "sketch-e": (
             SimpleNamespace(
                 kind=AttachmentTargetKind.PROFILE,
@@ -75,22 +89,53 @@ def test_geo_import_fills_only_empty_values_from_explicit_names(
     )
     assert selected_notice == "Imported geometry Values for 1 of 1 Interface contacts."
     selected = loads(gateway.serialized_definition).interfaces[0]
-    assert [contact.name for contact in selected.contacts] == ["Pin Body A", "Keep", "", "", ""]
+    assert [contact.name for contact in selected.contacts] == [
+        "Pin Body A",
+        "Keep",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
     assert selected.contacts[0].pin == "P7"
 
     all_notice = importer.import_interface_contact_geometry_names(
         object(), valid_harness.harness_id, interface.interface_id, ()
     )
-    assert all_notice == "Imported geometry Values for 1 of 5 Interface contacts."
+    assert all_notice == (
+        "Imported geometry Values for 3 of 10 Interface contacts. "
+        "Skipped: 2 already set, 1 conflicting names, 1 overlong name, "
+        "1 unnamed geometry, 1 unresolved, 1 wrong geometry kind."
+    )
     updated = loads(gateway.serialized_definition).interfaces[0]
     assert [contact.name for contact in updated.contacts] == [
         "Pin Body A",
         "Keep",
         "",
-        "",
+        "First",
         "Profile E",
+        "Body3",
+        "",
+        "",
+        "",
+        "",
     ]
-    assert [contact.pin for contact in updated.contacts] == ["P7", "P8", "", "", ""]
+    assert [contact.pin for contact in updated.contacts] == [
+        "P7",
+        "P8",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
 
     with pytest.raises(ValueError, match="invalid contact identity"):
         importer.import_interface_contact_geometry_names(
