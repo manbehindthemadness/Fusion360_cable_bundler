@@ -16,6 +16,20 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.interface-contact-loading {
+  box-sizing: border-box;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+.interface-contact-loading progress { width: min(280px, 80%); }
+.interface-contacts-diagram [hidden] { display: none !important; }
 .interface-contacts-modes { display: flex; flex-wrap: wrap; gap: 8px; }
 .interface-contacts-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .interface-contacts-naming { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }

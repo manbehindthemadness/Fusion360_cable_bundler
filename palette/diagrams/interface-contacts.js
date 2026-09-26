@@ -199,6 +199,38 @@ function refreshInterfaceContacts() {
   else dialog.close();
 }
 
+/** Keep unresolved metadata out of the diagram while showing accessible load progress. */
+function showInterfaceContactLoading(diagram, total, loaded = 0, failed = false) {
+  let status = diagram.querySelector(".interface-contact-loading");
+  if (!status) {
+    status = document.createElement("div");
+    status.className = "interface-contact-loading";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    const label = document.createElement("span");
+    const progress = document.createElement("progress");
+    progress.setAttribute("aria-label", "Contact geometry loading progress");
+    status.append(label, progress);
+    diagram.append(status);
+  }
+  diagram.contactState.workspace.root.hidden = true;
+  diagram.querySelector(".interface-contact-name-editor")?.remove();
+  diagram.setAttribute("aria-busy", `${!failed}`);
+  status.children[0].textContent = failed
+    ? "Unable to load contacts. Close and reopen this panel to retry."
+    : `Loading contacts… ${loaded} / ${total}`;
+  status.children[1].max = total;
+  status.children[1].value = loaded;
+  status.children[1].hidden = failed;
+}
+
+/** Reveal the workspace only when its geometry is ready to render. */
+function hideInterfaceContactLoading(diagram) {
+  diagram.querySelector(".interface-contact-loading")?.remove();
+  diagram.contactState.workspace.root.hidden = false;
+  diagram.setAttribute("aria-busy", "false");
+}
+
 /** Fetch outlines only for the open dialog; coalesce requests and discard stale replies. */
 function updateInterfaceContactData(dialog, contacts) {
   const diagram = dialog.children[2];
@@ -207,6 +239,7 @@ function updateInterfaceContactData(dialog, contacts) {
   const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName]));
   dialog.requestedGeometryKey = geometryKey;
   if (dialog.loadedGeometryKey === geometryKey) {
+    hideInterfaceContactLoading(diagram);
     if (dialog.contactDisplayKey !== displayKey) {
       const geometry = new Map(diagram.contactState.contacts.map((item) => [item.contactId, item]));
       renderInterfaceContacts(diagram, contacts.map((item) => ({ ...geometry.get(item.contactId), ...item })));
@@ -216,21 +249,27 @@ function updateInterfaceContactData(dialog, contacts) {
   }
   if (dialog.contactRequestPending) return;
   if (!contacts.length || contacts.every((item) => Array.isArray(item.loops))) {
+    hideInterfaceContactLoading(diagram);
     renderInterfaceContacts(diagram, contacts);
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = displayKey;
     return;
   }
   dialog.contactRequestPending = true;
+  showInterfaceContactLoading(diagram, contacts.length);
   void fetchInterfaceContactGeometry(dialog, contacts, geometryKey).then((response) => {
     if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return;
     if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
     const metadata = new Map(dialog.contactMetadata.map((item) => [item.contactId, item]));
+    hideInterfaceContactLoading(diagram);
     renderInterfaceContacts(diagram, response.contacts.map((item) => ({ ...item, ...metadata.get(item.contactId) })));
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => [item.contactId, item.name, item.assignedName]));
   }).catch((error) => {
-    if (dialog.open) appendNotice(String(error), true);
+    if (dialog.open && dialog.requestedGeometryKey === geometryKey) {
+      showInterfaceContactLoading(diagram, contacts.length, 0, true);
+      appendNotice(String(error), true);
+    }
   }).finally(() => {
     dialog.contactRequestPending = false;
     if (dialog.open && dialog.requestedGeometryKey !== geometryKey) {
@@ -250,7 +289,9 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
     });
     if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
     resolved.push(...response.contacts);
-    if (dialog.open) dialog.children[2].contactState.count.textContent = `Loading contacts · ${Math.min(offset + 8, contacts.length)} / ${contacts.length}`;
+    if (dialog.open && dialog.requestedGeometryKey === geometryKey) {
+      showInterfaceContactLoading(dialog.children[2], contacts.length, Math.min(offset + 8, contacts.length));
+    }
   }
   return { ok: true, contacts: resolved };
 }
@@ -316,7 +357,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   diagram.className = "interface-contacts-diagram";
   diagram.setAttribute("role", "region");
   diagram.setAttribute("aria-label", "Contact diagram");
-  renderInterfaceContacts(diagram, interfaceItem.contacts || []);
+  renderInterfaceContacts(diagram, []);
   diagram.contactState.harnessId = harness.harnessId;
   diagram.contactState.interfaceId = interfaceItem.interfaceId;
   diagram.contactState.onEditContact = (contactId, event) => {
@@ -339,6 +380,6 @@ function openInterfaceContacts(harness, interfaceItem) {
   dialog.showModal();
   updateInterfaceContactData(dialog, interfaceItem.contacts || []);
   window.requestAnimationFrame(() => {
-    if (dialog.open) diagram.contactState.workspace.fit();
+    if (dialog.open && !diagram.contactState.workspace.root.hidden) diagram.contactState.workspace.fit();
   });
 }

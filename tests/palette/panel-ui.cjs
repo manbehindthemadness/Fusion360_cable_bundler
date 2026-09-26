@@ -603,6 +603,11 @@ asyncTest('Contact geometry requests coalesce, reuse names, and release closed d
   context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: metadata });
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   const diagram = dialog.children[2];
+  assert.equal(diagram.contactState.items.length, 0);
+  assert.equal(diagram.contactState.workspace.root.hidden, true);
+  assert.equal(diagram.attributes['aria-busy'], 'true');
+  assert.equal(diagram.querySelector('.interface-contact-loading').children[0].textContent,
+    'Loading contacts… 0 / 1');
   context.updateInterfaceContactData(dialog, metadata);
   assert.equal(requests.length, 1);
   const geometry = { contactId: 'a', linked: true, normal: [0, 0, 1],
@@ -610,6 +615,9 @@ asyncTest('Contact geometry requests coalesce, reuse names, and release closed d
   requests[0].resolve({ ok: true, contacts: [geometry] });
   await new Promise((resolve) => setImmediate(resolve));
   const svg = diagram.contactState.svg;
+  assert.equal(diagram.contactState.workspace.root.hidden, false);
+  assert.equal(diagram.querySelector('.interface-contact-loading'), undefined);
+  assert.equal(diagram.attributes['aria-busy'], 'false');
   context.updateInterfaceContactData(dialog, metadata);
   assert.equal(diagram.contactState.svg, svg);
   context.updateInterfaceContactData(dialog, [{ ...metadata[0], name: 'J1.1', assignedName: 'J1.1' }]);
@@ -643,6 +651,32 @@ asyncTest('Closing contacts stops additional geometry batches', async () => {
   requests[0].resolve({ ok: true, contacts: [] });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(requests.length, 1);
+});
+
+asyncTest('Contact loading reports progress and failure without unavailable placeholders', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = () => new Promise((resolve) => requests.push(resolve));
+  const contacts = Array.from({ length: 9 }, (_, index) => ({
+    contactId: `${index}`, name: 'face', geometryRevision: 1,
+  }));
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  requests[0]({ ok: true, contacts: contacts.slice(0, 8) });
+  await new Promise((resolve) => setImmediate(resolve));
+  const status = diagram.querySelector('.interface-contact-loading');
+  assert.equal(status.children[0].textContent, 'Loading contacts… 8 / 9');
+  assert.equal(status.children[1].value, 8);
+  assert.equal(status.children[1].max, 9);
+  assert.equal(diagram.contactState.items.length, 0);
+  requests[1]({ ok: false, error: 'Geometry request failed' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(status.children[0].textContent, /Unable to load contacts/);
+  assert.equal(status.children[1].hidden, true);
+  assert.equal(diagram.contactState.workspace.root.hidden, true);
+  assert.equal(diagram.attributes['aria-busy'], 'false');
+  dialog.close();
 });
 
 test('Interface contacts keep positions within orientation clusters', () => {
