@@ -578,9 +578,12 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(launches[0].action, 'select_interface_contacts');
   assert.equal(launches[0].payload.interfaceId, 'interface-1');
   modes[1].events.click();
+  assert.equal(launches[1].action, 'select_interface_contacts');
+  assert.equal(launches[1].payload.mode, 'row');
+  assert.equal(launches[0].payload.mode, 'manual');
   naming[0].events.click();
   naming[1].events.click();
-  assert.deepEqual(launches.slice(1).map((item) => item.action), [
+  assert.deepEqual(launches.slice(2).map((item) => item.action), [
     'pos_import_interface_contacts', 'load_brd_interface_contacts',
   ]);
   assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [

@@ -12,6 +12,7 @@ from uuid import UUID
 import adsk.core
 
 from ...application import HarnessLoadResult
+from ...application.interface_contact_rows import ContactSelectionMode
 
 T = TypeVar("T")
 
@@ -146,7 +147,9 @@ class UiRuntime:
     pending_pathway: PendingSlot[UUID] = field(default_factory=PendingSlot)
     pending_junction: PendingSlot[UUID] = field(default_factory=PendingSlot)
     pending_interface: PendingSlot[UUID] = field(default_factory=PendingSlot)
-    pending_interface_contacts: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
+    pending_interface_contacts: PendingSlot[tuple[UUID, UUID, ContactSelectionMode]] = field(
+        default_factory=PendingSlot
+    )
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot
     )

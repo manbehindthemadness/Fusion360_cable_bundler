@@ -230,9 +230,10 @@ function openInterfaceContacts(harness, interfaceItem) {
       buttons.forEach((candidate) => {
         candidate.setAttribute("aria-pressed", `${candidate === button}`);
       });
-      if (index === 0) {
+      if (index < 2) {
         void send("select_interface_contacts", {
           harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
+          mode: index === 0 ? "manual" : "row",
         }).catch((error) => appendNotice(String(error), true));
       }
     });

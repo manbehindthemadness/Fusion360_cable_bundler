@@ -13,6 +13,7 @@ from uuid import UUID
 
 import pytest
 
+from cable_bundler.application.interface_contact_rows import ContactSelectionMode
 from cable_bundler.domain import AttachmentTargetKind, InterfaceContact
 
 
@@ -120,9 +121,14 @@ def test_picker_accepts_multiple_connection_targets_across_occurrences(
     assert [contact.entity_token for contact in contacts] == ["face", "edge"]
 
 
+@pytest.mark.parametrize(
+    "mode, limits", [(ContactSelectionMode.MANUAL, (1, 0)), (ContactSelectionMode.ROW, (2, 2))]
+)
 def test_native_picker_uses_filters_without_a_preselect_veto(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,
+    mode: ContactSelectionMode,
+    limits: tuple[int, int],
 ) -> None:
     """
     Let Fusion offer all supported targets without an owner-dependent callback.
@@ -156,12 +162,12 @@ def test_native_picker_uses_filters_without_a_preselect_veto(
         execute=SimpleNamespace(add=Mock(return_value=True)),
         destroy=SimpleNamespace(add=Mock(return_value=True)),
     )
-    command_module._runtime.pending_interface_contacts.prepare((UUID(int=910), interface_id))
+    command_module._runtime.pending_interface_contacts.prepare((UUID(int=910), interface_id, mode))
     command_module.SelectInterfaceContactsCreatedHandler().notify(
         SimpleNamespace(command=native_command)
     )
     assert filters == list(command_module._FILTERS)
-    picker.setSelectionLimits.assert_called_once_with(1, 0)
+    picker.setSelectionLimits.assert_called_once_with(*limits)
     native_command.preSelect.add.assert_not_called()
     native_command.validateInputs.add.assert_called_once()
     native_command.execute.add.assert_called_once()

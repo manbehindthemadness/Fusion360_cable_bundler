@@ -13,6 +13,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
+from ...application.interface_contact_rows import ContactSelectionMode
 from .constants import (
     ADD_END_COMMAND_ID,
     ADD_INTERFACE_COMMAND_ID,
@@ -138,12 +139,13 @@ def _open_select_interface_contacts_command(
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    mode = ContactSelectionMode(payload.get("mode", "manual"))
     definition = application.userInterface.commandDefinitions.itemById(
         SELECT_INTERFACE_CONTACTS_COMMAND_ID
     )
     if definition is None:
         raise RuntimeError("Fusion Select Interface Contacts command is unavailable.")
-    _runtime.pending_interface_contacts.prepare((harness_id, interface_id))
+    _runtime.pending_interface_contacts.prepare((harness_id, interface_id, mode))
     try:
         if not definition.execute():
             raise RuntimeError("Fusion did not open the Interface contact picker.")
