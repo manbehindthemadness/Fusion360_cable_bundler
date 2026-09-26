@@ -666,11 +666,34 @@ asyncTest('Closing contacts stops additional geometry batches', async () => {
   const contacts = Array.from({ length: 30 }, (_, index) => ({ contactId: `${index}`, geometryRevision: 1 }));
   context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts });
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].payload.contactIds.length, 8);
-  context.document.body.querySelector('.interface-contacts-popup').close();
-  requests[0].resolve({ ok: true, contacts: [] });
+  assert.equal(requests[0].payload.contactIds.length, 30);
+  requests[0].resolve({ ok: true, cacheComplete: false, contacts: [] });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(requests.length, 1);
+  assert.equal(requests[1].payload.contactIds.length, 8);
+  context.document.body.querySelector('.interface-contacts-popup').close();
+  requests[1].resolve({ ok: true, contacts: [] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests.length, 2);
+});
+
+asyncTest('A complete warm cache loads many contacts in one request', async () => {
+  const { context } = palette();
+  const actions = [];
+  const contacts = Array.from({ length: 30 }, (_, index) => ({ contactId: `${index}`, geometryRevision: 0 }));
+  context.send = async (action, payload) => {
+    actions.push({ action, payload });
+    return { ok: true, cacheComplete: true, contacts: contacts.map((item, index) => ({
+      contactId: item.contactId, linked: true, normal: [0, 0, 1],
+      loops: [[[index, 0, 0], [index + 0.5, 0, 0], [index + 0.5, 0.5, 0]]],
+    })) };
+  };
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(actions.map((item) => item.action), ['get_interface_contacts_cached']);
+  assert.equal(actions[0].payload.contactIds.length, 30);
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(dialog.children[2].contactState.items.length, 30);
+  dialog.close();
 });
 
 asyncTest('Reopening unchanged contacts reuses bounded geometry and current names', async () => {

@@ -251,6 +251,7 @@ def test_native_command_termination_does_not_create_an_undo_entry(
         "ClearSelectionCommand",
         "ViewCubeOrbitCommand",
         "ScriptsManagerCommand",
+        "kev0_cable_bundler_harness_builder",
     ),
 )
 def test_view_navigation_keeps_contact_geometry_and_skips_palette_refresh(

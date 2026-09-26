@@ -74,7 +74,7 @@ _VIEW_COMMAND_IDS = frozenset(
         "ClearSelectionCommand",
     )
 )
-_NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand",))
+_NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand", COMMAND_ID))
 _DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
 
 

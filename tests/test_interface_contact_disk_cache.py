@@ -172,6 +172,38 @@ def test_saved_projection_reuses_disk_but_merges_current_name(
     assert "assignedName" not in stored_projection
 
 
+def test_complete_warm_snapshot_is_single_read_without_geometry_calls(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Serve a whole diagram at once, but reject incomplete or unvalidated data.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    application = _application()
+    ids = (UUID(int=1), UUID(int=2))
+    contacts = [
+        InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-3"),
+        InterfaceContact(UUID(int=4), AttachmentTargetKind.FACE, "face-4"),
+    ]
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 0) is None
+    cache.project_cached_contact_batch(application, object(), *ids, contacts, _projection)
+    renamed = InterfaceContact(
+        contacts[0].contact_id, contacts[0].kind, contacts[0].entity_token, "J1.1"
+    )
+    result = cache.read_complete_cached_contacts(application, *ids, [renamed, contacts[1]], 0)
+    assert result is not None
+    assert [item["contactId"] for item in result] == [
+        str(renamed.contact_id),
+        str(contacts[1].contact_id),
+    ]
+    assert result[0]["name"] == result[0]["assignedName"] == "J1.1"
+    assert cache.read_complete_cached_contacts(application, *ids, contacts, 1) is None
+    assert cache.read_complete_cached_contacts(application, *ids, contacts[:1], 0) is not None
+    changed = InterfaceContact(UUID(int=5), AttachmentTargetKind.FACE, "face-5")
+    assert cache.read_complete_cached_contacts(application, *ids, [contacts[0], changed], 0) is None
+
+
 def test_cache_diagnostics_explain_eligibility_and_snapshot_write(
     addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -221,20 +253,22 @@ def test_modified_or_unsaved_document_never_uses_disk(
     assert not (tmp_path / "cache").exists()
 
 
-def test_modified_document_reuses_only_matching_source_signature(
+def test_static_snapshot_revalidates_incrementally_after_observed_model_edits(
     addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Ignore graphics-only dirtiness but reproject a changed source revision.
+    Reuse static hits, then check each contact once after a model-edit event.
     """
     cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
     monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
     design = SimpleNamespace(source_signature="body-revision-1")
+    checked: list[str] = []
 
     def source_signature(current_design: Any, _contact: InterfaceContact) -> str:
         """
         Model a cheap live revision and placement fingerprint.
         """
+        checked.append(current_design.source_signature)
         return current_design.source_signature
 
     monkeypatch.setitem(vars(cache), "contact_source_signature", source_signature)
@@ -242,6 +276,7 @@ def test_modified_document_reuses_only_matching_source_signature(
     projector = Mock(side_effect=_projection)
     ids = (UUID(int=1), UUID(int=2))
     cache.project_cached_contact_batch(_application(), design, *ids, [contact], projector)
+    assert checked == ["body-revision-1"]
 
     dirty = _application(modified=True)
     diagnostics: dict[str, int] = {}
@@ -250,20 +285,84 @@ def test_modified_document_reuses_only_matching_source_signature(
     )
     assert diagnostics == {"hits": 1, "misses": 0}
     assert projector.call_count == 1
+    assert checked == ["body-revision-1"]
 
     design.source_signature = "body-revision-2"
     cache.project_cached_contact_batch(
-        dirty, design, *ids, [contact], projector, diagnostics=diagnostics
+        dirty, design, *ids, [contact], projector, diagnostics=diagnostics, geometry_revision=1
     )
     assert diagnostics == {"hits": 0, "misses": 1}
     assert projector.call_count == 2
+    assert checked == ["body-revision-1", "body-revision-2"]
+
+    cache.project_cached_contact_batch(
+        dirty, design, *ids, [contact], projector, diagnostics=diagnostics, geometry_revision=1
+    )
+    assert diagnostics == {"hits": 1, "misses": 0}
+    assert checked == ["body-revision-1", "body-revision-2"]
 
     design.source_signature = "body-revision-1"
     cache.project_cached_contact_batch(
-        _application(), design, *ids, [contact], projector, diagnostics=diagnostics
+        _application(),
+        design,
+        *ids,
+        [contact],
+        projector,
+        diagnostics=diagnostics,
+        geometry_revision=2,
     )
     assert diagnostics == {"hits": 0, "misses": 1}
     assert projector.call_count == 3
+
+
+def test_observed_edit_reprojects_only_changed_contact(
+    addin_module: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Stage changed geometry without reprojecting unchanged neighboring contacts.
+    """
+    cache: Any = importlib.import_module("cable_bundler.fusion.interface_contact_disk_cache")
+    monkeypatch.setitem(vars(cache), "_cache_root", lambda: tmp_path / "cache")
+    signatures = {"first": "revision-1", "second": "revision-1"}
+    checked: list[str] = []
+
+    def source_signature(_design: object, contact: InterfaceContact) -> str:
+        """
+        Resolve the current source revision for one target.
+        """
+        checked.append(contact.entity_token)
+        return signatures[contact.entity_token]
+
+    monkeypatch.setitem(vars(cache), "contact_source_signature", source_signature)
+    contacts = (
+        InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "first"),
+        InterfaceContact(UUID(int=4), AttachmentTargetKind.FACE, "second"),
+    )
+    projector = Mock(side_effect=_projection)
+    ids = (UUID(int=1), UUID(int=2))
+    cache.project_cached_contact_batch(_application(), object(), *ids, contacts, projector)
+    assert projector.call_count == 2
+    checked.clear()
+
+    signatures["second"] = "revision-2"
+    diagnostics: dict[str, int] = {}
+    cache.project_cached_contact_batch(
+        _application(modified=True),
+        object(),
+        *ids,
+        contacts,
+        projector,
+        diagnostics=diagnostics,
+        geometry_revision=1,
+    )
+
+    assert diagnostics == {"hits": 1, "misses": 1}
+    assert checked == ["first", "second"]
+    assert [call.args[1].entity_token for call in projector.call_args_list] == [
+        "first",
+        "second",
+        "second",
+    ]
 
 
 def test_initially_named_contact_retains_unnamed_source_label(

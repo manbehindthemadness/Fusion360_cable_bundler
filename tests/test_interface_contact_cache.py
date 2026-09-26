@@ -149,6 +149,47 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
         module._dispatch_palette_action(object(), "get_interface_contacts", json.dumps(payload))
 
 
+def test_complete_cache_dispatch_reads_all_contacts_once(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    The warm diagram path avoids one Fusion gateway read per eight contacts.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    interface_id = UUID(int=2)
+    contacts = tuple(SimpleNamespace(contact_id=UUID(int=index + 10)) for index in range(24))
+    interface = SimpleNamespace(interface_id=interface_id, contacts=contacts)
+    read_definition = Mock(return_value="definition")
+    monkeypatch.setitem(
+        vars(module),
+        "_create_harness_gateway",
+        lambda _application: SimpleNamespace(read_harness_definition=read_definition),
+    )
+    monkeypatch.setitem(
+        vars(module), "loads", lambda _value: SimpleNamespace(interfaces=(interface,))
+    )
+    projection = Mock(return_value=[{"contactId": str(item.contact_id)} for item in contacts])
+    monkeypatch.setitem(vars(module), "read_complete_cached_contacts", projection)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(interface_id),
+        "contactIds": [str(item.contact_id) for item in contacts],
+    }
+
+    result = json.loads(
+        module._dispatch_palette_action(
+            object(), "get_interface_contacts_cached", json.dumps(payload)
+        )
+    )
+
+    assert result["cacheComplete"] is True
+    assert len(result["contacts"]) == 24
+    assert isinstance(result["serverMs"], int)
+    read_definition.assert_called_once_with(UUID(int=1))
+    projection.assert_called_once()
+
+
 def test_rebuild_dispatch_clears_current_interface_and_native_references(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

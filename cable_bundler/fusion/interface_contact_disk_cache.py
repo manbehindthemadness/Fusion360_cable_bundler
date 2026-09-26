@@ -1,5 +1,5 @@
 """
-Persist bounded contact projections only for an unchanged saved Fusion version.
+Persist bounded contact projections for a saved Fusion version.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import math
 import os
 import sys
 import tempfile
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Sequence
 from uuid import UUID
@@ -21,6 +22,24 @@ _CACHE_FORMAT = 1
 _MAX_SNAPSHOT_BYTES = 8_000_000
 _MAX_TOTAL_BYTES = 64_000_000
 _last_write: tuple[Path, str] | None = None
+_validated_revisions: OrderedDict[Path, tuple[int, set[str]]] = OrderedDict()
+_MAX_VALIDATED_SNAPSHOTS = 16
+
+
+def _validated_contacts(path: Path, geometry_revision: int) -> set[str]:
+    """
+    Track which contacts were checked after the latest observed model command.
+    """
+    existing = _validated_revisions.get(path)
+    if existing is not None and existing[0] == geometry_revision:
+        _validated_revisions.move_to_end(path)
+        return existing[1]
+    validated: set[str] = set()
+    _validated_revisions[path] = (geometry_revision, validated)
+    _validated_revisions.move_to_end(path)
+    while len(_validated_revisions) > _MAX_VALIDATED_SNAPSHOTS:
+        _validated_revisions.popitem(last=False)
+    return validated
 
 
 def _cache_root() -> Path:
@@ -76,7 +95,7 @@ def _snapshot_path(
 
 def disk_cache_available(application: Any, harness_id: UUID, interface_id: UUID) -> bool:
     """
-    Report whether a version-scoped snapshot can be used with source validation.
+    Report whether a version-scoped snapshot can be used.
     """
     return _snapshot_path(application, harness_id, interface_id) is not None
 
@@ -141,6 +160,7 @@ def clear_interface_contact_snapshot(
     if path is None:
         return False
     path.unlink(missing_ok=True)
+    _validated_revisions.pop(path, None)
     if _last_write is not None and _last_write[0] == path:
         _last_write = None
     return True
@@ -274,12 +294,14 @@ def project_cached_contact_batch(
     contacts: Sequence[InterfaceContact],
     projector: Callable[[Any, InterfaceContact], dict[str, object]],
     diagnostics: dict[str, int] | None = None,
+    geometry_revision: int = 0,
 ) -> list[dict[str, object]]:
     """
     Reuse versioned disk outlines; project and persist only eligible misses.
 
-    Dirty designs reuse only outlines whose live source revisions and placement
-    still match. Names come from current harness data, not saved SVG nodes.
+    Trust versioned outlines until Fusion reports a model-edit command. After
+    that, check each contact once per revision and reproject only changed ones.
+    Surface changes that bypass command events require explicit Rebuild Cache.
     """
     path = _snapshot_path(application, harness_id, interface_id)
     try:
@@ -287,6 +309,7 @@ def project_cached_contact_batch(
     except (AttributeError, RuntimeError, TypeError, ValueError):
         modified = True
     entries = _read_snapshot(path)
+    validated = _validated_contacts(path, geometry_revision) if path and geometry_revision else None
     changed = False
     hits = 0
     misses = 0
@@ -295,15 +318,12 @@ def project_cached_contact_batch(
         key = str(contact.contact_id)
         record = entries.get(key)
         payload = None
-        signature_checked = bool(modified and path is not None)
+        signature_checked = bool(validated is not None and key not in validated)
         signature = contact_source_signature(design, contact) if signature_checked else None
         if isinstance(record, dict) and record.get("token") == contact.entity_token:
             candidate = record.get("projection")
             recorded_signature = record.get("sourceSignature")
-            if recorded_signature is not None and not signature_checked:
-                signature = contact_source_signature(design, contact)
-                signature_checked = True
-            source_matches = (not modified and recorded_signature is None) or (
+            source_matches = not signature_checked or (
                 signature is not None and recorded_signature == signature
             )
             if source_matches and _valid_projection(candidate, contact):
@@ -314,6 +334,8 @@ def project_cached_contact_batch(
                 payload["name"] = contact.name or (
                     source_name if isinstance(source_name, str) else contact.kind.value
                 )
+                if validated is not None:
+                    validated.add(key)
         if payload is None:
             misses += 1
             payload = projector(design, contact)
@@ -321,7 +343,7 @@ def project_cached_contact_batch(
                 if not signature_checked:
                     signature = contact_source_signature(design, contact)
                     signature_checked = True
-                if modified and signature is None:
+                if signature is None and (modified or validated is not None):
                     projections.append(payload)
                     continue
                 stable = dict(payload)
@@ -334,9 +356,58 @@ def project_cached_contact_batch(
                     "projection": stable,
                 }
                 changed = True
+                if validated is not None:
+                    validated.add(key)
         projections.append(payload)
     if path is not None and changed:
         _write_snapshot(path, entries)
     if diagnostics is not None:
         diagnostics.update(hits=hits, misses=misses)
+    return projections
+
+
+def read_complete_cached_contacts(
+    application: Any,
+    harness_id: UUID,
+    interface_id: UUID,
+    contacts: Sequence[InterfaceContact],
+    geometry_revision: int,
+) -> list[dict[str, object]] | None:
+    """
+    Return a whole warm snapshot without Fusion geometry calls or partial results.
+
+    After a model command, only entries already validated in this revision are
+    eligible. A missing or malformed entry makes the caller use bounded batches.
+    """
+    path = _snapshot_path(application, harness_id, interface_id)
+    if path is None:
+        return None
+    if geometry_revision:
+        validation = _validated_revisions.get(path)
+        if validation is None or validation[0] != geometry_revision:
+            return None
+        validated = validation[1]
+    else:
+        validated = None
+    entries = _read_snapshot(path)
+    if not entries:
+        return None
+    projections: list[dict[str, object]] = []
+    for contact in contacts:
+        key = str(contact.contact_id)
+        if validated is not None and key not in validated:
+            return None
+        record = entries.get(key)
+        if not isinstance(record, dict) or record.get("token") != contact.entity_token:
+            return None
+        candidate = record.get("projection")
+        if not _valid_projection(candidate, contact):
+            return None
+        payload = dict(candidate)
+        payload["assignedName"] = contact.name
+        source_name = payload.get("sourceName")
+        payload["name"] = contact.name or (
+            source_name if isinstance(source_name, str) else contact.kind.value
+        )
+        projections.append(payload)
     return projections

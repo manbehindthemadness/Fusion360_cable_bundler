@@ -25,6 +25,7 @@ from ..interface_contact_disk_cache import (
     describe_interface_contact_cache,
     disk_cache_available,
     project_cached_contact_batch,
+    read_complete_cached_contacts,
 )
 from ..interface_contact_projection import project_interface_contact
 from .commands.refines import reconcile_active_refines
@@ -453,6 +454,45 @@ def _dispatch_palette_action(
     """
     if action == "get_state":
         return serialize_palette_state(application)
+    if action == "get_interface_contacts_cached":
+        started = perf_counter()
+        payload = _read_palette_payload(data)
+        harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        requested_ids = payload.get("contactIds")
+        if (
+            not isinstance(requested_ids, list)
+            or len(requested_ids) > 1024
+            or not all(isinstance(value, str) for value in requested_ids)
+        ):
+            raise ValueError("Request at most 1024 contact identities for a warm-cache read.")
+        definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
+        interface = next(
+            (item for item in definition.interfaces if item.interface_id == interface_id), None
+        )
+        if interface is None:
+            raise ValueError("Selected Interface no longer exists.")
+        by_id = {str(contact.contact_id): contact for contact in interface.contacts}
+        if len(requested_ids) != len(set(requested_ids)) or any(
+            contact_id not in by_id for contact_id in requested_ids
+        ):
+            raise ValueError("Contact identities no longer match the saved Interface.")
+        contacts = [by_id[contact_id] for contact_id in requested_ids]
+        projections = read_complete_cached_contacts(
+            application,
+            harness_id,
+            interface_id,
+            contacts,
+            _runtime.contact_geometry_revision,
+        )
+        return json.dumps(
+            {
+                "ok": True,
+                "cacheComplete": projections is not None,
+                "contacts": projections if projections is not None else [],
+                "serverMs": round((perf_counter() - started) * 1000),
+            }
+        )
     if action == "get_interface_contacts":
         started = perf_counter()
         payload = _read_palette_payload(data)
@@ -491,6 +531,7 @@ def _dispatch_palette_action(
             selected,
             project_interface_contact,
             diagnostics=cache_stats,
+            geometry_revision=_runtime.contact_geometry_revision,
         )
         result: dict[str, object] = {
             "ok": True,

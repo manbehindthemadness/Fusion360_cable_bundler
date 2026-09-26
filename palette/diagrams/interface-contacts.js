@@ -466,6 +466,7 @@ async function reportInterfaceContactCache(dialog, load, renderMs) {
     if (!response.ok || !response.cache) throw new Error(response.error || "Cache status unavailable.");
     const cache = response.cache;
     const details = [
+      `path ${load.cacheMode || "batches"}`,
       `before ${load.cacheBefore?.reason || "unknown"} / ${load.cacheBefore?.snapshot || "unknown"}`,
       `after ${cache.reason} / ${cache.snapshot}`,
       `${load.cacheHits} hits / ${load.cacheMisses} misses`,
@@ -514,6 +515,18 @@ async function rebuildInterfaceContactCache(dialog) {
 /** Yield to Fusion between bounded batches; closing or superseding stops further work. */
 async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
   const started = Date.now();
+  if (contacts.length > 16 && contacts.length <= 1024) {
+    const warm = await send("get_interface_contacts_cached", {
+      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+      contactIds: contacts.map((item) => item.contactId),
+    });
+    if (!warm.ok) throw new Error(warm.error || "Contact cache unavailable.");
+    if (warm.cacheComplete) {
+      return { ok: true, contacts: warm.contacts, cacheBefore: { reason: "eligible", snapshot: "present" },
+        cacheHits: warm.contacts.length, cacheMisses: 0, serverMs: warm.serverMs || 0,
+        cacheMode: "single warm read", elapsedMs: Date.now() - started };
+    }
+  }
   const resolved = [];
   let cacheBefore = null;
   let cacheHits = 0;
@@ -537,7 +550,7 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
       showInterfaceContactLoading(dialog.children[2], contacts.length, Math.min(offset + 8, contacts.length));
     }
   }
-  return { ok: true, contacts: resolved, cacheBefore, cacheHits, cacheMisses,
+  return { ok: true, contacts: resolved, cacheBefore, cacheHits, cacheMisses, cacheMode: "batches",
     serverMs, elapsedMs: Date.now() - started };
 }
 
