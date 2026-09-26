@@ -170,8 +170,8 @@ function renderInterfaceContacts(diagram, contacts) {
   const clusters = [];
   contacts.forEach((contact) => {
     const normal = contactOrientation(contact.normal || [0, 0, 1]);
-    const cluster = clusters.find((candidate) => Math.abs(
-      candidate.normal.reduce((sum, value, index) => sum + value * normal[index], 0),
+    const cluster = clusters.find((candidate) => (
+      candidate.normal.reduce((sum, value, index) => sum + value * normal[index], 0)
     ) > 0.9999);
     if (cluster) cluster.contacts.push(contact);
     else clusters.push({ normal, parentAxes: contact.parentAxes, contacts: [contact] });

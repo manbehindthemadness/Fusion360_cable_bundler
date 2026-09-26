@@ -494,7 +494,7 @@ test('Interface contacts keep positions within orientation clusters', () => {
     { contactId: 'a', kind: 'profile', name: 'A', linked: true,
       normal: [0, 0, 1], loops: [[[0, 0, 0], [10, 0, 0], [10, 10, 0]]] },
     { contactId: 'b', kind: 'face', name: 'B', linked: true,
-      normal: [0, 0, -1], loops: [[[30, 0, 0], [40, 0, 0], [40, 10, 0]]] },
+      normal: [0, 0, 1], loops: [[[30, 0, 0], [40, 0, 0], [40, 10, 0]]] },
     { contactId: 'c', kind: 'face', name: 'C', linked: true,
       normal: [1, 0, 0], loops: [[[0, 0, 0], [0, 10, 0], [0, 10, 10]]] },
   ]);
@@ -508,6 +508,24 @@ test('Interface contacts keep positions within orientation clusters', () => {
   const padWidth = Math.abs(firstLoop[1][0] - firstLoop[0][0]);
   assert.equal(Math.abs(secondX - firstX) / padWidth, 3);
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
+});
+
+test('Opposing parallel faces form separate orientations even when their outlines overlap', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const outline = [[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]];
+  context.renderInterfaceContacts(diagram, [
+    { contactId: 'top', kind: 'face', name: 'Top', linked: true,
+      normal: [0, 0, 1], loops: [outline] },
+    { contactId: 'bottom', kind: 'face', name: 'Bottom', linked: true,
+      normal: [0, 0, -1], loops: [outline.map(([x, y]) => [x, y, -10])] },
+  ]);
+  const svg = diagram.contactState.svg;
+  assert.equal(svg.children.length, 2);
+  assert.deepEqual(svg.children.map((group) => descendants(group, (node) => (
+    node.className === 'interface-contact-item'
+  )).map((item) => item.dataset.contactId)), [['top'], ['bottom']]);
+  assert.equal(descendants(svg, (node) => node.tag === 'path').length, 2);
 });
 
 test('Value and Pin appear inside a contact with room for two lines', () => {
@@ -649,11 +667,13 @@ test('contact projection views asymmetric layouts from the picked face side', ()
       { contactId: 'back', kind: 'face', linked: true, normal: normal.map((value) => -value),
         loops: [[[6, 0, 0], [7, 0, 0], [7, 1, 0]]] },
     ]);
-    assert.equal(diagram.contactState.svg.children.length, 1);
+    assert.equal(diagram.contactState.svg.children.length, 2);
     const [front, back] = diagram.contactState.items;
-    const offset = back.loops[0][0][0] - front.loops[0][0][0];
-    assert.equal(Math.sign(offset), Math.sign(expectedRight[0]),
-      'opposite normals share the viewing side of the first picked face');
+    const frontDirection = front.loops[0][1][0] - front.loops[0][0][0];
+    const backDirection = back.loops[0][1][0] - back.loops[0][0][0];
+    assert.equal(Math.sign(frontDirection), Math.sign(expectedRight[0]));
+    assert.equal(Math.sign(backDirection), -Math.sign(expectedRight[0]),
+      'each opposing face is viewed from its own picked side');
   }
 });
 
@@ -686,6 +706,7 @@ test('contact clusters retain their local layout when the parent tilts and rotat
   ];
   const baseline = context.document.createElement('div');
   context.renderInterfaceContacts(baseline, contacts);
+  assert.equal(baseline.contactState.svg.children.length, 3);
   for (const angle of [0.4, 1.2, Math.PI / 2, Math.PI]) {
     const rotate = ([x, y, z]) => {
       const c = Math.cos(angle);
@@ -703,7 +724,7 @@ test('contact clusters retain their local layout when the parent tilts and rotat
     }));
     const diagram = context.document.createElement('div');
     context.renderInterfaceContacts(diagram, rotated);
-    assert.equal(diagram.contactState.svg.children.length, 2);
+    assert.equal(diagram.contactState.svg.children.length, 3);
     diagram.contactState.items.forEach((item, index) => {
       item.loops[0].forEach((point, vertex) => {
         point.forEach((value, axis) => assert.ok(
