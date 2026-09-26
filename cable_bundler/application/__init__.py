@@ -96,6 +96,7 @@ from .harness_edits.interfaces import (
     remove_interface,
     remove_interface_contacts,
     rename_interface,
+    rename_interface_contact_orientation,
     set_interface_contact_details,
 )
 from .load_harnesses import (
@@ -147,6 +148,7 @@ __all__ = [
     "clear_interface_contact_pins",
     "clear_interface_contact_values",
     "name_interface_contacts",
+    "rename_interface_contact_orientation",
     "set_interface_contact_details",
     "add_junction_relationship",
     "add_pathway_refine",

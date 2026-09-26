@@ -17,7 +17,7 @@ from .materials import (
 )
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 32
+SCHEMA_VERSION = 33
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 Metadata = tuple[tuple[str, str], ...]
 
@@ -446,6 +446,7 @@ class InterfaceContact:
     entity_token: str
     name: str = ""
     pin: str = ""
+    orientation_name: str = ""
 
     def __post_init__(self) -> None:
         """
@@ -469,6 +470,14 @@ class InterfaceContact:
             or len(self.pin) > 80
         ):
             raise ValueError("Interface contact pin must be text of at most 80 characters.")
+        if (
+            not isinstance(self.orientation_name, str)
+            or (self.orientation_name and not self.orientation_name.strip())
+            or len(self.orientation_name) > 80
+        ):
+            raise ValueError(
+                "Interface contact orientation name must be text of at most 80 characters."
+            )
 
 
 @dataclass(frozen=True)

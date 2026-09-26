@@ -146,6 +146,84 @@ asyncTest('contact context menu closes on left press and acts on the selected gr
   assert.equal(diagram.querySelector('.interface-contact-details-editor').dataset.contactId, 'c');
 });
 
+asyncTest('orientation backdrop menu targets the selection or every contact in its orientation', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const contacts = [
+    { contactId: 'a', normal: [0, 0, 1] },
+    { contactId: 'b', normal: [0, 0, 1] },
+    { contactId: 'c', normal: [0, 0, -1] },
+  ].map((contact, index) => ({ ...contact, name: contact.contactId,
+    assignedName: `Value ${contact.contactId}`, pin: `${index + 1}`, linked: true,
+    loops: [[[index * 4, 0, 0], [index * 4 + 2, 0, 0], [index * 4 + 2, 2, 0]]],
+  }));
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts,
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  const state = diagram.contactState;
+  const backdrop = state.svg.children[0].children[0];
+  const rightClick = () => state.workspace.viewport.events.contextmenu({
+    target: backdrop, clientX: 50, clientY: 60, preventDefault() {}, stopPropagation() {},
+  });
+  const menu = diagram.querySelector('.relationship-map-context-menu');
+
+  state.selectedIds.add('a');
+  state.selectedIds.add('c');
+  rightClick();
+  assert.equal(menu.hidden, false);
+  assert.equal(menu.children[0].disabled, true);
+  menu.children[1].children[1].children[0].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[0].action, 'clear_interface_contact_pins');
+  assert.deepEqual(Array.from(launches[0].payload.contactIds), ['a', 'c']);
+  rightClick();
+  menu.children[2].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[1].action, 'remove_interface_contacts');
+  assert.deepEqual(Array.from(launches[1].payload.contactIds), ['a', 'c']);
+
+  state.selectedIds.clear();
+  rightClick();
+  assert.equal(menu.children[0].disabled, false);
+  menu.children[0].events.click();
+  const editor = diagram.querySelector('.interface-contact-orientation-editor');
+  assert.equal(editor.children[0].children[0].value, 'Orientation 1');
+  editor.children[0].children[0].value = 'Power side';
+  editor.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches[2].action, 'rename_interface_contact_orientation');
+  assert.deepEqual(Array.from(launches[2].payload.contactIds), ['a', 'b']);
+  assert.equal(launches[2].payload.name, 'Power side');
+
+  context.updateInterfaceContactData(dialog, contacts.map((contact) => ({
+    ...contact, orientationName: contact.contactId === 'c' ? '' : 'Power side',
+  })));
+  assert.equal(state.svg.children[0].children[1].textContent, 'Power side · 2 contacts');
+  const renamedBackdrop = state.svg.children[0].children[0];
+  state.workspace.viewport.events.contextmenu({
+    target: renamedBackdrop, clientX: 50, clientY: 60,
+    preventDefault() {}, stopPropagation() {},
+  });
+  menu.children[1].children[1].children[1].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[3].action, 'clear_interface_contact_values');
+  assert.deepEqual(Array.from(launches[3].payload.contactIds), ['a', 'b']);
+  state.workspace.viewport.events.contextmenu({
+    target: renamedBackdrop, clientX: 50, clientY: 60,
+    preventDefault() {}, stopPropagation() {},
+  });
+  menu.children[2].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[4].action, 'remove_interface_contacts');
+  assert.deepEqual(Array.from(launches[4].payload.contactIds), ['a', 'b']);
+});
+
 test('Auto Pin follows visual rows or columns, direction, and selected contacts', () => {
   const { context } = palette();
   const items = [

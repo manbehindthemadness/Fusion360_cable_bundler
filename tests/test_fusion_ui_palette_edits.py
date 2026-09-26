@@ -759,3 +759,34 @@ def test_palette_edit_clears_selected_contact_values(
 
     clear_values.assert_called_once_with(harness_id, interface_id, contact_ids, gateway)
     assert notice == "Selected Interface contact values cleared."
+
+
+def test_palette_edit_renames_contact_orientation(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Route the label and all group contacts to the transactional edit.
+    """
+    harness_id = UUID(int=1)
+    interface_id = UUID(int=2)
+    contact_ids = (UUID(int=3), UUID(int=4))
+    gateway, rename = _mock_palette_service(
+        addin_module, monkeypatch, "rename_interface_contact_orientation"
+    )
+
+    notice = addin_module._apply_palette_edit(
+        object(),
+        "rename_interface_contact_orientation",
+        json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "interfaceId": str(interface_id),
+                "contactIds": [str(contact_id) for contact_id in contact_ids],
+                "name": "Power side",
+            }
+        ),
+    )
+
+    rename.assert_called_once_with(harness_id, interface_id, contact_ids, "Power side", gateway)
+    assert notice == "Interface contact orientation renamed."

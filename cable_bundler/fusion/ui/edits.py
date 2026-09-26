@@ -27,6 +27,7 @@ from ...application import (
     rename_cable_group,
     rename_harness,
     rename_interface,
+    rename_interface_contact_orientation,
     rename_junction,
     rename_pathway,
     rename_standalone_end,
@@ -157,6 +158,22 @@ def _apply_palette_edit(
             harness_id, interface_id, contact_ids, _create_harness_gateway(application)
         )
         return "Selected Interface contact values cleared."
+    if action == "rename_interface_contact_orientation":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        raw_ids = payload.get("contactIds")
+        if not isinstance(raw_ids, list) or not raw_ids:
+            raise ValueError("Orientation renaming requires contact IDs.")
+        contact_ids = tuple(
+            _read_payload_uuid({"contactId": item}, "contactId", "contact") for item in raw_ids
+        )
+        rename_interface_contact_orientation(
+            harness_id,
+            interface_id,
+            contact_ids,
+            payload.get("name"),
+            _create_harness_gateway(application),
+        )
+        return "Interface contact orientation renamed."
     if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source = "live" if action == "pos_import_interface_contacts" else "file"

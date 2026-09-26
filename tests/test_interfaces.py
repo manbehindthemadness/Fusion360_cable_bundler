@@ -20,6 +20,7 @@ from cable_bundler.application import (
     remove_interface,
     remove_interface_contacts,
     rename_interface,
+    rename_interface_contact_orientation,
     set_interface_contact_details,
 )
 from cable_bundler.domain import (
@@ -228,6 +229,74 @@ def test_clear_interface_contact_values_preserves_pins_and_unselected_contacts(
     with pytest.raises(ValueError, match="known selected"):
         clear_interface_contact_values(
             definition.harness_id, interface.interface_id, (UUID(int=899),), gateway
+        )
+
+
+def test_rename_contact_orientation_persists_on_its_contacts(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep the name after reload and leave unrelated contacts and fields intact.
+    """
+    contacts = tuple(
+        InterfaceContact(
+            UUID(int=850 + index),
+            AttachmentTargetKind.FACE,
+            f"face-{index}",
+            f"Value {index}",
+            f"P{index}",
+        )
+        for index in range(3)
+    )
+    interface = InterfaceDefinition(
+        UUID(int=854), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "body"),), contacts
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+
+    updated = rename_interface_contact_orientation(
+        definition.harness_id,
+        interface.interface_id,
+        (contacts[0].contact_id, contacts[1].contact_id),
+        " Power side ",
+        gateway,
+    )
+
+    assert [contact.orientation_name for contact in updated.contacts] == [
+        "Power side",
+        "Power side",
+        "",
+    ]
+    assert [contact.name for contact in updated.contacts] == [
+        "Value 0",
+        "Value 1",
+        "Value 2",
+    ]
+    assert [contact.pin for contact in updated.contacts] == ["P0", "P1", "P2"]
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == updated.contacts
+    previous = json.loads(dumps(definition))
+    previous["schema_version"] = 32
+    for contact in previous["interfaces"][0]["contacts"]:
+        del contact["orientation_name"]
+    assert all(
+        contact.orientation_name == ""
+        for contact in loads(json.dumps(previous)).interfaces[0].contacts
+    )
+    with pytest.raises(ValueError, match="known contact"):
+        rename_interface_contact_orientation(
+            definition.harness_id,
+            interface.interface_id,
+            (UUID(int=899),),
+            "Other",
+            gateway,
+        )
+    with pytest.raises(ValueError, match="Orientation name"):
+        rename_interface_contact_orientation(
+            definition.harness_id,
+            interface.interface_id,
+            (contacts[0].contact_id,),
+            " ",
+            gateway,
         )
 
 

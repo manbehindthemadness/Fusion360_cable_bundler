@@ -39,7 +39,9 @@ function renderInterfaceContacts(diagram, contacts) {
   svg.setAttribute("aria-multiselectable", "true");
   svg.setAttribute("aria-label", "Interface contacts grouped by orientation");
   layouts.forEach(({ outlines, minX, minY, width, height }, index) => {
-    const headingText = `Orientation ${index + 1} · ${outlines.length} contact${outlines.length === 1 ? "" : "s"}`;
+    const orientationName = outlines.find((item) => item.contact.orientationName)?.contact.orientationName
+      || `Orientation ${index + 1}`;
+    const headingText = `${orientationName} · ${outlines.length} contact${outlines.length === 1 ? "" : "s"}`;
     const labelLayout = layoutInterfaceContactLabels(
       outlines, geometryScale, minX, minY, width, height,
     );
@@ -49,6 +51,7 @@ function renderInterfaceContacts(diagram, contacts) {
     )).length;
     const clusterHeight = Math.max(115, labelLayout.height + unavailableCount * 18 + 20);
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.dataset.orientationIndex = `${index}`;
     const background = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     background.setAttribute("x", offsetX);
     background.setAttribute("y", 10);
@@ -97,7 +100,8 @@ function renderInterfaceContacts(diagram, contacts) {
         ]);
         unavailableIndex += 1;
         group.append(contactGroup);
-        items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops, clearHover });
+        items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops,
+          orientationIndex: index, clearHover });
         return;
       }
       const outlinePaths = [];
@@ -163,7 +167,7 @@ function renderInterfaceContacts(diagram, contacts) {
       }
       group.append(contactGroup);
       items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops,
-        label: nameLabel, pinLabel, labelBounds, labelCenterY, clearHover });
+        orientationIndex: index, label: nameLabel, pinLabel, labelBounds, labelCenterY, clearHover });
     });
     svg.append(group);
     offsetX += clusterWidth + 18;
@@ -239,7 +243,9 @@ function updateInterfaceContactData(dialog, contacts) {
   dialog.contactMetadata = contacts;
   if (dialog.cacheRebuildPending) return;
   const geometryKey = contactGeometryKey(contacts);
-  const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName, item.pin]));
+  const displayKey = JSON.stringify(contacts.map((item) => (
+    [item.contactId, item.name, item.assignedName, item.pin, item.orientationName]
+  )));
   dialog.requestedGeometryKey = geometryKey;
   if (dialog.geometryValidationPending) return;
   const priorCache = cachedContactGeometry?.harnessId === dialog.dataset.harnessId
@@ -347,7 +353,7 @@ function updateInterfaceContactData(dialog, contacts) {
     const renderStarted = Date.now();
     renderInterfaceContacts(diagram, response.contacts.map((item) => ({ ...item, ...metadata.get(item.contactId) })));
     const currentDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => (
-      [item.contactId, item.name, item.assignedName, item.pin]
+      [item.contactId, item.name, item.assignedName, item.pin, item.orientationName]
     )));
     rememberRenderedContactDiagram(dialog, geometryKey, currentDisplayKey);
     const renderMs = Date.now() - renderStarted;
@@ -554,11 +560,11 @@ function openInterfaceContacts(harness, interfaceItem) {
   diagram.contactState.harnessId = harness.harnessId;
   diagram.contactState.interfaceId = interfaceItem.interfaceId;
   diagram.contactState.deleteButton = remove;
-  diagram.contactState.onDeleteContacts = async () => {
+  diagram.contactState.onDeleteContacts = async (ids = null) => {
     const state = diagram.contactState;
+    const contactIds = ids || [...state.selectedIds];
     if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
-      || !state.selectedIds.size) return;
-    const contactIds = [...state.selectedIds];
+      || !contactIds.length) return;
     state.deleting = true;
     paintInterfaceContactSelection(state);
     try {
@@ -576,11 +582,11 @@ function openInterfaceContacts(harness, interfaceItem) {
       }
     }
   };
-  diagram.contactState.onClearPins = async () => {
+  diagram.contactState.onClearPins = async (ids = null) => {
     const state = diagram.contactState;
+    const contactIds = ids || [...state.selectedIds];
     if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
-      || !state.selectedIds.size) return;
-    const contactIds = [...state.selectedIds];
+      || !contactIds.length) return;
     state.clearing = true;
     paintInterfaceContactSelection(state);
     try {
@@ -597,11 +603,11 @@ function openInterfaceContacts(harness, interfaceItem) {
       }
     }
   };
-  diagram.contactState.onClearValues = async () => {
+  diagram.contactState.onClearValues = async (ids = null) => {
     const state = diagram.contactState;
+    const contactIds = ids || [...state.selectedIds];
     if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
-      || !state.selectedIds.size) return;
-    const contactIds = [...state.selectedIds];
+      || !contactIds.length) return;
     state.clearing = true;
     paintInterfaceContactSelection(state);
     try {
@@ -621,6 +627,9 @@ function openInterfaceContacts(harness, interfaceItem) {
   remove.addEventListener("click", () => { void diagram.contactState?.onDeleteContacts?.(); });
   diagram.contactState.onEditContact = (contactId, event) => {
     openInterfaceContactEditor(diagram, diagram.contactState, contactId, event);
+  };
+  diagram.contactState.onEditOrientation = (orientation, event) => {
+    openInterfaceOrientationEditor(diagram, diagram.contactState, orientation, event);
   };
   actions.className = "pathway-popup-actions";
   close.type = "button";

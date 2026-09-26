@@ -166,6 +166,49 @@ def remove_interface_contacts(
     return updated_interface
 
 
+def rename_interface_contact_orientation(
+    harness_id: UUID,
+    interface_id: UUID,
+    contact_ids: tuple[UUID, ...],
+    name: str,
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Save a diagram orientation label on its current contacts in one edit.
+    """
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 80:
+        raise ValueError("Orientation name must be text of at most 80 characters.")
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    selected = set(contact_ids)
+    if not selected or not selected.issubset(contact.contact_id for contact in current.contacts):
+        raise ValueError("Orientation renaming requires known contact identities.")
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            replace(contact, orientation_name=name.strip())
+            if contact.contact_id in selected
+            else contact
+            for contact in current.contacts
+        ),
+    )
+    if updated_interface == current:
+        return current
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface
+
+
 def name_interface_contacts(
     harness_id: UUID,
     interface_id: UUID,

@@ -158,6 +158,7 @@ PALETTE_EDIT_NAMES = {
     "auto_pin_interface_contacts": "Auto Pin Interface Contacts",
     "clear_interface_contact_pins": "Clear Interface Contact Pins",
     "clear_interface_contact_values": "Clear Interface Contact Values",
+    "rename_interface_contact_orientation": "Rename Interface Contact Orientation",
     "rename_standalone_end": "Rename Standalone End",
     "rename_cable_end_attachment": "Rename Cable End Connection",
     "switch_standalone_end": "Switch Standalone End",

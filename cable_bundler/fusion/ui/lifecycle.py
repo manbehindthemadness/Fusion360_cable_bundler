@@ -159,6 +159,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                     "auto_pin_interface_contacts",
                     "clear_interface_contact_pins",
                     "clear_interface_contact_values",
+                    "rename_interface_contact_orientation",
                     "rename_interface",
                 )
             }

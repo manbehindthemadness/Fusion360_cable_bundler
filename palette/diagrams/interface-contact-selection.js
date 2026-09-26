@@ -86,6 +86,18 @@ function contactIdAtTarget(target, viewport) {
   return null;
 }
 
+/** Find the orientation backdrop underneath a diagram event target. */
+function contactOrientationAtTarget(target, viewport, state) {
+  let node = target;
+  while (node && node !== viewport) {
+    if (node.dataset?.orientationIndex !== undefined) {
+      return state.orientations[Number(node.dataset.orientationIndex)] || null;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 /** Paint current selection without rebuilding outlines or losing pan/zoom. */
 function paintInterfaceContactSelection(state) {
   state.items.forEach((item) => {
@@ -234,17 +246,24 @@ function enableInterfaceContactSelection(state) {
   viewport.addEventListener("contextmenu", (event) => {
     state.lastClick = null;
     const contactId = contactIdAtTarget(event.target, viewport);
-    if (!contactId) return;
+    const orientation = contactOrientationAtTarget(event.target, viewport, state);
+    if (!contactId && !orientation) return;
     event.stopPropagation();
-    if (!state.selectedIds.has(contactId)) selectInterfaceContactIds(state, [contactId], {});
+    if (contactId && !state.selectedIds.has(contactId)) {
+      selectInterfaceContactIds(state, [contactId], {});
+    }
+    const selected = [...state.selectedIds];
+    const contactIds = selected.length ? selected : orientation.contactIds;
     state.showContextMenu(event, [
-      { label: "Edit", disabled: state.selectedIds.size !== 1,
-        action: () => state.onEditContact?.([...state.selectedIds][0], event) },
+      { label: "Edit", disabled: selected.length > 1,
+        action: () => selected.length
+          ? state.onEditContact?.(selected[0], event)
+          : state.onEditOrientation?.(orientation, event) },
       { label: "Clear", items: [
-        { label: "Pins", action: () => state.onClearPins?.() },
-        { label: "Values", action: () => state.onClearValues?.() },
+        { label: "Pins", action: () => state.onClearPins?.(contactIds) },
+        { label: "Values", action: () => state.onClearValues?.(contactIds) },
       ] },
-      { label: "Delete", action: () => state.onDeleteContacts?.() },
+      { label: "Delete", action: () => state.onDeleteContacts?.(contactIds) },
     ]);
   });
   viewport.addEventListener("keydown", (event) => {
@@ -289,7 +308,8 @@ function ensureInterfaceContactWorkspace(diagram) {
   state = {
     workspace, size, count, items: [], selectedIds: new Set(), mode: "box",
     svg: null, diagramWidth: 600, diagramHeight: 300, drag: null, hasContacts: false,
-    contacts: [], viewScale: 1, onEditContact: null, onDeleteContacts: null,
+    contacts: [], orientations: [], viewScale: 1, onEditContact: null,
+    onEditOrientation: null, onDeleteContacts: null,
     onClearPins: null, onClearValues: null, showContextMenu: null, lastClick: null,
     deleteButton: null, deleting: false, clearing: false,
   };
@@ -334,6 +354,14 @@ function updateInterfaceContactWorkspace(state, svg, items, contacts, dimensions
   state.svg = svg;
   state.items = items;
   state.contacts = contacts;
+  state.orientations = Array.from(new Set(items.map((item) => item.orientationIndex)), (index) => {
+    const contactIds = items.filter((item) => item.orientationIndex === index)
+      .map((item) => item.id);
+    const name = contacts.find((contact) => (
+      contactIds.includes(contact.contactId) && contact.orientationName
+    ))?.orientationName || `Orientation ${index + 1}`;
+    return { index, name, contactIds };
+  });
   state.diagramWidth = dimensions.diagramWidth;
   state.diagramHeight = dimensions.diagramHeight;
   state.size.width = dimensions.width;
