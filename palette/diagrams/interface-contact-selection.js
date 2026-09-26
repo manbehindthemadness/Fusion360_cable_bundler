@@ -98,15 +98,20 @@ function paintInterfaceContactSelection(state) {
     || state.deleting || state.workspace.root.hidden;
 }
 
-/** Keep names legible in screen pixels once their pad has enough room. */
+/** Keep interior Value and Pin text legible when the contact has enough room. */
 function paintInterfaceContactLabels(state) {
   state.items.forEach((item) => {
-    if (!item.label || !item.labelBounds) return;
+    if (!item.labelBounds) return;
+    const labels = [item.label, item.pinLabel].filter(Boolean);
+    if (!labels.length) return;
     const scale = state.viewScale || 1;
-    item.label.style.fontSize = `${11 / scale}px`;
-    const fits = item.labelBounds.width * scale >= item.label.textContent.length * 6 + 8
-      && item.labelBounds.height * scale >= 14;
-    item.label.style.display = fits ? "" : "none";
+    const longest = Math.max(...labels.map((label) => label.textContent.length));
+    const fits = item.labelBounds.width * scale >= longest * 6.5 + 8
+      && item.labelBounds.height * scale >= labels.length * 14 + 8;
+    labels.forEach((label) => {
+      label.style.fontSize = `${11 / scale}px`;
+      label.style.display = fits ? "" : "none";
+    });
   });
 }
 

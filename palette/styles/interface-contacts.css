@@ -72,6 +72,13 @@
 }
 .interface-contact-item[data-named="false"] text { fill: var(--pathway-border); }
 .interface-contact-label { fill: var(--text); pointer-events: none; }
+.interface-contact-label-outside { font-size: 11px; }
+.interface-contact-label-leader {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  pointer-events: none;
+}
 .interface-contact-item[data-selected="true"] .interface-contact-outline {
   fill: var(--interface-border);
   fill-opacity: .35;

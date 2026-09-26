@@ -507,21 +507,45 @@ test('Interface contacts keep positions within orientation clusters', () => {
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
 });
 
-test('imported contact names appear on pads when there is room', () => {
+test('Value and Pin appear inside a contact with room for two lines', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');
   context.renderInterfaceContacts(diagram, [{
-    contactId: 'pad-1', kind: 'face', name: 'J5.2', assignedName: 'J5.2', linked: true,
+    contactId: 'pad-1', kind: 'face', name: 'J5.2', assignedName: 'J5.2', pin: 'P7', linked: true,
     normal: [0, 0, 1], loops: [[[0, 0, 0], [3, 0, 0], [3, 1, 0], [0, 1, 0]]],
   }]);
   const labels = descendants(diagram.contactState.svg, (node) => (
     node.className === 'interface-contact-label'
   ));
-  assert.equal(labels.length, 1);
+  assert.equal(labels.length, 2);
   assert.equal(labels[0].textContent, 'J5.2');
+  assert.equal(labels[1].textContent, 'Pin P7');
+  assert.ok(Number(labels[0].attributes.y) < Number(labels[1].attributes.y));
+  const zoomOut = descendants(diagram, (node) => node.title === 'Zoom out')[0];
+  for (let index = 0; index < 20; index += 1) zoomOut.events.click();
+  assert.equal(labels[0].style.display, 'none');
+  assert.equal(labels[1].style.display, 'none');
+  const zoomIn = descendants(diagram, (node) => node.title === 'Zoom in')[0];
+  for (let index = 0; index < 20; index += 1) zoomIn.events.click();
+  assert.equal(labels[0].style.display, '');
+  assert.equal(labels[1].style.display, '');
 });
 
-test('unnamed contacts have a distinct appearance and names appear as zoom permits', () => {
+test('a contact with only Pin shows its pin in the diagram and accessible name', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, [{
+    contactId: 'pin-only', kind: 'face', name: 'Pad', assignedName: '', pin: '12',
+    linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]],
+  }]);
+  const item = contactItem(diagram, 'pin-only');
+  const label = descendants(item, (node) => node.className?.includes('interface-contact-label'))[0];
+  assert.equal(label.textContent, 'Pin 12');
+  assert.match(item.attributes['aria-label'], /Pin 12/);
+});
+
+test('compact contacts keep Value outside and unnamed contacts have a distinct appearance', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');
   context.renderInterfaceContacts(diagram, [
@@ -534,16 +558,74 @@ test('unnamed contacts have a distinct appearance and names appear as zoom permi
   assert.equal(contactItem(diagram, 'unnamed').dataset.named, 'false');
   assert.match(readPaletteStyles(), /\[data-named="false"\] \.interface-contact-outline/);
   const label = descendants(contactItem(diagram, 'named'), (node) => (
-    node.className === 'interface-contact-label'
+    node.className?.includes('interface-contact-label-outside')
   ))[0];
-  assert.equal(label.style.display, 'none');
+  assert.equal(label.textContent, 'A1');
+  assert.equal(label.style.display, undefined);
   const zoomIn = descendants(diagram, (node) => node.title === 'Zoom in')[0];
   for (let index = 0; index < 20; index += 1) zoomIn.events.click();
-  assert.equal(label.style.display, '');
+  assert.equal(label.style.display, undefined);
   assert.equal(descendants(contactItem(diagram, 'named'), (node) => node.tag === 'title')[0]
     .textContent, 'A1');
   assert.match(descendants(contactItem(diagram, 'unnamed'), (node) => node.tag === 'title')[0]
     .textContent, /Unnamed contact/);
+});
+
+test('dense two-column contacts place nonoverlapping Pin and Value labels on outer sides', () => {
+  const { context } = palette();
+  const contacts = Array.from({ length: 38 }, (_unused, index) => {
+    const column = index < 19 ? 0 : 1;
+    const row = index % 19;
+    const x = column * 20;
+    const y = row * 2;
+    return {
+      contactId: `pad-${index}`, kind: 'face', name: `Pad ${index}`,
+      assignedName: `V${index}`, pin: `${index + 1}`, linked: true, normal: [0, 0, 1],
+      loops: [[[x, y, 0], [x + 0.5, y, 0], [x + 0.5, y + 0.5, 0], [x, y + 0.5, 0]]],
+    };
+  });
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, contacts);
+  const { svg, items, diagramWidth, diagramHeight } = diagram.contactState;
+  const labels = descendants(svg, (node) => node.className?.includes('interface-contact-label-outside'));
+  const leaders = descendants(svg, (node) => node.className === 'interface-contact-label-leader');
+  assert.equal(labels.length, 38);
+  assert.equal(leaders.length, 38);
+  assert.equal(labels[0].textContent, 'Pin 1 · V0');
+  assert.notEqual(labels[0].attributes['text-anchor'], labels[19].attributes['text-anchor']);
+  assert.ok(labels[0].attributes['text-anchor'] === 'end'
+    ? Number(labels[0].attributes.x) < items[0].loops[0][0][0]
+    : Number(labels[0].attributes.x) > items[0].loops[0][0][0]);
+  assert.ok(labels[19].attributes['text-anchor'] === 'end'
+    ? Number(labels[19].attributes.x) < items[19].loops[0][0][0]
+    : Number(labels[19].attributes.x) > items[19].loops[0][0][0]);
+  for (const start of [0, 19]) {
+    for (let index = start + 1; index < start + 19; index += 1) {
+      assert.ok(Number(labels[index].attributes.y) - Number(labels[index - 1].attributes.y) >= 16);
+    }
+  }
+  assert.ok(labels.every((label) => Number(label.attributes.x) > 0
+    && Number(label.attributes.x) < diagramWidth
+    && Number(label.attributes.y) < diagramHeight));
+});
+
+test('wide contact rows place compact labels above and below the geometry', () => {
+  const { context } = palette();
+  const contacts = [0, 1].flatMap((row) => Array.from({ length: 3 }, (_unused, column) => ({
+    contactId: `${row}-${column}`, kind: 'face', assignedName: `V${row}${column}`,
+    linked: true, normal: [0, 0, 1],
+    loops: [[[column * 8, row * 2, 0], [column * 8 + 0.5, row * 2, 0],
+      [column * 8 + 0.5, row * 2 + 0.5, 0], [column * 8, row * 2 + 0.5, 0]]],
+  })));
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, contacts);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels.length, 6);
+  assert.equal(labels.slice(0, 3).every((label) => label.attributes['text-anchor'] === 'middle'), true);
+  assert.ok(Number(labels[0].attributes.y) < diagram.contactState.items[0].loops[0][0][1]);
+  assert.ok(Number(labels[3].attributes.y) > diagram.contactState.items[3].loops[0][0][1]);
 });
 
 test('contact projection views asymmetric layouts from the picked face side', () => {

@@ -67,7 +67,11 @@ asyncTest('left clicking a contact edits its Value and Pin without losing select
   assert.equal(launches[1].payload.value, 'J5.4');
   assert.equal(launches[1].payload.pin, 'P8');
   context.updateInterfaceContactData(dialog, [{ ...contact, assignedName: 'J5.4', pin: 'P8' }]);
-  assert.equal(diagram.contactState.svg, svg);
+  assert.notEqual(diagram.contactState.svg, svg);
+  const labels = descendants(contactItem(diagram, 'pad-1'), (node) => (
+    node.className?.includes('interface-contact-label')
+  ));
+  assert.ok(labels.some((label) => label.textContent.includes('P8')));
   diagram.contactState.onEditContact('pad-1', pointer);
   const unchanged = diagram.querySelector('.interface-contact-details-editor');
   assert.equal(unchanged.children[1].children[0].value, 'P8');
