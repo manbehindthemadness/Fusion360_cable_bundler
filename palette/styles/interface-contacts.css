@@ -51,8 +51,7 @@
 .interface-contact-auto-pin label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; white-space: nowrap; }
 .interface-contact-auto-pin input[type="number"] { width: 6rem; }
 .interface-contacts-modes [aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--focus-surface);
+  background: var(--surface-subtle);
 }
 .interface-contacts-diagram {
   position: relative;
@@ -65,8 +64,7 @@
 .interface-contact-workspace { height: 100%; border: 0; border-radius: 0; }
 .interface-contact-tools { display: flex; gap: 4px; margin-right: auto; }
 .interface-contact-tools button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--focus-surface);
+  background: var(--surface-subtle);
 }
 .interface-contact-count { min-width: 75px; color: var(--muted); text-align: right; }
 .interface-contact-cluster { fill: var(--surface); stroke: var(--border); }

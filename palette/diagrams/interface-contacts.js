@@ -295,11 +295,13 @@ function renderInterfaceContacts(diagram, contacts) {
       let nameLabel = null;
       let pinLabel = null;
       let labelBounds = null;
+      let labelCenterY = null;
       const labelPlan = labelLayout.plans.get(contact.contactId);
       if (labelPlan?.kind === "inside") {
         const { bounds } = labelPlan;
         const x = offsetX + labelLayout.shiftX + (bounds.left + bounds.right) / 2;
         const y = labelLayout.shiftY + (bounds.top + bounds.bottom) / 2;
+        labelCenterY = y;
         const both = Boolean(contact.assignedName && contact.pin);
         if (contact.assignedName) {
           nameLabel = svgElement("text", {
@@ -327,7 +329,7 @@ function renderInterfaceContacts(diagram, contacts) {
       }
       group.append(contactGroup);
       items.push({ id: contact.contactId, node: contactGroup, loops: positionedLoops,
-        label: nameLabel, pinLabel, labelBounds, clearHover });
+        label: nameLabel, pinLabel, labelBounds, labelCenterY, clearHover });
     });
     svg.append(group);
     offsetX += clusterWidth + 18;

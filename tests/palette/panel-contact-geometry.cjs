@@ -542,7 +542,14 @@ test('Value and Pin appear inside a contact with room for two lines', () => {
   assert.equal(labels[0].textContent, 'J5.2');
   assert.equal(labels[1].textContent, 'Pin P7');
   assert.ok(Number(labels[0].attributes.y) < Number(labels[1].attributes.y));
+  const actualSize = descendants(diagram, (node) => node.title === 'Reset zoom')[0];
+  actualSize.events.click();
   const zoomOut = descendants(diagram, (node) => node.title === 'Zoom out')[0];
+  zoomOut.events.click();
+  const scale = Number.parseInt(diagram.contactState.workspace.zoomValue.textContent, 10) / 100;
+  assert.equal(labels[0].style.display, '');
+  assert.ok(Math.abs((Number(labels[1].attributes.y) - Number(labels[0].attributes.y))
+    * scale - 14) < 0.2);
   for (let index = 0; index < 20; index += 1) zoomOut.events.click();
   assert.equal(labels[0].style.display, 'none');
   assert.equal(labels[1].style.display, 'none');

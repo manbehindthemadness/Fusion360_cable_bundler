@@ -112,6 +112,10 @@ function paintInterfaceContactLabels(state) {
       label.style.fontSize = `${11 / scale}px`;
       label.style.display = fits ? "" : "none";
     });
+    if (item.pinLabel && item.label) {
+      item.label.setAttribute("y", item.labelCenterY - 7 / scale);
+      item.pinLabel.setAttribute("y", item.labelCenterY + 7 / scale);
+    }
   });
 }
 
