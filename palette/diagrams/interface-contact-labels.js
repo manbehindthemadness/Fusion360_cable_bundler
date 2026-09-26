@@ -52,13 +52,21 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         : first.centerX - second.centerX || first.index - second.index
     ));
     let occupiedUntil = -Infinity;
-    lane.forEach((item) => {
+    lane.forEach((item, index) => {
       const box = { left: 0, right: 0, top: 0, bottom: 0 };
+      let fontSize = null;
       if (vertical) {
-        box.top = Math.max(item.centerY - 7, occupiedUntil + 2);
-        box.bottom = box.top + 14;
-        box.left = side === "left" ? geometry.left - 8 - item.width : geometry.right + 8;
-        box.right = box.left + item.width;
+        const pitch = Math.min(
+          index ? item.centerY - lane[index - 1].centerY : Infinity,
+          index + 1 < lane.length ? lane[index + 1].centerY - item.centerY : Infinity,
+        );
+        const lineHeight = Math.min(14, Math.max(1, pitch - 1));
+        fontSize = Math.min(11, Math.max(1, lineHeight - 3));
+        const width = item.text.length * (fontSize / 11) * 6.5 + 4;
+        box.top = Math.max(item.centerY - lineHeight / 2, occupiedUntil + Math.min(1, pitch));
+        box.bottom = box.top + lineHeight;
+        box.left = side === "left" ? geometry.left - 8 - width : geometry.right + 8;
+        box.right = box.left + width;
         occupiedUntil = box.bottom;
       } else {
         box.left = Math.max(item.centerX - item.width / 2, occupiedUntil + 6);
@@ -68,7 +76,7 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         occupiedUntil = box.right;
       }
       plans.set(item.contactId, { kind: "outside", text: item.text, side,
-        bounds: item.bounds, box });
+        bounds: item.bounds, box, fontSize });
     });
   }
   const boxes = outside.map((item) => plans.get(item.contactId).box);
@@ -105,6 +113,7 @@ function appendOutsideContactLabel(group, contactGroup, plan, offsetX, shiftX, s
     "dominant-baseline": "middle",
   });
   label.textContent = text;
+  if (plan.fontSize !== null) label.style.fontSize = `${plan.fontSize}px`;
   contactGroup.append(label);
   return label;
 }

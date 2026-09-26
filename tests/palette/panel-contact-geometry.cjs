@@ -690,7 +690,7 @@ test('compact contacts keep Value outside and unnamed contacts have a distinct a
     .textContent, /Unnamed contact/);
 });
 
-test('dense two-column contacts place nonoverlapping Pin and Value labels on outer sides', () => {
+test('dense two-column contacts keep each outside label aligned to its pad', () => {
   const { context } = palette();
   const contacts = Array.from({ length: 38 }, (_unused, index) => {
     const column = index < 19 ? 0 : 1;
@@ -718,14 +718,46 @@ test('dense two-column contacts place nonoverlapping Pin and Value labels on out
   assert.ok(labels[19].attributes['text-anchor'] === 'end'
     ? Number(labels[19].attributes.x) < items[19].loops[0][0][0]
     : Number(labels[19].attributes.x) > items[19].loops[0][0][0]);
+  labels.forEach((label, index) => {
+    const ys = items[index].loops[0].map((point) => point[1]);
+    const padCenter = (Math.min(...ys) + Math.max(...ys)) / 2;
+    assert.ok(Math.abs(Number(label.attributes.y) - padCenter) < 0.01);
+  });
+  assert.ok(Number.parseFloat(labels[0].style.fontSize) < 11);
+  assert.ok(Number.parseFloat(labels[19].style.fontSize) < 11);
   for (const start of [0, 19]) {
     for (let index = start + 1; index < start + 19; index += 1) {
-      assert.ok(Number(labels[index].attributes.y) - Number(labels[index - 1].attributes.y) >= 16);
+      const firstHeight = Number.parseFloat(labels[index - 1].style.fontSize) + 3;
+      const secondHeight = Number.parseFloat(labels[index].style.fontSize) + 3;
+      assert.ok(Number(labels[index].attributes.y) - Number(labels[index - 1].attributes.y)
+        >= (firstHeight + secondHeight) / 2);
     }
   }
   assert.ok(labels.every((label) => Number(label.attributes.x) > 0
     && Number(label.attributes.x) < diagramWidth
     && Number(label.attributes.y) < diagramHeight));
+});
+
+test('vertical labels shrink only where neighboring pads are close', () => {
+  const { context } = palette();
+  const contacts = [0, 0.8, 15].map((y, index) => ({
+    contactId: `pad-${index}`, kind: 'face', assignedName: `J4.${index + 1} (NC)`,
+    linked: true, normal: [0, 0, 1],
+    loops: [[[0, y, 0], [0.3, y, 0], [0.3, y + 0.3, 0], [0, y + 0.3, 0]]],
+  }));
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, contacts);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels.length, 3);
+  assert.ok(Number.parseFloat(labels[0].style.fontSize) < 11);
+  assert.ok(Number.parseFloat(labels[1].style.fontSize) < 11);
+  assert.equal(Number.parseFloat(labels[2].style.fontSize), 11);
+  labels.forEach((label, index) => {
+    const ys = diagram.contactState.items[index].loops[0].map((point) => point[1]);
+    assert.ok(Math.abs(Number(label.attributes.y) - (Math.min(...ys) + Math.max(...ys)) / 2) < 0.01);
+  });
 });
 
 test('wide contact rows place compact labels above and below the geometry', () => {
