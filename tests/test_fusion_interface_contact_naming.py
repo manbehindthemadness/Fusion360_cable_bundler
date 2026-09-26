@@ -93,7 +93,7 @@ def test_pos_import_persists_connector_pin_and_signal(
     monkeypatch.setitem(
         vars(module),
         "_contact_footprints",
-        lambda *_: [ContactFootprint(str(contact_id), 1, 2, 1.53, 1.53, 1, 0.95)],
+        lambda *_, **_kwargs: [ContactFootprint(str(contact_id), 1, 2, 1.53, 1.53, 1, 0.95)],
     )
     monkeypatch.setitem(vars(module), "name_interface_contacts", persist)
     notice = module.import_interface_contact_names(object(), harness_id, interface_id, "live")
@@ -101,3 +101,34 @@ def test_pos_import_persists_connector_pin_and_signal(
         harness_id, interface_id, {contact_id: "J3.03 (P1.09)"}, gateway
     )
     assert notice == "Named 1 of 2 Interface contacts; 1 unchanged."
+
+
+def test_live_hole_measurement_does_not_sample_outlines(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Read the analytic circular hole without retaining or tessellating copper geometry.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    face = _face()
+    face.geometry = SimpleNamespace(
+        objectType="adsk::core::Plane", normal=SimpleNamespace(x=0, y=0, z=1)
+    )
+    edge = SimpleNamespace(
+        assemblyContext=face.assemblyContext,
+        geometry=SimpleNamespace(
+            objectType="adsk::core::Circle3D", center=SimpleNamespace(x=1, y=2, z=0), radius=0.05
+        ),
+    )
+    inner = SimpleNamespace(
+        isOuter=False, coEdges=SimpleNamespace(count=1, item=lambda _: SimpleNamespace(edge=edge))
+    )
+    face.loops = SimpleNamespace(count=1, item=lambda _: inner)
+    sampled = Mock(side_effect=AssertionError("No outline sampling expected"))
+    monkeypatch.setitem(vars(module), "_face_loops", sampled)
+    result = module._through_hole_footprint(
+        face, "pad", "PCB:1", [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    )
+    assert result == ContactFootprint("pad", 10, 20, 1, 1, 1, 1)
+    sampled.assert_not_called()

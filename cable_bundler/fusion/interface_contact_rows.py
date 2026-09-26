@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Iterator, Sequence
+from typing import Any, Callable, Iterator, Sequence
 
 from ..application.interface_contact_rows import ROW_TOLERANCE_MM, RowTarget, select_contact_row
 from ..domain import AttachmentTargetKind
@@ -136,7 +136,11 @@ def describe_row_target(entity: Any) -> RowTarget:
     )
 
 
-def _candidates(scope: _Scope, kind: AttachmentTargetKind) -> Iterator[Any]:
+def _candidates(
+    scope: _Scope,
+    kind: AttachmentTargetKind,
+    bounds: tuple[Sequence[float], Sequence[float]] | None = None,
+) -> Iterator[Any]:
     """
     Enumerate the same target kind across bodies in this one occurrence or sketch.
     """
@@ -145,8 +149,11 @@ def _candidates(scope: _Scope, kind: AttachmentTargetKind) -> Iterator[Any]:
             proxy = _in_context(body, scope.occurrence)
             if proxy is None or not getattr(proxy, "isVisible", True):
                 continue
+            if bounds is not None and not _near_segment_bounds(proxy, *bounds):
+                continue
             collection = proxy.faces if kind is AttachmentTargetKind.FACE else proxy.edges
-            yield from _collection_items(collection)
+            for index in range(collection.count):
+                yield collection.item(index)
     else:
         collection_name = {
             AttachmentTargetKind.PROFILE: "profiles",
@@ -188,14 +195,20 @@ def _near_segment_bounds(entity: Any, start: Sequence[float], end: Sequence[floa
     )
 
 
-def collect_contact_row(first: Any, last: Any) -> tuple[RowTarget, ...]:
+def collect_contact_row(
+    first: Any,
+    last: Any,
+    *,
+    on_selected: Callable[[Any], None] | None = None,
+) -> tuple[RowTarget, ...]:
     """
     Collect the finite row in endpoint order, skipping unavailable neighboring geometry.
     """
     start, end = validate_row_endpoints(first, last)
     scope = _scope(first)
     candidates = []
-    for entity in _candidates(scope, start.kind):
+    entities = {id(start): first, id(end): last}
+    for entity in _candidates(scope, start.kind, (start.center_mm, end.center_mm)):
         try:
             if start.kind is AttachmentTargetKind.FACE and (
                 entity.geometry.objectType != start.geometry_type
@@ -206,4 +219,10 @@ def collect_contact_row(first: Any, last: Any) -> tuple[RowTarget, ...]:
         except (AttributeError, RuntimeError, TypeError, ValueError):
             continue
         candidates.append(candidate)
-    return select_contact_row(start, end, candidates)
+        if on_selected is not None:
+            entities[id(candidate)] = entity
+    selected = select_contact_row(start, end, candidates)
+    if on_selected is not None:
+        for target in selected:
+            on_selected(entities[id(target)])
+    return selected

@@ -18,6 +18,7 @@ import adsk.fusion
 from ...domain import loads
 from .. import highlight_route_preview
 from ..cable_solids import refresh_generated_cable_groups_for_connection
+from ..interface_contact_projection import project_interface_contact
 from .commands.refines import reconcile_active_refines
 from .constants import (
     COMMAND_ID,
@@ -310,6 +311,14 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             if policy is None:
                 raise ValueError(f"Unsupported harness edit: {action}")
             notice = _apply_palette_edit(application, action, data)
+            if action in (
+                "pos_import_interface_contacts",
+                "load_brd_interface_contacts",
+                "set_interface_contact_name",
+                "rename_interface",
+            ):
+                _send_palette_state(application, notice)
+                return
             payload = _read_palette_payload(data)
             harness_id = _read_payload_uuid(payload, "harnessId", "harness")
             is_data_only_disconnect = (
@@ -436,6 +445,36 @@ def _dispatch_palette_action(
     """
     if action == "get_state":
         return serialize_palette_state(application)
+    if action == "get_interface_contacts":
+        payload = _read_palette_payload(data)
+        harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
+        interface = next(
+            (item for item in definition.interfaces if item.interface_id == interface_id), None
+        )
+        if interface is None:
+            raise ValueError("Selected Interface no longer exists.")
+        requested_ids = payload.get("contactIds")
+        if (
+            not isinstance(requested_ids, list)
+            or len(requested_ids) > 8
+            or not all(isinstance(value, str) for value in requested_ids)
+        ):
+            raise ValueError("Request at most eight contact identities per geometry batch.")
+        requested = set(requested_ids)
+        design = _require_active_design(application)
+        return json.dumps(
+            {
+                "ok": True,
+                "contacts": [
+                    project_interface_contact(design, contact)
+                    for contact in interface.contacts
+                    if str(contact.contact_id) in requested
+                ],
+                "geometryRevision": _runtime.contact_geometry_revision,
+            }
+        )
     if action == "get_theme":
         return json.dumps(
             {"ok": True, "theme": _palette_theme_payload(application)},

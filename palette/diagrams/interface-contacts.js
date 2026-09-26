@@ -195,7 +195,64 @@ function refreshInterfaceContacts() {
   const interfaceItem = (harness?.interfaces || []).find((item) => (
     item.interfaceId === dialog.dataset.interfaceId
   ));
-  if (interfaceItem) renderInterfaceContacts(dialog.children[2], interfaceItem.contacts || []);
+  if (interfaceItem) updateInterfaceContactData(dialog, interfaceItem.contacts || []);
+  else dialog.close();
+}
+
+/** Fetch outlines only for the open dialog; coalesce requests and discard stale replies. */
+function updateInterfaceContactData(dialog, contacts) {
+  const diagram = dialog.children[2];
+  dialog.contactMetadata = contacts;
+  const geometryKey = JSON.stringify(contacts.map((item) => [item.contactId, item.geometryRevision]));
+  const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName]));
+  dialog.requestedGeometryKey = geometryKey;
+  if (dialog.loadedGeometryKey === geometryKey) {
+    if (dialog.contactDisplayKey !== displayKey) {
+      const geometry = new Map(diagram.contactState.contacts.map((item) => [item.contactId, item]));
+      renderInterfaceContacts(diagram, contacts.map((item) => ({ ...geometry.get(item.contactId), ...item })));
+      dialog.contactDisplayKey = displayKey;
+    }
+    return;
+  }
+  if (dialog.contactRequestPending) return;
+  if (!contacts.length || contacts.every((item) => Array.isArray(item.loops))) {
+    renderInterfaceContacts(diagram, contacts);
+    dialog.loadedGeometryKey = geometryKey;
+    dialog.contactDisplayKey = displayKey;
+    return;
+  }
+  dialog.contactRequestPending = true;
+  void fetchInterfaceContactGeometry(dialog, contacts, geometryKey).then((response) => {
+    if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return;
+    if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
+    const metadata = new Map(dialog.contactMetadata.map((item) => [item.contactId, item]));
+    renderInterfaceContacts(diagram, response.contacts.map((item) => ({ ...item, ...metadata.get(item.contactId) })));
+    dialog.loadedGeometryKey = geometryKey;
+    dialog.contactDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => [item.contactId, item.name, item.assignedName]));
+  }).catch((error) => {
+    if (dialog.open) appendNotice(String(error), true);
+  }).finally(() => {
+    dialog.contactRequestPending = false;
+    if (dialog.open && dialog.requestedGeometryKey !== geometryKey) {
+      updateInterfaceContactData(dialog, dialog.contactMetadata);
+    }
+  });
+}
+
+/** Yield to Fusion between bounded batches; closing or superseding stops further work. */
+async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
+  const resolved = [];
+  for (let offset = 0; offset < contacts.length; offset += 8) {
+    if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return { ok: true, contacts: [] };
+    const response = await send("get_interface_contacts", {
+      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+      contactIds: contacts.slice(offset, offset + 8).map((item) => item.contactId),
+    });
+    if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
+    resolved.push(...response.contacts);
+    if (dialog.open) dialog.children[2].contactState.count.textContent = `Loading contacts · ${Math.min(offset + 8, contacts.length)} / ${contacts.length}`;
+  }
+  return { ok: true, contacts: resolved };
 }
 
 /** Open the contact-selection workspace for one Interface. */
@@ -272,9 +329,15 @@ function openInterfaceContacts(harness, interfaceItem) {
   close.addEventListener("click", () => dialog.close());
   actions.append(close);
   dialog.append(title, toolbar, diagram, actions);
-  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("close", () => {
+    dialog.contactMetadata = [];
+    diagram.contactState = null;
+    diagram.replaceChildren();
+    dialog.remove();
+  });
   document.body.append(dialog);
   dialog.showModal();
+  updateInterfaceContactData(dialog, interfaceItem.contacts || []);
   window.requestAnimationFrame(() => {
     if (dialog.open) diagram.contactState.workspace.fit();
   });

@@ -42,7 +42,6 @@ from ..cable_solids import (
     generated_cable_group_occurrences,
     generated_cable_group_output_mode,
 )
-from ..interface_contact_projection import project_interface_contact
 from ..interface_targets import resolve_interface_target
 from ..route_preview import has_route_preview_for_harness
 from .constants import PALETTE_ID
@@ -357,16 +356,12 @@ def serialize_palette_state(
                             for target in interface.targets
                         ],
                         "contacts": [
-                            project_interface_contact(design, contact)
-                            if design is not None
-                            else {
+                            {
                                 "contactId": str(contact.contact_id),
                                 "kind": contact.kind.value,
                                 "name": contact.name or contact.kind.value,
                                 "assignedName": contact.name,
-                                "linked": False,
-                                "normal": [0.0, 0.0, 1.0],
-                                "loops": [],
+                                "geometryRevision": _runtime.contact_geometry_revision,
                             }
                             for contact in interface.contacts
                         ],

@@ -9,6 +9,7 @@ from typing import Any
 
 from ..domain import AttachmentTargetKind, InterfaceContact
 from .attachment_targets import attachment_target_kind, attachment_target_name
+from .interface_contact_cache import resolve_contact_entities
 
 
 def _xyz(point: object) -> list[float] | None:
@@ -177,7 +178,7 @@ def project_interface_contact(design: Any, contact: InterfaceContact) -> dict[st
     entity = next(
         (
             candidate
-            for candidate in (design.findEntityByToken(contact.entity_token) or ())
+            for candidate in resolve_contact_entities(design, contact.entity_token)
             if attachment_target_kind(candidate) is contact.kind
         ),
         None,

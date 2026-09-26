@@ -5,6 +5,7 @@ Native multi-target selection for contacts on one Interface.
 from __future__ import annotations
 
 import traceback
+from functools import partial
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,6 +16,7 @@ from ....application import add_interface_contacts
 from ....application.interface_contact_rows import ContactSelectionMode
 from ....domain import InterfaceContact, InterfaceDefinition, loads
 from ...attachment_targets import attachment_target_kind
+from ...interface_contact_cache import remember_contact_entity
 from ...interface_contact_planes import collect_contact_plane, validate_plane_corners
 from ...interface_contact_rows import collect_contact_row, validate_row_endpoints
 from ..constants import INTERFACE_CONTACTS_INPUT_ID
@@ -60,6 +62,7 @@ def _selected_entities(inputs: adsk.core.CommandInputs) -> tuple[Any, ...]:
 def _selected_contacts(
     inputs: adsk.core.CommandInputs,
     mode: ContactSelectionMode = ContactSelectionMode.MANUAL,
+    design: Any = None,
 ) -> tuple[InterfaceContact, ...]:
     """
     Collect manual, row, or plane targets before assigning new identities.
@@ -73,7 +76,11 @@ def _selected_contacts(
         collect = (
             collect_contact_plane if mode is ContactSelectionMode.PLANE else collect_contact_row
         )
-        targets = collect(*entities)
+        targets = (
+            collect(*entities, on_selected=partial(remember_contact_entity, design))
+            if design is not None
+            else collect(*entities)
+        )
         return tuple(InterfaceContact(uuid4(), item.kind, item.token) for item in targets)
     contacts = []
     for entity in entities:
@@ -81,6 +88,8 @@ def _selected_contacts(
         if kind is None:
             raise ValueError("Selected contact is no longer available.")
         contacts.append(InterfaceContact(uuid4(), kind, entity.entityToken.strip()))
+        if design is not None:
+            remember_contact_entity(design, entity)
     return tuple(contacts)
 
 
@@ -142,7 +151,9 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
-            contacts = _selected_contacts(args.command.commandInputs, self._mode)
+            contacts = _selected_contacts(
+                args.command.commandInputs, self._mode, _require_active_design(application)
+            )
             add_interface_contacts(
                 self._harness_id, self._interface_id, contacts, _create_harness_gateway(application)
             )

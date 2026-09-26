@@ -19,6 +19,7 @@ from ..cable_solids import (
     restore_cable_group_stripe_graphics,
 )
 from ..hover_graphics import clear_hover_widgets
+from ..interface_contact_cache import clear_contact_resolutions
 from ..refine_graphics import clear_refine_graphics, clear_refine_spine, has_refine_graphics
 from ..route_preview import (
     has_route_previews,
@@ -35,6 +36,7 @@ from .constants import (
     COMMAND_RESOURCE_FOLDER,
     PALETTE_ID,
     PANEL_IDS,
+    SELECT_INTERFACE_CONTACTS_COMMAND_ID,
     WORKSPACE_ID,
 )
 from .constants import (
@@ -77,6 +79,19 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
+            metadata_commands = {
+                f"{COMMAND_ID}_{action}"
+                for action in (
+                    "pos_import_interface_contacts",
+                    "load_brd_interface_contacts",
+                    "set_interface_contact_name",
+                    "rename_interface",
+                )
+            }
+            metadata_commands.add(SELECT_INTERFACE_CONTACTS_COMMAND_ID)
+            if args.commandId not in metadata_commands:
+                _runtime.contact_geometry_revision += 1
+                clear_contact_resolutions()
             design = adsk.fusion.Design.cast(application.activeProduct)
             if design is None:
                 return
@@ -229,12 +244,39 @@ def _register_document_handlers(application: adsk.core.Application) -> None:
         raise RuntimeError("Fusion could not register graphics-cache restoration.")
     _runtime.document_saving_handler = saving_handler
     _runtime.document_saved_handler = saved_handler
+    handler = _ContactDocumentChangedHandler()
+    for event_name in ("documentActivated", "documentClosing"):
+        event = getattr(application, event_name, None)
+        if event is not None:
+            if not event.add(handler):
+                raise RuntimeError("Fusion could not register contact cache cleanup.")
+            _runtime.contact_document_handler = handler
+
+
+class _ContactDocumentChangedHandler(adsk.core.DocumentEventHandler):
+    """
+    Release native references before closing or changing the active document.
+    """
+
+    def notify(self, _args: adsk.core.DocumentEventArgs) -> None:
+        """
+        Invalidate geometry without performing geometry work during a document event.
+        """
+        clear_contact_resolutions()
+        _runtime.contact_geometry_revision += 1
 
 
 def _remove_document_handlers(application: adsk.core.Application) -> None:
     """
-    Remove save guards and restore any compatibility preference they changed.
+    Remove save guards and contact cleanup, restoring changed preferences.
     """
+    clear_contact_resolutions()
+    if _runtime.contact_document_handler is not None:
+        for event_name in ("documentActivated", "documentClosing"):
+            event = getattr(application, event_name, None)
+            if event is not None:
+                event.remove(_runtime.contact_document_handler)
+        _runtime.contact_document_handler = None
     if _runtime.document_saving_handler is not None:
         application.documentSaving.remove(_runtime.document_saving_handler)
         _runtime.document_saving_handler = None
@@ -388,6 +430,7 @@ def stop(_context: object) -> None:
     Remove the command and release retained Fusion event handlers.
     """
 
+    clear_contact_resolutions()
     try:
         application = adsk.core.Application.get()
         design = adsk.fusion.Design.cast(application.activeProduct)

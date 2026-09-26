@@ -63,9 +63,11 @@ def test_row_collects_across_bodies_in_one_occurrence_using_hole_centers(
     body_a = SimpleNamespace(createForAssemblyContext=Mock(return_value=proxy_a))
     body_b = SimpleNamespace(createForAssemblyContext=Mock(return_value=proxy_b))
     owner.bRepBodies = _collection(body_a, body_b)
-    row = module.collect_contact_row(first, last)
+    selected = Mock()
+    row = module.collect_contact_row(first, last, on_selected=selected)
     assert [item.token for item in row] == ["first", "middle", "last"]
     assert row[1].center_mm == (10, 0, 0)
+    assert [call.args[0] for call in selected.call_args_list] == [first, middle, last]
     body_a.createForAssemblyContext.assert_called_once_with(occurrence)
     body_b.createForAssemblyContext.assert_called_once_with(occurrence)
     nearby = SimpleNamespace(

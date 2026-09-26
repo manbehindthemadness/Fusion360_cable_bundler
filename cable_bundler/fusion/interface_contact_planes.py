@@ -4,7 +4,7 @@ Collect plane contacts within one Fusion sketch or component occurrence.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from ..application.interface_contact_planes import (
     ContactRectangle,
@@ -36,14 +36,20 @@ def validate_plane_corners(first: Any, last: Any) -> ContactRectangle:
     return contact_rectangle(describe_row_target(first), describe_row_target(last), axes)
 
 
-def collect_contact_plane(first: Any, last: Any) -> tuple[RowTarget, ...]:
+def collect_contact_plane(
+    first: Any,
+    last: Any,
+    *,
+    on_selected: Callable[[Any], None] | None = None,
+) -> tuple[RowTarget, ...]:
     """
     Collect matching centers inside the rectangle, skipping unavailable neighbors.
     """
     rectangle = validate_plane_corners(first, last)
     lower, upper = rectangle.bounds()
     candidates = []
-    for entity in _candidates(_scope(first), rectangle.first.kind):
+    entities = {id(rectangle.first): first, id(rectangle.last): last}
+    for entity in _candidates(_scope(first), rectangle.first.kind, (lower, upper)):
         try:
             if not _near_segment_bounds(entity, lower, upper):
                 continue
@@ -51,7 +57,14 @@ def collect_contact_plane(first: Any, last: Any) -> tuple[RowTarget, ...]:
                 entity.geometry.objectType != rectangle.first.geometry_type
             ):
                 continue
-            candidates.append(describe_row_target(entity))
+            candidate = describe_row_target(entity)
+            candidates.append(candidate)
+            if on_selected is not None:
+                entities[id(candidate)] = entity
         except (AttributeError, RuntimeError, TypeError, ValueError):
             continue
-    return select_contact_plane(rectangle, candidates)
+    selected = select_contact_plane(rectangle, candidates)
+    if on_selected is not None:
+        for target in selected:
+            on_selected(entities[id(target)])
+    return selected

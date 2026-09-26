@@ -595,6 +595,56 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
 });
 
+asyncTest('Contact geometry requests coalesce, reuse names, and release closed diagrams', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = (action) => new Promise((resolve) => requests.push({ action, resolve }));
+  const metadata = [{ contactId: 'a', name: 'face', assignedName: '', geometryRevision: 1 }];
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: metadata });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  context.updateInterfaceContactData(dialog, metadata);
+  assert.equal(requests.length, 1);
+  const geometry = { contactId: 'a', linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]] };
+  requests[0].resolve({ ok: true, contacts: [geometry] });
+  await new Promise((resolve) => setImmediate(resolve));
+  const svg = diagram.contactState.svg;
+  context.updateInterfaceContactData(dialog, metadata);
+  assert.equal(diagram.contactState.svg, svg);
+  context.updateInterfaceContactData(dialog, [{ ...metadata[0], name: 'J1.1', assignedName: 'J1.1' }]);
+  assert.equal(requests.length, 1);
+  assert.equal(diagram.contactState.contacts[0].assignedName, 'J1.1');
+  assert.equal(diagram.contactState.contacts[0].loops.length, 1);
+  context.updateInterfaceContactData(dialog, [{ ...metadata[0], geometryRevision: 2 }]);
+  context.updateInterfaceContactData(dialog, [{ ...metadata[0], geometryRevision: 3 }]);
+  assert.equal(requests.length, 2);
+  requests[1].resolve({ ok: true, contacts: [] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests.length, 3);
+  dialog.close();
+  requests[2].resolve({ ok: true, contacts: [geometry] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(diagram.contactState, null);
+  assert.equal(diagram.children.length, 0);
+  assert.equal(dialog.contactMetadata.length, 0);
+  assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
+});
+
+asyncTest('Closing contacts stops additional geometry batches', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = (_action, payload) => new Promise((resolve) => requests.push({ payload, resolve }));
+  const contacts = Array.from({ length: 30 }, (_, index) => ({ contactId: `${index}`, geometryRevision: 1 }));
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].payload.contactIds.length, 8);
+  context.document.body.querySelector('.interface-contacts-popup').close();
+  requests[0].resolve({ ok: true, contacts: [] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests.length, 1);
+});
+
 test('Interface contacts keep positions within orientation clusters', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');
@@ -908,6 +958,24 @@ test('freeform selection treats multi-outline contacts as single items across re
   context.renderInterfaceContacts(diagram, contacts);
   assert.equal(contactItem(diagram, 'a').dataset.selected, 'true');
   assert.equal(diagram.contactState.workspace.stage.style.transform, transform);
+});
+
+test('Contact drag paths retain bounded history', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, []);
+  const state = diagram.contactState;
+  const viewport = state.workspace.viewport;
+  for (const mode of ['box', 'freeform']) {
+    state.mode = mode;
+    viewport.events.pointerdown(contactPointer(state.svg, 0, 0));
+    for (let index = 0; index < 4100; index += 1) {
+      viewport.events.pointermove(contactPointer(state.svg, index + 5, 10));
+    }
+    assert.ok(state.drag.points.length <= (mode === 'box' ? 2 : 2048));
+    viewport.events.pointercancel({ ...contactPointer(state.svg, 0, 0), type: 'pointercancel' });
+    assert.equal(state.drag, null);
+  }
 });
 
 test('filled contact profiles preserve holes and select their interior as one item', () => {

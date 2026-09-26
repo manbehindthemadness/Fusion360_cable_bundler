@@ -176,7 +176,14 @@ function enableInterfaceContactSelection(state) {
     ) < 4) return;
     drag.moved = true;
     event.preventDefault();
-    drag.points.push(contactDiagramPoint(state, event));
+    const point = contactDiagramPoint(state, event);
+    if (state.mode === "box") drag.points = [drag.start, point];
+    else {
+      if (drag.points.length >= 2048) {
+        drag.points = drag.points.filter((_point, index) => index % 2 === 0);
+      }
+      drag.points.push(point);
+    }
     paintInterfaceContactDrag(state);
   });
   const finish = (event) => {

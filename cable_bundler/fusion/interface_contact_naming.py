@@ -23,7 +23,9 @@ from ..application.board_contact_import import (
     read_eagle_board,
 )
 from ..domain import AttachmentTargetKind, InterfaceDefinition, InterfaceTargetKind, loads
-from .interface_contact_projection import _face_loops
+from .interface_contact_cache import resolve_contact_entities
+from .interface_contact_projection import _direction, _face_loops, _xyz
+from .interface_contact_rows import _in_context
 from .interface_targets import resolve_interface_target
 from .ui.support import _create_harness_gateway, _require_active_design
 
@@ -66,6 +68,8 @@ def _board_point(
 def _contact_footprints(
     design: adsk.fusion.Design,
     interface: InterfaceDefinition,
+    *,
+    through_holes_only: bool = False,
 ) -> list[ContactFootprint]:
     """
     Project planar copper faces into the explicitly selected board occurrence.
@@ -83,11 +87,13 @@ def _contact_footprints(
     for contact in interface.contacts:
         if contact.kind is not AttachmentTargetKind.FACE:
             continue
-        candidates = design.findEntityByToken(contact.entity_token) or ()
+        candidates = resolve_contact_entities(design, contact.entity_token)
         if not candidates:
             continue
         projected = [
-            _face_footprint(face, str(contact.contact_id), board.fullPathName, origin, axes)
+            (_through_hole_footprint if through_holes_only else _face_footprint)(
+                face, str(contact.contact_id), board.fullPathName, origin, axes
+            )
             for face in candidates
         ]
         first = projected[0]
@@ -103,6 +109,50 @@ def _contact_footprints(
             continue
         footprints.append(first)
     return footprints
+
+
+def _through_hole_footprint(
+    face: object,
+    contact_id: str,
+    board_path: str,
+    origin: list[float],
+    axes: list[list[float]],
+) -> ContactFootprint | None:
+    """
+    Measure a planar circular hole analytically, avoiding copper outline tessellation.
+
+    Unusual split-circle loops retain the conservative sampled fallback. Outer
+    dimensions are irrelevant to live through-hole matching and use hole diameter.
+    """
+    path = getattr(getattr(face, "assemblyContext", None), "fullPathName", "")
+    match = re.search(r"(?:^|\+)(1|16)-copper:\d+$", path)
+    if not path.startswith(board_path + "+") or match is None:
+        return None
+    try:
+        geometry = face.geometry
+        normal = _direction(geometry.normal)
+        if geometry.objectType != "adsk::core::Plane" or normal is None:
+            return None
+        if abs(sum(a * b for a, b in zip(normal, axes[2]))) < 0.9999:
+            return None
+        inner = [loop for loop in _items(face.loops) if not loop.isOuter]
+        if len(inner) != 1:
+            return None
+        coedges = _items(inner[0].coEdges)
+        if len(coedges) == 1:
+            edge = _in_context(coedges[0].edge, getattr(face, "assemblyContext", None))
+            circle = edge.geometry
+            if circle.objectType == "adsk::core::Circle3D":
+                center = _xyz(circle.center)
+                diameter = float(circle.radius) * 20
+                if center is not None and math.isfinite(diameter) and diameter > 0:
+                    x, y, _ = _board_point(center, origin, axes)
+                    return ContactFootprint(
+                        contact_id, x, y, diameter, diameter, int(match.group(1)), diameter
+                    )
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        pass
+    return _face_footprint(face, contact_id, board_path, origin, axes)
 
 
 def _face_footprint(
@@ -245,7 +295,7 @@ def import_interface_contact_names(
         pads = _live_board_pads(application)
     else:
         raise ValueError("Unsupported Interface naming source.")
-    footprints = _contact_footprints(design, interface)
+    footprints = _contact_footprints(design, interface, through_holes_only=source == "live")
     matches = match_board_contacts(footprints, pads)
     labels = {
         contact_id: f"{pad.label} ({pad.signal})" if source == "live" and pad.signal else pad.label
