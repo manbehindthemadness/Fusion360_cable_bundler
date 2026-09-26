@@ -517,8 +517,8 @@ function renderRelationshipInterfaces(harness, query, showContextMenu) {
     details.textContent = targets.length === 1
       ? `${targets[0].kind} · ${linked ? "linked" : "unlinked"}`
       : `${targets.length} targets · ${linked} linked`;
+    hoverHighlight(card, () => highlightMember(harness, "interface", item.interfaceId));
     card.addEventListener("click", () => {
-      void highlightMember(harness, "interface", item.interfaceId);
       openInterfaceContacts(harness, item);
     });
     card.addEventListener("contextmenu", (event) => {
