@@ -209,6 +209,14 @@ function enableInterfaceContactSelection(state) {
   viewport.addEventListener("pointerup", finish);
   viewport.addEventListener("pointercancel", finish);
   viewport.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      const contactId = contactIdAtTarget(event.target, viewport);
+      if (contactId) {
+        event.preventDefault();
+        selectInterfaceContactIds(state, [contactId], event);
+      }
+      return;
+    }
     if (event.key !== "Escape") return;
     state.selectedIds.clear();
     paintInterfaceContactSelection(state);

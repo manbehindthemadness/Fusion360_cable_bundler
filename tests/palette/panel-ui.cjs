@@ -41,6 +41,26 @@ test('palette follows fixed Fusion themes and live device theme rollovers', () =
   assert.equal(context.document.documentElement.dataset.theme, 'dark');
 });
 
+test('unchanged Fusion state leaves the master diagram mounted', () => {
+  const storage = new Map([['cableBundler.selectedHarness', 'h']]);
+  const { context } = palette(storage);
+  const definition = harness();
+  definition.interfaces = [{ interfaceId: 'i', name: 'Socket', contacts: [
+    { contactId: 'a', geometryRevision: 1 },
+  ] }];
+  const state = { harnesses: [definition], notice: '', theme: { mode: 'fixed', active: 'dark' } };
+  context.render(state);
+  const master = context.ui.editor.children[0];
+  const refreshed = JSON.parse(JSON.stringify(state));
+  refreshed.notice = 'Menu opened';
+  refreshed.harnesses[0].interfaces[0].contacts[0].geometryRevision = 2;
+  context.render(refreshed);
+  assert.equal(context.ui.editor.children[0], master);
+  refreshed.harnesses[0].definitionName = 'Changed harness';
+  context.render(refreshed);
+  assert.notEqual(context.ui.editor.children[0], master);
+});
+
 asyncTest('device mode polls Fusion without refreshing harness state', async () => {
   const { context } = palette();
   const actions = [];
@@ -653,6 +673,129 @@ asyncTest('Closing contacts stops additional geometry batches', async () => {
   assert.equal(requests.length, 1);
 });
 
+asyncTest('Reopening unchanged contacts reuses bounded geometry and current names', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = (action) => {
+    requests.push(action);
+    return Promise.resolve({ ok: true, contacts: [{
+      contactId: 'a', linked: true, normal: [0, 0, 1],
+      loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }] });
+  };
+  const original = [{ contactId: 'a', name: 'face', assignedName: '', geometryRevision: 4 }];
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: original });
+  await new Promise((resolve) => setImmediate(resolve));
+  const firstSvg = context.document.body.querySelector('.interface-contacts-popup')
+    .children[2].contactState.svg;
+  const firstStage = context.document.body.querySelector('.interface-contacts-popup')
+    .children[2].contactState.workspace.stage;
+  context.document.body.querySelector('.interface-contacts-popup').close();
+  assert.equal(firstStage.children.length, 0);
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: original });
+  let dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(dialog.children[2].contactState.svg, firstSvg);
+  assert.equal(requests.length, 1);
+  const reusedItem = dialog.children[2].contactState.items[0].node;
+  dialog.children[2].contactState.workspace.viewport.events.keydown({
+    key: 'Enter', target: reusedItem, preventDefault() {},
+  });
+  assert.equal(reusedItem.attributes['aria-selected'], 'true');
+  dialog.close();
+  const renamed = [{ ...original[0], name: 'J1.1', assignedName: 'J1.1' }];
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: renamed });
+  dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(requests.length, 1);
+  assert.notEqual(dialog.children[2].contactState.svg, firstSvg);
+  assert.equal(dialog.children[2].contactState.contacts[0].assignedName, 'J1.1');
+  assert.equal(dialog.children[2].contactState.items.length, 1);
+  assert.equal(dialog.querySelector('.interface-contact-loading'), undefined);
+  dialog.close();
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket',
+    contacts: [{ ...renamed[0], geometryRevision: 5 }] });
+  dialog = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(requests.length, 2);
+  assert.ok(dialog.querySelector('.interface-contact-loading'));
+  dialog.close();
+});
+
+asyncTest('A name arriving during geometry loading is part of the cached image', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = () => new Promise((resolve) => requests.push(resolve));
+  const contact = { contactId: 'a', name: 'face', assignedName: '', geometryRevision: 1 };
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: [contact] });
+  const first = context.document.body.querySelector('.interface-contacts-popup');
+  const renamed = { ...contact, name: 'J1.1', assignedName: 'J1.1' };
+  context.updateInterfaceContactData(first, [renamed]);
+  requests[0]({ ok: true, contacts: [{
+    contactId: 'a', linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+  }] });
+  await new Promise((resolve) => setImmediate(resolve));
+  const svg = first.children[2].contactState.svg;
+  first.close();
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: [renamed] });
+  const reopened = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(reopened.children[2].contactState.svg, svg);
+  assert.equal(requests.length, 1);
+  reopened.close();
+});
+
+test('Contact geometry cache drops oversized snapshots', () => {
+  const { context } = palette();
+  const dialog = { dataset: { harnessId: 'h', interfaceId: 'i' } };
+  context.rememberContactGeometry(dialog, 'revision-1', [{ blob: 'x'.repeat(2_000_000) }]);
+  assert.equal(context.restoredContactGeometry(dialog, 'revision-1'), null);
+  context.rememberContactGeometry(dialog, 'revision-2', [{ contactId: 'a', loops: [] }]);
+  assert.equal(context.restoredContactGeometry(dialog, 'revision-2').length, 1);
+  context.render({ harnesses: [], notice: '', theme: { mode: 'fixed', active: 'dark' } });
+  assert.equal(context.restoredContactGeometry(dialog, 'revision-2'), null);
+});
+
+asyncTest('Rendered contact image survives when raw geometry exceeds the memory budget', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = () => new Promise((resolve) => requests.push(resolve));
+  const geometry = [{
+    contactId: 'a', name: 'A', geometryRevision: 1, linked: true, normal: [0, 0, 1],
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]], blob: 'x'.repeat(2_000_000),
+  }];
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: geometry });
+  const first = context.document.body.querySelector('.interface-contacts-popup');
+  const svg = first.children[2].contactState.svg;
+  assert.equal(context.restoredContactGeometry(first, context.contactGeometryKey(geometry)), null);
+  first.close();
+  const metadata = [{ contactId: 'a', name: 'A', geometryRevision: 1 }];
+  context.openInterfaceContacts({ harnessId: 'h' }, { interfaceId: 'i', name: 'Socket', contacts: metadata });
+  const reopened = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(reopened.children[2].contactState.svg, svg);
+  assert.equal(requests.length, 0);
+  context.updateInterfaceContactData(reopened, [{ ...metadata[0], name: 'A1', assignedName: 'A1' }]);
+  assert.equal(requests.length, 1);
+  reopened.close();
+  requests[0]({ ok: true, contacts: [] });
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
+test('Contact image outlines collapse dense rectangles but preserve curved edges', () => {
+  const { context } = palette();
+  const rectangle = [
+    ...Array.from({ length: 21 }, (_, index) => [index, 0]),
+    ...Array.from({ length: 10 }, (_, index) => [20, index + 1]),
+    ...Array.from({ length: 20 }, (_, index) => [19 - index, 10]),
+    ...Array.from({ length: 9 }, (_, index) => [0, 9 - index]),
+    [0, 0],
+  ];
+  assert.equal(JSON.stringify(context.simplifyContactOutline(rectangle)),
+    JSON.stringify([[0, 0], [20, 0], [20, 10], [0, 10]]));
+  const circle = Array.from({ length: 32 }, (_, index) => [
+    10 * Math.cos(index * Math.PI / 16), 10 * Math.sin(index * Math.PI / 16),
+  ]);
+  const rounded = context.simplifyContactOutline(circle);
+  assert.ok(rounded.length > 4 && rounded.length < circle.length);
+});
+
 asyncTest('Contact loading reports progress and failure without unavailable placeholders', async () => {
   const { context } = palette();
   const requests = [];
@@ -1063,7 +1206,7 @@ test('contact clicks select individual items with additive and toggle modifiers'
   assert.equal(contactItem(diagram, 'b').dataset.selected, 'true');
   viewport.events.keydown({ key: 'Escape' });
   assert.equal(diagram.contactState.count.textContent, '0 selected');
-  contactItem(diagram, 'b').events.keydown({ key: 'Enter', preventDefault() {} });
+  viewport.events.keydown({ key: 'Enter', target: contactItem(diagram, 'b'), preventDefault() {} });
   assert.equal(contactItem(diagram, 'b').attributes['aria-selected'], 'true');
 });
 

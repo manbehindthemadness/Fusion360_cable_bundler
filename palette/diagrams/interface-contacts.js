@@ -1,3 +1,76 @@
+// Keep one bounded projection and vector-image snapshot across dialog closes.
+const MAX_CONTACT_CACHE_BYTES = 4_000_000;
+let cachedContactGeometry = null;
+
+/** Track contact membership and the last geometry-changing Fusion command. */
+function contactGeometryKey(contacts) {
+  return JSON.stringify(contacts.map((item) => [item.contactId, item.geometryRevision]));
+}
+
+/** Reuse a snapshot only for the same Interface and geometry revision. */
+function matchingContactCache(dialog, geometryKey) {
+  const cached = cachedContactGeometry;
+  return cached?.harnessId === dialog.dataset.harnessId
+    && cached.interfaceId === dialog.dataset.interfaceId
+    && cached.geometryKey === geometryKey ? cached : null;
+}
+
+/** Return sampled geometry when it fits alongside the rendered image. */
+function restoredContactGeometry(dialog, geometryKey) {
+  return matchingContactCache(dialog, geometryKey)?.contacts || null;
+}
+
+/** Bound retained outline data without holding Fusion objects. */
+function rememberContactGeometry(dialog, geometryKey, contacts) {
+  const size = JSON.stringify(contacts).length * 2;
+  cachedContactGeometry = {
+    harnessId: dialog.dataset.harnessId,
+    interfaceId: dialog.dataset.interfaceId,
+    geometryKey,
+    contacts: size <= MAX_CONTACT_CACHE_BYTES ? contacts : null,
+    geometryBytes: size <= MAX_CONTACT_CACHE_BYTES ? size : 0,
+  };
+}
+
+/** Retain the finished vector image and hit-test outlines, not its old workspace. */
+function rememberRenderedContactDiagram(dialog, geometryKey, displayKey) {
+  const cached = matchingContactCache(dialog, geometryKey);
+  const state = dialog.children[2].contactState;
+  if (!cached) return;
+  if (state.items.length > 512) {
+    cached.rendered = null;
+    return;
+  }
+  const outlineBytes = JSON.stringify(state.items.map((item) => item.loops)).length * 2;
+  const markupBytes = state.svg.outerHTML
+    ? state.svg.outerHTML.length * 2 : outlineBytes + state.items.length * 256;
+  const imageBytes = outlineBytes + markupBytes;
+  if (imageBytes > MAX_CONTACT_CACHE_BYTES) {
+    cached.rendered = null;
+    return;
+  }
+  if (imageBytes + cached.geometryBytes > MAX_CONTACT_CACHE_BYTES) {
+    cached.contacts = null;
+    cached.geometryBytes = 0;
+  }
+  cached.rendered = {
+    displayKey, svg: state.svg, items: state.items,
+    dimensions: {
+      width: state.size.width, height: state.size.height,
+      diagramWidth: state.diagramWidth, diagramHeight: state.diagramHeight,
+    },
+  };
+}
+
+/** Attach a cached vector image to a fresh workspace with fresh interaction state. */
+function restoreRenderedContactDiagram(dialog, geometryKey, displayKey, contacts) {
+  const rendered = matchingContactCache(dialog, geometryKey)?.rendered;
+  if (!rendered || rendered.displayKey !== displayKey) return false;
+  const state = dialog.children[2].contactState;
+  updateInterfaceContactWorkspace(state, rendered.svg, rendered.items, contacts, rendered.dimensions);
+  return true;
+}
+
 /** Preserve the picked face's viewing side while normalizing its surface normal. */
 function contactOrientation(normal) {
   const length = Math.hypot(...normal);
@@ -28,6 +101,60 @@ function contactPlanePoint(point, normal, parentAxes = null) {
     -point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
     point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
   ];
+}
+
+/** Remove subpixel detail while retaining corners, winding, and separate holes. */
+function simplifyContactOutline(points, tolerance = 0.3) {
+  if (points.length < 4) return points;
+  const distanceSquared = (first, second) => (
+    (first[0] - second[0]) ** 2 + (first[1] - second[1]) ** 2
+  );
+  const vertices = points.filter((point, index) => (
+    !index || distanceSquared(point, points[index - 1]) > 1e-12
+  ));
+  if (vertices.length > 1 && distanceSquared(vertices[0], vertices.at(-1)) <= 1e-12) {
+    vertices.pop();
+  }
+  if (vertices.length < 4) return vertices;
+  let opposite = 1;
+  for (let index = 2; index < vertices.length; index += 1) {
+    if (distanceSquared(vertices[0], vertices[index])
+      > distanceSquared(vertices[0], vertices[opposite])) opposite = index;
+  }
+  const simplifyChain = (chain) => {
+    const keep = new Set([0, chain.length - 1]);
+    const pending = [[0, chain.length - 1]];
+    while (pending.length) {
+      const [start, end] = pending.pop();
+      const first = chain[start];
+      const last = chain[end];
+      const span = distanceSquared(first, last);
+      let farthest = -1;
+      let deviation = tolerance * tolerance;
+      for (let index = start + 1; index < end; index += 1) {
+        const point = chain[index];
+        const fraction = span ? Math.max(0, Math.min(1,
+          ((point[0] - first[0]) * (last[0] - first[0])
+            + (point[1] - first[1]) * (last[1] - first[1])) / span)) : 0;
+        const projected = [first[0] + fraction * (last[0] - first[0]),
+          first[1] + fraction * (last[1] - first[1])];
+        const error = distanceSquared(point, projected);
+        if (error > deviation) {
+          deviation = error;
+          farthest = index;
+        }
+      }
+      if (farthest >= 0) {
+        keep.add(farthest);
+        pending.push([start, farthest], [farthest, end]);
+      }
+    }
+    return chain.filter((_point, index) => keep.has(index));
+  };
+  const first = simplifyChain(vertices.slice(0, opposite + 1));
+  const second = simplifyChain([...vertices.slice(opposite), vertices[0]]);
+  const simplified = [...first.slice(0, -1), ...second.slice(0, -1)];
+  return simplified.length >= 3 ? simplified : vertices;
 }
 
 /** Keep every contact at its actual in-plane position within an orientation group. */
@@ -99,11 +226,6 @@ function renderInterfaceContacts(diagram, contacts) {
         role: "option", "aria-selected": "false", tabindex: "0",
       });
       contactGroup.setAttribute("aria-label", contact.assignedName || `Unnamed contact: ${contact.name}`);
-      contactGroup.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        selectInterfaceContactIds(workspace, [contact.contactId], event);
-      });
       const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
       title.textContent = contact.assignedName || `Unnamed contact · ${contact.name}`;
       contactGroup.append(title);
@@ -128,10 +250,10 @@ function renderInterfaceContacts(diagram, contacts) {
       const outlinePaths = [];
       loops.forEach((loop) => {
         if (!loop.length) return;
-        const positioned = loop.map(([x, y]) => [
+        const positioned = simplifyContactOutline(loop.map(([x, y]) => [
           offsetX + 16 + (x - minX) * geometryScale,
           44 + (y - minY) * geometryScale,
-        ]);
+        ]));
         positionedLoops.push(positioned);
         if (positioned.length === 1) {
           const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -189,6 +311,16 @@ function renderInterfaceContacts(diagram, contacts) {
 
 /** Refresh an open contact diagram when Fusion sends an updated harness state. */
 function refreshInterfaceContacts() {
+  if (cachedContactGeometry) {
+    const cachedHarness = currentState.harnesses.find((item) => (
+      item.harnessId === cachedContactGeometry.harnessId
+    ));
+    const cachedInterface = (cachedHarness?.interfaces || []).find((item) => (
+      item.interfaceId === cachedContactGeometry.interfaceId
+    ));
+    if (!cachedInterface || contactGeometryKey(cachedInterface.contacts || [])
+      !== cachedContactGeometry.geometryKey) cachedContactGeometry = null;
+  }
   const dialog = document.body.querySelector(".interface-contacts-popup");
   if (!dialog?.open) return;
   const harness = currentState.harnesses.find((item) => item.harnessId === dialog.dataset.harnessId);
@@ -235,22 +367,50 @@ function hideInterfaceContactLoading(diagram) {
 function updateInterfaceContactData(dialog, contacts) {
   const diagram = dialog.children[2];
   dialog.contactMetadata = contacts;
-  const geometryKey = JSON.stringify(contacts.map((item) => [item.contactId, item.geometryRevision]));
+  const geometryKey = contactGeometryKey(contacts);
   const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName]));
   dialog.requestedGeometryKey = geometryKey;
+  if (cachedContactGeometry && !matchingContactCache(dialog, geometryKey)) {
+    cachedContactGeometry = null;
+  }
   if (dialog.loadedGeometryKey === geometryKey) {
     hideInterfaceContactLoading(diagram);
     if (dialog.contactDisplayKey !== displayKey) {
       const geometry = new Map(diagram.contactState.contacts.map((item) => [item.contactId, item]));
-      renderInterfaceContacts(diagram, contacts.map((item) => ({ ...geometry.get(item.contactId), ...item })));
-      dialog.contactDisplayKey = displayKey;
+      if (contacts.every((item) => Array.isArray(geometry.get(item.contactId)?.loops))) {
+        renderInterfaceContacts(diagram, contacts.map((item) => ({ ...geometry.get(item.contactId), ...item })));
+        dialog.contactDisplayKey = displayKey;
+        rememberRenderedContactDiagram(dialog, geometryKey, displayKey);
+      } else {
+        dialog.loadedGeometryKey = null;
+      }
     }
-    return;
+    if (dialog.loadedGeometryKey === geometryKey) return;
   }
   if (dialog.contactRequestPending) return;
+  const cached = matchingContactCache(dialog, geometryKey);
+  if (cached) {
+    const metadata = new Map(contacts.map((item) => [item.contactId, item]));
+    const currentContacts = cached.contacts?.map((item) => ({ ...item, ...metadata.get(item.contactId) }))
+      || contacts;
+    if (restoreRenderedContactDiagram(dialog, geometryKey, displayKey, currentContacts)) {
+      dialog.loadedGeometryKey = geometryKey;
+      dialog.contactDisplayKey = displayKey;
+      return;
+    }
+    if (cached.contacts) {
+      renderInterfaceContacts(diagram, currentContacts);
+      rememberRenderedContactDiagram(dialog, geometryKey, displayKey);
+      dialog.loadedGeometryKey = geometryKey;
+      dialog.contactDisplayKey = displayKey;
+      return;
+    }
+  }
   if (!contacts.length || contacts.every((item) => Array.isArray(item.loops))) {
     hideInterfaceContactLoading(diagram);
     renderInterfaceContacts(diagram, contacts);
+    rememberContactGeometry(dialog, geometryKey, contacts);
+    rememberRenderedContactDiagram(dialog, geometryKey, displayKey);
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = displayKey;
     return;
@@ -261,10 +421,19 @@ function updateInterfaceContactData(dialog, contacts) {
     if (!dialog.open || dialog.requestedGeometryKey !== geometryKey) return;
     if (!response.ok || !Array.isArray(response.contacts)) throw new Error(response.error || "Contact geometry unavailable.");
     const metadata = new Map(dialog.contactMetadata.map((item) => [item.contactId, item]));
+    if (response.contacts.length !== metadata.size
+      || response.contacts.some((item) => !metadata.has(item.contactId))) {
+      throw new Error("Contact geometry no longer matches the saved Interface.");
+    }
+    rememberContactGeometry(dialog, geometryKey, response.contacts);
     hideInterfaceContactLoading(diagram);
     renderInterfaceContacts(diagram, response.contacts.map((item) => ({ ...item, ...metadata.get(item.contactId) })));
+    const currentDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => (
+      [item.contactId, item.name, item.assignedName]
+    )));
+    rememberRenderedContactDiagram(dialog, geometryKey, currentDisplayKey);
     dialog.loadedGeometryKey = geometryKey;
-    dialog.contactDisplayKey = JSON.stringify(dialog.contactMetadata.map((item) => [item.contactId, item.name, item.assignedName]));
+    dialog.contactDisplayKey = currentDisplayKey;
   }).catch((error) => {
     if (dialog.open && dialog.requestedGeometryKey === geometryKey) {
       showInterfaceContactLoading(diagram, contacts.length, 0, true);
@@ -371,6 +540,10 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
+    // A cached SVG must not retain the old workspace's event handlers and state.
+    if (cachedContactGeometry?.rendered?.svg === diagram.contactState.svg) {
+      diagram.contactState.workspace.stage.replaceChildren();
+    }
     dialog.contactMetadata = [];
     diagram.contactState = null;
     diagram.replaceChildren();

@@ -25,12 +25,24 @@ function closeEditor() {
   ui.harnessFilter.focus();
 }
 
+let lastEditorStateKey = null;
+
+/** Ignore notifications and contact revisions when deciding to rebuild the master editor. */
+function editorStateKey(state) {
+  const { notice, theme, ...content } = state;
+  return JSON.stringify([selectedHarnessKey, content], (key, value) => (
+    key === "geometryRevision" ? undefined : value
+  ));
+}
+
 function render(state) {
   const scrollTop = document.scrollingElement.scrollTop;
+  const nextEditorStateKey = editorStateKey(state);
   currentState = state;
   refreshInterfaceContacts();
   applyPaletteTheme(state.theme);
   appendNotice(state.notice);
+  if (lastEditorStateKey === nextEditorStateKey) return;
   renderLibrary();
   const selected = state.harnesses.find(
     (harness) => harnessKey(harness) === selectedHarnessKey,
@@ -50,6 +62,7 @@ function render(state) {
     ui.libraryView.hidden = false;
     clearValidationDisplay();
   }
+  lastEditorStateKey = editorStateKey(state);
   window.requestAnimationFrame(() => window.scrollTo(0, scrollTop));
 }
 

@@ -158,6 +158,118 @@ def test_native_command_termination_does_not_create_an_undo_entry(
     send.assert_called_once_with(application)
 
 
+@pytest.mark.parametrize(
+    "command_id",
+    (
+        "PanCommand",
+        "OrbitCommand",
+        "ZoomCommand",
+        "ZoomWindowCommand",
+        "FitCommand",
+        "SelectCommand",
+        "ClearSelectionCommand",
+        "ViewCubeOrbitCommand",
+        "ScriptsManagerCommand",
+    ),
+)
+def test_view_navigation_keeps_contact_geometry_and_skips_palette_refresh(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    command_id: str,
+) -> None:
+    """
+    Camera, selection, and add-in management leave the contact diagram unchanged.
+    """
+    cache = importlib.import_module("cable_bundler.fusion.interface_contact_cache")
+    design = SimpleNamespace(rootComponent=SimpleNamespace(entityToken="active"))
+    entity = SimpleNamespace(entityToken="contact", isValid=True)
+    cache.remember_contact_entity(design, entity)
+    application = SimpleNamespace(activeProduct=design)
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.core"]), "Application", SimpleNamespace(get=lambda: application)
+    )
+    read_harnesses = Mock()
+    send = Mock()
+    monkeypatch.setattr(addin_module, "load_harnesses", read_harnesses)
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    revision = addin_module._runtime.contact_geometry_revision
+    try:
+        addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId=command_id))
+        assert addin_module._runtime.contact_geometry_revision == revision
+        assert cache._entries["contact"] == (entity,)
+        read_harnesses.assert_not_called()
+        send.assert_not_called()
+    finally:
+        cache.clear_contact_resolutions()
+
+
+@pytest.mark.parametrize("reason", (2, 3, 4, 5))
+def test_noncompleted_native_command_does_not_reload_contact_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: int,
+) -> None:
+    """
+    A canceled or pre-empted command leaves the model and diagram unchanged.
+    """
+    core = sys.modules["adsk.core"]
+    monkeypatch.setitem(
+        vars(core), "CommandTerminationReason", SimpleNamespace(CompletedTerminationReason=1)
+    )
+    application = SimpleNamespace(activeProduct=object())
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    read_harnesses = Mock()
+    send = Mock()
+    monkeypatch.setattr(addin_module, "load_harnesses", read_harnesses)
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    clear = Mock()
+    monkeypatch.setitem(vars(addin_module), "clear_contact_resolutions", clear)
+    revision = addin_module._runtime.contact_geometry_revision
+
+    addin_module._HistoryChangedHandler().notify(
+        SimpleNamespace(commandId="MoveCommand", terminationReason=reason)
+    )
+
+    assert addin_module._runtime.contact_geometry_revision == revision
+    clear.assert_not_called()
+    read_harnesses.assert_not_called()
+    send.assert_not_called()
+
+
+def test_completed_native_command_still_reloads_contact_geometry(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A successful edit must invalidate the diagram's geometry snapshot.
+    """
+    core = sys.modules["adsk.core"]
+    monkeypatch.setitem(
+        vars(core), "CommandTerminationReason", SimpleNamespace(CompletedTerminationReason=1)
+    )
+    application = SimpleNamespace(activeProduct=object())
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda value: value)
+    )
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
+    monkeypatch.setattr(addin_module, "load_harnesses", Mock(return_value=()))
+    monkeypatch.setattr(addin_module, "reconcile_preview_history", Mock())
+    send = Mock()
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    clear = Mock()
+    monkeypatch.setitem(vars(addin_module), "clear_contact_resolutions", clear)
+    revision = addin_module._runtime.contact_geometry_revision
+
+    addin_module._HistoryChangedHandler().notify(
+        SimpleNamespace(commandId="MoveCommand", terminationReason=1)
+    )
+
+    assert addin_module._runtime.contact_geometry_revision == revision + 1
+    clear.assert_called_once_with()
+    send.assert_called_once_with(application)
+
+
 def test_deferred_stripe_restore_event_registers_and_releases(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

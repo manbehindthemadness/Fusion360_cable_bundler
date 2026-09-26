@@ -60,6 +60,18 @@ from .support import (
 )
 
 _HISTORY_NAVIGATION_COMMAND_IDS = frozenset(("UndoCommand", "RedoCommand"))
+_VIEW_COMMAND_IDS = frozenset(
+    (
+        "PanCommand",
+        "OrbitCommand",
+        "ZoomCommand",
+        "ZoomWindowCommand",
+        "FitCommand",
+        "SelectCommand",
+        "ClearSelectionCommand",
+    )
+)
+_NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand",))
 _DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
 
 
@@ -79,6 +91,14 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
+            reason = getattr(args, "terminationReason", None)
+            if (
+                reason is not None
+                and reason != adsk.core.CommandTerminationReason.CompletedTerminationReason
+            ):
+                return
+            if args.commandId in _NON_MODEL_COMMAND_IDS or args.commandId.startswith("ViewCube"):
+                return
             metadata_commands = {
                 f"{COMMAND_ID}_{action}"
                 for action in (
