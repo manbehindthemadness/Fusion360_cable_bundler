@@ -218,6 +218,7 @@ def test_255_contact_warm_read_never_queries_source_geometry(
         InterfaceContact(UUID(int=index + 10), AttachmentTargetKind.FACE, f"face-{index}")
         for index in range(255)
     )
+    monkeypatch.setitem(vars(cache), "contact_source_signature", lambda _design, _contact: "stable")
     cache.project_cached_contact_batch(application, object(), *ids, contacts, _projection)
     source = Mock(side_effect=AssertionError("warm read touched live geometry"))
     monkeypatch.setitem(vars(cache), "contact_source_signature", source)
@@ -229,6 +230,7 @@ def test_255_contact_warm_read_never_queries_source_geometry(
     assert [item["contactId"] for item in projected] == [
         str(contact.contact_id) for contact in contacts
     ]
+    assert all(item["sourceSignature"] == "stable" for item in projected)
     source.assert_not_called()
 
 

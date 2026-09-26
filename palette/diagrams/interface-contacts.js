@@ -28,8 +28,15 @@ function rememberContactGeometry(dialog, geometryKey, contacts) {
     interfaceId: dialog.dataset.interfaceId,
     geometryKey,
     contacts: size <= MAX_CONTACT_CACHE_BYTES ? contacts : null,
+    signatures: contactSignatures(contacts),
     geometryBytes: size <= MAX_CONTACT_CACHE_BYTES ? size : 0,
   };
+}
+
+/** Retain only complete source fingerprints for a later model-change check. */
+function contactSignatures(contacts) {
+  if (!contacts.every((item) => typeof item.sourceSignature === "string")) return null;
+  return Object.fromEntries(contacts.map((item) => [item.contactId, item.sourceSignature]));
 }
 
 /** Retain the finished vector image and hit-test outlines, not its old workspace. */
@@ -315,11 +322,9 @@ function refreshInterfaceContacts() {
     const cachedHarness = currentState.harnesses.find((item) => (
       item.harnessId === cachedContactGeometry.harnessId
     ));
-    const cachedInterface = (cachedHarness?.interfaces || []).find((item) => (
+    if (!(cachedHarness?.interfaces || []).some((item) => (
       item.interfaceId === cachedContactGeometry.interfaceId
-    ));
-    if (!cachedInterface || contactGeometryKey(cachedInterface.contacts || [])
-      !== cachedContactGeometry.geometryKey) cachedContactGeometry = null;
+    ))) cachedContactGeometry = null;
   }
   const dialog = document.body.querySelector(".interface-contacts-popup");
   if (!dialog?.open) return;
@@ -374,6 +379,44 @@ function updateInterfaceContactData(dialog, contacts) {
   const geometryKey = contactGeometryKey(contacts);
   const displayKey = JSON.stringify(contacts.map((item) => [item.contactId, item.name, item.assignedName]));
   dialog.requestedGeometryKey = geometryKey;
+  if (dialog.geometryValidationPending) return;
+  const priorCache = cachedContactGeometry?.harnessId === dialog.dataset.harnessId
+    && cachedContactGeometry.interfaceId === dialog.dataset.interfaceId ? cachedContactGeometry : null;
+  const priorKey = dialog.loadedGeometryKey || priorCache?.geometryKey;
+  const signatures = dialog.contactSignatures || priorCache?.signatures;
+  if (priorKey && priorKey !== geometryKey && signatures
+    && contacts.length <= 1024 && Object.keys(signatures).length === contacts.length
+    && contacts.every((item) => typeof signatures[item.contactId] === "string")) {
+    dialog.geometryValidationPending = geometryKey;
+    void send("get_interface_contact_signatures", {
+      harnessId: dialog.dataset.harnessId, interfaceId: dialog.dataset.interfaceId,
+      contactIds: contacts.map((item) => item.contactId),
+    }).then((response) => {
+      if (!response.ok || !response.signatures) throw new Error(response.error || "Contact validation unavailable.");
+      if (!dialog.open || contactGeometryKey(dialog.contactMetadata) !== geometryKey) return;
+      const unchanged = contacts.every((item) => (
+        typeof response.signatures[item.contactId] === "string"
+        && response.signatures[item.contactId] === signatures[item.contactId]
+      ));
+      if (unchanged) {
+        if (dialog.loadedGeometryKey === priorKey) dialog.loadedGeometryKey = geometryKey;
+        if (priorCache?.geometryKey === priorKey) priorCache.geometryKey = geometryKey;
+      } else {
+        dialog.loadedGeometryKey = null;
+        dialog.contactSignatures = null;
+        cachedContactGeometry = null;
+      }
+    }).catch(() => {
+      if (!dialog.open) return;
+      dialog.loadedGeometryKey = null;
+      dialog.contactSignatures = null;
+      cachedContactGeometry = null;
+    }).finally(() => {
+      dialog.geometryValidationPending = null;
+      if (dialog.open) updateInterfaceContactData(dialog, dialog.contactMetadata);
+    });
+    return;
+  }
   if (cachedContactGeometry && !matchingContactCache(dialog, geometryKey)) {
     cachedContactGeometry = null;
   }
@@ -400,6 +443,7 @@ function updateInterfaceContactData(dialog, contacts) {
     if (restoreRenderedContactDiagram(dialog, geometryKey, displayKey, currentContacts)) {
       dialog.loadedGeometryKey = geometryKey;
       dialog.contactDisplayKey = displayKey;
+      dialog.contactSignatures = cached.signatures;
       return;
     }
     if (cached.contacts) {
@@ -407,6 +451,7 @@ function updateInterfaceContactData(dialog, contacts) {
       rememberRenderedContactDiagram(dialog, geometryKey, displayKey);
       dialog.loadedGeometryKey = geometryKey;
       dialog.contactDisplayKey = displayKey;
+      dialog.contactSignatures = cached.signatures;
       return;
     }
   }
@@ -417,6 +462,7 @@ function updateInterfaceContactData(dialog, contacts) {
     rememberRenderedContactDiagram(dialog, geometryKey, displayKey);
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = displayKey;
+    dialog.contactSignatures = contactSignatures(contacts);
     return;
   }
   dialog.contactRequestPending = true;
@@ -441,6 +487,7 @@ function updateInterfaceContactData(dialog, contacts) {
     const renderMs = Date.now() - renderStarted;
     dialog.loadedGeometryKey = geometryKey;
     dialog.contactDisplayKey = currentDisplayKey;
+    dialog.contactSignatures = contactSignatures(response.contacts);
     if (developerModeEnabled) {
       void reportInterfaceContactCache(dialog, response, renderMs);
     }
@@ -497,6 +544,7 @@ async function rebuildInterfaceContactCache(dialog) {
     cachedContactGeometry = null;
     dialog.loadedGeometryKey = null;
     dialog.contactDisplayKey = null;
+    dialog.contactSignatures = null;
     dialog.requestedGeometryKey = null;
     dialog.cacheRebuildPending = false;
     updateInterfaceContactData(dialog, dialog.contactMetadata);

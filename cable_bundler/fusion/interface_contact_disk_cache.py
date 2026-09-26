@@ -404,6 +404,7 @@ def read_complete_cached_contacts(
         if not _valid_projection(candidate, contact):
             return None
         payload = dict(candidate)
+        payload["sourceSignature"] = record.get("sourceSignature")
         payload["assignedName"] = contact.name
         source_name = payload.get("sourceName")
         payload["name"] = contact.name or (

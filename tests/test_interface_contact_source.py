@@ -51,6 +51,9 @@ def test_body_revision_and_occurrence_placement_change_signature(
     contact = InterfaceContact(UUID(int=3), AttachmentTargetKind.FACE, "face-token")
 
     original = source.contact_source_signature(object(), contact)
+    body.isVisible = False
+    entity.isVisible = False
+    assert source.contact_source_signature(object(), contact) == original
     body.revisionId = "revision-2"
     revised = source.contact_source_signature(object(), contact)
     matrix.values[3] = 5.0

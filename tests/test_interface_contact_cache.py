@@ -125,6 +125,7 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
     monkeypatch.setitem(vars(module), "_require_active_design", lambda _: "design")
     project = Mock(side_effect=lambda _design, contact: {"contactId": str(contact.contact_id)})
     monkeypatch.setitem(vars(module), "project_interface_contact", project)
+    monkeypatch.setitem(vars(module), "contact_source_signature", lambda _design, _contact: "same")
     describe = Mock(return_value={"reason": "eligible", "snapshot": "missing"})
     monkeypatch.setitem(vars(module), "describe_interface_contact_cache", describe)
     payload = {
@@ -138,7 +139,9 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
     result = json.loads(
         module._dispatch_palette_action(application, "get_interface_contacts", json.dumps(payload))
     )
-    assert result["contacts"] == [{"contactId": str(contacts[2].contact_id)}]
+    assert result["contacts"] == [
+        {"contactId": str(contacts[2].contact_id), "sourceSignature": "same"}
+    ]
     assert result["cacheBefore"] == describe.return_value
     assert result["cacheStats"] == {"hits": 0, "misses": 1}
     assert isinstance(result["serverMs"], int)
@@ -147,6 +150,47 @@ def test_contact_geometry_dispatch_limits_work_to_requested_batch(
     payload["contactIds"] = [str(item.contact_id) for item in contacts]
     with pytest.raises(ValueError, match="eight"):
         module._dispatch_palette_action(object(), "get_interface_contacts", json.dumps(payload))
+
+
+def test_contact_signature_dispatch_validates_selected_sources(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Compare live source fingerprints without sampling full contact outlines.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    interface_id = UUID(int=2)
+    contact = SimpleNamespace(contact_id=UUID(int=3))
+    interface = SimpleNamespace(interface_id=interface_id, contacts=(contact,))
+    monkeypatch.setitem(
+        vars(module),
+        "_create_harness_gateway",
+        lambda _: SimpleNamespace(read_harness_definition=lambda _: "definition"),
+    )
+    monkeypatch.setitem(vars(module), "loads", lambda _: SimpleNamespace(interfaces=(interface,)))
+    monkeypatch.setitem(vars(module), "_require_active_design", lambda _: "design")
+    signature = Mock(return_value="unchanged")
+    monkeypatch.setitem(vars(module), "contact_source_signature", signature)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(interface_id),
+        "contactIds": [str(contact.contact_id)],
+    }
+
+    result = json.loads(
+        module._dispatch_palette_action(
+            object(), "get_interface_contact_signatures", json.dumps(payload)
+        )
+    )
+
+    assert result == {"ok": True, "signatures": {str(contact.contact_id): "unchanged"}}
+    signature.assert_called_once_with("design", contact)
+    payload["contactIds"].append(str(UUID(int=4)))
+    with pytest.raises(ValueError, match="no longer match"):
+        module._dispatch_palette_action(
+            object(), "get_interface_contact_signatures", json.dumps(payload)
+        )
 
 
 def test_complete_cache_dispatch_reads_all_contacts_once(

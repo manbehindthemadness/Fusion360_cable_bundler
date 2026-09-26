@@ -156,6 +156,53 @@ asyncTest('Contact geometry requests coalesce, reuse names, and release closed d
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
 });
 
+asyncTest('Unchanged contact sources keep the diagram across model revisions', async () => {
+  const { context } = palette();
+  const actions = [];
+  let signature = 'same-source';
+  context.send = async (action) => {
+    actions.push(action);
+    if (action === 'get_interface_contact_signatures') {
+      return { ok: true, signatures: { a: signature } };
+    }
+    return { ok: true, contacts: [{
+      contactId: 'a', name: 'A', sourceSignature: signature, linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }] };
+  };
+  const contact = { contactId: 'a', name: 'A', geometryRevision: 1 };
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts: [contact],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const svg = dialog.children[2].contactState.svg;
+  for (const revision of [2, 3, 4]) {
+    context.updateInterfaceContactData(dialog, [{ ...contact, geometryRevision: revision }]);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(dialog.children[2].contactState.svg, svg);
+  }
+  assert.deepEqual(actions, [
+    'get_interface_contacts',
+    'get_interface_contact_signatures',
+    'get_interface_contact_signatures',
+    'get_interface_contact_signatures',
+  ]);
+  dialog.close();
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts: [{ ...contact, geometryRevision: 5 }],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const reopened = context.document.body.querySelector('.interface-contacts-popup');
+  assert.equal(reopened.children[2].contactState.svg, svg);
+  signature = 'changed-source';
+  context.updateInterfaceContactData(reopened, [{ ...contact, geometryRevision: 6 }]);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.notEqual(reopened.children[2].contactState.svg, svg);
+  assert.equal(actions.at(-1), 'get_interface_contacts');
+  reopened.close();
+});
+
 asyncTest('Closing contacts stops additional geometry batches', async () => {
   const { context } = palette();
   const requests = [];
