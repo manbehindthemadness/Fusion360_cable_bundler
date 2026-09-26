@@ -12,14 +12,8 @@ import adsk.fusion
 
 from ....application import create_empty_harness, suggest_harness_name
 from ....domain import RoutingMode
-from ..constants import (
-    DEFAULT_HARNESS_NAME,
-    HARNESS_NAME_INPUT_ID,
-    ROUTING_MODE_INPUT_ID,
-)
-from ..constants import (
-    ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS,
-)
+from ..constants import DEFAULT_HARNESS_NAME, HARNESS_NAME_INPUT_ID, ROUTING_MODE_INPUT_ID
+from ..constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _report_failure
@@ -38,11 +32,10 @@ class _HarnessBuilderExecuteHandler(adsk.core.CommandEventHandler):
         try:
             application = adsk.core.Application.get()
             name = _read_harness_name(args.command.commandInputs)
-            routing_mode = _read_routing_mode(args.command.commandInputs)
             gateway = _create_harness_gateway(application)
             definition = create_empty_harness(
                 name,
-                routing_mode,
+                RoutingMode.ROUTING_GATES,
                 gateway,
             )
             _send_palette_state(application, f"Created {definition.name}.")
@@ -58,11 +51,10 @@ class _HarnessBuilderValidateInputsHandler(adsk.core.ValidateInputsEventHandler)
     # noinspection PyMethodMayBeStatic
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
-        Validate the harness name and routing-mode selection.
+        Validate the harness name.
         """
         try:
             _read_harness_name(args.inputs)
-            _read_routing_mode(args.inputs)
         except ValueError:
             args.areInputsValid = False
             return
@@ -92,18 +84,6 @@ class _CreateHarnessCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             if name_input is None:
                 raise RuntimeError("Fusion did not create the harness name input.")
-
-            routing_mode_input = command_inputs.addDropDownCommandInput(
-                ROUTING_MODE_INPUT_ID,
-                "Routing Mode",
-                adsk.core.DropDownStyles.TextListDropDownStyle,
-            )
-            if routing_mode_input is None:
-                raise RuntimeError("Fusion did not create the routing mode input.")
-            for index, label in enumerate(_ROUTING_MODE_LABELS.values()):
-                list_item = routing_mode_input.listItems.add(label, index == 0)
-                if list_item is None:
-                    raise RuntimeError(f"Fusion did not add the routing mode option: {label}")
 
             execute_handler = _HarnessBuilderExecuteHandler()
             validate_handler = _HarnessBuilderValidateInputsHandler()
@@ -139,6 +119,8 @@ def _read_harness_name(command_inputs: adsk.core.CommandInputs) -> str:
 def _read_routing_mode(command_inputs: adsk.core.CommandInputs) -> RoutingMode:
     """
     Map the selected Fusion label to its routing-mode domain value.
+
+    Add Pathway still uses this reader for its own routing-mode selector.
     """
     mode_input = adsk.core.DropDownCommandInput.cast(command_inputs.itemById(ROUTING_MODE_INPUT_ID))
     if mode_input is None or mode_input.selectedItem is None:
