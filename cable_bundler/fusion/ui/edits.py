@@ -62,6 +62,7 @@ from ...application import (
 from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, JunctionPathwayRelationship, PathwayEndpoint
 from ...domain.codec import parse_interpolation
+from ..interface_contact_geo_import import import_interface_contact_geometry_names
 from ..interface_contact_naming import import_interface_contact_names
 from .payloads import (
     _read_harness_properties,
@@ -149,6 +150,15 @@ def _apply_palette_edit(
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source = "live" if action == "pos_import_interface_contacts" else "file"
         return import_interface_contact_names(application, harness_id, interface_id, source)
+    if action == "geo_import_interface_contacts":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        raw_ids = payload.get("contactIds")
+        if not isinstance(raw_ids, list) or any(not isinstance(item, str) for item in raw_ids):
+            raise ValueError("Geo Import contact IDs must be a list of identities.")
+        contact_ids = tuple(UUID(item) for item in raw_ids)
+        return import_interface_contact_geometry_names(
+            application, harness_id, interface_id, contact_ids
+        )
     gateway = _create_harness_gateway(application)
     if action in _TOPOLOGY_ACTIONS:
         return _apply_topology_edit(action, payload, harness_id, gateway)

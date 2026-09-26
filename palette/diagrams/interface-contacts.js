@@ -694,7 +694,8 @@ function openInterfaceContacts(harness, interfaceItem) {
     naming, diagram, harness.harnessId, interfaceItem.interfaceId,
   ));
   naming.append(autoPin);
-  [["Pos Import", "pos_import_interface_contacts"],
+  [["Geo Import", "geo_import_interface_contacts"],
+    ["Pos Import", "pos_import_interface_contacts"],
     ["Load brd", "load_brd_interface_contacts"]].forEach(([label, action]) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -703,6 +704,8 @@ function openInterfaceContacts(harness, interfaceItem) {
     button.addEventListener("click", () => {
       void send(action, {
         harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
+        ...(action === "geo_import_interface_contacts"
+          ? { contactIds: [...diagram.contactState.selectedIds] } : {}),
       }).catch((error) => appendNotice(String(error), true));
     });
     naming.append(button);

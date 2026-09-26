@@ -31,7 +31,8 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
     'Manual', 'Row', 'Plane', 'Delete',
   ]);
   const naming = dialog.children[1].children[1].children;
-  assert.deepEqual(naming.map((button) => button.textContent), ['Pos Import', 'Load brd']);
+  assert.deepEqual(naming.map((button) => button.textContent),
+    ['Auto Pin', 'Geo Import', 'Pos Import', 'Load brd']);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
@@ -50,11 +51,13 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(launches[0].payload.mode, 'manual');
   modes[2].events.click();
   assert.equal(launches[2].payload.mode, 'plane');
-  naming[0].events.click();
   naming[1].events.click();
+  naming[2].events.click();
+  naming[3].events.click();
   assert.deepEqual(launches.slice(3).map((item) => item.action), [
-    'pos_import_interface_contacts', 'load_brd_interface_contacts',
+    'geo_import_interface_contacts', 'pos_import_interface_contacts', 'load_brd_interface_contacts',
   ]);
+  assert.deepEqual(Array.from(launches[3].payload.contactIds), []);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'false', 'false', 'true',
   ]);

@@ -118,7 +118,8 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   const naming = dialog.children[1].children[1];
   const button = naming.children[0];
   assert.equal(button.textContent, 'Auto Pin');
-  assert.equal(naming.children[1].textContent, 'Pos Import');
+  assert.equal(naming.children[1].textContent, 'Geo Import');
+  assert.equal(naming.children[2].textContent, 'Pos Import');
   button.events.click();
   const form = naming.querySelector('.interface-contact-auto-pin');
   const direction = form.children[0].children[0];
@@ -168,6 +169,28 @@ test('Auto Pin remembers order within the palette session', () => {
   anotherPalette.openInterfaceAutoPin(invalidNaming, anotherDiagram, 'harness-1', 'interface-1');
   assert.equal(invalidNaming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
     'LRTB');
+});
+
+test('Geo Import sends only selected contact IDs when a selection exists', () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const contacts = ['a', 'b'].map((contactId, index) => ({
+    contactId, kind: 'face', name: contactId, linked: true, normal: [0, 0, 1],
+    loops: [[[index * 10, 0, 0], [index * 10 + 2, 0, 0], [index * 10 + 2, 2, 0]]],
+  }));
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts,
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  dialog.children[2].contactState.selectedIds.add('b');
+  dialog.children[1].children[1].children[1].events.click();
+  assert.equal(launches.length, 1);
+  assert.equal(launches[0].action, 'geo_import_interface_contacts');
+  assert.deepEqual(Array.from(launches[0].payload.contactIds), ['b']);
 });
 
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {

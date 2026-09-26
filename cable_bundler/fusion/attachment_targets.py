@@ -50,9 +50,9 @@ def attachment_target_kind(entity: object) -> Optional[AttachmentTargetKind]:
     return next((kind for entity_type, kind in candidates if _cast(entity_type, entity)), None)
 
 
-def attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
+def explicit_attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
     """
-    Return the closest user-controlled Fusion name for one attachment target.
+    Return the closest explicit Fusion geometry name, or empty text if absent.
     """
     if kind in {AttachmentTargetKind.JOINT_ORIGIN, AttachmentTargetKind.CONSTRUCTION_POINT}:
         name = getattr(entity, "name", "")
@@ -61,8 +61,16 @@ def attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
     else:
         body = getattr(entity, "body", None)
         name = getattr(body, "name", "")
-    if isinstance(name, str) and name.strip():
-        return name.strip()
+    return name.strip() if isinstance(name, str) else ""
+
+
+def attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
+    """
+    Return the closest user-controlled Fusion name or a descriptive fallback.
+    """
+    name = explicit_attachment_target_name(entity, kind)
+    if name:
+        return name
     labels = {
         AttachmentTargetKind.PROFILE: "Socket profile",
         AttachmentTargetKind.FACE: "Body face",

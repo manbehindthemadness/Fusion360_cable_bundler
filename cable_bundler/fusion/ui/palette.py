@@ -323,6 +323,7 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             notice = _apply_palette_edit(application, action, data)
             if action in (
                 "pos_import_interface_contacts",
+                "geo_import_interface_contacts",
                 "load_brd_interface_contacts",
                 "set_interface_contact_name",
                 "set_interface_contact_details",

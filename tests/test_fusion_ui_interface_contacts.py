@@ -104,6 +104,35 @@ def test_auto_pin_routes_order_and_policy_without_value(
     assert "value" not in payload
 
 
+def test_geo_import_routes_selected_ids_as_one_metadata_edit(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Pass an empty or selected scope to the live geometry-name importer.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    importer = Mock(return_value="Imported geometry Values for 1 of 1 Interface contacts.")
+    monkeypatch.setitem(vars(edits), "import_interface_contact_geometry_names", importer)
+    application = object()
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactIds": [str(UUID(int=3))],
+    }
+    notice = edits._apply_palette_edit(
+        application, "geo_import_interface_contacts", json.dumps(payload)
+    )
+    assert notice == importer.return_value
+    importer.assert_called_once_with(application, UUID(int=1), UUID(int=2), (UUID(int=3),))
+    with pytest.raises(ValueError, match="contact IDs"):
+        edits._apply_palette_edit(
+            application,
+            "geo_import_interface_contacts",
+            json.dumps({**payload, "contactIds": None}),
+        )
+
+
 def test_contact_deletion_routes_selected_ids_as_one_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

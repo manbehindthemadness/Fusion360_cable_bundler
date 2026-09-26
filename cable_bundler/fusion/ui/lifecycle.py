@@ -152,6 +152,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                 f"{COMMAND_ID}_{action}"
                 for action in (
                     "pos_import_interface_contacts",
+                    "geo_import_interface_contacts",
                     "load_brd_interface_contacts",
                     "set_interface_contact_name",
                     "set_interface_contact_details",
