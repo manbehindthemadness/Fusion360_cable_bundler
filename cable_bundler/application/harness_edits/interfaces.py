@@ -211,3 +211,45 @@ def name_interface_contacts(
     if names:
         persist_definition(harness_id, original, updated, gateway)
     return updated_interface
+
+
+def set_interface_contact_details(
+    harness_id: UUID,
+    interface_id: UUID,
+    contact_id: UUID,
+    value: str,
+    pin: str,
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Save one contact's display value and optional pin in a single transaction.
+    """
+    if not isinstance(value, str) or not isinstance(pin, str):
+        raise ValueError("Contact value and pin must be text.")
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    contact = next((item for item in current.contacts if item.contact_id == contact_id), None)
+    if contact is None:
+        raise ValueError("Selected contact no longer exists.")
+    updated_contact = replace(contact, name=value.strip(), pin=pin.strip())
+    if updated_contact == contact:
+        return current
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            updated_contact if item.contact_id == contact_id else item for item in current.contacts
+        ),
+    )
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface

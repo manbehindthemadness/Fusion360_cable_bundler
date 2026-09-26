@@ -56,7 +56,7 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
     """
     Keep disconnected contact identities visible until Fusion can resolve geometry.
     """
-    contact = InterfaceContact(UUID(int=900), AttachmentTargetKind.FACE, "face")
+    contact = InterfaceContact(UUID(int=900), AttachmentTargetKind.FACE, "face", pin="P7")
     interface = InterfaceDefinition(
         UUID(int=901),
         "Socket",
@@ -77,6 +77,7 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
             "kind": "face",
             "name": "face",
             "assignedName": "",
+            "pin": "P7",
             "geometryRevision": addin_module._runtime.contact_geometry_revision,
         }
     ]

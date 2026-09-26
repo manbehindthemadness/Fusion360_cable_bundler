@@ -325,6 +325,7 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 "pos_import_interface_contacts",
                 "load_brd_interface_contacts",
                 "set_interface_contact_name",
+                "set_interface_contact_details",
                 "rename_interface",
             ):
                 _send_palette_state(application, notice)

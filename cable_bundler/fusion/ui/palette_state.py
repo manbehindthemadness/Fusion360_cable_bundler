@@ -361,6 +361,7 @@ def serialize_palette_state(
                                 "kind": contact.kind.value,
                                 "name": contact.name or contact.kind.value,
                                 "assignedName": contact.name,
+                                "pin": contact.pin,
                                 "geometryRevision": _runtime.contact_geometry_revision,
                             }
                             for contact in interface.contacts

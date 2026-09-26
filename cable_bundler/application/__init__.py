@@ -93,6 +93,7 @@ from .harness_edits.interfaces import (
     remove_interface,
     remove_interface_contacts,
     rename_interface,
+    set_interface_contact_details,
 )
 from .load_harnesses import (
     DamagedHarnessGateway,
@@ -140,6 +141,7 @@ __all__ = [
     "add_interface",
     "add_interface_contacts",
     "name_interface_contacts",
+    "set_interface_contact_details",
     "add_junction_relationship",
     "add_pathway_refine",
     "add_standalone_end",

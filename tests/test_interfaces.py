@@ -17,6 +17,7 @@ from cable_bundler.application import (
     remove_interface,
     remove_interface_contacts,
     rename_interface,
+    set_interface_contact_details,
 )
 from cable_bundler.domain import (
     AttachmentTargetKind,
@@ -104,6 +105,51 @@ def test_interface_contact_names_survive_round_trip_and_previous_schema(
     previous["schema_version"] = 30
     del previous["interfaces"][0]["contacts"][0]["name"]
     assert loads(json.dumps(previous)).interfaces[0].contacts[0].name == ""
+
+
+def test_interface_contact_value_and_pin_persist_with_legacy_default(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save both editor fields atomically and default older contacts to an empty pin.
+    """
+    contact = InterfaceContact(UUID(int=813), AttachmentTargetKind.FACE, "face", "J1.2")
+    interface = InterfaceDefinition(
+        UUID(int=814),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (contact,),
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+
+    updated = set_interface_contact_details(
+        definition.harness_id, interface.interface_id, contact.contact_id, " VCC ", " P7 ", gateway
+    )
+
+    assert updated.contacts[0].name == "VCC"
+    assert updated.contacts[0].pin == "P7"
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == updated.contacts
+    renamed = name_interface_contacts(
+        definition.harness_id, interface.interface_id, {contact.contact_id: "GND"}, gateway
+    )
+    assert renamed.contacts[0].pin == "P7"
+    previous = json.loads(dumps(definition))
+    previous["schema_version"] = 31
+    del previous["interfaces"][0]["contacts"][0]["pin"]
+    assert loads(json.dumps(previous)).interfaces[0].contacts[0].pin == ""
+    previous["interfaces"][0]["contacts"][0]["pin"] = 7
+    with pytest.raises(DefinitionParseError, match="contact pin"):
+        loads(json.dumps(previous))
+    with pytest.raises(ValueError, match="contact pin"):
+        set_interface_contact_details(
+            definition.harness_id,
+            interface.interface_id,
+            contact.contact_id,
+            "VCC",
+            "x" * 81,
+            gateway,
+        )
 
 
 def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(

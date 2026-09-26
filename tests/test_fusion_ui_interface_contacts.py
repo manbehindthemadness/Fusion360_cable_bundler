@@ -45,6 +45,38 @@ def test_contact_name_edit_routes_to_transactional_application_service(
     rename.assert_called_once_with(UUID(int=1), UUID(int=2), {UUID(int=3): "J5.2"}, gateway)
 
 
+def test_contact_details_edit_routes_value_and_pin_together(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Save both popup fields through one transactional application edit.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    gateway = object()
+    update = Mock()
+    monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(edits), "set_interface_contact_details", update)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactId": str(UUID(int=3)),
+        "value": "J5.2",
+        "pin": "P7",
+    }
+
+    notice = edits._apply_palette_edit(
+        object(), "set_interface_contact_details", json.dumps(payload)
+    )
+
+    assert notice == "Interface contact updated."
+    update.assert_called_once_with(UUID(int=1), UUID(int=2), UUID(int=3), "J5.2", "P7", gateway)
+    with pytest.raises(ValueError, match="value and pin must be text"):
+        edits._apply_palette_edit(
+            object(), "set_interface_contact_details", json.dumps({**payload, "pin": None})
+        )
+
+
 def test_contact_deletion_routes_selected_ids_as_one_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

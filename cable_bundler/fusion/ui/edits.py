@@ -51,6 +51,7 @@ from ...application import (
     set_cable_group_properties,
     set_harness_material_defaults,
     set_harness_properties,
+    set_interface_contact_details,
     set_junction_properties,
     set_pathway_end_properties,
     set_pathway_properties,
@@ -113,6 +114,17 @@ def _apply_palette_edit(
             harness_id, interface_id, {contact_id: name}, _create_harness_gateway(application)
         )
         return "Interface contact name updated."
+    if action == "set_interface_contact_details":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        contact_id = _read_payload_uuid(payload, "contactId", "contact")
+        value = payload.get("value")
+        pin = payload.get("pin")
+        if not isinstance(value, str) or not isinstance(pin, str):
+            raise ValueError("Contact value and pin must be text.")
+        set_interface_contact_details(
+            harness_id, interface_id, contact_id, value, pin, _create_harness_gateway(application)
+        )
+        return "Interface contact updated."
     if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source = "live" if action == "pos_import_interface_contacts" else "file"

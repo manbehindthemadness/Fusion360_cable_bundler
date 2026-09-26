@@ -99,12 +99,13 @@ def loads(serialized: str) -> HarnessDefinition:
         28,
         29,
         30,
+        31,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 30 are migratable)",
+            "(schemas 12 through 31 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -302,6 +303,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                         "kind": contact.kind.value,
                         "entity_token": contact.entity_token,
                         "name": contact.name,
+                        "pin": contact.pin,
                     }
                     for contact in interface.contacts
                 ],
@@ -776,6 +778,7 @@ def _parse_interface_contact(raw_value: object, path: str) -> InterfaceContact:
             kind=_require_enum(AttachmentTargetKind, value, "kind", f"{path}.kind"),
             entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
             name=value.get("name", ""),
+            pin=value.get("pin", ""),
         )
     except ValueError as error:
         raise DefinitionParseError(path, str(error)) from error

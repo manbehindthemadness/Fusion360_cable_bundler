@@ -13,7 +13,7 @@ function contactPointer(svg, x, y, pointerId = 1) {
   };
 }
 
-asyncTest('left clicking a contact edits its saved name without losing selection', async () => {
+asyncTest('left clicking a contact edits its Value and Pin without losing selection', async () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -35,20 +35,44 @@ asyncTest('left clicking a contact edits its saved name without losing selection
   state.workspace.viewport.events.pointerdown(pointer);
   state.workspace.viewport.events.pointerup({ ...pointer, type: 'pointerup' });
   assert.equal(item.dataset.selected, 'true');
-  const editor = diagram.querySelector('.interface-contact-name-editor');
+  const editor = diagram.querySelector('.interface-contact-details-editor');
   assert.equal(editor.dataset.contactId, 'pad-1');
-  const input = editor.children[1];
-  assert.equal(input.value, 'J5.2');
-  input.value = 'J5.4';
+  assert.equal(editor.children[0].textContent, 'Value');
+  assert.equal(editor.children[1].textContent, 'Pin');
+  const valueInput = editor.children[0].children[0];
+  const pinInput = editor.children[1].children[0];
+  assert.equal(valueInput.value, 'J5.2');
+  assert.equal(pinInput.value, '');
+  valueInput.value = 'J5.4';
+  pinInput.value = 'P7';
   editor.events.submit({ preventDefault() {} });
   await Promise.resolve();
   assert.equal(launches.length, 1);
-  assert.equal(launches[0].action, 'set_interface_contact_name');
+  assert.equal(launches[0].action, 'set_interface_contact_details');
   assert.equal(launches[0].payload.harnessId, 'harness-1');
   assert.equal(launches[0].payload.interfaceId, 'interface-1');
   assert.equal(launches[0].payload.contactId, 'pad-1');
-  assert.equal(launches[0].payload.name, 'J5.4');
-  assert.equal(diagram.querySelector('.interface-contact-name-editor'), undefined);
+  assert.equal(launches[0].payload.value, 'J5.4');
+  assert.equal(launches[0].payload.pin, 'P7');
+  assert.equal(diagram.querySelector('.interface-contact-details-editor'), undefined);
+  context.updateInterfaceContactData(dialog, [{ ...contact, assignedName: 'J5.4', pin: 'P7' }]);
+  diagram.contactState.onEditContact('pad-1', pointer);
+  const reopened = diagram.querySelector('.interface-contact-details-editor');
+  assert.equal(reopened.children[0].children[0].value, 'J5.4');
+  assert.equal(reopened.children[1].children[0].value, 'P7');
+  const svg = diagram.contactState.svg;
+  reopened.children[1].children[0].value = 'P8';
+  reopened.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches[1].payload.value, 'J5.4');
+  assert.equal(launches[1].payload.pin, 'P8');
+  context.updateInterfaceContactData(dialog, [{ ...contact, assignedName: 'J5.4', pin: 'P8' }]);
+  assert.equal(diagram.contactState.svg, svg);
+  diagram.contactState.onEditContact('pad-1', pointer);
+  const unchanged = diagram.querySelector('.interface-contact-details-editor');
+  assert.equal(unchanged.children[1].children[0].value, 'P8');
+  unchanged.events.submit({ preventDefault() {} });
+  assert.equal(launches.length, 2);
 });
 
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {
@@ -207,4 +231,3 @@ test('contact clicks select individual items with additive and toggle modifiers'
   viewport.events.keydown({ key: 'Enter', target: contactItem(diagram, 'b'), preventDefault() {} });
   assert.equal(contactItem(diagram, 'b').attributes['aria-selected'], 'true');
 });
-

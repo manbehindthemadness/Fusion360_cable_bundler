@@ -358,7 +358,7 @@ function showInterfaceContactLoading(diagram, total, loaded = 0, failed = false)
   }
   diagram.contactState.workspace.root.hidden = true;
   paintInterfaceContactSelection(diagram.contactState);
-  diagram.querySelector(".interface-contact-name-editor")?.remove();
+  diagram.querySelector(".interface-contact-details-editor")?.remove();
   diagram.setAttribute("aria-busy", `${!failed}`);
   status.children[0].textContent = failed
     ? "Unable to load contacts. Close and reopen this panel to retry."
@@ -427,6 +427,10 @@ function updateInterfaceContactData(dialog, contacts) {
   }
   if (dialog.loadedGeometryKey === geometryKey) {
     hideInterfaceContactLoading(diagram);
+    const metadata = new Map(contacts.map((item) => [item.contactId, item]));
+    diagram.contactState.contacts = diagram.contactState.contacts.map((item) => (
+      { ...item, ...metadata.get(item.contactId) }
+    ));
     if (dialog.contactDisplayKey !== displayKey) {
       const geometry = new Map(diagram.contactState.contacts.map((item) => [item.contactId, item]));
       if (contacts.every((item) => Array.isArray(geometry.get(item.contactId)?.loops))) {
@@ -706,7 +710,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   };
   remove.addEventListener("click", () => { void diagram.contactState?.onDeleteContacts?.(); });
   diagram.contactState.onEditContact = (contactId, event) => {
-    openInterfaceContactNameEditor(diagram, diagram.contactState, contactId, event);
+    openInterfaceContactEditor(diagram, diagram.contactState, contactId, event);
   };
   actions.className = "pathway-popup-actions";
   close.type = "button";

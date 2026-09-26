@@ -98,11 +98,11 @@
   pointer-events: none;
 }
 .interface-contacts-popup .pathway-popup-actions { margin-top: 0; }
-.interface-contact-name-editor {
+.interface-contact-details-editor {
   position: absolute;
   z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
   align-items: center;
   gap: 6px;
   max-width: calc(100% - 16px);
@@ -112,6 +112,12 @@
   background: var(--surface);
   box-shadow: 0 4px 12px #0003;
 }
-.interface-contact-name-editor label { color: var(--text); }
-.interface-contact-name-editor input { min-width: 8rem; max-width: 12rem; }
-
+.interface-contact-details-editor label {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 3rem minmax(8rem, 12rem);
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.interface-contact-details-editor input { min-width: 0; }
