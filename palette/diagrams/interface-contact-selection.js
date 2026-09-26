@@ -240,7 +240,10 @@ function enableInterfaceContactSelection(state) {
     state.showContextMenu(event, [
       { label: "Edit", disabled: state.selectedIds.size !== 1,
         action: () => state.onEditContact?.([...state.selectedIds][0], event) },
-      { label: "Clear", action: () => state.onClearPins?.() },
+      { label: "Clear", items: [
+        { label: "Pins", action: () => state.onClearPins?.() },
+        { label: "Values", action: () => state.onClearValues?.() },
+      ] },
       { label: "Delete", action: () => state.onDeleteContacts?.() },
     ]);
   });
@@ -287,7 +290,7 @@ function ensureInterfaceContactWorkspace(diagram) {
     workspace, size, count, items: [], selectedIds: new Set(), mode: "box",
     svg: null, diagramWidth: 600, diagramHeight: 300, drag: null, hasContacts: false,
     contacts: [], viewScale: 1, onEditContact: null, onDeleteContacts: null,
-    onClearPins: null, showContextMenu: null, lastClick: null,
+    onClearPins: null, onClearValues: null, showContextMenu: null, lastClick: null,
     deleteButton: null, deleting: false, clearing: false,
   };
   tools.className = "interface-contact-tools";

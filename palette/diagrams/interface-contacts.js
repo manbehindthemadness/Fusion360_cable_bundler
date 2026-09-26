@@ -597,6 +597,27 @@ function openInterfaceContacts(harness, interfaceItem) {
       }
     }
   };
+  diagram.contactState.onClearValues = async () => {
+    const state = diagram.contactState;
+    if (!dialog.open || !state || state.deleting || state.clearing || state.workspace.root.hidden
+      || !state.selectedIds.size) return;
+    const contactIds = [...state.selectedIds];
+    state.clearing = true;
+    paintInterfaceContactSelection(state);
+    try {
+      const response = await send("clear_interface_contact_values", {
+        harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId, contactIds,
+      });
+      if (!response.ok) throw new Error(response.error || "Could not clear selected values.");
+    } catch (error) {
+      if (dialog.open) appendNotice(String(error), true);
+    } finally {
+      if (dialog.open && diagram.contactState === state) {
+        state.clearing = false;
+        paintInterfaceContactSelection(state);
+      }
+    }
+  };
   remove.addEventListener("click", () => { void diagram.contactState?.onDeleteContacts?.(); });
   diagram.contactState.onEditContact = (contactId, event) => {
     openInterfaceContactEditor(diagram, diagram.contactState, contactId, event);

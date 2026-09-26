@@ -21,6 +21,7 @@ from ...application import (
     HarnessEditGateway,
     auto_pin_interface_contacts,
     clear_interface_contact_pins,
+    clear_interface_contact_values,
     name_interface_contacts,
     rename_cable_end_attachment,
     rename_cable_group,
@@ -144,6 +145,18 @@ def _apply_palette_edit(
             harness_id, interface_id, contact_ids, _create_harness_gateway(application)
         )
         return "Selected Interface contact pins cleared."
+    if action == "clear_interface_contact_values":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        raw_ids = payload.get("contactIds")
+        if not isinstance(raw_ids, list) or not raw_ids:
+            raise ValueError("Value clearing requires selected contact IDs.")
+        contact_ids = tuple(
+            _read_payload_uuid({"contactId": item}, "contactId", "contact") for item in raw_ids
+        )
+        clear_interface_contact_values(
+            harness_id, interface_id, contact_ids, _create_harness_gateway(application)
+        )
+        return "Selected Interface contact values cleared."
     if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source = "live" if action == "pos_import_interface_contacts" else "file"

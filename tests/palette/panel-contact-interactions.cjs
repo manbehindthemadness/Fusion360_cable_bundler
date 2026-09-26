@@ -111,23 +111,34 @@ asyncTest('contact context menu closes on left press and acts on the selected gr
   const menu = diagram.querySelector('.relationship-map-context-menu');
   assert.equal(menu.hidden, false);
   assert.deepEqual(menu.children.map((button) => button.textContent),
-    ['Edit', 'Clear', 'Delete']);
+    ['Edit', '', 'Delete']);
+  const clear = menu.children[1];
+  assert.equal(clear.children[0].textContent, 'Clear');
+  assert.equal(clear.children[0].attributes['aria-haspopup'], 'menu');
+  assert.deepEqual(clear.children[1].children.map((button) => button.textContent),
+    ['Pins', 'Values']);
   assert.equal(menu.children[0].disabled, true);
   const background = contactPointer(state.svg, 0, 0);
   viewport.events.pointerdown(background);
   assert.equal(menu.hidden, true);
   viewport.events.pointercancel({ ...background, type: 'pointercancel' });
   rightClick('a');
-  menu.children[1].events.click();
+  menu.children[1].children[1].children[0].events.click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(launches[0].action, 'clear_interface_contact_pins');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['a', 'b']);
   assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
+  rightClick('a');
+  menu.children[1].children[1].children[1].events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(launches[1].action, 'clear_interface_contact_values');
+  assert.deepEqual(Array.from(launches[1].payload.contactIds), ['a', 'b']);
+  assert.equal(Object.hasOwn(launches[1].payload, 'pin'), false);
   rightClick('b');
   menu.children[2].events.click();
   await Promise.resolve();
-  assert.equal(launches[1].action, 'remove_interface_contacts');
-  assert.deepEqual(Array.from(launches[1].payload.contactIds), ['a', 'b']);
+  assert.equal(launches[2].action, 'remove_interface_contacts');
+  assert.deepEqual(Array.from(launches[2].payload.contactIds), ['a', 'b']);
   rightClick('c');
   assert.deepEqual([...state.selectedIds], ['c']);
   assert.equal(menu.children[0].disabled, false);

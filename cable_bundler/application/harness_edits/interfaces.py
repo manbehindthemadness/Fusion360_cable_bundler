@@ -293,6 +293,44 @@ def clear_interface_contact_pins(
     return updated_interface
 
 
+def clear_interface_contact_values(
+    harness_id: UUID,
+    interface_id: UUID,
+    contact_ids: tuple[UUID, ...],
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Clear selected values in one transaction while retaining pins and contact order.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    selected = set(contact_ids)
+    if not selected or not selected.issubset(contact.contact_id for contact in current.contacts):
+        raise ValueError("Value clearing requires known selected contact identities.")
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            replace(contact, name="") if contact.contact_id in selected else contact
+            for contact in current.contacts
+        ),
+    )
+    if updated_interface == current:
+        return current
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface
+
+
 def auto_pin_interface_contacts(
     harness_id: UUID,
     interface_id: UUID,
