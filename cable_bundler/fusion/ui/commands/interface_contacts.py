@@ -15,6 +15,7 @@ from ....application import add_interface_contacts
 from ....application.interface_contact_rows import ContactSelectionMode
 from ....domain import InterfaceContact, InterfaceDefinition, loads
 from ...attachment_targets import attachment_target_kind
+from ...interface_contact_planes import collect_contact_plane, validate_plane_corners
 from ...interface_contact_rows import collect_contact_row, validate_row_endpoints
 from ..constants import INTERFACE_CONTACTS_INPUT_ID
 from ..palette_state import _send_palette_state
@@ -61,14 +62,19 @@ def _selected_contacts(
     mode: ContactSelectionMode = ContactSelectionMode.MANUAL,
 ) -> tuple[InterfaceContact, ...]:
     """
-    Collect manual picks or the matching finite row before assigning new identities.
+    Collect manual, row, or plane targets before assigning new identities.
     """
     entities = _selected_entities(inputs)
-    if mode is ContactSelectionMode.ROW:
+    if mode is not ContactSelectionMode.MANUAL:
         if len(entities) != 2:
-            raise ValueError("Pick the first and last targets in the row.")
-        row = collect_contact_row(*entities)
-        return tuple(InterfaceContact(uuid4(), item.kind, item.token) for item in row)
+            raise ValueError(
+                "Pick the first and last targets: row endpoints or diagonal plane corners."
+            )
+        collect = (
+            collect_contact_plane if mode is ContactSelectionMode.PLANE else collect_contact_row
+        )
+        targets = collect(*entities)
+        return tuple(InterfaceContact(uuid4(), item.kind, item.token) for item in targets)
     contacts = []
     for entity in entities:
         kind = attachment_target_kind(entity)
@@ -85,7 +91,7 @@ class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
 
     def __init__(self, mode: ContactSelectionMode = ContactSelectionMode.MANUAL) -> None:
         """
-        Retain the picker policy for endpoint-only row validation.
+        Retain the picker policy for validation without scanning neighboring geometry.
         """
         super().__init__()
         self._mode = mode
@@ -96,10 +102,15 @@ class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
         """
         try:
             entities = _selected_entities(args.inputs)
-            if self._mode is ContactSelectionMode.ROW:
+            if self._mode is not ContactSelectionMode.MANUAL:
                 if len(entities) != 2:
-                    raise ValueError("Pick the first and last targets in the row.")
-                validate_row_endpoints(*entities)
+                    raise ValueError("Pick two targets to define the selection.")
+                validate = (
+                    validate_plane_corners
+                    if self._mode is ContactSelectionMode.PLANE
+                    else validate_row_endpoints
+                )
+                validate(*entities)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             args.areInputsValid = False
             return
@@ -164,16 +175,27 @@ class SelectInterfaceContactsCreatedHandler(adsk.core.CommandCreatedEventHandler
         )
         if interface is None:
             raise ValueError("Selected Interface no longer exists.")
+        prompts = {
+            ContactSelectionMode.MANUAL: (
+                "Interface Contacts",
+                "Select one or more connection-compatible targets",
+            ),
+            ContactSelectionMode.ROW: (
+                "Row endpoints",
+                "Select the first and last targets; OK collects matching targets between them",
+            ),
+            ContactSelectionMode.PLANE: (
+                "Plane corners",
+                "Select two diagonal corner targets; OK collects matching targets inside the local rectangle",
+            ),
+        }
         picker = args.command.commandInputs.addSelectionInput(
             INTERFACE_CONTACTS_INPUT_ID,
-            "Row endpoints" if mode is ContactSelectionMode.ROW else "Interface Contacts",
-            "Select the first and last targets; OK collects matching targets between them"
-            if mode is ContactSelectionMode.ROW
-            else "Select one or more connection-compatible targets",
+            *prompts[mode],
         )
         if picker is None or not all(picker.addSelectionFilter(item) for item in _FILTERS):
             raise RuntimeError("Fusion could not configure Interface contact selection.")
-        limits = (2, 2) if mode is ContactSelectionMode.ROW else (1, 0)
+        limits = (1, 0) if mode is ContactSelectionMode.MANUAL else (2, 2)
         if not picker.setSelectionLimits(*limits):
             raise RuntimeError("Fusion could not allow multiple Interface contacts.")
         handlers = (

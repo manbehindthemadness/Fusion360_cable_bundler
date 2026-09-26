@@ -122,7 +122,12 @@ def test_picker_accepts_multiple_connection_targets_across_occurrences(
 
 
 @pytest.mark.parametrize(
-    "mode, limits", [(ContactSelectionMode.MANUAL, (1, 0)), (ContactSelectionMode.ROW, (2, 2))]
+    "mode, limits",
+    [
+        (ContactSelectionMode.MANUAL, (1, 0)),
+        (ContactSelectionMode.ROW, (2, 2)),
+        (ContactSelectionMode.PLANE, (2, 2)),
+    ],
 )
 def test_native_picker_uses_filters_without_a_preselect_veto(
     addin_module: object,

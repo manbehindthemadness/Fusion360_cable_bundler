@@ -16,11 +16,12 @@ ROW_TOLERANCE_MM = 0.1
 
 class ContactSelectionMode(str, Enum):
     """
-    Distinguish manual collection from an endpoint-defined row.
+    Distinguish manual collection from endpoint-defined rows and rectangles.
     """
 
     MANUAL = "manual"
     ROW = "row"
+    PLANE = "plane"
 
 
 @dataclass(frozen=True)
