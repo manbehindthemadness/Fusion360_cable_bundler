@@ -4,7 +4,7 @@ function contactOrientation(normal) {
   return length > 1e-9 ? normal.map((value) => value / length) : [0, 0, 1];
 }
 
-/** View a cluster in its shared parent frame with the board's observed down axis. */
+/** View contacts from the facing side, keeping the shared parent vertical axis down. */
 function contactPlanePoint(point, normal, parentAxes = null) {
   const validAxes = Array.isArray(parentAxes) && parentAxes.length === 3
     && parentAxes.every((axis) => Array.isArray(axis) && axis.length === 3
@@ -25,7 +25,7 @@ function contactPlanePoint(point, normal, parentAxes = null) {
     normal[0] * xAxis[1] - normal[1] * xAxis[0],
   ];
   return [
-    point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
+    -point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
     point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
   ];
 }

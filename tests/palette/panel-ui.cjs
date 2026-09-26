@@ -608,7 +608,7 @@ test('Interface contacts keep positions within orientation clusters', () => {
   const firstX = Number(firstPaths[0].attributes.d.match(/M([\d.]+)/)[1]);
   const secondX = Number(firstPaths[1].attributes.d.match(/M([\d.]+)/)[1]);
   const firstLoop = diagram.contactState.items[0].loops[0];
-  const padWidth = firstLoop[1][0] - firstLoop[0][0];
+  const padWidth = Math.abs(firstLoop[1][0] - firstLoop[0][0]);
   assert.equal(Math.abs(secondX - firstX) / padWidth, 3);
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
 });
@@ -655,8 +655,8 @@ test('unnamed contacts have a distinct appearance and names appear as zoom permi
 test('contact projection views asymmetric layouts from the picked face side', () => {
   const { context } = palette();
   for (const [normal, expectedRight, expectedUp] of [
-    [[0, 0, 2], [4, 0], [0, 2]],
-    [[0, 0, -2], [-4, 0], [0, 2]],
+    [[0, 0, 2], [-4, 0], [0, 2]],
+    [[0, 0, -2], [4, 0], [0, 2]],
   ]) {
     const direction = context.contactOrientation(normal);
     const right = context.contactPlanePoint([4, 0, 0], direction);
@@ -753,7 +753,7 @@ test('small contact pads fit the diagram without strokes swallowing their gaps',
     const { items, svg, diagramHeight } = diagram.contactState;
     assert.equal(items.length, 7);
     const loops = items.map((item) => item.loops[0]);
-    const width = loops[0][1][0] - loops[0][0][0];
+    const width = Math.abs(loops[0][1][0] - loops[0][0][0]);
     const height = Math.abs(loops[0][2][1] - loops[0][1][1]);
     assert.ok(height > 10, 'pad interiors remain visible at the initial display scale');
     assert.ok(Math.abs(width / height - 4 / 0.6) < 1e-8);
