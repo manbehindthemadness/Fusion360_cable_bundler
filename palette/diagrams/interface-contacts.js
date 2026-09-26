@@ -347,6 +347,7 @@ function showInterfaceContactLoading(diagram, total, loaded = 0, failed = false)
     diagram.append(status);
   }
   diagram.contactState.workspace.root.hidden = true;
+  paintInterfaceContactSelection(diagram.contactState);
   diagram.querySelector(".interface-contact-name-editor")?.remove();
   diagram.setAttribute("aria-busy", `${!failed}`);
   status.children[0].textContent = failed
@@ -361,6 +362,7 @@ function showInterfaceContactLoading(diagram, total, loaded = 0, failed = false)
 function hideInterfaceContactLoading(diagram) {
   diagram.querySelector(".interface-contact-loading")?.remove();
   diagram.contactState.workspace.root.hidden = false;
+  paintInterfaceContactSelection(diagram.contactState);
   diagram.setAttribute("aria-busy", "false");
 }
 
@@ -567,6 +569,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   const actions = document.createElement("div");
   const close = document.createElement("button");
   const rebuild = document.createElement("button");
+  const remove = document.createElement("button");
   const buttons = [];
 
   dialog.className = "interface-contacts-popup";
@@ -595,6 +598,12 @@ function openInterfaceContacts(harness, interfaceItem) {
     buttons.push(button);
     modes.append(button);
   });
+  remove.type = "button";
+  remove.className = "button compact";
+  remove.textContent = "Delete";
+  remove.title = "Delete selected contacts from this Interface (Del)";
+  remove.disabled = true;
+  modes.append(remove);
   toolbar.className = "interface-contacts-toolbar";
   naming.className = "interface-contacts-naming";
   naming.setAttribute("role", "group");
@@ -619,6 +628,30 @@ function openInterfaceContacts(harness, interfaceItem) {
   renderInterfaceContacts(diagram, []);
   diagram.contactState.harnessId = harness.harnessId;
   diagram.contactState.interfaceId = interfaceItem.interfaceId;
+  diagram.contactState.deleteButton = remove;
+  diagram.contactState.onDeleteContacts = async () => {
+    const state = diagram.contactState;
+    if (!dialog.open || !state || state.deleting || state.workspace.root.hidden
+      || !state.selectedIds.size) return;
+    const contactIds = [...state.selectedIds];
+    state.deleting = true;
+    paintInterfaceContactSelection(state);
+    try {
+      const response = await send("remove_interface_contacts", {
+        harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId, contactIds,
+      });
+      if (!response.ok) throw new Error(response.error || "Could not delete selected contacts.");
+      contactIds.forEach((id) => state.selectedIds.delete(id));
+    } catch (error) {
+      if (dialog.open) appendNotice(String(error), true);
+    } finally {
+      if (dialog.open && diagram.contactState === state) {
+        state.deleting = false;
+        paintInterfaceContactSelection(state);
+      }
+    }
+  };
+  remove.addEventListener("click", () => { void diagram.contactState?.onDeleteContacts?.(); });
   diagram.contactState.onEditContact = (contactId, event) => {
     openInterfaceContactNameEditor(diagram, diagram.contactState, contactId, event);
   };

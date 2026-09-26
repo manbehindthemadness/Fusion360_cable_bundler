@@ -94,6 +94,8 @@ function paintInterfaceContactSelection(state) {
     item.node.setAttribute("aria-selected", `${selected}`);
   });
   state.count.textContent = `${state.selectedIds.size} selected`;
+  if (state.deleteButton) state.deleteButton.disabled = !state.selectedIds.size
+    || state.deleting || state.workspace.root.hidden;
 }
 
 /** Keep names legible in screen pixels once their pad has enough room. */
@@ -209,6 +211,13 @@ function enableInterfaceContactSelection(state) {
   viewport.addEventListener("pointerup", finish);
   viewport.addEventListener("pointercancel", finish);
   viewport.addEventListener("keydown", (event) => {
+    if (event.key === "Delete" || event.key === "Del") {
+      if (state.selectedIds.size && !state.deleting) {
+        event.preventDefault();
+        state.onDeleteContacts?.();
+      }
+      return;
+    }
     if (event.key === "Enter" || event.key === " ") {
       const contactId = contactIdAtTarget(event.target, viewport);
       if (contactId) {
@@ -243,7 +252,8 @@ function ensureInterfaceContactWorkspace(diagram) {
   state = {
     workspace, size, count, items: [], selectedIds: new Set(), mode: "box",
     svg: null, diagramWidth: 600, diagramHeight: 300, drag: null, hasContacts: false,
-    contacts: [], viewScale: 1, onEditContact: null,
+    contacts: [], viewScale: 1, onEditContact: null, onDeleteContacts: null,
+    deleteButton: null, deleting: false,
   };
   tools.className = "interface-contact-tools";
   tools.setAttribute("role", "group");

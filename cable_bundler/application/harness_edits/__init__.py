@@ -30,6 +30,7 @@ from .interfaces import (
     add_interface_contacts,
     name_interface_contacts,
     remove_interface,
+    remove_interface_contacts,
     rename_interface,
 )
 from .junctions import (
@@ -85,6 +86,7 @@ __all__ = [
     "move_pathway_gate",
     "remove_junction",
     "remove_interface",
+    "remove_interface_contacts",
     "remove_junction_relationship",
     "remove_end_control",
     "remove_end_guide",

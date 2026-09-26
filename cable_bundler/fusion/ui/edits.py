@@ -28,6 +28,7 @@ from ...application import (
     remove_end_control,
     remove_end_guide,
     remove_interface,
+    remove_interface_contacts,
     remove_junction,
     remove_junction_relationship,
     remove_pathway,
@@ -85,6 +86,7 @@ _TOPOLOGY_ACTIONS = frozenset(
         "remove_pathway",
         "remove_junction",
         "remove_interface",
+        "remove_interface_contacts",
         "remove_standalone_end",
         "remove_cable_end_attachment",
     )
@@ -254,6 +256,20 @@ def _apply_topology_edit(
             gateway,
         )
         return "Deleted Interface."
+    if action == "remove_interface_contacts":
+        raw_ids = payload.get("contactIds")
+        if not isinstance(raw_ids, list) or not raw_ids:
+            raise ValueError("Contact deletion requires selected contact IDs.")
+        contact_ids = tuple(
+            _read_payload_uuid({"contactId": item}, "contactId", "contact") for item in raw_ids
+        )
+        remove_interface_contacts(
+            harness_id,
+            _read_payload_uuid(payload, "interfaceId", "Interface"),
+            contact_ids,
+            gateway,
+        )
+        return "Deleted selected Interface contacts."
     if action == "remove_standalone_end":
         remove_standalone_end(
             harness_id,

@@ -91,6 +91,7 @@ from .harness_edits.interfaces import (
     add_interface_contacts,
     name_interface_contacts,
     remove_interface,
+    remove_interface_contacts,
     rename_interface,
 )
 from .load_harnesses import (
@@ -151,6 +152,7 @@ __all__ = [
     "plan_cable_group_routes",
     "remove_junction",
     "remove_interface",
+    "remove_interface_contacts",
     "remove_end_control",
     "remove_end_guide",
     "remove_pathway",

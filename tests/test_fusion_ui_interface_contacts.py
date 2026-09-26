@@ -45,6 +45,33 @@ def test_contact_name_edit_routes_to_transactional_application_service(
     rename.assert_called_once_with(UUID(int=1), UUID(int=2), {UUID(int=3): "J5.2"}, gateway)
 
 
+def test_contact_deletion_routes_selected_ids_as_one_edit(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Parse the selected identities before issuing one transactional removal.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    gateway = object()
+    remove = Mock()
+    monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(edits), "remove_interface_contacts", remove)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactIds": [str(UUID(int=3)), str(UUID(int=4))],
+    }
+    notice = edits._apply_palette_edit(object(), "remove_interface_contacts", json.dumps(payload))
+    assert notice == "Deleted selected Interface contacts."
+    remove.assert_called_once_with(UUID(int=1), UUID(int=2), (UUID(int=3), UUID(int=4)), gateway)
+    with pytest.raises(ValueError, match="selected contact IDs"):
+        edits._apply_palette_edit(
+            object(), "remove_interface_contacts", json.dumps({**payload, "contactIds": []})
+        )
+    assert remove.call_count == 1
+
+
 def test_live_board_reader_uses_placed_through_hole_signal_contacts(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

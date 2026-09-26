@@ -133,6 +133,7 @@ PALETTE_EDIT_NAMES = {
     "remove_junction_relationship": "Remove Junction Relationship",
     "remove_junction": "Delete Junction",
     "remove_interface": "Delete Interface",
+    "remove_interface_contacts": "Delete Interface Contacts",
     "remove_pathway": "Delete Pathway",
     "remove_pathway_gate": "Remove Pathway Gate",
     "remove_end_control": "Remove Cable End Control",

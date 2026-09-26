@@ -28,11 +28,11 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(dialog.children[0].textContent, 'Select Contacts · Socket A');
   const modes = dialog.children[1].children[0].children;
   assert.deepEqual(modes.map((button) => button.textContent), [
-    'Manual', 'Row', 'Plane',
+    'Manual', 'Row', 'Plane', 'Delete',
   ]);
   const naming = dialog.children[1].children[1].children;
   assert.deepEqual(naming.map((button) => button.textContent), ['Pos Import', 'Load brd']);
-  assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
+  assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
   assert.equal(dialog.children[2].className, 'interface-contacts-diagram');
@@ -55,11 +55,61 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.deepEqual(launches.slice(3).map((item) => item.action), [
     'pos_import_interface_contacts', 'load_brd_interface_contacts',
   ]);
-  assert.deepEqual(modes.map((button) => button.attributes['aria-pressed']), [
+  assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'false', 'false', 'true',
   ]);
   dialog.children[3].children[0].events.click();
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
+});
+
+asyncTest('Delete button and Del key remove only selected Interface contacts', async () => {
+  const { context } = palette();
+  const requests = [];
+  context.send = (action, payload) => {
+    requests.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  const contacts = ['a', 'b', 'c'].map((contactId, index) => ({
+    contactId, name: contactId, linked: true, geometryRevision: 1,
+    loops: [[[index, 0, 0], [index + 0.5, 0, 0], [index, 0.5, 0]]],
+  }));
+  context.openInterfaceContacts({ harnessId: 'h' }, {
+    interfaceId: 'i', name: 'Socket', contacts,
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  const state = diagram.contactState;
+  const remove = dialog.children[1].children[0].children[3];
+  assert.equal(remove.disabled, true);
+  state.workspace.viewport.events.keydown({
+    key: 'Enter', target: contactItem(diagram, 'a'), preventDefault() {},
+  });
+  state.workspace.viewport.events.keydown({
+    key: 'Enter', target: contactItem(diagram, 'c'), shiftKey: true, preventDefault() {},
+  });
+  assert.equal(remove.disabled, false);
+  remove.events.click();
+  remove.events.click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].action, 'remove_interface_contacts');
+  assert.equal(requests[0].payload.harnessId, 'h');
+  assert.equal(requests[0].payload.interfaceId, 'i');
+  assert.deepEqual([...requests[0].payload.contactIds], ['a', 'c']);
+  await new Promise((resolve) => setImmediate(resolve));
+  context.updateInterfaceContactData(dialog, [contacts[1]]);
+  assert.equal(state.selectedIds.size, 0);
+  assert.equal(remove.disabled, true);
+  state.workspace.viewport.events.keydown({
+    key: 'Enter', target: contactItem(diagram, 'b'), preventDefault() {},
+  });
+  let prevented = false;
+  state.workspace.viewport.events.keydown({
+    key: 'Delete', target: state.workspace.viewport, preventDefault() { prevented = true; },
+  });
+  assert.equal(prevented, true);
+  assert.equal(requests[1].action, 'remove_interface_contacts');
+  assert.deepEqual([...requests[1].payload.contactIds], ['b']);
+  dialog.close();
 });
 
 asyncTest('Contact geometry requests coalesce, reuse names, and release closed diagrams', async () => {
@@ -529,4 +579,3 @@ test('small contact pads fit the diagram without strokes swallowing their gaps',
     assert.equal(svg.style.height, `${diagramHeight}px`, 'labels use display units');
   }
 });
-

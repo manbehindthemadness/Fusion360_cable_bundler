@@ -131,6 +131,41 @@ def add_interface_contacts(
     return updated_interface
 
 
+def remove_interface_contacts(
+    harness_id: UUID,
+    interface_id: UUID,
+    contact_ids: tuple[UUID, ...],
+    gateway: HarnessEditGateway,
+) -> InterfaceDefinition:
+    """
+    Delete selected contact references in one transaction, preserving survivor order.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    selected = set(contact_ids)
+    if not selected or not selected.issubset(contact.contact_id for contact in current.contacts):
+        raise ValueError("Contact deletion requires known selected identities.")
+    updated_interface = replace(
+        current,
+        contacts=tuple(
+            contact for contact in current.contacts if contact.contact_id not in selected
+        ),
+    )
+    updated = replace(
+        definition,
+        interfaces=tuple(
+            updated_interface if item.interface_id == interface_id else item
+            for item in definition.interfaces
+        ),
+    )
+    persist_definition(harness_id, original, updated, gateway)
+    return updated_interface
+
+
 def name_interface_contacts(
     harness_id: UUID,
     interface_id: UUID,

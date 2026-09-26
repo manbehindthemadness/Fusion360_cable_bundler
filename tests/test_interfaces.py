@@ -15,6 +15,7 @@ from cable_bundler.application import (
     add_interface_contacts,
     name_interface_contacts,
     remove_interface,
+    remove_interface_contacts,
     rename_interface,
 )
 from cable_bundler.domain import (
@@ -137,6 +138,41 @@ def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(
             (duplicate,),
             gateway,
         )
+
+
+def test_remove_interface_contacts_preserves_survivors_and_rejects_unknown_ids(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Delete selected identities atomically without changing other contacts or routes.
+    """
+    contacts = tuple(
+        InterfaceContact(UUID(int=820 + index), AttachmentTargetKind.FACE, f"face-{index}")
+        for index in range(3)
+    )
+    interface = InterfaceDefinition(
+        UUID(int=830),
+        "Socket",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        contacts,
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    with pytest.raises(ValueError, match="known selected identities"):
+        remove_interface_contacts(
+            definition.harness_id, interface.interface_id, (UUID(int=999),), gateway
+        )
+    assert gateway.serialized_definition == dumps(definition)
+    updated = remove_interface_contacts(
+        definition.harness_id,
+        interface.interface_id,
+        (contacts[0].contact_id, contacts[2].contact_id),
+        gateway,
+    )
+    assert updated.contacts == (contacts[1],)
+    persisted = loads(gateway.serialized_definition)
+    assert persisted.interfaces[0].contacts == (contacts[1],)
+    assert persisted.pathways == definition.pathways
 
 
 def test_interface_edit_sequence_preserves_routing(
