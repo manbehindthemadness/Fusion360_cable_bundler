@@ -132,3 +132,24 @@ def test_live_hole_measurement_does_not_sample_outlines(
     )
     assert result == ContactFootprint("pad", 10, 20, 1, 1, 1, 1)
     sampled.assert_not_called()
+
+
+def test_circular_copper_edge_projects_to_board_local_pad_center(
+    addin_module: object,
+) -> None:
+    """
+    Allow a selected solderable edge to drive the same position lookup as a face.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    edge = SimpleNamespace(
+        assemblyContext=SimpleNamespace(fullPathName="PCB:1+16-copper:2"),
+        geometry=SimpleNamespace(
+            objectType="adsk::core::Circle3D",
+            center=SimpleNamespace(x=0.1, y=0.2, z=0),
+            radius=0.05,
+        ),
+    )
+    result = module._circular_edge_footprint(
+        edge, "pad", "PCB:1", [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    )
+    assert result == ContactFootprint("pad", 1, 2, 1, 1, 16)

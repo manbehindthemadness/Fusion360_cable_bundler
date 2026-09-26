@@ -50,6 +50,25 @@
 }
 .interface-contact-auto-pin label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; white-space: nowrap; }
 .interface-contact-auto-pin input[type="number"] { width: 6rem; }
+.interface-contact-pos-import {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px;
+  min-width: 280px;
+  max-width: min(420px, 80vw);
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 12px #0003;
+}
+.interface-contact-pos-import > div { grid-column: 1 / -1; }
+.interface-contact-pos-import-choices { display: grid; gap: 6px; max-height: 180px; overflow-y: auto; }
+.interface-contact-pos-import-choices label { display: flex; align-items: center; gap: 6px; }
 .interface-contacts-modes [aria-pressed="true"] {
   background: var(--surface-subtle);
 }

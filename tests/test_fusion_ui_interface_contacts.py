@@ -161,7 +161,7 @@ def test_contact_deletion_routes_selected_ids_as_one_edit(
     assert remove.call_count == 1
 
 
-def test_live_board_reader_uses_placed_through_hole_signal_contacts(
+def test_live_board_reader_uses_placed_signal_contacts(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -177,7 +177,14 @@ def test_live_board_reader_uses_placed_through_hole_signal_contacts(
     contact = SimpleNamespace(name="03", pad=pad)
     element = SimpleNamespace(name="J3", x=100, y=200, angle=270, mirror=True)
     reference = SimpleNamespace(element=element, contact=contact)
-    smd_reference = SimpleNamespace(contact=SimpleNamespace(pad=None))
+    smd_reference = SimpleNamespace(
+        element=SimpleNamespace(name="U1"),
+        contact=SimpleNamespace(
+            name="1",
+            pad=None,
+            smd=SimpleNamespace(x=320000, y=640000, dx=160000, dy=320000, angle=90, layer=1),
+        ),
+    )
     malformed_reference = SimpleNamespace(contact=None)
     board = SimpleNamespace(
         signals=_collection(
@@ -190,15 +197,19 @@ def test_live_board_reader_uses_placed_through_hole_signal_contacts(
         documents=_collection(SimpleNamespace(products=_collection(board)))
     )
     pads = module._live_board_pads(application)
-    assert len(pads) == 1
+    assert len(pads) == 2
     assert pads[0].label == "J3.03"
     assert pads[0].signal == "P1.09"
     assert (pads[0].x, pads[0].y, pads[0].layer) == pytest.approx((1.781, 42.421, 0))
     assert (pads[0].width, pads[0].height, pads[0].drill_diameter_mm) == pytest.approx(
         (1.37, 1.37, 1.02)
     )
-    board.signals = _collection(SimpleNamespace(name="GND", contactRefs=_collection(smd_reference)))
-    with pytest.raises(ValueError, match="no connected through-hole pad data"):
+    assert pads[1].label == "U1.1"
+    assert (pads[1].x, pads[1].y, pads[1].width, pads[1].height) == pytest.approx((1, 2, 1, 0.5))
+    board.signals = _collection(
+        SimpleNamespace(name="GND", contactRefs=_collection(malformed_reference))
+    )
+    with pytest.raises(ValueError, match="no connected pad data"):
         module._live_board_pads(application)
 
 

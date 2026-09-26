@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import traceback
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from time import perf_counter
 from typing import Callable
 
@@ -19,6 +19,7 @@ import adsk.fusion
 from ...domain import loads
 from .. import highlight_route_preview
 from ..cable_solids import refresh_generated_cable_groups_for_connection
+from ..interface_board_source import linked_interface_boards, read_linked_board_pads
 from ..interface_contact_cache import clear_contact_resolutions
 from ..interface_contact_disk_cache import (
     clear_interface_contact_snapshot,
@@ -461,6 +462,40 @@ def _dispatch_palette_action(
     """
     if action == "get_state":
         return serialize_palette_state(application)
+    if action in ("get_pos_import_boards", "pos_import_interface_contacts"):
+        payload = _read_palette_payload(data)
+        harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
+        interface = next(
+            (item for item in definition.interfaces if item.interface_id == interface_id), None
+        )
+        if interface is None:
+            raise ValueError("Selected Interface no longer exists.")
+        boards = linked_interface_boards(_require_active_design(application), interface)
+        if action == "get_pos_import_boards":
+            return json.dumps(
+                {
+                    "ok": True,
+                    "boards": [
+                        {"name": board.name, "versionId": board.version_id} for board in boards
+                    ],
+                }
+            )
+        version_id = payload.get("boardVersionId")
+        matches = [board for board in boards if board.version_id == version_id]
+        if len(matches) != 1:
+            raise ValueError("The selected linked PCB changed; reopen Pos Import.")
+        pads = read_linked_board_pads(application, matches[0])
+        prepared = json.dumps(
+            {
+                "harnessId": str(harness_id),
+                "interfaceId": str(interface_id),
+                "boardPads": [asdict(pad) for pad in pads],
+            }
+        )
+        _open_palette_edit(application, action, prepared)
+        return json.dumps({"ok": True})
     if action == "get_interface_contact_signatures":
         payload = _read_palette_payload(data)
         harness_id = _read_payload_uuid(payload, "harnessId", "harness")

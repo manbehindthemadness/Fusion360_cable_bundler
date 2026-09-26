@@ -64,7 +64,7 @@ def _point(x: float, y: float, angle: float, mirrored: bool) -> tuple[float, flo
 
 def read_eagle_board(path: Path) -> list[BoardPad]:
     """
-    Read placed SMD pads and their net names from a Fusion/Eagle XML board.
+    Read placed SMD and through-hole contacts from a Fusion/Eagle XML board.
 
     Unsupported package rotations are skipped. Non-XML or oversized files fail
     without changing any saved names.
@@ -135,6 +135,35 @@ def read_eagle_board(path: Path) -> list[BoardPad]:
                     signals.get((owner, name), ""),
                 )
             )
+        for native_pad in package.findall("pad"):
+            try:
+                local_x = float(native_pad.get("x", "nan"))
+                local_y = float(native_pad.get("y", "nan"))
+                drill = float(native_pad.get("drill", "nan"))
+                diameter = float(native_pad.get("diameter", str(drill)))
+            except ValueError:
+                continue
+            if not all(map(math.isfinite, (origin_x, origin_y, local_x, local_y, drill, diameter))):
+                continue
+            if min(drill, diameter) <= 0:
+                continue
+            name = native_pad.get("name", "")
+            owner = element.get("name", "")
+            if not owner or not name:
+                continue
+            offset_x, offset_y = _point(local_x, local_y, angle, mirror)
+            pads.append(
+                BoardPad(
+                    f"{owner}.{name}",
+                    origin_x + offset_x,
+                    origin_y + offset_y,
+                    diameter,
+                    diameter,
+                    0,
+                    signals.get((owner, name), ""),
+                    drill,
+                )
+            )
     return pads
 
 
@@ -142,13 +171,12 @@ def match_board_contacts(
     contacts: Iterable[ContactFootprint],
     pads: Iterable[BoardPad],
     position_tolerance_mm: float = 0.1,
-    size_tolerance_mm: float = 0.15,
 ) -> dict[str, BoardPad]:
     """
-    Return unique one-to-one matches using copper outlines or plated holes.
+    Return unique one-to-one matches by board-local center and copper side.
 
-    Through-hole pads require a measured hole; their copper annulus can differ
-    from the nominal board diameter because of manufacturing/design rules.
+    A 3D copper outline or hole may not have the nominal 2D pad dimensions.
+    Positional ambiguity is rejected rather than guessed from those dimensions.
     """
     footprints = tuple(contacts)
     board_pads = tuple(pads)
@@ -160,13 +188,6 @@ def match_board_contacts(
             if contact.layer in (1, 16)
             and pad.layer in (0, contact.layer)
             and math.hypot(contact.x - pad.x, contact.y - pad.y) <= position_tolerance_mm
-            and (
-                contact.hole_diameter_mm > 0
-                and abs(contact.hole_diameter_mm - pad.drill_diameter_mm) <= size_tolerance_mm
-                if pad.drill_diameter_mm > 0
-                else abs(contact.width - pad.width) <= size_tolerance_mm
-                and abs(contact.height - pad.height) <= size_tolerance_mm
-            )
         ]
     return {
         contact_id: board_pads[indexes[0]]

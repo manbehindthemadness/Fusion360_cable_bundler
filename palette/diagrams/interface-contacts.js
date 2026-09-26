@@ -476,6 +476,75 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
     serverMs, elapsedMs: Date.now() - started };
 }
 
+/** Choose an exact linked PCB before reading pad names for Pos Import. */
+function openInterfacePosImport(naming, harnessId, interfaceId) {
+  const existing = naming.querySelector(".interface-contact-pos-import");
+  if (existing) { existing.remove(); return; }
+  const form = document.createElement("form");
+  const message = document.createElement("div");
+  const choices = document.createElement("div");
+  const apply = document.createElement("button");
+  const cancel = document.createElement("button");
+  form.className = "interface-contact-pos-import";
+  form.setAttribute("role", "dialog");
+  form.setAttribute("aria-label", "Choose linked PCB for Pos Import");
+  message.textContent = "Finding linked PCB files…";
+  choices.className = "interface-contact-pos-import-choices";
+  apply.type = "submit";
+  apply.className = "button compact";
+  apply.textContent = "Open and Import";
+  apply.disabled = true;
+  cancel.type = "button";
+  cancel.className = "button compact";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => form.remove());
+  form.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    form.remove();
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const selected = Array.from(choices.querySelectorAll("input")).find((radio) => radio.checked);
+    if (!selected) return;
+    apply.disabled = true;
+    void send("pos_import_interface_contacts", {
+      harnessId, interfaceId, boardVersionId: selected.value,
+    }).then((response) => {
+      if (!response.ok) throw new Error(response.error || "Could not import PCB pad names.");
+      form.remove();
+    }).catch((error) => appendNotice(String(error), true))
+      .finally(() => { apply.disabled = false; });
+  });
+  form.append(message, choices, apply, cancel);
+  naming.append(form);
+  void send("get_pos_import_boards", { harnessId, interfaceId }).then((response) => {
+    if (naming.querySelector(".interface-contact-pos-import") !== form) return;
+    if (!response.ok) throw new Error(response.error || "Could not find linked PCB files.");
+    const boards = Array.isArray(response.boards) ? response.boards : [];
+    message.textContent = boards.length
+      ? "Choose the linked 2D PCB to read pad names from:"
+      : "No linked 2D PCB was found for this Interface. Use Load brd for a local board file.";
+    boards.forEach((board, index) => {
+      const label = document.createElement("label");
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "linked-board";
+      radio.value = board.versionId;
+      radio.checked = index === 0;
+      label.textContent = board.name;
+      label.prepend(radio);
+      choices.append(label);
+    });
+    apply.disabled = !boards.length;
+  }).catch((error) => {
+    if (naming.querySelector(".interface-contact-pos-import") === form) {
+      message.textContent = String(error);
+    }
+  });
+}
+
 /** Open the contact-selection workspace for one Interface. */
 function openInterfaceContacts(harness, interfaceItem) {
   const previous = document.body.querySelector(".interface-contacts-popup");
@@ -536,8 +605,14 @@ function openInterfaceContacts(harness, interfaceItem) {
     naming, diagram, harness.harnessId, interfaceItem.interfaceId,
   ));
   naming.append(autoPin);
+  const posImport = document.createElement("button");
+  posImport.type = "button";
+  posImport.className = "button compact";
+  posImport.textContent = "Pos Import";
+  posImport.addEventListener("click", () => openInterfacePosImport(
+    naming, harness.harnessId, interfaceItem.interfaceId,
+  ));
   [["Geo Import", "geo_import_interface_contacts"],
-    ["Pos Import", "pos_import_interface_contacts"],
     ["Load brd", "load_brd_interface_contacts"]].forEach(([label, action]) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -552,6 +627,7 @@ function openInterfaceContacts(harness, interfaceItem) {
     });
     naming.append(button);
   });
+  naming.insertBefore(posImport, naming.children[2]);
   toolbar.append(modes, naming);
   diagram.className = "interface-contacts-diagram";
   diagram.setAttribute("role", "region");

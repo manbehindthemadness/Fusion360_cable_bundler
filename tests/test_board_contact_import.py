@@ -41,7 +41,7 @@ def test_read_eagle_board_applies_element_rotation_and_signals(tmp_path: Path) -
 
 def test_match_board_contacts_rejects_ambiguous_and_wrong_layer() -> None:
     """
-    A pad must be the unique position, layer, and size match in both directions.
+    A pad must be the unique position and layer match in both directions.
     """
     contacts = [
         ContactFootprint("a", 10, 20, 0.8, 0.4, 1),
@@ -54,9 +54,9 @@ def test_match_board_contacts_rejects_ambiguous_and_wrong_layer() -> None:
     assert match_board_contacts([*contacts, duplicate], pads) == {}
 
 
-def test_through_hole_matching_uses_hole_not_annulus_and_rejects_ambiguity() -> None:
+def test_through_hole_matching_uses_position_for_face_or_edge() -> None:
     """
-    Match plated holes on either copper side without naming solid SMD faces.
+    Match either copper side even when 3D and nominal 2D sizes differ.
     """
     pad = BoardPad("J3.03", 1.781, 42.421, 1.37, 1.37, 0, "P1.09", 1.02)
     for layer in (1, 16):
@@ -64,8 +64,33 @@ def test_through_hole_matching_uses_hole_not_annulus_and_rejects_ambiguity() -> 
         assert match_board_contacts([contact], [pad]) == {"a": pad}
         assert match_board_contacts([contact], [pad, pad]) == {}
     solid = ContactFootprint("solid", 1.781, 42.421, 1.37, 1.37, 1)
-    wrong_hole = ContactFootprint("wrong", 1.781, 42.421, 1.53, 1.53, 1, 0.5)
-    assert match_board_contacts([solid, wrong_hole], [pad]) == {}
+    edge = ContactFootprint("edge", 1.781, 42.421, 0.5, 0.5, 1)
+    assert match_board_contacts([solid], [pad]) == {"solid": pad}
+    assert match_board_contacts([edge], [pad]) == {"edge": pad}
+    assert match_board_contacts([solid, edge], [pad]) == {}
+
+
+def test_read_eagle_board_places_through_hole_contacts(tmp_path: Path) -> None:
+    """
+    Project through-hole pad positions using the same placement as SMDs.
+    """
+    board = tmp_path / "mixed.brd"
+    board.write_text(
+        '<eagle><drawing><board><libraries><library name="L"><packages>'
+        '<package name="P"><pad name="P1" x="1" y="0" drill="0.8" diameter="1.2"/>'
+        '<smd name="S1" x="0" y="1" dx="0.6" dy="0.5" layer="1"/>'
+        "</package></packages></library></libraries><elements>"
+        '<element name="J1" library="L" package="P" x="10" y="20" rot="R90"/>'
+        '</elements><signals><signal name="GND"><contactref element="J1" pad="P1"/>'
+        "</signal></signals></board></drawing></eagle>",
+        encoding="utf-8",
+    )
+    pads = read_eagle_board(board)
+    assert {pad.label for pad in pads} == {"J1.P1", "J1.S1"}
+    through_hole = next(pad for pad in pads if pad.label == "J1.P1")
+    assert (through_hole.x, through_hole.y, through_hole.layer) == pytest.approx((10, 21, 0))
+    assert through_hole.drill_diameter_mm == pytest.approx(0.8)
+    assert through_hole.signal == "GND"
 
 
 def test_read_eagle_board_handles_mirrored_placement_and_missing_file(tmp_path: Path) -> None:

@@ -47,6 +47,7 @@ from ...application import (
     set_pathway_properties,
     switch_standalone_end,
 )
+from ...application.board_contact_import import BoardPad
 from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, PathwayEndpoint
 from ...domain.codec import parse_interpolation
@@ -176,8 +177,17 @@ def _apply_palette_edit(
         return "Interface contact orientation renamed."
     if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
-        source = "live" if action == "pos_import_interface_contacts" else "file"
-        return import_interface_contact_names(application, harness_id, interface_id, source)
+        if action == "load_brd_interface_contacts":
+            return import_interface_contact_names(application, harness_id, interface_id, "file")
+        raw_pads = payload.get("boardPads")
+        if (
+            not isinstance(raw_pads, list)
+            or not raw_pads
+            or any(not isinstance(item, dict) for item in raw_pads)
+        ):
+            raise ValueError("Pos Import has no prepared linked PCB contacts.")
+        pads = [BoardPad(**item) for item in raw_pads]
+        return import_interface_contact_names(application, harness_id, interface_id, "linked", pads)
     if action == "geo_import_interface_contacts":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         raw_ids = payload.get("contactIds")

@@ -55,7 +55,7 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   naming[2].events.click();
   naming[3].events.click();
   assert.deepEqual(launches.slice(3).map((item) => item.action), [
-    'geo_import_interface_contacts', 'pos_import_interface_contacts', 'load_brd_interface_contacts',
+    'geo_import_interface_contacts', 'get_pos_import_boards', 'load_brd_interface_contacts',
   ]);
   assert.deepEqual(Array.from(launches[3].payload.contactIds), []);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
@@ -63,6 +63,37 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   ]);
   dialog.children[3].children[0].events.click();
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), undefined);
+});
+
+asyncTest('Pos Import confirms only the selected linked board version', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    if (action === 'get_pos_import_boards') {
+      return Promise.resolve({ ok: true, boards: [
+        { name: 'Linked PCB', versionId: 'pcb-version' },
+      ] });
+    }
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [],
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const naming = dialog.children[1].children[1];
+  naming.children[2].events.click();
+  await Promise.resolve();
+  const form = naming.querySelector('.interface-contact-pos-import');
+  assert.equal(form.children[0].textContent, 'Choose the linked 2D PCB to read pad names from:');
+  assert.equal(form.children[1].children[0].textContent, 'Linked PCB');
+  assert.equal(form.children[2].disabled, false);
+  form.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.deepEqual(launches.map((item) => item.action), [
+    'get_pos_import_boards', 'pos_import_interface_contacts',
+  ]);
+  assert.equal(launches[1].payload.boardVersionId, 'pcb-version');
 });
 
 test('Contact hover highlights its Fusion target and clears on leave, refresh, and close', () => {
