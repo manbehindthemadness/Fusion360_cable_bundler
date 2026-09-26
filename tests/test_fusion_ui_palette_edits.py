@@ -7,9 +7,11 @@ from __future__ import annotations
 from tests.fusion_ui_support import (
     UUID,
     Mock,
+    ModuleType,
     PathwayEndpoint,
     SimpleNamespace,
     _PaletteLifecycleModule,
+    importlib,
     json,
     pytest,
     sys,
@@ -27,8 +29,33 @@ def _mock_palette_service(
     gateway = object()
     service = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, service_name, service)
+    topology_services = {
+        "disconnect_cable_end_main",
+        "disconnect_cable_end_shielding",
+        "remove_end_guide",
+        "remove_end_control",
+    }
+    target = _topology_edits_module() if service_name in topology_services else addin_module
+    monkeypatch.setattr(target, service_name, service)
     return gateway, service
+
+
+def _topology_edits_module() -> ModuleType:
+    """
+    Return the module that owns palette topology service calls.
+    """
+    return importlib.import_module("cable_bundler.fusion.ui.topology_edits")
+
+
+def _mock_topology_service(
+    monkeypatch: pytest.MonkeyPatch,
+    service_name: str,
+    service: Mock,
+) -> None:
+    """
+    Replace one topology service at its owning module boundary.
+    """
+    monkeypatch.setattr(_topology_edits_module(), service_name, service)
 
 
 def test_route_capacity_error_fails_preview_command(
@@ -98,7 +125,7 @@ def test_palette_edit_deletes_standalone_end_by_connection_identity(
     gateway = object()
     remove = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "remove_standalone_end", remove)
+    _mock_topology_service(monkeypatch, "remove_standalone_end", remove)
 
     notice = addin_module._apply_palette_edit(
         object(),
@@ -122,7 +149,7 @@ def test_palette_edit_adds_unattached_cable_end_connection(
     gateway = object()
     add = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "add_cable_end_connection", add)
+    _mock_topology_service(monkeypatch, "add_cable_end_connection", add)
 
     notice = addin_module._apply_palette_edit(
         object(),
@@ -147,7 +174,7 @@ def test_palette_edit_adds_child_connection_to_selected_parent(
     gateway = object()
     add = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "add_cable_end_connection", add)
+    _mock_topology_service(monkeypatch, "add_cable_end_connection", add)
 
     addin_module._apply_palette_edit(
         object(),
@@ -258,7 +285,7 @@ def test_palette_edits_rename_and_remove_cable_end_attachment(
     remove = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "rename_cable_end_attachment", rename)
-    monkeypatch.setattr(addin_module, "remove_cable_end_attachment", remove)
+    _mock_topology_service(monkeypatch, "remove_cable_end_attachment", remove)
 
     rename_notice = addin_module._apply_palette_edit(
         object(),
@@ -638,7 +665,7 @@ def test_palette_edit_deletes_pathway_by_identity(
     gateway = object()
     remove = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "remove_pathway", remove)
+    _mock_topology_service(monkeypatch, "remove_pathway", remove)
 
     notice = addin_module._apply_palette_edit(
         object(),
@@ -662,7 +689,7 @@ def test_palette_edit_deletes_junction_by_identity(
     gateway = object()
     remove = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
-    monkeypatch.setattr(addin_module, "remove_junction", remove)
+    _mock_topology_service(monkeypatch, "remove_junction", remove)
 
     notice = addin_module._apply_palette_edit(
         object(),

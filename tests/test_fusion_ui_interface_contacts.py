@@ -141,10 +141,11 @@ def test_contact_deletion_routes_selected_ids_as_one_edit(
     Parse the selected identities before issuing one transactional removal.
     """
     edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    topology_edits = importlib.import_module("cable_bundler.fusion.ui.topology_edits")
     gateway = object()
     remove = Mock()
     monkeypatch.setitem(vars(edits), "_create_harness_gateway", lambda _app: gateway)
-    monkeypatch.setitem(vars(edits), "remove_interface_contacts", remove)
+    monkeypatch.setitem(vars(topology_edits), "remove_interface_contacts", remove)
     payload = {
         "harnessId": str(UUID(int=1)),
         "interfaceId": str(UUID(int=2)),
