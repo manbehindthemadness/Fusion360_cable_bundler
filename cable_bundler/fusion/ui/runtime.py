@@ -186,6 +186,7 @@ class UiRuntime:
     pending_refine_edit: PendingSlot[tuple[UUID, UUID]] = field(default_factory=PendingSlot)
     pending_palette_edit: PendingSlot[tuple[str, str, object]] = field(default_factory=PendingSlot)
     pending_native_dialog: PendingSlot[tuple[str, str]] = field(default_factory=PendingSlot)
+    palette_restore_command_id: Optional[str] = None
     last_command_error: str = ""
     contact_geometry_revision: int = 0
     contact_document_revisions: dict[tuple[str, int], int] = field(default_factory=dict)
@@ -249,6 +250,7 @@ class UiRuntime:
         self.pending_refine_edit.clear()
         self.pending_palette_edit.clear()
         self.pending_native_dialog.clear()
+        self.palette_restore_command_id = None
 
     def capture_graphics_cache_preference(self, value: bool) -> None:
         """

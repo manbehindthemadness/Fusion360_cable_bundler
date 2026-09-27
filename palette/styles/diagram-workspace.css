@@ -193,6 +193,22 @@
   font-size: 11px;
 }
 .relationship-map-settings input { width: 64px; padding: 5px 7px; }
+.relationship-map-preferences {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.relationship-map-auto-hide {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.relationship-map-auto-hide input { margin: 0; }
 .relationship-map-summary { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .relationship-map-legend {
   display: flex;

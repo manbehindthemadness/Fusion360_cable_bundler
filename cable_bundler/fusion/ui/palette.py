@@ -32,14 +32,25 @@ from ..interface_contact_projection import project_interface_contact
 from ..interface_contact_source import contact_source_signature
 from .commands.refines import reconcile_active_refines
 from .constants import (
+    ADD_END_COMMAND_ID,
+    ADD_INTERFACE_COMMAND_ID,
+    ADD_JUNCTION_COMMAND_ID,
+    ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
+    ADD_PATHWAY_COMMAND_ID,
+    ADD_REFINE_COMMAND_ID,
+    APPEND_GATES_COMMAND_ID,
+    ATTACH_CABLE_END_COMMAND_ID,
     COMMAND_ID,
     COMMAND_NAME,
     CREATE_COMMAND_ID,
+    EDIT_REFINE_COMMAND_ID,
     PALETTE_HTML_URL,
     PALETTE_ID,
     PALETTE_INITIAL_HEIGHT,
     PALETTE_INITIAL_WIDTH,
     PALETTE_RESOURCE_FILES,
+    SEGMENT_PATHWAY_COMMAND_ID,
+    SELECT_INTERFACE_CONTACTS_COMMAND_ID,
 )
 from .constants import PALETTE_EDIT_NAMES as _PALETTE_EDIT_NAMES
 from .edits import (
@@ -155,6 +166,64 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "edit_pathway_refine": _launch_refine_edit,
 }
 
+_NATIVE_DIALOG_COMMAND_IDS = {
+    "create_harness": CREATE_COMMAND_ID,
+    "add_pathway": ADD_PATHWAY_COMMAND_ID,
+    "add_junction": ADD_JUNCTION_COMMAND_ID,
+    "add_interface": ADD_INTERFACE_COMMAND_ID,
+    "select_interface_contacts": SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    "load_brd_interface_contacts": f"{COMMAND_ID}_load_brd_interface_contacts",
+    "add_junction_relationship": ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
+    "add_end": ADD_END_COMMAND_ID,
+    "connect_cable_end": ATTACH_CABLE_END_COMMAND_ID,
+    "append_pathway_gates": APPEND_GATES_COMMAND_ID,
+    "append_end_guides": APPEND_GATES_COMMAND_ID,
+    "add_pathway_refine": ADD_REFINE_COMMAND_ID,
+    "add_end_refine": ADD_REFINE_COMMAND_ID,
+    "add_connection_refine": ADD_REFINE_COMMAND_ID,
+    "segment_pathway": SEGMENT_PATHWAY_COMMAND_ID,
+    "edit_pathway_refine": EDIT_REFINE_COMMAND_ID,
+}
+
+
+def _restore_native_dialog_palette(
+    application: adsk.core.Application, command_id: str | None = None
+) -> None:
+    """
+    Reveal the palette after its native command ends or fails to launch.
+    """
+    expected_id = _runtime.palette_restore_command_id
+    if expected_id is None or (command_id is not None and command_id != expected_id):
+        return
+    _runtime.palette_restore_command_id = None
+    palette = application.userInterface.palettes.itemById(PALETTE_ID)
+    if palette is not None:
+        palette.isVisible = True
+
+
+def _launch_native_dialog(application: adsk.core.Application, action: str, data: str) -> None:
+    """
+    Hide the palette for opted-in native dialogs until command termination.
+    """
+    auto_hide = _read_palette_payload(data).get("autoHide", True)
+    if not isinstance(auto_hide, bool):
+        raise ValueError("Auto hide must be enabled or disabled.")
+    palette = application.userInterface.palettes.itemById(PALETTE_ID)
+    if auto_hide and palette is not None and palette.isVisible:
+        if _runtime.palette_restore_command_id is not None:
+            raise RuntimeError("Another Harness Builder dialog is already open.")
+        _runtime.palette_restore_command_id = _NATIVE_DIALOG_COMMAND_IDS[action]
+        try:
+            palette.isVisible = False
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            _runtime.palette_restore_command_id = None
+            raise
+    try:
+        _NATIVE_DIALOG_ACTIONS[action](application, data)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _restore_native_dialog_palette(application)
+        raise
+
 
 class _DeferredPaletteLaunchHandler(adsk.core.CustomEventHandler):
     """
@@ -170,12 +239,11 @@ class _DeferredPaletteLaunchHandler(adsk.core.CustomEventHandler):
         if request is None:
             return
         action, data = request
-        launcher = _NATIVE_DIALOG_ACTIONS.get(action)
-        if launcher is None:
+        if action not in _NATIVE_DIALOG_ACTIONS:
             _log_to_fusion(f"Deferred palette launch is unsupported: {action}")
             return
         try:
-            launcher(adsk.core.Application.get(), data)
+            _launch_native_dialog(adsk.core.Application.get(), action, data)
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             _log_to_fusion(f"Could not open deferred Harness Builder command: {error}")
 
@@ -198,8 +266,7 @@ def _request_deferred_palette_launch(
     # Fusion can reject the custom-event queue from a palette callback. Launch the
     # command through the original palette path instead of losing the request.
     _runtime.pending_native_dialog.clear()
-    launcher = _NATIVE_DIALOG_ACTIONS[action]
-    launcher(application, data)
+    _launch_native_dialog(application, action, data)
 
 
 def _register_deferred_palette_launch(application: adsk.core.Application) -> None:
@@ -630,10 +697,9 @@ def _dispatch_palette_action(
             },
             sort_keys=True,
         )
-    launcher = _NATIVE_DIALOG_ACTIONS.get(action)
-    if launcher is not None:
+    if action in _NATIVE_DIALOG_ACTIONS:
         if action == "connect_cable_end":
-            launcher(application, data)
+            _launch_native_dialog(application, action, data)
         else:
             _request_deferred_palette_launch(application, action, data)
         return json.dumps({"ok": True})

@@ -49,6 +49,7 @@ from .palette import (
     _PaletteEditCreatedHandler,
     _register_deferred_palette_launch,
     _remove_deferred_palette_launch,
+    _restore_native_dialog_palette,
 )
 from .palette_state import (
     _send_palette_state,
@@ -140,6 +141,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
+            _restore_native_dialog_palette(application, args.commandId)
             reason = getattr(args, "terminationReason", None)
             if (
                 reason is not None

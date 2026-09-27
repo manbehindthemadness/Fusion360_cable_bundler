@@ -62,6 +62,56 @@ test('unchanged Fusion state leaves the master diagram mounted', () => {
   assert.notEqual(context.ui.editor.children[0], master);
 });
 
+asyncTest('Auto hide setting persists and controls native picker requests', async () => {
+  const preferences = new Map();
+  const { context } = palette(new Map(), preferences);
+  const diagram = context.renderRelationshipMap(harness());
+  const setting = descendants(diagram, (node) => (
+    node.className === 'relationship-map-auto-hide'
+  ))[0];
+  const checkbox = setting.children[0];
+  assert.equal(checkbox.type, 'checkbox');
+  assert.equal(checkbox.checked, true);
+
+  checkbox.checked = false;
+  checkbox.events.change();
+  assert.equal(preferences.get('cableBundler.autoHideNativePickers'), 'false');
+
+  const requests = [];
+  context.window.adsk = {
+    fusionSendData: async (action, data) => {
+      requests.push({ action, payload: JSON.parse(data) });
+      return '{"ok":true}';
+    },
+  };
+  const pickerRequest = context.send('add_junction', { harnessId: 'h' });
+  context.intervals.filter((timer) => timer.delay === 100)
+    .forEach((timer) => timer.callback());
+  await pickerRequest;
+  assert.deepEqual(requests.find((request) => request.action === 'add_junction'), {
+    action: 'add_junction', payload: { harnessId: 'h', autoHide: false },
+  });
+
+  checkbox.checked = true;
+  checkbox.events.change();
+  const nextRequest = context.send('add_interface', { harnessId: 'h' });
+  context.intervals.filter((timer) => timer.delay === 100)
+    .forEach((timer) => timer.callback());
+  await nextRequest;
+  assert.deepEqual(requests.find((request) => request.action === 'add_interface'), {
+    action: 'add_interface', payload: { harnessId: 'h', autoHide: true },
+  });
+
+  checkbox.checked = false;
+  checkbox.events.change();
+
+  const reopened = palette(new Map(), preferences).context.renderRelationshipMap(harness());
+  const reopenedSetting = descendants(reopened, (node) => (
+    node.className === 'relationship-map-auto-hide'
+  ))[0];
+  assert.equal(reopenedSetting.children[0].checked, false);
+});
+
 asyncTest('device mode polls Fusion without refreshing harness state', async () => {
   const { context } = palette();
   const actions = [];

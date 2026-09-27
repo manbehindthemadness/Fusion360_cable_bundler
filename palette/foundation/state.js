@@ -71,6 +71,8 @@ const MAX_RELATIONSHIP_COLLAPSE_LIMIT = 999;
 const DEVELOPER_MODE_DISCLOSURE_VERSION = "1";
 const DEVELOPER_MODE_STORAGE_KEY = "cableBundler.developerMode";
 const DEVELOPER_CONSENT_STORAGE_KEY = "cableBundler.developerConsentVersion";
+const AUTO_HIDE_NATIVE_PICKERS_STORAGE_KEY = "cableBundler.autoHideNativePickers";
+let autoHideNativePickers = readPreference(AUTO_HIDE_NATIVE_PICKERS_STORAGE_KEY) !== "false";
 const storedExpandedSections = readSession("cableBundler.expandedSections");
 let hasStoredExpansionState = storedExpandedSections !== null;
 let expandedSectionIds = [];

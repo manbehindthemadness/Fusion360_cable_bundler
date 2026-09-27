@@ -61,8 +61,11 @@ function renderRelationshipMap(harness) {
   const toolbar = document.createElement("div");
   const filter = document.createElement("input");
   const summary = document.createElement("span");
+  const preferences = document.createElement("div");
   const settings = document.createElement("label");
   const collapseInput = document.createElement("input");
+  const autoHideSetting = document.createElement("label");
+  const autoHideInput = document.createElement("input");
   const workspace = createBlockDiagramWorkspace(
     "Zoomable master relationship diagram",
     {
@@ -98,6 +101,17 @@ function renderRelationshipMap(harness) {
   collapseInput.value = `${relationshipCollapseLimit(harness)}`;
   collapseInput.setAttribute("aria-label", "Connections before end lists collapse");
   settings.append(collapseInput, "connections");
+  preferences.className = "relationship-map-preferences";
+  autoHideSetting.className = "relationship-map-auto-hide";
+  autoHideInput.type = "checkbox";
+  autoHideInput.checked = autoHideNativePickers;
+  autoHideSetting.append(autoHideInput, "Auto hide");
+  autoHideSetting.title = "Hide Harness Builder while a Fusion picker is open";
+  autoHideInput.addEventListener("change", () => {
+    autoHideNativePickers = autoHideInput.checked;
+    writePreference(AUTO_HIDE_NATIVE_PICKERS_STORAGE_KEY, String(autoHideNativePickers));
+  });
+  preferences.append(settings, autoHideSetting);
 
   let renderedStack = null;
   let renderedComponents = [];
@@ -232,7 +246,7 @@ function renderRelationshipMap(harness) {
       .forEach((key) => relationshipEndListOverrides.delete(key));
     draw();
   });
-  container.append(toolbar, settings, workspace.root);
+  container.append(toolbar, preferences, workspace.root);
   draw();
   return container;
 }

@@ -9,6 +9,7 @@ from tests.fusion_ui_support import (
     Mock,
     SimpleNamespace,
     _PaletteLifecycleModule,
+    importlib,
     json,
     pytest,
     sys,
@@ -143,7 +144,10 @@ def test_palette_native_selector_launches_after_bridge_response(
     """
     Return to the palette before opening a requested native Fusion selector.
     """
-    application = SimpleNamespace(fireCustomEvent=Mock(return_value=True))
+    application = SimpleNamespace(
+        fireCustomEvent=Mock(return_value=True),
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: None)),
+    )
     core_module = sys.modules["adsk.core"]
     vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
     vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
@@ -165,6 +169,97 @@ def test_palette_native_selector_launches_after_bridge_response(
     opened.assert_called_once_with(application, data)
 
 
+def test_native_selector_keeps_palette_hidden_until_its_command_ends(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Leave the Fusion picker in front and restore the palette after cancellation.
+    """
+    palette = SimpleNamespace(isVisible=True)
+    application = SimpleNamespace(
+        fireCustomEvent=Mock(return_value=True),
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: palette)),
+    )
+    core_module = sys.modules["adsk.core"]
+    vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
+    vars(core_module)["CommandTerminationReason"] = SimpleNamespace(
+        CompletedTerminationReason="completed"
+    )
+
+    def verify_hidden(_application: object, _data: str) -> None:
+        """
+        Verify the palette yields the foreground before Fusion opens the picker.
+        """
+        assert palette.isVisible is False
+
+    opened = Mock(side_effect=verify_hidden)
+    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+
+    addin_module._request_deferred_palette_launch(application, "add_junction", "{}")
+    addin_module._DeferredPaletteLaunchHandler().notify(SimpleNamespace())
+
+    opened.assert_called_once_with(application, "{}")
+    assert palette.isVisible is False
+    expected_id = addin_module._runtime.palette_restore_command_id
+    assert expected_id is not None
+    history_handler = importlib.import_module(
+        "cable_bundler.fusion.ui.lifecycle"
+    )._HistoryChangedHandler()
+    history_handler.notify(
+        SimpleNamespace(commandId="SelectCommand", terminationReason="cancelled")
+    )
+    assert palette.isVisible is False
+    history_handler.notify(SimpleNamespace(commandId=expected_id, terminationReason="cancelled"))
+    assert palette.isVisible is True
+    assert addin_module._runtime.palette_restore_command_id is None
+
+
+def test_failed_native_selector_restores_palette(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Reveal the palette when Fusion refuses to open its picker.
+    """
+    palette = SimpleNamespace(isVisible=True)
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: palette)),
+    )
+    monkeypatch.setattr(
+        addin_module,
+        "_open_add_junction_command",
+        Mock(side_effect=RuntimeError("picker unavailable")),
+    )
+
+    with pytest.raises(RuntimeError, match="picker unavailable"):
+        addin_module._launch_native_dialog(application, "add_junction", "{}")
+
+    assert palette.isVisible is True
+    assert addin_module._runtime.palette_restore_command_id is None
+
+
+def test_disabled_auto_hide_leaves_palette_visible(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Honor a picker request that opts out of palette visibility changes.
+    """
+    palette = SimpleNamespace(isVisible=True)
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: palette)),
+    )
+    opened = Mock()
+    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+
+    addin_module._launch_native_dialog(application, "add_junction", '{"autoHide": false}')
+
+    opened.assert_called_once_with(application, '{"autoHide": false}')
+    assert palette.isVisible is True
+    assert addin_module._runtime.palette_restore_command_id is None
+
+
 @pytest.mark.parametrize("relationship", ("main", "shielding"))
 def test_connect_selector_launches_without_custom_event(
     addin_module: _PaletteLifecycleModule,
@@ -173,11 +268,21 @@ def test_connect_selector_launches_without_custom_event(
     """
     Open either connection selector without relying on Fusion's custom-event queue.
     """
-    command_definition = SimpleNamespace(execute=Mock(return_value=True))
+    palette = SimpleNamespace(isVisible=True)
+
+    def execute_picker() -> bool:
+        """
+        Confirm the direct picker opens after the palette yields the foreground.
+        """
+        assert palette.isVisible is False
+        return True
+
+    command_definition = SimpleNamespace(execute=Mock(side_effect=execute_picker))
     application = SimpleNamespace(
         fireCustomEvent=Mock(return_value=False),
         userInterface=SimpleNamespace(
-            commandDefinitions=SimpleNamespace(itemById=lambda _identity: command_definition)
+            commandDefinitions=SimpleNamespace(itemById=lambda _identity: command_definition),
+            palettes=SimpleNamespace(itemById=lambda _identity: palette),
         ),
     )
     core_module = sys.modules["adsk.core"]
@@ -199,6 +304,14 @@ def test_connect_selector_launches_without_custom_event(
     assert json.loads(args.returnData) == {"ok": True}
     application.fireCustomEvent.assert_not_called()
     command_definition.execute.assert_called_once_with()
+    assert palette.isVisible is False
+    assert (
+        addin_module._runtime.palette_restore_command_id == addin_module.ATTACH_CABLE_END_COMMAND_ID
+    )
+    addin_module._restore_native_dialog_palette(
+        application, addin_module._runtime.palette_restore_command_id
+    )
+    assert palette.isVisible is True
     assert addin_module._runtime.pending_cable_end_attachment.consume() == (
         harness_id,
         connection_id,
@@ -215,7 +328,10 @@ def test_rejected_deferred_event_uses_direct_native_launcher(
     """
     Keep other native selectors usable when Fusion rejects the deferred event.
     """
-    application = SimpleNamespace(fireCustomEvent=Mock(return_value=False))
+    application = SimpleNamespace(
+        fireCustomEvent=Mock(return_value=False),
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: None)),
+    )
     opened = Mock()
     monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
 
@@ -233,7 +349,10 @@ def test_rejected_event_clears_request_before_direct_launcher_failure(
     """
     Leave no stale selector request if the direct native command cannot open.
     """
-    application = SimpleNamespace(fireCustomEvent=Mock(return_value=False))
+    application = SimpleNamespace(
+        fireCustomEvent=Mock(return_value=False),
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: None)),
+    )
     monkeypatch.setattr(
         addin_module,
         "_open_add_junction_command",
