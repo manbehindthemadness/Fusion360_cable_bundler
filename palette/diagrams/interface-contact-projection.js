@@ -4,29 +4,29 @@ function contactOrientation(normal) {
   return length > 1e-9 ? normal.map((value) => value / length) : [0, 0, 1];
 }
 
-/** View contacts from the facing side, keeping the shared parent vertical axis down. */
+/** Keep board-forward (+Y) up when visible, using +Z for its end-on side faces. */
 function contactPlanePoint(point, normal, parentAxes = null) {
   const validAxes = Array.isArray(parentAxes) && parentAxes.length === 3
     && parentAxes.every((axis) => Array.isArray(axis) && axis.length === 3
       && axis.every(Number.isFinite) && Math.hypot(...axis) > 1e-9);
   const axes = validAxes ? parentAxes.map(contactOrientation) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-  const alignment = normal.reduce((sum, value, index) => sum + value * axes[2][index], 0);
-  const reference = Math.abs(alignment) < 0.9 ? axes[2] : axes[1];
-  const u = [
-    reference[1] * normal[2] - reference[2] * normal[1],
-    reference[2] * normal[0] - reference[0] * normal[2],
-    reference[0] * normal[1] - reference[1] * normal[0],
-  ];
-  const length = Math.hypot(...u);
-  const xAxis = u.map((value) => value / length);
-  const yAxis = [
-    normal[1] * xAxis[2] - normal[2] * xAxis[1],
-    normal[2] * xAxis[0] - normal[0] * xAxis[2],
-    normal[0] * xAxis[1] - normal[1] * xAxis[0],
+  const facing = contactOrientation(normal);
+  const inPlane = (axis) => {
+    const alignment = axis.reduce((sum, value, index) => sum + value * facing[index], 0);
+    const projected = axis.map((value, index) => value - alignment * facing[index]);
+    return { projected, length: Math.hypot(...projected) };
+  };
+  const reference = [axes[1], axes[2], axes[0], [0, 1, 0], [0, 0, 1], [1, 0, 0]]
+    .map(inPlane).find((candidate) => candidate.length > 1e-6);
+  const yAxis = reference.projected.map((value) => value / reference.length);
+  const xAxis = [
+    yAxis[1] * facing[2] - yAxis[2] * facing[1],
+    yAxis[2] * facing[0] - yAxis[0] * facing[2],
+    yAxis[0] * facing[1] - yAxis[1] * facing[0],
   ];
   return [
-    -point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
-    point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
+    point.reduce((sum, value, index) => sum + value * xAxis[index], 0),
+    -point.reduce((sum, value, index) => sum + value * yAxis[index], 0),
   ];
 }
 

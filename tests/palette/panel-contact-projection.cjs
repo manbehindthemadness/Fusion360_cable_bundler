@@ -1,11 +1,11 @@
 /** Directed contact projection and sizing regressions. */
 const { assert, palette, test } = require('./support.cjs');
 
-test('contact projection views asymmetric layouts from the picked face side', () => {
+test('contact projection aligns top-face axes with PCB view and preserves picked side', () => {
   const { context } = palette();
   for (const [normal, expectedRight, expectedUp] of [
-    [[0, 0, 2], [-4, 0], [0, 2]],
-    [[0, 0, -2], [4, 0], [0, 2]],
+    [[0, 0, 2], [4, 0], [0, -2]],
+    [[0, 0, -2], [-4, 0], [0, -2]],
   ]) {
     const direction = context.contactOrientation(normal);
     const right = context.contactPlanePoint([4, 0, 0], direction);
@@ -29,7 +29,7 @@ test('contact projection views asymmetric layouts from the picked face side', ()
   }
 });
 
-test('board contact projection keeps the small pads below the long pads', () => {
+test('board contact projection puts larger parent Y above smaller parent Y', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');
   context.renderInterfaceContacts(diagram, [
@@ -41,7 +41,22 @@ test('board contact projection keeps the small pads below the long pads', () => 
       loops: [[[0, 5, 0], [1, 5, 0], [1, 6, 0]]] },
   ]);
   assert.ok(diagram.contactState.items[1].loops[0][0][1]
-    > diagram.contactState.items[0].loops[0][0][1]);
+    < diagram.contactState.items[0].loops[0][0][1]);
+});
+
+test('side contacts keep PCB forward up unless viewed exactly end-on', () => {
+  const { context } = palette();
+  const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (const normal of [[1, 0, 0], [-1, 0, 0]]) {
+    const forward = context.contactPlanePoint([0, 4, 0], normal, axes);
+    assert.ok(Math.abs(forward[0]) < 1e-9);
+    assert.equal(forward[1], -4);
+  }
+  for (const normal of [[0, 1, 0], [0, -1, 0]]) {
+    const thickness = context.contactPlanePoint([0, 0, 2], normal, axes);
+    assert.ok(Math.abs(thickness[0]) < 1e-9);
+    assert.equal(thickness[1], -2);
+  }
 });
 
 test('contact clusters retain their local layout when the parent tilts and rotates', () => {
@@ -110,7 +125,7 @@ test('small contact pads fit the diagram without strokes swallowing their gaps',
     assert.ok(height > 10, 'pad interiors remain visible at the initial display scale');
     assert.ok(Math.abs(width / height - 4 / 0.6) < 1e-8);
     for (let index = 1; index < loops.length; index += 1) {
-      assert.ok(loops[index][0][1] - loops[index - 1][2][1] > 3,
+      assert.ok(loops[index - 1][0][1] - loops[index][2][1] > 3,
         'neighboring pad strokes must not overlap');
     }
     assert.ok(loops[6][2][1] < diagramHeight);

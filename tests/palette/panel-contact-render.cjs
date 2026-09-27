@@ -152,7 +152,7 @@ test('dense two-column contacts keep each outside label aligned to its pad', () 
     for (let index = start + 1; index < start + 19; index += 1) {
       const firstHeight = Number.parseFloat(labels[index - 1].style.fontSize) + 3;
       const secondHeight = Number.parseFloat(labels[index].style.fontSize) + 3;
-      assert.ok(Number(labels[index].attributes.y) - Number(labels[index - 1].attributes.y)
+      assert.ok(Math.abs(Number(labels[index].attributes.y) - Number(labels[index - 1].attributes.y))
         >= (firstHeight + secondHeight) / 2);
     }
   }
@@ -198,6 +198,6 @@ test('wide contact rows place compact labels above and below the geometry', () =
   ));
   assert.equal(labels.length, 6);
   assert.equal(labels.slice(0, 3).every((label) => label.attributes['text-anchor'] === 'middle'), true);
-  assert.ok(Number(labels[0].attributes.y) < diagram.contactState.items[0].loops[0][0][1]);
-  assert.ok(Number(labels[3].attributes.y) > diagram.contactState.items[3].loops[0][0][1]);
+  assert.ok(Number(labels[0].attributes.y) > diagram.contactState.items[0].loops[0][0][1]);
+  assert.ok(Number(labels[3].attributes.y) < diagram.contactState.items[3].loops[0][0][1]);
 });
