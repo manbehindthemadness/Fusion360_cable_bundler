@@ -232,8 +232,8 @@ test('Auto Pin follows visual rows or columns, direction, and selected contacts'
     { id: 'bottom-left', loops: [[[0, 20], [10, 20], [10, 30]]] },
     { id: 'top-right', loops: [[[20, 0], [30, 0], [30, 10]]] },
   ];
-  const ids = (direction, selected = new Set()) => (
-    Array.from(context.orderedInterfaceContactIds(items, selected, direction))
+  const ids = (direction, selected = new Set(), zigzag = false) => (
+    Array.from(context.orderedInterfaceContactIds(items, selected, direction, zigzag))
   );
   assert.deepEqual(ids('LRTB'), ['top-left', 'top-right', 'bottom-left', 'bottom-right']);
   assert.deepEqual(ids('RLTB'), ['top-right', 'top-left', 'bottom-right', 'bottom-left']);
@@ -244,6 +244,58 @@ test('Auto Pin follows visual rows or columns, direction, and selected contacts'
   assert.deepEqual(ids('TBRL'), ['top-right', 'bottom-right', 'top-left', 'bottom-left']);
   assert.deepEqual(ids('BTRL'), ['bottom-right', 'top-right', 'bottom-left', 'top-left']);
   assert.deepEqual(ids('LRTB', new Set(['top-right', 'bottom-left'])), ['top-right', 'bottom-left']);
+  assert.deepEqual(ids('LRTB', new Set(), true),
+    ['top-left', 'top-right', 'bottom-right', 'bottom-left']);
+  assert.deepEqual(ids('RLTB', new Set(), true),
+    ['top-right', 'top-left', 'bottom-left', 'bottom-right']);
+  assert.deepEqual(ids('TBLR', new Set(), true),
+    ['top-left', 'bottom-left', 'bottom-right', 'top-right']);
+});
+
+test('Zigzag reverses every second visual row in the Auto Pin sequence', () => {
+  const { context } = palette();
+  const items = [2, 0, 1].flatMap((row) => [2, 0, 1].map((column) => ({
+    id: `${row}-${column}`,
+    loops: [[
+      [column * 10, row * 10], [column * 10 + 2, row * 10],
+      [column * 10 + 2, row * 10 + 2],
+    ]],
+  })));
+  const ordered = Array.from(context.orderedInterfaceContactIds(items, new Set(), 'LRTB', true));
+  assert.deepEqual(ordered, [
+    '0-0', '0-1', '0-2',
+    '1-2', '1-1', '1-0',
+    '2-0', '2-1', '2-2',
+  ]);
+});
+
+test('Auto Pin popup sends zigzagged contact order when enabled', () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [],
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const diagram = dialog.children[2];
+  diagram.contactState.items = [1, 0].flatMap((row) => [2, 0, 1].map((column) => ({
+    id: `${row}-${column}`,
+    loops: [[[column * 10, row * 10], [column * 10 + 2, row * 10],
+      [column * 10 + 2, row * 10 + 2]]],
+  })));
+  const naming = dialog.children[1].children[1];
+  naming.children[0].events.click();
+  const form = naming.querySelector('.interface-contact-auto-pin');
+  const zigzag = form.children[3].children[0];
+  assert.equal(zigzag.checked, undefined);
+  zigzag.checked = true;
+  form.events.submit({ preventDefault() {} });
+  assert.deepEqual(Array.from(launches[0].payload.contactIds), [
+    '0-0', '0-1', '0-2', '1-2', '1-1', '1-0',
+  ]);
 });
 
 asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes', async () => {
@@ -271,12 +323,14 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   const direction = form.children[0].children[0];
   const start = form.children[1].children[0];
   const hopscotch = form.children[2].children[0];
-  const overwrite = form.children[3].children[0];
+  const zigzag = form.children[3].children[0];
+  const overwrite = form.children[4].children[0];
   assert.deepEqual(Array.from(direction.children, (option) => option.value),
     ['LRTB', 'RLTB', 'LRBT', 'RLBT', 'TBLR', 'BTLR', 'TBRL', 'BTRL']);
   assert.equal(direction.value, 'LRTB');
   assert.equal(start.value, '0');
   assert.equal(hopscotch.checked, true);
+  assert.equal(zigzag.checked, undefined);
   assert.equal(overwrite.checked, undefined);
   dialog.children[2].contactState.selectedIds.add('pad-1');
   start.value = '7';
@@ -309,7 +363,7 @@ test('Auto Pin without Hopscotch counts occupied contacts and disables Overwrite
   naming.children[0].events.click();
   const form = naming.querySelector('.interface-contact-auto-pin');
   const hopscotch = form.children[2].children[0];
-  const overwrite = form.children[3].children[0];
+  const overwrite = form.children[4].children[0];
   overwrite.checked = true;
   hopscotch.checked = false;
   hopscotch.events.change();

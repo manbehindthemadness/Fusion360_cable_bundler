@@ -1,5 +1,5 @@
-/** Return contact IDs by visual rows or columns with a stable identity tie-breaker. */
-function orderedInterfaceContactIds(items, selectedIds, direction) {
+/** Return contact IDs by visual groups, optionally reversing every second group. */
+function orderedInterfaceContactIds(items, selectedIds, direction, zigzag = false) {
   const candidates = items.filter((item) => !selectedIds.size || selectedIds.has(item.id))
     .map((item) => {
       const points = item.loops.flat();
@@ -38,6 +38,9 @@ function orderedInterfaceContactIds(items, selectedIds, direction) {
       || first.id.localeCompare(second.id)
   )));
   if (primaryReverse) groups.reverse();
+  if (zigzag) groups.forEach((group, index) => {
+    if (index % 2) group.items.reverse();
+  });
   return groups.flatMap((group) => group.items.map((item) => item.id));
 }
 
@@ -60,6 +63,8 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   const start = document.createElement("input");
   const hopscotchLabel = document.createElement("label");
   const hopscotch = document.createElement("input");
+  const zigzagLabel = document.createElement("label");
+  const zigzag = document.createElement("input");
   const overwriteLabel = document.createElement("label");
   const overwrite = document.createElement("input");
   const apply = document.createElement("button");
@@ -94,6 +99,9 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   hopscotch.checked = true;
   hopscotchLabel.textContent = "Hopscotch";
   hopscotchLabel.append(hopscotch);
+  zigzag.type = "checkbox";
+  zigzagLabel.textContent = "Zigzag";
+  zigzagLabel.append(zigzag);
   overwrite.type = "checkbox";
   overwriteLabel.textContent = "Overwrite";
   overwriteLabel.append(overwrite);
@@ -117,7 +125,9 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const state = diagram.contactState;
-    const contactIds = orderedInterfaceContactIds(state.items, state.selectedIds, direction.value);
+    const contactIds = orderedInterfaceContactIds(
+      state.items, state.selectedIds, direction.value, zigzag.checked,
+    );
     const first = autoPinStartNumber(start.value);
     if (!contactIds.length || first === null) {
       appendNotice("Auto Pin needs loaded contacts and a whole-number Start from 0 to 1000000000.", true);
@@ -134,7 +144,8 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(directionLabel, startLabel, hopscotchLabel, overwriteLabel, apply, cancel);
+  form.append(directionLabel, startLabel, hopscotchLabel, zigzagLabel,
+    overwriteLabel, apply, cancel);
   naming.append(form);
   start.focus();
   start.select();
