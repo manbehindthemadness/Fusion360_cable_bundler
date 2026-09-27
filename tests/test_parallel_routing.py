@@ -19,6 +19,7 @@ from cable_bundler.routing import (
     place_route_crossings,
     solve_parallel_routes,
 )
+from cable_bundler.routing.aperture import contains_disk, interior_center
 
 
 def _cable(index: int, diameter_mm: float = 1.5) -> CableRouteInput:
@@ -200,6 +201,73 @@ def test_centers_partial_hex_ring_for_exact_two_cable_fit() -> None:
 
     with pytest.raises(GateCapacityError):
         solve_parallel_routes(cables, (_gate(1, 2.99),))
+
+
+def test_square_gate_uses_its_planar_boundary_and_preserves_spacing() -> None:
+    """
+    Place a bundle in a square profile without requiring a circular sketch edge.
+    """
+    outline = (((-4.0, -4.0), (4.0, -4.0), (4.0, 4.0), (-4.0, 4.0)),)
+    gate = GateFrame(
+        _gate(1).gate_id,
+        "Square Gate",
+        _gate(1).origin,
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        None,
+        outline,
+    )
+    cables = tuple(_cable(index, 2.0) for index in range(1, 5))
+
+    crossings = place_route_crossings(cables, gate, clearance_mm=0.5)
+
+    assert all(contains_disk((point.x, point.y), 1.0, outline) for point in crossings)
+    for index, first in enumerate(crossings):
+        for second in crossings[index + 1 :]:
+            assert math.hypot(first.x - second.x, first.y - second.y) >= 2.5 - 1e-9
+
+
+def test_nonconvex_gate_and_hole_use_filled_profile_interior() -> None:
+    """
+    Keep a gate origin and cable center out of both the exterior and a hole.
+    """
+    outline = (
+        ((-6.0, -6.0), (6.0, -6.0), (6.0, 6.0), (-6.0, 6.0)),
+        ((-2.0, -2.0), (2.0, -2.0), (2.0, 2.0), (-2.0, 2.0)),
+    )
+    center_u, center_v = interior_center(outline)
+    assert contains_disk((center_u, center_v), 0.5, outline)
+    assert not contains_disk((0.0, 0.0), 0.5, outline)
+
+
+def test_small_square_gate_rejects_or_warns_under_the_existing_capacity_policy() -> None:
+    """
+    Apply strict capacity to the actual square while retaining overflow preview.
+    """
+    outline = (((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)),)
+    gate = GateFrame(
+        _gate(1).gate_id,
+        "Small Square",
+        _gate(1).origin,
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        None,
+        outline,
+    )
+    cables = (_cable(1, 3.0),)
+
+    with pytest.raises(GateCapacityError, match="planar profile"):
+        place_route_crossings(cables, gate)
+    assert (
+        len(
+            place_route_crossings(
+                cables,
+                gate,
+                capacity_policy=GateCapacityPolicy.ALLOW_OVERFLOW,
+            )
+        )
+        == 1
+    )
 
 
 @pytest.mark.parametrize(

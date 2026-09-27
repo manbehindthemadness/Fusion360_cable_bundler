@@ -390,6 +390,50 @@ def test_pathway_control_cluster_preserves_member_spacing() -> None:
     )
 
 
+def test_square_gate_bounds_end_guide_and_shared_control_relaxation() -> None:
+    """
+    Keep conditioned cable sections within square boundaries at both call sites.
+    """
+    outline = (((-3.0, -3.0), (3.0, -3.0), (3.0, 3.0), (-3.0, 3.0)),)
+    constraint = CircularGuideConstraint(
+        Vector3(0.0, 0.0, 10.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        None,
+        outline,
+    )
+    guide = condition_connection_points(
+        (constraint,),
+        Vector3(20.0, 0.0, 20.0),
+        2.0,
+        (TransitionLengths(),),
+        0.5,
+    )[0]
+    assert guide.x == pytest.approx(2.0, abs=1e-5)
+
+    control_id = UUID(int=910)
+    route = RoutePreview(
+        UUID(int=911),
+        "Square",
+        (
+            Vector3(0.0, 0.0, 0.0),
+            Vector3(0.0, 0.0, 10.0),
+            Vector3(20.0, 0.0, 20.0),
+        ),
+    )
+    conditioned = condition_control_points(
+        (route,),
+        (UUID(int=912),),
+        (2.0,),
+        ((None, control_id, None),),
+        ((TransitionLengths(),) * 3,),
+        {control_id: constraint},
+        0.5,
+    )
+    assert 0.0 < conditioned[0].points[1].x <= 2.0 + 1e-5
+
+
 def test_parallel_same_side_junction_marks_each_face_normal_as_fixed() -> None:
     """
     Preserve each leg's own magnitude and guide-facing direction on the same side.

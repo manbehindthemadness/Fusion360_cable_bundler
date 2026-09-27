@@ -1,5 +1,5 @@
 """
-Deterministic centerline routing through circular passage gates.
+Deterministic centerline routing through planar passage gates.
 """
 
 from __future__ import annotations
@@ -10,13 +10,14 @@ from enum import Enum
 from typing import Optional, Union
 from uuid import UUID
 
+from .aperture import PlanarLoops, contains_disk
 from .geometry import CubicBezier, Vector3
 
 
 @dataclass(frozen=True)
 class GateFrame:
     """
-    Describe a circular routing aperture in model coordinates.
+    Describe a circular or outlined planar routing aperture in model coordinates.
     """
 
     gate_id: UUID
@@ -24,7 +25,8 @@ class GateFrame:
     origin: Vector3
     u_direction: Vector3
     v_direction: Vector3
-    usable_radius_mm: float
+    usable_radius_mm: Optional[float]
+    boundary_loops_mm: PlanarLoops = ()
 
 
 @dataclass(frozen=True)
@@ -83,15 +85,17 @@ class GateCapacityError(ValueError):
         self.gate_id = gate.gate_id
         self.gate_name = gate.name
         self.cable_count = cable_count
-        super().__init__(
-            f"{gate.name} cannot fit {cable_count} cables inside its "
-            f"{gate.usable_radius_mm * 2.0:g} mm usable diameter."
+        aperture = (
+            f"its {gate.usable_radius_mm * 2.0:g} mm usable diameter"
+            if gate.usable_radius_mm is not None
+            else "its planar profile"
         )
+        super().__init__(f"{gate.name} cannot fit {cable_count} cables inside {aperture}.")
 
 
 class GateCapacityPolicy(Enum):
     """
-    Select whether undersized circular gates reject or retain packed routes.
+    Select whether undersized gates reject or retain packed routes.
     """
 
     REJECT = "reject"
@@ -104,7 +108,7 @@ def solve_parallel_routes(
     clearance_mm: float = 0.0,
 ) -> tuple[RoutePreview, ...]:
     """
-    Pack cables at each circular gate and connect corresponding crossings.
+    Pack cables at each gate and connect corresponding crossings.
 
     This milestone returns piecewise-linear centerlines. Curvature fairing is a
     later solver stage and does not change the persistent cable-to-slot mapping.
@@ -281,20 +285,76 @@ def _pack_gate(
     largest_radius = max(cable.diameter_mm for cable in cables) / 2.0
     spacing = largest_radius * 2.0 + clearance_mm
     offsets = _center_offsets(_hexagonal_offsets(len(cables), spacing))
+    shift_u, shift_v = _gate_packing_shift(cables, offsets, gate)
     crossings: list[Vector3] = []
     for cable, (u_offset, v_offset) in zip(cables, offsets):
-        center_distance = math.hypot(u_offset, v_offset)
-        if (
-            capacity_policy is GateCapacityPolicy.REJECT
-            and center_distance + cable.diameter_mm / 2.0 > gate.usable_radius_mm + 1e-9
+        if capacity_policy is GateCapacityPolicy.REJECT and not _gate_contains_disk(
+            gate, u_offset + shift_u, v_offset + shift_v, cable.diameter_mm / 2.0
         ):
             raise GateCapacityError(gate, len(cables))
-        crossing = gate.origin.translated(gate.u_direction, u_offset).translated(
+        crossing = gate.origin.translated(gate.u_direction, u_offset + shift_u).translated(
             gate.v_direction,
-            v_offset,
+            v_offset + shift_v,
         )
         crossings.append(crossing)
     return tuple(crossings)
+
+
+def _gate_contains_disk(gate: GateFrame, u: float, v: float, radius_mm: float) -> bool:
+    """
+    Test a cable section against the gate's actual planar boundary.
+    """
+    if gate.usable_radius_mm is not None:
+        return math.hypot(u, v) + radius_mm <= gate.usable_radius_mm + 1e-9
+    return contains_disk((u, v), radius_mm, gate.boundary_loops_mm)
+
+
+def _gate_packing_shift(
+    cables: tuple[CableRouteInput, ...],
+    offsets: tuple[tuple[float, float], ...],
+    gate: GateFrame,
+) -> tuple[float, float]:
+    """
+    Try nearby rigid translations so an irregular aperture can use its width.
+
+    The offset lattice and cable order remain unchanged. If no translation fits,
+    leave the centered lattice in place for the caller's capacity policy.
+    """
+    if gate.usable_radius_mm is not None:
+        return 0.0, 0.0
+
+    def fits(u: float, v: float) -> bool:
+        """
+        Check whether one rigid lattice translation fits the aperture.
+        """
+        return all(
+            _gate_contains_disk(gate, offset[0] + u, offset[1] + v, cable.diameter_mm / 2.0)
+            for cable, offset in zip(cables, offsets)
+        )
+
+    if fits(0.0, 0.0):
+        return 0.0, 0.0
+    points = [point for loop in gate.boundary_loops_mm for point in loop]
+    min_u = min(point[0] for point in points)
+    max_u = max(point[0] for point in points)
+    min_v = min(point[1] for point in points)
+    max_v = max(point[1] for point in points)
+    candidates = sorted(
+        (
+            (
+                (min_u + (max_u - min_u) * column / 8.0) ** 2
+                + (min_v + (max_v - min_v) * row / 8.0) ** 2,
+                min_u + (max_u - min_u) * column / 8.0,
+                min_v + (max_v - min_v) * row / 8.0,
+            )
+            for row in range(9)
+            for column in range(9)
+        ),
+    )
+    for _distance, u, v in candidates:
+        if fits(u, v):
+            return u, v
+    return 0.0, 0.0
 
 
 def _hexagonal_offsets(count: int, spacing: float) -> tuple[tuple[float, float], ...]:
@@ -329,9 +389,8 @@ def _center_offsets(
     """
     Center a partial lattice ring by its smallest enclosing circle.
 
-    Centering preserves every cable-to-cable spacing while making the circular
-    aperture test depend on the occupied bundle radius instead of the arbitrary
-    center-first insertion origin.
+    Centering preserves every cable-to-cable spacing and avoids making the
+    aperture test depend on the arbitrary center-first insertion origin.
     """
     center_u, center_v, _radius = _smallest_enclosing_circle(offsets)
     return tuple((u_offset - center_u, v_offset - center_v) for u_offset, v_offset in offsets)
@@ -426,8 +485,11 @@ def _validate_gate(gate: GateFrame) -> None:
     Require a finite aperture and orthonormal in-plane directions.
     """
     _validate_frame(gate)
-    if not math.isfinite(gate.usable_radius_mm) or gate.usable_radius_mm <= 0.0:
-        raise ValueError(f"{gate.name} has an invalid circular aperture.")
+    if gate.usable_radius_mm is not None:
+        if not math.isfinite(gate.usable_radius_mm) or gate.usable_radius_mm <= 0.0:
+            raise ValueError(f"{gate.name} has an invalid circular aperture.")
+    elif not gate.boundary_loops_mm or any(len(loop) < 3 for loop in gate.boundary_loops_mm):
+        raise ValueError(f"{gate.name} has an invalid planar aperture.")
 
 
 def _validate_frame(frame: Union[GateFrame, RefineFrame]) -> None:

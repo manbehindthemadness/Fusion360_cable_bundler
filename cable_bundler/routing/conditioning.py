@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
+from .aperture import PlanarLoops, contains_disk, first_contained_fraction
 from .geometry import Vector3, difference, dot, magnitude, unit
 from .parallel import RoutePreview
 from .smooth import TransitionLengths
@@ -20,7 +21,7 @@ _FULL_RELAXATION_SHARE = 0.5
 @dataclass(frozen=True)
 class CircularGuideConstraint:
     """
-    Describe one planar circular region with an orthonormal frame.
+    Describe one planar aperture or unconstrained guide with an orthonormal frame.
     """
 
     origin: Vector3
@@ -28,6 +29,7 @@ class CircularGuideConstraint:
     u_direction: Vector3
     v_direction: Vector3
     usable_radius_mm: Optional[float]
+    boundary_loops_mm: PlanarLoops = ()
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,7 @@ def condition_connection_points(
     Place an ordered terminal stack and relax intermediate guide crossings.
 
     The physical terminal remains at its existing bounded placement. Additional
-    guides move only inside their circular aperture, and only by the relaxation
+    guides move only inside their planar aperture, and only by the relaxation
     implied by their resolved transition share.
     """
     if len(constraints) != len(transitions):
@@ -476,15 +478,28 @@ def _clamp_to_guide(
     diameter_mm: float,
 ) -> Vector3:
     """
-    Project a centerline point into one guide's usable circular interior.
+    Project a centerline point into one guide's usable planar interior.
     """
     projected = _project_to_plane(point, constraint)
-    if constraint.usable_radius_mm is None:
-        return constraint.origin
-    available_radius = max(0.0, constraint.usable_radius_mm - diameter_mm * 0.5)
     offset = difference(projected, constraint.origin)
     u_offset = dot(offset, constraint.u_direction)
     v_offset = dot(offset, constraint.v_direction)
+    if constraint.boundary_loops_mm:
+        radius = diameter_mm * 0.5
+        if contains_disk((u_offset, v_offset), radius, constraint.boundary_loops_mm):
+            return projected
+        scale = first_contained_fraction(
+            ((0.0, 0.0, radius),),
+            (u_offset, v_offset),
+            constraint.boundary_loops_mm,
+        )
+        return constraint.origin.translated(constraint.u_direction, u_offset * scale).translated(
+            constraint.v_direction,
+            v_offset * scale,
+        )
+    if constraint.usable_radius_mm is None:
+        return constraint.origin
+    available_radius = max(0.0, constraint.usable_radius_mm - diameter_mm * 0.5)
     radial_distance = math.hypot(u_offset, v_offset)
     scale = (
         1.0
@@ -527,6 +542,23 @@ def _bounded_cluster_translation_scale(
     squared_translation = dot(translation, translation)
     if squared_translation <= 1e-18:
         return 0.0
+    if constraint.boundary_loops_mm:
+        local_points = tuple(
+            (
+                dot(difference(point, constraint.origin), constraint.u_direction),
+                dot(difference(point, constraint.origin), constraint.v_direction),
+                diameter_mm * 0.5,
+            )
+            for point, diameter_mm in points
+        )
+        return first_contained_fraction(
+            local_points,
+            (
+                dot(translation, constraint.u_direction),
+                dot(translation, constraint.v_direction),
+            ),
+            constraint.boundary_loops_mm,
+        )
     scale = 1.0
     for point, diameter_mm in points:
         available_radius = max(0.0, (constraint.usable_radius_mm or 0.0) - diameter_mm * 0.5)

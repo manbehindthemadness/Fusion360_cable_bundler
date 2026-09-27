@@ -36,6 +36,7 @@ from cable_bundler.routing import (
     TransitionLengths,
     Vector3,
 )
+from cable_bundler.routing.aperture import contains_disk
 from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
@@ -471,6 +472,65 @@ def test_undersized_gate_warns_through_public_product_solver(
         "Routing Gate 05 cannot fit 3 cables inside its 5.96352 mm usable diameter. "
         "Cable spacing is preserved, so routes may extend outside the aperture."
     )
+
+
+def test_square_gate_routes_through_public_product_solver(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Carry a square profile through packing, conditioning, and route generation.
+    """
+    from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    outline = (((-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0)),)
+
+    def routing_frame(
+        _design: object,
+        _control: ControlStructure,
+        control_id: UUID,
+    ) -> GateFrame:
+        """
+        Resolve the persisted control as a square planar aperture.
+        """
+        return GateFrame(
+            control_id,
+            "Routing Gate 02",
+            Vector3(0.0, 0.0, 10.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+            None,
+            outline,
+        )
+
+    def profile_frame(_design: object, token: str) -> route_solver.ProfileFrame:
+        """
+        Resolve terminal profiles on opposite sides of the gate.
+        """
+        z = 0.0 if token == "fusion-start-token" else 20.0
+        return route_solver.ProfileFrame(
+            Vector3(0.0, 0.0, z),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+        )
+
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
+    notices: list[str] = []
+
+    routes, legs = route_preview.solve_cable_group_centerlines(object(), valid_harness, notices)
+
+    assert len(routes) == len(legs) == 1
+    assert notices == []
+    crossings = [point for point in routes[0].points if abs(point.z - 10.0) <= 1e-6]
+    assert crossings
+    assert all(contains_disk((point.x, point.y), 0.6, outline) for point in crossings)
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(

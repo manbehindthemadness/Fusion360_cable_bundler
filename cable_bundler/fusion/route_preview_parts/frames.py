@@ -23,6 +23,7 @@ from ...domain import (
     ControlStructure,
 )
 from ...routing import GateFrame, RefineFrame, TransitionLengths, Vector3
+from ...routing.aperture import PlanarLoops, interior_center
 from ...routing.conditioning import CircularGuideConstraint, condition_connection_points
 from ...routing.geometry import cross, difference, dot, unit
 from ..attachment_targets import resolve_attachment_target
@@ -394,7 +395,7 @@ def _gate_frame(
     control_id: UUID,
 ) -> GateFrame:
     """
-    Build a millimeter-scale circular aperture frame from one physical control.
+    Build a millimeter-scale planar aperture frame from one physical control.
 
     Connection-owned end profiles are resolved separately as centroid/normal
     frames. Their position and orientation guide fairing and the resulting sweep,
@@ -408,27 +409,133 @@ def _gate_frame(
         )
     profile = _resolve_profile(design, control.entity_token)
     profile_loops = profile.profileLoops
-    if profile_loops.count != 1:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
-    profile_curves = profile_loops.item(0).profileCurves
-    if profile_curves.count != 1:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
-    profile_curve = profile_curves.item(0)
-    circle = adsk.fusion.SketchCircle.cast(
-        profile_curve.sketchEntity if profile_curve is not None else None
-    )
-    if circle is None:
-        raise RuntimeError(f"{control.name} must be one circular profile.")
     sketch = profile.parentSketch
-    center = sketch.sketchToModelSpace(circle.geometry.center)
+    if profile_loops.count == 1:
+        profile_curves = profile_loops.item(0).profileCurves
+        if profile_curves.count == 1:
+            profile_curve = profile_curves.item(0)
+            circle = adsk.fusion.SketchCircle.cast(
+                profile_curve.sketchEntity if profile_curve is not None else None
+            )
+            if circle is not None:
+                center = sketch.sketchToModelSpace(circle.geometry.center)
+                return GateFrame(
+                    gate_id=control.control_id,
+                    name=control.name,
+                    origin=_point_to_mm(center),
+                    u_direction=_vector(sketch.xDirection),
+                    v_direction=_vector(sketch.yDirection),
+                    usable_radius_mm=circle.geometry.radius * 10.0,
+                )
+    area_properties = profile.areaProperties()
+    if area_properties is None:
+        raise RuntimeError(f"{control.name} has no measurable planar profile area.")
+    reference = _point_to_mm(sketch.sketchToModelSpace(area_properties.centroid))
+    u_direction = _vector(sketch.xDirection)
+    v_direction = _vector(sketch.yDirection)
+    loops = _gate_boundary_loops(profile, reference, u_direction, v_direction, control.name)
+    center_u, center_v = interior_center(loops)
     return GateFrame(
         gate_id=control.control_id,
         name=control.name,
-        origin=_point_to_mm(center),
-        u_direction=_vector(sketch.xDirection),
-        v_direction=_vector(sketch.yDirection),
-        usable_radius_mm=circle.geometry.radius * 10.0,
+        origin=reference.translated(u_direction, center_u).translated(v_direction, center_v),
+        u_direction=u_direction,
+        v_direction=v_direction,
+        usable_radius_mm=None,
+        boundary_loops_mm=tuple(
+            tuple((u - center_u, v - center_v) for u, v in loop) for loop in loops
+        ),
     )
+
+
+def _gate_boundary_loops(
+    profile: adsk.fusion.Profile,
+    reference: Vector3,
+    u_direction: Vector3,
+    v_direction: Vector3,
+    name: str,
+) -> PlanarLoops:
+    """
+    Sample all closed sketch-profile loops in the gate's model-space plane.
+    """
+    sketch = profile.parentSketch
+    normal = unit(cross(u_direction, v_direction))
+    loops: list[tuple[tuple[float, float], ...]] = []
+    for loop_index in range(profile.profileLoops.count):
+        curves = profile.profileLoops.item(loop_index).profileCurves
+        segments: list[list[tuple[float, float]]] = []
+        for curve_index in range(curves.count):
+            curve = curves.item(curve_index)
+            geometry = getattr(curve, "geometry", None)
+            evaluator = getattr(geometry, "evaluator", None)
+            if evaluator is None:
+                raise RuntimeError(f"{name} has a profile boundary Fusion could not sample.")
+            try:
+                extents = evaluator.getParameterExtents()
+                strokes = evaluator.getStrokes(extents[1], extents[2], 0.01) if extents[0] else ()
+            except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+                raise RuntimeError(
+                    f"{name} has a profile boundary Fusion could not sample."
+                ) from error
+            if len(strokes) < 2 or not strokes[0] or not strokes[1] or len(strokes[1]) < 2:
+                raise RuntimeError(f"{name} has a profile boundary Fusion could not sample.")
+            points: list[tuple[float, float]] = []
+            for point in strokes[1]:
+                model_point = _point_to_mm(sketch.sketchToModelSpace(point))
+                offset = difference(model_point, reference)
+                if not all(
+                    math.isfinite(value)
+                    for value in (
+                        offset.x,
+                        offset.y,
+                        offset.z,
+                    )
+                ):
+                    raise RuntimeError(f"{name} has a non-finite profile boundary.")
+                if abs(dot(offset, normal)) > 1e-4:
+                    raise RuntimeError(f"{name} must be a flat closed profile.")
+                points.append((dot(offset, u_direction), dot(offset, v_direction)))
+            segments.append(points)
+        outline = _join_gate_boundary(segments)
+        if outline is None:
+            raise RuntimeError(f"{name} has a disconnected or open profile boundary.")
+        loops.append(outline)
+    if not loops:
+        raise RuntimeError(f"{name} must be a flat closed profile.")
+    return tuple(loops)
+
+
+def _join_gate_boundary(
+    segments: list[list[tuple[float, float]]],
+) -> Optional[tuple[tuple[float, float], ...]]:
+    """
+    Stitch profile curves despite reversed or reordered Fusion segment samples.
+    """
+    if not segments:
+        return None
+    for reverse_first in (False, True):
+        outline = list(reversed(segments[0])) if reverse_first else list(segments[0])
+        remaining = [list(segment) for segment in segments[1:]]
+        while remaining:
+            distance, index, reverse = min(
+                (
+                    math.dist(outline[-1], endpoint),
+                    segment_index,
+                    reverse_segment,
+                )
+                for segment_index, segment in enumerate(remaining)
+                for reverse_segment, endpoint in ((False, segment[0]), (True, segment[-1]))
+            )
+            if distance > 0.02:
+                break
+            points = remaining.pop(index)
+            if reverse:
+                points.reverse()
+            outline.extend(points[1:])
+        else:
+            if len(outline) >= 4 and math.dist(outline[-1], outline[0]) <= 0.02:
+                return tuple(outline[:-1])
+    return None
 
 
 def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> ProfileFrame:

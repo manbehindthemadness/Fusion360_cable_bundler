@@ -456,6 +456,7 @@ def solve_cable_group_routes(
             frame.u_direction,
             frame.v_direction,
             frame.usable_radius_mm,
+            frame.boundary_loops_mm,
         )
         for control_id, frame in frames.items()
         if isinstance(frame, GateFrame)
