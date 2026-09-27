@@ -140,7 +140,8 @@ function waitForFusionHost() {
 
 const NATIVE_DIALOG_ACTIONS = new Set([
   "create_harness", "add_pathway", "add_junction", "add_interface",
-  "select_interface_contacts", "load_brd_interface_contacts", "add_junction_relationship",
+  "select_interface_contacts", "copy_projected_interface_contacts",
+  "load_brd_interface_contacts", "add_junction_relationship",
   "add_end", "connect_cable_end", "append_pathway_gates", "append_end_guides",
   "add_pathway_refine", "add_end_refine", "add_connection_refine",
   "segment_pathway", "edit_pathway_refine",

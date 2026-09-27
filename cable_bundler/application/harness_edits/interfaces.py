@@ -256,6 +256,59 @@ def name_interface_contacts(
     return updated_interface
 
 
+def fill_interface_contact_details(
+    harness_id: UUID,
+    interface_id: UUID,
+    details: dict[UUID, tuple[str, str]],
+    copy_pins: bool,
+    gateway: HarnessEditGateway,
+) -> tuple[int, int]:
+    """
+    Fill empty Values and optionally Pins in one Interface transaction.
+
+    Existing fields and contacts not included in the projected lookup remain
+    unchanged. Return the numbers of Values and Pins actually filled.
+    """
+    original, definition = read_definition(harness_id, gateway)
+    current = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if current is None:
+        raise ValueError("Selected Interface no longer exists.")
+    known = {contact.contact_id for contact in current.contacts}
+    if not set(details).issubset(known) or not isinstance(copy_pins, bool):
+        raise ValueError("Projected contact details have invalid identities or options.")
+    if any(
+        not isinstance(value, str)
+        or not isinstance(pin, str)
+        or len(value.strip()) > 80
+        or len(pin.strip()) > 80
+        for value, pin in details.values()
+    ):
+        raise ValueError("Projected contact details must be text of at most 80 characters.")
+    values_filled = 0
+    pins_filled = 0
+    updated_contacts = []
+    for contact in current.contacts:
+        value, pin = details.get(contact.contact_id, ("", ""))
+        updated_value = contact.name or value.strip()
+        updated_pin = contact.pin or (pin.strip() if copy_pins else "")
+        values_filled += bool(updated_value and not contact.name)
+        pins_filled += bool(updated_pin and not contact.pin)
+        updated_contacts.append(replace(contact, name=updated_value, pin=updated_pin))
+    if values_filled or pins_filled:
+        updated_interface = replace(current, contacts=tuple(updated_contacts))
+        updated = replace(
+            definition,
+            interfaces=tuple(
+                updated_interface if item.interface_id == interface_id else item
+                for item in definition.interfaces
+            ),
+        )
+        persist_definition(harness_id, original, updated, gateway)
+    return values_filled, pins_filled
+
+
 def set_interface_contact_details(
     harness_id: UUID,
     interface_id: UUID,

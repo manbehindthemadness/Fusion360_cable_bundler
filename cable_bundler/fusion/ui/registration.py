@@ -14,6 +14,7 @@ from .commands.attachments import AttachCableEndCreatedHandler
 from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
 from .commands.interface_contacts import SelectInterfaceContactsCreatedHandler
+from .commands.interface_projection_copy import SelectSourceInterfaceCreatedHandler
 from .commands.interfaces import AddInterfaceCreatedHandler
 from .commands.junctions import (
     AddJunctionCreatedHandler,
@@ -56,6 +57,8 @@ from .constants import (
     SEGMENT_PATHWAY_COMMAND_NAME,
     SELECT_INTERFACE_CONTACTS_COMMAND_ID,
     SELECT_INTERFACE_CONTACTS_COMMAND_NAME,
+    SELECT_SOURCE_INTERFACE_COMMAND_ID,
+    SELECT_SOURCE_INTERFACE_COMMAND_NAME,
 )
 from .palette import ShowPaletteCreatedHandler
 
@@ -115,6 +118,13 @@ COMMAND_SPECS = (
         "Select connection-compatible geometry on one Interface.",
         ADD_PATHWAY_RESOURCE_FOLDER,
         SelectInterfaceContactsCreatedHandler,
+    ),
+    CommandSpec(
+        SELECT_SOURCE_INTERFACE_COMMAND_ID,
+        SELECT_SOURCE_INTERFACE_COMMAND_NAME,
+        "Copy contact fields from another saved Interface by local XY position.",
+        ADD_PATHWAY_RESOURCE_FOLDER,
+        SelectSourceInterfaceCreatedHandler,
     ),
     CommandSpec(
         ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,

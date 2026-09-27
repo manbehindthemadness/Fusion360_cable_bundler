@@ -54,6 +54,7 @@ from .constants import (
     PALETTE_RESOURCE_FILES,
     SEGMENT_PATHWAY_COMMAND_ID,
     SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    SELECT_SOURCE_INTERFACE_COMMAND_ID,
 )
 from .constants import PALETTE_EDIT_NAMES as _PALETTE_EDIT_NAMES
 from .edits import (
@@ -75,6 +76,7 @@ from .launchers import (
     _open_refine_edit_command,
     _open_segment_command,
     _open_select_interface_contacts_command,
+    _open_select_source_interface_command,
 )
 from .palette_edit_policy import _PALETTE_EDIT_POLICIES
 from .palette_request_scope import _stale_palette_document_request
@@ -146,6 +148,9 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "select_interface_contacts": lambda application, data: _open_select_interface_contacts_command(
         application, data
     ),
+    "copy_projected_interface_contacts": lambda application, data: (
+        _open_select_source_interface_command(application, data)
+    ),
     "load_brd_interface_contacts": lambda application, data: _open_palette_edit(
         application, "load_brd_interface_contacts", data
     ),
@@ -175,6 +180,7 @@ _NATIVE_DIALOG_COMMAND_IDS = {
     "add_junction": ADD_JUNCTION_COMMAND_ID,
     "add_interface": ADD_INTERFACE_COMMAND_ID,
     "select_interface_contacts": SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    "copy_projected_interface_contacts": SELECT_SOURCE_INTERFACE_COMMAND_ID,
     "load_brd_interface_contacts": f"{COMMAND_ID}_load_brd_interface_contacts",
     "add_junction_relationship": ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,
     "add_end": ADD_END_COMMAND_ID,

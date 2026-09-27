@@ -16,6 +16,7 @@ from cable_bundler.application import (
     auto_pin_interface_contacts,
     clear_interface_contact_pins,
     clear_interface_contact_values,
+    fill_interface_contact_details,
     name_interface_contacts,
     remove_interface,
     remove_interface_contacts,
@@ -154,6 +155,39 @@ def test_interface_contact_value_and_pin_persist_with_legacy_default(
             "x" * 81,
             gateway,
         )
+
+
+def test_projected_details_fill_only_blank_fields_and_optional_pins(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve existing edits while filling only projected, selected fields.
+    """
+    contacts = (
+        InterfaceContact(UUID(int=815), AttachmentTargetKind.FACE, "face-1", "", "P1"),
+        InterfaceContact(UUID(int=816), AttachmentTargetKind.FACE, "face-2", "Ground", ""),
+        InterfaceContact(UUID(int=817), AttachmentTargetKind.FACE, "face-3"),
+    )
+    interface = InterfaceDefinition(
+        UUID(int=818), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "body"),), contacts
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    details = {
+        contacts[0].contact_id: (" VCC ", "overwrite"),
+        contacts[1].contact_id: ("overwrite", " P2 "),
+    }
+
+    assert fill_interface_contact_details(
+        definition.harness_id, interface.interface_id, details, False, gateway
+    ) == (1, 0)
+    first = loads(gateway.serialized_definition).interfaces[0].contacts
+    assert [(item.name, item.pin) for item in first] == [("VCC", "P1"), ("Ground", ""), ("", "")]
+    assert fill_interface_contact_details(
+        definition.harness_id, interface.interface_id, details, True, gateway
+    ) == (0, 1)
+    second = loads(gateway.serialized_definition).interfaces[0].contacts
+    assert [(item.name, item.pin) for item in second] == [("VCC", "P1"), ("Ground", "P2"), ("", "")]
 
 
 def test_clear_interface_contact_pins_preserves_values_and_unselected_contacts(

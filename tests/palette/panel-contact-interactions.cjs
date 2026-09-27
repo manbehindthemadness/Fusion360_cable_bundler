@@ -327,7 +327,7 @@ test('Auto Pin remembers order and a valid Start within the palette session', ()
     '0');
 });
 
-test('Geo Import defaults to current naming and reserves Select Interface without an edit', () => {
+test('Geo Import defaults to names and can launch the source Interface picker', () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -348,7 +348,8 @@ test('Geo Import defaults to current naming and reserves Select Interface withou
   const form = naming.querySelector('.interface-contact-geo-import');
   const geometry = form.children[1].children[0];
   const selectInterface = form.children[2].children[0];
-  const apply = form.children[4];
+  const copyPins = form.children[4].children[0];
+  const apply = form.children[5];
   assert.equal(form.attributes['aria-label'], 'Geo Import options');
   assert.equal(geometry.checked, true);
   assert.equal(selectInterface.value, 'interface');
@@ -356,18 +357,16 @@ test('Geo Import defaults to current naming and reserves Select Interface withou
   geometry.checked = false;
   selectInterface.checked = true;
   selectInterface.events.change();
-  assert.equal(apply.disabled, true);
-  assert.equal(form.children[3].hidden, false);
-  form.events.submit({ preventDefault() {} });
-  assert.equal(launches.length, 0);
-  geometry.checked = true;
-  selectInterface.checked = false;
-  geometry.events.change();
   assert.equal(apply.disabled, false);
+  assert.equal(form.children[3].hidden, false);
+  assert.equal(form.children[4].hidden, false);
+  assert.equal(apply.textContent, 'Pick Interface');
+  copyPins.checked = true;
   form.events.submit({ preventDefault() {} });
   assert.equal(launches.length, 1);
-  assert.equal(launches[0].action, 'geo_import_interface_contacts');
+  assert.equal(launches[0].action, 'copy_projected_interface_contacts');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['b']);
+  assert.equal(launches[0].payload.copyPins, true);
 });
 
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {

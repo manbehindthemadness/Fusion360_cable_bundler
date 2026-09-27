@@ -27,6 +27,7 @@ from .constants import (
     EDIT_REFINE_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
     SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    SELECT_SOURCE_INTERFACE_COMMAND_ID,
 )
 from .payloads import (
     _read_palette_payload,
@@ -151,6 +152,41 @@ def _open_select_interface_contacts_command(
             raise RuntimeError("Fusion did not open the Interface contact picker.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_interface_contacts.clear()
+        raise
+
+
+def _open_select_source_interface_command(
+    application: adsk.core.Application, serialized_data: str
+) -> None:
+    """
+    Open a picker limited to another saved Interface in the same harness.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    raw_ids = payload.get("contactIds")
+    copy_pins = payload.get("copyPins", False)
+    if (
+        not isinstance(raw_ids, list)
+        or len(raw_ids) > 1024
+        or not all(isinstance(item, str) for item in raw_ids)
+        or not isinstance(copy_pins, bool)
+    ):
+        raise ValueError("Geo Import requires contact identities and a Copy Pins option.")
+    contact_ids = tuple(UUID(item) for item in raw_ids)
+    definition = application.userInterface.commandDefinitions.itemById(
+        SELECT_SOURCE_INTERFACE_COMMAND_ID
+    )
+    if definition is None:
+        raise RuntimeError("Fusion Select Source Interface command is unavailable.")
+    _runtime.pending_source_interface.prepare(
+        (harness_id, interface_id, contact_ids, copy_pins, application.activeDocument)
+    )
+    try:
+        if not definition.execute():
+            raise RuntimeError("Fusion did not open the source Interface picker.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_source_interface.clear()
         raise
 
 

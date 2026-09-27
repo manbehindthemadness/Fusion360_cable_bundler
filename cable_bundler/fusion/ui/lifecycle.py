@@ -40,6 +40,7 @@ from .constants import (
     PALETTE_ID,
     PANEL_IDS,
     SELECT_INTERFACE_CONTACTS_COMMAND_ID,
+    SELECT_SOURCE_INTERFACE_COMMAND_ID,
     WORKSPACE_ID,
 )
 from .constants import (
@@ -166,6 +167,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                 )
             }
             metadata_commands.add(SELECT_INTERFACE_CONTACTS_COMMAND_ID)
+            metadata_commands.add(SELECT_SOURCE_INTERFACE_COMMAND_ID)
             if args.commandId not in metadata_commands:
                 _runtime.mark_contact_model_edit(application)
                 clear_contact_resolutions()

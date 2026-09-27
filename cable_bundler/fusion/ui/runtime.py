@@ -171,6 +171,9 @@ class UiRuntime:
     pending_interface_contacts: PendingSlot[tuple[UUID, UUID, ContactSelectionMode]] = field(
         default_factory=PendingSlot
     )
+    pending_source_interface: PendingSlot[tuple[UUID, UUID, tuple[UUID, ...], bool, object]] = (
+        field(default_factory=PendingSlot)
+    )
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot
     )
