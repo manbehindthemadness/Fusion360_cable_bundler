@@ -37,6 +37,20 @@ def test_local_name_uses_only_saved_fields(
     assert module._local_name(_contact(1, pin, value)) == expected
 
 
+@pytest.mark.parametrize(
+    ("include_values", "include_pins", "expected"),
+    [(True, True, "Pin 1: VCC"), (True, False, "VCC"), (False, True, "Pin 1")],
+)
+def test_local_name_uses_selected_fields(
+    addin_module: object, include_values: bool, include_pins: bool, expected: str
+) -> None:
+    """
+    Keep the selected saved fields independent when naming local geometry.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_local_naming")
+    assert module._local_name(_contact(1, "1", "VCC"), include_values, include_pins) == expected
+
+
 def test_name_locals_writes_only_unique_editable_owners(
     addin_module: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -80,8 +94,20 @@ def test_name_locals_writes_only_unique_editable_owners(
     assert "Named 1 local geometries" in notice
     assert "1 shared geometry" in notice
     assert "1 unresolved or non-editable geometry" in notice
-    assert "1 no Pin or Value" in notice
+    assert "1 no selected Pin or Value" in notice
     assert "1 no writable name" in notice
+    module.name_interface_contact_locals(
+        object(), UUID(int=3), interface.interface_id, (contacts[0].contact_id,), True, False
+    )
+    assert writable.name == "VCC"
+    module.name_interface_contact_locals(
+        object(), UUID(int=3), interface.interface_id, (contacts[0].contact_id,), False, True
+    )
+    assert writable.name == "Pin 1"
+    with pytest.raises(ValueError, match="Values, Pins, or both"):
+        module.name_interface_contact_locals(
+            object(), UUID(int=3), interface.interface_id, (), False, False
+        )
     with pytest.raises(ValueError, match="invalid contact identity"):
         module.name_interface_contact_locals(
             object(), UUID(int=3), interface.interface_id, (UUID(int=99),)

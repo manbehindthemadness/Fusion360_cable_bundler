@@ -50,7 +50,8 @@
 }
 .interface-contact-auto-pin label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; white-space: nowrap; }
 .interface-contact-auto-pin input[type="number"] { width: 6rem; }
-.interface-contact-geo-import {
+.interface-contact-geo-import,
+.interface-contact-name-locals {
   position: absolute;
   z-index: 3;
   top: calc(100% + 6px);
@@ -66,9 +67,13 @@
   box-shadow: 0 4px 12px #0003;
 }
 .interface-contact-geo-import > div,
-.interface-contact-geo-import > label { grid-column: 1 / -1; }
-.interface-contact-geo-import [hidden] { display: none !important; }
-.interface-contact-geo-import > label { display: flex; align-items: center; gap: 6px; }
+.interface-contact-geo-import > label,
+.interface-contact-name-locals > div,
+.interface-contact-name-locals > label { grid-column: 1 / -1; }
+.interface-contact-geo-import [hidden],
+.interface-contact-name-locals [hidden] { display: none !important; }
+.interface-contact-geo-import > label,
+.interface-contact-name-locals > label { display: flex; align-items: center; gap: 6px; }
 .interface-contact-pos-import {
   position: absolute;
   z-index: 3;

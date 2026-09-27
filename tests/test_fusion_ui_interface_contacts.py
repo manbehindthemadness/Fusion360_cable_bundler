@@ -335,7 +335,7 @@ def test_name_locals_routes_selected_contact_scope(
     addin_module: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Pass only contact identities to the guarded Fusion geometry naming edit.
+    Pass contact identities and field choices to the guarded naming edit.
     """
     edits = importlib.import_module("cable_bundler.fusion.ui.edits")
     application = object()
@@ -350,7 +350,18 @@ def test_name_locals_routes_selected_contact_scope(
         application, "name_interface_contact_locals", json.dumps(payload)
     )
     assert notice == "Named 1 local geometry."
-    rename.assert_called_once_with(application, UUID(int=1), UUID(int=2), (UUID(int=3),))
+    rename.assert_called_once_with(
+        application, UUID(int=1), UUID(int=2), (UUID(int=3),), True, True
+    )
+    rename.reset_mock()
+    edits._apply_palette_edit(
+        application,
+        "name_interface_contact_locals",
+        json.dumps({**payload, "includeValues": False, "includePins": True}),
+    )
+    rename.assert_called_once_with(
+        application, UUID(int=1), UUID(int=2), (UUID(int=3),), False, True
+    )
 
 
 def test_geo_import_routes_selected_ids_as_one_metadata_edit(

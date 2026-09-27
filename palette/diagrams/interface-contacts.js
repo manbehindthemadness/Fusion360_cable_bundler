@@ -457,6 +457,61 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   naming.append(form);
 }
 
+/** Choose which saved contact fields to write to editable local geometry. */
+function openInterfaceNameLocals(naming, diagram, harnessId, interfaceId) {
+  const existing = naming.querySelector(".interface-contact-name-locals");
+  if (existing) { existing.remove(); return; }
+  const form = document.createElement("form");
+  const title = document.createElement("div");
+  const valuesLabel = document.createElement("label");
+  const values = document.createElement("input");
+  const pinsLabel = document.createElement("label");
+  const pins = document.createElement("input");
+  const apply = document.createElement("button");
+  const cancel = document.createElement("button");
+  form.className = "interface-contact-name-locals";
+  form.setAttribute("role", "dialog");
+  form.setAttribute("aria-label", "Name Locals options");
+  title.textContent = "Name Locals";
+  values.type = "checkbox";
+  values.checked = true;
+  valuesLabel.append(values, "Values");
+  pins.type = "checkbox";
+  pins.checked = true;
+  pinsLabel.append(pins, "Pins");
+  const updateChoice = () => { apply.disabled = !values.checked && !pins.checked; };
+  values.addEventListener("change", updateChoice);
+  pins.addEventListener("change", updateChoice);
+  apply.type = "submit";
+  apply.className = "button compact";
+  apply.textContent = "Apply";
+  cancel.type = "button";
+  cancel.className = "button compact";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => form.remove());
+  form.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    form.remove();
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (apply.disabled) return;
+    apply.disabled = true;
+    void send("name_interface_contact_locals", {
+      harnessId, interfaceId, contactIds: [...diagram.contactState.selectedIds],
+      includeValues: values.checked, includePins: pins.checked,
+    }).then((response) => {
+      if (!response.ok) throw new Error(response.error || "Could not name local geometry.");
+      form.remove();
+    }).catch((error) => appendNotice(String(error), true))
+      .finally(() => { apply.disabled = false; });
+  });
+  form.append(title, valuesLabel, pinsLabel, apply, cancel);
+  naming.append(form);
+}
+
 /** Review PCB suggestions from a linked board or local file before applying names. */
 function openInterfacePosImport(naming, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-pos-import");
@@ -730,16 +785,9 @@ function openInterfaceContacts(harness, interfaceItem) {
   nameLocals.className = "button compact";
   nameLocals.textContent = "Name Locals";
   nameLocals.title = "Write saved Pins and Values to uniquely owned, editable Fusion geometry (selected contacts or all).";
-  nameLocals.addEventListener("click", () => {
-    nameLocals.disabled = true;
-    void send("name_interface_contact_locals", {
-      harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
-      contactIds: [...diagram.contactState.selectedIds],
-    }).then((response) => {
-      if (!response.ok) throw new Error(response.error || "Could not name local geometry.");
-    }).catch((error) => appendNotice(String(error), true))
-      .finally(() => { nameLocals.disabled = false; });
-  });
+  nameLocals.addEventListener("click", () => openInterfaceNameLocals(
+    naming, diagram, harness.harnessId, interfaceItem.interfaceId,
+  ));
   naming.append(nameLocals);
   const posImport = document.createElement("button");
   posImport.type = "button";

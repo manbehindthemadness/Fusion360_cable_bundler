@@ -105,7 +105,11 @@ def _apply_palette_edit(
         ):
             raise ValueError("Name Locals requires contact identities.")
         contact_ids = tuple(UUID(item) for item in raw_ids)
-        return name_interface_contact_locals(application, harness_id, interface_id, contact_ids)
+        include_values = payload.get("includeValues", True)
+        include_pins = payload.get("includePins", True)
+        return name_interface_contact_locals(
+            application, harness_id, interface_id, contact_ids, include_values, include_pins
+        )
     if action == "resolve_projected_interface_contacts":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source_id = _read_payload_uuid(payload, "sourceId", "source Interface")

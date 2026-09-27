@@ -63,12 +63,14 @@ def _resolved_owner(design: object, contact: InterfaceContact) -> tuple[str, obj
         return None
 
 
-def _local_name(contact: InterfaceContact) -> str:
+def _local_name(
+    contact: InterfaceContact, include_values: bool = True, include_pins: bool = True
+) -> str:
     """
-    Format the saved Pin and Value without deriving either from geometry.
+    Format only selected saved fields without deriving either from geometry.
     """
-    pin = contact.pin.strip()
-    value = contact.name.strip()
+    pin = contact.pin.strip() if include_pins else ""
+    value = contact.name.strip() if include_values else ""
     if pin and value:
         return f"Pin {pin}: {value}"
     return f"Pin {pin}" if pin else value
@@ -79,6 +81,8 @@ def name_interface_contact_locals(
     harness_id: UUID,
     interface_id: UUID,
     selected_ids: tuple[UUID, ...],
+    include_values: bool = True,
+    include_pins: bool = True,
 ) -> str:
     """
     Rename only unique local owners, skipping links and read-only geometry.
@@ -94,6 +98,10 @@ def name_interface_contact_locals(
     )
     if interface is None:
         raise ValueError("Selected Interface no longer exists.")
+    if not isinstance(include_values, bool) or not isinstance(include_pins, bool):
+        raise ValueError("Name Locals options must be booleans.")
+    if not include_values and not include_pins:
+        raise ValueError("Name Locals requires Values, Pins, or both.")
     known = {contact.contact_id for contact in interface.contacts}
     if len(selected_ids) != len(set(selected_ids)) or not set(selected_ids).issubset(known):
         raise ValueError("Name Locals selection contains an invalid contact identity.")
@@ -110,9 +118,9 @@ def name_interface_contact_locals(
     for contact in interface.contacts:
         if contact.contact_id not in scope:
             continue
-        desired = _local_name(contact)
+        desired = _local_name(contact, include_values, include_pins)
         if not desired:
-            skipped["no Pin or Value"] += 1
+            skipped["no selected Pin or Value"] += 1
             continue
         resolved = owners[(interface_id, contact.contact_id)]
         if resolved is None:

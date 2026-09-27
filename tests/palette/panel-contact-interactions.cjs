@@ -289,7 +289,7 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
 });
 
-asyncTest('Name Locals sends selected contact IDs without changing metadata in the palette', async () => {
+asyncTest('Name Locals chooses saved fields and selected contacts in a popup', async () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -306,10 +306,31 @@ asyncTest('Name Locals sends selected contact IDs without changing metadata in t
   dialog.children[2].contactState.selectedIds.add('pad-1');
   const naming = dialog.children[1].children[1];
   naming.children[1].events.click();
+  const form = naming.querySelector('.interface-contact-name-locals');
+  assert.equal(form.attributes['aria-label'], 'Name Locals options');
+  const values = form.children[1].children[0];
+  const pins = form.children[2].children[0];
+  const apply = form.children[3];
+  assert.equal(values.checked, true);
+  assert.equal(pins.checked, true);
+  assert.equal(form.children[1].children[1], 'Values');
+  assert.equal(form.children[2].children[1], 'Pins');
+  assert.equal(launches.length, 0);
+  values.checked = false;
+  values.events.change();
+  pins.checked = false;
+  pins.events.change();
+  assert.equal(apply.disabled, true);
+  values.checked = true;
+  values.events.change();
+  assert.equal(apply.disabled, false);
+  form.events.submit({ preventDefault() {} });
   await Promise.resolve();
   assert.equal(launches.length, 1);
   assert.equal(launches[0].action, 'name_interface_contact_locals');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['pad-1']);
+  assert.equal(launches[0].payload.includeValues, true);
+  assert.equal(launches[0].payload.includePins, false);
 });
 
 test('Auto Pin remembers order and a valid Start within the palette session', () => {
