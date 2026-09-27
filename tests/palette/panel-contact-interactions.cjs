@@ -288,7 +288,7 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
 });
 
-test('Auto Pin remembers order within the palette session', () => {
+test('Auto Pin remembers order and a valid Start within the palette session', () => {
   const storage = new Map();
   const { context } = palette(storage);
   const naming = context.document.createElement('div');
@@ -296,24 +296,35 @@ test('Auto Pin remembers order within the palette session', () => {
   context.openInterfaceAutoPin(naming, diagram, 'harness-1', 'interface-1');
   const first = naming.querySelector('.interface-contact-auto-pin');
   const order = first.children[0].children[0];
+  const start = first.children[1].children[0];
   assert.equal(order.value, 'LRTB');
+  assert.equal(start.value, '0');
   order.value = 'BTRL';
   order.events.change();
+  start.value = '42';
+  start.events.change();
   first.remove();
   context.openInterfaceAutoPin(naming, diagram, 'harness-1', 'interface-1');
   assert.equal(naming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
     'BTRL');
+  assert.equal(naming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
+    '42');
   const anotherPalette = palette(storage).context;
   const anotherNaming = anotherPalette.document.createElement('div');
   const anotherDiagram = anotherPalette.document.createElement('div');
   anotherPalette.openInterfaceAutoPin(anotherNaming, anotherDiagram, 'harness-1', 'interface-1');
   assert.equal(anotherNaming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
     'BTRL');
+  assert.equal(anotherNaming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
+    '42');
   storage.set('cableBundler.autoPinOrder', 'invalid');
+  storage.set('cableBundler.autoPinStart', '-1');
   const invalidNaming = anotherPalette.document.createElement('div');
   anotherPalette.openInterfaceAutoPin(invalidNaming, anotherDiagram, 'harness-1', 'interface-1');
   assert.equal(invalidNaming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
     'LRTB');
+  assert.equal(invalidNaming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
+    '0');
 });
 
 test('Geo Import sends only selected contact IDs when a selection exists', () => {

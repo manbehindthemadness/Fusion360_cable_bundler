@@ -100,7 +100,7 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
   assert.equal(form.children[0].textContent, 'Choose the linked 2D PCB to read pad names from:');
   assert.equal(form.children[1].children[0].textContent, 'Linked PCB');
   assert.equal(form.children[2].children[0].type, 'checkbox');
-  form.children[2].children[0].checked = true;
+  assert.equal(form.children[2].children[0].checked, true);
   assert.equal(form.children[5].disabled, false);
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
@@ -144,11 +144,12 @@ asyncTest('Load board reviews file matches with the Pos Import naming choices', 
   await Promise.resolve();
   const form = naming.querySelector('.interface-contact-pos-import');
   assert.equal(form.attributes['aria-label'], 'Choose PCB for Pos Import');
-  form.children[2].children[0].checked = true;
+  assert.equal(form.children[2].children[0].checked, true);
+  form.children[2].children[0].checked = false;
   form.children[3].events.click();
   await Promise.resolve();
   assert.equal(launches[1].action, 'load_brd_interface_contacts');
-  assert.equal(launches[1].payload.project, true);
+  assert.equal(launches[1].payload.project, false);
   assert.equal(form.children[5].disabled, true);
   context.window.fusionJavaScriptHandler.handle('board_file_preview', JSON.stringify({
     harnessId: 'harness-1', interfaceId: 'interface-1',

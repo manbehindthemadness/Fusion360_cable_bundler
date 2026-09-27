@@ -41,6 +41,14 @@ function orderedInterfaceContactIds(items, selectedIds, direction) {
   return groups.flatMap((group) => group.items.map((item) => item.id));
 }
 
+/** Accept only Start values that the Auto Pin action can submit. */
+function autoPinStartNumber(value) {
+  if (!value || !value.trim()) return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 && number <= 1_000_000_000
+    ? number : null;
+}
+
 /** Open a compact numbering form while retaining the current contact selection. */
 function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-auto-pin");
@@ -73,7 +81,12 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   start.max = "1000000000";
   start.step = "1";
   start.required = true;
-  start.value = "0";
+  const rememberedStart = autoPinStartNumber(readSession("cableBundler.autoPinStart"));
+  start.value = String(rememberedStart ?? 0);
+  start.addEventListener("change", () => {
+    const value = autoPinStartNumber(start.value);
+    if (value !== null) writeSession("cableBundler.autoPinStart", String(value));
+  });
   startLabel.append(start);
   overwrite.type = "checkbox";
   overwriteLabel.textContent = "Overwrite";
@@ -95,12 +108,12 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
     event.preventDefault();
     const state = diagram.contactState;
     const contactIds = orderedInterfaceContactIds(state.items, state.selectedIds, direction.value);
-    const first = Number(start.value);
-    if (!contactIds.length || !start.value.trim() || !Number.isSafeInteger(first)
-      || first < 0 || first > 1_000_000_000) {
+    const first = autoPinStartNumber(start.value);
+    if (!contactIds.length || first === null) {
       appendNotice("Auto Pin needs loaded contacts and a whole-number Start from 0 to 1000000000.", true);
       return;
     }
+    writeSession("cableBundler.autoPinStart", String(first));
     apply.disabled = true;
     void send("auto_pin_interface_contacts", {
       harnessId, interfaceId, contactIds, start: first, overwrite: overwrite.checked,

@@ -330,6 +330,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   message.textContent = "Finding linked PCB files…";
   choices.className = "interface-contact-pos-import-choices";
   project.type = "checkbox";
+  project.checked = true;
   projectLabel.append(project, "Project");
   projectLabel.title = "Match selected geometry by board X/Y, ignoring Z and board side.";
   loadBoard.type = "button";
