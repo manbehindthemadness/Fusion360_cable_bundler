@@ -137,6 +137,72 @@ test('compact contacts keep Value outside and unnamed contacts have a distinct a
     .textContent, /Unnamed contact/);
 });
 
+test('a lone named pad uses its unnamed row neighbors for a rotated label', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = [0, 40].flatMap((y, row) => Array.from({ length: 4 }, (_unused, column) => {
+    const x = column * 2;
+    return {
+      contactId: `${row}-${column}`, kind: 'face', name: 'Pad',
+      assignedName: '', pin: row === 0 && column === 2 ? '20' : '',
+      linked: true, normal: [0, 0, 1],
+      loops: [[[x, y, 0], [x + 0.5, y, 0], [x + 0.5, y + 0.5, 0], [x, y + 0.5, 0]]],
+    };
+  }));
+  context.renderInterfaceContacts(diagram, contacts);
+  const leaders = descendants(diagram.contactState.svg, (node) => (
+    node.className === 'interface-contact-label-leader'
+  ));
+  assert.equal(leaders.length, 1);
+  const points = [...leaders[0].attributes.d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+    .map((match) => [Number(match[1]), Number(match[2])]);
+  assert.equal(points.length, 2);
+  const pad = diagram.contactState.items[3].loops[0];
+  const left = Math.min(...pad.map((point) => point[0])) - 1;
+  const right = Math.max(...pad.map((point) => point[0])) + 1;
+  const top = Math.min(...pad.map((point) => point[1])) - 1;
+  const bottom = Math.max(...pad.map((point) => point[1])) + 1;
+  for (let index = 1; index < points.length; index += 1) {
+    const [x1, y1] = points[index - 1];
+    const [x2, y2] = points[index];
+    const crossesX = Math.max(x1, x2) > left && Math.min(x1, x2) < right;
+    const crossesY = Math.max(y1, y2) > top && Math.min(y1, y2) < bottom;
+    assert.ok(!crossesX || !crossesY);
+  }
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels[0].textContent, 'Pin 20');
+  assert.match(labels[0].attributes.transform, /rotate\(-90 /);
+});
+
+test('outside label leaders still detour when the local layout needs a side label', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = [
+    { contactId: 'named', x: 4, y: 0, pin: '20' },
+    { contactId: 'vertical-neighbor', x: 4, y: 1, pin: '' },
+    { contactId: 'blocker', x: 6, y: 0, pin: '' },
+    { contactId: 'lower', x: 0, y: 40, pin: '' },
+  ].map(({ contactId, x, y, pin }) => ({
+    contactId, kind: 'face', name: 'Pad', assignedName: '', pin, linked: true,
+    normal: [0, 0, 1],
+    loops: [[[x, y, 0], [x + 0.5, y, 0], [x + 0.5, y + 0.5, 0], [x, y + 0.5, 0]]],
+  }));
+  context.renderInterfaceContacts(diagram, contacts);
+  const leaders = descendants(diagram.contactState.svg, (node) => (
+    node.className === 'interface-contact-label-leader'
+  ));
+  assert.equal(leaders.length, 1);
+  const points = [...leaders[0].attributes.d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+    .map((match) => [Number(match[1]), Number(match[2])]);
+  assert.equal(points.length, 4);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels[0].attributes.transform, undefined);
+});
+
 test('dense two-column contacts keep each outside label aligned to its pad', () => {
   const { context } = palette();
   const contacts = Array.from({ length: 38 }, (_unused, index) => {

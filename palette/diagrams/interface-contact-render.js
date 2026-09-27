@@ -164,6 +164,7 @@ function renderInterfaceContacts(diagram, contacts) {
       } else if (labelPlan?.kind === "outside") {
         nameLabel = appendOutsideContactLabel(
           group, contactGroup, labelPlan, contentOffsetX, labelLayout.shiftX, labelLayout.shiftY,
+          labelLayout.contactBounds,
         );
       }
       group.append(contactGroup);

@@ -22,12 +22,15 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
   };
   const plans = new Map();
   const outside = [];
+  const contactBounds = [];
   outlines.forEach(({ contact, loops }, index) => {
+    const bounds = contactLabelBounds(loops, scale, minX, minY);
+    if (bounds) contactBounds.push({ contactId: contact.contactId, bounds,
+      centerX: (bounds.left + bounds.right) / 2,
+      centerY: (bounds.top + bounds.bottom) / 2 });
     const value = contact.assignedName || "";
     const pin = contact.pin || "";
-    if (!value && !pin) return;
-    const bounds = contactLabelBounds(loops, scale, minX, minY);
-    if (!bounds) return;
+    if ((!value && !pin) || !bounds) return;
     const insideLines = [value, pin && `Pin ${pin}`].filter(Boolean);
     const insideWidth = Math.max(...insideLines.map((line) => line.length * 6.5)) + 8;
     const insideHeight = insideLines.length * 14 + 8;
@@ -43,7 +46,8 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
       width: text.length * 6.5 + 4 });
   });
   outside.forEach((item) => {
-    const nearest = outside.filter((other) => other !== item).sort((first, second) => (
+    const nearest = contactBounds.filter((other) => other.contactId !== item.contactId)
+      .sort((first, second) => (
       Math.hypot(first.centerX - item.centerX, first.centerY - item.centerY)
       - Math.hypot(second.centerX - item.centerX, second.centerY - item.centerY)
     ))[0];
@@ -78,15 +82,21 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         ? first.centerY - second.centerY || first.index - second.index
         : first.centerX - second.centerX || first.index - second.index
     ));
-    const rowMetrics = (side === "top" || side === "bottom" ? lane : []).map((item, index) => {
+    const rowMetrics = (side === "top" || side === "bottom" ? lane : []).map((item) => {
+      const rowNeighbors = contactBounds.filter((other) => other.contactId !== item.contactId
+        && other.bounds.top <= item.bounds.bottom + 1
+        && other.bounds.bottom >= item.bounds.top - 1);
+      const leftNeighbor = rowNeighbors.filter((other) => other.centerX < item.centerX)
+        .sort((first, second) => second.centerX - first.centerX)[0];
+      const rightNeighbor = rowNeighbors.filter((other) => other.centerX > item.centerX)
+        .sort((first, second) => first.centerX - second.centerX)[0];
       const pitch = Math.min(
-        index ? item.centerX - lane[index - 1].centerX : Infinity,
-        index + 1 < lane.length ? lane[index + 1].centerX - item.centerX : Infinity,
+        leftNeighbor ? item.centerX - leftNeighbor.centerX : Infinity,
+        rightNeighbor ? rightNeighbor.centerX - item.centerX : Infinity,
       );
       const neighborGap = Math.min(
-        index ? Math.max(0, item.bounds.left - lane[index - 1].bounds.right) : Infinity,
-        index + 1 < lane.length
-          ? Math.max(0, lane[index + 1].bounds.left - item.bounds.right) : Infinity,
+        leftNeighbor ? Math.max(0, item.bounds.left - leftNeighbor.bounds.right) : Infinity,
+        rightNeighbor ? Math.max(0, rightNeighbor.bounds.left - item.bounds.right) : Infinity,
       );
       const contactWidth = item.bounds.right - item.bounds.left;
       return { pitch, rotated: item.width > pitch - 6,
@@ -130,7 +140,7 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         }
         occupiedUntil = box.right;
       }
-      plans.set(item.contactId, { kind: "outside", text: item.text, side,
+      plans.set(item.contactId, { kind: "outside", contactId: item.contactId, text: item.text, side,
         bounds: item.bounds, box, fontSize, rotated });
     });
   }
@@ -139,11 +149,63 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
   const shiftY = Math.max(0, 44 - Math.min(geometry.top, ...boxes.map((box) => box.top)));
   const width = Math.max(geometry.right, ...boxes.map((box) => box.right)) + shiftX + 16;
   const height = Math.max(geometry.bottom, ...boxes.map((box) => box.bottom)) + shiftY + 6;
-  return { plans, shiftX, shiftY, width, height };
+  return { plans, contactBounds, shiftX, shiftY, width, height };
+}
+
+/** Test whether a line enters a contact's slightly expanded bounding box. */
+function labelLeaderCrossesContact(start, end, bounds) {
+  let near = 0;
+  let far = 1;
+  for (const [axis, low, high] of [
+    [0, bounds.left - 1, bounds.right + 1],
+    [1, bounds.top - 1, bounds.bottom + 1],
+  ]) {
+    const delta = end[axis] - start[axis];
+    if (Math.abs(delta) < 1e-9) {
+      if (start[axis] <= low || start[axis] >= high) return false;
+      continue;
+    }
+    const entry = (low - start[axis]) / delta;
+    const exit = (high - start[axis]) / delta;
+    near = Math.max(near, Math.min(entry, exit));
+    far = Math.min(far, Math.max(entry, exit));
+    if (near >= far) return false;
+  }
+  return near < 1 && far > 0;
+}
+
+/** Prefer a short clear leader; omit it when all simple detours cross pads. */
+function contactLabelLeaderPoints(start, end, side, obstacles) {
+  const crosses = (points) => points.slice(1).some((point, index) => obstacles.some(({ bounds }) => (
+    labelLeaderCrossesContact(points[index], point, bounds)
+  )));
+  if (!crosses([start, end])) return [start, end];
+  const horizontal = side === "left" || side === "right";
+  const relevant = obstacles.filter(({ bounds }) => labelLeaderCrossesContact(start, end, bounds));
+  const detours = horizontal
+    ? [Math.min(...relevant.map(({ bounds }) => bounds.top)) - 3,
+      Math.max(...relevant.map(({ bounds }) => bounds.bottom)) + 3,
+      Math.min(...obstacles.map(({ bounds }) => bounds.top)) - 3,
+      Math.max(...obstacles.map(({ bounds }) => bounds.bottom)) + 3]
+    : [Math.min(...relevant.map(({ bounds }) => bounds.left)) - 3,
+      Math.max(...relevant.map(({ bounds }) => bounds.right)) + 3,
+      Math.min(...obstacles.map(({ bounds }) => bounds.left)) - 3,
+      Math.max(...obstacles.map(({ bounds }) => bounds.right)) + 3];
+  const routes = detours.map((coordinate) => horizontal
+    ? [start, [start[0], coordinate], [end[0], coordinate], end]
+    : [start, [coordinate, start[1]], [coordinate, end[1]], end])
+    .filter((points) => !crosses(points));
+  routes.sort((first, second) => {
+    const length = (points) => points.slice(1).reduce((sum, point, index) => (
+      sum + Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
+    ), 0);
+    return length(first) - length(second);
+  });
+  return routes[0] || null;
 }
 
 /** Add a short leader and one outside line without making either a hit target. */
-function appendOutsideContactLabel(group, contactGroup, plan, offsetX, shiftX, shiftY) {
+function appendOutsideContactLabel(group, contactGroup, plan, offsetX, shiftX, shiftY, contactBounds) {
   const { box, bounds, side, text } = plan;
   const centerX = (bounds.left + bounds.right) / 2;
   const centerY = (bounds.top + bounds.bottom) / 2;
@@ -154,9 +216,12 @@ function appendOutsideContactLabel(group, contactGroup, plan, offsetX, shiftX, s
     : side === "right" ? [box.left - 2, (box.top + box.bottom) / 2]
       : side === "top" ? [(box.left + box.right) / 2, box.bottom + 2]
         : [(box.left + box.right) / 2, box.top - 2];
-  group.append(svgElement("path", {
+  const obstacles = contactBounds.filter((item) => item.contactId !== plan.contactId);
+  const leader = contactLabelLeaderPoints(start, end, side, obstacles);
+  if (leader) group.append(svgElement("path", {
     class: "interface-contact-label-leader",
-    d: `M${offsetX + shiftX + start[0]} ${shiftY + start[1]} L${offsetX + shiftX + end[0]} ${shiftY + end[1]}`,
+    d: leader.map(([x, y], index) => `${index ? "L" : "M"}${offsetX + shiftX + x} ${shiftY + y}`)
+      .join(" "),
   }));
   const x = side === "left" ? box.right - 2 : side === "right" ? box.left + 2
     : (box.left + box.right) / 2;
