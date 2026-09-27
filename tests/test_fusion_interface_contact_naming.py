@@ -105,6 +105,41 @@ def test_pos_import_persists_connector_pin_and_signal(
     assert notice == "Named 1 of 2 Interface contacts; 1 unchanged."
 
 
+def test_file_import_offers_brd_and_fbrd(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    The local picker offers both board formats before names are matched.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    contact_id, interface_id, harness_id = UUID(int=1), UUID(int=2), UUID(int=3)
+    interface = SimpleNamespace(interface_id=interface_id, contacts=(object(),))
+    gateway = SimpleNamespace(read_harness_definition=lambda _: "saved")
+    picker = SimpleNamespace(filename="example.fbrd", showOpen=Mock(return_value=1))
+    application = SimpleNamespace(userInterface=SimpleNamespace(createFileDialog=lambda: picker))
+    read_board = Mock(return_value=[BoardPad("J1.1", 0, 0, 1, 1, 1)])
+    persist = Mock()
+    monkeypatch.setitem(vars(module.adsk.core), "DialogResults", SimpleNamespace(DialogOK=1))
+    monkeypatch.setitem(vars(module), "_require_active_design", lambda _: object())
+    monkeypatch.setitem(vars(module), "_create_harness_gateway", lambda _: gateway)
+    monkeypatch.setitem(vars(module), "loads", lambda _: SimpleNamespace(interfaces=(interface,)))
+    monkeypatch.setitem(vars(module), "read_eagle_board", read_board)
+    monkeypatch.setitem(
+        vars(module),
+        "_contact_footprints",
+        lambda *_: [ContactFootprint(str(contact_id), 0, 0, 1, 1, 1)],
+    )
+    monkeypatch.setitem(vars(module), "name_interface_contacts", persist)
+    assert (
+        module.import_interface_contact_names(application, harness_id, interface_id, "file")
+        == "Named 1 of 1 Interface contacts; 0 unchanged."
+    )
+    assert picker.filter == "Board files (*.brd;*.fbrd)"
+    read_board.assert_called_once_with(module.Path("example.fbrd"))
+    persist.assert_called_once_with(harness_id, interface_id, {contact_id: "J1.1"}, gateway)
+
+
 def test_pos_import_preview_reports_only_conflicts_without_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

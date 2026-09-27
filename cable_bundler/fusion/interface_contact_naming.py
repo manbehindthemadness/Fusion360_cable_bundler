@@ -455,8 +455,8 @@ def import_interface_contact_names(
         raise ValueError("Selected Interface no longer exists.")
     if source == "file":
         picker = application.userInterface.createFileDialog()
-        picker.title = "Load Eagle board for Interface contacts"
-        picker.filter = "Eagle board (*.brd)"
+        picker.title = "Load board for Interface contacts"
+        picker.filter = "Board files (*.brd;*.fbrd)"
         if picker.showOpen() != adsk.core.DialogResults.DialogOK:
             return "Board import cancelled."
         pads = read_eagle_board(Path(picker.filename))

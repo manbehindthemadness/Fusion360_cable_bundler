@@ -445,7 +445,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
     const boards = Array.isArray(response.boards) ? response.boards : [];
     message.textContent = boards.length
       ? "Choose the linked 2D PCB to read pad names from:"
-      : "No linked 2D PCB was found for this Interface. Use Load brd for a local board file.";
+      : "No linked 2D PCB was found for this Interface. Use Load board for a local board file.";
     boards.forEach((board, index) => {
       const label = document.createElement("label");
       const radio = document.createElement("input");
@@ -534,7 +534,7 @@ function openInterfaceContacts(harness, interfaceItem) {
     naming, harness.harnessId, interfaceItem.interfaceId,
   ));
   [["Geo Import", "geo_import_interface_contacts"],
-    ["Load brd", "load_brd_interface_contacts"]].forEach(([label, action]) => {
+    ["Load board", "load_brd_interface_contacts"]].forEach(([label, action]) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "button compact";

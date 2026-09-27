@@ -32,7 +32,7 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   ]);
   const naming = dialog.children[1].children[1].children;
   assert.deepEqual(naming.map((button) => button.textContent),
-    ['Auto Pin', 'Geo Import', 'Pos Import', 'Load brd']);
+    ['Auto Pin', 'Geo Import', 'Pos Import', 'Load board']);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);

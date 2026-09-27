@@ -5,6 +5,7 @@ Board pad parsing and conservative contact matching regressions.
 from __future__ import annotations
 
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -38,6 +39,43 @@ def test_read_eagle_board_applies_element_rotation_and_signals(tmp_path: Path) -
         (10, 21, 0.4, 0.8)
     )
     assert (pads[0].layer, pads[0].signal) == (1, "GND")
+
+
+@pytest.mark.parametrize("archive", [False, True])
+def test_read_fusion_board_accepts_xml_and_archive(tmp_path: Path, archive: bool) -> None:
+    """
+    Import a local Fusion board through the same pad placement path as .brd.
+    """
+    board = tmp_path / "example.fbrd"
+    xml = (
+        '<eagle><drawing><board><libraries><library name="L"><packages>'
+        '<package name="P"><smd name="1" x="1" y="0" dx="0.8" dy="0.4" layer="1"/>'
+        "</package></packages></library></libraries><elements>"
+        '<element name="J1" library="L" package="P" x="10" y="20"/>'
+        '</elements><signals><signal name="GND"><contactref element="J1" pad="1"/>'
+        "</signal></signals></board></drawing></eagle>"
+    )
+    if archive:
+        with ZipFile(board, "w") as contents:
+            contents.writestr("board/layout.brd", xml)
+    else:
+        board.write_text(xml, encoding="utf-8")
+    pads = read_eagle_board(board)
+    assert len(pads) == 1
+    assert (pads[0].label, pads[0].x, pads[0].y, pads[0].signal) == ("J1.1", 11, 20, "GND")
+
+
+def test_read_fusion_board_rejects_ambiguous_archive(tmp_path: Path) -> None:
+    """
+    Never guess which board supplies contact names in a malformed archive.
+    """
+    board = tmp_path / "ambiguous.fbrd"
+    xml = "<eagle><drawing><board/></drawing></eagle>"
+    with ZipFile(board, "w") as contents:
+        contents.writestr("first.brd", xml)
+        contents.writestr("second.brd", xml)
+    with pytest.raises(ValueError, match="one Eagle board"):
+        read_eagle_board(board)
 
 
 def test_match_board_contacts_rejects_ambiguous_and_wrong_layer() -> None:

@@ -10,6 +10,9 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from zipfile import BadZipFile, ZipFile, is_zipfile
+
+_MAX_BOARD_BYTES = 25_000_000
 
 
 @dataclass(frozen=True)
@@ -72,27 +75,69 @@ def _point(x: float, y: float, angle: float, mirrored: bool) -> tuple[float, flo
     return (x * math.cos(angle) - y * math.sin(angle), x * math.sin(angle) + y * math.cos(angle))
 
 
-def read_eagle_board(path: Path) -> list[BoardPad]:
+def _board_root(path: Path) -> ET.Element:
     """
-    Read placed SMD and through-hole contacts from a Fusion/Eagle XML board.
+    Read an Eagle XML board from a .brd or Fusion .fbrd file.
 
-    Unsupported package rotations are skipped. Non-XML or oversized files fail
-    without changing any saved names.
+    Fusion archives may wrap the board XML. Accept exactly one board document
+    and bound decompression before parsing any archive member.
     """
-    if path.suffix.lower() != ".brd":
-        raise ValueError("Choose a Fusion/Eagle XML .brd file under 25 MB.")
+    if path.suffix.lower() not in (".brd", ".fbrd"):
+        raise ValueError("Choose an Eagle .brd or Fusion .fbrd board under 25 MB.")
     try:
         size = path.stat().st_size
     except OSError as error:
         raise ValueError("The selected board file cannot be read.") from error
-    if size > 25_000_000:
-        raise ValueError("Choose a Fusion/Eagle XML .brd file under 25 MB.")
+    if size > _MAX_BOARD_BYTES:
+        raise ValueError("Choose an Eagle .brd or Fusion .fbrd board under 25 MB.")
     try:
+        if is_zipfile(path):
+            with ZipFile(path) as archive:
+                members = [
+                    member
+                    for member in archive.infolist()
+                    if not member.is_dir()
+                    and member.filename.lower().endswith((".brd", ".fbrd", ".xml"))
+                ]
+                if len(members) > 256:
+                    raise ValueError("The Fusion board archive has too many XML documents.")
+                roots = []
+                for member in members:
+                    if member.file_size > _MAX_BOARD_BYTES:
+                        continue
+                    with archive.open(member) as source:
+                        data = source.read(_MAX_BOARD_BYTES + 1)
+                    if len(data) > _MAX_BOARD_BYTES:
+                        continue
+                    try:
+                        candidate = ET.fromstring(data)
+                    except ET.ParseError:
+                        continue
+                    if candidate.tag == "eagle" and candidate.find("./drawing/board") is not None:
+                        roots.append(candidate)
+                if len(roots) != 1:
+                    raise ValueError("The Fusion board archive must contain one Eagle board.")
+                return roots[0]
         root = ET.parse(path).getroot()
-    except (ET.ParseError, OSError) as error:
-        raise ValueError("The selected board is not valid Eagle XML.") from error
+    except (ET.ParseError, OSError, BadZipFile, RuntimeError) as error:
+        raise ValueError(
+            "The selected board is not valid Eagle XML or a Fusion board archive."
+        ) from error
+    if root.tag != "eagle" or root.find("./drawing/board") is None:
+        raise ValueError("The selected file is not an Eagle board.")
+    return root
+
+
+def read_eagle_board(path: Path) -> list[BoardPad]:
+    """
+    Read placed SMD and through-hole contacts from an Eagle or Fusion board.
+
+    Unsupported package rotations are skipped. Invalid or oversized files fail
+    without changing any saved names.
+    """
+    root = _board_root(path)
     board = root.find("./drawing/board")
-    if root.tag != "eagle" or board is None:
+    if board is None:
         raise ValueError("The selected file is not an Eagle board.")
     packages = {
         (library.get("name"), package.get("name")): package
