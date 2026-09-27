@@ -183,6 +183,46 @@ test('vertical labels shrink only where neighboring pads are close', () => {
   });
 });
 
+test('contacts in distant rows rotate readable labels into the row gaps', () => {
+  const { context } = palette();
+  const contacts = [0, 100].flatMap((y, row) => Array.from({ length: 4 }, (_unused, column) => {
+    const x = column * 3;
+    return {
+      contactId: `${row}-${column}`, kind: 'face', assignedName: `J4.${column + 1} (NC)`,
+      linked: true, normal: [0, 0, 1],
+      loops: [[[x, y, 0], [x + 0.5, y, 0], [x + 0.5, y + 0.5, 0], [x, y + 0.5, 0]]],
+    };
+  }));
+  const diagram = context.document.createElement('div');
+  context.renderInterfaceContacts(diagram, contacts);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels.length, 8);
+  labels.forEach((label, index) => {
+    const pad = diagram.contactState.items[index].loops[0];
+    const xs = pad.map((point) => point[0]);
+    const padWidth = Math.max(...xs) - Math.min(...xs);
+    assert.match(label.attributes.transform, /^rotate\((-?90) /);
+    assert.ok(Number.parseFloat(label.style.fontSize) > padWidth);
+    assert.ok(Number.parseFloat(label.style.fontSize) > 4);
+  });
+  for (const start of [0, 4]) {
+    const firstPad = diagram.contactState.items[start].loops[0];
+    const secondPad = diagram.contactState.items[start + 1].loops[0];
+    const firstWidth = firstPad[1][0] - firstPad[0][0];
+    const edgeGap = secondPad[0][0] - firstPad[1][0];
+    assert.ok(Math.abs(Number.parseFloat(labels[start].style.fontSize)
+      - (firstWidth + edgeGap / 2)) < 0.01);
+    for (let index = start + 1; index < start + 4; index += 1) {
+      const separation = Number(labels[index].attributes.x) - Number(labels[index - 1].attributes.x);
+      const labelWidths = (Number.parseFloat(labels[index].style.fontSize)
+        + Number.parseFloat(labels[index - 1].style.fontSize)) / 2;
+      assert.ok(separation >= labelWidths);
+    }
+  }
+});
+
 test('wide contact rows place compact labels above and below the geometry', () => {
   const { context } = palette();
   const contacts = [0, 1].flatMap((row) => Array.from({ length: 3 }, (_unused, column) => ({
@@ -198,6 +238,7 @@ test('wide contact rows place compact labels above and below the geometry', () =
   ));
   assert.equal(labels.length, 6);
   assert.equal(labels.slice(0, 3).every((label) => label.attributes['text-anchor'] === 'middle'), true);
+  assert.ok(labels.every((label) => label.attributes.transform === undefined));
   assert.ok(Number(labels[0].attributes.y) > diagram.contactState.items[0].loops[0][0][1]);
   assert.ok(Number(labels[3].attributes.y) < diagram.contactState.items[3].loops[0][0][1]);
 });

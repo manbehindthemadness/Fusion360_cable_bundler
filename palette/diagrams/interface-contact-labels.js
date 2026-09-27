@@ -22,7 +22,6 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
   };
   const plans = new Map();
   const outside = [];
-  const vertical = geometryHeight >= geometryWidth;
   outlines.forEach(({ contact, loops }, index) => {
     const value = contact.assignedName || "";
     const pin = contact.pin || "";
@@ -40,22 +39,32 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
     const text = pin ? `Pin ${pin}${value ? ` · ${value}` : ""}` : value;
     const centerX = (bounds.left + bounds.right) / 2;
     const centerY = (bounds.top + bounds.bottom) / 2;
-    const side = vertical
-      ? (centerX < (geometry.left + geometry.right) / 2 ? "left" : "right")
-      : (centerY < (geometry.top + geometry.bottom) / 2 ? "top" : "bottom");
-    outside.push({ contactId: contact.contactId, index, bounds, text, side,
-      centerX, centerY, width: text.length * 6.5 + 4 });
+    outside.push({ contactId: contact.contactId, index, bounds, text, centerX, centerY,
+      width: text.length * 6.5 + 4 });
+  });
+  outside.forEach((item) => {
+    const nearest = outside.filter((other) => other !== item).sort((first, second) => (
+      Math.hypot(first.centerX - item.centerX, first.centerY - item.centerY)
+      - Math.hypot(second.centerX - item.centerX, second.centerY - item.centerY)
+    ))[0];
+    const row = geometryWidth > geometryHeight || (nearest
+      && Math.abs(nearest.centerX - item.centerX) >= Math.abs(nearest.centerY - item.centerY));
+    item.side = row
+      ? (item.centerY < (geometry.top + geometry.bottom) / 2 ? "top" : "bottom")
+      : (item.centerX < (geometry.left + geometry.right) / 2 ? "left" : "right");
   });
   for (const side of ["left", "right", "top", "bottom"]) {
     const lane = outside.filter((item) => item.side === side).sort((first, second) => (
-      vertical ? first.centerY - second.centerY || first.index - second.index
+      side === "left" || side === "right"
+        ? first.centerY - second.centerY || first.index - second.index
         : first.centerX - second.centerX || first.index - second.index
     ));
     let occupiedUntil = -Infinity;
     lane.forEach((item, index) => {
       const box = { left: 0, right: 0, top: 0, bottom: 0 };
       let fontSize = null;
-      if (vertical) {
+      let rotated = false;
+      if (side === "left" || side === "right") {
         const pitch = Math.min(
           index ? item.centerY - lane[index - 1].centerY : Infinity,
           index + 1 < lane.length ? lane[index + 1].centerY - item.centerY : Infinity,
@@ -69,14 +78,35 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         box.right = box.left + width;
         occupiedUntil = box.bottom;
       } else {
-        box.left = Math.max(item.centerX - item.width / 2, occupiedUntil + 6);
-        box.right = box.left + item.width;
-        box.top = side === "top" ? geometry.top - 22 : geometry.bottom + 8;
-        box.bottom = box.top + 14;
+        const pitch = Math.min(
+          index ? item.centerX - lane[index - 1].centerX : Infinity,
+          index + 1 < lane.length ? lane[index + 1].centerX - item.centerX : Infinity,
+        );
+        rotated = item.width > pitch - 6;
+        if (rotated) {
+          const neighborGap = Math.min(
+            index ? Math.max(0, item.bounds.left - lane[index - 1].bounds.right) : Infinity,
+            index + 1 < lane.length
+              ? Math.max(0, lane[index + 1].bounds.left - item.bounds.right) : Infinity,
+          );
+          const contactWidth = item.bounds.right - item.bounds.left;
+          fontSize = Math.min(11, Math.max(1, contactWidth + neighborGap / 2),
+            Math.max(1, pitch - 1));
+          const textHeight = item.text.length * (fontSize / 11) * 6.5 + 4;
+          box.left = Math.max(item.centerX - fontSize / 2, occupiedUntil + 1);
+          box.right = box.left + fontSize;
+          box.top = side === "top" ? item.bounds.top - 8 - textHeight : item.bounds.bottom + 8;
+          box.bottom = box.top + textHeight;
+        } else {
+          box.left = Math.max(item.centerX - item.width / 2, occupiedUntil + 6);
+          box.right = box.left + item.width;
+          box.top = side === "top" ? item.bounds.top - 22 : item.bounds.bottom + 8;
+          box.bottom = box.top + 14;
+        }
         occupiedUntil = box.right;
       }
       plans.set(item.contactId, { kind: "outside", text: item.text, side,
-        bounds: item.bounds, box, fontSize });
+        bounds: item.bounds, box, fontSize, rotated });
     });
   }
   const boxes = outside.map((item) => plans.get(item.contactId).box);
@@ -112,6 +142,12 @@ function appendOutsideContactLabel(group, contactGroup, plan, offsetX, shiftX, s
     "text-anchor": side === "left" ? "end" : side === "right" ? "start" : "middle",
     "dominant-baseline": "middle",
   });
+  if (plan.rotated) {
+    const angle = side === "top" ? -90 : 90;
+    const pivotX = offsetX + shiftX + x;
+    const pivotY = shiftY + (box.top + box.bottom) / 2;
+    label.setAttribute("transform", `rotate(${angle} ${pivotX} ${pivotY})`);
+  }
   label.textContent = text;
   if (plan.fontSize !== null) label.style.fontSize = `${plan.fontSize}px`;
   contactGroup.append(label);
