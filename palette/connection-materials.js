@@ -114,14 +114,10 @@ function appendTerminalPinNumberField(form, connection, attachment) {
   if ((connection.attachments || []).some((candidate) => (
     candidate.parentAttachmentId === attachment.attachmentId
   ))) return null;
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-  label.textContent = "P";
-  input.type = "text";
-  input.className = "filter";
-  input.value = attachment.pinNumber || "";
-  label.append(input);
-  form.append(label);
+  const { wrapper, input } = createMaterialTextField(
+    attachment, "pinNumber", "Pin number",
+  );
+  form.append(wrapper);
   return input;
 }
 

@@ -214,7 +214,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[12].checked = true;
   propertyFields[12].events.change();
   propertyFields[13].value = 'BR-01';
-  assert.equal(propertyFields[14].parentElement.textContent, 'P');
+  assert.equal(propertyFields[14].parentElement.querySelector('strong').textContent, 'Pin number');
   propertyFields[14].value = 'A2';
   propertyFields[16].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
@@ -349,9 +349,10 @@ asyncTest('connection Properties place shielding above custom metadata', async (
   assert.equal(fields[1].disabled, true);
   assert.equal(fields[3].value, '');
   assert.equal(fields[3].disabled, true);
-  const pin = descendants(dialog, (item) => (
-    item.tag === 'label' && item.textContent === 'P'
-  ))[0].querySelector('input');
+  const pinHeading = descendants(dialog, (item) => (
+    item.tag === 'strong' && item.textContent === 'Pin number'
+  ))[0];
+  const pin = pinHeading.parentElement.parentElement.querySelector('input');
   pin.value = '7';
   fields[0].checked = true;
   fields[0].events.change();
