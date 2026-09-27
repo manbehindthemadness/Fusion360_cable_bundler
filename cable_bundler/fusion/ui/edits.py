@@ -51,6 +51,7 @@ from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, PathwayEndpoint
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
+from ..interface_contact_local_naming import name_interface_contact_locals
 from ..interface_contact_projection_copy import copy_projected_interface_details
 from .payloads import (
     _read_harness_properties,
@@ -94,6 +95,17 @@ def _apply_palette_edit(
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    if action == "name_interface_contact_locals":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        raw_ids = payload.get("contactIds")
+        if (
+            not isinstance(raw_ids, list)
+            or len(raw_ids) > 1024
+            or any(not isinstance(item, str) for item in raw_ids)
+        ):
+            raise ValueError("Name Locals requires contact identities.")
+        contact_ids = tuple(UUID(item) for item in raw_ids)
+        return name_interface_contact_locals(application, harness_id, interface_id, contact_ids)
     if action == "resolve_projected_interface_contacts":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         source_id = _read_payload_uuid(payload, "sourceId", "source Interface")

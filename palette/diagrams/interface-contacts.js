@@ -715,6 +715,22 @@ function openInterfaceContacts(harness, interfaceItem) {
     naming, diagram, harness.harnessId, interfaceItem.interfaceId,
   ));
   naming.append(autoPin);
+  const nameLocals = document.createElement("button");
+  nameLocals.type = "button";
+  nameLocals.className = "button compact";
+  nameLocals.textContent = "Name Locals";
+  nameLocals.title = "Write saved Pins and Values to uniquely owned, editable Fusion geometry (selected contacts or all).";
+  nameLocals.addEventListener("click", () => {
+    nameLocals.disabled = true;
+    void send("name_interface_contact_locals", {
+      harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
+      contactIds: [...diagram.contactState.selectedIds],
+    }).then((response) => {
+      if (!response.ok) throw new Error(response.error || "Could not name local geometry.");
+    }).catch((error) => appendNotice(String(error), true))
+      .finally(() => { nameLocals.disabled = false; });
+  });
+  naming.append(nameLocals);
   const posImport = document.createElement("button");
   posImport.type = "button";
   posImport.className = "button compact";

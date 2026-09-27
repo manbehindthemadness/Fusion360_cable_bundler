@@ -161,6 +161,7 @@ PALETTE_EDIT_NAMES = {
     "set_interface_contact_name": "Name Interface Contact",
     "set_interface_contact_details": "Edit Interface Contact",
     "auto_pin_interface_contacts": "Auto Pin Interface Contacts",
+    "name_interface_contact_locals": "Name Local Interface Geometry",
     "clear_interface_contact_pins": "Clear Interface Contact Pins",
     "clear_interface_contact_values": "Clear Interface Contact Values",
     "rename_interface_contact_orientation": "Rename Interface Contact Orientation",

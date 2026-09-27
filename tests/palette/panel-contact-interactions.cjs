@@ -263,8 +263,9 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   const naming = dialog.children[1].children[1];
   const button = naming.children[0];
   assert.equal(button.textContent, 'Auto Pin');
-  assert.equal(naming.children[1].textContent, 'Geo Import');
-  assert.equal(naming.children[2].textContent, 'Pos Import');
+  assert.equal(naming.children[1].textContent, 'Name Locals');
+  assert.equal(naming.children[2].textContent, 'Geo Import');
+  assert.equal(naming.children[3].textContent, 'Pos Import');
   button.events.click();
   const form = naming.querySelector('.interface-contact-auto-pin');
   const direction = form.children[0].children[0];
@@ -286,6 +287,29 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   assert.equal(launches[0].payload.start, 7);
   assert.equal(launches[0].payload.overwrite, true);
   assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
+});
+
+asyncTest('Name Locals sends selected contact IDs without changing metadata in the palette', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [{
+      contactId: 'pad-1', kind: 'face', name: 'Pad', assignedName: 'VCC', pin: '1',
+      linked: true, normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }],
+  });
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  dialog.children[2].contactState.selectedIds.add('pad-1');
+  const naming = dialog.children[1].children[1];
+  naming.children[1].events.click();
+  await Promise.resolve();
+  assert.equal(launches.length, 1);
+  assert.equal(launches[0].action, 'name_interface_contact_locals');
+  assert.deepEqual(Array.from(launches[0].payload.contactIds), ['pad-1']);
 });
 
 test('Auto Pin remembers order and a valid Start within the palette session', () => {
@@ -344,7 +368,7 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   dialog.children[2].contactState.selectedIds.add('b');
   const naming = dialog.children[1].children[1];
-  naming.children[1].events.click();
+  naming.children[2].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
   const geometry = form.children[1].children[0];
   const selectInterface = form.children[2].children[0];

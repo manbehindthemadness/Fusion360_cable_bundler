@@ -331,6 +331,28 @@ def test_auto_pin_routes_order_and_policy_without_value(
     assert "value" not in payload
 
 
+def test_name_locals_routes_selected_contact_scope(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Pass only contact identities to the guarded Fusion geometry naming edit.
+    """
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    application = object()
+    rename = Mock(return_value="Named 1 local geometry.")
+    monkeypatch.setitem(vars(edits), "name_interface_contact_locals", rename)
+    payload = {
+        "harnessId": str(UUID(int=1)),
+        "interfaceId": str(UUID(int=2)),
+        "contactIds": [str(UUID(int=3))],
+    }
+    notice = edits._apply_palette_edit(
+        application, "name_interface_contact_locals", json.dumps(payload)
+    )
+    assert notice == "Named 1 local geometry."
+    rename.assert_called_once_with(application, UUID(int=1), UUID(int=2), (UUID(int=3),))
+
+
 def test_geo_import_routes_selected_ids_as_one_metadata_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

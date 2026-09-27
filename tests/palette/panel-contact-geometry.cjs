@@ -97,7 +97,7 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
   });
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   const naming = dialog.children[1].children[1];
-  naming.children[2].events.click();
+  naming.children[3].events.click();
   await Promise.resolve();
   const form = naming.querySelector('.interface-contact-pos-import');
   assert.equal(form.children[0].textContent, 'Choose the linked 2D PCB to read pad names from:');
@@ -143,7 +143,7 @@ asyncTest('Load board reviews file matches with the Pos Import naming choices', 
     interfaceId: 'interface-1', name: 'Socket', contacts: [],
   });
   const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
-  naming.children[2].events.click();
+  naming.children[3].events.click();
   await Promise.resolve();
   const form = naming.querySelector('.interface-contact-pos-import');
   assert.equal(form.attributes['aria-label'], 'Choose PCB for Pos Import');
@@ -190,7 +190,7 @@ asyncTest('Pos Import skips review when no contacts have conflicting PCB candida
     interfaceId: 'interface-1', name: 'Socket', contacts: [],
   });
   const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
-  naming.children[2].events.click();
+  naming.children[3].events.click();
   await Promise.resolve();
   const form = naming.querySelector('.interface-contact-pos-import');
   form.events.submit({ preventDefault() {} });
