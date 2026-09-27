@@ -5,7 +5,7 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
-  width: min(900px, 92vw);
+  width: 92vw;
   height: 92vh;
   max-height: 92vh;
   overflow: hidden;
