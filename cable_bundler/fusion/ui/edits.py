@@ -51,7 +51,6 @@ from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, PathwayEndpoint
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
-from ..interface_contact_naming import import_interface_contact_names
 from .payloads import (
     _read_harness_properties,
     _read_material_overrides,
@@ -174,10 +173,8 @@ def _apply_palette_edit(
             _create_harness_gateway(application),
         )
         return "Interface contact orientation renamed."
-    if action in ("pos_import_interface_contacts", "load_brd_interface_contacts"):
+    if action == "pos_import_interface_contacts":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
-        if action == "load_brd_interface_contacts":
-            return import_interface_contact_names(application, harness_id, interface_id, "file")
         raw_names = payload.get("contactNames")
         if (
             not isinstance(raw_names, list)

@@ -613,6 +613,9 @@ ui.verboseDiagnostics.addEventListener("change", () => {
 ui.notice.addEventListener("mouseup", persistNoticeHeight);
 window.fusionJavaScriptHandler = { handle(action, data) {
   if (action === "state") render(JSON.parse(data));
+  if (action === "board_file_preview" && pendingBoardFilePreview) {
+    pendingBoardFilePreview(JSON.parse(data));
+  }
   if (action === "qa_probe") return handleQaProbe(data);
   return "OK";
 }};

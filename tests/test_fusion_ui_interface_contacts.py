@@ -131,6 +131,41 @@ def test_pos_import_preview_reads_only_the_selected_linked_board(
     edit.assert_not_called()
 
 
+def test_local_board_preview_returns_names_to_palette_without_edit(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Send a picked file's preview through the palette before any edit command.
+    """
+    palette_module = importlib.import_module("cable_bundler.fusion.ui.palette")
+    harness_id, interface_id = UUID(int=1), UUID(int=2)
+    send_html = Mock(return_value=True)
+    palette = SimpleNamespace(sendInfoToHTML=send_html)
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _id: palette))
+    )
+    preview = Mock(
+        return_value={
+            "autoNames": [{"contactId": "pad", "name": "J1.1 (GND)"}],
+            "unresolved": [],
+        }
+    )
+    monkeypatch.setitem(vars(palette_module), "preview_board_file_contact_names", preview)
+    palette_module._send_board_file_preview(
+        application, json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)})
+    )
+    preview.assert_called_once_with(application, harness_id, interface_id)
+    event, data = send_html.call_args.args
+    assert event == "board_file_preview"
+    assert json.loads(data) == {
+        "harnessId": str(harness_id),
+        "interfaceId": str(interface_id),
+        "autoNames": [{"contactId": "pad", "name": "J1.1 (GND)"}],
+        "unresolved": [],
+    }
+
+
 @pytest.mark.parametrize(
     "action",
     (

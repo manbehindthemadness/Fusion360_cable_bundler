@@ -435,6 +435,27 @@ def _live_board_pads(application: adsk.core.Application) -> list[BoardPad]:
     return _board_pads(boards[0])
 
 
+def preview_board_file_contact_names(
+    application: adsk.core.Application,
+    harness_id: UUID,
+    interface_id: UUID,
+) -> dict[str, object] | None:
+    """
+    Pick a local board and prepare the same review data as linked Pos Import.
+
+    A cancelled picker returns None; reading and matching never change names.
+    """
+    picker = application.userInterface.createFileDialog()
+    picker.title = "Load board for Interface contacts"
+    picker.filter = "Board files (*.brd;*.fbrd)"
+    if picker.showOpen() != adsk.core.DialogResults.DialogOK:
+        return None
+    pads = read_eagle_board(Path(picker.filename))
+    if not pads:
+        raise ValueError("The selected board has no usable contacts.")
+    return preview_interface_contact_names(application, harness_id, interface_id, pads)
+
+
 def import_interface_contact_names(
     application: adsk.core.Application,
     harness_id: UUID,
@@ -453,14 +474,7 @@ def import_interface_contact_names(
     )
     if interface is None:
         raise ValueError("Selected Interface no longer exists.")
-    if source == "file":
-        picker = application.userInterface.createFileDialog()
-        picker.title = "Load board for Interface contacts"
-        picker.filter = "Board files (*.brd;*.fbrd)"
-        if picker.showOpen() != adsk.core.DialogResults.DialogOK:
-            return "Board import cancelled."
-        pads = read_eagle_board(Path(picker.filename))
-    elif source == "live":
+    if source == "live":
         pads = _live_board_pads(application)
     elif source == "linked" and prepared_pads is not None:
         pads = prepared_pads

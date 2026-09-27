@@ -125,6 +125,41 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
   ]);
 });
 
+asyncTest('Load board reviews file matches with the Pos Import naming choices', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [],
+  });
+  const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
+  naming.children[3].events.click();
+  await Promise.resolve();
+  assert.equal(launches[0].action, 'load_brd_interface_contacts');
+  const form = naming.querySelector('.interface-contact-pos-import');
+  assert.equal(form.attributes['aria-label'], 'Review local board names');
+  assert.equal(form.children[3].disabled, true);
+  context.window.fusionJavaScriptHandler.handle('board_file_preview', JSON.stringify({
+    harnessId: 'harness-1', interfaceId: 'interface-1',
+    autoNames: [{ contactId: 'auto', name: 'J1.1 (GND)' }],
+    unresolved: [{ contactId: 'choice', label: 'Contact 2', currentName: '',
+      suggestions: ['J1.2 (NC)', 'J2.2 (GND)'] }],
+  }));
+  assert.equal(launches.length, 1);
+  assert.equal(form.children[2].children.length, 1);
+  form.children[2].children[0].children[1].value = '0';
+  form.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches[1].action, 'pos_import_interface_contacts');
+  assert.deepEqual(JSON.parse(JSON.stringify(launches[1].payload.contactNames)), [
+    { contactId: 'auto', name: 'J1.1 (GND)' },
+    { contactId: 'choice', name: 'J1.2 (NC)' },
+  ]);
+});
+
 asyncTest('Pos Import skips review when no contacts have conflicting PCB candidates', async () => {
   const { context } = palette();
   const launches = [];

@@ -27,7 +27,10 @@ from ..interface_contact_disk_cache import (
     project_cached_contact_batch,
     read_complete_cached_contacts,
 )
-from ..interface_contact_naming import preview_interface_contact_names
+from ..interface_contact_naming import (
+    preview_board_file_contact_names,
+    preview_interface_contact_names,
+)
 from ..interface_contact_projection import project_interface_contact
 from ..interface_contact_source import contact_source_signature
 from .commands.refines import reconcile_active_refines
@@ -302,6 +305,32 @@ def _remove_deferred_palette_launch(application: adsk.core.Application) -> None:
     _runtime.pending_native_dialog.clear()
 
 
+def _send_board_file_preview(application: adsk.core.Application, data: str) -> None:
+    """
+    Return a local board's read-only name preview to the active palette form.
+    """
+    payload = _read_palette_payload(data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    response: dict[str, object] = {
+        "harnessId": str(harness_id),
+        "interfaceId": str(interface_id),
+    }
+    try:
+        preview = preview_board_file_contact_names(application, harness_id, interface_id)
+    except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
+        response["error"] = str(error)
+    else:
+        if preview is None:
+            response["cancelled"] = True
+        else:
+            response.update(preview)
+    palette = application.userInterface.palettes.itemById(PALETTE_ID)
+    if palette is None:
+        raise RuntimeError("Fusion could not return the board preview to the palette.")
+    palette.sendInfoToHTML("board_file_preview", json.dumps(response))
+
+
 class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
     """
     Apply a palette edit and its preview inside one Fusion command transaction.
@@ -346,6 +375,9 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 application.activeViewport.refresh()
                 _send_palette_state(application, notice)
                 return
+            if action == "load_brd_interface_contacts":
+                _send_board_file_preview(application, data)
+                return
             policy = _PALETTE_EDIT_POLICIES.get(action)
             if policy is None:
                 raise ValueError(f"Unsupported harness edit: {action}")
@@ -353,7 +385,6 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             if action in (
                 "pos_import_interface_contacts",
                 "geo_import_interface_contacts",
-                "load_brd_interface_contacts",
                 "set_interface_contact_name",
                 "set_interface_contact_details",
                 "auto_pin_interface_contacts",

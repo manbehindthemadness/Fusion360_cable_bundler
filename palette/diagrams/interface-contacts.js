@@ -309,10 +309,17 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
     serverMs, elapsedMs: Date.now() - started };
 }
 
-/** Review linked PCB suggestions before applying ordinary contact names. */
-function openInterfacePosImport(naming, harnessId, interfaceId) {
+let pendingBoardFilePreview = null;
+
+/** Review PCB suggestions from a linked board or local file before applying names. */
+function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked") {
   const existing = naming.querySelector(".interface-contact-pos-import");
-  if (existing) { existing.remove(); return; }
+  if (existing) {
+    const sameSource = existing.dataset.source === source;
+    existing.remove();
+    pendingBoardFilePreview = null;
+    if (sameSource) return;
+  }
   const form = document.createElement("form");
   const message = document.createElement("div");
   const choices = document.createElement("div");
@@ -320,9 +327,10 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   const apply = document.createElement("button");
   const cancel = document.createElement("button");
   form.className = "interface-contact-pos-import";
+  form.dataset.source = source;
   form.setAttribute("role", "dialog");
-  form.setAttribute("aria-label", "Choose linked PCB for Pos Import");
-  message.textContent = "Finding linked PCB files…";
+  form.setAttribute("aria-label", source === "file" ? "Review local board names" : "Choose linked PCB for Pos Import");
+  message.textContent = source === "file" ? "Choose a local board file…" : "Finding linked PCB files…";
   choices.className = "interface-contact-pos-import-choices";
   apply.type = "submit";
   apply.className = "button compact";
@@ -331,12 +339,13 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   cancel.type = "button";
   cancel.className = "button compact";
   cancel.textContent = "Cancel";
-  cancel.addEventListener("click", () => form.remove());
+  cancel.addEventListener("click", () => { form.remove(); pendingBoardFilePreview = null; });
   form.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
     event.stopPropagation();
     form.remove();
+    pendingBoardFilePreview = null;
   });
   let preview = null;
   let applyingAutomatically = false;
@@ -351,6 +360,79 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   };
+  const showPreview = (response) => {
+    if (naming.querySelector(".interface-contact-pos-import") !== form) return;
+    if (response.cancelled) { form.remove(); return; }
+    if (response.error || !Array.isArray(response.autoNames) || !Array.isArray(response.unresolved)) {
+      appendNotice(response.error || "Could not read PCB pad names.", true);
+      form.remove();
+      return;
+    }
+    preview = response;
+    const conflicts = response.unresolved.filter((contact) => (
+      Array.isArray(contact.suggestions) && contact.suggestions.length
+    ));
+    if (!conflicts.length) {
+      if (response.autoNames.length) {
+        applyingAutomatically = true;
+        applyNames(response.autoNames);
+      } else {
+        appendNotice("No PCB pad names matched these contacts.");
+        form.remove();
+      }
+      return;
+    }
+    choices.hidden = true;
+    message.textContent = `${response.autoNames.length} contacts matched automatically; `
+      + `${conflicts.length} need review.`;
+    review.className = "interface-contact-pos-import-review";
+    conflicts.forEach((contact) => {
+      const row = document.createElement("label");
+      const title = document.createElement("span");
+      const select = document.createElement("select");
+      const manual = document.createElement("input");
+      title.textContent = contact.currentName
+        ? `${contact.label} · ${contact.currentName}` : contact.label;
+      if (contact.currentName) {
+        const keep = document.createElement("option");
+        keep.value = "keep";
+        keep.textContent = `Keep current: ${contact.currentName}`;
+        select.append(keep);
+      }
+      const blank = document.createElement("option");
+      blank.value = "blank";
+      blank.textContent = "Leave blank";
+      select.append(blank);
+      select.value = contact.currentName ? "keep" : "blank";
+      contact.suggestions.forEach((name, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = name;
+        select.append(option);
+      });
+      const custom = document.createElement("option");
+      custom.value = "custom";
+      custom.textContent = "Type a name…";
+      select.append(custom);
+      manual.type = "text";
+      manual.maxLength = 80;
+      manual.placeholder = "Contact name";
+      manual.hidden = true;
+      select.addEventListener("change", () => { manual.hidden = select.value !== "custom"; });
+      row.append(title, select, manual);
+      review.append(row);
+      decisions.push({ contact, select, manual });
+    });
+    apply.textContent = "Apply Names";
+    apply.disabled = false;
+  };
+  if (source === "file") {
+    pendingBoardFilePreview = (response) => {
+      if (response.harnessId !== harnessId || response.interfaceId !== interfaceId) return;
+      pendingBoardFilePreview = null;
+      showPreview(response);
+    };
+  }
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!preview) {
@@ -361,64 +443,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
         harnessId, interfaceId, boardVersionId: selected.value,
       }).then((response) => {
         if (!response.ok) throw new Error(response.error || "Could not read PCB pad names.");
-        if (naming.querySelector(".interface-contact-pos-import") !== form) return;
-        preview = response;
-        const conflicts = response.unresolved.filter((contact) => (
-          Array.isArray(contact.suggestions) && contact.suggestions.length
-        ));
-        if (!conflicts.length) {
-          if (response.autoNames.length) {
-            applyingAutomatically = true;
-            applyNames(response.autoNames);
-          }
-          else {
-            appendNotice("No PCB pad names matched these contacts.");
-            form.remove();
-          }
-          return;
-        }
-        choices.hidden = true;
-        message.textContent = `${response.autoNames.length} contacts matched automatically; `
-          + `${conflicts.length} need review.`;
-        review.className = "interface-contact-pos-import-review";
-        conflicts.forEach((contact) => {
-          const row = document.createElement("label");
-          const title = document.createElement("span");
-          const select = document.createElement("select");
-          const manual = document.createElement("input");
-          title.textContent = contact.currentName
-            ? `${contact.label} · ${contact.currentName}` : contact.label;
-          if (contact.currentName) {
-            const keep = document.createElement("option");
-            keep.value = "keep";
-            keep.textContent = `Keep current: ${contact.currentName}`;
-            select.append(keep);
-          }
-          const blank = document.createElement("option");
-          blank.value = "blank";
-          blank.textContent = "Leave blank";
-          select.append(blank);
-          select.value = contact.currentName ? "keep" : "blank";
-          contact.suggestions.forEach((name, index) => {
-            const option = document.createElement("option");
-            option.value = String(index);
-            option.textContent = name;
-            select.append(option);
-          });
-          const custom = document.createElement("option");
-          custom.value = "custom";
-          custom.textContent = "Type a name…";
-          select.append(custom);
-          manual.type = "text";
-          manual.maxLength = 80;
-          manual.placeholder = "Contact name";
-          manual.hidden = true;
-          select.addEventListener("change", () => { manual.hidden = select.value !== "custom"; });
-          row.append(title, select, manual);
-          review.append(row);
-          decisions.push({ contact, select, manual });
-        });
-        apply.textContent = "Apply Names";
+        showPreview(response);
       }).catch((error) => appendNotice(String(error), true))
         .finally(() => { if (!applyingAutomatically) apply.disabled = false; });
       return;
@@ -439,6 +464,17 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   });
   form.append(message, choices, review, apply, cancel);
   naming.append(form);
+  if (source === "file") {
+    void send("load_brd_interface_contacts", { harnessId, interfaceId })
+      .then((response) => {
+        if (!response.ok) throw new Error(response.error || "Could not open board picker.");
+      }).catch((error) => {
+        pendingBoardFilePreview = null;
+        appendNotice(String(error), true);
+        form.remove();
+      });
+    return;
+  }
   void send("get_pos_import_boards", { harnessId, interfaceId }).then((response) => {
     if (naming.querySelector(".interface-contact-pos-import") !== form) return;
     if (!response.ok) throw new Error(response.error || "Could not find linked PCB files.");
@@ -540,6 +576,10 @@ function openInterfaceContacts(harness, interfaceItem) {
     button.className = "button compact";
     button.textContent = label;
     button.addEventListener("click", () => {
+      if (action === "load_brd_interface_contacts") {
+        openInterfacePosImport(naming, harness.harnessId, interfaceItem.interfaceId, "file");
+        return;
+      }
       void send(action, {
         harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
         ...(action === "geo_import_interface_contacts"
