@@ -311,6 +311,69 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
 
 let pendingBoardFilePreview = null;
 
+/** Offer the current geometry-name import and reserve a future Interface choice. */
+function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
+  const existing = naming.querySelector(".interface-contact-geo-import");
+  if (existing) { existing.remove(); return; }
+  const form = document.createElement("form");
+  const title = document.createElement("div");
+  const geometryLabel = document.createElement("label");
+  const geometry = document.createElement("input");
+  const interfaceLabel = document.createElement("label");
+  const selectInterface = document.createElement("input");
+  const status = document.createElement("div");
+  const apply = document.createElement("button");
+  const cancel = document.createElement("button");
+  form.className = "interface-contact-geo-import";
+  form.setAttribute("role", "dialog");
+  form.setAttribute("aria-label", "Geo Import options");
+  title.textContent = "Geo Import";
+  geometry.type = "radio";
+  geometry.name = "geo-import-mode";
+  geometry.value = "geometry";
+  geometry.checked = true;
+  geometryLabel.append(geometry, "Import geometry names");
+  selectInterface.type = "radio";
+  selectInterface.name = "geo-import-mode";
+  selectInterface.value = "interface";
+  interfaceLabel.append(selectInterface, "Select Interface");
+  status.textContent = "Select Interface is not available yet.";
+  status.hidden = true;
+  const updateChoice = () => {
+    apply.disabled = !geometry.checked;
+    status.hidden = geometry.checked;
+  };
+  geometry.addEventListener("change", updateChoice);
+  selectInterface.addEventListener("change", updateChoice);
+  apply.type = "submit";
+  apply.className = "button compact";
+  apply.textContent = "Apply";
+  cancel.type = "button";
+  cancel.className = "button compact";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => form.remove());
+  form.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    form.remove();
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!geometry.checked || apply.disabled) return;
+    apply.disabled = true;
+    void send("geo_import_interface_contacts", {
+      harnessId, interfaceId, contactIds: [...diagram.contactState.selectedIds],
+    }).then((response) => {
+      if (!response.ok) throw new Error(response.error || "Could not import geometry names.");
+      form.remove();
+    }).catch((error) => appendNotice(String(error), true))
+      .finally(() => { apply.disabled = false; });
+  });
+  form.append(title, geometryLabel, interfaceLabel, status, apply, cancel);
+  naming.append(form);
+}
+
 /** Review PCB suggestions from a linked board or local file before applying names. */
 function openInterfacePosImport(naming, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-pos-import");
@@ -590,12 +653,9 @@ function openInterfaceContacts(harness, interfaceItem) {
   geoImport.type = "button";
   geoImport.className = "button compact";
   geoImport.textContent = "Geo Import";
-  geoImport.addEventListener("click", () => {
-    void send("geo_import_interface_contacts", {
-      harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
-      contactIds: [...diagram.contactState.selectedIds],
-    }).catch((error) => appendNotice(String(error), true));
-  });
+  geoImport.addEventListener("click", () => openInterfaceGeoImport(
+    naming, diagram, harness.harnessId, interfaceItem.interfaceId,
+  ));
   naming.append(geoImport, posImport);
   toolbar.append(modes, naming);
   diagram.className = "interface-contacts-diagram";

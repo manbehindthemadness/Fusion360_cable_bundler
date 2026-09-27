@@ -52,6 +52,9 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   modes[2].events.click();
   assert.equal(launches[2].payload.mode, 'plane');
   naming[1].events.click();
+  const geoForm = dialog.children[1].children[1].querySelector('.interface-contact-geo-import');
+  assert.equal(launches.length, 3);
+  geoForm.events.submit({ preventDefault() {} });
   naming[2].events.click();
   const form = dialog.children[1].children[1].querySelector('.interface-contact-pos-import');
   form.children[3].events.click();

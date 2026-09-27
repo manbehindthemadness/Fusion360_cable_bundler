@@ -327,7 +327,7 @@ test('Auto Pin remembers order and a valid Start within the palette session', ()
     '0');
 });
 
-test('Geo Import sends only selected contact IDs when a selection exists', () => {
+test('Geo Import defaults to current naming and reserves Select Interface without an edit', () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -343,7 +343,28 @@ test('Geo Import sends only selected contact IDs when a selection exists', () =>
   });
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   dialog.children[2].contactState.selectedIds.add('b');
-  dialog.children[1].children[1].children[1].events.click();
+  const naming = dialog.children[1].children[1];
+  naming.children[1].events.click();
+  const form = naming.querySelector('.interface-contact-geo-import');
+  const geometry = form.children[1].children[0];
+  const selectInterface = form.children[2].children[0];
+  const apply = form.children[4];
+  assert.equal(form.attributes['aria-label'], 'Geo Import options');
+  assert.equal(geometry.checked, true);
+  assert.equal(selectInterface.value, 'interface');
+  assert.equal(launches.length, 0);
+  geometry.checked = false;
+  selectInterface.checked = true;
+  selectInterface.events.change();
+  assert.equal(apply.disabled, true);
+  assert.equal(form.children[3].hidden, false);
+  form.events.submit({ preventDefault() {} });
+  assert.equal(launches.length, 0);
+  geometry.checked = true;
+  selectInterface.checked = false;
+  geometry.events.change();
+  assert.equal(apply.disabled, false);
+  form.events.submit({ preventDefault() {} });
   assert.equal(launches.length, 1);
   assert.equal(launches[0].action, 'geo_import_interface_contacts');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['b']);
