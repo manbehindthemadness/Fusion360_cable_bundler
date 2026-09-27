@@ -1,5 +1,5 @@
 """
-Copy saved Interface fields through orientation-local contact positions.
+Copy saved Interface fields through projected assembly-space geometry.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from ..application import fill_interface_contact_details
 from ..application.interface_projection_copy import (
     OrientedContact,
     match_projected_interface_contacts,
+    projected_interface_candidates,
 )
 from ..domain import InterfaceContact, InterfaceDefinition, loads
 from .attachment_targets import attachment_target_kind
@@ -69,11 +70,8 @@ def _oriented_contacts(
             except (AttributeError, RuntimeError, TypeError, ValueError):
                 continue
             axes = _parent_axes(entity)
-            parent_axes = tuple(tuple(axis) for axis in axes) if axes is not None else None
-            normal = target.normal or (parent_axes[2] if parent_axes else (0.0, 0.0, 1.0))
-            oriented.append(
-                OrientedContact(contact.contact_id, target.center_mm, normal, parent_axes)
-            )
+            normal = target.normal or (tuple(axes[2]) if axes else (0.0, 0.0, 1.0))
+            oriented.append(OrientedContact(contact.contact_id, target.center_mm, normal))
             break
     return tuple(oriented)
 
@@ -85,9 +83,10 @@ def copy_projected_interface_details(
     source_id: UUID,
     selected_ids: tuple[UUID, ...],
     copy_pins: bool,
-) -> str:
+    choices: dict[UUID, UUID] | None = None,
+) -> tuple[str, tuple[dict[str, object], ...]]:
     """
-    Fill uniquely aligned destination Values and optional Pins in one edit.
+    Fill unique or explicitly reviewed metadata, returning remaining conflicts.
     """
     if destination_id == source_id:
         raise ValueError("Select another Interface as the source.")
@@ -110,8 +109,30 @@ def copy_projected_interface_details(
         raise ValueError("The source Interface has no saved contacts to copy.")
     destination_points = _oriented_contacts(design, destination.contacts)
     source_points = _oriented_contacts(design, source.contacts)
-    matches = match_projected_interface_contacts(destination_points, source_points)
+    matches = {
+        contact_id: source_id
+        for contact_id, source_id in match_projected_interface_contacts(
+            destination_points, source_points
+        ).items()
+        if contact_id in scoped_ids
+    }
+    candidates = projected_interface_candidates(destination_points, source_points)
+    conflicts = {
+        contact_id: source_ids
+        for contact_id, source_ids in candidates.items()
+        if contact_id in scoped_ids and source_ids and contact_id not in matches
+    }
+    if choices is not None:
+        if any(
+            contact_id not in conflicts or source_id not in conflicts[contact_id]
+            for contact_id, source_id in choices.items()
+        ):
+            raise ValueError("A reviewed source pad no longer matches its destination.")
+        if len(set((*matches.values(), *choices.values()))) != len(matches) + len(choices):
+            raise ValueError("The same source pad cannot fill multiple contacts.")
+        matches.update(choices)
     source_by_id = {contact.contact_id: contact for contact in source.contacts}
+    destination_by_id = {contact.contact_id: contact for contact in destination.contacts}
     details = {
         destination_contact_id: (
             source_by_id[source_contact_id].name,
@@ -124,7 +145,24 @@ def copy_projected_interface_details(
         harness_id, destination_id, details, copy_pins, gateway
     )
     skipped = len(scoped_ids) - len(details)
-    return (
+    notice = (
         f"Copied {values} Values and {pins} Pins from {source.name}; "
         f"{skipped} contacts had no unique projected match."
     )
+    review = tuple(
+        {
+            "contactId": str(contact_id),
+            "currentName": destination_by_id[contact_id].name,
+            "suggestions": [
+                {
+                    "sourceContactId": str(source_id),
+                    "value": source_by_id[source_id].name,
+                    "pin": source_by_id[source_id].pin,
+                }
+                for source_id in source_ids
+            ],
+        }
+        for contact_id, source_ids in conflicts.items()
+        if choices is None or contact_id not in choices
+    )
+    return notice, review

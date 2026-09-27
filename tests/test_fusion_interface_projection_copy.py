@@ -68,7 +68,7 @@ def test_selected_contact_uses_full_orientation_frame(
     addin_module: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Filtering one destination must not rebase the projected contact pattern.
+    Filtering one destination still finds its source by physical position.
     """
     module = importlib.import_module("cable_bundler.fusion.interface_contact_projection_copy")
     target_contacts = tuple(
@@ -91,7 +91,7 @@ def test_selected_contact_uses_full_orientation_frame(
         lambda _design, contacts: tuple(
             OrientedContact(
                 contact.contact_id,
-                (100 if contact.contact_id.int < 20 else 0, index * 2.5, 0),
+                (0, index * 2.5, 10 if contact.contact_id.int < 20 else 0),
                 (0, 0, 1),
             )
             for index, contact in enumerate(contacts)
@@ -100,7 +100,7 @@ def test_selected_contact_uses_full_orientation_frame(
     fill = Mock(return_value=(1, 1))
     monkeypatch.setitem(vars(module), "fill_interface_contact_details", fill)
 
-    notice = module.copy_projected_interface_details(
+    notice, conflicts = module.copy_projected_interface_details(
         object(),
         UUID(int=3),
         destination.interface_id,
@@ -110,10 +110,68 @@ def test_selected_contact_uses_full_orientation_frame(
     )
 
     assert "Copied 1 Values and 1 Pins" in notice
+    assert conflicts == ()
     fill.assert_called_once_with(
         UUID(int=3),
         destination.interface_id,
         {target_contacts[1].contact_id: ("V1", "P1")},
+        True,
+        gateway,
+    )
+
+
+def test_dense_projection_requires_a_reviewed_saved_source(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Surface both metadata choices and reject a choice outside live geometry.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_projection_copy")
+    destination_contact = SimpleNamespace(contact_id=UUID(int=10), name="", pin="")
+    source_contacts = tuple(
+        SimpleNamespace(contact_id=UUID(int=20 + index), name=f"V{index}", pin=f"P{index}")
+        for index in range(2)
+    )
+    destination = SimpleNamespace(interface_id=UUID(int=1), contacts=(destination_contact,))
+    source = SimpleNamespace(interface_id=UUID(int=2), contacts=source_contacts, name="Board")
+    definition = SimpleNamespace(interfaces=(destination, source))
+    gateway = SimpleNamespace(read_harness_definition=Mock(return_value="saved"))
+    monkeypatch.setitem(vars(module), "_require_active_design", lambda _application: object())
+    monkeypatch.setitem(vars(module), "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setitem(vars(module), "loads", lambda _serialized: definition)
+    monkeypatch.setitem(
+        vars(module),
+        "_oriented_contacts",
+        lambda _design, contacts: tuple(
+            OrientedContact(
+                contact.contact_id,
+                (0.25 if contact.contact_id.int == 10 else index * 0.5, 0, 10),
+                (0, 0, 1),
+            )
+            for index, contact in enumerate(contacts)
+        ),
+    )
+    fill = Mock(return_value=(0, 0))
+    monkeypatch.setitem(vars(module), "fill_interface_contact_details", fill)
+    arguments = (object(), UUID(int=3), destination.interface_id, source.interface_id, (), True)
+
+    _notice, conflicts = module.copy_projected_interface_details(*arguments)
+    assert len(conflicts) == 1
+    assert [item["value"] for item in conflicts[0]["suggestions"]] == ["V0", "V1"]
+    fill.assert_called_once_with(UUID(int=3), destination.interface_id, {}, True, gateway)
+    with pytest.raises(ValueError, match="no longer matches"):
+        module.copy_projected_interface_details(
+            *arguments, {destination_contact.contact_id: UUID(int=999)}
+        )
+    fill.reset_mock()
+    _notice, remaining = module.copy_projected_interface_details(
+        *arguments, {destination_contact.contact_id: source_contacts[1].contact_id}
+    )
+    assert remaining == ()
+    fill.assert_called_once_with(
+        UUID(int=3),
+        destination.interface_id,
+        {destination_contact.contact_id: ("V1", "P1")},
         True,
         gateway,
     )

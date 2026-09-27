@@ -394,6 +394,7 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             if action in (
                 "pos_import_interface_contacts",
                 "geo_import_interface_contacts",
+                "resolve_projected_interface_contacts",
                 "set_interface_contact_name",
                 "set_interface_contact_details",
                 "auto_pin_interface_contacts",

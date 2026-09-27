@@ -311,6 +311,70 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
 
 let pendingBoardFilePreview = null;
 
+/** Let the user resolve projected pads that have more than one saved source. */
+function showInterfaceProjectionConflicts(response) {
+  const naming = document.body.querySelector(".interface-contacts-naming");
+  const conflicts = Array.isArray(response.conflicts) ? response.conflicts : [];
+  if (!naming || !conflicts.length) return;
+  naming.querySelector(".interface-contact-projection-review")?.remove();
+  const form = document.createElement("form");
+  const message = document.createElement("div");
+  const review = document.createElement("div");
+  const apply = document.createElement("button");
+  const cancel = document.createElement("button");
+  const decisions = [];
+  form.className = "interface-contact-pos-import interface-contact-projection-review";
+  form.setAttribute("role", "dialog");
+  form.setAttribute("aria-label", "Resolve projected Interface contacts");
+  message.textContent = `${conflicts.length} projected contacts need review. Choose a saved source pad or leave it unchanged.`;
+  review.className = "interface-contact-pos-import-review";
+  conflicts.forEach((contact, index) => {
+    const row = document.createElement("label");
+    const title = document.createElement("span");
+    const select = document.createElement("select");
+    title.textContent = `Contact ${index + 1}${contact.currentName ? ` · ${contact.currentName}` : ""}`;
+    const skip = document.createElement("option");
+    skip.value = "";
+    skip.textContent = contact.currentName ? "Keep current" : "Leave blank";
+    select.append(skip);
+    contact.suggestions.forEach((candidate) => {
+      const option = document.createElement("option");
+      option.value = candidate.sourceContactId;
+      option.textContent = `${candidate.value || "Unnamed"}${response.copyPins && candidate.pin ? ` · Pin ${candidate.pin}` : ""}`;
+      select.append(option);
+    });
+    row.append(title, select);
+    review.append(row);
+    decisions.push({ contact, select });
+  });
+  apply.type = "submit";
+  apply.className = "button compact";
+  apply.textContent = "Apply Choices";
+  cancel.type = "button";
+  cancel.className = "button compact";
+  cancel.textContent = "Close";
+  cancel.addEventListener("click", () => form.remove());
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const choices = decisions.filter(({ select }) => select.value).map(({ contact, select }) => ({
+      contactId: contact.contactId, sourceContactId: select.value,
+    }));
+    if (!choices.length) { form.remove(); return; }
+    apply.disabled = true;
+    void send("resolve_projected_interface_contacts", {
+      harnessId: response.harnessId, interfaceId: response.interfaceId,
+      sourceId: response.sourceId, contactIds: response.contactIds,
+      copyPins: response.copyPins, choices,
+    }).then((result) => {
+      if (!result.ok) throw new Error(result.error || "Could not resolve projected contacts.");
+      form.remove();
+    }).catch((error) => appendNotice(String(error), true))
+      .finally(() => { apply.disabled = false; });
+  });
+  form.append(message, review, apply, cancel);
+  naming.append(form);
+}
+
 /** Offer geometry-name import or a picked Interface's projected contact fields. */
 function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-geo-import");

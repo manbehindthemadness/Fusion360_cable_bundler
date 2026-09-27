@@ -369,6 +369,40 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   assert.equal(launches[0].payload.copyPins, true);
 });
 
+asyncTest('projected Interface conflicts submit chosen saved source contacts', async () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Connector', contacts: [{
+      contactId: 'destination-1', name: 'Pin', assignedName: '', linked: true,
+      normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }],
+  });
+  context.showInterfaceProjectionConflicts({
+    harnessId: 'harness-1', interfaceId: 'interface-1', sourceId: 'source-1',
+    contactIds: [], copyPins: true,
+    conflicts: [{ contactId: 'destination-1', currentName: '', suggestions: [
+      { sourceContactId: 'pad-a', value: 'NET_A', pin: '1' },
+      { sourceContactId: 'pad-b', value: 'NET_B', pin: '2' },
+    ] }],
+  });
+  const form = context.document.body.querySelector('.interface-contact-projection-review');
+  assert.ok(form);
+  const select = form.children[1].children[0].children[1];
+  select.value = 'pad-b';
+  form.events.submit({ preventDefault() {} });
+  await Promise.resolve();
+  assert.equal(launches.length, 1);
+  assert.equal(launches[0].action, 'resolve_projected_interface_contacts');
+  assert.deepEqual(Array.from(launches[0].payload.choices, (choice) => ({ ...choice })), [
+    { contactId: 'destination-1', sourceContactId: 'pad-b' },
+  ]);
+});
+
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');

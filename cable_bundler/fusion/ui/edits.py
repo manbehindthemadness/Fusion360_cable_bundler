@@ -51,6 +51,7 @@ from ...application.harness_edits import set_interpolation
 from ...domain import AutoTransitionPreset, PathwayEndpoint
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
+from ..interface_contact_projection_copy import copy_projected_interface_details
 from .payloads import (
     _read_harness_properties,
     _read_material_overrides,
@@ -93,6 +94,35 @@ def _apply_palette_edit(
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    if action == "resolve_projected_interface_contacts":
+        interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+        source_id = _read_payload_uuid(payload, "sourceId", "source Interface")
+        raw_ids = payload.get("contactIds")
+        raw_choices = payload.get("choices")
+        copy_pins = payload.get("copyPins")
+        if (
+            not isinstance(raw_ids, list)
+            or len(raw_ids) > 1024
+            or not all(isinstance(item, str) for item in raw_ids)
+            or not isinstance(raw_choices, list)
+            or len(raw_choices) > 1024
+            or not isinstance(copy_pins, bool)
+        ):
+            raise ValueError("Projected Interface choices are malformed.")
+        selected_ids = tuple(UUID(item) for item in raw_ids)
+        choices: dict[UUID, UUID] = {}
+        for item in raw_choices:
+            if not isinstance(item, dict):
+                raise ValueError("Projected Interface choice must identify two contacts.")
+            contact_id = _read_payload_uuid(item, "contactId", "contact")
+            source_contact_id = _read_payload_uuid(item, "sourceContactId", "source contact")
+            if contact_id in choices:
+                raise ValueError("A destination contact has duplicate choices.")
+            choices[contact_id] = source_contact_id
+        notice, _conflicts = copy_projected_interface_details(
+            application, harness_id, interface_id, source_id, selected_ids, copy_pins, choices
+        )
+        return notice
     if action == "set_interface_contact_name":
         interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
         contact_id = _read_payload_uuid(payload, "contactId", "contact")

@@ -1,5 +1,5 @@
 """
-Match saved Interface contacts by their orientation-local planar positions.
+Match saved Interface contacts by their actual projected assembly positions.
 """
 
 from __future__ import annotations
@@ -14,13 +14,12 @@ Vector = tuple[float, float, float]
 @dataclass(frozen=True)
 class OrientedContact:
     """
-    Retain one resolved contact center and its parent-oriented viewing frame.
+    Retain one resolved contact center and viewing-plane normal.
     """
 
     contact_id: UUID
     center_mm: Vector
     normal: Vector
-    parent_axes: tuple[Vector, Vector, Vector] | None = None
 
 
 def _dot(first: Vector, second: Vector) -> float:
@@ -40,83 +39,72 @@ def _unit(vector: Vector) -> Vector:
     return tuple(value / length for value in vector)  # type: ignore[return-value]
 
 
-def _view_axes(contact: OrientedContact) -> tuple[Vector, Vector]:
+def _planar_distance(first: Vector, second: Vector, normal: Vector) -> float:
     """
-    Mirror the diagram's parent-forward viewing axes in model coordinates.
+    Measure assembly-space separation after projecting onto the source plane.
     """
-    normal = _unit(contact.normal)
-    parent = contact.parent_axes or ((1, 0, 0), (0, 1, 0), (0, 0, 1))
-    for candidate in (*parent[1:], parent[0], (0, 1, 0), (0, 0, 1), (1, 0, 0)):
-        axis = _unit(candidate)
-        alignment = _dot(axis, normal)
-        projected = tuple(a - alignment * b for a, b in zip(axis, normal))
-        magnitude = math.sqrt(_dot(projected, projected))
-        if magnitude > 1e-6:
-            y_axis = tuple(value / magnitude for value in projected)
-            x_axis = (
-                y_axis[1] * normal[2] - y_axis[2] * normal[1],
-                y_axis[2] * normal[0] - y_axis[0] * normal[2],
-                y_axis[0] * normal[1] - y_axis[1] * normal[0],
-            )
-            return x_axis, y_axis  # type: ignore[return-value]
-    raise ValueError("An Interface contact has no planar orientation.")
+    offset = tuple(a - b for a, b in zip(first, second))
+    depth = _dot(offset, normal)
+    planar = tuple(value - depth * axis for value, axis in zip(offset, normal))
+    return math.sqrt(_dot(planar, planar))
 
 
-def _orientation_positions(
-    contacts: tuple[OrientedContact, ...],
-) -> dict[UUID, tuple[float, float]]:
+def _source_tolerance(
+    source: OrientedContact,
+    sources: tuple[OrientedContact, ...],
+    maximum_mm: float,
+) -> float:
     """
-    Position each orientation independently from its smallest local X and Y.
+    Bound each pad's search region by its neighboring source-pad pitch.
     """
-    groups: list[list[OrientedContact]] = []
-    for contact in contacts:
-        normal = _unit(contact.normal)
-        group = next(
-            (items for items in groups if _dot(_unit(items[0].normal), normal) > 0.9999),
-            None,
+    normal = _unit(source.normal)
+    distances = [
+        _planar_distance(source.center_mm, other.center_mm, normal)
+        for other in sources
+        if other.contact_id != source.contact_id and _dot(normal, _unit(other.normal)) > 0.9999
+    ]
+    return min(maximum_mm, max(0.1, min(distances) * 0.75)) if distances else maximum_mm
+
+
+def projected_interface_candidates(
+    destinations: tuple[OrientedContact, ...],
+    sources: tuple[OrientedContact, ...],
+    tolerance_mm: float = 0.5,
+) -> dict[UUID, tuple[UUID, ...]]:
+    """
+    Find source contacts close to each target in the source's actual plane.
+
+    Each candidate preserves source identity so ambiguous metadata can be
+    reviewed separately from the geometric lookup.
+    """
+    if tolerance_mm <= 0 or not math.isfinite(tolerance_mm):
+        raise ValueError("Projection tolerance must be positive and finite.")
+    source_radii = {
+        source.contact_id: _source_tolerance(source, sources, tolerance_mm) for source in sources
+    }
+    return {
+        target.contact_id: tuple(
+            source.contact_id
+            for source in sources
+            if _planar_distance(target.center_mm, source.center_mm, _unit(source.normal))
+            <= source_radii[source.contact_id]
         )
-        if group is None:
-            groups.append([contact])
-        else:
-            group.append(contact)
-    positions: dict[UUID, tuple[float, float]] = {}
-    for group in groups:
-        x_axis, y_axis = _view_axes(group[0])
-        projected = [
-            (_dot(contact.center_mm, x_axis), -_dot(contact.center_mm, y_axis)) for contact in group
-        ]
-        min_x = min(point[0] for point in projected)
-        min_y = min(point[1] for point in projected)
-        positions.update(
-            (contact.contact_id, (point[0] - min_x, point[1] - min_y))
-            for contact, point in zip(group, projected)
-        )
-    return positions
+        for target in destinations
+    }
 
 
 def match_projected_interface_contacts(
     destinations: tuple[OrientedContact, ...],
     sources: tuple[OrientedContact, ...],
-    tolerance_mm: float = 0.1,
+    tolerance_mm: float = 0.5,
 ) -> dict[UUID, UUID]:
     """
-    Return only unique one-to-one matches of orientation-local XY positions.
+    Return unique one-to-one matches in each source contact's actual plane.
 
-    Z, assembly placement, and contact shape do not participate. Repeated pads
-    or multiple possible source orientations are deliberately left unmatched.
+    Plane-normal displacement does not participate. A pitch-aware radius limits
+    near misses; repeated pads or multiple candidates remain unmatched.
     """
-    if tolerance_mm <= 0 or not math.isfinite(tolerance_mm):
-        raise ValueError("Projection tolerance must be positive and finite.")
-    target_positions = _orientation_positions(destinations)
-    source_positions = _orientation_positions(sources)
-    candidates = {
-        target_id: [
-            source_id
-            for source_id, source_xy in source_positions.items()
-            if math.dist(target_xy, source_xy) <= tolerance_mm
-        ]
-        for target_id, target_xy in target_positions.items()
-    }
+    candidates = projected_interface_candidates(destinations, sources, tolerance_mm)
     return {
         target_id: source_ids[0]
         for target_id, source_ids in candidates.items()

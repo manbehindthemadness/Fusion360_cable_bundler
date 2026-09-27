@@ -156,6 +156,7 @@ PALETTE_EDIT_NAMES = {
     "rename_interface": "Rename Interface",
     "pos_import_interface_contacts": "Import Interface Contact Positions",
     "geo_import_interface_contacts": "Import Interface Contact Geometry Names",
+    "resolve_projected_interface_contacts": "Resolve Projected Interface Contacts",
     "load_brd_interface_contacts": "Load Interface Board",
     "set_interface_contact_name": "Name Interface Contact",
     "set_interface_contact_details": "Edit Interface Contact",

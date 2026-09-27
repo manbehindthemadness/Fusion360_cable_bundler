@@ -617,6 +617,9 @@ window.fusionJavaScriptHandler = { handle(action, data) {
   if (action === "board_file_preview" && pendingBoardFilePreview) {
     pendingBoardFilePreview(JSON.parse(data));
   }
+  if (action === "interface_projection_conflicts") {
+    showInterfaceProjectionConflicts(JSON.parse(data));
+  }
   if (action === "qa_probe") return handleQaProbe(data);
   return "OK";
 }};

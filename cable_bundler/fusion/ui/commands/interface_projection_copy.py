@@ -4,6 +4,7 @@ Native picker for copying projected fields from another saved Interface.
 
 from __future__ import annotations
 
+import json
 import traceback
 from uuid import UUID
 
@@ -15,7 +16,7 @@ from ...interface_contact_projection_copy import (
     copy_projected_interface_details,
     picked_source_interface,
 )
-from ..constants import SOURCE_INTERFACE_INPUT_ID
+from ..constants import PALETTE_ID, SOURCE_INTERFACE_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _log_to_fusion, _require_active_design
@@ -141,7 +142,7 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
                 self.destination_id,
                 _selected_entity(args.command.commandInputs),
             )
-            notice = copy_projected_interface_details(
+            notice, conflicts = copy_projected_interface_details(
                 application,
                 self.harness_id,
                 self.destination_id,
@@ -150,6 +151,23 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
                 self.copy_pins,
             )
             _send_palette_state(application, notice)
+            if conflicts:
+                palette = application.userInterface.palettes.itemById(PALETTE_ID)
+                if palette is None:
+                    raise RuntimeError("Fusion could not show Interface projection conflicts.")
+                palette.sendInfoToHTML(
+                    "interface_projection_conflicts",
+                    json.dumps(
+                        {
+                            "harnessId": str(self.harness_id),
+                            "interfaceId": str(self.destination_id),
+                            "sourceId": str(source.interface_id),
+                            "contactIds": [str(item) for item in self.selected_ids],
+                            "copyPins": self.copy_pins,
+                            "conflicts": conflicts,
+                        }
+                    ),
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
