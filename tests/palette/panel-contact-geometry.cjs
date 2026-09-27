@@ -1,7 +1,7 @@
 /** Contact selection, loading, and projection regressions. */
 const { assert, asyncTest, contactItem, descendants, harness, palette, test } = require('./support.cjs');
 
-test('Select Contacts opens an empty Interface diagram with Manual, Row, and Plane modes', () => {
+test('Edit Contacts opens the Contacts Editor with Manual, Row, and Plane modes', () => {
   const { context } = palette();
   const launches = [];
   context.send = (action, payload) => {
@@ -21,11 +21,13 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   const menu = descendants(
     rendered, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
   )[0];
+  assert.equal(menu.children[0].textContent, 'Edit Contacts');
   menu.children[0].events.click();
 
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   assert.equal(dialog.open, true);
-  assert.equal(dialog.children[0].textContent, 'Select Contacts · Socket A');
+  assert.equal(dialog.children[0].textContent, 'Contacts Editor · Socket A');
+  assert.equal(dialog.attributes['aria-label'], 'Contacts Editor: Socket A');
   const modes = dialog.children[1].children[0].children;
   assert.deepEqual(modes.map((button) => button.textContent), [
     'Manual', 'Row', 'Plane', 'Delete',

@@ -458,8 +458,8 @@ function openInterfaceContacts(harness, interfaceItem) {
   dialog.dataset.harnessId = harness.harnessId;
   dialog.dataset.interfaceId = interfaceItem.interfaceId;
   dialog.dataset.contactDocumentScope = currentState.contactDocumentScope || "";
-  dialog.setAttribute("aria-label", `Select Contacts: ${interfaceItem.name}`);
-  title.textContent = `Select Contacts · ${interfaceItem.name}`;
+  dialog.setAttribute("aria-label", `Contacts Editor: ${interfaceItem.name}`);
+  title.textContent = `Contacts Editor · ${interfaceItem.name}`;
   modes.className = "interface-contacts-modes";
   modes.setAttribute("role", "group");
   modes.setAttribute("aria-label", "Contact selection mode");
