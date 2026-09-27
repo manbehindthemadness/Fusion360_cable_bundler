@@ -45,6 +45,7 @@ def preview_interface_contact_names(
     harness_id: UUID,
     interface_id: UUID,
     pads: list[BoardPad],
+    project: bool = False,
 ) -> dict[str, object]:
     """
     Prepare only actionable pad conflicts without editing unmatched contacts.
@@ -57,7 +58,7 @@ def preview_interface_contact_names(
     )
     if interface is None:
         raise ValueError("Selected Interface no longer exists.")
-    analysis = analyze_board_contacts(_contact_footprints(design, interface), pads)
+    analysis = analyze_board_contacts(_contact_footprints(design, interface, project), pads)
     auto_names = []
     unresolved = []
     for index, contact in enumerate(interface.contacts, start=1):
@@ -124,9 +125,10 @@ def _board_point(
 def _contact_footprints(
     design: adsk.fusion.Design,
     interface: InterfaceDefinition,
+    project: bool = False,
 ) -> list[ContactFootprint]:
     """
-    Project copper faces or circular edges into the selected board occurrence.
+    Project selected contacts into the board occurrence, optionally ignoring Z.
     """
     if (
         len(interface.targets) != 1
@@ -144,12 +146,12 @@ def _contact_footprints(
         candidates = resolve_contact_entities(design, contact.entity_token)
         if not candidates:
             continue
+        if contact.kind is AttachmentTargetKind.FACE:
+            footprint = _projected_face_footprint if project else _through_hole_footprint
+        else:
+            footprint = _projected_edge_footprint if project else _circular_edge_footprint
         projected = [
-            (
-                _through_hole_footprint
-                if contact.kind is AttachmentTargetKind.FACE
-                else _circular_edge_footprint
-            )(entity, str(contact.contact_id), board.fullPathName, origin, axes)
+            footprint(entity, str(contact.contact_id), board.fullPathName, origin, axes)
             for entity in candidates
         ]
         first = projected[0]
@@ -159,6 +161,58 @@ def _contact_footprints(
             continue
         footprints.extend(item for item in projected if item is not None)
     return footprints
+
+
+def _projected_face_footprint(
+    face: object,
+    contact_id: str,
+    _board_path: str,
+    origin: list[float],
+    axes: list[list[float]],
+) -> ContactFootprint | None:
+    """
+    Use any selected face's projected XY bounds as a side-independent probe.
+    """
+    try:
+        points = [_board_point(point, origin, axes) for loop in _face_loops(face) for point in loop]
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+    if len(points) < 3 or not all(math.isfinite(value) for point in points for value in point):
+        return None
+    xs, ys = [point[0] for point in points], [point[1] for point in points]
+    width, height = max(xs) - min(xs), max(ys) - min(ys)
+    return ContactFootprint(
+        contact_id,
+        (min(xs) + max(xs)) / 2,
+        (min(ys) + max(ys)) / 2,
+        width,
+        height,
+        0,
+    )
+
+
+def _projected_edge_footprint(
+    edge: object,
+    contact_id: str,
+    _board_path: str,
+    origin: list[float],
+    axes: list[list[float]],
+) -> ContactFootprint | None:
+    """
+    Use any selected circular edge's projected center without its Z or side.
+    """
+    try:
+        circle = edge.geometry
+        if circle.objectType != "adsk::core::Circle3D":
+            return None
+        center = _xyz(circle.center)
+        diameter = float(circle.radius) * 20
+        if center is None or not math.isfinite(diameter) or diameter <= 0:
+            return None
+        x, y, _ = _board_point(center, origin, axes)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+    return ContactFootprint(contact_id, x, y, diameter, diameter, 0)
 
 
 def _circular_edge_footprint(
@@ -439,6 +493,7 @@ def preview_board_file_contact_names(
     application: adsk.core.Application,
     harness_id: UUID,
     interface_id: UUID,
+    project: bool = False,
 ) -> dict[str, object] | None:
     """
     Pick a local board and prepare the same review data as linked Pos Import.
@@ -453,7 +508,7 @@ def preview_board_file_contact_names(
     pads = read_eagle_board(Path(picker.filename))
     if not pads:
         raise ValueError("The selected board has no usable contacts.")
-    return preview_interface_contact_names(application, harness_id, interface_id, pads)
+    return preview_interface_contact_names(application, harness_id, interface_id, pads, project)
 
 
 def import_interface_contact_names(

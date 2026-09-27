@@ -34,7 +34,7 @@ class BoardPad:
 @dataclass(frozen=True)
 class ContactFootprint:
     """
-    Describe a selected planar contact in the same board frame.
+    Describe a selected contact in the board frame; layer zero ignores side.
     """
 
     contact_id: str
@@ -257,7 +257,7 @@ def analyze_board_contacts(
         same_layer = [
             index
             for index, pad in enumerate(board_pads)
-            if contact.layer in (1, 16) and pad.layer in (0, contact.layer)
+            if contact.layer == 0 or pad.layer in (0, contact.layer)
         ]
         centered = [
             index

@@ -72,6 +72,40 @@ def test_matching_face_resolutions_share_a_contact_but_disagreement_has_no_pad(
     assert module.match_board_contacts(divergent, [pad]) == {}
 
 
+def test_project_mode_matches_pin_top_above_board_by_xy(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Opt-in projection accepts a non-copper pin top regardless of Z and side.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    monkeypatch.setitem(
+        vars(module), "resolve_interface_target", lambda *_: SimpleNamespace(fullPathName="PCB:1")
+    )
+    monkeypatch.setitem(
+        vars(module), "_frame", lambda _: ([0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    )
+    monkeypatch.setitem(vars(module), "_face_loops", lambda face: face.sampled)
+    pin = SimpleNamespace(
+        assemblyContext=SimpleNamespace(fullPathName="Connector:1+Pin:1"),
+        sampled=[[[0.95, 1.95, 15], [1.05, 1.95, 15], [1.05, 2.05, 15], [0.95, 2.05, 15]]],
+    )
+    design = SimpleNamespace(findEntityByToken=lambda _: [pin])
+    contact = InterfaceContact(UUID(int=19), AttachmentTargetKind.FACE, "pin-top")
+    interface = SimpleNamespace(
+        targets=(SimpleNamespace(kind=InterfaceTargetKind.OCCURRENCE),), contacts=(contact,)
+    )
+    assert module._contact_footprints(design, interface) == []
+    footprints = module._contact_footprints(design, interface, project=True)
+    assert len(footprints) == 1
+    assert (footprints[0].x, footprints[0].y, footprints[0].layer) == pytest.approx((1, 2, 0))
+    pad = BoardPad("J1.1", 1, 2, 0.8, 0.8, 1)
+    assert module.match_board_contacts(footprints, [pad]) == {str(contact.contact_id): pad}
+    bottom = BoardPad("J2.1", 1, 2, 0.8, 0.8, 16)
+    assert module.match_board_contacts(footprints, [pad, bottom]) == {}
+
+
 def test_pos_import_persists_connector_pin_and_signal(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -244,6 +278,27 @@ def test_circular_copper_edge_projects_to_board_local_pad_center(
         edge, "pad", "PCB:1", [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     )
     assert result == ContactFootprint("pad", 1, 2, 1, 1, 16)
+
+
+def test_project_mode_uses_circular_edge_above_board(
+    addin_module: object,
+) -> None:
+    """
+    Side-independent projection also supports a selected non-copper circle.
+    """
+    module = importlib.import_module("cable_bundler.fusion.interface_contact_naming")
+    edge = SimpleNamespace(
+        assemblyContext=SimpleNamespace(fullPathName="Connector:1+Pin:1"),
+        geometry=SimpleNamespace(
+            objectType="adsk::core::Circle3D",
+            center=SimpleNamespace(x=0.1, y=0.2, z=1.5),
+            radius=0.05,
+        ),
+    )
+    result = module._projected_edge_footprint(
+        edge, "pin", "PCB:1", [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    )
+    assert result == ContactFootprint("pin", 1, 2, 1, 1, 0)
 
 
 def test_split_outer_pad_arcs_keep_one_contact_center(

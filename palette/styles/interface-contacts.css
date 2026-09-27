@@ -69,6 +69,7 @@
   box-shadow: 0 4px 12px #0003;
 }
 .interface-contact-pos-import > div { grid-column: 1 / -1; }
+.interface-contact-pos-import > label { display: flex; align-items: center; gap: 6px; }
 .interface-contact-pos-import-choices { display: grid; gap: 6px; max-height: 180px; overflow-y: auto; }
 .interface-contact-pos-import-choices label { display: flex; align-items: center; gap: 6px; }
 .interface-contact-pos-import-review { display: grid; gap: 8px; max-height: 360px; overflow-y: auto; }

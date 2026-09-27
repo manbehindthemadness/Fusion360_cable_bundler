@@ -312,12 +312,15 @@ def _send_board_file_preview(application: adsk.core.Application, data: str) -> N
     payload = _read_palette_payload(data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    project = payload.get("project", False)
+    if not isinstance(project, bool):
+        raise ValueError("Project must be a boolean.")
     response: dict[str, object] = {
         "harnessId": str(harness_id),
         "interfaceId": str(interface_id),
     }
     try:
-        preview = preview_board_file_contact_names(application, harness_id, interface_id)
+        preview = preview_board_file_contact_names(application, harness_id, interface_id, project)
     except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
         response["error"] = str(error)
     else:
@@ -555,7 +558,12 @@ def _dispatch_palette_action(
         if len(matches) != 1:
             raise ValueError("The selected linked PCB changed; reopen Pos Import.")
         pads = read_linked_board_pads(application, matches[0])
-        preview = preview_interface_contact_names(application, harness_id, interface_id, pads)
+        project = payload.get("project", False)
+        if not isinstance(project, bool):
+            raise ValueError("Project must be a boolean.")
+        preview = preview_interface_contact_names(
+            application, harness_id, interface_id, pads, project
+        )
         return json.dumps({"ok": True, **preview})
     if action == "get_interface_contact_signatures":
         payload = _read_palette_payload(data)

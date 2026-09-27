@@ -32,7 +32,7 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   ]);
   const naming = dialog.children[1].children[1].children;
   assert.deepEqual(naming.map((button) => button.textContent),
-    ['Auto Pin', 'Geo Import', 'Pos Import', 'Load board']);
+    ['Auto Pin', 'Geo Import', 'Pos Import']);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
@@ -53,7 +53,8 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(launches[2].payload.mode, 'plane');
   naming[1].events.click();
   naming[2].events.click();
-  naming[3].events.click();
+  const form = dialog.children[1].children[1].querySelector('.interface-contact-pos-import');
+  form.children[3].events.click();
   assert.deepEqual(launches.slice(3).map((item) => item.action), [
     'geo_import_interface_contacts', 'get_pos_import_boards', 'load_brd_interface_contacts',
   ]);
@@ -98,7 +99,9 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
   const form = naming.querySelector('.interface-contact-pos-import');
   assert.equal(form.children[0].textContent, 'Choose the linked 2D PCB to read pad names from:');
   assert.equal(form.children[1].children[0].textContent, 'Linked PCB');
-  assert.equal(form.children[3].disabled, false);
+  assert.equal(form.children[2].children[0].type, 'checkbox');
+  form.children[2].children[0].checked = true;
+  assert.equal(form.children[5].disabled, false);
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
   await Promise.resolve();
@@ -106,7 +109,8 @@ asyncTest('Pos Import reviews skipped contacts before saving selected, custom, a
     'get_pos_import_boards', 'preview_pos_import_interface_contacts',
   ]);
   assert.equal(launches[1].payload.boardVersionId, 'pcb-version');
-  const rows = form.children[2].children;
+  assert.equal(launches[1].payload.project, true);
+  const rows = form.children[4].children;
   assert.equal(rows.length, 3);
   rows[0].children[1].value = '1';
   rows[1].children[1].value = 'custom';
@@ -136,25 +140,29 @@ asyncTest('Load board reviews file matches with the Pos Import naming choices', 
     interfaceId: 'interface-1', name: 'Socket', contacts: [],
   });
   const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
-  naming.children[3].events.click();
+  naming.children[2].events.click();
   await Promise.resolve();
-  assert.equal(launches[0].action, 'load_brd_interface_contacts');
   const form = naming.querySelector('.interface-contact-pos-import');
-  assert.equal(form.attributes['aria-label'], 'Review local board names');
-  assert.equal(form.children[3].disabled, true);
+  assert.equal(form.attributes['aria-label'], 'Choose PCB for Pos Import');
+  form.children[2].children[0].checked = true;
+  form.children[3].events.click();
+  await Promise.resolve();
+  assert.equal(launches[1].action, 'load_brd_interface_contacts');
+  assert.equal(launches[1].payload.project, true);
+  assert.equal(form.children[5].disabled, true);
   context.window.fusionJavaScriptHandler.handle('board_file_preview', JSON.stringify({
     harnessId: 'harness-1', interfaceId: 'interface-1',
     autoNames: [{ contactId: 'auto', name: 'J1.1 (GND)' }],
     unresolved: [{ contactId: 'choice', label: 'Contact 2', currentName: '',
       suggestions: ['J1.2 (NC)', 'J2.2 (GND)'] }],
   }));
-  assert.equal(launches.length, 1);
-  assert.equal(form.children[2].children.length, 1);
-  form.children[2].children[0].children[1].value = '0';
+  assert.equal(launches.length, 2);
+  assert.equal(form.children[4].children.length, 1);
+  form.children[4].children[0].children[1].value = '0';
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
-  assert.equal(launches[1].action, 'pos_import_interface_contacts');
-  assert.deepEqual(JSON.parse(JSON.stringify(launches[1].payload.contactNames)), [
+  assert.equal(launches[2].action, 'pos_import_interface_contacts');
+  assert.deepEqual(JSON.parse(JSON.stringify(launches[2].payload.contactNames)), [
     { contactId: 'auto', name: 'J1.1 (GND)' },
     { contactId: 'choice', name: 'J1.2 (NC)' },
   ]);
@@ -184,7 +192,7 @@ asyncTest('Pos Import skips review when no contacts have conflicting PCB candida
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
   await Promise.resolve();
-  assert.equal(form.children[2].children.length, 0);
+  assert.equal(form.children[4].children.length, 0);
   assert.equal(launches[2].action, 'pos_import_interface_contacts');
   assert.deepEqual(JSON.parse(JSON.stringify(launches[2].payload.contactNames)), [
     { contactId: 'matched', name: 'J1.1' },

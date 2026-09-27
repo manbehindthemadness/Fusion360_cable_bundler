@@ -312,26 +312,29 @@ async function fetchInterfaceContactGeometry(dialog, contacts, geometryKey) {
 let pendingBoardFilePreview = null;
 
 /** Review PCB suggestions from a linked board or local file before applying names. */
-function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked") {
+function openInterfacePosImport(naming, harnessId, interfaceId) {
   const existing = naming.querySelector(".interface-contact-pos-import");
-  if (existing) {
-    const sameSource = existing.dataset.source === source;
-    existing.remove();
-    pendingBoardFilePreview = null;
-    if (sameSource) return;
-  }
+  if (existing) { existing.remove(); pendingBoardFilePreview = null; return; }
   const form = document.createElement("form");
   const message = document.createElement("div");
   const choices = document.createElement("div");
   const review = document.createElement("div");
+  const projectLabel = document.createElement("label");
+  const project = document.createElement("input");
+  const loadBoard = document.createElement("button");
   const apply = document.createElement("button");
   const cancel = document.createElement("button");
   form.className = "interface-contact-pos-import";
-  form.dataset.source = source;
   form.setAttribute("role", "dialog");
-  form.setAttribute("aria-label", source === "file" ? "Review local board names" : "Choose linked PCB for Pos Import");
-  message.textContent = source === "file" ? "Choose a local board file…" : "Finding linked PCB files…";
+  form.setAttribute("aria-label", "Choose PCB for Pos Import");
+  message.textContent = "Finding linked PCB files…";
   choices.className = "interface-contact-pos-import-choices";
+  project.type = "checkbox";
+  projectLabel.append(project, "Project");
+  projectLabel.title = "Match selected geometry by board X/Y, ignoring Z and board side.";
+  loadBoard.type = "button";
+  loadBoard.className = "button compact";
+  loadBoard.textContent = "Load board";
   apply.type = "submit";
   apply.className = "button compact";
   apply.textContent = "Open and Review";
@@ -349,7 +352,15 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
   });
   let preview = null;
   let applyingAutomatically = false;
+  let linkedBoards = null;
+  let loadingFile = false;
   const decisions = [];
+  const restoreLinkedChoices = () => {
+    message.textContent = linkedBoards === null ? "Finding linked PCB files…"
+      : linkedBoards.length ? "Choose the linked 2D PCB to read pad names from:"
+        : "No linked 2D PCB was found for this Interface. Use Load board for a local board file.";
+    apply.disabled = !linkedBoards?.length;
+  };
   const applyNames = (contactNames) => {
     apply.disabled = true;
     void send("pos_import_interface_contacts", {
@@ -362,13 +373,15 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
   };
   const showPreview = (response) => {
     if (naming.querySelector(".interface-contact-pos-import") !== form) return;
-    if (response.cancelled) { form.remove(); return; }
+    if (response.cancelled) { restoreLinkedChoices(); return; }
     if (response.error || !Array.isArray(response.autoNames) || !Array.isArray(response.unresolved)) {
       appendNotice(response.error || "Could not read PCB pad names.", true);
-      form.remove();
+      restoreLinkedChoices();
       return;
     }
     preview = response;
+    project.disabled = true;
+    loadBoard.disabled = true;
     const conflicts = response.unresolved.filter((contact) => (
       Array.isArray(contact.suggestions) && contact.suggestions.length
     ));
@@ -426,13 +439,29 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
     apply.textContent = "Apply Names";
     apply.disabled = false;
   };
-  if (source === "file") {
+  loadBoard.addEventListener("click", () => {
+    loadingFile = true;
+    apply.disabled = true;
+    loadBoard.disabled = true;
+    message.textContent = "Choose a local board file…";
     pendingBoardFilePreview = (response) => {
       if (response.harnessId !== harnessId || response.interfaceId !== interfaceId) return;
       pendingBoardFilePreview = null;
+      loadingFile = false;
+      loadBoard.disabled = false;
       showPreview(response);
     };
-  }
+    void send("load_brd_interface_contacts", { harnessId, interfaceId, project: project.checked })
+      .then((response) => {
+        if (!response.ok) throw new Error(response.error || "Could not open board picker.");
+      }).catch((error) => {
+        pendingBoardFilePreview = null;
+        loadingFile = false;
+        loadBoard.disabled = false;
+        appendNotice(String(error), true);
+        restoreLinkedChoices();
+      });
+  });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!preview) {
@@ -440,7 +469,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
       if (!selected) return;
       apply.disabled = true;
       void send("preview_pos_import_interface_contacts", {
-        harnessId, interfaceId, boardVersionId: selected.value,
+        harnessId, interfaceId, boardVersionId: selected.value, project: project.checked,
       }).then((response) => {
         if (!response.ok) throw new Error(response.error || "Could not read PCB pad names.");
         showPreview(response);
@@ -462,26 +491,13 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
     }
     applyNames(contactNames);
   });
-  form.append(message, choices, review, apply, cancel);
+  form.append(message, choices, projectLabel, loadBoard, review, apply, cancel);
   naming.append(form);
-  if (source === "file") {
-    void send("load_brd_interface_contacts", { harnessId, interfaceId })
-      .then((response) => {
-        if (!response.ok) throw new Error(response.error || "Could not open board picker.");
-      }).catch((error) => {
-        pendingBoardFilePreview = null;
-        appendNotice(String(error), true);
-        form.remove();
-      });
-    return;
-  }
   void send("get_pos_import_boards", { harnessId, interfaceId }).then((response) => {
     if (naming.querySelector(".interface-contact-pos-import") !== form) return;
     if (!response.ok) throw new Error(response.error || "Could not find linked PCB files.");
     const boards = Array.isArray(response.boards) ? response.boards : [];
-    message.textContent = boards.length
-      ? "Choose the linked 2D PCB to read pad names from:"
-      : "No linked 2D PCB was found for this Interface. Use Load board for a local board file.";
+    linkedBoards = boards;
     boards.forEach((board, index) => {
       const label = document.createElement("label");
       const radio = document.createElement("input");
@@ -493,7 +509,7 @@ function openInterfacePosImport(naming, harnessId, interfaceId, source = "linked
       label.prepend(radio);
       choices.append(label);
     });
-    apply.disabled = !boards.length;
+    if (!loadingFile && !preview) restoreLinkedChoices();
   }).catch((error) => {
     if (naming.querySelector(".interface-contact-pos-import") === form) {
       message.textContent = String(error);
@@ -569,26 +585,17 @@ function openInterfaceContacts(harness, interfaceItem) {
   posImport.addEventListener("click", () => openInterfacePosImport(
     naming, harness.harnessId, interfaceItem.interfaceId,
   ));
-  [["Geo Import", "geo_import_interface_contacts"],
-    ["Load board", "load_brd_interface_contacts"]].forEach(([label, action]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button compact";
-    button.textContent = label;
-    button.addEventListener("click", () => {
-      if (action === "load_brd_interface_contacts") {
-        openInterfacePosImport(naming, harness.harnessId, interfaceItem.interfaceId, "file");
-        return;
-      }
-      void send(action, {
-        harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
-        ...(action === "geo_import_interface_contacts"
-          ? { contactIds: [...diagram.contactState.selectedIds] } : {}),
-      }).catch((error) => appendNotice(String(error), true));
-    });
-    naming.append(button);
+  const geoImport = document.createElement("button");
+  geoImport.type = "button";
+  geoImport.className = "button compact";
+  geoImport.textContent = "Geo Import";
+  geoImport.addEventListener("click", () => {
+    void send("geo_import_interface_contacts", {
+      harnessId: harness.harnessId, interfaceId: interfaceItem.interfaceId,
+      contactIds: [...diagram.contactState.selectedIds],
+    }).catch((error) => appendNotice(String(error), true));
   });
-  naming.insertBefore(posImport, naming.children[2]);
+  naming.append(geoImport, posImport);
   toolbar.append(modes, naming);
   diagram.className = "interface-contacts-diagram";
   diagram.setAttribute("role", "region");

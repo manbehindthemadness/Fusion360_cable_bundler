@@ -121,13 +121,14 @@ def test_pos_import_preview_reads_only_the_selected_linked_board(
                     "harnessId": str(harness_id),
                     "interfaceId": str(interface_id),
                     "boardVersionId": "b",
+                    "project": True,
                 }
             ),
         )
     )
     assert result == {"ok": True, "autoNames": [], "unresolved": []}
     assert read.call_args.args[1] is boards[1]
-    preview.assert_called_once()
+    assert preview.call_args.args[-1] is True
     edit.assert_not_called()
 
 
@@ -153,9 +154,12 @@ def test_local_board_preview_returns_names_to_palette_without_edit(
     )
     monkeypatch.setitem(vars(palette_module), "preview_board_file_contact_names", preview)
     palette_module._send_board_file_preview(
-        application, json.dumps({"harnessId": str(harness_id), "interfaceId": str(interface_id)})
+        application,
+        json.dumps(
+            {"harnessId": str(harness_id), "interfaceId": str(interface_id), "project": True}
+        ),
     )
-    preview.assert_called_once_with(application, harness_id, interface_id)
+    preview.assert_called_once_with(application, harness_id, interface_id, True)
     event, data = send_html.call_args.args
     assert event == "board_file_preview"
     assert json.loads(data) == {
