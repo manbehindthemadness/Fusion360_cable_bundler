@@ -270,11 +270,13 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   const form = naming.querySelector('.interface-contact-auto-pin');
   const direction = form.children[0].children[0];
   const start = form.children[1].children[0];
-  const overwrite = form.children[2].children[0];
+  const hopscotch = form.children[2].children[0];
+  const overwrite = form.children[3].children[0];
   assert.deepEqual(Array.from(direction.children, (option) => option.value),
     ['LRTB', 'RLTB', 'LRBT', 'RLBT', 'TBLR', 'BTLR', 'TBRL', 'BTRL']);
   assert.equal(direction.value, 'LRTB');
   assert.equal(start.value, '0');
+  assert.equal(hopscotch.checked, true);
   assert.equal(overwrite.checked, undefined);
   dialog.children[2].contactState.selectedIds.add('pad-1');
   start.value = '7';
@@ -285,8 +287,37 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   assert.equal(launches[0].action, 'auto_pin_interface_contacts');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['pad-1']);
   assert.equal(launches[0].payload.start, 7);
+  assert.equal(launches[0].payload.hopscotch, true);
   assert.equal(launches[0].payload.overwrite, true);
   assert.equal(Object.hasOwn(launches[0].payload, 'value'), false);
+});
+
+test('Auto Pin without Hopscotch counts occupied contacts and disables Overwrite', () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [{
+      contactId: 'pad-1', kind: 'face', name: 'Pad', assignedName: 'VCC', pin: '20',
+      linked: true, normal: [0, 0, 1], loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+    }],
+  });
+  const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
+  naming.children[0].events.click();
+  const form = naming.querySelector('.interface-contact-auto-pin');
+  const hopscotch = form.children[2].children[0];
+  const overwrite = form.children[3].children[0];
+  overwrite.checked = true;
+  hopscotch.checked = false;
+  hopscotch.events.change();
+  assert.equal(overwrite.checked, false);
+  assert.equal(overwrite.disabled, true);
+  form.events.submit({ preventDefault() {} });
+  assert.equal(launches[0].payload.hopscotch, false);
+  assert.equal(launches[0].payload.overwrite, false);
 });
 
 asyncTest('Name Locals chooses saved fields and selected contacts in a popup', async () => {

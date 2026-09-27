@@ -58,6 +58,8 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   const direction = document.createElement("select");
   const startLabel = document.createElement("label");
   const start = document.createElement("input");
+  const hopscotchLabel = document.createElement("label");
+  const hopscotch = document.createElement("input");
   const overwriteLabel = document.createElement("label");
   const overwrite = document.createElement("input");
   const apply = document.createElement("button");
@@ -88,9 +90,17 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
     if (value !== null) writeSession("cableBundler.autoPinStart", String(value));
   });
   startLabel.append(start);
+  hopscotch.type = "checkbox";
+  hopscotch.checked = true;
+  hopscotchLabel.textContent = "Hopscotch";
+  hopscotchLabel.append(hopscotch);
   overwrite.type = "checkbox";
   overwriteLabel.textContent = "Overwrite";
   overwriteLabel.append(overwrite);
+  hopscotch.addEventListener("change", () => {
+    if (!hopscotch.checked) overwrite.checked = false;
+    overwrite.disabled = !hopscotch.checked;
+  });
   apply.type = "submit";
   apply.className = "button compact";
   apply.textContent = "Apply";
@@ -116,14 +126,15 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
     writeSession("cableBundler.autoPinStart", String(first));
     apply.disabled = true;
     void send("auto_pin_interface_contacts", {
-      harnessId, interfaceId, contactIds, start: first, overwrite: overwrite.checked,
+      harnessId, interfaceId, contactIds, start: first,
+      hopscotch: hopscotch.checked, overwrite: overwrite.checked,
     }).then((response) => {
       if (!response.ok) throw new Error(response.error || "Could not pin contacts.");
       form.remove();
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(directionLabel, startLabel, overwriteLabel, apply, cancel);
+  form.append(directionLabel, startLabel, hopscotchLabel, overwriteLabel, apply, cancel);
   naming.append(form);
   start.focus();
   start.select();

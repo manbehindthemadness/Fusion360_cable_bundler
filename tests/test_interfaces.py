@@ -394,6 +394,45 @@ def test_auto_pin_rejects_unknown_or_duplicate_contacts(valid_harness: HarnessDe
     assert loads(gateway.serialized_definition).interfaces[0] == interface
 
 
+def test_auto_pin_without_hopscotch_preserves_occupied_pin_positions(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Occupied contacts keep their Pins but consume their ordinal slot.
+    """
+    contacts = tuple(
+        InterfaceContact(UUID(int=830 + index), AttachmentTargetKind.FACE, f"face-{index}", pin=pin)
+        for index, pin in enumerate(("", "", "20", ""))
+    )
+    interface = InterfaceDefinition(
+        UUID(int=835), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "body"),), contacts
+    )
+    definition = replace(valid_harness, interfaces=(interface,))
+    gateway = recording_gateway(definition)
+    order = tuple(contact.contact_id for contact in contacts)
+    updated = auto_pin_interface_contacts(
+        definition.harness_id,
+        interface.interface_id,
+        order,
+        1,
+        False,
+        gateway,
+        hopscotch=False,
+    )
+    assert [contact.pin for contact in updated.contacts] == ["1", "2", "20", "4"]
+    assert loads(gateway.serialized_definition).interfaces[0].contacts == updated.contacts
+    with pytest.raises(ValueError, match="without Hopscotch"):
+        auto_pin_interface_contacts(
+            definition.harness_id,
+            interface.interface_id,
+            order,
+            1,
+            True,
+            gateway,
+            hopscotch=False,
+        )
+
+
 def test_add_interface_contacts_keeps_existing_order_and_skips_existing_tokens(
     valid_harness: HarnessDefinition,
 ) -> None:

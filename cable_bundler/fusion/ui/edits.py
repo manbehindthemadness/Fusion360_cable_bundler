@@ -187,6 +187,7 @@ def _apply_palette_edit(
             payload.get("start"),
             payload.get("overwrite"),
             _create_harness_gateway(application),
+            hopscotch=payload.get("hopscotch", True),
         )
         return "Interface contacts pinned."
     if action == "clear_interface_contact_pins":

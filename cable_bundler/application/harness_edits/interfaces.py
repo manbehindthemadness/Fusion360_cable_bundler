@@ -434,11 +434,13 @@ def auto_pin_interface_contacts(
     start: int,
     overwrite: bool,
     gateway: HarnessEditGateway,
+    hopscotch: bool = True,
 ) -> InterfaceDefinition:
     """
     Number contacts in diagram order, preserving Values and optionally existing pins.
 
-    Skipped assigned pins do not consume a number. The entire edit is persisted once.
+    Hopscotch skips assigned pins without advancing; otherwise they hold their place.
+    The entire edit is persisted once.
     """
     if not ordered_contact_ids or len(set(ordered_contact_ids)) != len(ordered_contact_ids):
         raise ValueError("Auto Pin requires distinct contact identities.")
@@ -446,6 +448,10 @@ def auto_pin_interface_contacts(
         raise ValueError("Auto Pin Start must be an integer from 0 to 1000000000.")
     if not isinstance(overwrite, bool):
         raise ValueError("Auto Pin Overwrite must be a checkbox value.")
+    if not isinstance(hopscotch, bool):
+        raise ValueError("Auto Pin Hopscotch must be a checkbox value.")
+    if not hopscotch and overwrite:
+        raise ValueError("Auto Pin Overwrite cannot be used without Hopscotch.")
     original, definition = read_definition(harness_id, gateway)
     current = next(
         (item for item in definition.interfaces if item.interface_id == interface_id), None
@@ -460,6 +466,8 @@ def auto_pin_interface_contacts(
     for contact_id in ordered_contact_ids:
         contact = contacts[contact_id]
         if contact.pin and not overwrite:
+            if not hopscotch:
+                next_pin += 1
             continue
         replacements[contact_id] = replace(contact, pin=str(next_pin))
         next_pin += 1

@@ -326,7 +326,26 @@ def test_auto_pin_routes_order_and_policy_without_value(
     notice = edits._apply_palette_edit(object(), "auto_pin_interface_contacts", json.dumps(payload))
     assert notice == "Interface contacts pinned."
     update.assert_called_once_with(
-        UUID(int=1), UUID(int=2), (UUID(int=4), UUID(int=3)), 7, False, gateway
+        UUID(int=1),
+        UUID(int=2),
+        (UUID(int=4), UUID(int=3)),
+        7,
+        False,
+        gateway,
+        hopscotch=True,
+    )
+    update.reset_mock()
+    edits._apply_palette_edit(
+        object(), "auto_pin_interface_contacts", json.dumps({**payload, "hopscotch": False})
+    )
+    update.assert_called_once_with(
+        UUID(int=1),
+        UUID(int=2),
+        (UUID(int=4), UUID(int=3)),
+        7,
+        False,
+        gateway,
+        hopscotch=False,
     )
     assert "value" not in payload
 
