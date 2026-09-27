@@ -1,5 +1,54 @@
-/** Return contact IDs by visual groups, optionally reversing every second group. */
-function orderedInterfaceContactIds(items, selectedIds, direction, zigzag = false) {
+/** Peel outer rows and columns in the corner and turn direction of an order. */
+function spiralInterfaceContactIds(candidates, direction) {
+  const rowsFirst = direction.startsWith("LR") || direction.startsWith("RL");
+  const firstSide = rowsFirst
+    ? (direction.endsWith("TB") ? "top" : "bottom")
+    : (direction.endsWith("LR") ? "left" : "right");
+  const firstAscending = rowsFirst ? direction.startsWith("LR") : direction.startsWith("TB");
+  const secondSide = rowsFirst
+    ? (firstAscending ? "right" : "left")
+    : (firstAscending ? "bottom" : "top");
+  const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" };
+  const passes = [
+    { side: firstSide, axis: rowsFirst ? "x" : "y", ascending: firstAscending },
+    { side: secondSide, axis: rowsFirst ? "y" : "x",
+      ascending: rowsFirst ? firstSide === "top" : firstSide === "left" },
+    { side: opposite[firstSide], axis: rowsFirst ? "x" : "y", ascending: !firstAscending },
+    { side: opposite[secondSide], axis: rowsFirst ? "y" : "x",
+      ascending: rowsFirst ? firstSide !== "top" : firstSide !== "left" },
+  ];
+  const tolerance = (axis) => {
+    const spans = candidates.map((item) => axis === "x" ? item.width : item.height)
+      .filter((span) => span > 0).sort((first, second) => first - second);
+    return spans.length ? spans[Math.floor(spans.length / 2)] / 2 : 1;
+  };
+  const toleranceX = tolerance("x");
+  const toleranceY = tolerance("y");
+  let remaining = candidates.slice();
+  const ordered = [];
+  while (remaining.length) {
+    passes.forEach(({ side, axis, ascending }) => {
+      if (!remaining.length) return;
+      const boundaryAxis = side === "top" || side === "bottom" ? "y" : "x";
+      const extreme = side === "top" || side === "left"
+        ? Math.min(...remaining.map((item) => item[boundaryAxis]))
+        : Math.max(...remaining.map((item) => item[boundaryAxis]));
+      const boundary = remaining.filter((item) => (
+        Math.abs(item[boundaryAxis] - extreme) <= (boundaryAxis === "x" ? toleranceX : toleranceY)
+      ));
+      boundary.sort((first, second) => (ascending
+        ? first[axis] - second[axis] : second[axis] - first[axis])
+        || first.id.localeCompare(second.id));
+      ordered.push(...boundary.map((item) => item.id));
+      const used = new Set(boundary.map((item) => item.id));
+      remaining = remaining.filter((item) => !used.has(item.id));
+    });
+  }
+  return ordered;
+}
+
+/** Return contact IDs by visual groups using the selected numbering pattern. */
+function orderedInterfaceContactIds(items, selectedIds, direction, pattern = "linear") {
   const candidates = items.filter((item) => !selectedIds.size || selectedIds.has(item.id))
     .map((item) => {
       const points = item.loops.flat();
@@ -13,6 +62,7 @@ function orderedInterfaceContactIds(items, selectedIds, direction, zigzag = fals
       return { id: item.id, x: (left + right) / 2, y: (top + bottom) / 2,
         width: right - left, height: bottom - top };
     }).filter(Boolean);
+  if (pattern === "spiral") return spiralInterfaceContactIds(candidates, direction);
   const rowsFirst = direction.startsWith("LR") || direction.startsWith("RL");
   const primaryAxis = rowsFirst ? "y" : "x";
   const secondaryAxis = rowsFirst ? "x" : "y";
@@ -38,7 +88,7 @@ function orderedInterfaceContactIds(items, selectedIds, direction, zigzag = fals
       || first.id.localeCompare(second.id)
   )));
   if (primaryReverse) groups.reverse();
-  if (zigzag) groups.forEach((group, index) => {
+  if (pattern === "zigzag") groups.forEach((group, index) => {
     if (index % 2) group.items.reverse();
   });
   return groups.flatMap((group) => group.items.map((item) => item.id));
@@ -65,6 +115,8 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   const hopscotch = document.createElement("input");
   const zigzagLabel = document.createElement("label");
   const zigzag = document.createElement("input");
+  const spiralLabel = document.createElement("label");
+  const spiral = document.createElement("input");
   const overwriteLabel = document.createElement("label");
   const overwrite = document.createElement("input");
   const apply = document.createElement("button");
@@ -102,6 +154,15 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   zigzag.type = "checkbox";
   zigzagLabel.textContent = "Zigzag";
   zigzagLabel.append(zigzag);
+  spiral.type = "checkbox";
+  spiralLabel.textContent = "Spiral";
+  spiralLabel.append(spiral);
+  zigzag.addEventListener("change", () => {
+    if (zigzag.checked) spiral.checked = false;
+  });
+  spiral.addEventListener("change", () => {
+    if (spiral.checked) zigzag.checked = false;
+  });
   overwrite.type = "checkbox";
   overwriteLabel.textContent = "Overwrite";
   overwriteLabel.append(overwrite);
@@ -125,8 +186,9 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const state = diagram.contactState;
+    const pattern = spiral.checked ? "spiral" : zigzag.checked ? "zigzag" : "linear";
     const contactIds = orderedInterfaceContactIds(
-      state.items, state.selectedIds, direction.value, zigzag.checked,
+      state.items, state.selectedIds, direction.value, pattern,
     );
     const first = autoPinStartNumber(start.value);
     if (!contactIds.length || first === null) {
@@ -144,7 +206,7 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(directionLabel, startLabel, hopscotchLabel, zigzagLabel,
+  form.append(directionLabel, startLabel, hopscotchLabel, zigzagLabel, spiralLabel,
     overwriteLabel, apply, cancel);
   naming.append(form);
   start.focus();
