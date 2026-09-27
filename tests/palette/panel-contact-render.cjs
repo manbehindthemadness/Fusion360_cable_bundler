@@ -24,6 +24,30 @@ test('Interface contacts keep positions within orientation clusters', () => {
   assert.equal(descendants(svg.children[1], (node) => node.tag === 'path').length, 1);
 });
 
+test('narrow contact rows sit near the horizontal center of their orientation box', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = [0, 100].flatMap((y, row) => Array.from({ length: 4 }, (_unused, column) => {
+    const x = column * 3;
+    return {
+      contactId: `${row}-${column}`, kind: 'face', assignedName: `J${row + 1}.${column + 1} (GND)`,
+      linked: true, normal: [0, 0, 1],
+      loops: [[[x, y, 0], [x + 0.5, y, 0], [x + 0.5, y + 0.5, 0], [x, y + 0.5, 0]]],
+    };
+  }));
+  context.renderInterfaceContacts(diagram, contacts);
+  const group = diagram.contactState.svg.children[0];
+  const box = group.children[0];
+  const boxCenter = Number(box.attributes.x) + Number(box.attributes.width) / 2;
+  const xs = diagram.contactState.items.flatMap((item) => item.loops.flat().map((point) => point[0]));
+  const contactCenter = (Math.min(...xs) + Math.max(...xs)) / 2;
+  assert.ok(Math.abs(contactCenter - boxCenter) < 20);
+  const labels = descendants(group, (node) => node.className?.includes('interface-contact-label-outside'));
+  assert.equal(labels.length, 8);
+  assert.ok(labels.every((label) => Number(label.attributes.x) > Number(box.attributes.x)
+    && Number(label.attributes.x) < Number(box.attributes.x) + Number(box.attributes.width)));
+});
+
 test('Opposing parallel faces form separate orientations even when their outlines overlap', () => {
   const { context } = palette();
   const diagram = context.document.createElement('div');

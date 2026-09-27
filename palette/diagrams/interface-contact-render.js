@@ -46,6 +46,7 @@ function renderInterfaceContacts(diagram, contacts) {
       outlines, geometryScale, minX, minY, width, height,
     );
     const clusterWidth = Math.max(220, headingText.length * 7 + 24, labelLayout.width);
+    const contentOffsetX = offsetX + Math.max(0, (clusterWidth - labelLayout.width) / 2);
     const unavailableCount = outlines.filter((item) => (
       !item.contact.linked || !item.loops.some((loop) => loop.length)
     )).length;
@@ -108,7 +109,7 @@ function renderInterfaceContacts(diagram, contacts) {
       loops.forEach((loop) => {
         if (!loop.length) return;
         const positioned = simplifyContactOutline(loop.map(([x, y]) => [
-          offsetX + labelLayout.shiftX + 16 + (x - minX) * geometryScale,
+          contentOffsetX + labelLayout.shiftX + 16 + (x - minX) * geometryScale,
           labelLayout.shiftY + 44 + (y - minY) * geometryScale,
         ]));
         positionedLoops.push(positioned);
@@ -137,7 +138,7 @@ function renderInterfaceContacts(diagram, contacts) {
       const labelPlan = labelLayout.plans.get(contact.contactId);
       if (labelPlan?.kind === "inside") {
         const { bounds } = labelPlan;
-        const x = offsetX + labelLayout.shiftX + (bounds.left + bounds.right) / 2;
+        const x = contentOffsetX + labelLayout.shiftX + (bounds.left + bounds.right) / 2;
         const y = labelLayout.shiftY + (bounds.top + bounds.bottom) / 2;
         labelCenterY = y;
         const both = Boolean(contact.assignedName && contact.pin);
@@ -162,7 +163,7 @@ function renderInterfaceContacts(diagram, contacts) {
         labelBounds = { width: bounds.right - bounds.left, height: bounds.bottom - bounds.top };
       } else if (labelPlan?.kind === "outside") {
         nameLabel = appendOutsideContactLabel(
-          group, contactGroup, labelPlan, offsetX, labelLayout.shiftX, labelLayout.shiftY,
+          group, contactGroup, labelPlan, contentOffsetX, labelLayout.shiftX, labelLayout.shiftY,
         );
       }
       group.append(contactGroup);
