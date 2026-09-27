@@ -112,6 +112,7 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
         harness_id: UUID,
         destination_id: UUID,
         selected_ids: tuple[UUID, ...],
+        copy_values: bool,
         copy_pins: bool,
         document: object,
     ) -> None:
@@ -122,6 +123,7 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
         self.harness_id = harness_id
         self.destination_id = destination_id
         self.selected_ids = selected_ids
+        self.copy_values = copy_values
         self.copy_pins = copy_pins
         self.document = document
 
@@ -149,6 +151,7 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
                 source.interface_id,
                 self.selected_ids,
                 self.copy_pins,
+                copy_values=self.copy_values,
             )
             _send_palette_state(application, notice)
             if conflicts:
@@ -163,6 +166,7 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
                             "interfaceId": str(self.destination_id),
                             "sourceId": str(source.interface_id),
                             "contactIds": [str(item) for item in self.selected_ids],
+                            "copyValues": self.copy_values,
                             "copyPins": self.copy_pins,
                             "conflicts": conflicts,
                         }
@@ -186,7 +190,7 @@ class SelectSourceInterfaceCreatedHandler(adsk.core.CommandCreatedEventHandler):
         request = _runtime.pending_source_interface.consume()
         if request is None:
             raise RuntimeError("No destination Interface was selected for Geo Import.")
-        harness_id, destination_id, selected_ids, copy_pins, document = request
+        harness_id, destination_id, selected_ids, copy_values, copy_pins, document = request
         application = adsk.core.Application.get()
         design = _require_active_design(application)
         definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
@@ -206,7 +210,9 @@ class SelectSourceInterfaceCreatedHandler(adsk.core.CommandCreatedEventHandler):
         handlers = (
             _PreSelectHandler(design, definition.interfaces, destination_id),
             _ValidateHandler(design, definition.interfaces, destination_id),
-            _ExecuteHandler(harness_id, destination_id, selected_ids, copy_pins, document),
+            _ExecuteHandler(
+                harness_id, destination_id, selected_ids, copy_values, copy_pins, document
+            ),
         )
         for event, handler in zip(
             (args.command.preSelect, args.command.validateInputs, args.command.execute),

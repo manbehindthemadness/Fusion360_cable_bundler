@@ -84,9 +84,10 @@ def copy_projected_interface_details(
     selected_ids: tuple[UUID, ...],
     copy_pins: bool,
     choices: dict[UUID, UUID] | None = None,
+    copy_values: bool = True,
 ) -> tuple[str, tuple[dict[str, object], ...]]:
     """
-    Fill unique or explicitly reviewed metadata, returning remaining conflicts.
+    Fill selected fields from unique or reviewed matches, returning conflicts.
     """
     if destination_id == source_id:
         raise ValueError("Select another Interface as the source.")
@@ -102,8 +103,10 @@ def copy_projected_interface_details(
     known = {contact.contact_id for contact in destination.contacts}
     if len(selected_ids) != len(set(selected_ids)) or not set(selected_ids).issubset(known):
         raise ValueError("Geo Import selection contains an invalid contact identity.")
-    if not isinstance(copy_pins, bool):
-        raise ValueError("Copy Pins must be enabled or disabled.")
+    if not isinstance(copy_values, bool) or not isinstance(copy_pins, bool):
+        raise ValueError("Copy Values and Pins must be enabled or disabled.")
+    if not copy_values and not copy_pins:
+        raise ValueError("Copy Values, Pins, or both.")
     scoped_ids = set(selected_ids) if selected_ids else known
     if not source.contacts:
         raise ValueError("The source Interface has no saved contacts to copy.")
@@ -135,7 +138,7 @@ def copy_projected_interface_details(
     destination_by_id = {contact.contact_id: contact for contact in destination.contacts}
     details = {
         destination_contact_id: (
-            source_by_id[source_contact_id].name,
+            source_by_id[source_contact_id].name if copy_values else "",
             source_by_id[source_contact_id].pin if copy_pins else "",
         )
         for destination_contact_id, source_contact_id in matches.items()

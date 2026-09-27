@@ -111,6 +111,7 @@ def _apply_palette_edit(
         source_id = _read_payload_uuid(payload, "sourceId", "source Interface")
         raw_ids = payload.get("contactIds")
         raw_choices = payload.get("choices")
+        copy_values = payload.get("copyValues", True)
         copy_pins = payload.get("copyPins")
         if (
             not isinstance(raw_ids, list)
@@ -118,7 +119,9 @@ def _apply_palette_edit(
             or not all(isinstance(item, str) for item in raw_ids)
             or not isinstance(raw_choices, list)
             or len(raw_choices) > 1024
+            or not isinstance(copy_values, bool)
             or not isinstance(copy_pins, bool)
+            or not (copy_values or copy_pins)
         ):
             raise ValueError("Projected Interface choices are malformed.")
         selected_ids = tuple(UUID(item) for item in raw_ids)
@@ -132,7 +135,14 @@ def _apply_palette_edit(
                 raise ValueError("A destination contact has duplicate choices.")
             choices[contact_id] = source_contact_id
         notice, _conflicts = copy_projected_interface_details(
-            application, harness_id, interface_id, source_id, selected_ids, copy_pins, choices
+            application,
+            harness_id,
+            interface_id,
+            source_id,
+            selected_ids,
+            copy_pins,
+            choices,
+            copy_values=copy_values,
         )
         return notice
     if action == "set_interface_contact_name":

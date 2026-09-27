@@ -118,6 +118,33 @@ def test_selected_contact_uses_full_orientation_frame(
         True,
         gateway,
     )
+    fill.reset_mock()
+    module.copy_projected_interface_details(
+        object(),
+        UUID(int=3),
+        destination.interface_id,
+        source.interface_id,
+        (target_contacts[1].contact_id,),
+        True,
+        copy_values=False,
+    )
+    fill.assert_called_once_with(
+        UUID(int=3),
+        destination.interface_id,
+        {target_contacts[1].contact_id: ("", "P1")},
+        True,
+        gateway,
+    )
+    with pytest.raises(ValueError, match="Values, Pins, or both"):
+        module.copy_projected_interface_details(
+            object(),
+            UUID(int=3),
+            destination.interface_id,
+            source.interface_id,
+            (),
+            False,
+            copy_values=False,
+        )
 
 
 def test_dense_projection_requires_a_reviewed_saved_source(

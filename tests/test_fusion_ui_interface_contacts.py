@@ -393,6 +393,66 @@ def test_geo_import_routes_selected_ids_as_one_metadata_edit(
         )
 
 
+def test_projected_import_preserves_field_choices_through_picker_and_review(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep a Pins-only choice across the native picker and conflict resolution.
+    """
+    launchers = importlib.import_module("cable_bundler.fusion.ui.launchers")
+    edits = importlib.import_module("cable_bundler.fusion.ui.edits")
+    definition = SimpleNamespace(execute=Mock(return_value=True))
+    document = object()
+    application = SimpleNamespace(
+        activeDocument=document,
+        userInterface=SimpleNamespace(
+            commandDefinitions=SimpleNamespace(itemById=lambda _id: definition)
+        ),
+    )
+    harness_id, interface_id, contact_id, source_id = (UUID(int=index) for index in range(1, 5))
+    payload = {
+        "harnessId": str(harness_id),
+        "interfaceId": str(interface_id),
+        "contactIds": [str(contact_id)],
+        "copyValues": False,
+        "copyPins": True,
+    }
+    launchers._open_select_source_interface_command(application, json.dumps(payload))
+    assert launchers._runtime.pending_source_interface.consume() == (
+        harness_id,
+        interface_id,
+        (contact_id,),
+        False,
+        True,
+        document,
+    )
+    copy = Mock(return_value=("Copied 0 Values and 1 Pins.", ()))
+    monkeypatch.setitem(vars(edits), "copy_projected_interface_details", copy)
+    notice = edits._apply_palette_edit(
+        application,
+        "resolve_projected_interface_contacts",
+        json.dumps(
+            {
+                **payload,
+                "sourceId": str(source_id),
+                "choices": [{"contactId": str(contact_id), "sourceContactId": str(UUID(int=5))}],
+            }
+        ),
+    )
+    assert notice == "Copied 0 Values and 1 Pins."
+    copy.assert_called_once_with(
+        application,
+        harness_id,
+        interface_id,
+        source_id,
+        (contact_id,),
+        True,
+        {contact_id: UUID(int=5)},
+        copy_values=False,
+    )
+
+
 def test_contact_deletion_routes_selected_ids_as_one_edit(
     addin_module: object,
     monkeypatch: pytest.MonkeyPatch,

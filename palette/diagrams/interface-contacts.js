@@ -340,7 +340,10 @@ function showInterfaceProjectionConflicts(response) {
     contact.suggestions.forEach((candidate) => {
       const option = document.createElement("option");
       option.value = candidate.sourceContactId;
-      option.textContent = `${candidate.value || "Unnamed"}${response.copyPins && candidate.pin ? ` · Pin ${candidate.pin}` : ""}`;
+      const fields = [];
+      if (response.copyValues !== false) fields.push(candidate.value || "Unnamed");
+      if (response.copyPins && candidate.pin) fields.push(`Pin ${candidate.pin}`);
+      option.textContent = fields.join(" · ") || "Unnamed";
       select.append(option);
     });
     row.append(title, select);
@@ -364,7 +367,7 @@ function showInterfaceProjectionConflicts(response) {
     void send("resolve_projected_interface_contacts", {
       harnessId: response.harnessId, interfaceId: response.interfaceId,
       sourceId: response.sourceId, contactIds: response.contactIds,
-      copyPins: response.copyPins, choices,
+      copyValues: response.copyValues, copyPins: response.copyPins, choices,
     }).then((result) => {
       if (!result.ok) throw new Error(result.error || "Could not resolve projected contacts.");
       form.remove();
@@ -389,9 +392,6 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   const importPins = document.createElement("input");
   const interfaceLabel = document.createElement("label");
   const selectInterface = document.createElement("input");
-  const status = document.createElement("div");
-  const copyPinsLabel = document.createElement("label");
-  const copyPins = document.createElement("input");
   const apply = document.createElement("button");
   const cancel = document.createElement("button");
   form.className = "interface-contact-geo-import";
@@ -405,24 +405,15 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   geometryLabel.append(geometry, "Import geometry names");
   importValues.type = "checkbox";
   importValues.checked = true;
-  importValuesLabel.append(importValues, "Import Values");
+  importValuesLabel.append(importValues, "Values");
   importPins.type = "checkbox";
-  importPinsLabel.append(importPins, "Import Pins from Name Locals names");
+  importPinsLabel.append(importPins, "Pins");
   selectInterface.type = "radio";
   selectInterface.name = "geo-import-mode";
   selectInterface.value = "interface";
   interfaceLabel.append(selectInterface, "Select Interface");
-  status.textContent = "Copy Values from another Interface at matching Orientation X/Y positions.";
-  status.hidden = true;
-  copyPins.type = "checkbox";
-  copyPinsLabel.append(copyPins, "Copy Pins too");
-  copyPinsLabel.hidden = true;
   const updateChoice = () => {
-    status.hidden = geometry.checked;
-    copyPinsLabel.hidden = geometry.checked;
-    importValuesLabel.hidden = !geometry.checked;
-    importPinsLabel.hidden = !geometry.checked;
-    apply.disabled = geometry.checked && !importValues.checked && !importPins.checked;
+    apply.disabled = !importValues.checked && !importPins.checked;
     apply.textContent = geometry.checked ? "Apply" : "Pick Interface";
   };
   geometry.addEventListener("change", updateChoice);
@@ -450,7 +441,9 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
     const pickInterface = selectInterface.checked;
     void send(pickInterface ? "copy_projected_interface_contacts" : "geo_import_interface_contacts", {
       harnessId, interfaceId, contactIds: [...diagram.contactState.selectedIds],
-      ...(pickInterface ? { copyPins: copyPins.checked } : {
+      ...(pickInterface ? {
+        copyValues: importValues.checked, copyPins: importPins.checked,
+      } : {
         importValues: importValues.checked, importPins: importPins.checked,
       }),
     }).then((response) => {
@@ -459,8 +452,8 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(title, geometryLabel, importValuesLabel, importPinsLabel,
-    interfaceLabel, status, copyPinsLabel, apply, cancel);
+  form.append(title, geometryLabel, interfaceLabel, importValuesLabel, importPinsLabel,
+    apply, cancel);
   naming.append(form);
 }
 

@@ -371,31 +371,37 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   naming.children[2].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
   const geometry = form.children[1].children[0];
-  const importValues = form.children[2].children[0];
-  const importPins = form.children[3].children[0];
-  const selectInterface = form.children[4].children[0];
-  const copyPins = form.children[6].children[0];
-  const apply = form.children[7];
+  const selectInterface = form.children[2].children[0];
+  const importValues = form.children[3].children[0];
+  const importPins = form.children[4].children[0];
+  const apply = form.children[5];
   assert.equal(form.attributes['aria-label'], 'Geo Import options');
   assert.equal(geometry.checked, true);
   assert.equal(importValues.checked, true);
   assert.equal(importPins.checked, undefined);
+  assert.equal(form.children[3].children[1], 'Values');
+  assert.equal(form.children[4].children[1], 'Pins');
   assert.equal(selectInterface.value, 'interface');
   assert.equal(launches.length, 0);
   geometry.checked = false;
   selectInterface.checked = true;
   selectInterface.events.change();
   assert.equal(apply.disabled, false);
-  assert.equal(form.children[2].hidden, true);
-  assert.equal(form.children[3].hidden, true);
-  assert.equal(form.children[5].hidden, false);
-  assert.equal(form.children[6].hidden, false);
+  assert.equal(form.children.length, 7);
+  assert.equal(form.children[3].hidden, false);
+  assert.equal(form.children[4].hidden, false);
   assert.equal(apply.textContent, 'Pick Interface');
-  copyPins.checked = true;
+  importValues.checked = false;
+  importValues.events.change();
+  assert.equal(apply.disabled, true);
+  importPins.checked = true;
+  importPins.events.change();
+  assert.equal(apply.disabled, false);
   form.events.submit({ preventDefault() {} });
   assert.equal(launches.length, 1);
   assert.equal(launches[0].action, 'copy_projected_interface_contacts');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['b']);
+  assert.equal(launches[0].payload.copyValues, false);
   assert.equal(launches[0].payload.copyPins, true);
 });
 
@@ -412,9 +418,9 @@ test('Geo Import can restore Pins without importing Values', () => {
   const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
   naming.children[2].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
-  const importValues = form.children[2].children[0];
-  const importPins = form.children[3].children[0];
-  const apply = form.children[7];
+  const importValues = form.children[3].children[0];
+  const importPins = form.children[4].children[0];
+  const apply = form.children[5];
   importValues.checked = false;
   importValues.events.change();
   assert.equal(apply.disabled, true);
@@ -442,7 +448,7 @@ asyncTest('projected Interface conflicts submit chosen saved source contacts', a
   });
   context.showInterfaceProjectionConflicts({
     harnessId: 'harness-1', interfaceId: 'interface-1', sourceId: 'source-1',
-    contactIds: [], copyPins: true,
+    contactIds: [], copyValues: false, copyPins: true,
     conflicts: [{ contactId: 'destination-1', currentName: '', suggestions: [
       { sourceContactId: 'pad-a', value: 'NET_A', pin: '1' },
       { sourceContactId: 'pad-b', value: 'NET_B', pin: '2' },
@@ -451,6 +457,7 @@ asyncTest('projected Interface conflicts submit chosen saved source contacts', a
   const form = context.document.body.querySelector('.interface-contact-projection-review');
   assert.ok(form);
   const select = form.children[1].children[0].children[1];
+  assert.equal(select.children[1].textContent, 'Pin 1');
   select.value = 'pad-b';
   form.events.submit({ preventDefault() {} });
   await Promise.resolve();
@@ -459,6 +466,8 @@ asyncTest('projected Interface conflicts submit chosen saved source contacts', a
   assert.deepEqual(Array.from(launches[0].payload.choices, (choice) => ({ ...choice })), [
     { contactId: 'destination-1', sourceContactId: 'pad-b' },
   ]);
+  assert.equal(launches[0].payload.copyValues, false);
+  assert.equal(launches[0].payload.copyPins, true);
 });
 
 test('contact diagram zooms, pans, and box-selects individual contacts', () => {

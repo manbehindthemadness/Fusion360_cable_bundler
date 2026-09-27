@@ -165,14 +165,17 @@ def _open_select_source_interface_command(
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
     interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
     raw_ids = payload.get("contactIds")
+    copy_values = payload.get("copyValues", True)
     copy_pins = payload.get("copyPins", False)
     if (
         not isinstance(raw_ids, list)
         or len(raw_ids) > 1024
         or not all(isinstance(item, str) for item in raw_ids)
+        or not isinstance(copy_values, bool)
         or not isinstance(copy_pins, bool)
+        or not (copy_values or copy_pins)
     ):
-        raise ValueError("Geo Import requires contact identities and a Copy Pins option.")
+        raise ValueError("Geo Import requires contact identities and Values or Pins.")
     contact_ids = tuple(UUID(item) for item in raw_ids)
     definition = application.userInterface.commandDefinitions.itemById(
         SELECT_SOURCE_INTERFACE_COMMAND_ID
@@ -180,7 +183,7 @@ def _open_select_source_interface_command(
     if definition is None:
         raise RuntimeError("Fusion Select Source Interface command is unavailable.")
     _runtime.pending_source_interface.prepare(
-        (harness_id, interface_id, contact_ids, copy_pins, application.activeDocument)
+        (harness_id, interface_id, contact_ids, copy_values, copy_pins, application.activeDocument)
     )
     try:
         if not definition.execute():
