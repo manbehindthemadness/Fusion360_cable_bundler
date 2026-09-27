@@ -121,6 +121,12 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   const overwrite = document.createElement("input");
   const apply = document.createElement("button");
   const cancel = document.createElement("button");
+  const checkboxKeys = {
+    hopscotch: "cableBundler.autoPinHopscotch",
+    zigzag: "cableBundler.autoPinZigzag",
+    spiral: "cableBundler.autoPinSpiral",
+    overwrite: "cableBundler.autoPinOverwrite",
+  };
   form.className = "interface-contact-auto-pin";
   directionLabel.textContent = "Order";
   const orders = ["LRTB", "RLTB", "LRBT", "RLBT", "TBLR", "BTLR", "TBRL", "BTRL"];
@@ -148,27 +154,42 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
   });
   startLabel.append(start);
   hopscotch.type = "checkbox";
-  hopscotch.checked = true;
+  hopscotch.checked = readSessionCheckbox(checkboxKeys.hopscotch, true);
   hopscotchLabel.textContent = "Hopscotch";
   hopscotchLabel.append(hopscotch);
   zigzag.type = "checkbox";
+  zigzag.checked = readSessionCheckbox(checkboxKeys.zigzag, false);
   zigzagLabel.textContent = "Zigzag";
   zigzagLabel.append(zigzag);
   spiral.type = "checkbox";
+  spiral.checked = readSessionCheckbox(checkboxKeys.spiral, false);
   spiralLabel.textContent = "Spiral";
   spiralLabel.append(spiral);
+  if (spiral.checked) zigzag.checked = false;
+  const rememberCheckboxes = () => {
+    writeSession(checkboxKeys.hopscotch, String(hopscotch.checked));
+    writeSession(checkboxKeys.zigzag, String(zigzag.checked));
+    writeSession(checkboxKeys.spiral, String(spiral.checked));
+    writeSession(checkboxKeys.overwrite, String(overwrite.checked));
+  };
   zigzag.addEventListener("change", () => {
     if (zigzag.checked) spiral.checked = false;
+    rememberCheckboxes();
   });
   spiral.addEventListener("change", () => {
     if (spiral.checked) zigzag.checked = false;
+    rememberCheckboxes();
   });
   overwrite.type = "checkbox";
+  overwrite.checked = hopscotch.checked && readSessionCheckbox(checkboxKeys.overwrite, false);
+  overwrite.disabled = !hopscotch.checked;
   overwriteLabel.textContent = "Overwrite";
   overwriteLabel.append(overwrite);
+  overwrite.addEventListener("change", rememberCheckboxes);
   hopscotch.addEventListener("change", () => {
     if (!hopscotch.checked) overwrite.checked = false;
     overwrite.disabled = !hopscotch.checked;
+    rememberCheckboxes();
   });
   apply.type = "submit";
   apply.className = "button compact";
@@ -196,6 +217,7 @@ function openInterfaceAutoPin(naming, diagram, harnessId, interfaceId) {
       return;
     }
     writeSession("cableBundler.autoPinStart", String(first));
+    rememberCheckboxes();
     apply.disabled = true;
     void send("auto_pin_interface_contacts", {
       harnessId, interfaceId, contactIds, start: first,

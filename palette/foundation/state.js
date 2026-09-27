@@ -30,6 +30,12 @@ function writeSession(key, value) {
   catch (_error) { /* Palette storage is an optional convenience. */ }
 }
 
+/** Restore a checkbox without letting malformed storage override its default. */
+function readSessionCheckbox(key, fallback) {
+  const saved = readSession(key);
+  return saved === "true" ? true : saved === "false" ? false : fallback;
+}
+
 function removeSession(key) {
   try { window.sessionStorage.removeItem(key); }
   catch (_error) { /* Palette storage is an optional convenience. */ }

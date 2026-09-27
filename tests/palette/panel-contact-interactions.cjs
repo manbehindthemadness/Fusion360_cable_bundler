@@ -317,7 +317,7 @@ test('Auto Pin popup sends zigzagged contact order when enabled', () => {
   naming.children[0].events.click();
   const form = naming.querySelector('.interface-contact-auto-pin');
   const zigzag = form.children[3].children[0];
-  assert.equal(zigzag.checked, undefined);
+  assert.equal(zigzag.checked, false);
   zigzag.checked = true;
   form.events.submit({ preventDefault() {} });
   assert.deepEqual(Array.from(launches[0].payload.contactIds), [
@@ -346,7 +346,7 @@ test('Auto Pin popup keeps Spiral exclusive with Zigzag and submits an inward or
   const form = naming.querySelector('.interface-contact-auto-pin');
   const zigzag = form.children[3].children[0];
   const spiral = form.children[4].children[0];
-  assert.equal(spiral.checked, undefined);
+  assert.equal(spiral.checked, false);
   zigzag.checked = true;
   zigzag.events.change();
   spiral.checked = true;
@@ -396,9 +396,9 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   assert.equal(direction.value, 'LRTB');
   assert.equal(start.value, '0');
   assert.equal(hopscotch.checked, true);
-  assert.equal(zigzag.checked, undefined);
-  assert.equal(spiral.checked, undefined);
-  assert.equal(overwrite.checked, undefined);
+  assert.equal(zigzag.checked, false);
+  assert.equal(spiral.checked, false);
+  assert.equal(overwrite.checked, false);
   dialog.children[2].contactState.selectedIds.add('pad-1');
   start.value = '7';
   overwrite.checked = true;
@@ -485,7 +485,7 @@ asyncTest('Name Locals chooses saved fields and selected contacts in a popup', a
   assert.equal(launches[0].payload.includePins, false);
 });
 
-test('Auto Pin remembers order and a valid Start within the palette session', () => {
+test('Auto Pin remembers order, Start, and checkbox choices within the palette session', () => {
   const storage = new Map();
   const { context } = palette(storage);
   const naming = context.document.createElement('div');
@@ -494,34 +494,116 @@ test('Auto Pin remembers order and a valid Start within the palette session', ()
   const first = naming.querySelector('.interface-contact-auto-pin');
   const order = first.children[0].children[0];
   const start = first.children[1].children[0];
+  const hopscotch = first.children[2].children[0];
+  const zigzag = first.children[3].children[0];
+  const spiral = first.children[4].children[0];
+  const overwrite = first.children[5].children[0];
   assert.equal(order.value, 'LRTB');
   assert.equal(start.value, '0');
+  assert.equal(hopscotch.checked, true);
+  assert.equal(zigzag.checked, false);
+  assert.equal(spiral.checked, false);
+  assert.equal(overwrite.checked, false);
   order.value = 'BTRL';
   order.events.change();
   start.value = '42';
   start.events.change();
+  zigzag.checked = true;
+  zigzag.events.change();
+  spiral.checked = true;
+  spiral.events.change();
+  hopscotch.checked = false;
+  hopscotch.events.change();
   first.remove();
   context.openInterfaceAutoPin(naming, diagram, 'harness-1', 'interface-1');
-  assert.equal(naming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
-    'BTRL');
-  assert.equal(naming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
-    '42');
+  const second = naming.querySelector('.interface-contact-auto-pin');
+  assert.equal(second.children[0].children[0].value, 'BTRL');
+  assert.equal(second.children[1].children[0].value, '42');
+  assert.equal(second.children[2].children[0].checked, false);
+  assert.equal(second.children[3].children[0].checked, false);
+  assert.equal(second.children[4].children[0].checked, true);
+  assert.equal(second.children[5].children[0].checked, false);
+  assert.equal(second.children[5].children[0].disabled, true);
+  second.children[2].children[0].checked = true;
+  second.children[2].children[0].events.change();
+  second.children[5].children[0].checked = true;
+  second.children[5].children[0].events.change();
+  second.children[3].children[0].checked = true;
+  second.children[3].children[0].events.change();
   const anotherPalette = palette(storage).context;
   const anotherNaming = anotherPalette.document.createElement('div');
   const anotherDiagram = anotherPalette.document.createElement('div');
   anotherPalette.openInterfaceAutoPin(anotherNaming, anotherDiagram, 'harness-1', 'interface-1');
-  assert.equal(anotherNaming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
-    'BTRL');
-  assert.equal(anotherNaming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
-    '42');
+  const anotherForm = anotherNaming.querySelector('.interface-contact-auto-pin');
+  assert.equal(anotherForm.children[0].children[0].value, 'BTRL');
+  assert.equal(anotherForm.children[1].children[0].value, '42');
+  assert.equal(anotherForm.children[2].children[0].checked, true);
+  assert.equal(anotherForm.children[3].children[0].checked, true);
+  assert.equal(anotherForm.children[4].children[0].checked, false);
+  assert.equal(anotherForm.children[5].children[0].checked, true);
+  assert.equal(anotherForm.children[5].children[0].disabled, false);
   storage.set('cableBundler.autoPinOrder', 'invalid');
   storage.set('cableBundler.autoPinStart', '-1');
+  storage.set('cableBundler.autoPinHopscotch', 'bad');
+  storage.set('cableBundler.autoPinZigzag', 'true');
+  storage.set('cableBundler.autoPinSpiral', 'true');
+  storage.set('cableBundler.autoPinOverwrite', 'bad');
   const invalidNaming = anotherPalette.document.createElement('div');
   anotherPalette.openInterfaceAutoPin(invalidNaming, anotherDiagram, 'harness-1', 'interface-1');
   assert.equal(invalidNaming.querySelector('.interface-contact-auto-pin').children[0].children[0].value,
     'LRTB');
   assert.equal(invalidNaming.querySelector('.interface-contact-auto-pin').children[1].children[0].value,
     '0');
+  const invalidForm = invalidNaming.querySelector('.interface-contact-auto-pin');
+  assert.equal(invalidForm.children[2].children[0].checked, true);
+  assert.equal(invalidForm.children[3].children[0].checked, false);
+  assert.equal(invalidForm.children[4].children[0].checked, true);
+  assert.equal(invalidForm.children[5].children[0].checked, false);
+});
+
+test('contact naming and import checkboxes remember session choices', () => {
+  const storage = new Map();
+  const { context } = palette(storage);
+  context.send = () => Promise.resolve({ ok: true, boards: [] });
+  const naming = context.document.createElement('div');
+  const diagram = context.document.createElement('div');
+  diagram.contactState = { selectedIds: new Set() };
+  context.openInterfaceGeoImport(naming, diagram, 'harness-1', 'interface-1');
+  const geo = naming.querySelector('.interface-contact-geo-import');
+  geo.children[3].children[0].checked = false;
+  geo.children[3].children[0].events.change();
+  geo.children[4].children[0].checked = true;
+  geo.children[4].children[0].events.change();
+  geo.remove();
+  context.openInterfaceNameLocals(naming, diagram, 'harness-1', 'interface-1');
+  const locals = naming.querySelector('.interface-contact-name-locals');
+  locals.children[1].children[0].checked = false;
+  locals.children[1].children[0].events.change();
+  locals.remove();
+  context.openInterfacePosImport(naming, 'harness-1', 'interface-1');
+  const pos = naming.querySelector('.interface-contact-pos-import');
+  pos.children[2].children[0].checked = false;
+  pos.children[2].children[0].events.change();
+  pos.remove();
+
+  const another = palette(storage).context;
+  another.send = () => Promise.resolve({ ok: true, boards: [] });
+  const anotherNaming = another.document.createElement('div');
+  const anotherDiagram = another.document.createElement('div');
+  anotherDiagram.contactState = { selectedIds: new Set() };
+  another.openInterfaceGeoImport(anotherNaming, anotherDiagram, 'harness-1', 'interface-1');
+  const restoredGeo = anotherNaming.querySelector('.interface-contact-geo-import');
+  assert.equal(restoredGeo.children[3].children[0].checked, false);
+  assert.equal(restoredGeo.children[4].children[0].checked, true);
+  restoredGeo.remove();
+  another.openInterfaceNameLocals(anotherNaming, anotherDiagram, 'harness-1', 'interface-1');
+  const restoredLocals = anotherNaming.querySelector('.interface-contact-name-locals');
+  assert.equal(restoredLocals.children[1].children[0].checked, false);
+  assert.equal(restoredLocals.children[2].children[0].checked, true);
+  restoredLocals.remove();
+  another.openInterfacePosImport(anotherNaming, 'harness-1', 'interface-1');
+  assert.equal(anotherNaming.querySelector('.interface-contact-pos-import')
+    .children[2].children[0].checked, false);
 });
 
 test('Geo Import defaults to names and can launch the source Interface picker', () => {
@@ -551,7 +633,7 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   assert.equal(form.attributes['aria-label'], 'Geo Import options');
   assert.equal(geometry.checked, true);
   assert.equal(importValues.checked, true);
-  assert.equal(importPins.checked, undefined);
+  assert.equal(importPins.checked, false);
   assert.equal(form.children[3].children[1], 'Values');
   assert.equal(form.children[4].children[1], 'Pins');
   assert.equal(selectInterface.value, 'interface');

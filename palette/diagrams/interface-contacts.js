@@ -404,15 +404,18 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   geometry.checked = true;
   geometryLabel.append(geometry, "Import geometry names");
   importValues.type = "checkbox";
-  importValues.checked = true;
+  importValues.checked = readSessionCheckbox("cableBundler.geoImportValues", true);
   importValuesLabel.append(importValues, "Values");
   importPins.type = "checkbox";
+  importPins.checked = readSessionCheckbox("cableBundler.geoImportPins", false);
   importPinsLabel.append(importPins, "Pins");
   selectInterface.type = "radio";
   selectInterface.name = "geo-import-mode";
   selectInterface.value = "interface";
   interfaceLabel.append(selectInterface, "Select Interface");
   const updateChoice = () => {
+    writeSession("cableBundler.geoImportValues", String(importValues.checked));
+    writeSession("cableBundler.geoImportPins", String(importPins.checked));
     apply.disabled = !importValues.checked && !importPins.checked;
     apply.textContent = geometry.checked ? "Apply" : "Pick Interface";
   };
@@ -423,7 +426,7 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   apply.type = "submit";
   apply.className = "button compact";
   apply.textContent = "Apply";
-  apply.disabled = false;
+  apply.disabled = !importValues.checked && !importPins.checked;
   cancel.type = "button";
   cancel.className = "button compact";
   cancel.textContent = "Cancel";
@@ -474,17 +477,22 @@ function openInterfaceNameLocals(naming, diagram, harnessId, interfaceId) {
   form.setAttribute("aria-label", "Name Locals options");
   title.textContent = "Name Locals";
   values.type = "checkbox";
-  values.checked = true;
+  values.checked = readSessionCheckbox("cableBundler.nameLocalsValues", true);
   valuesLabel.append(values, "Values");
   pins.type = "checkbox";
-  pins.checked = true;
+  pins.checked = readSessionCheckbox("cableBundler.nameLocalsPins", true);
   pinsLabel.append(pins, "Pins");
-  const updateChoice = () => { apply.disabled = !values.checked && !pins.checked; };
+  const updateChoice = () => {
+    writeSession("cableBundler.nameLocalsValues", String(values.checked));
+    writeSession("cableBundler.nameLocalsPins", String(pins.checked));
+    apply.disabled = !values.checked && !pins.checked;
+  };
   values.addEventListener("change", updateChoice);
   pins.addEventListener("change", updateChoice);
   apply.type = "submit";
   apply.className = "button compact";
   apply.textContent = "Apply";
+  apply.disabled = !values.checked && !pins.checked;
   cancel.type = "button";
   cancel.className = "button compact";
   cancel.textContent = "Cancel";
@@ -531,7 +539,10 @@ function openInterfacePosImport(naming, harnessId, interfaceId) {
   message.textContent = "Finding linked PCB files…";
   choices.className = "interface-contact-pos-import-choices";
   project.type = "checkbox";
-  project.checked = true;
+  project.checked = readSessionCheckbox("cableBundler.posImportProject", true);
+  project.addEventListener("change", () => {
+    writeSession("cableBundler.posImportProject", String(project.checked));
+  });
   projectLabel.append(project, "Project");
   projectLabel.title = "Match selected geometry by board X/Y, ignoring Z and board side.";
   loadBoard.type = "button";
