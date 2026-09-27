@@ -32,7 +32,7 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   ]);
   const naming = dialog.children[1].children[1].children;
   assert.deepEqual(naming.map((button) => button.textContent),
-    ['Auto Pin', 'Geo Import', 'Pos Import']);
+    ['Auto Pin', 'Name Locals', 'Geo Import', 'Pos Import']);
   assert.deepEqual(modes.slice(0, 3).map((button) => button.attributes['aria-pressed']), [
     'true', 'false', 'false',
   ]);
@@ -51,11 +51,11 @@ test('Select Contacts opens an empty Interface diagram with Manual, Row, and Pla
   assert.equal(launches[0].payload.mode, 'manual');
   modes[2].events.click();
   assert.equal(launches[2].payload.mode, 'plane');
-  naming[1].events.click();
+  naming[2].events.click();
   const geoForm = dialog.children[1].children[1].querySelector('.interface-contact-geo-import');
   assert.equal(launches.length, 3);
   geoForm.events.submit({ preventDefault() {} });
-  naming[2].events.click();
+  naming[3].events.click();
   const form = dialog.children[1].children[1].querySelector('.interface-contact-pos-import');
   form.children[3].events.click();
   assert.deepEqual(launches.slice(3).map((item) => item.action), [

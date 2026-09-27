@@ -247,6 +247,35 @@ test('contacts in distant rows rotate readable labels into the row gaps', () => 
   }
 });
 
+test('slightly staggered pad row keeps one label direction and readable size', () => {
+  const { context } = palette();
+  const diagram = context.document.createElement('div');
+  const contacts = Array.from({ length: 19 }, (_unused, index) => {
+    const x = index * 2.54 + (index >= 6 ? 1.27 : 0);
+    const y = index % 3 === 0 ? 0.095 : 0;
+    const width = index % 4 === 0 ? 0.55 : 0.35;
+    return {
+      contactId: `pad-${index}`, kind: 'face',
+      assignedName: `J3.${String(index + 1).padStart(2, '0')} (P1.10)`,
+      pin: String(index + 1), linked: true, normal: [0, 0, 1],
+      loops: [[[x, y, 0], [x + width, y, 0], [x + width, y + 0.35, 0], [x, y + 0.35, 0]]],
+    };
+  });
+  context.renderInterfaceContacts(diagram, contacts);
+  const labels = descendants(diagram.contactState.svg, (node) => (
+    node.className?.includes('interface-contact-label-outside')
+  ));
+  assert.equal(labels.length, 19);
+  assert.ok(labels.every((label) => label.attributes.transform?.startsWith('rotate(-90 ')));
+  const sizes = labels.map((label) => Number.parseFloat(label.style.fontSize));
+  assert.ok(sizes.every((size) => Math.abs(size - sizes[0]) < 0.01));
+  assert.ok(sizes[0] > 4);
+  for (let index = 1; index < labels.length; index += 1) {
+    assert.ok(Number(labels[index].attributes.x) - Number(labels[index - 1].attributes.x)
+      >= sizes[0]);
+  }
+});
+
 test('wide contact rows place compact labels above and below the geometry', () => {
   const { context } = palette();
   const contacts = [0, 1].flatMap((row) => Array.from({ length: 3 }, (_unused, column) => ({

@@ -47,11 +47,30 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
       Math.hypot(first.centerX - item.centerX, first.centerY - item.centerY)
       - Math.hypot(second.centerX - item.centerX, second.centerY - item.centerY)
     ))[0];
-    const row = geometryWidth > geometryHeight || (nearest
+    item.row = geometryWidth > geometryHeight || (nearest
       && Math.abs(nearest.centerX - item.centerX) >= Math.abs(nearest.centerY - item.centerY));
-    item.side = row
-      ? (item.centerY < (geometry.top + geometry.bottom) / 2 ? "top" : "bottom")
-      : (item.centerX < (geometry.left + geometry.right) / 2 ? "left" : "right");
+    if (!item.row) {
+      item.side = item.centerX < (geometry.left + geometry.right) / 2 ? "left" : "right";
+    }
+  });
+  const rowBands = [];
+  outside.filter((item) => item.row).sort((first, second) => first.centerY - second.centerY)
+    .forEach((item) => {
+      const band = rowBands.find((candidate) => (
+        item.bounds.top <= candidate.bottom + 1 && item.bounds.bottom >= candidate.top - 1
+      ));
+      if (band) {
+        band.top = Math.min(band.top, item.bounds.top);
+        band.bottom = Math.max(band.bottom, item.bounds.bottom);
+        band.items.push(item);
+      } else {
+        rowBands.push({ top: item.bounds.top, bottom: item.bounds.bottom, items: [item] });
+      }
+    });
+  rowBands.forEach((band) => {
+    const side = rowBands.length === 1 || (band.top + band.bottom) / 2
+      < (geometry.top + geometry.bottom) / 2 ? "top" : "bottom";
+    band.items.forEach((item) => { item.side = side; });
   });
   for (const side of ["left", "right", "top", "bottom"]) {
     const lane = outside.filter((item) => item.side === side).sort((first, second) => (
@@ -59,6 +78,23 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         ? first.centerY - second.centerY || first.index - second.index
         : first.centerX - second.centerX || first.index - second.index
     ));
+    const rowMetrics = (side === "top" || side === "bottom" ? lane : []).map((item, index) => {
+      const pitch = Math.min(
+        index ? item.centerX - lane[index - 1].centerX : Infinity,
+        index + 1 < lane.length ? lane[index + 1].centerX - item.centerX : Infinity,
+      );
+      const neighborGap = Math.min(
+        index ? Math.max(0, item.bounds.left - lane[index - 1].bounds.right) : Infinity,
+        index + 1 < lane.length
+          ? Math.max(0, lane[index + 1].bounds.left - item.bounds.right) : Infinity,
+      );
+      const contactWidth = item.bounds.right - item.bounds.left;
+      return { pitch, rotated: item.width > pitch - 6,
+        fontSize: Math.min(11, Math.max(1, contactWidth + neighborGap / 2),
+          Math.max(1, pitch - 1)) };
+    });
+    const sharedRotatedFont = Math.min(11, ...rowMetrics.filter((item) => item.rotated)
+      .map((item) => item.fontSize));
     let occupiedUntil = -Infinity;
     lane.forEach((item, index) => {
       const box = { left: 0, right: 0, top: 0, bottom: 0 };
@@ -78,20 +114,9 @@ function layoutInterfaceContactLabels(outlines, scale, minX, minY, geometryWidth
         box.right = box.left + width;
         occupiedUntil = box.bottom;
       } else {
-        const pitch = Math.min(
-          index ? item.centerX - lane[index - 1].centerX : Infinity,
-          index + 1 < lane.length ? lane[index + 1].centerX - item.centerX : Infinity,
-        );
-        rotated = item.width > pitch - 6;
+        rotated = rowMetrics[index].rotated;
         if (rotated) {
-          const neighborGap = Math.min(
-            index ? Math.max(0, item.bounds.left - lane[index - 1].bounds.right) : Infinity,
-            index + 1 < lane.length
-              ? Math.max(0, lane[index + 1].bounds.left - item.bounds.right) : Infinity,
-          );
-          const contactWidth = item.bounds.right - item.bounds.left;
-          fontSize = Math.min(11, Math.max(1, contactWidth + neighborGap / 2),
-            Math.max(1, pitch - 1));
+          fontSize = sharedRotatedFont;
           const textHeight = item.text.length * (fontSize / 11) * 6.5 + 4;
           box.left = Math.max(item.centerX - fontSize / 2, occupiedUntil + 1);
           box.right = box.left + fontSize;
