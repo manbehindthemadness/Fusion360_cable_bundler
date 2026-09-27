@@ -141,3 +141,66 @@ def test_geo_import_fills_only_empty_values_from_explicit_names(
         importer.import_interface_contact_geometry_names(
             object(), valid_harness.harness_id, interface.interface_id, (UUID(int=999),)
         )
+
+
+@pytest.mark.parametrize(
+    ("import_values", "import_pins", "expected_values", "expected_pins"),
+    [
+        (True, False, ["VCC", "", "GND", "Pin Body A", "J3:14.04: DATA"], ["", "", "", "", ""]),
+        (False, True, ["", "", "", "", ""], ["1", "P7", "", "", "2"]),
+        (True, True, ["VCC", "", "GND", "Pin Body A", "J3:14.04: DATA"], ["1", "P7", "", "", "2"]),
+    ],
+)
+def test_geo_import_restores_selected_saved_local_fields(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    import_values: bool,
+    import_pins: bool,
+    expected_values: list[str],
+    expected_pins: list[str],
+) -> None:
+    """
+    Split Name Locals names while preserving ordinary geometry names as Values.
+    """
+    importer = importlib.import_module("cable_bundler.fusion.interface_contact_geo_import")
+    contacts = tuple(
+        InterfaceContact(UUID(int=920 + index), AttachmentTargetKind.FACE, f"body-{index}")
+        for index in range(5)
+    )
+    interface = InterfaceDefinition(
+        UUID(int=925), "Socket", (InterfaceTarget(InterfaceTargetKind.BODY, "shell"),), contacts
+    )
+    gateway = recording_gateway(replace(valid_harness, interfaces=(interface,)))
+    names = ("Pin 1: VCC", "Pin P7", "GND", "Pin Body A", "Pin 2: J3:14.04: DATA")
+    monkeypatch.setitem(vars(importer), "_require_active_design", lambda _app: object())
+    monkeypatch.setitem(vars(importer), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(importer), "attachment_target_kind", lambda entity: entity.kind)
+    monkeypatch.setitem(
+        vars(importer),
+        "resolve_contact_entities",
+        lambda _design, token: (
+            SimpleNamespace(
+                kind=AttachmentTargetKind.FACE,
+                body=SimpleNamespace(name=names[int(token.split("-")[1])]),
+            ),
+        ),
+    )
+    importer.import_interface_contact_geometry_names(
+        object(), valid_harness.harness_id, interface.interface_id, (), import_values, import_pins
+    )
+    updated = loads(gateway.serialized_definition).interfaces[0]
+    assert [contact.name for contact in updated.contacts] == expected_values
+    assert [contact.pin for contact in updated.contacts] == expected_pins
+    importer.import_interface_contact_geometry_names(
+        object(), valid_harness.harness_id, interface.interface_id, (), True, True
+    )
+    restored = loads(gateway.serialized_definition).interfaces[0]
+    assert [contact.name for contact in restored.contacts] == [
+        "VCC",
+        "",
+        "GND",
+        "Pin Body A",
+        "J3:14.04: DATA",
+    ]
+    assert [contact.pin for contact in restored.contacts] == ["1", "P7", "", "", "2"]

@@ -242,8 +242,10 @@ def _apply_palette_edit(
         if not isinstance(raw_ids, list) or any(not isinstance(item, str) for item in raw_ids):
             raise ValueError("Geo Import contact IDs must be a list of identities.")
         contact_ids = tuple(UUID(item) for item in raw_ids)
+        import_values = payload.get("importValues", True)
+        import_pins = payload.get("importPins", False)
         return import_interface_contact_geometry_names(
-            application, harness_id, interface_id, contact_ids
+            application, harness_id, interface_id, contact_ids, import_values, import_pins
         )
     gateway = _create_harness_gateway(application)
     if action in _TOPOLOGY_ACTIONS:

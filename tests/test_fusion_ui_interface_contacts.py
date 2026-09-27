@@ -373,7 +373,18 @@ def test_geo_import_routes_selected_ids_as_one_metadata_edit(
         application, "geo_import_interface_contacts", json.dumps(payload)
     )
     assert notice == importer.return_value
-    importer.assert_called_once_with(application, UUID(int=1), UUID(int=2), (UUID(int=3),))
+    importer.assert_called_once_with(
+        application, UUID(int=1), UUID(int=2), (UUID(int=3),), True, False
+    )
+    importer.reset_mock()
+    edits._apply_palette_edit(
+        application,
+        "geo_import_interface_contacts",
+        json.dumps({**payload, "importValues": False, "importPins": True}),
+    )
+    importer.assert_called_once_with(
+        application, UUID(int=1), UUID(int=2), (UUID(int=3),), False, True
+    )
     with pytest.raises(ValueError, match="contact IDs"):
         edits._apply_palette_edit(
             application,

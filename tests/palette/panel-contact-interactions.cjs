@@ -371,19 +371,25 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   naming.children[2].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
   const geometry = form.children[1].children[0];
-  const selectInterface = form.children[2].children[0];
-  const copyPins = form.children[4].children[0];
-  const apply = form.children[5];
+  const importValues = form.children[2].children[0];
+  const importPins = form.children[3].children[0];
+  const selectInterface = form.children[4].children[0];
+  const copyPins = form.children[6].children[0];
+  const apply = form.children[7];
   assert.equal(form.attributes['aria-label'], 'Geo Import options');
   assert.equal(geometry.checked, true);
+  assert.equal(importValues.checked, true);
+  assert.equal(importPins.checked, undefined);
   assert.equal(selectInterface.value, 'interface');
   assert.equal(launches.length, 0);
   geometry.checked = false;
   selectInterface.checked = true;
   selectInterface.events.change();
   assert.equal(apply.disabled, false);
-  assert.equal(form.children[3].hidden, false);
-  assert.equal(form.children[4].hidden, false);
+  assert.equal(form.children[2].hidden, true);
+  assert.equal(form.children[3].hidden, true);
+  assert.equal(form.children[5].hidden, false);
+  assert.equal(form.children[6].hidden, false);
   assert.equal(apply.textContent, 'Pick Interface');
   copyPins.checked = true;
   form.events.submit({ preventDefault() {} });
@@ -391,6 +397,34 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   assert.equal(launches[0].action, 'copy_projected_interface_contacts');
   assert.deepEqual(Array.from(launches[0].payload.contactIds), ['b']);
   assert.equal(launches[0].payload.copyPins, true);
+});
+
+test('Geo Import can restore Pins without importing Values', () => {
+  const { context } = palette();
+  const launches = [];
+  context.send = (action, payload) => {
+    launches.push({ action, payload });
+    return Promise.resolve({ ok: true });
+  };
+  context.openInterfaceContacts({ harnessId: 'harness-1' }, {
+    interfaceId: 'interface-1', name: 'Socket', contacts: [],
+  });
+  const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
+  naming.children[2].events.click();
+  const form = naming.querySelector('.interface-contact-geo-import');
+  const importValues = form.children[2].children[0];
+  const importPins = form.children[3].children[0];
+  const apply = form.children[7];
+  importValues.checked = false;
+  importValues.events.change();
+  assert.equal(apply.disabled, true);
+  importPins.checked = true;
+  importPins.events.change();
+  assert.equal(apply.disabled, false);
+  form.events.submit({ preventDefault() {} });
+  assert.equal(launches[0].action, 'geo_import_interface_contacts');
+  assert.equal(launches[0].payload.importValues, false);
+  assert.equal(launches[0].payload.importPins, true);
 });
 
 asyncTest('projected Interface conflicts submit chosen saved source contacts', async () => {

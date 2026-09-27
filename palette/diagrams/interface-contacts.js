@@ -383,6 +383,10 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   const title = document.createElement("div");
   const geometryLabel = document.createElement("label");
   const geometry = document.createElement("input");
+  const importValuesLabel = document.createElement("label");
+  const importValues = document.createElement("input");
+  const importPinsLabel = document.createElement("label");
+  const importPins = document.createElement("input");
   const interfaceLabel = document.createElement("label");
   const selectInterface = document.createElement("input");
   const status = document.createElement("div");
@@ -399,6 +403,11 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   geometry.value = "geometry";
   geometry.checked = true;
   geometryLabel.append(geometry, "Import geometry names");
+  importValues.type = "checkbox";
+  importValues.checked = true;
+  importValuesLabel.append(importValues, "Import Values");
+  importPins.type = "checkbox";
+  importPinsLabel.append(importPins, "Import Pins from Name Locals names");
   selectInterface.type = "radio";
   selectInterface.name = "geo-import-mode";
   selectInterface.value = "interface";
@@ -411,10 +420,15 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
   const updateChoice = () => {
     status.hidden = geometry.checked;
     copyPinsLabel.hidden = geometry.checked;
+    importValuesLabel.hidden = !geometry.checked;
+    importPinsLabel.hidden = !geometry.checked;
+    apply.disabled = geometry.checked && !importValues.checked && !importPins.checked;
     apply.textContent = geometry.checked ? "Apply" : "Pick Interface";
   };
   geometry.addEventListener("change", updateChoice);
   selectInterface.addEventListener("change", updateChoice);
+  importValues.addEventListener("change", updateChoice);
+  importPins.addEventListener("change", updateChoice);
   apply.type = "submit";
   apply.className = "button compact";
   apply.textContent = "Apply";
@@ -436,14 +450,17 @@ function openInterfaceGeoImport(naming, diagram, harnessId, interfaceId) {
     const pickInterface = selectInterface.checked;
     void send(pickInterface ? "copy_projected_interface_contacts" : "geo_import_interface_contacts", {
       harnessId, interfaceId, contactIds: [...diagram.contactState.selectedIds],
-      ...(pickInterface ? { copyPins: copyPins.checked } : {}),
+      ...(pickInterface ? { copyPins: copyPins.checked } : {
+        importValues: importValues.checked, importPins: importPins.checked,
+      }),
     }).then((response) => {
       if (!response.ok) throw new Error(response.error || "Could not start Geo Import.");
       form.remove();
     }).catch((error) => appendNotice(String(error), true))
       .finally(() => { apply.disabled = false; });
   });
-  form.append(title, geometryLabel, interfaceLabel, status, copyPinsLabel, apply, cancel);
+  form.append(title, geometryLabel, importValuesLabel, importPinsLabel,
+    interfaceLabel, status, copyPinsLabel, apply, cancel);
   naming.append(form);
 }
 
