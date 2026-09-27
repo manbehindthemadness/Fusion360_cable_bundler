@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import replace
+from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -20,6 +21,32 @@ from ...domain import (
 )
 from .support import persist_definition, prune_attachment_associations, read_definition
 from .types import HarnessEditGateway
+
+
+class _PinNumberEdit(Enum):
+    """
+    Distinguish an omitted pin edit from an explicit request to clear it.
+    """
+
+    UNCHANGED = "unchanged"
+
+
+def _edited_pin_number(
+    connection: Connection,
+    attachment: CableEndAttachment,
+    pin_number: Optional[str] | _PinNumberEdit,
+) -> Optional[str]:
+    """
+    Resolve a node-owned pin edit without inheriting from any ancestor.
+    """
+    if pin_number is _PinNumberEdit.UNCHANGED:
+        return attachment.pin_number
+    if pin_number is not None and not isinstance(pin_number, str):
+        raise ValueError("Pin number must be text or null.")
+    normalized = pin_number.strip() if pin_number is not None else None
+    if normalized and connection.attachment_children(attachment.attachment_id):
+        raise ValueError("Only a terminal connection can have a pin number.")
+    return normalized or None
 
 
 # noinspection DuplicatedCode
@@ -63,6 +90,7 @@ def attach_cable_end(
         attachment_id=attachment_id,
         parent_attachment_id=existing.parent_attachment_id,
         name=attachment.name or existing.name,
+        pin_number=existing.pin_number,
         metadata=existing.metadata,
         ordered_control_ids=existing.ordered_control_ids,
         visual_overrides=existing.visual_overrides,
@@ -345,6 +373,7 @@ def set_cable_end_attachment_properties(
     dielectric_material: Optional[str] = None,
     manufacturer: Optional[str] = None,
     part_number: Optional[str] = None,
+    pin_number: Optional[str] | _PinNumberEdit = _PinNumberEdit.UNCHANGED,
 ) -> None:
     """
     Replace metadata and optional construction overrides owned by one branch.
@@ -357,6 +386,7 @@ def set_cable_end_attachment_properties(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
+    edited_pin_number = _edited_pin_number(connection, attachment, pin_number)
     branch_overrides = attachment.visual_overrides
     group_diameter_mm: Optional[float] = None
     if diameter_mm is not None:
@@ -394,7 +424,12 @@ def set_cable_end_attachment_properties(
     updated_connection = _replace_cable_end_attachment(
         connection,
         attachment_id,
-        replace(attachment, metadata=metadata, visual_overrides=branch_overrides),
+        replace(
+            attachment,
+            metadata=metadata,
+            visual_overrides=branch_overrides,
+            pin_number=edited_pin_number,
+        ),
     )
     if group_diameter_mm is not None:
         _validate_connection_diameter_budget(group_diameter_mm, updated_connection)
@@ -416,6 +451,8 @@ def set_cable_end_attachment_shielding(
     dielectric_material: Optional[str],
     metadata: Metadata,
     gateway: HarnessEditGateway,
+    *,
+    pin_number: Optional[str] | _PinNumberEdit = _PinNumberEdit.UNCHANGED,
 ) -> None:
     """
     Replace connector metadata and its shielding construction overrides atomically.
@@ -435,11 +472,13 @@ def set_cable_end_attachment_shielding(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
+    edited_pin_number = _edited_pin_number(connection, attachment, pin_number)
     normalized = None if shielding is None else shielding.strip()
     normalized_dielectric = None if dielectric_material is None else dielectric_material.strip()
     updated_attachment = replace(
         attachment,
         metadata=metadata,
+        pin_number=edited_pin_number,
         visual_overrides=replace(
             attachment.visual_overrides,
             shielding=normalized,

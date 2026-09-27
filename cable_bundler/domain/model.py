@@ -168,6 +168,7 @@ class CableEndAttachment:
     visual_overrides: CableVisualOverrides = CableVisualOverrides()
     parent_attachment_id: Optional[UUID] = None
     shielding_target: Optional[CableEndTarget] = None
+    pin_number: Optional[str] = None
 
     def __post_init__(self) -> None:
         """
@@ -181,6 +182,10 @@ class CableEndAttachment:
             raise ValueError("Cable-end attachment inherited name must be text.")
         if not isinstance(self.name, str):
             raise ValueError("Cable-end attachment name must be text.")
+        if self.pin_number is not None and (
+            not isinstance(self.pin_number, str) or not self.pin_number.strip()
+        ):
+            raise ValueError("Cable-end attachment pin number must be non-empty text or null.")
         if not isinstance(self.parameters, tuple) or any(
             isinstance(value, bool)
             or not isinstance(value, (int, float))

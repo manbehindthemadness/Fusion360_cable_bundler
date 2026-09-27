@@ -477,11 +477,11 @@ test('Cable Details badges only terminal physical connection nodes', () => {
   const connection = definition.connections.find((item) => item.connectionId === 'a1');
   const parent = {
     attachmentId: 'profile', name: 'Profile', parentAttachmentId: null,
-    targetKind: 'profile', connected: true, visualOverrides: {},
+    targetKind: 'profile', connected: true, visualOverrides: {}, pinNumber: 'old',
   };
   const child = {
     attachmentId: 'terminal', name: 'Terminal', parentAttachmentId: 'profile',
-    targetKind: 'joint_origin', connected: true, visualOverrides: {},
+    targetKind: 'joint_origin', connected: true, visualOverrides: {}, pinNumber: 'A2',
   };
   connection.attachment = parent;
   connection.attachments = [parent, child];
@@ -500,6 +500,12 @@ test('Cable Details badges only terminal physical connection nodes', () => {
   assert.equal(descendants(profileNode, (element) => (
     element.className?.split(' ').includes('connection-physical-indicator')
   )).length, 0);
+  assert.equal(descendants(profileNode, (element) => (
+    element.className === 'connection-pin-number'
+  )).length, 0);
+  assert.equal(descendants(terminalNode, (element) => (
+    element.className === 'connection-pin-number'
+  ))[0].textContent, 'P A2');
   const badges = descendants(terminalNode, (element) => (
     element.className?.split(' ').includes('connection-physical-indicator')
   ));
@@ -518,6 +524,40 @@ test('Cable Details badges only terminal physical connection nodes', () => {
     element.className?.split(' ').includes('connection-physical-indicator')
   ))[0];
   assert.equal(outline.className.split(' ').includes('disconnected'), true);
+});
+
+test('Connection Associations shows P only on terminal cards with a pin value', () => {
+  const { context } = palette();
+  const definition = harness();
+  const connection = definition.connections.find((item) => item.connectionId === 'a1');
+  connection.attachments = [
+    { attachmentId: 'parent', parentAttachmentId: null, name: 'Parent', pinNumber: 'old' },
+    { attachmentId: 'first', parentAttachmentId: 'parent', name: 'First', pinNumber: '7' },
+    { attachmentId: 'second', parentAttachmentId: 'parent', name: 'Second' },
+  ];
+  const left = context.connectionAssociationCandidates(definition, { connectionId: 'a1' });
+  assert.equal(JSON.stringify(left.map((item) => item.pinNumber)), JSON.stringify(['7', null]));
+  context.openCableEndAttachmentProperties(
+    definition, definition.cableGroups[0],
+    { ...connection.attachments[0], connectionId: 'a1', visualOverrides: {} },
+  );
+  const properties = context.document.body.querySelector('.connection-properties');
+  assert.equal(descendants(properties, (item) => (
+    item.tag === 'label' && item.textContent === 'P'
+  )).length, 0);
+  properties.close();
+  context.openConnectionAssociationPanel(
+    definition, { connectionId: 'a1' }, { connectionId: 'b1' }, left,
+    [{ attachmentId: 'other', connectionId: 'b1', connectionName: 'Other', label: 'Other' }],
+    'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const cards = descendants(dialog, (item) => item.className?.includes('create-association-card'));
+  const first = cards.find((item) => item.dataset.attachmentId === 'first');
+  const second = cards.find((item) => item.dataset.attachmentId === 'second');
+  assert.equal(descendants(first, (item) => item.className === 'connection-pin-number')[0].textContent,
+    'P 7');
+  assert.equal(descendants(second, (item) => item.className === 'connection-pin-number').length, 0);
 });
 
 test('Cable Details gives associated terminal nodes matching numbered color badges', () => {

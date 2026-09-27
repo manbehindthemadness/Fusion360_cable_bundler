@@ -262,6 +262,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "Connector datum",
         metadata=(("connector", "J1"),),
         attachment_id=UUID(int=901),
+        pin_number="A2",
         shielding_target=CableEndTarget(
             AttachmentTargetKind.CONSTRUCTION_POINT,
             "shield-token",
@@ -299,6 +300,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         },
         "name": "Connector datum",
         "nameOverride": "",
+        "pinNumber": "A2",
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
         "orderedControlIds": [],
@@ -326,6 +328,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "shieldingTarget": None,
         "name": "Connection",
         "nameOverride": "",
+        "pinNumber": None,
         "targetKind": None,
         "metadata": [],
         "orderedControlIds": [],

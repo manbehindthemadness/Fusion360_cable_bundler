@@ -109,6 +109,22 @@ function appendShieldingOverrideControls(form, inherited, overrides) {
   return { shielding, dielectricMaterial };
 }
 
+/** Add an optional, node-owned pin field only for a terminal connection. */
+function appendTerminalPinNumberField(form, connection, attachment) {
+  if ((connection.attachments || []).some((candidate) => (
+    candidate.parentAttachmentId === attachment.attachmentId
+  ))) return null;
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  label.textContent = "P";
+  input.type = "text";
+  input.className = "filter";
+  input.value = attachment.pinNumber || "";
+  label.append(input);
+  form.append(label);
+  return input;
+}
+
 /** Open construction overrides and metadata owned by one divided connection branch. */
 function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   if (!attachment) return;
@@ -139,6 +155,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     const shieldingControls = appendShieldingOverrideControls(
       form, inheritedMaterials, overrides,
     );
+    const pinNumber = appendTerminalPinNumberField(form, connection, attachment);
     const metadataEditor = createMetadataEditor(attachment.metadata || []);
     form.append(metadataEditor.wrapper);
     form.addEventListener("submit", async (event) => {
@@ -157,6 +174,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
             : (shieldingControls.dielectricMaterial.toggle.checked
               ? shieldingControls.dielectricMaterial.input.value.trim() : null),
           metadata: metadataEditor.read(),
+          ...(pinNumber ? { pinNumber: pinNumber.value.trim() || null } : {}),
         });
         if (response.ok) dialog.close();
         else error.textContent = response.error || "Could not save connection properties.";
@@ -221,6 +239,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   updateDielectricVisibility();
   addMaterialOverride("manufacturer", "Manufacturer", []);
   addMaterialOverride("partNumber", "Part Number", []);
+  const pinNumber = appendTerminalPinNumberField(form, connection, attachment);
   const metadataEditor = createMetadataEditor(attachment.metadata || []);
   form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {
@@ -279,6 +298,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
         manufacturer,
         partNumber,
         metadata: metadataEditor.read(),
+        ...(pinNumber ? { pinNumber: pinNumber.value.trim() || null } : {}),
       });
       if (response.ok) dialog.close();
       else error.textContent = response.error || "Could not save connection properties.";

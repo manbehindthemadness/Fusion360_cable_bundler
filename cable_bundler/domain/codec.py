@@ -373,6 +373,7 @@ def _attachment_to_dict(attachment: CableEndAttachment) -> dict[str, Any]:
         "entity_token": attachment.entity_token,
         "inherited_name": attachment.inherited_name,
         "name": attachment.name,
+        "pin_number": attachment.pin_number,
         "parameters": list(attachment.parameters),
         "metadata": _metadata_to_list(attachment.metadata),
         "attachment_id": str(attachment.attachment_id),
@@ -539,6 +540,11 @@ def _parse_attachment(raw_value: object, path: str) -> Optional[CableEndAttachme
             entity_token=_require_str(value, "entity_token", f"{path}.entity_token"),
             inherited_name=_require_str(value, "inherited_name", f"{path}.inherited_name"),
             name=_require_str(value, "name", f"{path}.name"),
+            pin_number=(
+                _require_str(value, "pin_number", f"{path}.pin_number")
+                if value.get("pin_number") is not None
+                else None
+            ),
             parameters=tuple(parameters),
             metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
             attachment_id=(

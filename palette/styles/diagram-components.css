@@ -85,6 +85,12 @@
   stroke-width: 2.7;
 }
 .connection-association-indicator { pointer-events: none; }
+.cable-group-details-node .connection-pin-number {
+  fill: var(--text);
+  font-size: 8px;
+  text-anchor: middle;
+  pointer-events: none;
+}
 .connection-association-indicator rect {
   stroke: var(--surface);
   stroke-width: 1.5;

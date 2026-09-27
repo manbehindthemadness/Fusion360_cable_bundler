@@ -687,9 +687,10 @@ def _apply_property_edit(
         connection_id = _read_payload_uuid(payload, "connectionId", "cable-end connection")
         attachment_id = _read_payload_uuid(payload, "attachmentId", "connection node")
         metadata = _read_metadata(payload.get("metadata", []), "Cable-end connection metadata")
+        pin_edit = {"pin_number": payload["pinNumber"]} if "pinNumber" in payload else {}
         if property_overrides is None:
             set_cable_end_attachment_properties(
-                harness_id, connection_id, attachment_id, metadata, gateway
+                harness_id, connection_id, attachment_id, metadata, gateway, **pin_edit
             )
         else:
             set_cable_end_attachment_properties(
@@ -706,6 +707,7 @@ def _apply_property_edit(
                 dielectric_material=property_overrides.dielectric_material,
                 manufacturer=property_overrides.manufacturer,
                 part_number=property_overrides.part_number,
+                **pin_edit,
             )
         return "Saved cable-end connection properties."
     if action == "set_cable_end_attachment_shielding":
@@ -723,6 +725,7 @@ def _apply_property_edit(
             dielectric_material,
             _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
             gateway,
+            **({"pin_number": payload["pinNumber"]} if "pinNumber" in payload else {}),
         )
         return "Saved cable-end connection shielding."
     if action == "set_cable_end_attachment_visual_overrides":

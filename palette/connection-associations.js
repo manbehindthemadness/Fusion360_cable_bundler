@@ -214,6 +214,12 @@ function renderConnectionAssociationCard(item, elsewhere, showContextMenu, conte
   name.textContent = item.label;
   owner.textContent = elsewhere ? `${item.connectionName} · Associated elsewhere` : item.connectionName;
   card.append(name, owner);
+  if (item.pinNumber) {
+    const pin = document.createElement("small");
+    pin.className = "connection-pin-number";
+    pin.textContent = `P ${item.pinNumber}`;
+    card.append(pin);
+  }
   if (elsewhere) {
     card.title = "Drag to bring this connection and its existing association into the center.";
   } else card.title = `${item.label} · Drag to create or change an association`;

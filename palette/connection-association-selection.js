@@ -96,6 +96,7 @@ function connectionAssociationCandidates(harness, anchor, peer = null) {
         connectionId: connection.connectionId,
         connectionName: connection.name || "Cable end",
         label: attachment.name || "Connection",
+        pinNumber: attachment.pinNumber || null,
       });
     }
   }
@@ -291,4 +292,3 @@ function beginCableGroupAttachmentAssociation(harness, source) {
   document.addEventListener("click", handleConnectionAssociationClick, true);
   document.addEventListener("keydown", handleConnectionAssociationKeyDown, true);
 }
-

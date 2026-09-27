@@ -278,6 +278,15 @@ function renderCableGroupDetailsGraphic(harness, group, focusedConnectionId, sho
       groupNode.dataset.physicalConnection = hasChildren ? "false" : "true";
       if (!hasChildren) {
         groupNode.append(renderPhysicalConnectionIcon(node, node.item.connected));
+        if (node.item.pinNumber) {
+          const pin = svgElement("text", {
+            class: "connection-pin-number",
+            x: node.x,
+            y: node.y + 14,
+          });
+          pin.textContent = `P ${node.item.pinNumber}`;
+          groupNode.append(pin);
+        }
         const association = associationBadges.get(node.item.attachmentId);
         if (association) {
           const number = `${association.number}`;

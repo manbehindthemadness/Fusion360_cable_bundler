@@ -182,6 +182,7 @@ def test_palette_edit_saves_connection_properties(
                 "dielectricMaterial": None,
                 "manufacturer": "Branch maker",
                 "partNumber": "BR-01",
+                "pinNumber": "A2",
                 "metadata": [{"key": "location", "value": "P2"}],
             }
         ),
@@ -201,6 +202,7 @@ def test_palette_edit_saves_connection_properties(
         dielectric_material=None,
         manufacturer="Branch maker",
         part_number="BR-01",
+        pin_number="A2",
     )
     assert result == "Saved cable-end connection properties."
 
@@ -229,11 +231,21 @@ def test_palette_edit_saves_connection_shielding_override(
                 "attachmentId": str(attachment_id),
                 "shielding": "",
                 "dielectricMaterial": None,
+                "pinNumber": "7",
             }
         ),
     )
 
-    save.assert_called_once_with(harness_id, connection_id, attachment_id, "", None, (), gateway)
+    save.assert_called_once_with(
+        harness_id,
+        connection_id,
+        attachment_id,
+        "",
+        None,
+        (),
+        gateway,
+        pin_number="7",
+    )
     assert result == "Saved cable-end connection shielding."
 
 

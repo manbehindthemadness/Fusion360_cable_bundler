@@ -103,6 +103,7 @@ def _attachment_payload(
         ),
         "name": attachment_display_name(design, attachment),
         "nameOverride": attachment.name,
+        "pinNumber": attachment.pin_number,
         "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,
         "metadata": _metadata_payload(attachment.metadata),
         "connected": connected,

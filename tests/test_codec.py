@@ -208,6 +208,7 @@ def test_round_trip_preserves_optional_cable_end_attachment(
         "Pin 4",
         (0.25, 0.75),
         (("drawing-reference", "J1"),),
+        pin_number="A2",
     )
     definition = replace(
         valid_harness,
@@ -222,10 +223,12 @@ def test_round_trip_preserves_optional_cable_end_attachment(
 
     legacy_payload = json.loads(serialized)
     legacy_payload["connections"][0]["attachment"].pop("metadata")
+    legacy_payload["connections"][0]["attachment"].pop("pin_number")
     legacy_definition = loads(json.dumps(legacy_payload))
     legacy_attachment = legacy_definition.connections[0].attachment
     assert legacy_attachment is not None
     assert legacy_attachment.metadata == ()
+    assert legacy_attachment.pin_number is None
 
 
 def test_round_trip_preserves_unattached_cable_end_connection(

@@ -106,6 +106,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         dielectric_material="FEP",
         manufacturer="Branch maker",
         part_number="BR-01",
+        pin_number="B3",
     )
     stored = loads(gateway.serialized_definition)
     saved_attachment = stored.connections[0].attachments[1]
@@ -118,6 +119,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.visual_overrides.dielectric_material == "FEP"
     assert saved_attachment.visual_overrides.manufacturer == "Branch maker"
     assert saved_attachment.visual_overrides.part_number == "BR-01"
+    assert saved_attachment.pin_number == "B3"
 
     group = valid_harness.cable_groups[0]
     with pytest.raises(ValueError, match="collectively exceed"):
@@ -158,6 +160,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         attachment_id=second_attachment_id,
         name="Bulkhead socket",
         metadata=(("connector", "J1"),),
+        pin_number="B3",
         visual_overrides=saved_attachment.visual_overrides,
     )
     assert stored.cable_groups == valid_harness.cable_groups
@@ -174,6 +177,78 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert remaining_attachment is not None
     assert remaining_attachment.attachment_id == second_attachment_id
     assert stored.cable_groups == valid_harness.cable_groups
+
+
+def test_pin_numbers_belong_only_to_terminal_connections(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save, preserve, and clear a leaf pin without inheriting or assigning it to a parent.
+    """
+    parent = CableEndAttachment(
+        AttachmentTargetKind.PROFILE,
+        "profile-token",
+        "Profile",
+        attachment_id=UUID(int=961),
+    )
+    child = CableEndAttachment(
+        None,
+        attachment_id=UUID(int=962),
+        parent_attachment_id=parent.attachment_id,
+    )
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=parent,
+        additional_attachments=(child,),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+    )
+    gateway = _recording_gateway(definition)
+
+    with pytest.raises(ValueError, match="terminal connection"):
+        set_cable_end_attachment_properties(
+            definition.harness_id,
+            connection.connection_id,
+            parent.attachment_id,
+            (),
+            gateway,
+            pin_number="1",
+        )
+    set_cable_end_attachment_properties(
+        definition.harness_id,
+        connection.connection_id,
+        child.attachment_id,
+        (),
+        gateway,
+        pin_number=" A2 ",
+    )
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachments[0].pin_number is None
+    assert stored.connections[0].attachments[1].pin_number == "A2"
+
+    set_cable_end_attachment_shielding(
+        definition.harness_id,
+        connection.connection_id,
+        child.attachment_id,
+        None,
+        None,
+        (),
+        gateway,
+    )
+    assert loads(gateway.serialized_definition).connections[0].attachments[1].pin_number == "A2"
+    set_cable_end_attachment_shielding(
+        definition.harness_id,
+        connection.connection_id,
+        child.attachment_id,
+        None,
+        None,
+        (),
+        gateway,
+        pin_number=None,
+    )
+    assert loads(gateway.serialized_definition).connections[0].attachments[1].pin_number is None
 
 
 def test_attaches_shielding_data_only_to_a_shielded_leaf(

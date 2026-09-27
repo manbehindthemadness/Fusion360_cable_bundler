@@ -193,7 +193,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   const properties = context.document.body.querySelector('.connection-properties');
   assert.equal(properties.open, true);
   const propertyFields = descendants(properties, (node) => node.tag === 'input');
-  assert.equal(propertyFields.length, 16);
+  assert.equal(propertyFields.length, 17);
   assert.equal(propertyFields[0].value, '0.075');
   propertyFields[0].value = '0.06';
   propertyFields[1].checked = true;
@@ -214,7 +214,9 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   propertyFields[12].checked = true;
   propertyFields[12].events.change();
   propertyFields[13].value = 'BR-01';
-  propertyFields[15].value = 'J2';
+  assert.equal(propertyFields[14].parentElement.textContent, 'P');
+  propertyFields[14].value = 'A2';
+  propertyFields[16].value = 'J2';
   await properties.querySelector('form').events.submit({ preventDefault() {} });
   assert.equal(calls.length, 6,
     descendants(properties, (node) => node.attributes.role === 'alert')[0].textContent);
@@ -229,6 +231,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(calls[5].payload.dielectricMaterial, 'FEP');
   assert.equal(calls[5].payload.manufacturer, 'Branch maker');
   assert.equal(calls[5].payload.partNumber, 'BR-01');
+  assert.equal(calls[5].payload.pinNumber, 'A2');
   assert.equal(JSON.stringify(calls[5].payload.metadata), JSON.stringify([
     { key: 'connector', value: 'J2' },
   ]));
@@ -346,6 +349,10 @@ asyncTest('connection Properties place shielding above custom metadata', async (
   assert.equal(fields[1].disabled, true);
   assert.equal(fields[3].value, '');
   assert.equal(fields[3].disabled, true);
+  const pin = descendants(dialog, (item) => (
+    item.tag === 'label' && item.textContent === 'P'
+  ))[0].querySelector('input');
+  pin.value = '7';
   fields[0].checked = true;
   fields[0].events.change();
   fields[1].value = '';
@@ -361,6 +368,7 @@ asyncTest('connection Properties place shielding above custom metadata', async (
   assert.equal(calls[0].payload.attachmentId, 'connector');
   assert.equal(calls[0].payload.shielding, '');
   assert.equal(calls[0].payload.dielectricMaterial, null);
+  assert.equal(calls[0].payload.pinNumber, '7');
   assert.equal(JSON.stringify(calls[0].payload.metadata), JSON.stringify([]));
 });
 
