@@ -17,8 +17,8 @@ from ....application.interface_contact_rows import ContactSelectionMode
 from ....domain import InterfaceContact, InterfaceDefinition, loads
 from ...attachment_targets import attachment_target_kind
 from ...interface_contact_cache import remember_contact_entity
-from ...interface_contact_planes import collect_contact_plane, validate_plane_corners
-from ...interface_contact_rows import collect_contact_row, validate_row_endpoints
+from ...interface_contact_planes import collect_contact_plane
+from ...interface_contact_rows import collect_contact_row
 from ..constants import INTERFACE_CONTACTS_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
@@ -77,7 +77,11 @@ def _selected_contacts(
             collect_contact_plane if mode is ContactSelectionMode.PLANE else collect_contact_row
         )
         targets = (
-            collect(*entities, on_selected=partial(remember_contact_entity, design))
+            collect(
+                *entities,
+                on_selected=partial(remember_contact_entity, design),
+                design=design,
+            )
             if design is not None
             else collect(*entities)
         )
@@ -95,31 +99,24 @@ def _selected_contacts(
 
 class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
     """
-    Keep completion disabled until at least one valid contact is selected.
+    Enable completion for the required count of distinct persistent targets.
     """
 
     def __init__(self, mode: ContactSelectionMode = ContactSelectionMode.MANUAL) -> None:
         """
-        Retain the picker policy for validation without scanning neighboring geometry.
+        Retain the picker policy for selection-count validation.
         """
         super().__init__()
         self._mode = mode
 
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
-        Validate the complete current selection.
+        Check picker identities; execution reports geometric incompatibility.
         """
         try:
             entities = _selected_entities(args.inputs)
-            if self._mode is not ContactSelectionMode.MANUAL:
-                if len(entities) != 2:
-                    raise ValueError("Pick two targets to define the selection.")
-                validate = (
-                    validate_plane_corners
-                    if self._mode is ContactSelectionMode.PLANE
-                    else validate_row_endpoints
-                )
-                validate(*entities)
+            if self._mode is not ContactSelectionMode.MANUAL and len(entities) != 2:
+                raise ValueError("Pick two targets to define the selection.")
         except (AttributeError, RuntimeError, TypeError, ValueError):
             args.areInputsValid = False
             return

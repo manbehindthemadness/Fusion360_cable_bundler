@@ -22,12 +22,18 @@ def _collection(*items: object) -> SimpleNamespace:
     return SimpleNamespace(count=len(items), item=lambda index: items[index])
 
 
-def _face(token: str, x: float, owner: object, occurrence: object) -> SimpleNamespace:
+def _face(
+    token: str,
+    x: float,
+    owner: object,
+    occurrence: object,
+    y: float = 0.0,
+) -> SimpleNamespace:
     """
     Create an asymmetric copper face whose single circular hole locates its pad.
     """
     geometry = SimpleNamespace(
-        objectType="adsk::core::Circle3D", center=SimpleNamespace(x=x, y=0, z=0)
+        objectType="adsk::core::Circle3D", center=SimpleNamespace(x=x, y=y, z=0)
     )
     edge = SimpleNamespace(geometry=geometry, assemblyContext=occurrence)
     loop = SimpleNamespace(isOuter=False, coEdges=_collection(SimpleNamespace(edge=edge)))
@@ -37,7 +43,7 @@ def _face(token: str, x: float, owner: object, occurrence: object) -> SimpleName
         assemblyContext=occurrence,
         body=SimpleNamespace(parentComponent=owner),
         geometry=SimpleNamespace(objectType="adsk::core::Plane"),
-        centroid=SimpleNamespace(x=x, y=0.3, z=0),
+        centroid=SimpleNamespace(x=x, y=y + 0.3, z=0),
         loops=_collection(loop),
     )
 
@@ -85,8 +91,142 @@ def test_row_collects_across_bodies_in_one_occurrence_using_hole_centers(
     assert module._near_segment_bounds(nearby, (0, 0, 0), (20, 0, 0))
     assert not module._near_segment_bounds(distant, (0, 0, 0), (20, 0, 0))
     last.assemblyContext = SimpleNamespace(fullPathName="PCB:2")
-    with pytest.raises(ValueError, match="same sketch or component occurrence"):
-        module.validate_row_endpoints(first, last)
+    module.validate_row_endpoints(first, last)
+
+
+@pytest.mark.parametrize("mode", (ContactSelectionMode.ROW, ContactSelectionMode.PLANE))
+def test_row_and_plane_collect_across_children_of_one_parent(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: ContactSelectionMode,
+) -> None:
+    """
+    Collect sibling subcomponent contacts without including another assembly.
+    """
+    rows = importlib.import_module("cable_bundler.fusion.interface_contact_rows")
+    planes = importlib.import_module("cable_bundler.fusion.interface_contact_planes")
+    monkeypatch.setitem(vars(rows), "attachment_target_kind", lambda entity: entity.kind)
+    monkeypatch.setitem(vars(rows), "_face_normal", lambda _entity: [0, 0, 1])
+    monkeypatch.setitem(
+        vars(planes), "_parent_axes", lambda _entity: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    )
+    contacts = []
+    occurrences = []
+    for token, x, path in (
+        ("first", 0, "Parent:1+Left:1"),
+        ("middle", 1, "Parent:1+Middle:1"),
+        ("last", 2, "Parent:1+Right:1"),
+        ("unrelated", 1, "Elsewhere:1"),
+    ):
+        owner = SimpleNamespace(entityToken=f"owner-{token}")
+        occurrence = SimpleNamespace(fullPathName=path, component=owner, isVisible=True)
+        face = _face(token, x, owner, occurrence, y=x)
+        proxy = SimpleNamespace(isVisible=True, faces=_collection(face))
+        body = SimpleNamespace(createForAssemblyContext=Mock(return_value=proxy))
+        owner.bRepBodies = _collection(body)
+        contacts.append(face)
+        occurrences.append(occurrence)
+    root = SimpleNamespace(
+        entityToken="root", bRepBodies=_collection(), allOccurrences=_collection(*occurrences)
+    )
+    design = SimpleNamespace(rootComponent=root)
+    selected = Mock()
+    collect = (
+        rows.collect_contact_row
+        if mode is ContactSelectionMode.ROW
+        else planes.collect_contact_plane
+    )
+
+    result = collect(contacts[0], contacts[2], on_selected=selected, design=design)
+
+    assert [target.token for target in result] == ["first", "middle", "last"]
+    assert [call.args[0] for call in selected.call_args_list] == contacts[:3]
+
+
+@pytest.mark.parametrize("mode", (ContactSelectionMode.ROW, ContactSelectionMode.PLANE))
+def test_row_and_plane_include_child_between_parent_endpoints(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: ContactSelectionMode,
+) -> None:
+    """
+    Search descendants even when both picked endpoints belong to the parent.
+    """
+    rows = importlib.import_module("cable_bundler.fusion.interface_contact_rows")
+    planes = importlib.import_module("cable_bundler.fusion.interface_contact_planes")
+    monkeypatch.setitem(vars(rows), "attachment_target_kind", lambda entity: entity.kind)
+    monkeypatch.setitem(vars(rows), "_face_normal", lambda _entity: [0, 0, 1])
+    monkeypatch.setitem(
+        vars(planes), "_parent_axes", lambda _entity: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    )
+    parent = SimpleNamespace(entityToken="parent")
+    child = SimpleNamespace(entityToken="child")
+    parent_occurrence = SimpleNamespace(fullPathName="Parent:1", component=parent, isVisible=True)
+    child_occurrence = SimpleNamespace(
+        fullPathName="Parent:1+Child:1", component=child, isVisible=True
+    )
+    first = _face("first", 0, parent, parent_occurrence, y=0)
+    middle = _face("middle", 1, child, child_occurrence, y=1)
+    last = _face("last", 2, parent, parent_occurrence, y=2)
+    parent.bRepBodies = _collection(
+        SimpleNamespace(
+            createForAssemblyContext=Mock(
+                return_value=SimpleNamespace(isVisible=True, faces=_collection(first, last))
+            )
+        )
+    )
+    child.bRepBodies = _collection(
+        SimpleNamespace(
+            createForAssemblyContext=Mock(
+                return_value=SimpleNamespace(isVisible=True, faces=_collection(middle))
+            )
+        )
+    )
+    root = SimpleNamespace(
+        entityToken="root", allOccurrences=_collection(parent_occurrence, child_occurrence)
+    )
+    design = SimpleNamespace(rootComponent=root)
+    collect = (
+        rows.collect_contact_row
+        if mode is ContactSelectionMode.ROW
+        else planes.collect_contact_plane
+    )
+
+    result = collect(first, last, design=design)
+
+    assert [target.token for target in result] == ["first", "middle", "last"]
+
+
+def test_cross_assembly_sketch_scopes_include_root_and_child_sketches(
+    addin_module: object,
+) -> None:
+    """
+    Keep sketch targets scoped to sketches in each relevant component.
+    """
+    rows = importlib.import_module("cable_bundler.fusion.interface_contact_rows")
+    root_sketch = SimpleNamespace(entityToken="root-sketch", isVisible=True)
+    child_sketch = SimpleNamespace(entityToken="child-sketch", isVisible=True)
+    child_component = SimpleNamespace(sketches=_collection(child_sketch))
+    occurrence = SimpleNamespace(fullPathName="Child:1", component=child_component, isVisible=True)
+    root = SimpleNamespace(
+        sketches=_collection(root_sketch), allOccurrences=_collection(occurrence)
+    )
+    first = SimpleNamespace(parentSketch=root_sketch, assemblyContext=None)
+    last = SimpleNamespace(parentSketch=child_sketch, assemblyContext=occurrence)
+
+    scopes = list(
+        rows._candidate_scopes(
+            first,
+            last,
+            AttachmentTargetKind.SKETCH_POINT,
+            SimpleNamespace(rootComponent=root),
+        )
+    )
+
+    assert [(scope.owner, scope.occurrence) for scope in scopes] == [
+        (root_sketch, None),
+        (child_sketch, occurrence),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -128,9 +268,55 @@ def test_row_command_collects_geometry_between_exactly_two_picks(
     contacts = module._selected_contacts(inputs, mode)
     assert [contact.entity_token for contact in contacts] == ["first", "middle", "last"]
     collect.assert_called_once_with(first, last)
+    collect.reset_mock()
+    design = object()
+    module._selected_contacts(inputs, mode, design)
+    assert collect.call_args.args == (first, last)
+    assert collect.call_args.kwargs["design"] is design
+    assert callable(collect.call_args.kwargs["on_selected"])
     picker.selectionCount = 1
     with pytest.raises(ValueError, match="first and last"):
         module._selected_contacts(inputs, mode)
+
+
+@pytest.mark.parametrize("mode", (ContactSelectionMode.ROW, ContactSelectionMode.PLANE))
+def test_row_and_plane_enable_ok_for_two_persistent_targets(
+    addin_module: object,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: ContactSelectionMode,
+) -> None:
+    """
+    Let execution report geometry errors after the picker accepts two targets.
+    """
+    module = importlib.import_module("cable_bundler.fusion.ui.commands.interface_contacts")
+    monkeypatch.setitem(vars(module), "attachment_target_kind", lambda entity: entity.kind)
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.core"]),
+        "SelectionCommandInput",
+        SimpleNamespace(cast=lambda item: item),
+    )
+    first = SimpleNamespace(entityToken="first", kind=AttachmentTargetKind.FACE)
+    last = SimpleNamespace(entityToken="last", kind=AttachmentTargetKind.FACE)
+    picks = [first]
+    picker = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda index: SimpleNamespace(entity=picks[index]),
+    )
+    args = SimpleNamespace(
+        inputs=SimpleNamespace(itemById=lambda _identifier: picker),
+        areInputsValid=False,
+    )
+    handler = module._ValidateHandler(mode)
+
+    handler.notify(args)
+    assert args.areInputsValid is False
+    picks.append(last)
+    picker.selectionCount = 2
+    handler.notify(args)
+    assert args.areInputsValid is True
+    picks[1] = first
+    handler.notify(args)
+    assert args.areInputsValid is False
 
 
 def test_row_launcher_preserves_mode_and_rejects_unknown_modes(addin_module: object) -> None:
@@ -161,7 +347,7 @@ def test_plane_adapter_collects_rectangle_in_owner_frame(
     addin_module: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Pass the local frame to membership and reject other occurrences or missing frames.
+    Pass the local frame to membership and reject missing frames.
     """
     module = importlib.import_module("cable_bundler.fusion.interface_contact_planes")
     owner = SimpleNamespace(key=("board", "PCB:1"), occurrence=object())
@@ -175,6 +361,7 @@ def test_plane_adapter_collects_rectangle_in_owner_frame(
     monkeypatch.setitem(vars(module), "_scope", lambda _: owner)
     monkeypatch.setitem(vars(module), "_parent_axes", lambda _: [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     monkeypatch.setitem(vars(module), "describe_row_target", lambda entity: entity.target)
+    monkeypatch.setitem(vars(module), "_candidate_scopes", lambda *_: iter((owner,)))
     monkeypatch.setitem(vars(module), "_candidates", lambda *_: iter(entities))
     assert module.collect_contact_plane(entities[0], entities[-1]) == (first, middle, last)
     monkeypatch.setitem(vars(module), "_parent_axes", lambda _: None)
@@ -185,5 +372,5 @@ def test_plane_adapter_collects_rectangle_in_owner_frame(
         "_scope",
         lambda entity: SimpleNamespace(key=("board", entity.target.token), occurrence=object()),
     )
-    with pytest.raises(ValueError, match="same sketch or component occurrence"):
-        module.validate_plane_corners(entities[0], entities[-1])
+    monkeypatch.setitem(vars(module), "_parent_axes", lambda _: [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    assert module.validate_plane_corners(entities[0], entities[-1]).last == last

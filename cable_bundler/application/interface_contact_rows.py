@@ -81,7 +81,7 @@ def select_contact_row(
     facing surfaces, parallel neighboring rows, and targets beyond the ends are
     excluded. Oriented targets additionally require depth agreement within
     0.001 mm so thin adjacent faces do not join the row. The caller restricts
-    candidates to one owning sketch or occurrence.
+    candidates to the selected endpoints' shared assembly branch.
     """
     if not math.isfinite(tolerance_mm) or tolerance_mm <= 0:
         raise ValueError("Row tolerance must be positive and finite.")

@@ -33,7 +33,7 @@ class _Scope:
 
 def _scope(entity: Any) -> _Scope:
     """
-    Restrict a row to the first endpoint's sketch or component occurrence.
+    Identify a target's owning sketch or component occurrence.
     """
     sketch = getattr(entity, "parentSketch", None)
     body = getattr(entity, "body", None)
@@ -167,13 +167,76 @@ def _candidates(
                 yield proxy
 
 
+def _component_scopes(
+    component: Any,
+    occurrence: Any,
+    kind: AttachmentTargetKind,
+) -> Iterator[_Scope]:
+    """
+    Yield the component or its sketches in one assembly context.
+    """
+    owners = (
+        _collection_items(getattr(component, "sketches", None))
+        if kind in (AttachmentTargetKind.PROFILE, AttachmentTargetKind.SKETCH_POINT)
+        else (component,)
+    )
+    path = getattr(occurrence, "fullPathName", "")
+    for owner in owners:
+        if getattr(owner, "isVisible", True):
+            yield _Scope(owner, occurrence, (owner.entityToken, path))
+
+
+def _candidate_scopes(
+    first: Any,
+    last: Any,
+    kind: AttachmentTargetKind,
+    design: Any = None,
+) -> Iterator[_Scope]:
+    """
+    Search one owner locally or the shared assembly branch across owners.
+
+    Cross-assembly searches need the active design so every candidate can be
+    expressed in its own occurrence's assembly context.
+    """
+    start_scope, end_scope = _scope(first), _scope(last)
+    if design is None:
+        if start_scope.key != end_scope.key:
+            raise ValueError("An active design is required to select across subassemblies.")
+        yield start_scope
+        return
+    root = getattr(design, "rootComponent", None)
+    if root is None:
+        raise ValueError("The active design has no assembly root.")
+    start_path = start_scope.key[1].split("+") if start_scope.key[1] else []
+    end_path = end_scope.key[1].split("+") if end_scope.key[1] else []
+    common: list[str] = []
+    for start_name, end_name in zip(start_path, end_path):
+        if start_name != end_name:
+            break
+        common.append(start_name)
+    common_path = "+".join(common)
+    if not common_path:
+        yield from _component_scopes(root, None, kind)
+    occurrences = getattr(root, "allOccurrences", None)
+    if occurrences is None:
+        raise ValueError("The assembly occurrences are unavailable.")
+    for occurrence in _collection_items(occurrences):
+        path = getattr(occurrence, "fullPathName", "")
+        if common_path and path != common_path and not path.startswith(f"{common_path}+"):
+            continue
+        if not getattr(occurrence, "isVisible", True):
+            continue
+        component = getattr(occurrence, "component", None)
+        if component is None:
+            continue
+        yield from _component_scopes(component, occurrence, kind)
+
+
 def validate_row_endpoints(first: Any, last: Any) -> tuple[RowTarget, RowTarget]:
     """
-    Validate endpoint compatibility without scanning the rest of the component.
+    Validate endpoint compatibility in their shared assembly frame.
     """
     start, end = describe_row_target(first), describe_row_target(last)
-    if _scope(first).key != _scope(last).key:
-        raise ValueError("Pick row endpoints in the same sketch or component occurrence.")
     select_contact_row(start, end, ())
     return start, end
 
@@ -200,27 +263,30 @@ def collect_contact_row(
     last: Any,
     *,
     on_selected: Callable[[Any], None] | None = None,
+    design: Any = None,
 ) -> tuple[RowTarget, ...]:
     """
-    Collect the finite row in endpoint order, skipping unavailable neighboring geometry.
+    Collect the finite row across the shared assembly branch in endpoint order.
+
+    Unavailable neighboring geometry is skipped; endpoint errors remain explicit.
     """
     start, end = validate_row_endpoints(first, last)
-    scope = _scope(first)
     candidates = []
     entities = {id(start): first, id(end): last}
-    for entity in _candidates(scope, start.kind, (start.center_mm, end.center_mm)):
-        try:
-            if start.kind is AttachmentTargetKind.FACE and (
-                entity.geometry.objectType != start.geometry_type
-                or not _near_segment_bounds(entity, start.center_mm, end.center_mm)
-            ):
+    for scope in _candidate_scopes(first, last, start.kind, design):
+        for entity in _candidates(scope, start.kind, (start.center_mm, end.center_mm)):
+            try:
+                if start.kind is AttachmentTargetKind.FACE and (
+                    entity.geometry.objectType != start.geometry_type
+                    or not _near_segment_bounds(entity, start.center_mm, end.center_mm)
+                ):
+                    continue
+                candidate = describe_row_target(entity)
+            except (AttributeError, RuntimeError, TypeError, ValueError):
                 continue
-            candidate = describe_row_target(entity)
-        except (AttributeError, RuntimeError, TypeError, ValueError):
-            continue
-        candidates.append(candidate)
-        if on_selected is not None:
-            entities[id(candidate)] = entity
+            candidates.append(candidate)
+            if on_selected is not None:
+                entities[id(candidate)] = entity
     selected = select_contact_row(start, end, candidates)
     if on_selected is not None:
         for target in selected:
