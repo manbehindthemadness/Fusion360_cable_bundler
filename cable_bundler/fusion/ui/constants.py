@@ -117,6 +117,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-projection.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-render.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contacts.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-imports.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-naming.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-selection.js",
     ADDIN_ROOT / "palette" / "diagrams" / "master-junction-popup.js",

@@ -152,7 +152,8 @@ def test_palette_native_selector_launches_after_bridge_response(
     vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
     vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
     opened = Mock()
-    monkeypatch.setattr(addin_module, launcher_name, opened)
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(vars(native_dialogs), launcher_name, opened)
     data = json.dumps(payload)
     args = SimpleNamespace(action=action, data=data, returnData="")
 
@@ -194,7 +195,8 @@ def test_native_selector_keeps_palette_hidden_until_its_command_ends(
         assert palette.isVisible is False
 
     opened = Mock(side_effect=verify_hidden)
-    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(vars(native_dialogs), "_open_add_junction_command", opened)
 
     addin_module._request_deferred_palette_launch(application, "add_junction", "{}")
     addin_module._DeferredPaletteLaunchHandler().notify(SimpleNamespace())
@@ -226,8 +228,9 @@ def test_failed_native_selector_restores_palette(
     application = SimpleNamespace(
         userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: palette)),
     )
-    monkeypatch.setattr(
-        addin_module,
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(
+        vars(native_dialogs),
         "_open_add_junction_command",
         Mock(side_effect=RuntimeError("picker unavailable")),
     )
@@ -251,7 +254,8 @@ def test_disabled_auto_hide_leaves_palette_visible(
         userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: palette)),
     )
     opened = Mock()
-    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(vars(native_dialogs), "_open_add_junction_command", opened)
 
     addin_module._launch_native_dialog(application, "add_junction", '{"autoHide": false}')
 
@@ -306,7 +310,8 @@ def test_connect_selector_launches_without_custom_event(
     command_definition.execute.assert_called_once_with()
     assert palette.isVisible is False
     assert (
-        addin_module._runtime.palette_restore_command_id == addin_module.ATTACH_CABLE_END_COMMAND_ID
+        addin_module._runtime.palette_restore_command_id
+        == importlib.import_module("cable_bundler.fusion.ui.constants").ATTACH_CABLE_END_COMMAND_ID
     )
     addin_module._restore_native_dialog_palette(
         application, addin_module._runtime.palette_restore_command_id
@@ -333,7 +338,8 @@ def test_rejected_deferred_event_uses_direct_native_launcher(
         userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: None)),
     )
     opened = Mock()
-    monkeypatch.setattr(addin_module, "_open_add_junction_command", opened)
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(vars(native_dialogs), "_open_add_junction_command", opened)
 
     addin_module._request_deferred_palette_launch(application, "add_junction", "{}")
 
@@ -353,8 +359,9 @@ def test_rejected_event_clears_request_before_direct_launcher_failure(
         fireCustomEvent=Mock(return_value=False),
         userInterface=SimpleNamespace(palettes=SimpleNamespace(itemById=lambda _identity: None)),
     )
-    monkeypatch.setattr(
-        addin_module,
+    native_dialogs = importlib.import_module("cable_bundler.fusion.ui.palette_native_dialogs")
+    monkeypatch.setitem(
+        vars(native_dialogs),
         "_open_add_junction_command",
         Mock(side_effect=RuntimeError("selector unavailable")),
     )
