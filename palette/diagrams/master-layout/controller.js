@@ -54,7 +54,7 @@ function relationshipLayoutRouteSets(components, harness) {
 function relationshipLayoutEdgeGroups(component, harness) {
   return new Map(component.edges.map((edge) => [
     relationshipEdgeId(edge),
-    relationshipEndpointGroups(harness, edge.junction, edge.relationship),
+    relationshipEdgeGroups(harness, edge),
   ]));
 }
 
@@ -75,7 +75,7 @@ function relationshipLayoutRouteFingerprint(components, harness, layoutKey) {
         const edgeId = relationshipEdgeId(edge);
         return [
           edgeId,
-          relationshipEndpointGroups(harness, edge.junction, edge.relationship)
+          relationshipEdgeGroups(harness, edge)
             .map((group) => group.cableGroupId).sort(),
         ];
       }),

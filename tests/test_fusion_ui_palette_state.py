@@ -89,6 +89,61 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
             "geometryRevision": addin_module._runtime.contact_geometry_revision,
         }
     ]
+    assert payload["harnesses"][0]["interfaces"][0]["connectedConnectionIds"] == []
+
+
+def test_palette_state_links_interfaces_by_resolved_contact_targets(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Expose saved target matches to the diagram without equating matching pins.
+    """
+    interface = InterfaceDefinition(
+        UUID(int=910),
+        "Connector",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body"),),
+        (
+            InterfaceContact(
+                UUID(int=911), AttachmentTargetKind.CONSTRUCTION_POINT, "contact-a", pin="7"
+            ),
+            InterfaceContact(
+                UUID(int=912), AttachmentTargetKind.CONSTRUCTION_POINT, "contact-b", pin="8"
+            ),
+        ),
+    )
+    connected = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "contact-a",
+        "Connector point",
+        attachment_id=UUID(int=913),
+        pin_number="different pin",
+    )
+    unavailable = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        "contact-b",
+        "Missing point",
+        attachment_id=UUID(int=914),
+    )
+    definition = replace(
+        valid_harness,
+        interfaces=(interface,),
+        connections=(
+            replace(valid_harness.connections[0], attachment=connected),
+            replace(valid_harness.connections[1], attachment=unavailable),
+        ),
+    )
+    gateway = SimpleNamespace(is_entity_token_resolvable=lambda token: token != "contact-b")
+    result = HarnessLoadResult("Harness_001", definition, None, ())
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+
+    payload = json.loads(addin_module.serialize_palette_state(object(), ""))
+
+    assert payload["harnesses"][0]["interfaces"][0]["connectedConnectionIds"] == [
+        str(valid_harness.connections[0].connection_id)
+    ]
 
 
 def test_contact_palette_scope_is_document_and_version_specific(

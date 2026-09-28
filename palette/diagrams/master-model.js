@@ -172,17 +172,63 @@ function relationshipJunctionGroups(harness, junction) {
   ));
 }
 
+/** Return routed groups represented by contact-backed connections on an Interface. */
+function relationshipInterfaceGroups(harness, interfaceItem) {
+  const connectionIds = new Set(interfaceItem.connectedConnectionIds || []);
+  return (harness.cableGroups || []).filter((group) => (
+    (group.connectionIds || []).some((id) => connectionIds.has(id))
+  ));
+}
+
+/** Link a connected Interface to each pathway boundary hosting its cable end. */
+function relationshipInterfaceEdges(harness) {
+  const pathwayIds = new Set((harness.pathways || []).map((item) => item.pathwayId));
+  return (harness.interfaces || []).flatMap((interfaceItem) => {
+    const connectedIds = new Set(interfaceItem.connectedConnectionIds || []);
+    const byBoundary = new Map();
+    (harness.standaloneEnds || []).forEach((end) => {
+      if (!connectedIds.has(end.connectionId) || !pathwayIds.has(end.pathwayId)) return;
+      const key = `${end.pathwayId}:${end.endpoint}`;
+      if (!byBoundary.has(key)) byBoundary.set(key, {
+        pathwayId: end.pathwayId, endpoint: end.endpoint, connectionIds: [],
+      });
+      byBoundary.get(key).connectionIds.push(end.connectionId);
+    });
+    return [...byBoundary.values()].map((relationship) => ({
+      kind: "interface",
+      interface: interfaceItem,
+      relationship,
+      sourceId: relationship.endpoint === "start"
+        ? `interface:${interfaceItem.interfaceId}` : `pathway:${relationship.pathwayId}`,
+      targetId: relationship.endpoint === "start"
+        ? `pathway:${relationship.pathwayId}` : `interface:${interfaceItem.interfaceId}`,
+    }));
+  });
+}
+
 function relationshipTopology(harness) {
   const nodes = new Map();
   const edges = [];
   const addNode = (kind, item, index) => {
-    const id = `${kind}:${kind === "pathway" ? item.pathwayId : item.junctionId}`;
+    const id = `${kind}:${{
+      pathway: item.pathwayId,
+      junction: item.junctionId,
+      interface: item.interfaceId,
+    }[kind]}`;
     nodes.set(id, { id, kind, item, index, incoming: [], outgoing: [], neighbors: [] });
   };
   harness.pathways.forEach((pathway, index) => addNode("pathway", pathway, index));
   (harness.junctions || []).forEach((junction, index) => (
     addNode("junction", junction, harness.pathways.length + index)
   ));
+  const interfaceEdges = relationshipInterfaceEdges(harness);
+  const connectedInterfaceIds = new Set(interfaceEdges.map((edge) => edge.interface.interfaceId));
+  (harness.interfaces || []).forEach((interfaceItem, index) => {
+    if (connectedInterfaceIds.has(interfaceItem.interfaceId)) {
+      addNode("interface", interfaceItem,
+        harness.pathways.length + (harness.junctions || []).length + index);
+    }
+  });
   (harness.junctions || []).forEach((junction) => {
     const junctionId = `junction:${junction.junctionId}`;
     (junction.pathwayRelationships || []).forEach((relationship) => {
@@ -190,13 +236,21 @@ function relationshipTopology(harness) {
       if (!nodes.has(junctionId) || !nodes.has(pathwayId)) return;
       const sourceId = relationship.endpoint === "end" ? pathwayId : junctionId;
       const targetId = relationship.endpoint === "end" ? junctionId : pathwayId;
-      const edge = { junction, relationship, sourceId, targetId };
+      const edge = { kind: "junction", junction, relationship, sourceId, targetId };
       edges.push(edge);
       nodes.get(sourceId).outgoing.push(targetId);
       nodes.get(targetId).incoming.push(sourceId);
       nodes.get(junctionId).neighbors.push(pathwayId);
       nodes.get(pathwayId).neighbors.push(junctionId);
     });
+  });
+  interfaceEdges.forEach((edge) => {
+    if (!nodes.has(edge.sourceId) || !nodes.has(edge.targetId)) return;
+    edges.push(edge);
+    nodes.get(edge.sourceId).outgoing.push(edge.targetId);
+    nodes.get(edge.targetId).incoming.push(edge.sourceId);
+    nodes.get(edge.sourceId).neighbors.push(edge.targetId);
+    nodes.get(edge.targetId).neighbors.push(edge.sourceId);
   });
   const indegrees = new Map([...nodes].map(([id, node]) => [id, node.incoming.length]));
   const ready = [...nodes.values()].filter((node) => !indegrees.get(node.id))

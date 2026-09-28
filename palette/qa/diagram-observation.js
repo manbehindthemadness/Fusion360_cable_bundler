@@ -31,15 +31,19 @@ function qaTopologyEdgeGap(edge, diagram) {
   const pathway = diagram.querySelector(
     `.relationship-topology-pathway[data-pathway-id="${edge.dataset.pathwayId}"]`,
   );
-  const junction = diagram.querySelector(
-    `.relationship-topology-junction[data-junction-id="${edge.dataset.junctionId}"]`,
-  );
-  if (!pathway || !junction) return Number.POSITIVE_INFINITY;
+  const other = edge.dataset.interfaceId
+    ? diagram.querySelector(
+      `.relationship-topology-interface[data-interface-id="${edge.dataset.interfaceId}"]`,
+    )
+    : diagram.querySelector(
+      `.relationship-topology-junction[data-junction-id="${edge.dataset.junctionId}"]`,
+    );
+  if (!pathway || !other) return Number.POSITIVE_INFINITY;
   const pathwayEnd = pathway?.querySelector?.(
     `.relationship-end-list[data-endpoint="${endpoint === "end" ? "end" : "start"}"]`,
   ) || pathway;
-  const source = endpoint === "end" ? pathwayEnd : junction;
-  const target = endpoint === "end" ? junction : pathwayEnd;
+  const source = endpoint === "end" ? pathwayEnd : other;
+  const target = endpoint === "end" ? other : pathwayEnd;
   const matrix = edge.getScreenCTM();
   if (!matrix) return Number.POSITIVE_INFINITY;
   const project = (point) => ({
@@ -74,12 +78,13 @@ function qaTopologyEdgeGap(edge, diagram) {
 }
 
 function qaTopologyTraceClearance(edge, diagram) {
+  const connectedIds = new Set([
+    edge.parentElement?.dataset.sourceId,
+    edge.parentElement?.dataset.targetId,
+  ]);
   const nodes = Array.from(
     diagram.querySelectorAll?.(".relationship-topology-node") || [],
-  ).filter((node) => {
-    if (node.dataset.pathwayId === edge.dataset.pathwayId) return false;
-    return node.dataset.junctionId !== edge.dataset.junctionId;
-  });
+  ).filter((node) => !connectedIds.has(node.dataset.nodeId));
   const cableTraces = Array.from(
     edge.parentElement?.querySelectorAll?.(".cable-trace") || [],
   );
@@ -327,7 +332,7 @@ function qaObserveRelationshipDiagram() {
     const expectedTopologyEdgeCount = (harness.junctions || []).reduce(
       (count, junction) => count + (junction.pathwayRelationships || []).length,
       0,
-    );
+    ) + relationshipInterfaceEdges(harness).length;
     const topologyEdgeCount = topologyEdges.length;
     const layoutRevision = Number.parseInt(
       topologyStack?.dataset.diagramLayoutRevision || "0", 10,
@@ -432,4 +437,3 @@ function handleQaProbe(data) {
   }
   return "INVALID";
 }
-

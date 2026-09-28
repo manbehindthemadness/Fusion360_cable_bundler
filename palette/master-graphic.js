@@ -149,10 +149,22 @@ function renderRelationshipMap(harness) {
     stack.className = "relationship-pathway-stack";
     stack.dataset.diagramContractVersion = RELATIONSHIP_DIAGRAM_CONTRACT_VERSION;
     stack.dataset.diagramLayout = RELATIONSHIP_DIAGRAM_LAYOUT;
-    const interfaceSection = renderRelationshipInterfaces(harness, query, showContextMenu);
-    relationshipTopology(harness).forEach((component) => {
+    const topology = relationshipTopology(harness);
+    const connectedInterfaceIds = new Set(topology.flatMap((component) => (
+      component.nodes.filter((node) => node.kind === "interface")
+        .map((node) => node.item.interfaceId)
+    )));
+    const interfaceSection = renderRelationshipInterfaces(
+      harness, query, showContextMenu, connectedInterfaceIds,
+    );
+    topology.forEach((component) => {
       const searchable = component.nodes.map((node) => {
         if (node.kind === "junction") return node.item.name || "";
+        if (node.kind === "interface") {
+          return `${node.item.name} ${(node.item.contacts || []).map(
+            (contact) => `${contact.name || ""} ${contact.pin || ""}`,
+          ).join(" ")}`;
+        }
         const groups = relationshipPathwayGroups(harness, node.item.pathwayId);
         const endpointSearch = ["start", "end"].flatMap((endpoint) => (
           relationshipEndGroups(harness, node.item.pathwayId, endpoint, connections)
@@ -169,7 +181,9 @@ function renderRelationshipMap(harness) {
         const wrapper = document.createElement("div");
         const memberGroups = node.kind === "junction"
           ? relationshipJunctionGroups(harness, node.item)
-          : relationshipPathwayGroups(harness, node.item.pathwayId);
+          : node.kind === "interface"
+            ? relationshipInterfaceGroups(harness, node.item)
+            : relationshipPathwayGroups(harness, node.item.pathwayId);
         const focusNodeIds = [node.id, ...node.neighbors];
         wrapper.className = `relationship-topology-node relationship-topology-${node.kind}`;
         wrapper.dataset.nodeId = node.id;
@@ -177,6 +191,11 @@ function renderRelationshipMap(harness) {
         if (node.kind === "junction") {
           wrapper.dataset.junctionId = node.item.junctionId;
           wrapper.append(renderRelationshipJunctionHub(
+            harness, node.item, showContextMenu, focusController, focusNodeIds,
+          ));
+        } else if (node.kind === "interface") {
+          wrapper.dataset.interfaceId = node.item.interfaceId;
+          wrapper.append(renderRelationshipInterfaceCard(
             harness, node.item, showContextMenu, focusController, focusNodeIds,
           ));
         } else {

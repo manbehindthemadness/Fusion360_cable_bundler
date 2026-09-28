@@ -491,11 +491,53 @@ function addRelationshipMapContextMenu(workspace, harness) {
   return show;
 }
 
-/** Render reference-only Interface cards separately from route topology. */
-function renderRelationshipInterfaces(harness, query, showContextMenu) {
+/** Give connected and reference-only Interface cards the same actions. */
+function renderRelationshipInterfaceCard(
+  harness, item, showContextMenu, focusController = null, nodeIds = [],
+) {
+  const card = document.createElement("button");
+  const name = document.createElement("strong");
+  const details = document.createElement("small");
+  const targets = item.targets || [];
+  const linked = targets.filter((target) => target.hasLinkedGeometry).length;
+  card.type = "button";
+  card.className = "relationship-interface-card";
+  card.dataset.interfaceId = item.interfaceId;
+  name.textContent = item.name;
+  details.textContent = targets.length === 1
+    ? `${targets[0].kind} · ${linked ? "linked" : "unlinked"}`
+    : `${targets.length} targets · ${linked} linked`;
+  hoverHighlight(card, () => highlightMember(harness, "interface", item.interfaceId));
+  if (focusController) {
+    focusController.bind(card, {
+      groups: relationshipInterfaceGroups(harness, item), nodeIds,
+    });
+  }
+  card.addEventListener("click", () => openInterfaceContacts(harness, item));
+  card.addEventListener("contextmenu", (event) => {
+    event.stopPropagation();
+    showContextMenu(event, [
+      { label: "Edit Contacts", action: () => openInterfaceContacts(harness, item) },
+      { label: "Rename", action: () => {
+        const value = window.prompt("Interface name", item.name);
+        if (value === null || !value.trim() || value.trim() === item.name) return;
+        void mutate("rename_interface", {
+          harnessId: harness.harnessId, interfaceId: item.interfaceId, name: value.trim(),
+        }, `Renaming ${item.name}…`);
+      } },
+      { label: "Delete", action: () => removeInterface(harness, item) },
+    ]);
+  });
+  card.append(name, details);
+  return card;
+}
+
+/** Keep Interfaces without a graph connection in the reference-only strip. */
+function renderRelationshipInterfaces(harness, query, showContextMenu, connectedIds) {
   const interfaces = (harness.interfaces || []).filter((item) => (
-    !query || `${item.name} ${(item.targets || []).map((target) => target.kind).join(" ")}`
-      .toLocaleLowerCase().includes(query)
+    !connectedIds.has(item.interfaceId)
+      && (!query || `${item.name} ${(item.targets || []).map((target) => target.kind).join(" ")}`
+        .toLocaleLowerCase().includes(query))
   ));
   if (!interfaces.length) return null;
   const section = document.createElement("section");
@@ -504,40 +546,9 @@ function renderRelationshipInterfaces(harness, query, showContextMenu) {
   section.className = "relationship-interfaces";
   heading.textContent = "Interfaces";
   cards.className = "relationship-interface-cards";
-  interfaces.forEach((item) => {
-    const card = document.createElement("button");
-    const name = document.createElement("strong");
-    const details = document.createElement("small");
-    const targets = item.targets || [];
-    const linked = targets.filter((target) => target.hasLinkedGeometry).length;
-    card.type = "button";
-    card.className = "relationship-interface-card";
-    card.dataset.interfaceId = item.interfaceId;
-    name.textContent = item.name;
-    details.textContent = targets.length === 1
-      ? `${targets[0].kind} · ${linked ? "linked" : "unlinked"}`
-      : `${targets.length} targets · ${linked} linked`;
-    hoverHighlight(card, () => highlightMember(harness, "interface", item.interfaceId));
-    card.addEventListener("click", () => {
-      openInterfaceContacts(harness, item);
-    });
-    card.addEventListener("contextmenu", (event) => {
-      event.stopPropagation();
-      showContextMenu(event, [
-        { label: "Edit Contacts", action: () => openInterfaceContacts(harness, item) },
-        { label: "Rename", action: () => {
-          const value = window.prompt("Interface name", item.name);
-          if (value === null || !value.trim() || value.trim() === item.name) return;
-          void mutate("rename_interface", {
-            harnessId: harness.harnessId, interfaceId: item.interfaceId, name: value.trim(),
-          }, `Renaming ${item.name}…`);
-        } },
-        { label: "Delete", action: () => removeInterface(harness, item) },
-      ]);
-    });
-    card.append(name, details);
-    cards.append(card);
-  });
+  interfaces.forEach((item) => cards.append(
+    renderRelationshipInterfaceCard(harness, item, showContextMenu),
+  ));
   section.append(heading, cards);
   return section;
 }

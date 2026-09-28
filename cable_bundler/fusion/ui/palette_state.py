@@ -26,6 +26,7 @@ from ...application import (
     plan_cable_group_routes,
 )
 from ...domain import (
+    AttachmentTargetKind,
     CableAppearanceReference,
     CableColor,
     CableEndAttachment,
@@ -120,6 +121,48 @@ def _attachment_payload(
         "orderedControlIds": [str(control_id) for control_id in attachment.ordered_control_ids],
         "visualOverrides": _visual_overrides_payload(attachment.visual_overrides),
         "resolvedDiameterMm": resolved_diameter_mm,
+    }
+
+
+def _connected_interface_connections(
+    definition: HarnessDefinition,
+    design: Optional[adsk.fusion.Design],
+    gateway: Any,
+) -> dict[UUID, tuple[UUID, ...]]:
+    """
+    Project resolved contact-target matches without adding a persisted relationship.
+
+    A connection can target several contacts on one Interface; its identity is
+    returned once, in saved connection order. Pin labels do not establish links.
+    """
+    interfaces_by_target: dict[tuple[AttachmentTargetKind, str], set[UUID]] = {}
+    for interface in definition.interfaces:
+        for contact in interface.contacts:
+            interfaces_by_target.setdefault((contact.kind, contact.entity_token), set()).add(
+                interface.interface_id
+            )
+    connected: dict[UUID, list[UUID]] = {
+        interface.interface_id: [] for interface in definition.interfaces
+    }
+    for connection in definition.connections:
+        matched: set[UUID] = set()
+        for attachment in connection.attachments:
+            interface_ids = interfaces_by_target.get(
+                (attachment.target_kind, attachment.entity_token), set()
+            )
+            if not interface_ids or not attachment.has_target:
+                continue
+            resolved = (
+                resolve_attachment_target(design, attachment) is not None
+                if design is not None
+                else gateway.is_entity_token_resolvable(attachment.entity_token)
+            )
+            if resolved:
+                matched.update(interface_ids)
+        for interface_id in matched:
+            connected[interface_id].append(connection.connection_id)
+    return {
+        interface_id: tuple(connection_ids) for interface_id, connection_ids in connected.items()
     }
 
 
@@ -267,6 +310,9 @@ def serialize_palette_state(
             if connection.connection_id in group.connection_ids
             for attachment in connection.attachments
         }
+        connected_interface_connections = _connected_interface_connections(
+            definition, design, gateway
+        )
         has_route_preview, has_generated_solids, has_finalized_geometry = _harness_render_state(
             application,
             gateway,
@@ -390,6 +436,12 @@ def serialize_palette_state(
                     {
                         "interfaceId": str(interface.interface_id),
                         "name": interface.name,
+                        "connectedConnectionIds": [
+                            str(connection_id)
+                            for connection_id in connected_interface_connections[
+                                interface.interface_id
+                            ]
+                        ],
                         "targets": [
                             {
                                 "kind": target.kind.value,

@@ -22,7 +22,9 @@ function renderTopologyEdge(edge, route, groups) {
   const structural = svgElement("path", {
     class: "structural-trace",
     d: route.d,
-    "data-junction-id": edge.junction.junctionId,
+    ...(edge.kind === "interface"
+      ? { "data-interface-id": edge.interface.interfaceId }
+      : { "data-junction-id": edge.junction.junctionId }),
     "data-pathway-id": edge.relationship.pathwayId,
     "data-endpoint": edge.relationship.endpoint,
     "data-source-x": `${route.points[0].x}`,

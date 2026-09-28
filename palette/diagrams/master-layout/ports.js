@@ -29,12 +29,27 @@ function relationshipEndpointGroups(harness, junction, relationship) {
   )));
 }
 
+/** Resolve the cable groups carried by either kind of topology relationship. */
+function relationshipEdgeGroups(harness, edge) {
+  if (edge.kind !== "interface") {
+    return relationshipEndpointGroups(harness, edge.junction, edge.relationship);
+  }
+  const connectionIds = new Set(edge.relationship.connectionIds);
+  return (harness.cableGroups || []).filter((group) => (
+    (group.connectionIds || []).some((id) => connectionIds.has(id))
+  ));
+}
+
 function pointInsideRectangle(point, rectangle) {
   return point.x > rectangle.left && point.x < rectangle.right
     && point.y > rectangle.top && point.y < rectangle.bottom;
 }
 
 function relationshipEdgeId(edge) {
+  if (edge.kind === "interface") {
+    return ["interface", edge.interface.interfaceId, edge.relationship.pathwayId,
+      edge.relationship.endpoint].join(":");
+  }
   return [
     edge.junction.junctionId,
     edge.relationship.pathwayId,
