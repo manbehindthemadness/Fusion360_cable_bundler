@@ -1,33 +1,3 @@
-let contactEditorLifecycleSequence = 0;
-let contactEditorInstanceSequence = 0;
-
-/** Send bounded lifecycle facts to Fusion's application log without affecting the editor. */
-function logContactEditorLifecycle(dialog, event, reason) {
-  const bridge = window.adsk;
-  if (!bridge?.fusionSendData) return;
-  const state = dialog.children[2]?.contactState;
-  const payload = {
-    event, reason,
-    instance: dialog.contactLifecycleInstance,
-    sequence: ++contactEditorLifecycleSequence,
-    elapsedMs: Math.max(0, Date.now() - dialog.contactOpenedAt),
-    harnessId: dialog.dataset.harnessId,
-    interfaceId: dialog.dataset.interfaceId,
-    contactCount: dialog.contactMetadata?.length || 0,
-    suspendedCloses: dialog.autoConnectSuspendedCloses || 0,
-    open: !!dialog.open,
-    attached: document.body.contains(dialog),
-    scopeMatches: dialog.dataset.contactDocumentScope === (currentState.contactDocumentScope || ""),
-    loaded: !!dialog.loadedGeometryKey,
-    requestPending: !!dialog.contactRequestPending,
-    targetPreview: !!state?.autoConnectTargetPreview,
-  };
-  try {
-    const response = bridge.fusionSendData("log_contact_editor_lifecycle", JSON.stringify(payload));
-    if (response?.catch) void response.catch(() => {});
-  } catch (_error) { /* Diagnostics must never interrupt editing. */ }
-}
-
 /** Refresh an open contact diagram when Fusion sends an updated harness state. */
 function refreshInterfaceContacts() {
   for (const [key, cached] of cachedContactGeometries) {
@@ -41,7 +11,6 @@ function refreshInterfaceContacts() {
   const dialog = document.body.querySelector(".interface-contacts-popup");
   if (!dialog?.open) return;
   if (dialog.dataset.contactDocumentScope !== (currentState.contactDocumentScope || "")) {
-    dialog.contactCloseReason = "document-scope-changed";
     dialog.close();
     return;
   }
@@ -54,7 +23,6 @@ function refreshInterfaceContacts() {
   ));
   if (interfaceItem) updateInterfaceContactData(dialog, interfaceItem.contacts || []);
   else {
-    dialog.contactCloseReason = "interface-missing";
     dialog.close();
   }
 }
@@ -73,7 +41,6 @@ function interfaceContactRequest(dialog, extra = {}) {
 function closeStaleInterfaceContactRequest(dialog, response) {
   if (!response.stale) return false;
   if (dialog.open) {
-    dialog.contactCloseReason = "stale-contact-response";
     dialog.close();
   }
   return true;
@@ -482,7 +449,6 @@ function openInterfaceNameLocals(naming, diagram, harnessId, interfaceId) {
 function openInterfaceContacts(harness, interfaceItem) {
   const previous = document.body.querySelector(".interface-contacts-popup");
   if (previous?.open) {
-    previous.contactCloseReason = "replaced";
     previous.close();
   }
   const dialog = document.createElement("dialog");
@@ -503,8 +469,6 @@ function openInterfaceContacts(harness, interfaceItem) {
   dialog.dataset.contactDocumentScope = currentState.contactDocumentScope || "";
   dialog.dataset.contactCacheScope = currentState.contactCacheScope
     || currentState.contactDocumentScope || "";
-  dialog.contactLifecycleInstance = ++contactEditorInstanceSequence;
-  dialog.contactOpenedAt = Date.now();
   dialog.setAttribute("aria-label", `Contacts Editor: ${interfaceItem.name}`);
   title.textContent = `Contacts Editor · ${interfaceItem.name}`;
   modes.className = "interface-contacts-modes";
@@ -661,11 +625,7 @@ function openInterfaceContacts(harness, interfaceItem) {
   close.type = "button";
   close.className = "button";
   close.textContent = "Close";
-  close.addEventListener("click", () => {
-    dialog.contactCloseReason = "button";
-    dialog.close();
-  });
-  dialog.addEventListener("cancel", () => { dialog.contactCloseReason = "escape"; });
+  close.addEventListener("click", () => dialog.close());
   rebuild.type = "button";
   rebuild.className = "button";
   rebuild.textContent = "Rebuild Cache";
@@ -675,14 +635,10 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
-    const reason = dialog.contactCloseReason || "unclassified";
-    dialog.contactCloseReason = null;
     if (dialog.autoConnectSuspendedCloses > 0) {
-      logContactEditorLifecycle(dialog, "close-suspended", reason);
       dialog.autoConnectSuspendedCloses -= 1;
       return;
     }
-    logContactEditorLifecycle(dialog, "close", reason);
     if (pendingAutoConnectTargetSelection?.dialog === dialog) {
       pendingAutoConnectTargetSelection = null;
     }
@@ -697,15 +653,8 @@ function openInterfaceContacts(harness, interfaceItem) {
     diagram.replaceChildren();
     dialog.remove();
   });
-  logContactEditorLifecycle(dialog, "open-request", "initial");
   document.body.append(dialog);
-  try {
-    dialog.showModal();
-  } catch (error) {
-    logContactEditorLifecycle(dialog, "open-failed", "show-failed");
-    throw error;
-  }
-  logContactEditorLifecycle(dialog, "open-shown", "initial");
+  dialog.showModal();
   updateInterfaceContactData(dialog, interfaceItem.contacts || []);
   window.requestAnimationFrame(() => {
     if (dialog.open && !diagram.contactState.workspace.root.hidden) diagram.contactState.workspace.fit();

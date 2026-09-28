@@ -1,54 +1,6 @@
 /** Contact selection, loading, and projection regressions. */
 const { assert, asyncTest, contactItem, descendants, harness, palette, test } = require('./support.cjs');
 
-test('Contacts Editor lifecycle logs opening and button close without contact contents', () => {
-  const { context } = palette();
-  const observations = [];
-  context.window.adsk = { fusionSendData(action, data) {
-    assert.equal(action, 'log_contact_editor_lifecycle');
-    observations.push(JSON.parse(data));
-    return Promise.resolve('{}');
-  } };
-  const contacts = [{ contactId: 'secret-contact', name: 'secret-name', pin: 'secret-pin' }];
-  context.openInterfaceContacts({ harnessId: 'h' }, {
-    interfaceId: 'i', name: 'Socket', contacts,
-  });
-  const dialog = context.document.body.querySelector('.interface-contacts-popup');
-  dialog.children[3].children[0].events.click();
-
-  assert.deepEqual(observations.map((entry) => [entry.event, entry.reason]), [
-    ['open-request', 'initial'], ['open-shown', 'initial'], ['close', 'button'],
-  ]);
-  assert.deepEqual(observations.map((entry) => entry.sequence), [1, 2, 3]);
-  assert.equal(observations[0].attached, false);
-  assert.equal(observations[1].open, true);
-  assert.equal(observations[2].open, false);
-  assert.equal(observations[2].contactCount, 1);
-  assert.equal(JSON.stringify(observations).includes('secret-'), false);
-});
-
-test('Contacts Editor lifecycle records document-change closure', () => {
-  const { context } = palette();
-  const observations = [];
-  context.window.adsk = { fusionSendData(_action, data) {
-    observations.push(JSON.parse(data));
-    return Promise.resolve('{}');
-  } };
-  const definition = harness();
-  definition.interfaces = [{ interfaceId: 'i', name: 'Socket', contacts: [] }];
-  const showDocument = (scope) => context.render({
-    contactDocumentScope: scope, harnesses: [definition], notice: '',
-    theme: { mode: 'fixed', active: 'dark' },
-  });
-  showDocument('first');
-  context.openInterfaceContacts(definition, definition.interfaces[0]);
-  showDocument('second');
-
-  const closure = observations.find((entry) => entry.event === 'close');
-  assert.equal(closure.reason, 'document-scope-changed');
-  assert.equal(closure.scopeMatches, false);
-});
-
 test('Edit Contacts opens the Contacts Editor with Manual, Row, and Plane modes', () => {
   const { context } = palette();
   const launches = [];
