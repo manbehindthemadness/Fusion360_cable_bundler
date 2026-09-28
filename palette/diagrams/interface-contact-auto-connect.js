@@ -79,6 +79,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
   let sourceEnding = null;
   let targetEnding = null;
   let pendingEnding = null;
+  let sourceEditor = null;
   panel.className = "interface-contact-auto-connect";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "Auto Connect options");
@@ -101,18 +102,35 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
   close.type = "button";
   close.className = "button compact";
   close.textContent = "Close";
-  close.addEventListener("click", () => {
+  /** Dismiss the options while restoring the source editor after a target preview. */
+  const closeAutoConnect = () => {
     pendingAutoConnectEndingSelection = null;
-    if (target) dialog.close();
-    else panel.remove();
+    panel.remove();
+    if (!sourceEditor || !dialog.open || !diagram.contactState?.autoConnectTargetPreview) return;
+    const state = diagram.contactState;
+    dialog.dataset.interfaceId = interfaceId;
+    dialog.setAttribute("aria-label", `Contacts Editor: ${source?.name || "Interface"}`);
+    dialog.children[0].textContent = `Contacts Editor · ${source?.name || "Interface"}`;
+    state.interfaceId = interfaceId;
+    state.autoConnectTargetPreview = false;
+    state.selectedIds.clear();
+    sourceEditor.selectedIds.forEach((id) => state.selectedIds.add(id));
+    Object.assign(state, sourceEditor.handlers);
+    sourceEditor.buttons.forEach(([button, disabled]) => { button.disabled = disabled; });
+    dialog.loadedGeometryKey = null;
+    dialog.contactDisplayKey = null;
+    const currentHarness = currentState.harnesses.find((item) => item.harnessId === harness.harnessId);
+    const currentSource = (currentHarness?.interfaces || []).find((item) => item.interfaceId === interfaceId);
+    updateInterfaceContactData(dialog, currentSource?.contacts || sourceEditor.contacts);
+  };
+  close.addEventListener("click", () => {
+    closeAutoConnect();
   });
   panel.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
     event.stopPropagation();
-    pendingAutoConnectEndingSelection = null;
-    if (target) dialog.close();
-    else panel.remove();
+    closeAutoConnect();
   });
   const updateApply = () => {
     apply.disabled = !sourceEnding || !!pendingEnding
@@ -174,7 +192,24 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       appendNotice("Open the master diagram before selecting a target Interface.", true);
       return;
     }
-    if (!target) sourceIds = autoConnectContactIds(state);
+    if (!target) {
+      sourceIds = autoConnectContactIds(state);
+      sourceEditor = {
+        contacts: dialog.contactMetadata,
+        selectedIds: new Set(state.selectedIds),
+        handlers: {
+          onEditContact: state.onEditContact,
+          onEditOrientation: state.onEditOrientation,
+          onDeleteContacts: state.onDeleteContacts,
+          onClearPins: state.onClearPins,
+          onClearValues: state.onClearValues,
+        },
+        buttons: [
+          ...dialog.children[1].children[0].querySelectorAll("button"),
+          ...[...naming.children].filter((item) => item !== panel),
+        ].map((button) => [button, button.disabled]),
+      };
+    }
     const prompt = document.createElement("div");
     const promptText = document.createElement("span");
     const cancelButton = document.createElement("button");
@@ -279,8 +314,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       targetDiameterMm,
     }).then((response) => {
       if (!response.ok) throw new Error(response.error || "Could not apply Auto Connect.");
-      if (target) dialog.close();
-      else panel.remove();
+      closeAutoConnect();
     }).catch((error) => appendNotice(String(error), true))
       .finally(updateApply);
   });

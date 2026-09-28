@@ -58,6 +58,8 @@ asyncTest('Auto Connect sends selected contacts with checked options and convert
   assert.equal(calls.at(-1).payload.includePins, true);
   assert.equal(calls.at(-1).payload.includeValues, false);
   assert.equal(calls.at(-1).payload.diameterMm, 2.5);
+  assert.equal(dialog.open, true);
+  assert.equal(naming.querySelector('.interface-contact-auto-connect'), undefined);
 });
 
 asyncTest('Auto Connect selects a target Interface and sends both contact sets', async () => {
@@ -85,6 +87,7 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   state.items = [{ id: 'a' }, { id: 'b' }];
   state.workspace.root.hidden = false;
   state.selectedIds.add('b');
+  const sourceEditContact = state.onEditContact;
   dialog.children[1].children[1].children[1].events.click();
   const panel = dialog.querySelector('.interface-contact-auto-connect');
   const buttons = descendants(panel, (item) => item.tag === 'button');
@@ -127,6 +130,15 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   assert.equal(calls.at(-1).payload.targetInterfaceId, 'interface-2');
   assert.deepEqual(Array.from(calls.at(-1).payload.targetContactIds), ['y']);
   assert.equal(calls.at(-1).payload.targetIncludePins, false);
+  assert.equal(dialog.open, true);
+  assert.equal(pendingCloseEvents.length, 0);
+  assert.equal(dialog.dataset.interfaceId, 'interface-1');
+  assert.equal(dialog.children[0].textContent, 'Contacts Editor · Source');
+  assert.equal(state.interfaceId, 'interface-1');
+  assert.equal(state.autoConnectTargetPreview, false);
+  assert.equal(state.onEditContact, sourceEditContact);
+  assert.equal(dialog.querySelector('.interface-contact-auto-connect'), undefined);
+  assert.notEqual(dialog.children[1].children[1].children[1].disabled, true);
 });
 
 asyncTest('Auto Connect target selection can be cancelled from the master diagram', async () => {
