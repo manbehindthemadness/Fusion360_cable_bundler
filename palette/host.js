@@ -620,6 +620,9 @@ window.fusionJavaScriptHandler = { handle(action, data) {
   if (action === "interface_projection_conflicts") {
     showInterfaceProjectionConflicts(JSON.parse(data));
   }
+  if (action === "auto_connect_ending_selected" && pendingAutoConnectEndingSelection) {
+    pendingAutoConnectEndingSelection(JSON.parse(data));
+  }
   if (action === "qa_probe") return handleQaProbe(data);
   return "OK";
 }};

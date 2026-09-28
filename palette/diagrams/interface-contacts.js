@@ -624,7 +624,10 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
-    if (dialog.autoConnectSelectingTarget) return;
+    if (dialog.autoConnectSuspendedCloses > 0) {
+      dialog.autoConnectSuspendedCloses -= 1;
+      return;
+    }
     if (pendingAutoConnectTargetSelection?.dialog === dialog) {
       pendingAutoConnectTargetSelection = null;
     }

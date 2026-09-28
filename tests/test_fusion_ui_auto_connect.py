@@ -5,6 +5,7 @@ Focused native-picker coverage for Interface Auto Connect.
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from dataclasses import replace
 from types import SimpleNamespace
@@ -22,6 +23,128 @@ from cable_bundler.domain import (
 )
 from tests.test_batch_connect_interface_contacts import _contact_harness
 from tests.test_edit_harness import _recording_gateway
+
+
+def test_auto_connect_launchers_keep_picker_and_apply_requests_distinct(
+    addin_module: object,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Stage a read-only picker first and a reviewed apply only after explicit submission.
+    """
+    del addin_module
+    launchers = importlib.import_module("cable_bundler.fusion.ui.launchers")
+    slot = SimpleNamespace(prepare=Mock(), clear=Mock())
+    monkeypatch.setattr(launchers._runtime, "pending_auto_connect", slot)
+    definition = SimpleNamespace(execute=Mock(return_value=True))
+    document = object()
+    application = SimpleNamespace(
+        activeDocument=document,
+        userInterface=SimpleNamespace(
+            commandDefinitions=SimpleNamespace(itemById=lambda _identity: definition)
+        ),
+    )
+    launchers._open_auto_connect_picker(
+        application,
+        json.dumps(
+            {
+                "harnessId": str(valid_harness.harness_id),
+                "side": "source",
+                "requestId": "pick-1",
+            }
+        ),
+    )
+    pick = slot.prepare.call_args.args[0]
+    assert isinstance(pick, launchers.AutoConnectPickRequest)
+    assert pick.document is document
+    assert pick.request_id == "pick-1"
+    launchers._open_auto_connect_command(
+        application,
+        json.dumps(
+            {
+                "harnessId": str(valid_harness.harness_id),
+                "interfaceId": str(UUID(int=800)),
+                "contactIds": [str(UUID(int=801))],
+                "connectionId": str(valid_harness.connections[0].connection_id),
+                "includePins": True,
+                "includeValues": False,
+                "diameterMm": None,
+            }
+        ),
+    )
+    apply = slot.prepare.call_args.args[0]
+    assert isinstance(apply, launchers.AutoConnectApplyRequest)
+    assert apply.connection_id == valid_harness.connections[0].connection_id
+    assert apply.include_values is False
+    assert definition.execute.call_count == 2
+
+
+def test_auto_connect_picker_returns_ending_without_saving(
+    addin_module: object,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Return the selected ending to the palette only when the picker finishes.
+    """
+    del addin_module
+    commands = importlib.import_module("cable_bundler.fusion.ui.commands.interface_auto_connect")
+    gateway = _recording_gateway(valid_harness)
+    original = gateway.serialized_definition
+    profile = SimpleNamespace(is_profile=True, nativeObject=None)
+    document = object()
+    send = Mock()
+    application = SimpleNamespace(
+        activeDocument=document,
+        userInterface=SimpleNamespace(
+            palettes=SimpleNamespace(
+                itemById=lambda _identity: SimpleNamespace(sendInfoToHTML=send)
+            )
+        ),
+    )
+    core = sys.modules["adsk.core"]
+    fusion = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(
+        vars(core), "SelectionCommandInput", SimpleNamespace(cast=lambda value: value)
+    )
+    monkeypatch.setitem(
+        vars(fusion),
+        "Profile",
+        SimpleNamespace(cast=lambda value: value if getattr(value, "is_profile", False) else None),
+    )
+    monkeypatch.setitem(vars(commands), "_create_harness_gateway", lambda _app: gateway)
+    picker = SimpleNamespace(
+        selectionCount=1, selection=lambda _index: SimpleNamespace(entity=profile)
+    )
+    args = SimpleNamespace(
+        command=SimpleNamespace(commandInputs=SimpleNamespace(itemById=lambda _identity: picker)),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+    request = commands.AutoConnectPickRequest(
+        valid_harness.harness_id, "source", "pick-1", document
+    )
+    execute = commands._PickExecuteHandler(
+        request, ((valid_harness.connections[0].connection_id, None, profile),)
+    )
+    execute.notify(args)
+    assert not args.executeFailed
+    assert gateway.serialized_definition == original
+    send.assert_not_called()
+    commands._PickDestroyedHandler(execute).notify(args)
+    action, serialized = send.call_args.args
+    assert action == "auto_connect_ending_selected"
+    assert json.loads(serialized) == {
+        "harnessId": str(valid_harness.harness_id),
+        "side": "source",
+        "requestId": "pick-1",
+        "cancelled": False,
+        "connectionId": str(valid_harness.connections[0].connection_id),
+        "parentAttachmentId": None,
+        "name": valid_harness.connections[0].name,
+    }
 
 
 def test_auto_connect_picker_only_accepts_grouped_end_profiles(
@@ -98,7 +221,7 @@ def test_auto_connect_native_execute_saves_and_refreshes_one_batch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Carry picker and contact identities through the normal Fusion transaction.
+    Apply a reviewed ending and contact selection in one Fusion transaction.
     """
     del addin_module
     commands = importlib.import_module("cable_bundler.fusion.ui.commands.interface_auto_connect")
@@ -110,6 +233,7 @@ def test_auto_connect_native_execute_saves_and_refreshes_one_batch(
     contact = SimpleNamespace(is_profile=False)
     entities = {
         "contact-a": (contact,),
+        "fusion-start-token": (profile,),
     }
     design = SimpleNamespace(findEntityByToken=lambda token: entities.get(token, ()))
     application = SimpleNamespace(
@@ -137,25 +261,19 @@ def test_auto_connect_native_execute_saves_and_refreshes_one_batch(
     monkeypatch.setitem(vars(commands), "refresh_generated_cable_groups_for_connection", refresh)
     monkeypatch.setitem(vars(commands), "_refresh_active_preview", lambda *_args: "")
     monkeypatch.setitem(vars(commands), "_send_palette_state", send)
-    picker = SimpleNamespace(
-        selectionCount=1, selection=lambda _index: SimpleNamespace(entity=profile)
-    )
-    inputs = SimpleNamespace(itemById=lambda _identity: picker)
-    args = SimpleNamespace(
-        command=SimpleNamespace(commandInputs=inputs), executeFailed=False, executeFailedMessage=""
-    )
-    request = commands._AutoConnectRequest(
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+    request = commands.AutoConnectApplyRequest(
         definition.harness_id,
         definition.interfaces[0].interface_id,
         (UUID(int=801),),
+        definition.connections[0].connection_id,
+        None,
         True,
         True,
         None,
         document,
     )
-    commands._ExecuteHandler(
-        request, ((definition.connections[0].connection_id, None, profile),)
-    ).notify(args)
+    commands._ApplyExecuteHandler(request).notify(args)
     assert not args.executeFailed
     stored = loads(gateway.serialized_definition)
     assert stored.connections[0].attachments[0].entity_token == "contact-a"
@@ -193,7 +311,15 @@ def test_auto_connect_native_execute_pairs_two_picked_endings(
     second_profile = SimpleNamespace(is_profile=True, nativeObject=None, token="second")
     contact = SimpleNamespace(is_profile=False)
     design = SimpleNamespace(
-        findEntityByToken=lambda token: (contact,) if token in {"contact-a", "target-a"} else ()
+        findEntityByToken=lambda token: (
+            (contact,)
+            if token in {"contact-a", "target-a"}
+            else (first_profile,)
+            if token == "fusion-start-token"
+            else (second_profile,)
+            if token == "fusion-end-token"
+            else ()
+        )
     )
     application = SimpleNamespace(
         activeDocument=document, activeViewport=SimpleNamespace(refresh=Mock())
@@ -219,40 +345,26 @@ def test_auto_connect_native_execute_pairs_two_picked_endings(
     monkeypatch.setitem(vars(commands), "refresh_generated_cable_groups_for_connection", refresh)
     monkeypatch.setitem(vars(commands), "_refresh_active_preview", lambda *_args: "")
     monkeypatch.setitem(vars(commands), "_send_palette_state", Mock())
-    pickers = {
-        commands.AUTO_CONNECT_END_INPUT_ID: SimpleNamespace(
-            selectionCount=1, selection=lambda _index: SimpleNamespace(entity=first_profile)
-        ),
-        commands.AUTO_CONNECT_TARGET_END_INPUT_ID: SimpleNamespace(
-            selectionCount=1, selection=lambda _index: SimpleNamespace(entity=second_profile)
-        ),
-    }
-    args = SimpleNamespace(
-        command=SimpleNamespace(
-            commandInputs=SimpleNamespace(itemById=lambda identity: pickers.get(identity))
-        ),
-        executeFailed=False,
-        executeFailedMessage="",
-    )
-    request = commands._AutoConnectRequest(
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+    request = commands.AutoConnectApplyRequest(
         definition.harness_id,
         source.interfaces[0].interface_id,
         (UUID(int=801),),
+        definition.connections[0].connection_id,
+        None,
         True,
         True,
         None,
         document,
         target_interface.interface_id,
         (UUID(int=811),),
+        definition.connections[1].connection_id,
+        None,
         False,
         False,
         None,
     )
-    candidates = (
-        (definition.connections[0].connection_id, None, first_profile),
-        (definition.connections[1].connection_id, None, second_profile),
-    )
-    commands._ExecuteHandler(request, candidates).notify(args)
+    commands._ApplyExecuteHandler(request).notify(args)
     assert not args.executeFailed
     stored = loads(gateway.serialized_definition)
     assert len(stored.attachment_associations) == 1

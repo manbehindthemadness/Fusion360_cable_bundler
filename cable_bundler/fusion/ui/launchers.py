@@ -15,6 +15,7 @@ import adsk.core
 import adsk.fusion
 
 from ...application.interface_contact_rows import ContactSelectionMode
+from .auto_connect_requests import AutoConnectApplyRequest, AutoConnectPickRequest
 from .constants import (
     ADD_END_COMMAND_ID,
     ADD_INTERFACE_COMMAND_ID,
@@ -27,6 +28,7 @@ from .constants import (
     AUTO_CONNECT_COMMAND_ID,
     COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
+    PALETTE_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
     SELECT_INTERFACE_CONTACTS_COMMAND_ID,
     SELECT_SOURCE_INTERFACE_COMMAND_ID,
@@ -195,9 +197,51 @@ def _open_select_source_interface_command(
         raise
 
 
+def _open_auto_connect_picker(application: adsk.core.Application, serialized_data: str) -> None:
+    """
+    Open one grouped-ending picker without connecting any contacts.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    side = payload.get("side")
+    request_id = payload.get("requestId")
+    if (
+        side not in ("source", "target")
+        or not isinstance(request_id, str)
+        or not (1 <= len(request_id) <= 100)
+    ):
+        raise ValueError("Auto Connect picker needs a side and request identity.")
+    try:
+        definition = application.userInterface.commandDefinitions.itemById(AUTO_CONNECT_COMMAND_ID)
+        if definition is None:
+            raise RuntimeError("Fusion Auto Connect command is unavailable; restart the add-in.")
+        _runtime.pending_auto_connect.prepare(
+            AutoConnectPickRequest(harness_id, side, request_id, application.activeDocument)
+        )
+        if not definition.execute():
+            raise RuntimeError("Fusion did not open the Auto Connect picker.")
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        _runtime.pending_auto_connect.clear()
+        palette = application.userInterface.palettes.itemById(PALETTE_ID)
+        if palette is not None:
+            palette.sendInfoToHTML(
+                "auto_connect_ending_selected",
+                json.dumps(
+                    {
+                        "harnessId": str(harness_id),
+                        "side": side,
+                        "requestId": request_id,
+                        "cancelled": True,
+                        "error": str(error),
+                    }
+                ),
+            )
+        raise
+
+
 def _open_auto_connect_command(application: adsk.core.Application, serialized_data: str) -> None:
     """
-    Open a grouped-end picker for the selected Interface contacts.
+    Apply previously selected cable endings to the chosen Interface contacts.
     """
     payload = _read_palette_payload(serialized_data)
     harness_id = _read_payload_uuid(payload, "harnessId", "harness")
@@ -223,6 +267,12 @@ def _open_auto_connect_command(application: adsk.core.Application, serialized_da
     ):
         raise ValueError("Auto Connect needs contacts, options, and a positive optional diameter.")
     contact_ids = tuple(UUID(item) for item in raw_ids)
+    connection_id = _read_payload_uuid(payload, "connectionId", "cable ending")
+    parent_attachment_id = (
+        _read_payload_uuid(payload, "parentAttachmentId", "parent attachment")
+        if payload.get("parentAttachmentId") is not None
+        else None
+    )
     raw_target_ids = payload.get("targetContactIds", [])
     target_interface_raw = payload.get("targetInterfaceId")
     target_include_pins = payload.get("targetIncludePins", True)
@@ -252,20 +302,39 @@ def _open_auto_connect_command(application: adsk.core.Application, serialized_da
         else None
     )
     target_contact_ids = tuple(UUID(item) for item in raw_target_ids)
+    target_connection_raw = payload.get("targetConnectionId")
+    if (target_interface_id is None) != (target_connection_raw is None):
+        raise ValueError("A target Interface needs its selected cable ending.")
+    target_connection_id = (
+        _read_payload_uuid(payload, "targetConnectionId", "target cable ending")
+        if target_connection_raw is not None
+        else None
+    )
+    target_parent_attachment_id = (
+        _read_payload_uuid(payload, "targetParentAttachmentId", "target parent attachment")
+        if payload.get("targetParentAttachmentId") is not None
+        else None
+    )
+    if target_connection_id is None and target_parent_attachment_id is not None:
+        raise ValueError("A target parent needs a selected cable ending.")
     definition = application.userInterface.commandDefinitions.itemById(AUTO_CONNECT_COMMAND_ID)
     if definition is None:
         raise RuntimeError("Fusion Auto Connect command is unavailable; restart the add-in.")
     _runtime.pending_auto_connect.prepare(
-        (
+        AutoConnectApplyRequest(
             harness_id,
             interface_id,
             contact_ids,
+            connection_id,
+            parent_attachment_id,
             include_pins,
             include_values,
             diameter,
             application.activeDocument,
             target_interface_id,
             target_contact_ids,
+            target_connection_id,
+            target_parent_attachment_id,
             target_include_pins,
             target_include_values,
             target_diameter,
@@ -273,7 +342,7 @@ def _open_auto_connect_command(application: adsk.core.Application, serialized_da
     )
     try:
         if not definition.execute():
-            raise RuntimeError("Fusion did not open the Auto Connect picker.")
+            raise RuntimeError("Fusion did not execute Auto Connect.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_auto_connect.clear()
         raise

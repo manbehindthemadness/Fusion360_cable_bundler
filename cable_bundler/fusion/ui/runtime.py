@@ -13,6 +13,7 @@ import adsk.core
 
 from ...application import HarnessLoadResult
 from ...application.interface_contact_rows import ContactSelectionMode
+from .auto_connect_requests import AutoConnectApplyRequest, AutoConnectPickRequest
 
 T = TypeVar("T")
 
@@ -174,22 +175,9 @@ class UiRuntime:
     pending_source_interface: PendingSlot[
         tuple[UUID, UUID, tuple[UUID, ...], bool, bool, object]
     ] = field(default_factory=PendingSlot)
-    pending_auto_connect: PendingSlot[
-        tuple[
-            UUID,
-            UUID,
-            tuple[UUID, ...],
-            bool,
-            bool,
-            Optional[float],
-            object,
-            Optional[UUID],
-            tuple[UUID, ...],
-            bool,
-            bool,
-            Optional[float],
-        ]
-    ] = field(default_factory=PendingSlot)
+    pending_auto_connect: PendingSlot[AutoConnectPickRequest | AutoConnectApplyRequest] = field(
+        default_factory=PendingSlot
+    )
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot
     )

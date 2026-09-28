@@ -108,7 +108,7 @@ function paintInterfaceContactSelection(state) {
   state.count.textContent = `${state.selectedIds.size} selected`;
   if (state.deleteButton) state.deleteButton.disabled = !state.selectedIds.size
     || state.deleting || state.clearing || state.workspace.root.hidden
-    || state.autoConnectTargetPreview;
+    || state.autoConnectTargetPreview === true;
 }
 
 /** Keep interior Value and Pin text legible when the contact has enough room. */

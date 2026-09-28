@@ -4,8 +4,8 @@ Pick an existing grouped cable end for batch contact connection.
 
 from __future__ import annotations
 
+import json
 import traceback
-from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
@@ -22,33 +22,14 @@ from ....application.batch_connect_interface_contacts import (
 from ....domain import AttachmentTargetKind, CableEndTarget, HarnessDefinition, loads
 from ...attachment_targets import attachment_target_kind, attachment_target_name
 from ...cable_solids import refresh_generated_cable_groups_for_connection
-from ..constants import AUTO_CONNECT_END_INPUT_ID, AUTO_CONNECT_TARGET_END_INPUT_ID
+from ..auto_connect_requests import AutoConnectApplyRequest, AutoConnectPickRequest
+from ..constants import AUTO_CONNECT_END_INPUT_ID, PALETTE_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _log_to_fusion, _require_active_design
 from ..viewport import _refresh_active_preview
 from .attachments import _read_face_parameters
 from .pathways import _native_fusion_entity
-
-
-@dataclass(frozen=True)
-class _AutoConnectRequest:
-    """
-    Retain the palette selection until the native picker transaction finishes.
-    """
-
-    harness_id: UUID
-    interface_id: UUID
-    contact_ids: tuple[UUID, ...]
-    include_pins: bool
-    include_values: bool
-    diameter_mm: Optional[float]
-    document: object
-    target_interface_id: Optional[UUID] = None
-    target_contact_ids: tuple[UUID, ...] = ()
-    target_include_pins: bool = True
-    target_include_values: bool = True
-    target_diameter_mm: Optional[float] = None
 
 
 def _grouped_end_profiles(
@@ -101,12 +82,11 @@ def _picked_ending(
 def _selected_ending(
     inputs: adsk.core.CommandInputs,
     candidates: tuple[tuple[UUID, Optional[UUID], object], ...],
-    input_id: str = AUTO_CONNECT_END_INPUT_ID,
 ) -> tuple[UUID, Optional[UUID]]:
     """
     Read one eligible profile from the native picker.
     """
-    picker = adsk.core.SelectionCommandInput.cast(inputs.itemById(input_id))
+    picker = adsk.core.SelectionCommandInput.cast(inputs.itemById(AUTO_CONNECT_END_INPUT_ID))
     if picker is None or picker.selectionCount != 1:
         raise ValueError("Select one grouped cable ending.")
     selection = picker.selection(0)
@@ -142,28 +122,19 @@ class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
     Enable completion only with one eligible grouped end.
     """
 
-    def __init__(
-        self, candidates: tuple[tuple[UUID, Optional[UUID], object], ...], dual: bool = False
-    ) -> None:
+    def __init__(self, candidates: tuple[tuple[UUID, Optional[UUID], object], ...]) -> None:
         """
         Retain the same selection scope as preselection.
         """
         super().__init__()
         self.candidates = candidates
-        self.dual = dual
 
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
         Recheck selection before enabling OK.
         """
         try:
-            first_id, _parent_id = _selected_ending(args.inputs, self.candidates)
-            if self.dual:
-                second_id, _parent_id = _selected_ending(
-                    args.inputs, self.candidates, AUTO_CONNECT_TARGET_END_INPUT_ID
-                )
-                if first_id == second_id:
-                    raise ValueError("Choose different cable endings.")
+            _selected_ending(args.inputs, self.candidates)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             args.areInputsValid = False
             return
@@ -215,22 +186,102 @@ def _contact_targets(
     return tuple(targets)
 
 
-class _ExecuteHandler(adsk.core.CommandEventHandler):
+class _PickExecuteHandler(adsk.core.CommandEventHandler):
+    """
+    Record a valid ending without editing the harness.
+    """
+
+    def __init__(
+        self,
+        request: AutoConnectPickRequest,
+        candidates: tuple[tuple[UUID, Optional[UUID], object], ...],
+    ) -> None:
+        """
+        Keep the picker request and eligible profiles until execution.
+        """
+        super().__init__()
+        self.request = request
+        self.candidates = candidates
+        self.selected: Optional[tuple[UUID, Optional[UUID], str]] = None
+
+    def notify(self, args: adsk.core.CommandEventArgs) -> None:
+        """
+        Resolve the selected profile for the originating document.
+        """
+        application = adsk.core.Application.get()
+        try:
+            if application.activeDocument != self.request.document:
+                raise ValueError("The active document changed; reopen Auto Connect.")
+            connection_id, parent_id = _selected_ending(args.command.commandInputs, self.candidates)
+            definition = loads(
+                _create_harness_gateway(application).read_harness_definition(
+                    self.request.harness_id
+                )
+            )
+            connection = next(
+                (item for item in definition.connections if item.connection_id == connection_id),
+                None,
+            )
+            if connection is None:
+                raise ValueError("The selected cable ending no longer exists.")
+            self.selected = (connection_id, parent_id, connection.name)
+        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+            args.executeFailed = True
+            args.executeFailedMessage = str(error)
+            _log_to_fusion(f"Auto Connect ending selection failed: {error}")
+
+
+class _PickDestroyedHandler(adsk.core.CommandEventHandler):
+    """
+    Return a picked ending or cancellation after the native picker has finished.
+    """
+
+    def __init__(self, execute_handler: _PickExecuteHandler) -> None:
+        """
+        Retain the pick result until Fusion destroys the command.
+        """
+        super().__init__()
+        self.execute_handler = execute_handler
+
+    def notify(self, _args: adsk.core.CommandEventArgs) -> None:
+        """
+        Send the final picker result to the matching palette dialog.
+        """
+        application = adsk.core.Application.get()
+        palette = application.userInterface.palettes.itemById(PALETTE_ID)
+        if palette is None:
+            return
+        request = self.execute_handler.request
+        result: dict[str, object] = {
+            "harnessId": str(request.harness_id),
+            "side": request.side,
+            "requestId": request.request_id,
+            "cancelled": self.execute_handler.selected is None,
+        }
+        if self.execute_handler.selected is not None:
+            connection_id, parent_id, name = self.execute_handler.selected
+            result.update(
+                connectionId=str(connection_id),
+                parentAttachmentId=str(parent_id) if parent_id is not None else None,
+                name=name,
+            )
+        palette.sendInfoToHTML("auto_connect_ending_selected", json.dumps(result))
+
+
+class _ApplyExecuteHandler(adsk.core.CommandEventHandler):
     """
     Resolve contact geometry and save the batch in one transaction.
     """
 
     def __init__(
         self,
-        request: _AutoConnectRequest,
-        candidates: tuple[tuple[UUID, Optional[UUID], object], ...],
+        request: AutoConnectApplyRequest,
     ) -> None:
         """
-        Retain the initiating document and eligible ends.
+        Retain the reviewed palette choices until the apply command executes.
         """
         super().__init__()
         self.request = request
-        self.candidates = candidates
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
@@ -241,20 +292,23 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
             if application.activeDocument != self.request.document:
                 raise ValueError("The active document changed; reopen Auto Connect.")
             design = _require_active_design(application)
-            connection_id, parent_attachment_id = _selected_ending(
-                args.command.commandInputs, self.candidates
-            )
+            connection_id = self.request.connection_id
+            parent_attachment_id = self.request.parent_attachment_id
             target_ending = (
-                _selected_ending(
-                    args.command.commandInputs,
-                    self.candidates,
-                    AUTO_CONNECT_TARGET_END_INPUT_ID,
-                )
+                (self.request.target_connection_id, self.request.target_parent_attachment_id)
                 if self.request.target_interface_id is not None
                 else None
             )
             gateway = _create_harness_gateway(application)
             definition = loads(gateway.read_harness_definition(self.request.harness_id))
+            eligible = {
+                (item_id, attachment_id)
+                for item_id, attachment_id, _profile in _grouped_end_profiles(definition, design)
+            }
+            if (connection_id, parent_attachment_id) not in eligible or (
+                target_ending is not None and target_ending not in eligible
+            ):
+                raise ValueError("A selected cable ending changed; choose it again.")
             targets = _contact_targets(
                 definition, design, self.request.interface_id, self.request.contact_ids
             )
@@ -331,18 +385,25 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
 
 class AutoConnectCreatedHandler(adsk.core.CommandCreatedEventHandler):
     """
-    Build the grouped-end mouse picker for Auto Connect.
+    Build either a read-only ending picker or an explicit apply command.
     """
 
     def notify(self, args: adsk.core.CommandCreatedEventArgs) -> None:
         """
-        Install picker filters and command-lifetime handlers.
+        Install only the handlers needed for the requested stage.
         """
         request = _runtime.pending_auto_connect.consume()
         if request is None:
-            raise RuntimeError("No contacts were selected for Auto Connect.")
-        request = _AutoConnectRequest(*request)
+            raise RuntimeError("No Auto Connect action was requested.")
+        if isinstance(request, AutoConnectApplyRequest):
+            handler = _ApplyExecuteHandler(request)
+            if not args.command.execute.add(handler):
+                raise RuntimeError("Fusion could not attach Auto Connect apply.")
+            _runtime.retain_command_handlers(args.command, handler)
+            return
         application = adsk.core.Application.get()
+        if application.activeDocument != request.document:
+            raise ValueError("The active document changed; reopen Auto Connect.")
         design = _require_active_design(application)
         definition = loads(
             _create_harness_gateway(application).read_harness_definition(request.harness_id)
@@ -359,20 +420,12 @@ class AutoConnectCreatedHandler(adsk.core.CommandCreatedEventHandler):
             raise RuntimeError("Fusion could not configure cable-ending selection.")
         if not picker.setSelectionLimits(1, 1):
             raise RuntimeError("Fusion could not limit cable-ending selection.")
-        if request.target_interface_id is not None:
-            target_picker = args.command.commandInputs.addSelectionInput(
-                AUTO_CONNECT_TARGET_END_INPUT_ID,
-                "Target Cable Ending",
-                "Pick a different grouped cable end guide or connected profile node",
-            )
-            if target_picker is None or not target_picker.addSelectionFilter("Profiles"):
-                raise RuntimeError("Fusion could not configure target cable-ending selection.")
-            if not target_picker.setSelectionLimits(1, 1):
-                raise RuntimeError("Fusion could not limit target cable-ending selection.")
+        execute = _PickExecuteHandler(request, candidates)
+        destroyed = _PickDestroyedHandler(execute)
         handlers = (
             _PreSelectHandler(candidates),
-            _ValidateHandler(candidates, request.target_interface_id is not None),
-            _ExecuteHandler(request, candidates),
+            _ValidateHandler(candidates),
+            execute,
         )
         for event, handler in zip(
             (args.command.preSelect, args.command.validateInputs, args.command.execute),
@@ -380,4 +433,6 @@ class AutoConnectCreatedHandler(adsk.core.CommandCreatedEventHandler):
         ):
             if not event.add(handler):
                 raise RuntimeError("Fusion could not attach Auto Connect selection.")
-        _runtime.retain_command_handlers(args.command, *handlers)
+        if not args.command.destroy.add(destroyed):
+            raise RuntimeError("Fusion could not return the selected cable ending.")
+        _runtime.retain_command_handlers(args.command, *handlers, destroyed)

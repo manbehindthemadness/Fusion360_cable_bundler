@@ -36,6 +36,7 @@ from .launchers import (
     _open_append_gates_command,
     _open_attach_cable_end_command,
     _open_auto_connect_command,
+    _open_auto_connect_picker,
     _open_connection_refine_command,
     _open_end_refine_command,
     _open_palette_edit,
@@ -80,7 +81,10 @@ _NATIVE_DIALOG_ACTIONS: dict[
     "select_interface_contacts": lambda application, data: _open_select_interface_contacts_command(
         application, data
     ),
-    "auto_connect_interface_contacts": lambda application, data: _open_auto_connect_command(
+    "auto_connect_interface_contacts": lambda application, data: _open_auto_connect_picker(
+        application, data
+    ),
+    "apply_auto_connect_interface_contacts": lambda application, data: _open_auto_connect_command(
         application, data
     ),
     "copy_projected_interface_contacts": lambda application, data: (
@@ -116,6 +120,7 @@ _NATIVE_DIALOG_COMMAND_IDS = {
     "add_interface": ADD_INTERFACE_COMMAND_ID,
     "select_interface_contacts": SELECT_INTERFACE_CONTACTS_COMMAND_ID,
     "auto_connect_interface_contacts": AUTO_CONNECT_COMMAND_ID,
+    "apply_auto_connect_interface_contacts": AUTO_CONNECT_COMMAND_ID,
     "copy_projected_interface_contacts": SELECT_SOURCE_INTERFACE_COMMAND_ID,
     "load_brd_interface_contacts": f"{COMMAND_ID}_load_brd_interface_contacts",
     "add_junction_relationship": ADD_JUNCTION_RELATIONSHIP_COMMAND_ID,

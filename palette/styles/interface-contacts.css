@@ -69,6 +69,8 @@
 .interface-contact-auto-connect-ending label { display: flex; align-items: center; gap: 6px; }
 .interface-contact-auto-connect-ending label:last-child { display: grid; }
 .interface-contact-auto-connect-ending input[type="number"] { min-width: 0; width: 100%; }
+.interface-contact-auto-connect-selected-ending { color: var(--muted); }
+.interface-contact-auto-connect-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .interface-contact-auto-connect-ending + .interface-contact-auto-connect-ending {
   padding-left: 12px;
   border-left: 1px solid var(--border);
