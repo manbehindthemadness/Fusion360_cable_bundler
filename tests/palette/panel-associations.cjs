@@ -635,6 +635,8 @@ test('Connection Associations shows P only on terminal cards with a pin value', 
   const cards = descendants(dialog, (item) => item.className?.includes('create-association-card'));
   const first = cards.find((item) => item.dataset.attachmentId === 'first');
   const second = cards.find((item) => item.dataset.attachmentId === 'second');
+  assert.equal(first.dataset.hasPin, 'true');
+  assert.equal(second.dataset.hasPin, undefined);
   assert.equal(descendants(first, (item) => item.className === 'connection-pin-number')[0].textContent,
     'P 7');
   assert.equal(descendants(second, (item) => item.className === 'connection-pin-number').length, 0);

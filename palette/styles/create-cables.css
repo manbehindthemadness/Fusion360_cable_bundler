@@ -47,6 +47,21 @@
   touch-action: none;
   user-select: none;
 }
+.connection-associations-popup .create-association-card[data-has-pin="true"] strong {
+  min-width: 0;
+  padding-right: 4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.connection-associations-popup .create-association-card .connection-pin-number {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  max-width: 3.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .create-cables-end-card[data-dragging="true"] { opacity: 0.45; cursor: grabbing; }
 .connection-associations-popup .create-association-list > .create-association-card[data-grouped="true"] {
   width: calc(100% - 10px);

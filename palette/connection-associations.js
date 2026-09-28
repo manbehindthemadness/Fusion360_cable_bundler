@@ -248,6 +248,7 @@ function renderConnectionAssociationCard(item, elsewhere, showContextMenu, conte
   card.append(name, owner);
   if (item.pinNumber) {
     const pin = document.createElement("small");
+    card.dataset.hasPin = "true";
     pin.className = "connection-pin-number";
     pin.textContent = `P ${item.pinNumber}`;
     card.append(pin);

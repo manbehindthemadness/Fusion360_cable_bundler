@@ -124,6 +124,15 @@ test('long cable-end names expand horizontally instead of wrapping', () => {
   );
 });
 
+test('Connection Associations pins sit at the top right without adding a card row', () => {
+  const styles = readPaletteStyles();
+
+  assert.match(styles,
+    /\.connection-associations-popup \.create-association-card\[data-has-pin="true"\] strong \{[^}]*padding-right: 4rem;[^}]*text-overflow: ellipsis;/s);
+  assert.match(styles,
+    /\.connection-associations-popup \.create-association-card \.connection-pin-number \{[^}]*position: absolute;[^}]*top: 6px;[^}]*right: 7px;/s);
+});
+
 test('master context submenus open only while their parent is hovered', () => {
   const styles = readPaletteStyles();
 
