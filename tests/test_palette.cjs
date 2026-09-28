@@ -11,6 +11,7 @@ const paletteSuites = [
   "panel-contact-projection.cjs",
   "panel-contact-interactions.cjs",
   "panel-contact-auto-pin.cjs",
+  "panel-contact-auto-connect.cjs",
   "panel-navigation.cjs",
   "panel-associations.cjs",
   "panel-connections.cjs",

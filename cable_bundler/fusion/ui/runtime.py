@@ -174,6 +174,9 @@ class UiRuntime:
     pending_source_interface: PendingSlot[
         tuple[UUID, UUID, tuple[UUID, ...], bool, bool, object]
     ] = field(default_factory=PendingSlot)
+    pending_auto_connect: PendingSlot[
+        tuple[UUID, UUID, tuple[UUID, ...], bool, bool, Optional[float], object]
+    ] = field(default_factory=PendingSlot)
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot
     )
@@ -244,6 +247,7 @@ class UiRuntime:
         self.pending_junction.clear()
         self.pending_interface.clear()
         self.pending_interface_contacts.clear()
+        self.pending_auto_connect.clear()
         self.pending_junction_relationship.clear()
         self.pending_standalone_end.clear()
         self.pending_cable_end_attachment.clear()

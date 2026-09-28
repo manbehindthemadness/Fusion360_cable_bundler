@@ -15,6 +15,7 @@ ADD_JUNCTION_COMMAND_ID = "kev0_cable_bundler_add_junction"
 ADD_INTERFACE_COMMAND_ID = "kev0_cable_bundler_add_interface"
 SELECT_INTERFACE_CONTACTS_COMMAND_ID = "kev0_cable_bundler_select_interface_contacts"
 SELECT_SOURCE_INTERFACE_COMMAND_ID = "kev0_cable_bundler_select_source_interface"
+AUTO_CONNECT_COMMAND_ID = "kev0_cable_bundler_auto_connect"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_ID = "kev0_cable_bundler_add_junction_relationship"
 ADD_END_COMMAND_ID = "kev0_cable_bundler_add_end"
 ATTACH_CABLE_END_COMMAND_ID = "kev0_cable_bundler_attach_cable_end"
@@ -31,6 +32,7 @@ ADD_JUNCTION_COMMAND_NAME = "Add Junction"
 ADD_INTERFACE_COMMAND_NAME = "Add Interface"
 SELECT_INTERFACE_CONTACTS_COMMAND_NAME = "Select Interface Contacts"
 SELECT_SOURCE_INTERFACE_COMMAND_NAME = "Select Source Interface"
+AUTO_CONNECT_COMMAND_NAME = "Auto Connect"
 ADD_JUNCTION_RELATIONSHIP_COMMAND_NAME = "Add Junction Relationship"
 ADD_END_COMMAND_NAME = "Add End"
 ATTACH_CABLE_END_COMMAND_NAME = "Connect Cable End"
@@ -55,6 +57,7 @@ INTERFACE_NAME_INPUT_ID = "interface_name"
 INTERFACE_TARGETS_INPUT_ID = "interface_targets"
 INTERFACE_CONTACTS_INPUT_ID = "interface_contacts"
 SOURCE_INTERFACE_INPUT_ID = "source_interface"
+AUTO_CONNECT_END_INPUT_ID = "auto_connect_end"
 JUNCTION_RELATIONSHIP_GEOMETRY_INPUT_ID = "junction_relationship_geometry"
 JUNCTION_RELATIONSHIP_CHOICE_INPUT_ID = "junction_relationship_choice"
 STANDALONE_END_GUIDES_INPUT_ID = "standalone_end_guides"
@@ -113,6 +116,7 @@ PALETTE_RESOURCE_FILES = (
     ADDIN_ROOT / "palette" / "connection-associations.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-labels.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-auto-pin.js",
+    ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-auto-connect.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-cache.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-projection.js",
     ADDIN_ROOT / "palette" / "diagrams" / "interface-contact-render.js",

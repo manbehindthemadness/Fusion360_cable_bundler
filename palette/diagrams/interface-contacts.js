@@ -499,6 +499,14 @@ function openInterfaceContacts(harness, interfaceItem) {
     naming, diagram, harness.harnessId, interfaceItem.interfaceId,
   ));
   naming.append(autoPin);
+  const autoConnect = document.createElement("button");
+  autoConnect.type = "button";
+  autoConnect.className = "button compact";
+  autoConnect.textContent = "Auto Connect";
+  autoConnect.addEventListener("click", () => openInterfaceAutoConnect(
+    naming, diagram, harness, interfaceItem.interfaceId,
+  ));
+  naming.append(autoConnect);
   const nameLocals = document.createElement("button");
   nameLocals.type = "button";
   nameLocals.className = "button compact";

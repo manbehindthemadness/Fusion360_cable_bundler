@@ -562,7 +562,7 @@ def _validate_connection_diameter_budget(
             return
         inherited_diameter_mm = diameter_mm / len(children)
         child_diameters = (
-            (diameter_mm,)
+            (children[0].visual_overrides.diameter_mm or diameter_mm,)
             if len(children) == 1
             else tuple(
                 inherited_diameter_mm
@@ -571,7 +571,7 @@ def _validate_connection_diameter_budget(
                 for child in children
             )
         )
-        if len(children) > 1 and sum(child_diameters) > diameter_mm + 1e-9:
+        if sum(child_diameters) > diameter_mm + 1e-9:
             raise ValueError(
                 "Connection diameters cannot collectively exceed the parent cable diameter."
             )

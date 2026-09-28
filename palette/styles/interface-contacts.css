@@ -50,6 +50,34 @@
 }
 .interface-contact-auto-pin label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; white-space: nowrap; }
 .interface-contact-auto-pin input[type="number"] { width: 6rem; }
+.interface-contact-auto-connect {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(560px, 80vw);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 12px #0003;
+}
+.interface-contact-auto-connect-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.interface-contact-auto-connect-ending { display: grid; align-content: start; gap: 10px; }
+.interface-contact-auto-connect-ending label { display: flex; align-items: center; gap: 6px; }
+.interface-contact-auto-connect-ending label:last-child { display: grid; }
+.interface-contact-auto-connect-ending input[type="number"] { min-width: 0; width: 100%; }
+.interface-contact-auto-connect-future {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: 10px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  text-align: center;
+}
 .interface-contact-geo-import,
 .interface-contact-name-locals {
   position: absolute;

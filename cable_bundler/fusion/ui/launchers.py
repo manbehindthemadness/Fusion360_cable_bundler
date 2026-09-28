@@ -5,6 +5,7 @@ Fusion UI services for launchers.
 from __future__ import annotations
 
 import json
+import math
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -23,6 +24,7 @@ from .constants import (
     ADD_REFINE_COMMAND_ID,
     APPEND_GATES_COMMAND_ID,
     ATTACH_CABLE_END_COMMAND_ID,
+    AUTO_CONNECT_COMMAND_ID,
     COMMAND_ID,
     EDIT_REFINE_COMMAND_ID,
     SEGMENT_PATHWAY_COMMAND_ID,
@@ -190,6 +192,56 @@ def _open_select_source_interface_command(
             raise RuntimeError("Fusion did not open the source Interface picker.")
     except (AttributeError, RuntimeError, TypeError, ValueError):
         _runtime.pending_source_interface.clear()
+        raise
+
+
+def _open_auto_connect_command(application: adsk.core.Application, serialized_data: str) -> None:
+    """
+    Open a grouped-end picker for the selected Interface contacts.
+    """
+    payload = _read_palette_payload(serialized_data)
+    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
+    interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
+    raw_ids = payload.get("contactIds")
+    include_pins = payload.get("includePins")
+    include_values = payload.get("includeValues")
+    diameter = payload.get("diameterMm")
+    if (
+        not isinstance(raw_ids, list)
+        or not raw_ids
+        or len(raw_ids) > 1024
+        or any(not isinstance(item, str) for item in raw_ids)
+        or not isinstance(include_pins, bool)
+        or not isinstance(include_values, bool)
+        or diameter is not None
+        and (
+            isinstance(diameter, bool)
+            or not isinstance(diameter, (int, float))
+            or not math.isfinite(diameter)
+            or diameter <= 0
+        )
+    ):
+        raise ValueError("Auto Connect needs contacts, options, and a positive optional diameter.")
+    contact_ids = tuple(UUID(item) for item in raw_ids)
+    definition = application.userInterface.commandDefinitions.itemById(AUTO_CONNECT_COMMAND_ID)
+    if definition is None:
+        raise RuntimeError("Fusion Auto Connect command is unavailable; restart the add-in.")
+    _runtime.pending_auto_connect.prepare(
+        (
+            harness_id,
+            interface_id,
+            contact_ids,
+            include_pins,
+            include_values,
+            diameter,
+            application.activeDocument,
+        )
+    )
+    try:
+        if not definition.execute():
+            raise RuntimeError("Fusion did not open the Auto Connect picker.")
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        _runtime.pending_auto_connect.clear()
         raise
 
 

@@ -662,7 +662,7 @@ def _validate_cable_groups(
                 )
                 for parent_attachment_id in parent_ids:
                     children = connection.attachment_children(parent_attachment_id)
-                    if len(children) <= 1:
+                    if not children:
                         continue
                     parent_diameter_mm = (
                         group.diameter_mm

@@ -722,9 +722,9 @@ class HarnessDefinition:
                 group, connection_id, attachment.parent_attachment_id
             )
         )
-        if len(siblings) <= 1:
-            return parent_diameter_mm
         diameter_mm = attachment.visual_overrides.diameter_mm
+        if len(siblings) <= 1:
+            return parent_diameter_mm if diameter_mm is None else diameter_mm
         return parent_diameter_mm / len(siblings) if diameter_mm is None else diameter_mm
 
     def cable_end_attachment_conductor_diameter(

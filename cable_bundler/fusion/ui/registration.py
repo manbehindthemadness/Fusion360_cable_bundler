@@ -13,6 +13,7 @@ import adsk.core
 from .commands.attachments import AttachCableEndCreatedHandler
 from .commands.ends import AddStandaloneEndCreatedHandler
 from .commands.harness import CreateHarnessCreatedHandler
+from .commands.interface_auto_connect import AutoConnectCreatedHandler
 from .commands.interface_contacts import SelectInterfaceContactsCreatedHandler
 from .commands.interface_projection_copy import SelectSourceInterfaceCreatedHandler
 from .commands.interfaces import AddInterfaceCreatedHandler
@@ -45,6 +46,8 @@ from .constants import (
     APPEND_GATES_COMMAND_NAME,
     ATTACH_CABLE_END_COMMAND_ID,
     ATTACH_CABLE_END_COMMAND_NAME,
+    AUTO_CONNECT_COMMAND_ID,
+    AUTO_CONNECT_COMMAND_NAME,
     COMMAND_DESCRIPTION,
     COMMAND_ID,
     COMMAND_NAME,
@@ -118,6 +121,13 @@ COMMAND_SPECS = (
         "Select connection-compatible geometry on one Interface.",
         ADD_PATHWAY_RESOURCE_FOLDER,
         SelectInterfaceContactsCreatedHandler,
+    ),
+    CommandSpec(
+        AUTO_CONNECT_COMMAND_ID,
+        AUTO_CONNECT_COMMAND_NAME,
+        "Connect selected Interface contacts to a grouped cable end.",
+        ADD_PATHWAY_RESOURCE_FOLDER,
+        AutoConnectCreatedHandler,
     ),
     CommandSpec(
         SELECT_SOURCE_INTERFACE_COMMAND_ID,

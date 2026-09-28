@@ -157,9 +157,10 @@ asyncTest('Auto Pin popup sends one selected-only pin edit without Value changes
   const naming = dialog.children[1].children[1];
   const button = naming.children[0];
   assert.equal(button.textContent, 'Auto Pin');
-  assert.equal(naming.children[1].textContent, 'Name Locals');
-  assert.equal(naming.children[2].textContent, 'Geo Import');
-  assert.equal(naming.children[3].textContent, 'Pos Import');
+  assert.equal(naming.children[1].textContent, 'Auto Connect');
+  assert.equal(naming.children[2].textContent, 'Name Locals');
+  assert.equal(naming.children[3].textContent, 'Geo Import');
+  assert.equal(naming.children[4].textContent, 'Pos Import');
   button.events.click();
   const form = naming.querySelector('.interface-contact-auto-pin');
   const direction = form.children[0].children[0];
@@ -217,4 +218,3 @@ test('Auto Pin without Hopscotch counts occupied contacts and disables Overwrite
   assert.equal(launches[0].payload.hopscotch, false);
   assert.equal(launches[0].payload.overwrite, false);
 });
-

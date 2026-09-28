@@ -240,7 +240,7 @@ asyncTest('Name Locals chooses saved fields and selected contacts in a popup', a
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   dialog.children[2].contactState.selectedIds.add('pad-1');
   const naming = dialog.children[1].children[1];
-  naming.children[1].events.click();
+  naming.children[2].events.click();
   const form = naming.querySelector('.interface-contact-name-locals');
   assert.equal(form.attributes['aria-label'], 'Name Locals options');
   const values = form.children[1].children[0];
@@ -406,7 +406,7 @@ test('Geo Import defaults to names and can launch the source Interface picker', 
   const dialog = context.document.body.querySelector('.interface-contacts-popup');
   dialog.children[2].contactState.selectedIds.add('b');
   const naming = dialog.children[1].children[1];
-  naming.children[2].events.click();
+  naming.children[3].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
   const geometry = form.children[1].children[0];
   const selectInterface = form.children[2].children[0];
@@ -454,7 +454,7 @@ test('Geo Import can restore Pins without importing Values', () => {
     interfaceId: 'interface-1', name: 'Socket', contacts: [],
   });
   const naming = context.document.body.querySelector('.interface-contacts-popup').children[1].children[1];
-  naming.children[2].events.click();
+  naming.children[3].events.click();
   const form = naming.querySelector('.interface-contact-geo-import');
   const importValues = form.children[3].children[0];
   const importPins = form.children[4].children[0];
