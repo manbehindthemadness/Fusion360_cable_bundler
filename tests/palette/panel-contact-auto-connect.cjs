@@ -64,6 +64,11 @@ asyncTest('Auto Connect sends selected contacts with checked options and convert
 
 asyncTest('Auto Connect selects a target Interface and sends both contact sets', async () => {
   const { context, calls } = palette();
+  const lifecycle = [];
+  context.window.adsk = { fusionSendData(_action, data) {
+    lifecycle.push(JSON.parse(data));
+    return Promise.resolve('{}');
+  } };
   context.send = (action, payload) => {
     calls.push({ action, payload });
     return Promise.resolve({ ok: true });
@@ -106,6 +111,10 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   card.events.click();
   pendingCloseEvents.shift()();
   assert.equal(dialog.open, true);
+  assert.deepEqual(lifecycle.slice(-2).map((entry) => [entry.event, entry.reason]), [
+    ['open-shown', 'auto-connect-target-preview'],
+    ['close-suspended', 'auto-connect-target-pick'],
+  ]);
   assert.equal(context.document.body.querySelector('.interface-contacts-popup'), dialog);
   assert.equal(toolbar.querySelector('.interface-auto-connect-target-prompt'), undefined);
   assert.equal(dialog.dataset.interfaceId, 'interface-2');

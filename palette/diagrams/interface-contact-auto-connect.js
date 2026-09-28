@@ -240,6 +240,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       event.preventDefault?.();
       finishSelection();
       dialog.showModal();
+      logContactEditorLifecycle(dialog, "open-shown", "auto-connect-target-cancelled");
     };
     cancelButton.addEventListener("click", () => cancelSelection({ key: "Escape" }));
     document.addEventListener("keydown", cancelSelection);
@@ -276,11 +277,13 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
         item.disabled = true;
       });
       dialog.showModal();
+      logContactEditorLifecycle(dialog, "open-shown", "auto-connect-target-preview");
       updateInterfaceContactData(dialog, chosenInterface.contacts || []);
       return true;
     };
     pendingAutoConnectTargetSelection.dialog = dialog;
     dialog.autoConnectSuspendedCloses = (dialog.autoConnectSuspendedCloses || 0) + 1;
+    dialog.contactCloseReason = "auto-connect-target-pick";
     dialog.close();
     prompt.scrollIntoView({ block: "nearest" });
   });

@@ -43,6 +43,7 @@ from .constants import (
     PALETTE_RESOURCE_FILES,
 )
 from .constants import PALETTE_EDIT_NAMES as _PALETTE_EDIT_NAMES
+from .contact_editor_diagnostics import record_contact_editor_lifecycle
 from .edits import (
     _apply_palette_edit,
 )
@@ -423,6 +424,8 @@ def _dispatch_palette_action(
     """
     Dispatch one palette request while preserving its JSON boundary contract.
     """
+    if action == "log_contact_editor_lifecycle":
+        return record_contact_editor_lifecycle(data)
     if _stale_palette_document_request(application, action, data):
         return json.dumps({"ok": False, "stale": True})
     if action == "get_state":
