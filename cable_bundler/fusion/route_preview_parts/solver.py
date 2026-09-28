@@ -586,6 +586,12 @@ def solve_cable_group_routes(
                     faired_route = straight_route(route)
                     solve_notices.append(_straight_route_notice(route.cable_number, error))
                 accepted_normals = conditioned_normals
+        if (unsafe := _adjustment_below_cable_radius(adjustments, diameter_mm / 2.0)) is not None:
+            faired_route = straight_route(route)
+            adjustments.clear()
+            solve_notices.append(
+                _straight_for_sweep_notice(route.cable_number, unsafe, diameter_mm)
+            )
         routes.append(faired_route)
         route_normals.append(accepted_normals)
         solve_notices.extend(_adjustment_notice(item) for item in adjustments)
@@ -770,6 +776,19 @@ def _connection_branch_routes(
                                 notices.append(
                                     _straight_route_notice(raw_route.cable_number, error)
                                 )
+                    if (
+                        unsafe := _adjustment_below_cable_radius(
+                            adjustments, branch_diameter_mm / 2.0
+                        )
+                    ) is not None:
+                        route = straight_route(raw_route)
+                        adjustments.clear()
+                        if notices is not None:
+                            notices.append(
+                                _straight_for_sweep_notice(
+                                    raw_route.cable_number, unsafe, branch_diameter_mm
+                                )
+                            )
                     if notices is not None:
                         notices.extend(_adjustment_notice(item) for item in adjustments)
                     routes.append(route)
@@ -819,6 +838,38 @@ def _straight_route_notice(cable_number: str, error: ValueError) -> str:
         f"Warning — Cable {cable_number}: showing straight segments through the ordered "
         f"crossings because curved fairing failed ({error}). Profile tangents and bend "
         "clearance are not preserved; Fusion may reject the resulting solid."
+    )
+
+
+def _adjustment_below_cable_radius(
+    adjustments: list[TransitionAdjustment], cable_radius_mm: float
+) -> Optional[TransitionAdjustment]:
+    """
+    Find a clamped span whose local curvature would invert a circular sweep.
+    """
+    return next(
+        (
+            adjustment
+            for adjustment in adjustments
+            if adjustment.applied_bend_radius_mm is not None
+            and adjustment.applied_bend_radius_mm <= cable_radius_mm + 1e-9
+        ),
+        None,
+    )
+
+
+def _straight_for_sweep_notice(
+    cable_number: str, adjustment: TransitionAdjustment, diameter_mm: float
+) -> str:
+    """
+    Explain a whole-leg straight fallback chosen to avoid a self-inverting sweep.
+    """
+    return (
+        f"Warning — Cable {cable_number}: the clamped bend between profiles "
+        f"{adjustment.start_profile} and {adjustment.end_profile} reached "
+        f"{adjustment.applied_bend_radius_mm:.3f} mm, below the cable radius "
+        f"{diameter_mm / 2.0:.3f} mm. Showing straight segments through the ordered "
+        "crossings for the solid sweep; profile tangents and bend clearance are not preserved."
     )
 
 

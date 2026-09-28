@@ -474,3 +474,26 @@ def test_coincident_neighbor_defers_to_route_validation() -> None:
     )
 
     assert conditioned == normals
+
+
+def test_reversing_neighbors_keep_authored_soft_guide_axis() -> None:
+    """
+    Do not normalize a zero through-direction at a folded guide stack.
+    """
+    route = RoutePreview(
+        UUID(int=7),
+        "Folded",
+        (Vector3(0, 0, 0), Vector3(0, 0, 5), Vector3(0, 0, 0)),
+    )
+    normals = (Vector3(0, 0, 1),) * 3
+
+    conditioned = condition_route_normals(
+        route,
+        normals,
+        (TransitionLengths(),) * 3,
+        frozenset({1}),
+        frozenset(),
+        0.5,
+    )
+
+    assert conditioned == normals

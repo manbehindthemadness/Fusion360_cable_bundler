@@ -376,6 +376,8 @@ def condition_route_normals(
         if index == 0 or index == len(route.points) - 1:
             continue
         target = difference(route.points[index + 1], route.points[index - 1])
+        if magnitude(target) <= 1e-12:
+            continue
         strength = transition_relaxation_strength(
             route.points,
             index,

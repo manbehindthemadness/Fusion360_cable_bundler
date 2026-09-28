@@ -36,7 +36,6 @@ from cable_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
-    tightest_bend,
 )
 from cable_bundler.routing.aperture import contains_disk
 from cable_bundler.routing.geometry import dot
@@ -587,7 +586,7 @@ def test_product_solver_previews_unavoidable_short_bend_with_warning(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Keep a crowded main leg visible when its safe sweep radius cannot fit.
+    Straighten a crowded leg when a clamped bend is smaller than the cable.
     """
     from cable_bundler.fusion import route_preview
     from cable_bundler.fusion.route_preview_parts import frames as route_frames
@@ -637,9 +636,9 @@ def test_product_solver_previews_unavoidable_short_bend_with_warning(
     assert len(routes) == len(legs) == 1
     assert Vector3(0.0, 0.0, 0.0) in routes[0].points
     assert Vector3(0.0, 0.0, 3.801) in routes[0].points
-    assert any("minimum sweep radius was sacrificed" in notice for notice in notices)
-    bend = tightest_bend(routes[0], 1024)
-    assert bend is not None and bend.radius_mm < 10.5
+    assert len(routes[0].curves) == len(routes[0].points) - 1
+    assert any("below the cable radius" in notice for notice in notices)
+    assert any("Showing straight segments" in notice for notice in notices)
 
 
 def test_product_solver_retains_straight_preview_after_fairing_failure(
