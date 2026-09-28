@@ -127,6 +127,86 @@ asyncTest('Association Editor initially maps cross-side groups and links same-si
   assert.deepEqual([...payload.associations[0].attachmentIds], ['l4', 'r3', 'hidden']);
 });
 
+asyncTest('Auto Associate stages matching pins without changing existing or outside groups', async () => {
+  const { context, calls } = palette();
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  const items = (side, entries) => entries.map(([attachmentId, pinNumber]) => ({
+    attachmentId, pinNumber, connectionId: side, connectionName: side, label: attachmentId,
+  }));
+  context.openConnectionAssociationPanel(
+    { harnessId: 'h1', attachmentAssociations: [
+      { associationId: 'existing', attachmentIds: ['l-old', 'r-old'] },
+      { associationId: 'elsewhere', attachmentIds: ['l-outside', 'hidden'] },
+    ] },
+    { connectionId: 'left' }, { connectionId: 'right' },
+    items('left', [
+      ['l19', '19'], ['l18', '18'], ['l-blank', ' '], ['l-only', '17'],
+      ['l-old', '16'], ['l-outside', '15'],
+    ]),
+    items('right', [
+      ['r19', '19'], ['r18', '18'], ['r-blank', null], ['r-old', '16'],
+      ['r-outside-match', '15'],
+    ]),
+    'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const button = descendants(dialog, (node) => node.tag === 'button'
+    && node.textContent === 'Auto Associate')[0];
+  assert.equal(button.type, 'button');
+  button.dispatchEvent({ type: 'click' });
+  const rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.deepEqual(rows.map((row) => [
+    row.children[0].children[0]?.dataset.attachmentId,
+    row.children[2].children[0]?.dataset.attachmentId,
+  ]), [['l-old', 'r-old'], ['l19', 'r19'], ['l18', 'r18']]);
+  const poolIds = dialog.querySelectorAll('.create-association-list').flatMap((list) => (
+    descendants(list, (node) => node.dataset.attachmentId).map((node) => node.dataset.attachmentId)
+  ));
+  assert.deepEqual(new Set(poolIds), new Set([
+    'l-blank', 'l-only', 'l-outside', 'r-blank', 'r-outside-match',
+  ]));
+  descendants(dialog, (node) => node.tag === 'button' && node.textContent === 'Save')[0]
+    .dispatchEvent({ type: 'click' });
+  await Promise.resolve();
+  const payload = calls.find((call) => call.action === 'save_attachment_associations').payload;
+  assert.deepEqual([...payload.associations].map((association) => ({
+    associationId: association.associationId,
+    attachmentIds: [...association.attachmentIds],
+  })), [
+    { associationId: 'existing', attachmentIds: ['l-old', 'r-old'] },
+    { associationId: null, attachmentIds: ['l19', 'r19'] },
+    { associationId: null, attachmentIds: ['l18', 'r18'] },
+  ]);
+});
+
+test('Auto Associate groups duplicate pins and is idempotent before Save', () => {
+  const { context } = palette();
+  const items = (side, ids) => ids.map((attachmentId) => ({
+    attachmentId, connectionId: side, connectionName: side, label: attachmentId,
+    pinNumber: ' A2 ',
+  }));
+  context.openConnectionAssociationPanel(
+    { harnessId: 'h1', attachmentAssociations: [] },
+    { connectionId: 'left' }, { connectionId: 'right' },
+    items('left', ['l1', 'l2']), items('right', ['r1', 'r2']), 'Left', 'Right',
+  );
+  const dialog = context.document.body.querySelector('.connection-associations-popup');
+  const button = descendants(dialog, (node) => node.tag === 'button'
+    && node.textContent === 'Auto Associate')[0];
+  button.dispatchEvent({ type: 'click' });
+  button.dispatchEvent({ type: 'click' });
+  const rows = dialog.querySelectorAll('.create-cables-assignment-row');
+  assert.equal(rows.length, 2);
+  assert.equal(rows.every((row) => row.dataset.grouped === 'true'), true);
+  assert.deepEqual(new Set(rows.flatMap((row) => [
+    row.children[0].children[0]?.dataset.attachmentId,
+    row.children[2].children[0]?.dataset.attachmentId,
+  ])), new Set(['l1', 'l2', 'r1', 'r2']));
+});
+
 asyncTest('Cable Details associates upstream route nodes in either selection order', async () => {
   const definition = harness();
   const group = definition.cableGroups[0];

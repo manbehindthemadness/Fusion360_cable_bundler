@@ -9,6 +9,7 @@
   overflow: hidden;
 }
 .connection-associations-popup > h2 { margin-bottom: 12px; }
+.connection-associations-popup .connection-auto-associate { margin-right: auto; }
 .create-cables-popup > h2 { margin-bottom: 12px; }
 .create-cables-layout {
   height: min(560px, 68vh);

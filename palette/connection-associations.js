@@ -142,6 +142,38 @@ function assignConnectionAssociationItem(assignments, side, attachmentId, target
   assignments.rows.splice(index, 0, row);
 }
 
+/** Stage one association for each pin shared by unassociated cards on both sides. */
+function autoAssociateConnectionPins(assignments, groups) {
+  const availableByPin = (side) => {
+    const byPin = new Map();
+    assignments.pools[side].forEach((attachmentId) => {
+      if (assignments.outsideByMember.has(attachmentId)) return;
+      const value = groups[side].get(attachmentId)?.pinNumber;
+      const pin = value == null ? "" : String(value).trim();
+      if (!pin) return;
+      if (!byPin.has(pin)) byPin.set(pin, []);
+      byPin.get(pin).push(attachmentId);
+    });
+    return byPin;
+  };
+  const leftByPin = availableByPin("left");
+  const rightByPin = availableByPin("right");
+  leftByPin.forEach((leftIds, pin) => {
+    const rightIds = rightByPin.get(pin);
+    if (!rightIds?.length) return;
+    const rowIndex = assignments.rows.length;
+    assignConnectionAssociationItem(assignments, "left", leftIds[0], {
+      location: "center", rowIndex,
+    });
+    leftIds.slice(1).forEach((id) => assignConnectionAssociationItem(
+      assignments, "left", id, { location: "extend", rowIndex },
+    ));
+    rightIds.forEach((id, index) => assignConnectionAssociationItem(
+      assignments, "right", id, { location: index ? "extend" : "pending", rowIndex },
+    ));
+  });
+}
+
 /** Return a center attachment to its source pool without changing other groups. */
 function unassignConnectionAssociationItem(assignments, side, rowIndex, poolIndex) {
   const row = assignments.rows[rowIndex];
@@ -297,6 +329,7 @@ function openConnectionAssociationPanel(
   const centerHeading = document.createElement("h3");
   const centerContent = document.createElement("div");
   const actions = document.createElement("div");
+  const autoAssociate = document.createElement("button");
   const cancel = document.createElement("button");
   const save = document.createElement("button");
   const assignments = initialConnectionAssociationAssignments(harness, leftItems, rightItems);
@@ -358,6 +391,16 @@ function openConnectionAssociationPanel(
   center.append(centerHeading, centerContent);
   layout.append(leftPool.column, center, rightPool.column);
   actions.className = "pathway-popup-actions";
+  autoAssociate.type = "button";
+  autoAssociate.className = "button secondary connection-auto-associate";
+  autoAssociate.textContent = "Auto Associate";
+  autoAssociate.title = "Stage associations for matching pin numbers on both sides.";
+  autoAssociate.addEventListener("click", () => {
+    autoAssociateConnectionPins(assignments, groups);
+    renderConnectionAssociationAssignments(
+      harness, assignments, groups, pools, centerContent, showContextMenu, cardContextItems,
+    );
+  });
   cancel.type = "button";
   cancel.className = "button secondary";
   cancel.textContent = "Cancel";
@@ -372,7 +415,7 @@ function openConnectionAssociationPanel(
     save,
     dialog,
   ));
-  actions.append(cancel, save);
+  actions.append(autoAssociate, cancel, save);
   dialog.append(heading, layout, actions);
   dialog.addEventListener("cancel", (event) => {
     event.preventDefault();
