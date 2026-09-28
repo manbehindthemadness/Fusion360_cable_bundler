@@ -4,13 +4,12 @@ Discover connection-compatible row targets in one Fusion ownership context.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, Sequence
 
 from ..application.interface_contact_rows import ROW_TOLERANCE_MM, RowTarget, select_contact_row
 from ..domain import AttachmentTargetKind
-from .attachment_targets import attachment_target_kind
+from .attachment_targets import attachment_target_kind, face_contact_center
 from .interface_contact_projection import (
     _collection_items,
     _direction,
@@ -63,27 +62,9 @@ def _in_context(entity: Any, occurrence: Any) -> Any:
 
 def _face_center(face: Any) -> list[float] | None:
     """
-    Prefer a single circular hole center; otherwise use the face area centroid.
-
-    Hole centers keep circular and square connector pads on the same row even
-    when copper connected to the pad changes the face's area centroid.
+    Use the shared face-contact anchor for row selection and routed cables.
     """
-    inner = [loop for loop in _collection_items(face.loops) if not loop.isOuter]
-    if len(inner) == 1:
-        centers = []
-        for coedge in _collection_items(inner[0].coEdges):
-            edge = _in_context(coedge.edge, getattr(face, "assemblyContext", None))
-            geometry = edge.geometry
-            if geometry.objectType not in ("adsk::core::Circle3D", "adsk::core::Arc3D"):
-                break
-            center = _xyz(geometry.center)
-            if center is None:
-                break
-            centers.append(center)
-        else:
-            if centers and all(math.dist(center, centers[0]) < 1e-5 for center in centers):
-                return centers[0]
-    return _xyz(face.centroid)
+    return _xyz(face_contact_center(face, face.centroid))
 
 
 def describe_row_target(entity: Any) -> RowTarget:

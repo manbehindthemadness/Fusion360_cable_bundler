@@ -13,6 +13,7 @@ import adsk.core
 import adsk.fusion
 
 from ..domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
+from .attachment_targets import face_contact_center
 from .graphics_styles import REFINE_COLOR
 
 _GROUP_ID = "kev0.cable_bundler.hover_widgets"
@@ -33,7 +34,7 @@ def target_point(
     entity: Any, target: Union[CableEndAttachment, CableEndTarget]
 ) -> adsk.core.Point3D:
     """
-    Locate the saved contact point, including face UV coordinates, in model space.
+    Locate the contact anchor in model space, using face centers when available.
     """
     kind = target.target_kind
     if kind is AttachmentTargetKind.PROFILE:
@@ -44,7 +45,7 @@ def target_point(
         )
         if not success:
             raise ValueError("Fusion could not resolve the hovered face contact point.")
-        return point
+        return face_contact_center(entity, point)
     if kind is AttachmentTargetKind.JOINT_ORIGIN:
         translation = entity.transform.translation
         return adsk.core.Point3D.create(translation.x, translation.y, translation.z)

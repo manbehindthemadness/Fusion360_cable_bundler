@@ -26,7 +26,7 @@ from ...routing import GateFrame, RefineFrame, TransitionLengths, Vector3
 from ...routing.aperture import PlanarLoops, interior_center
 from ...routing.conditioning import CircularGuideConstraint, condition_connection_points
 from ...routing.geometry import cross, difference, dot, unit
-from ..attachment_targets import resolve_attachment_target
+from ..attachment_targets import face_contact_center, resolve_attachment_target
 
 
 @dataclass(frozen=True)
@@ -276,7 +276,8 @@ def _attachment_frame(
             return None
         normal = _vector(normal_result[1])
         u_direction, v_direction = _basis_from_normal(normal)
-        return ProfileFrame(_point_to_mm(point_result[1]), unit(normal), u_direction, v_direction)
+        origin = _point_to_mm(face_contact_center(resolved_entity, point_result[1]))
+        return ProfileFrame(origin, unit(normal), u_direction, v_direction)
     if attachment.target_kind is AttachmentTargetKind.JOINT_ORIGIN:
         transform = resolved_entity.transform
         return ProfileFrame(

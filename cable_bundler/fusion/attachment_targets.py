@@ -4,6 +4,7 @@ Resolve the supported Fusion targets used by cable-end attachments.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from typing import Optional, Union
 
@@ -48,6 +49,81 @@ def attachment_target_kind(entity: object) -> Optional[AttachmentTargetKind]:
         (adsk.fusion.SketchPoint, AttachmentTargetKind.SKETCH_POINT),
     )
     return next((kind for entity_type, kind in candidates if _cast(entity_type, entity)), None)
+
+
+def _point_coordinates(point: object) -> Optional[tuple[float, float, float]]:
+    """
+    Validate finite model-space coordinates from one Fusion point.
+    """
+    try:
+        coordinates = float(point.x), float(point.y), float(point.z)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+    return coordinates if all(math.isfinite(value) for value in coordinates) else None
+
+
+def _collection_items(collection: object) -> tuple[object, ...]:
+    """
+    Read indexed Fusion collections without assuming Python iteration support.
+    """
+    count = getattr(collection, "count", 0)
+    item = getattr(collection, "item", None)
+    return tuple(item(index) for index in range(count)) if callable(item) else ()
+
+
+def _circular_hole_center(face: object) -> Optional[adsk.core.Point3D]:
+    """
+    Resolve one concentric circular inner loop in the face's assembly context.
+    """
+    inner_loops = [
+        loop for loop in _collection_items(getattr(face, "loops", None)) if not loop.isOuter
+    ]
+    if len(inner_loops) != 1:
+        return None
+    centers: list[adsk.core.Point3D] = []
+    coordinates: list[tuple[float, float, float]] = []
+    context = getattr(face, "assemblyContext", None)
+    for coedge in _collection_items(inner_loops[0].coEdges):
+        edge = coedge.edge
+        if context is not None and getattr(edge, "assemblyContext", None) is None:
+            edge = edge.createForAssemblyContext(context)
+        geometry = edge.geometry
+        if geometry.objectType not in ("adsk::core::Circle3D", "adsk::core::Arc3D"):
+            return None
+        center = geometry.center
+        point = _point_coordinates(center)
+        if point is None:
+            return None
+        centers.append(center)
+        coordinates.append(point)
+    if not centers:
+        return None
+    first = coordinates[0]
+    if any(math.dist(point, first) >= 1e-6 for point in coordinates[1:]):
+        return None
+    return centers[0]
+
+
+def face_contact_center(face: object, sampled_point: adsk.core.Point3D) -> adsk.core.Point3D:
+    """
+    Anchor a face contact at its circular hole or geometric area center.
+
+    The saved on-face sample remains the fallback when Fusion cannot provide a
+    center; callers may still use that sample to evaluate the normal.
+    """
+    try:
+        hole_center = _circular_hole_center(face)
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        hole_center = None
+    if hole_center is not None:
+        return hole_center
+    try:
+        center = getattr(face, "centroid", None)
+        if center is not None and _point_coordinates(center) is not None:
+            return center
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        pass
+    return sampled_point
 
 
 def explicit_attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:

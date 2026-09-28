@@ -85,7 +85,7 @@ def test_face_widget_uses_saved_contact_parameters(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Place the widget at the node's saved contact, not the face or body center.
+    Use the saved on-face sample when no usable centroid exists.
     """
     from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
 
@@ -103,3 +103,38 @@ def test_face_widget_uses_saved_contact_parameters(
 
     assert graphics.target_point(entity, target) is point
     entity.evaluator.getPointAtParameter.assert_called_once_with((0.2, 0.8))
+
+
+def test_face_widget_uses_annular_contact_center(
+    addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Keep the hover marker on the same center anchor as the routed cable end.
+    """
+    from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment
+
+    graphics = importlib.import_module("cable_bundler.fusion.hover_graphics")
+    center = SimpleNamespace(x=1.0, y=2.0, z=3.0)
+    centroid = SimpleNamespace(x=1.2, y=2.0, z=3.0)
+    on_face = SimpleNamespace(x=1.2, y=2.0, z=3.0)
+    edge = SimpleNamespace(
+        geometry=SimpleNamespace(objectType="adsk::core::Circle3D", center=center),
+        assemblyContext=None,
+    )
+    coedges = SimpleNamespace(count=1, item=Mock(return_value=SimpleNamespace(edge=edge)))
+    loops = SimpleNamespace(
+        count=1, item=Mock(return_value=SimpleNamespace(isOuter=False, coEdges=coedges))
+    )
+    entity = SimpleNamespace(
+        centroid=centroid,
+        loops=loops,
+        evaluator=SimpleNamespace(getPointAtParameter=Mock(return_value=(True, on_face))),
+    )
+    monkeypatch.setitem(
+        vars(graphics),
+        "adsk",
+        SimpleNamespace(core=SimpleNamespace(Point2D=SimpleNamespace(create=lambda *uv: uv))),
+    )
+    target = CableEndAttachment(AttachmentTargetKind.FACE, "face", "Contact", parameters=(0.2, 0.8))
+
+    assert graphics.target_point(entity, target) is center

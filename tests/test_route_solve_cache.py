@@ -4,6 +4,7 @@ Regressions for geometry-validated route-solve reuse.
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
@@ -62,6 +63,75 @@ def test_profile_resolution_skips_invalid_candidates_after_geometry_change(
     monkeypatch.setitem(vars(route_frames.adsk.fusion), "Profile", profile_type)
 
     assert route_frames._resolve_profile(design, "profile-token") is remapped
+
+
+@pytest.mark.parametrize(
+    ("centroid", "hole_center", "expected_x_mm"),
+    [
+        (SimpleNamespace(x=0.2, y=0.0, z=0.0), SimpleNamespace(x=0.0, y=0.0, z=0.0), 0.0),
+        (SimpleNamespace(x=0.0, y=0.0, z=0.0), None, 0.0),
+        (SimpleNamespace(x=math.nan, y=0.0, z=0.0), None, 2.5),
+        (None, None, 2.5),
+    ],
+)
+def test_face_attachment_anchors_at_contact_center_even_when_sample_is_off_center(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    centroid: object,
+    hole_center: object,
+    expected_x_mm: float,
+) -> None:
+    """
+    Center an annular pad while retaining its on-face point for normal evaluation.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+
+    del addin_module
+    parameter = object()
+    normal = SimpleNamespace(x=0.0, y=0.0, z=1.0)
+    sampled_point = SimpleNamespace(x=0.25, y=0.0, z=0.0)
+    evaluator = SimpleNamespace(
+        getPointAtParameter=Mock(return_value=(True, sampled_point)),
+        getNormalAtParameter=Mock(return_value=(True, normal)),
+    )
+    loops = SimpleNamespace(count=0, item=Mock())
+    if hole_center is not None:
+        edge = SimpleNamespace(
+            geometry=SimpleNamespace(objectType="adsk::core::Circle3D", center=hole_center),
+            assemblyContext=None,
+        )
+        coedges = SimpleNamespace(count=1, item=Mock(return_value=SimpleNamespace(edge=edge)))
+        loops = SimpleNamespace(
+            count=1,
+            item=Mock(return_value=SimpleNamespace(isOuter=False, coEdges=coedges)),
+        )
+    face = SimpleNamespace(centroid=centroid, evaluator=evaluator, loops=loops)
+    monkeypatch.setitem(
+        vars(route_frames.adsk.core),
+        "Point2D",
+        SimpleNamespace(create=Mock(return_value=parameter)),
+    )
+    monkeypatch.setitem(vars(route_frames), "resolve_attachment_target", Mock(return_value=face))
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.FACE,
+        "pad-face-token",
+        "Pad",
+        parameters=(1.0, 2.0),
+        attachment_id=UUID(int=900),
+    )
+    adjacent = route_frames.ProfileFrame(
+        Vector3(0.0, 0.0, 10.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+
+    frame = route_frames._attachment_frame(object(), attachment, adjacent)
+
+    assert frame is not None
+    assert frame.origin == Vector3(expected_x_mm, 0.0, 0.0)
+    assert frame.normal == Vector3(0.0, 0.0, 1.0)
+    evaluator.getNormalAtParameter.assert_called_once_with(parameter)
 
 
 def test_profile_resolution_materializes_lazy_profiles_after_sketch_move(
