@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid5
 
+from .connection_packing import PackedConnection, pack_connections
 from .materials import (
     CableMaterialOverrides,
     CableMaterialSettings,
@@ -722,10 +723,35 @@ class HarnessDefinition:
                 group, connection_id, attachment.parent_attachment_id
             )
         )
+        packing = pack_connections(
+            parent_diameter_mm,
+            tuple(item.visual_overrides.diameter_mm for item in siblings),
+        )
+        if packing is not None:
+            return packing[siblings.index(attachment)].diameter_mm
         diameter_mm = attachment.visual_overrides.diameter_mm
-        if len(siblings) <= 1:
-            return parent_diameter_mm if diameter_mm is None else diameter_mm
         return parent_diameter_mm / len(siblings) if diameter_mm is None else diameter_mm
+
+    def cable_end_attachment_pack(
+        self,
+        group: CableGroupDefinition,
+        connection_id: UUID,
+        parent_attachment_id: Optional[UUID],
+    ) -> Optional[tuple[PackedConnection, ...]]:
+        """
+        Resolve sibling cross-sections against their immediate parent face.
+        """
+        connection = next(item for item in self.connections if item.connection_id == connection_id)
+        siblings = connection.attachment_children(parent_attachment_id)
+        parent_diameter_mm = (
+            group.diameter_mm
+            if parent_attachment_id is None
+            else self.cable_end_attachment_diameter(group, connection_id, parent_attachment_id)
+        )
+        return pack_connections(
+            parent_diameter_mm,
+            tuple(item.visual_overrides.diameter_mm for item in siblings),
+        )
 
     def cable_end_attachment_conductor_diameter(
         self,

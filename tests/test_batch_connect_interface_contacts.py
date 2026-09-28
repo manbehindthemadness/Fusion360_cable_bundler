@@ -205,7 +205,13 @@ def test_batch_grows_parent_for_fixed_children_of_an_existing_root(
         id_factory=iter((UUID(int=901), UUID(int=902))).__next__,
     )
     stored = loads(gateway.serialized_definition)
-    assert stored.cable_groups[0].diameter_mm == pytest.approx(3.6)
+    assert 1.2 < stored.cable_groups[0].diameter_mm < 3.6
+    assert (
+        stored.cable_end_attachment_pack(
+            stored.cable_groups[0], stored.connections[0].connection_id, root_id
+        )
+        is not None
+    )
     assert len(stored.connections[0].attachments) == 5
 
 

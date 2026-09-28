@@ -16,6 +16,7 @@ function cableEndAttachmentParentDiameter(cableGroup, connection, attachment) {
     (candidate) => candidate.attachmentId === attachment.parentAttachmentId,
   );
   if (!parent) return cableGroup.diameterMm;
+  if (Number.isFinite(parent.resolvedDiameterMm)) return parent.resolvedDiameterMm;
   const siblings = cableEndAttachmentSiblings(connection, parent);
   const inherited = cableEndAttachmentParentDiameter(cableGroup, connection, parent)
     / Math.max(1, siblings.length);
@@ -190,7 +191,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     return;
   }
   const parentDiameter = cableEndAttachmentParentDiameter(cableGroup, connection, attachment);
-  const inheritedDiameter = parentDiameter / siblings.length;
+  const inheritedDiameter = attachment.resolvedDiameterMm ?? parentDiameter / siblings.length;
   const units = cableLengthUnits(harness);
   const { dialog, form, heading, error, actions, cancel, save } = createOptionsDialog(
     "cable-options connection-properties",
@@ -250,14 +251,6 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
       conductorDiameterMm = conductorDiameter.read();
     } catch (failure) {
       error.textContent = failure.message;
-      return;
-    }
-    const combinedDiameter = siblings.reduce((total, candidate) => {
-      if (candidate.attachmentId === attachment.attachmentId) return total + diameterMm;
-      return total + (candidate.visualOverrides?.diameterMm ?? inheritedDiameter);
-    }, 0);
-    if (combinedDiameter > parentDiameter + 1e-9) {
-      error.textContent = "Connection diameters cannot collectively exceed the parent cable diameter.";
       return;
     }
     const insulationMaterial = materialControls.insulationMaterial.toggle.checked

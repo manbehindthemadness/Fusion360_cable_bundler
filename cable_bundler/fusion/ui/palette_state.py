@@ -78,6 +78,7 @@ def _attachment_payload(
     design: Optional[adsk.fusion.Design],
     gateway: Any,
     attachment: CableEndAttachment,
+    resolved_diameter_mm: Optional[float] = None,
 ) -> dict[str, object]:
     """
     Serialize one independently addressable cable-end connection node.
@@ -118,6 +119,7 @@ def _attachment_payload(
         ),
         "orderedControlIds": [str(control_id) for control_id in attachment.ordered_control_ids],
         "visualOverrides": _visual_overrides_payload(attachment.visual_overrides),
+        "resolvedDiameterMm": resolved_diameter_mm,
     }
 
 
@@ -256,6 +258,15 @@ def serialize_palette_state(
             )
             continue
         cable_groups, cable_group_route_error = _cable_group_payloads(definition)
+        resolved_attachment_diameters = {
+            attachment.attachment_id: definition.cable_end_attachment_diameter(
+                group, connection.connection_id, attachment.attachment_id
+            )
+            for group in definition.cable_groups
+            for connection in definition.connections
+            if connection.connection_id in group.connection_ids
+            for attachment in connection.attachments
+        }
         has_route_preview, has_generated_solids, has_finalized_geometry = _harness_render_state(
             application,
             gateway,
@@ -285,12 +296,24 @@ def serialize_palette_state(
                         "name": connection.name,
                         "metadata": _metadata_payload(connection.metadata),
                         "attachment": (
-                            _attachment_payload(design, gateway, connection.attachment)
+                            _attachment_payload(
+                                design,
+                                gateway,
+                                connection.attachment,
+                                resolved_attachment_diameters.get(
+                                    connection.attachment.attachment_id
+                                ),
+                            )
                             if connection.attachment is not None
                             else None
                         ),
                         "attachments": [
-                            _attachment_payload(design, gateway, attachment)
+                            _attachment_payload(
+                                design,
+                                gateway,
+                                attachment,
+                                resolved_attachment_diameters.get(attachment.attachment_id),
+                            )
                             for attachment in connection.attachments
                         ],
                         "hasLinkedGeometry": all(

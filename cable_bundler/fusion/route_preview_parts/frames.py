@@ -47,10 +47,8 @@ def connection_branch_route_frames(
     connection: Connection,
     attachment: CableEndAttachment,
     guide: ProfileFrame,
-    index: int,
-    count: int,
-    parent_diameter_mm: float,
-    branch_diameter_mm: float,
+    offset_u_mm: float,
+    offset_v_mm: float,
     controls: dict[UUID, ControlStructure],
     frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
@@ -64,12 +62,8 @@ def connection_branch_route_frames(
     if target is None:
         return ()
     refine_frames = _attachment_refine_frames(design, attachment, controls, frames)
-    origin = _clockface_branch_origin(
-        guide,
-        index,
-        count,
-        parent_diameter_mm,
-        branch_diameter_mm,
+    origin = guide.origin.translated(guide.u_direction, offset_u_mm).translated(
+        guide.v_direction, offset_v_mm
     )
     origin_normal = _profile_normal_toward_point(guide, origin, parent_side_point)
     origin_frame = ProfileFrame(
@@ -151,23 +145,6 @@ def _routing_profile_frame(frame: Union[GateFrame, RefineFrame]) -> ProfileFrame
         frame.u_direction,
         frame.v_direction,
         frame.usable_radius_mm if isinstance(frame, GateFrame) else None,
-    )
-
-
-def _clockface_branch_origin(
-    guide: ProfileFrame,
-    index: int,
-    count: int,
-    parent_diameter_mm: float,
-    branch_diameter_mm: float,
-) -> Vector3:
-    """
-    Place one branch center on an even clock face inside the parent envelope.
-    """
-    radius_mm = max(0.0, (parent_diameter_mm - branch_diameter_mm) * 0.5)
-    angle = math.pi * 0.5 - math.tau * index / count
-    return guide.origin.translated(guide.u_direction, math.cos(angle) * radius_mm).translated(
-        guide.v_direction, math.sin(angle) * radius_mm
     )
 
 

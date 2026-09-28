@@ -113,7 +113,7 @@ def test_rejects_connection_diameters_above_parent_cable(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Bound the sum of resolved divided-branch diameters by the parent diameter.
+    Reject fixed sibling disks that cannot fit the parent face.
     """
     connection = replace(
         valid_harness.connections[0],
@@ -122,7 +122,13 @@ def test_rejects_connection_diameters_above_parent_cable(
             attachment_id=UUID(int=801),
             visual_overrides=CableVisualOverrides(diameter_mm=1.0),
         ),
-        additional_attachments=(CableEndAttachment(None, attachment_id=UUID(int=802)),),
+        additional_attachments=(
+            CableEndAttachment(
+                None,
+                attachment_id=UUID(int=802),
+                visual_overrides=CableVisualOverrides(diameter_mm=0.5),
+            ),
+        ),
     )
     definition = replace(
         valid_harness,
@@ -138,7 +144,7 @@ def test_rejects_nested_connection_diameters_above_immediate_parent(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Apply the diameter budget independently at every connection-tree branch.
+    Apply the packing constraint independently at every connection-tree branch.
     """
     root_id = UUID(int=811)
     root = CableEndAttachment(
@@ -163,6 +169,7 @@ def test_rejects_nested_connection_diameters_above_immediate_parent(
                 None,
                 attachment_id=UUID(int=814),
                 parent_attachment_id=root_id,
+                visual_overrides=CableVisualOverrides(diameter_mm=0.3),
             ),
         ),
     )

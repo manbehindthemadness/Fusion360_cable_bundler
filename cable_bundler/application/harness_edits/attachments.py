@@ -19,6 +19,7 @@ from ...domain import (
     Connection,
     Metadata,
 )
+from ...domain.connection_packing import pack_connections
 from .support import persist_definition, prune_attachment_associations, read_definition
 from .types import HarnessEditGateway
 
@@ -553,30 +554,21 @@ def _validate_connection_diameter_budget(
     connection: Connection,
 ) -> None:
     """
-    Reject any sibling branch group whose diameters exceed its immediate parent.
+    Reject any sibling branch group that cannot fit its immediate parent face.
     """
 
     def validate_children(parent_attachment_id: Optional[UUID], diameter_mm: float) -> None:
         children = connection.attachment_children(parent_attachment_id)
         if not children:
             return
-        inherited_diameter_mm = diameter_mm / len(children)
-        child_diameters = (
-            (children[0].visual_overrides.diameter_mm or diameter_mm,)
-            if len(children) == 1
-            else tuple(
-                inherited_diameter_mm
-                if child.visual_overrides.diameter_mm is None
-                else child.visual_overrides.diameter_mm
-                for child in children
-            )
+        packing = pack_connections(
+            diameter_mm,
+            tuple(child.visual_overrides.diameter_mm for child in children),
         )
-        if sum(child_diameters) > diameter_mm + 1e-9:
-            raise ValueError(
-                "Connection diameters cannot collectively exceed the parent cable diameter."
-            )
-        for child, child_diameter_mm in zip(children, child_diameters):
-            validate_children(child.attachment_id, child_diameter_mm)
+        if packing is None:
+            raise ValueError("Connection circles cannot fit inside the parent cable face.")
+        for child, circle in zip(children, packing):
+            validate_children(child.attachment_id, circle.diameter_mm)
 
     validate_children(None, parent_diameter_mm)
 

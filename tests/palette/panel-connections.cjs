@@ -111,6 +111,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
     attachmentId: 'connection-2',
     name: 'J1 socket', nameOverride: '', targetKind: 'joint_origin', connected: true,
     metadata: [{ key: 'connector', value: 'J1' }],
+    resolvedDiameterMm: 0.9,
     visualOverrides: { mainColor: null, appearance: null, stripes: null },
   };
   const openSecondAttachmentMenu = () => {
@@ -194,7 +195,7 @@ asyncTest('Cable Details connects detached ends and manages diagram-only connect
   assert.equal(properties.open, true);
   const propertyFields = descendants(properties, (node) => node.tag === 'input');
   assert.equal(propertyFields.length, 17);
-  assert.equal(propertyFields[0].value, '0.075');
+  assert.equal(propertyFields[0].value, '0.09');
   propertyFields[0].value = '0.06';
   propertyFields[1].checked = true;
   propertyFields[1].events.change();

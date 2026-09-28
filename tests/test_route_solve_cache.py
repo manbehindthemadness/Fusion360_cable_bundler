@@ -138,13 +138,13 @@ def test_attached_connection_prepends_external_contact_frame(
     assert frames == (target_frame, member_frame)
 
 
-def test_multiple_connections_create_divided_clockface_branches(
+def test_multiple_connections_create_loosely_packed_branches(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Divide branch diameters and keep their guide origins inside the parent envelope.
+    Size and place branch disks without overlap inside the parent envelope.
     """
     from cable_bundler.fusion.route_preview_parts import frames as route_frames
     from cable_bundler.fusion.route_preview_parts import solver as route_solver
@@ -235,10 +235,8 @@ def test_multiple_connections_create_divided_clockface_branches(
 
     group = definition.cable_groups[0]
     assert len(routes) == 2
-    assert tuple(leg.diameter_mm for leg in legs) == (
-        0.4,
-        group.diameter_mm / 2.0,
-    )
+    assert legs[0].diameter_mm == 0.4
+    assert group.diameter_mm / 2.0 < legs[1].diameter_mm < 0.8
     assert all(leg.is_connection_branch for leg in legs)
     assert tuple(leg.attachment_id for leg in legs) == (
         first.attachment_id,
@@ -246,11 +244,13 @@ def test_multiple_connections_create_divided_clockface_branches(
     )
     assert routes[0].points[1] == refine_frame.origin
     origins = tuple(route.points[-1] for route in routes)
-    first_branch_radius = (group.diameter_mm - 0.4) / 2.0
-    second_branch_radius = (group.diameter_mm - group.diameter_mm / 2.0) / 2.0
-    assert tuple(
-        coordinate for point in origins for coordinate in (point.x, point.y, point.z)
-    ) == pytest.approx((0.0, first_branch_radius, 0.0, 0.0, -second_branch_radius, 0.0))
+    assert all(
+        (point.x**2 + point.y**2) ** 0.5 + leg.diameter_mm / 2 <= group.diameter_mm / 2 + 1e-7
+        for point, leg in zip(origins, legs)
+    )
+    assert ((origins[0].x - origins[1].x) ** 2 + (origins[0].y - origins[1].y) ** 2) ** 0.5 >= (
+        legs[0].diameter_mm + legs[1].diameter_mm
+    ) / 2 - 1e-7
 
 
 def test_connection_refine_spine_uses_selected_external_branch(

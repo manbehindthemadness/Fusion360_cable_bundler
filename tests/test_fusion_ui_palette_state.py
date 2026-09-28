@@ -304,6 +304,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
         "orderedControlIds": [],
+        "resolvedDiameterMm": 1.2,
         "visualOverrides": {
             "diameterMm": None,
             "conductorDiameterMm": None,
@@ -332,6 +333,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "targetKind": None,
         "metadata": [],
         "orderedControlIds": [],
+        "resolvedDiameterMm": 1.2,
         "visualOverrides": {
             "diameterMm": None,
             "conductorDiameterMm": None,

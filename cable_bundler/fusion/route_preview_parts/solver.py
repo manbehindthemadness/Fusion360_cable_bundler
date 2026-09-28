@@ -581,7 +581,6 @@ def _connection_branch_routes(
                 siblings = connection.attachment_children(parent_attachment_id)
                 if parent_attachment_id is None:
                     guide = end_guide
-                    parent_diameter_mm = group.diameter_mm
                     parent_side_point = None
                     if len(siblings) <= 1:
                         continue
@@ -610,22 +609,20 @@ def _connection_branch_routes(
                         controls,
                         frames,
                     )
-                    parent_diameter_mm = definition.cable_end_attachment_diameter(
-                        group, connection_id, parent_attachment_id
-                    )
+                packing = definition.cable_end_attachment_pack(
+                    group, connection_id, parent_attachment_id
+                )
+                if packing is None:
+                    continue
                 for index, attachment in enumerate(siblings):
-                    branch_diameter_mm = definition.cable_end_attachment_diameter(
-                        group, connection_id, attachment.attachment_id
-                    )
+                    branch_diameter_mm = packing[index].diameter_mm
                     branch_frames = connection_branch_route_frames(
                         design,
                         connection,
                         attachment,
                         guide,
-                        index,
-                        len(siblings),
-                        parent_diameter_mm,
-                        branch_diameter_mm,
+                        packing[index].x_mm,
+                        packing[index].y_mm,
                         controls,
                         frames,
                         cache,

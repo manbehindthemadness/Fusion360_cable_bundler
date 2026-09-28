@@ -18,6 +18,7 @@ from ..domain import (
     HarnessDefinition,
     validate_harness,
 )
+from ..domain.connection_packing import required_parent_diameter
 from .harness_edits.attachments import _replace_cable_end_attachment
 from .harness_edits.support import persist_definition, read_definition
 from .harness_edits.types import HarnessEditGateway
@@ -40,9 +41,8 @@ def batch_connect_interface_contacts(
     """
     Add contact-backed nodes beneath a grouped end or profile node in one edit.
 
-    The existing diameter budget divides the selected parent's diameter among
-    branches. Blank size uses that inherited share; an explicit size becomes
-    a branch override. No connection-association group is created.
+    Blank size uses loose packing inside the selected parent; an explicit size
+    remains fixed and may enlarge the parent. No association group is created.
     """
     if not isinstance(include_pins, bool) or not isinstance(include_values, bool):
         raise ValueError("Auto Connect options must be checked or unchecked.")
@@ -161,14 +161,15 @@ def batch_connect_interface_contacts(
     current_parent_id = parent_attachment_id
     while True:
         children = updated_connection.attachment_children(current_parent_id)
-        fixed = sum(item.visual_overrides.diameter_mm or 0.0 for item in children)
-        fixed_count = sum(item.visual_overrides.diameter_mm is not None for item in children)
-        if len(children) == 1:
-            required = fixed
-        elif fixed_count:
-            required = fixed * len(children) / fixed_count
-        else:
-            required = 0.0
+        fixed = tuple(
+            item.visual_overrides.diameter_mm
+            for item in children
+            if item.visual_overrides.diameter_mm is not None
+        )
+        automatic_seed = min(fixed) if fixed else 0.0
+        required = required_parent_diameter(
+            tuple(item.visual_overrides.diameter_mm or automatic_seed for item in children)
+        )
         if current_parent_id is None:
             group = replace(group, diameter_mm=max(group.diameter_mm, required))
             break
