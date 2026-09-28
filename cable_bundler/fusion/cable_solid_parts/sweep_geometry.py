@@ -16,7 +16,7 @@ from ...routing import (
     RoutePreview,
     Vector3,
 )
-from ...routing.geometry import cross, difference, lerp, magnitude
+from ...routing.geometry import cross, difference, lerp, magnitude, unit
 from .constants import JUNCTION_TOLERANCE_MM
 
 
@@ -58,6 +58,39 @@ class RouteEndpointPullbackSplit:
     end_pullback: Optional[RoutePreview]
     start_length_mm: float
     end_length_mm: float
+
+
+def extend_route_tail(route: RoutePreview, distance_mm: float) -> RoutePreview:
+    """
+    Extend a branch sweep into its parent without changing its logical route.
+
+    The collinear segment forms real solid overlap beyond the packed junction
+    face while preserving the target-facing route and its persistent identity.
+    """
+    if (
+        isinstance(distance_mm, bool)
+        or not math.isfinite(distance_mm)
+        or distance_mm <= 0.0
+        or not route.curves
+    ):
+        raise ValueError("Branch overlap needs a positive distance and routed curves.")
+    endpoint = route.curves[-1].end
+    derivative = route.curves[-1].derivative(1.0)
+    tangent = unit(
+        derivative if magnitude(derivative) > 1e-9 else difference(endpoint, route.curves[-1].start)
+    )
+    extension = CubicBezier(
+        endpoint,
+        endpoint.translated(tangent, distance_mm / 3.0),
+        endpoint.translated(tangent, distance_mm * 2.0 / 3.0),
+        endpoint.translated(tangent, distance_mm),
+    )
+    return RoutePreview(
+        route.cable_id,
+        route.cable_number,
+        (*route.points, extension.end),
+        (*route.curves, extension),
+    )
 
 
 def split_route_for_pullback(route: RoutePreview, distance_mm: float) -> RoutePullbackSplit:

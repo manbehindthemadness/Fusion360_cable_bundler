@@ -30,6 +30,7 @@ from cable_bundler.domain import (
 )
 from cable_bundler.domain.model import InterpolationSettings
 from cable_bundler.routing import (
+    CubicBezier,
     GateFrame,
     RefineFrame,
     RoutePreview,
@@ -231,6 +232,12 @@ def test_multiple_connections_create_loosely_packed_branches(
         {refine_id: refine_frame},
         {},
         definition.auto_transition_preset.span_fraction,
+        {
+            (
+                definition.cable_groups[0].cable_group_id,
+                connection.connection_id,
+            ): route_solver._BranchAnchor(Vector3(2.0, 0.0, 0.0), Vector3(2.0, 0.0, 1.0))
+        },
     )
 
     group = definition.cable_groups[0]
@@ -245,12 +252,52 @@ def test_multiple_connections_create_loosely_packed_branches(
     assert routes[0].points[1] == refine_frame.origin
     origins = tuple(route.points[-1] for route in routes)
     assert all(
-        (point.x**2 + point.y**2) ** 0.5 + leg.diameter_mm / 2 <= group.diameter_mm / 2 + 1e-7
+        ((point.x - 2.0) ** 2 + point.y**2) ** 0.5 + leg.diameter_mm / 2
+        <= group.diameter_mm / 2 + 1e-7
         for point, leg in zip(origins, legs)
     )
     assert ((origins[0].x - origins[1].x) ** 2 + (origins[0].y - origins[1].y) ** 2) ** 0.5 >= (
         legs[0].diameter_mm + legs[1].diameter_mm
     ) / 2 - 1e-7
+
+
+def test_root_branch_anchors_follow_faired_main_route_endpoints(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Pair each divided end with the actual main-sweep cap and interior direction.
+    """
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    start = Vector3(1.0, 2.0, 3.0)
+    end = Vector3(11.0, 2.0, 3.0)
+    route = RoutePreview(
+        UUID(int=501),
+        "Main",
+        (start, end),
+        (CubicBezier(start, Vector3(4.0, 2.0, 3.0), Vector3(8.0, 2.0, 3.0), end),),
+    )
+    leg = CableGroupRouteLeg(
+        route.cable_id,
+        UUID(int=502),
+        "Main",
+        UUID(int=503),
+        UUID(int=504),
+        (),
+        (),
+    )
+
+    anchors = route_solver._root_branch_anchors((leg,), (route,))
+
+    assert anchors[leg.cable_group_id, leg.start_connection_id].origin == start
+    assert anchors[leg.cable_group_id, leg.start_connection_id].interior.x > start.x
+    assert anchors[leg.cable_group_id, leg.end_connection_id].origin == end
+    assert anchors[leg.cable_group_id, leg.end_connection_id].interior.x < end.x
+    flat_handles = replace(route, curves=(CubicBezier(start, start, end, end),))
+    fallback = route_solver._root_branch_anchors((leg,), (flat_handles,))
+    assert fallback[leg.cable_group_id, leg.start_connection_id].interior.x > start.x
+    assert fallback[leg.cable_group_id, leg.end_connection_id].interior.x < end.x
 
 
 def test_connection_refine_spine_uses_selected_external_branch(

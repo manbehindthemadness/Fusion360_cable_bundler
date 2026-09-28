@@ -39,6 +39,7 @@ from .stripes import (
     replace_group_stripe_graphics,
 )
 from .sweep_geometry import (
+    extend_route_tail,
     is_straight,
     prepare_group_sweep_segments,
     reverse_route,
@@ -411,6 +412,7 @@ def build_cable_group_solid(
                 )
     for route_index in sorted(connection_branch_indices):
         branch_number = route_index + 1
+        overlap_mm = diameters[route_index] * 0.5
         split = split_route_for_pullback(
             routes[route_index],
             pullbacks_mm[route_index] if output_mode == FINALIZED_OUTPUT_MODE else 0.0,
@@ -422,7 +424,7 @@ def build_cable_group_solid(
         if split.insulation is not None:
             body, length_mm = _build_route_sweep(
                 component,
-                split.insulation,
+                extend_route_tail(split.insulation, overlap_mm),
                 diameters[route_index],
                 transform,
                 f"Cable Connection Branch {branch_number} Centerline",
@@ -436,7 +438,7 @@ def build_cable_group_solid(
                 branch_materials.main_color,
                 branch_materials.appearance,
             )
-            leg_lengths[route_index] += length_mm
+            leg_lengths[route_index] += length_mm - overlap_mm
             insulation_body_count = 1
             branch_insulation_routes[route_index] = route_in_component_space(
                 split.insulation, transform
@@ -444,7 +446,11 @@ def build_cable_group_solid(
         if split.pullback is not None:
             body, length_mm = _build_route_sweep(
                 component,
-                split.pullback,
+                (
+                    extend_route_tail(split.pullback, overlap_mm)
+                    if split.insulation is None
+                    else split.pullback
+                ),
                 pullback_diameters_mm[route_index],
                 transform,
                 f"Cable Connection Branch {branch_number} Pullback Centerline",
@@ -458,7 +464,9 @@ def build_cable_group_solid(
                 branch_materials.pullback.color,
                 branch_materials.pullback.appearance,
             )
-            leg_lengths[route_index] += length_mm
+            leg_lengths[route_index] += length_mm - (
+                overlap_mm if split.insulation is None else 0.0
+            )
             pullback_body_count = 1
         endpoint = welds[route_index]
         if output_mode == FINALIZED_OUTPUT_MODE and endpoint is not None:

@@ -241,6 +241,101 @@ def _straight_route(identity: int, start: Vector3, end: Vector3) -> RoutePreview
     return RoutePreview(UUID(int=identity), f"Leg {identity}", (start, end), (curve,))
 
 
+def test_branch_tail_extends_into_parent_without_changing_logical_route(
+    cable_solids: _CableSolidsModule,
+) -> None:
+    """
+    Continue a branch sweep past its packed face along the exact end tangent.
+    """
+    del cable_solids
+    sweep_geometry = importlib.import_module(
+        "cable_bundler.fusion.cable_solid_parts.sweep_geometry"
+    )
+    route = _straight_route(870, Vector3(5.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.0))
+
+    extended = sweep_geometry.extend_route_tail(route, 0.25)
+
+    assert route.curves[-1].end == Vector3(0.0, 0.0, 0.0)
+    assert extended.cable_id == route.cable_id
+    assert extended.curves[:-1] == route.curves
+    assert extended.curves[-1].start == route.curves[-1].end
+    assert extended.curves[-1].end == Vector3(-0.25, 0.0, 0.0)
+    flat_handles = replace(
+        route,
+        curves=(CubicBezier(route.points[0], route.points[0], route.points[1], route.points[1]),),
+    )
+    assert sweep_geometry.extend_route_tail(flat_handles, 0.25).curves[-1].end == Vector3(
+        -0.25, 0.0, 0.0
+    )
+
+
+def test_generated_branch_sweep_overlaps_trunk_without_inflating_saved_length(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Sweep a short hidden branch tail into the main body while keeping logical metrics.
+    """
+    del cable_solids
+    solid_builder = cast(Any, sys.modules["cable_bundler.fusion.cable_solid_parts.solid_builder"])
+    trunk = _straight_route(871, Vector3(0.0, 0.0, 0.0), Vector3(5.0, 0.0, 0.0))
+    branch = _straight_route(872, Vector3(7.0, 0.0, 0.0), Vector3(5.0, 0.0, 0.0))
+    bodies: list[Any] = []
+
+    def build_sweep(
+        _component: object,
+        route: RoutePreview,
+        _diameter_mm: float,
+        _transform: object,
+        _centerline_name: str,
+        _section_name: str,
+        _sweep_name: str,
+    ) -> tuple[object, float]:
+        """
+        Record the exact centerline handed to Fusion's sweep builder.
+        """
+        body = SimpleNamespace(route=route, name="", appearance=None)
+        bodies.append(body)
+        return body, abs(route.curves[-1].end.x - route.curves[0].start.x)
+
+    class _Bodies:
+        @property
+        def count(self) -> int:
+            return len(bodies)
+
+    add_attribute = Mock(return_value=object())
+    component = SimpleNamespace(
+        bRepBodies=_Bodies(),
+        attributes=SimpleNamespace(add=add_attribute),
+        name="",
+    )
+    monkeypatch.setitem(solid_builder.__dict__, "_build_route_sweep", build_sweep)
+    monkeypatch.setitem(solid_builder.__dict__, "route_in_component_space", lambda route, _: route)
+    monkeypatch.setitem(solid_builder.__dict__, "cable_appearance", lambda *_args: object())
+    monkeypatch.setitem(solid_builder.__dict__, "replace_group_stripe_graphics", Mock())
+
+    solid_builder.build_cable_group_solid(
+        component,
+        object(),
+        valid_harness.cable_groups[0],
+        0,
+        (trunk, branch),
+        object(),
+        valid_harness.harness_id,
+        valid_harness.material_defaults,
+        object(),
+        route_diameters_mm=(1.2, 0.4),
+        connection_branch_indices=frozenset({1}),
+    )
+
+    assert bodies[0].route.curves[-1].end == Vector3(5.0, 0.0, 0.0)
+    assert bodies[1].route.curves[-1].end == Vector3(4.8, 0.0, 0.0)
+    metadata = json.loads(add_attribute.call_args.args[2])
+    assert metadata["length_mm"] == pytest.approx(7.0)
+    assert metadata["connection_branches"][0]["length_mm"] == pytest.approx(2.0)
+
+
 def _radial(result: StripeMeshResult, boundary: str) -> tuple[float, float, float]:
     """
     Return one required continuation radial for approximate comparisons.

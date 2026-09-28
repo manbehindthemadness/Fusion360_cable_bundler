@@ -5,7 +5,7 @@ Resolve Fusion route inputs into deterministic centerline solutions.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional, Union
 from uuid import UUID, uuid5
 
@@ -43,7 +43,7 @@ from ...routing.conditioning import (
     condition_route_normals,
     junction_normal_indices,
 )
-from ...routing.geometry import cross, unit
+from ...routing.geometry import cross, difference, magnitude, unit
 from .frames import (
     ProfileFrame,
     connection_attachment_frame,
@@ -72,7 +72,59 @@ class _RouteSolveCache:
     notices: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _BranchAnchor:
+    """
+    Locate a solved parent sweep end and a point inside that sweep.
+    """
+
+    origin: Vector3
+    interior: Vector3
+
+
 _route_solve_cache: Optional[_RouteSolveCache] = None
+
+
+def _terminal_branch_anchor(route: RoutePreview, *, at_start: bool) -> _BranchAnchor:
+    """
+    Recover one parent cap and its inward tangent from an exact or raw route.
+    """
+    if route.curves:
+        curve = route.curves[0] if at_start else route.curves[-1]
+        origin = curve.start if at_start else curve.end
+        derivative = curve.derivative(0.0 if at_start else 1.0)
+        inward = derivative if at_start else Vector3(-derivative.x, -derivative.y, -derivative.z)
+        if magnitude(inward) <= 1e-9:
+            inward = (
+                difference(curve.end, curve.start)
+                if at_start
+                else difference(curve.start, curve.end)
+            )
+    else:
+        origin = route.points[0] if at_start else route.points[-1]
+        neighbor = route.points[1] if at_start else route.points[-2]
+        inward = difference(neighbor, origin)
+    return _BranchAnchor(origin, origin.translated(unit(inward), 1.0))
+
+
+def _root_branch_anchors(
+    legs: tuple[CableGroupRouteLeg, ...],
+    routes: tuple[RoutePreview, ...],
+) -> dict[tuple[UUID, UUID], _BranchAnchor]:
+    """
+    Follow conditioned main-route endpoints rather than unshifted guide centers.
+    """
+    anchors: dict[tuple[UUID, UUID], _BranchAnchor] = {}
+    for leg, route in zip(legs, routes):
+        if leg.start_connection_id is not None:
+            anchors[leg.cable_group_id, leg.start_connection_id] = _terminal_branch_anchor(
+                route, at_start=True
+            )
+        if leg.end_connection_id is not None:
+            anchors[leg.cable_group_id, leg.end_connection_id] = _terminal_branch_anchor(
+                route, at_start=False
+            )
+    return anchors
 
 
 def leg_control_ids(
@@ -537,6 +589,7 @@ def solve_cable_group_routes(
         frames,
         profile_frames,
         auto_transition_fraction,
+        _root_branch_anchors(legs, separated_routes),
     )
     solved_routes = (*separated_routes, *branch_routes)
     solved_legs = (*legs, *branch_legs)
@@ -562,6 +615,7 @@ def _connection_branch_routes(
     frames: dict[UUID, Union[GateFrame, RefineFrame]],
     cache: dict[str, ProfileFrame],
     auto_transition_fraction: float,
+    root_anchors: Optional[dict[tuple[UUID, UUID], _BranchAnchor]] = None,
 ) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
     """
     Build every root split and descendant connection span.
@@ -580,8 +634,9 @@ def _connection_branch_routes(
             for parent_attachment_id in parent_ids:
                 siblings = connection.attachment_children(parent_attachment_id)
                 if parent_attachment_id is None:
-                    guide = end_guide
-                    parent_side_point = None
+                    anchor = (root_anchors or {}).get((group.cable_group_id, connection_id))
+                    guide = replace(end_guide, origin=anchor.origin) if anchor else end_guide
+                    parent_side_point = anchor.interior if anchor else None
                     if len(siblings) <= 1:
                         continue
                 else:
@@ -664,7 +719,7 @@ def _connection_branch_routes(
                         auto_transition_fraction=auto_transition_fraction,
                         fixed_normal_indices=(
                             frozenset({len(branch_frames) - 1})
-                            if parent_attachment_id is not None
+                            if parent_attachment_id is not None or parent_side_point is not None
                             else frozenset()
                         ),
                     )
