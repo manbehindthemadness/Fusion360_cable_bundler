@@ -119,6 +119,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
     sourceEditor.buttons.forEach(([button, disabled]) => { button.disabled = disabled; });
     dialog.loadedGeometryKey = null;
     dialog.contactDisplayKey = null;
+    dialog.contactSignatures = sourceEditor.contactSignatures;
     const currentHarness = currentState.harnesses.find((item) => item.harnessId === harness.harnessId);
     const currentSource = (currentHarness?.interfaces || []).find((item) => item.interfaceId === interfaceId);
     updateInterfaceContactData(dialog, currentSource?.contacts || sourceEditor.contacts);
@@ -196,6 +197,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       sourceIds = autoConnectContactIds(state);
       sourceEditor = {
         contacts: dialog.contactMetadata,
+        contactSignatures: dialog.contactSignatures,
         selectedIds: new Set(state.selectedIds),
         handlers: {
           onEditContact: state.onEditContact,
@@ -259,6 +261,7 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       dialog.children[0].textContent = `Contacts Editor · ${chosenInterface.name}`;
       dialog.loadedGeometryKey = null;
       dialog.contactDisplayKey = null;
+      dialog.contactSignatures = currentContactGeometry(dialog)?.signatures || null;
       diagram.contactState.selectedIds.clear();
       diagram.contactState.autoConnectTargetPreview = true;
       diagram.contactState.onEditContact = null;

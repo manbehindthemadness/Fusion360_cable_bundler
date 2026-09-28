@@ -141,6 +141,63 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   assert.notEqual(dialog.children[1].children[1].children[1].disabled, true);
 });
 
+asyncTest('Auto Connect restores the source geometry cache after target preview', async () => {
+  const { context } = palette();
+  const requests = [];
+  const source = { interfaceId: 'source', name: 'Source', contacts: [
+    { contactId: 'a', name: 'A', geometryRevision: 1 },
+  ] };
+  const target = { interfaceId: 'target', name: 'Target', contacts: [
+    { contactId: 'b', name: 'B', geometryRevision: 1 },
+  ] };
+  const harness = { harnessId: 'harness', interfaces: [source, target] };
+  context.send = (action, payload) => {
+    requests.push({ action, payload });
+    if (action === 'get_interface_contact_signatures') {
+      return Promise.resolve({ ok: true, signatures: { a: 'source-signature' } });
+    }
+    if (action === 'get_interface_contacts') {
+      const isSource = payload.interfaceId === 'source';
+      return Promise.resolve({ ok: true, contacts: [{
+        contactId: isSource ? 'a' : 'b', sourceSignature: isSource
+          ? 'source-signature' : 'target-signature',
+        linked: true, normal: [0, 0, 1],
+        loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+      }] });
+    }
+    return Promise.resolve({ ok: true });
+  };
+  context.render({ contactDocumentScope: '', harnesses: [harness], notice: '',
+    theme: { mode: 'fixed', active: 'dark' } });
+  const master = context.document.createElement('div');
+  const toolbar = context.document.createElement('div');
+  master.className = 'relationship-map';
+  toolbar.className = 'relationship-map-toolbar';
+  master.append(toolbar);
+  context.document.body.append(master);
+  context.openInterfaceContacts(harness, source);
+  await new Promise((resolve) => setImmediate(resolve));
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const sourceSvg = dialog.children[2].contactState.svg;
+  dialog.children[1].children[1].children[1].events.click();
+  const panel = dialog.querySelector('.interface-contact-auto-connect');
+  const buttons = descendants(panel, (item) => item.tag === 'button');
+  buttons[1].events.click();
+  context.renderRelationshipInterfaceCard(harness, target, () => {}).events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  buttons[0].events.click();
+  finishEndingPick(context, requests, 'ending-1');
+  buttons[2].events.click();
+  finishEndingPick(context, requests, 'ending-2');
+  source.contacts[0].geometryRevision = 2;
+  buttons.find((item) => item.textContent === 'Apply').events.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(dialog.dataset.interfaceId, 'source');
+  assert.equal(dialog.children[2].contactState.svg, sourceSvg);
+  assert.deepEqual(requests.filter((item) => item.action === 'get_interface_contacts')
+    .map((item) => item.payload.interfaceId), ['source', 'target']);
+});
+
 asyncTest('Auto Connect target selection can be cancelled from the master diagram', async () => {
   const { context } = palette();
   const source = { interfaceId: 'interface-1', name: 'Source', contacts: [] };
