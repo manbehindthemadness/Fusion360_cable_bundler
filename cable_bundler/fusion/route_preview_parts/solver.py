@@ -44,7 +44,8 @@ from ...routing.conditioning import (
     condition_route_normals,
     junction_normal_indices,
 )
-from ...routing.geometry import cross, difference, magnitude, unit
+from ...routing.geometry import cross, difference, dot, magnitude, unit
+from . import branch_layout
 from .frames import (
     ProfileFrame,
     connection_attachment_frame,
@@ -696,9 +697,15 @@ def _connection_branch_routes(
                 )
                 if packing is None:
                     continue
-                for index, attachment in enumerate(siblings):
-                    branch_diameter_mm = packing[index].diameter_mm
-                    branch_frames = connection_branch_route_frames(
+                parent_diameter_mm = (
+                    group.diameter_mm
+                    if parent_attachment_id is None
+                    else definition.cable_end_attachment_diameter(
+                        group, connection_id, parent_attachment_id
+                    )
+                )
+                initial_branch_frames = tuple(
+                    connection_branch_route_frames(
                         design,
                         connection,
                         attachment,
@@ -710,8 +717,60 @@ def _connection_branch_routes(
                         cache,
                         parent_side_point=parent_side_point,
                     )
+                    for index, attachment in enumerate(siblings)
+                )
+                targets = tuple(
+                    branch_frames[0] if branch_frames else None
+                    for branch_frames in initial_branch_frames
+                )
+                fan_axis = branch_layout.connection_fan_axis(guide, targets)
+                fan_extent_mm = (
+                    max(
+                        abs(dot(difference(target.origin, guide.origin), fan_axis))
+                        for target in targets
+                        if target is not None
+                    )
+                    if fan_axis is not None
+                    else 0.0
+                )
+                original_packing = packing
+                packing = branch_layout.assign_connection_packing(guide, packing, targets)
+                if fan_axis is not None:
+                    packing = branch_layout.expand_connection_packing(packing, parent_diameter_mm)
+                sibling_routes: list[RoutePreview] = []
+                sibling_legs: list[CableGroupRouteLeg] = []
+                sibling_normals: list[tuple[Vector3, ...]] = []
+                sibling_transitions: list[tuple[TransitionLengths, ...]] = []
+                sibling_radii: list[float] = []
+                sibling_fixed_end_normals: list[bool] = []
+                for index, attachment in enumerate(siblings):
+                    branch_diameter_mm = packing[index].diameter_mm
+                    branch_frames = initial_branch_frames[index]
+                    if packing[index] != original_packing[index]:
+                        branch_frames = connection_branch_route_frames(
+                            design,
+                            connection,
+                            attachment,
+                            guide,
+                            packing[index].x_mm,
+                            packing[index].y_mm,
+                            controls,
+                            frames,
+                            cache,
+                            parent_side_point=parent_side_point,
+                        )
                     if not branch_frames:
                         continue
+                    if len(siblings) > 1:
+                        branch_frames = branch_layout.parallel_branch_lead(
+                            branch_frames,
+                            guide,
+                            parent_side_point,
+                            parent_diameter_mm,
+                            branch_diameter_mm,
+                            fan_axis,
+                            fan_extent_mm,
+                        )
                     route_id = uuid5(
                         attachment.attachment_id,
                         f"{group.cable_group_id}:{connection_id}:connection-branch",
@@ -791,8 +850,12 @@ def _connection_branch_routes(
                             )
                     if notices is not None:
                         notices.extend(_adjustment_notice(item) for item in adjustments)
-                    routes.append(route)
-                    legs.append(
+                    sibling_routes.append(route)
+                    sibling_normals.append(branch_normals)
+                    sibling_transitions.append(transitions)
+                    sibling_radii.append(branch_radius)
+                    sibling_fixed_end_normals.append(bool(fixed_indices))
+                    sibling_legs.append(
                         CableGroupRouteLeg(
                             route_id,
                             group.cable_group_id,
@@ -806,6 +869,23 @@ def _connection_branch_routes(
                             attachment_id=attachment.attachment_id,
                         )
                     )
+                if len(sibling_routes) > 1:
+                    separated, collisions = separate_route_collisions(
+                        tuple(sibling_routes),
+                        tuple(route.cable_id for route in sibling_routes),
+                        tuple(leg.diameter_mm for leg in sibling_legs),
+                        tuple(sibling_normals),
+                        tuple(sibling_transitions),
+                        tuple(sibling_radii),
+                        definition.minimum_clearance_mm,
+                        auto_transition_fraction=auto_transition_fraction,
+                        fixed_end_normals=tuple(sibling_fixed_end_normals),
+                    )
+                    sibling_routes = list(separated)
+                    if notices is not None:
+                        notices.extend(_collision_notice(item) for item in collisions)
+                routes.extend(sibling_routes)
+                legs.extend(sibling_legs)
     return tuple(routes), tuple(legs)
 
 

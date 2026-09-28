@@ -29,6 +29,7 @@ from cable_bundler.domain import (
     RefineGeometry,
     StandaloneEndDefinition,
 )
+from cable_bundler.domain.connection_packing import PackedConnection, pack_connections
 from cable_bundler.domain.model import InterpolationSettings
 from cable_bundler.routing import (
     CubicBezier,
@@ -37,6 +38,8 @@ from cable_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
+    fair_route,
+    route_collisions,
 )
 from cable_bundler.routing.aperture import contains_disk
 from cable_bundler.routing.geometry import dot
@@ -329,6 +332,246 @@ def test_multiple_connections_create_loosely_packed_branches(
     assert ((origins[0].x - origins[1].x) ** 2 + (origins[0].y - origins[1].y) ** 2) ** 0.5 >= (
         legs[0].diameter_mm + legs[1].diameter_mm
     ) / 2 - 1e-7
+
+
+def test_connection_branches_match_packed_slots_to_shuffled_contacts(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Reorder only equal-size branch disks to avoid crossing a PCB contact row.
+    """
+    from cable_bundler.fusion.route_preview_parts import branch_layout
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    packing = pack_connections(4.0, (1.0, 1.0, 1.0))
+    assert packing is not None
+    targets = (
+        replace(guide, origin=Vector3(10.0, 0.0, 10.0)),
+        replace(guide, origin=Vector3(-10.0, 0.0, 10.0)),
+        replace(guide, origin=Vector3(0.0, 0.0, 10.0)),
+    )
+
+    assigned = branch_layout.assign_connection_packing(guide, packing, targets)
+    expanded = branch_layout.expand_connection_packing(assigned, 4.0)
+    fan_axis = branch_layout.connection_fan_axis(guide, targets)
+    assert fan_axis is not None
+
+    assert sorted((circle.x_mm, circle.y_mm) for circle in assigned) == sorted(
+        (circle.x_mm, circle.y_mm) for circle in packing
+    )
+    assert assigned[1].x_mm < assigned[2].x_mm < assigned[0].x_mm
+    route_ids = tuple(UUID(int=930 + index) for index in range(3))
+
+    def branch_routes(circles: tuple[PackedConnection, ...]) -> tuple[RoutePreview, ...]:
+        """
+        Form contact routes through a short parallel lead at each packed cap.
+        """
+        return tuple(
+            RoutePreview(
+                route_id,
+                str(index),
+                tuple(
+                    frame.origin
+                    for frame in branch_layout.parallel_branch_lead(
+                        (
+                            target,
+                            replace(
+                                guide,
+                                origin=Vector3(circle.x_mm, circle.y_mm, 0.0),
+                            ),
+                        ),
+                        guide,
+                        Vector3(0.0, 0.0, -1.0),
+                        4.0,
+                        circle.diameter_mm,
+                        fan_axis,
+                        10.0,
+                    )
+                ),
+            )
+            for index, (route_id, target, circle) in enumerate(zip(route_ids, targets, circles))
+        )
+
+    original_routes = tuple(
+        RoutePreview(
+            route_id,
+            str(index),
+            (target.origin, Vector3(circle.x_mm, circle.y_mm, 0.0)),
+        )
+        for index, (route_id, target, circle) in enumerate(zip(route_ids, targets, packing))
+    )
+    assert route_collisions(original_routes, route_ids, (1.0,) * 3)
+    assigned_collisions = route_collisions(branch_routes(expanded), route_ids, (1.0,) * 3)
+    assert not assigned_collisions, [item.clearance_shortfall_mm for item in assigned_collisions]
+    faired = tuple(
+        fair_route(
+            route,
+            (Vector3(0.0, 0.0, -1.0),) * len(route.points),
+            minimum_bend_radius_mm=0.525,
+            fixed_normal_indices=frozenset({len(route.points) - 1}),
+        )
+        for route in branch_routes(expanded)
+    )
+    assert not route_collisions(faired, route_ids, (1.0,) * 3)
+
+
+def test_dense_contact_row_fairs_without_branch_collisions(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Spread twenty packed conductors into a PCB row without tube intersections.
+    """
+    from cable_bundler.fusion.route_preview_parts import branch_layout
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    packing = pack_connections(4.0, (None,) * 20)
+    assert packing is not None
+    targets = tuple(
+        replace(guide, origin=Vector3((index - 9.5) * 2.0, 0.0, 20.0)) for index in range(20)
+    )
+    assigned = branch_layout.assign_connection_packing(guide, packing, targets)
+    assigned = branch_layout.expand_connection_packing(assigned, 4.0)
+    fan_axis = branch_layout.connection_fan_axis(guide, targets)
+    assert fan_axis is not None
+    routes: list[RoutePreview] = []
+    route_ids = tuple(UUID(int=1000 + index) for index in range(20))
+    for index, (circle, target) in enumerate(zip(assigned, targets)):
+        cap = replace(guide, origin=Vector3(circle.x_mm, circle.y_mm, 0.0))
+        frames = branch_layout.parallel_branch_lead(
+            (target, cap),
+            guide,
+            Vector3(0.0, 0.0, -1.0),
+            4.0,
+            circle.diameter_mm,
+            fan_axis,
+            19.0,
+        )
+        raw = RoutePreview(route_ids[index], str(index), tuple(frame.origin for frame in frames))
+        routes.append(
+            fair_route(
+                raw,
+                (Vector3(0.0, 0.0, -1.0),) * len(raw.points),
+                minimum_bend_radius_mm=circle.diameter_mm * 0.525,
+                fixed_normal_indices=frozenset({len(raw.points) - 1}),
+            )
+        )
+
+    diameters = tuple(circle.diameter_mm for circle in assigned)
+    assert not route_collisions(tuple(routes), route_ids, diameters)
+
+
+def test_connection_branch_solver_uses_contact_order_and_checks_sibling_collisions(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Route one cable's split to its pads through reassigned parent-face slots.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    siblings = tuple(
+        CableEndAttachment(
+            AttachmentTargetKind.JOINT_ORIGIN,
+            f"pad-{index}",
+            f"Pad {index}",
+            attachment_id=UUID(int=900 + index),
+            visual_overrides=CableVisualOverrides(diameter_mm=0.25),
+        )
+        for index in range(3)
+    )
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=siblings[0],
+        additional_attachments=siblings[1:],
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+    )
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    target_positions = (10.0, -10.0, 0.0)
+    targets = {
+        attachment.attachment_id: replace(guide, origin=Vector3(x, 0.0, 10.0))
+        for attachment, x in zip(siblings, target_positions)
+    }
+    repair_calls: list[tuple[UUID, ...]] = []
+    fixed_end_calls: list[tuple[bool, ...]] = []
+
+    def capture_repair(
+        routes: tuple[RoutePreview, ...],
+        group_ids: tuple[UUID, ...],
+        _diameters_mm: tuple[float, ...],
+        _normals: tuple[tuple[Vector3, ...], ...],
+        _transitions: tuple[tuple[TransitionLengths, ...], ...],
+        _radii_mm: tuple[float, ...],
+        _clearance_mm: float,
+        **_options: Any,
+    ) -> tuple[tuple[RoutePreview, ...], tuple[object, ...]]:
+        """
+        Confirm that sibling branches enter collision repair as distinct routes.
+        """
+        repair_calls.append(group_ids)
+        fixed_end_calls.append(_options["fixed_end_normals"])
+        return routes, ()
+
+    monkeypatch.setitem(
+        vars(route_solver),
+        "connection_profile_frames",
+        lambda _design, _connection, _cache: (guide,),
+    )
+    monkeypatch.setattr(
+        route_frames,
+        "connection_attachment_frame",
+        lambda _design, _connection, attachment, _guide, _cache: targets[attachment.attachment_id],
+    )
+    monkeypatch.setitem(vars(route_solver), "fair_route", lambda route, *_args, **_kwargs: route)
+    monkeypatch.setitem(vars(route_solver), "separate_route_collisions", capture_repair)
+
+    routes, legs = route_solver._connection_branch_routes(
+        object(),
+        definition,
+        {item.connection_id: item for item in definition.connections},
+        {item.control_id: item for item in definition.controls},
+        {},
+        {},
+        definition.auto_transition_preset.span_fraction,
+        {
+            (
+                definition.cable_groups[0].cable_group_id,
+                connection.connection_id,
+            ): route_solver._BranchAnchor(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0))
+        },
+    )
+
+    assert len(routes) == len(legs) == 3
+    assert tuple(leg.attachment_id for leg in legs) == tuple(
+        attachment.attachment_id for attachment in siblings
+    )
+    assert routes[1].points[-1].x < routes[2].points[-1].x < routes[0].points[-1].x
+    assert repair_calls == [tuple(route.cable_id for route in routes)]
+    assert fixed_end_calls == [(True, True, True)]
 
 
 def test_root_branch_anchors_follow_faired_main_route_endpoints(

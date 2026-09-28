@@ -12,6 +12,7 @@ from .parallel import (
     RefineFrame,
     RoutePreview,
     Vector3,
+    assign_route_crossings,
     place_route_crossings,
     solve_parallel_routes,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "StripeMeshResult",
     "Vector3",
     "CableRouteInput",
+    "assign_route_crossings",
     "place_route_crossings",
     "build_continuous_stripe_mesh",
     "build_stripe_mesh",

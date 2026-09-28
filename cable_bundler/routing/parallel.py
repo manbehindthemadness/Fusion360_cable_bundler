@@ -175,6 +175,19 @@ def place_route_crossings(
     return tuple(crossings[index] for index in assignment)
 
 
+def assign_route_crossings(
+    crossings: tuple[Vector3, ...],
+    preferred_points: tuple[Optional[Vector3], ...],
+) -> tuple[Vector3, ...]:
+    """
+    Match fixed, nonoverlapping slots to preferred locations without moving them.
+    """
+    if len(crossings) != len(preferred_points):
+        raise ValueError("Preferred locations must align with route crossings.")
+    assignment = _minimum_cost_assignment(crossings, preferred_points)
+    return tuple(crossings[index] for index in assignment)
+
+
 def _minimum_cost_assignment(
     crossings: tuple[Vector3, ...],
     preferred_points: tuple[Optional[Vector3], ...],

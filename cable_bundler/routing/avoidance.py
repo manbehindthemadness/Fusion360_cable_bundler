@@ -14,6 +14,7 @@ from .parallel import RoutePreview
 from .smooth import TransitionLengths, fair_route, sample_centerline
 
 _SAMPLE_TOLERANCE_MM = 0.025
+_COLLISION_TOLERANCE_MM = 1e-9
 _NUMERIC_MARGIN_MM = 0.01
 _MAX_REPAIR_PASSES = 16
 _MAX_ROUTE_DETOURS = 4
@@ -178,6 +179,7 @@ def separate_route_collisions(
     minimum_bend_radii_mm: tuple[float, ...],
     clearance_mm: float,
     auto_transition_fraction: float = 0.25,
+    fixed_end_normals: tuple[bool, ...] = (),
 ) -> tuple[tuple[RoutePreview, ...], tuple[RouteCollision, ...]]:
     """
     Repair inter-group overlaps with bounded ephemeral between-guide detours.
@@ -194,6 +196,8 @@ def separate_route_collisions(
         for items in (group_ids, diameters_mm, normals, transitions, minimum_bend_radii_mm)
     ):
         raise ValueError("Collision routing inputs must align with the route sequence.")
+    if fixed_end_normals and len(fixed_end_normals) != count:
+        raise ValueError("Fixed end normals must align with the route sequence.")
     if not math.isfinite(clearance_mm) or clearance_mm < 0.0:
         raise ValueError("Minimum member clearance must be finite and nonnegative.")
     if (
@@ -268,6 +272,7 @@ def separate_route_collisions(
                     other_point,
                     collision.clearance_shortfall_mm,
                     auto_transition_fraction,
+                    fixed_end_normals[route_index] if fixed_end_normals else False,
                 ):
                     geometry, replacements = collision_index.candidate_update(
                         route_index, candidate_route
@@ -339,6 +344,7 @@ def _detour_candidates(
     other_point: Vector3,
     shortfall_mm: float,
     auto_transition_fraction: float,
+    fixed_end_normal: bool = False,
 ) -> Iterator[
     tuple[
         RoutePreview,
@@ -449,6 +455,9 @@ def _detour_candidates(
                 candidate_transitions,
                 minimum_bend_radius_mm=minimum_bend_radius_mm,
                 auto_transition_fraction=auto_transition_fraction,
+                fixed_normal_indices=(
+                    frozenset({len(points) - 1}) if fixed_end_normal else frozenset()
+                ),
             )
         except ValueError:
             continue
@@ -583,7 +592,7 @@ def _route_pair_collision(
                 right_capsule.end,
             )
             shortfall = left_capsule.radius_mm + right_capsule.radius_mm - distance
-            if shortfall <= 0.0:
+            if shortfall <= _COLLISION_TOLERANCE_MM:
                 continue
             candidate = RouteCollision(
                 left.route.cable_id,

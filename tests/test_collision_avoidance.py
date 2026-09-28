@@ -4,6 +4,7 @@ Regressions for deterministic transactional separation of routed members.
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -187,6 +188,46 @@ def test_repeated_span_repair_enlarges_one_existing_corridor() -> None:
     assert len(first[0].points) == 4
     assert len(second[0].points) == 4
     assert second[3] == (0, 0, 0)
+
+
+def test_branch_detour_preserves_fixed_parent_end_normal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Keep the parent-face tangent fixed when collision repair inserts supports.
+    """
+    route = _straight_route(30, "Branch", Vector3(-10, 0, 0), Vector3(10, 0, 0))
+    original_fair_route = avoidance.fair_route
+    fixed_indices: list[frozenset[int]] = []
+
+    def recording_fair_route(
+        candidate: RoutePreview,
+        normals: tuple[Vector3, ...],
+        transitions: tuple[TransitionLengths, ...],
+        **options: Any,
+    ) -> RoutePreview:
+        """
+        Record the end constraint while using the normal fairing implementation.
+        """
+        fixed_indices.append(options["fixed_normal_indices"])
+        return original_fair_route(candidate, normals, transitions, **options)
+
+    monkeypatch.setattr("cable_bundler.routing.avoidance.fair_route", recording_fair_route)
+    tuple(
+        avoidance._detour_candidates(
+            route,
+            (Vector3(1, 0, 0),) * 2,
+            (TransitionLengths(),) * 2,
+            (0,),
+            1.05,
+            Vector3(0, 0, 0),
+            Vector3(0, 1, 0),
+            2.0,
+            0.25,
+            True,
+        )
+    )
+
+    assert fixed_indices
+    assert set(fixed_indices) == {frozenset({3})}
 
 
 def test_ignores_intentional_same_group_junction_contact() -> None:
