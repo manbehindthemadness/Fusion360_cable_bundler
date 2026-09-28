@@ -146,11 +146,11 @@ def test_palette_state_links_interfaces_by_resolved_contact_targets(
     ]
 
 
-def test_contact_palette_scope_is_document_and_version_specific(
+def test_contact_palette_document_scope_survives_save_while_cache_scope_changes(
     addin_module: _PaletteLifecycleModule,
 ) -> None:
     """
-    Keep copied Interface identities from sharing a rendered image across tabs.
+    Keep saved reads in one document while isolating each version's rendered image.
     """
     module = importlib.import_module("cable_bundler.fusion.ui.palette_state")
 
@@ -168,7 +168,11 @@ def test_contact_palette_scope_is_document_and_version_specific(
     assert len(first) == 64
     assert first == module._contact_palette_document_scope(application("first", 1), None)
     assert first != module._contact_palette_document_scope(application("second", 1), None)
-    assert first != module._contact_palette_document_scope(application("first", 2), None)
+    assert first == module._contact_palette_document_scope(application("first", 2), None)
+    assert first == module._contact_palette_document_scope(application("first", 0), None)
+    assert module._contact_palette_cache_scope(
+        application("first", 1), None
+    ) != module._contact_palette_cache_scope(application("first", 2), None)
 
 
 def test_all_palette_resources_are_packaged(addin_module: _PaletteLifecycleModule) -> None:

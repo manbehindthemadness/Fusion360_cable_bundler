@@ -31,7 +31,8 @@ function logContactEditorLifecycle(dialog, event, reason) {
 /** Refresh an open contact diagram when Fusion sends an updated harness state. */
 function refreshInterfaceContacts() {
   for (const [key, cached] of cachedContactGeometries) {
-    if (cached.documentScope !== (currentState.contactDocumentScope || "")) continue;
+    if (cached.documentScope !== (currentState.contactCacheScope
+      || currentState.contactDocumentScope || "")) continue;
     const harness = currentState.harnesses.find((item) => item.harnessId === cached.harnessId);
     if (!(harness?.interfaces || []).some((item) => item.interfaceId === cached.interfaceId)) {
       cachedContactGeometries.delete(key);
@@ -44,6 +45,8 @@ function refreshInterfaceContacts() {
     dialog.close();
     return;
   }
+  dialog.dataset.contactCacheScope = currentState.contactCacheScope
+    || currentState.contactDocumentScope || "";
   if (dialog.cacheRebuildPending) return;
   const harness = currentState.harnesses.find((item) => item.harnessId === dialog.dataset.harnessId);
   const interfaceItem = (harness?.interfaces || []).find((item) => (
@@ -498,6 +501,8 @@ function openInterfaceContacts(harness, interfaceItem) {
   dialog.dataset.harnessId = harness.harnessId;
   dialog.dataset.interfaceId = interfaceItem.interfaceId;
   dialog.dataset.contactDocumentScope = currentState.contactDocumentScope || "";
+  dialog.dataset.contactCacheScope = currentState.contactCacheScope
+    || currentState.contactDocumentScope || "";
   dialog.contactLifecycleInstance = ++contactEditorInstanceSequence;
   dialog.contactOpenedAt = Date.now();
   dialog.setAttribute("aria-label", `Contacts Editor: ${interfaceItem.name}`);

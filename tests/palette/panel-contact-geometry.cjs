@@ -475,6 +475,31 @@ asyncTest('Switching documents restores each Interface image without resampling'
   dialog.close();
 });
 
+test('Saving the active document keeps Contacts Editor open and advances its cache scope', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.interfaces = [{ interfaceId: 'i', name: 'Socket', contacts: [{
+    contactId: 'a', name: 'Pad', geometryRevision: 0,
+    loops: [[[0, 0, 0], [1, 0, 0], [1, 1, 0]]],
+  }] }];
+  const showVersion = (cacheScope) => context.render({
+    contactDocumentScope: 'same-document', contactCacheScope: cacheScope,
+    harnesses: [definition], notice: '', theme: { mode: 'fixed', active: 'dark' },
+  });
+
+  showVersion('version-1');
+  context.openInterfaceContacts(definition, definition.interfaces[0]);
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const firstSnapshot = context.contactSnapshotKey(dialog);
+  showVersion('version-2');
+
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.dataset.contactDocumentScope, 'same-document');
+  assert.equal(dialog.dataset.contactCacheScope, 'version-2');
+  assert.notEqual(context.contactSnapshotKey(dialog), firstSnapshot);
+  dialog.close();
+});
+
 asyncTest('Rebuild Cache clears the snapshot and resamples with progress', async () => {
   const { context } = palette();
   const requests = [];

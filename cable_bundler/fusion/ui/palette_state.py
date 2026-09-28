@@ -51,7 +51,7 @@ from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
 from .payloads import (
     _read_palette_payload,
 )
-from .runtime import _contact_document_key
+from .runtime import _contact_document_identity, _contact_document_key
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
@@ -62,16 +62,29 @@ def _contact_palette_document_scope(
     application: adsk.core.Application, design: Optional[adsk.fusion.Design]
 ) -> str:
     """
-    Give palette-only geometry a stable, opaque identity for this open document.
+    Identify the active document without changing identity on every save.
     """
-    saved = _contact_document_key(application)
-    if saved is not None:
-        source = json.dumps(saved, separators=(",", ":"))
+    identity = _contact_document_identity(application)
+    if identity is not None:
+        source = json.dumps(("saved", identity), separators=(",", ":"))
     else:
         token = getattr(getattr(design, "rootComponent", None), "entityToken", "")
         if not isinstance(token, str) or not token:
             return ""
         source = token
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+def _contact_palette_cache_scope(
+    application: adsk.core.Application, design: Optional[adsk.fusion.Design]
+) -> str:
+    """
+    Partition rendered contact snapshots by saved file version.
+    """
+    saved = _contact_document_key(application)
+    if saved is None:
+        return _contact_palette_document_scope(application, design)
+    source = json.dumps(saved, separators=(",", ":"))
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
@@ -500,6 +513,7 @@ def serialize_palette_state(
         },
         "harnesses": harnesses,
         "contactDocumentScope": _contact_palette_document_scope(application, design),
+        "contactCacheScope": _contact_palette_cache_scope(application, design),
         "notice": notice or _runtime.last_command_error,
         "ok": True,
         "theme": _palette_theme_payload(application),

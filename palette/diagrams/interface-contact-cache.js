@@ -4,10 +4,10 @@ const MAX_CONTACT_CACHE_TOTAL_BYTES = 8_000_000;
 const MAX_CONTACT_CACHE_SNAPSHOTS = 4;
 const cachedContactGeometries = new Map();
 
-/** Include the saved document version so copied Interfaces cannot share geometry. */
+/** Keep rendered geometry isolated by document and saved version. */
 function contactSnapshotKey(dialog) {
   return JSON.stringify([
-    dialog.dataset.contactDocumentScope || "",
+    dialog.dataset.contactCacheScope || dialog.dataset.contactDocumentScope || "",
     dialog.dataset.harnessId,
     dialog.dataset.interfaceId,
   ]);
@@ -59,7 +59,7 @@ function restoredContactGeometry(dialog, geometryKey) {
 function rememberContactGeometry(dialog, geometryKey, contacts) {
   const size = JSON.stringify(contacts).length * 2;
   cachedContactGeometries.set(contactSnapshotKey(dialog), {
-    documentScope: dialog.dataset.contactDocumentScope || "",
+    documentScope: dialog.dataset.contactCacheScope || dialog.dataset.contactDocumentScope || "",
     harnessId: dialog.dataset.harnessId,
     interfaceId: dialog.dataset.interfaceId,
     geometryKey,

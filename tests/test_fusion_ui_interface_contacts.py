@@ -248,6 +248,41 @@ def test_late_contact_signature_request_cannot_read_replacement_document(
     gateway.assert_not_called()
 
 
+def test_contact_read_remains_current_after_save_but_not_document_switch(
+    addin_module: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Saved-version increments do not turn the same document's palette read stale.
+    """
+    state_module = importlib.import_module("cable_bundler.fusion.ui.palette_state")
+    scope_module = importlib.import_module("cable_bundler.fusion.ui.palette_request_scope")
+    design = object()
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda _: design)
+    )
+
+    def application(identity: str, version: int) -> SimpleNamespace:
+        """
+        Model the active Fusion document while its saved version advances.
+        """
+        return SimpleNamespace(
+            activeProduct=design,
+            activeDocument=SimpleNamespace(
+                dataFile=SimpleNamespace(id=identity, versionNumber=version)
+            ),
+        )
+
+    initial_scope = state_module._contact_palette_document_scope(application("first", 1), design)
+    request = json.dumps({"contactDocumentScope": initial_scope})
+
+    assert not scope_module._stale_palette_document_request(
+        application("first", 2), "get_interface_contacts", request
+    )
+    assert scope_module._stale_palette_document_request(
+        application("second", 2), "get_interface_contacts", request
+    )
+
+
 def test_closing_document_is_stale_even_while_its_product_proxy_remains(
     addin_module: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:

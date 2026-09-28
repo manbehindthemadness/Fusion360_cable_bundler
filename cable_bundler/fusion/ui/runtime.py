@@ -18,23 +18,29 @@ from .auto_connect_requests import AutoConnectApplyRequest, AutoConnectPickReque
 T = TypeVar("T")
 
 
+def _contact_document_identity(application: adsk.core.Application) -> Optional[str]:
+    """
+    Identify the saved file even while Fusion is updating its version number.
+    """
+    try:
+        identity = application.activeDocument.dataFile.id
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return None
+    return identity if isinstance(identity, str) and identity else None
+
+
 def _contact_document_key(application: adsk.core.Application) -> Optional[tuple[str, int]]:
     """
     Identify a saved file version without retaining any Fusion document wrapper.
     """
+    identity = _contact_document_identity(application)
+    if identity is None:
+        return None
     try:
-        data_file = application.activeDocument.dataFile
-        identity = data_file.id
-        version = data_file.versionNumber
+        version = application.activeDocument.dataFile.versionNumber
     except (AttributeError, RuntimeError, TypeError, ValueError):
         return None
-    if (
-        not isinstance(identity, str)
-        or not identity
-        or isinstance(version, bool)
-        or not isinstance(version, int)
-        or version < 1
-    ):
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
         return None
     return identity, version
 
