@@ -177,6 +177,41 @@ test('master diagram survives a host refresh that adds a pathway', () => {
   assert.equal(refreshedStack.dataset.diagramRouteCacheHit, 'false');
 });
 
+test('master diagram retains redrawn flow when Auto Connect merges topology roots', () => {
+  const { context } = palette();
+  const definition = harness();
+  definition.pathways.push({
+    pathwayId: 'p2', name: 'Second path', startName: 'A', endName: 'B',
+    orderedControlIds: [],
+  });
+  const original = context.renderRelationshipMap(definition);
+  sizeRelationshipNodes(original);
+  const { toolbar, viewport, stack } = relationshipWorkspaceParts(original);
+  viewport.clientWidth = 420;
+  viewport.clientHeight = 1800;
+  toolbar.children[0].events.click();
+  const redrawnKey = stack.dataset.diagramLayoutKey;
+
+  definition.standaloneEnds.find((end) => end.connectionId === 'a2').pathwayId = 'p2';
+  definition.interfaces = [{
+    interfaceId: 'interface-1', name: 'Connected interface', contacts: [],
+    connectedConnectionIds: ['a1', 'a2'],
+  }];
+  const startup = palette().context.renderRelationshipMap(definition);
+  const startupKey = relationshipWorkspaceParts(startup).stack.dataset.diagramLayoutKey;
+  const refreshed = context.renderRelationshipMap(definition);
+  const refreshedStack = relationshipWorkspaceParts(refreshed).stack;
+
+  assert.equal(refreshed.dataset.hasSavedDiagramView, 'true');
+  assert.notEqual(refreshedStack.dataset.diagramLayoutKey, redrawnKey);
+  assert.notEqual(startupKey.split('|')[0], redrawnKey.split('|')[0]);
+  assert.equal(
+    refreshedStack.dataset.diagramLayoutKey.split('|').slice(0, 3).join('|'),
+    redrawnKey.split('|').slice(0, 3).join('|'),
+  );
+  assert.equal(refreshedStack.dataset.diagramLayoutError, undefined);
+});
+
 test('master diagram can redraw and fit for its resized viewport', () => {
   const { context } = palette();
   const definition = branchingHarness();

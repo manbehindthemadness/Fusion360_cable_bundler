@@ -151,13 +151,30 @@ function relationshipLayoutIsSafe(candidate) {
     && candidate.routeQuality.crossings === 0;
 }
 
-/** Route a requested committed layout without exploring unrelated alternatives. */
+/** Route a committed layout, retaining its flow when topology changes its root IDs. */
 function preferredRelationshipLayoutCandidate(layouts, routeLayout, preferredKey) {
   if (!preferredKey) return null;
   const preferred = layouts.find((layout) => layout.layoutKey === preferredKey);
-  if (!preferred) return null;
-  const candidate = routeLayout(preferred);
-  return relationshipLayoutIsSafe(candidate) ? candidate : null;
+  if (preferred) {
+    const candidate = routeLayout(preferred);
+    if (relationshipLayoutIsSafe(candidate)) return candidate;
+  }
+  const parts = preferredKey.split("|");
+  if (parts.length < 4) return null;
+  const family = parts.slice(0, 3).join("|");
+  const previousRoots = new Set(parts.slice(3));
+  const alternatives = layouts.filter((layout) => layout !== preferred
+    && layout.layoutKey.startsWith(`${family}|`));
+  alternatives.sort((left, right) => {
+    const commonRoots = (layout) => layout.layoutKey.split("|").slice(3)
+      .filter((root) => previousRoots.has(root)).length;
+    return commonRoots(right) - commonRoots(left);
+  });
+  for (const layout of alternatives) {
+    const candidate = routeLayout(layout);
+    if (relationshipLayoutIsSafe(candidate)) return candidate;
+  }
+  return null;
 }
 
 /** Route the compact shortlist plus any requested previously committed layout. */
