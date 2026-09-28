@@ -15,11 +15,14 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ....application.batch_connect_interface_contacts import batch_connect_interface_contacts
+from ....application.batch_connect_interface_contacts import (
+    batch_connect_and_associate_interface_contacts,
+    batch_connect_interface_contacts,
+)
 from ....domain import AttachmentTargetKind, CableEndTarget, HarnessDefinition, loads
 from ...attachment_targets import attachment_target_kind, attachment_target_name
 from ...cable_solids import refresh_generated_cable_groups_for_connection
-from ..constants import AUTO_CONNECT_END_INPUT_ID
+from ..constants import AUTO_CONNECT_END_INPUT_ID, AUTO_CONNECT_TARGET_END_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _log_to_fusion, _require_active_design
@@ -41,6 +44,11 @@ class _AutoConnectRequest:
     include_values: bool
     diameter_mm: Optional[float]
     document: object
+    target_interface_id: Optional[UUID] = None
+    target_contact_ids: tuple[UUID, ...] = ()
+    target_include_pins: bool = True
+    target_include_values: bool = True
+    target_diameter_mm: Optional[float] = None
 
 
 def _grouped_end_profiles(
@@ -93,11 +101,12 @@ def _picked_ending(
 def _selected_ending(
     inputs: adsk.core.CommandInputs,
     candidates: tuple[tuple[UUID, Optional[UUID], object], ...],
+    input_id: str = AUTO_CONNECT_END_INPUT_ID,
 ) -> tuple[UUID, Optional[UUID]]:
     """
     Read one eligible profile from the native picker.
     """
-    picker = adsk.core.SelectionCommandInput.cast(inputs.itemById(AUTO_CONNECT_END_INPUT_ID))
+    picker = adsk.core.SelectionCommandInput.cast(inputs.itemById(input_id))
     if picker is None or picker.selectionCount != 1:
         raise ValueError("Select one grouped cable ending.")
     selection = picker.selection(0)
@@ -133,23 +142,77 @@ class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
     Enable completion only with one eligible grouped end.
     """
 
-    def __init__(self, candidates: tuple[tuple[UUID, Optional[UUID], object], ...]) -> None:
+    def __init__(
+        self, candidates: tuple[tuple[UUID, Optional[UUID], object], ...], dual: bool = False
+    ) -> None:
         """
         Retain the same selection scope as preselection.
         """
         super().__init__()
         self.candidates = candidates
+        self.dual = dual
 
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
         Recheck selection before enabling OK.
         """
         try:
-            _selected_ending(args.inputs, self.candidates)
+            first_id, _parent_id = _selected_ending(args.inputs, self.candidates)
+            if self.dual:
+                second_id, _parent_id = _selected_ending(
+                    args.inputs, self.candidates, AUTO_CONNECT_TARGET_END_INPUT_ID
+                )
+                if first_id == second_id:
+                    raise ValueError("Choose different cable endings.")
         except (AttributeError, RuntimeError, TypeError, ValueError):
             args.areInputsValid = False
             return
         args.areInputsValid = True
+
+
+def _contact_targets(
+    definition: HarnessDefinition,
+    design: adsk.fusion.Design,
+    interface_id: UUID,
+    contact_ids: tuple[UUID, ...],
+) -> tuple[CableEndTarget, ...]:
+    """
+    Resolve saved contact identities against the current Fusion geometry.
+    """
+    interface = next(
+        (item for item in definition.interfaces if item.interface_id == interface_id), None
+    )
+    if interface is None:
+        raise ValueError("The selected Interface no longer exists.")
+    contacts = {item.contact_id: item for item in interface.contacts}
+    targets = []
+    for contact_id in contact_ids:
+        contact = contacts.get(contact_id)
+        if contact is None:
+            raise ValueError("Selected contacts changed; reopen Auto Connect.")
+        entity = next(
+            (
+                item
+                for item in design.findEntityByToken(contact.entity_token) or ()
+                if attachment_target_kind(item) is contact.kind
+            ),
+            None,
+        )
+        if entity is None:
+            raise ValueError("A selected contact's Fusion geometry is unavailable.")
+        targets.append(
+            CableEndTarget(
+                contact.kind,
+                contact.entity_token,
+                attachment_target_name(entity, contact.kind),
+                parameters=(
+                    _read_face_parameters(entity)
+                    if contact.kind is AttachmentTargetKind.FACE
+                    else ()
+                ),
+            )
+        )
+    return tuple(targets)
 
 
 class _ExecuteHandler(adsk.core.CommandEventHandler):
@@ -181,58 +244,68 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
             connection_id, parent_attachment_id = _selected_ending(
                 args.command.commandInputs, self.candidates
             )
+            target_ending = (
+                _selected_ending(
+                    args.command.commandInputs,
+                    self.candidates,
+                    AUTO_CONNECT_TARGET_END_INPUT_ID,
+                )
+                if self.request.target_interface_id is not None
+                else None
+            )
             gateway = _create_harness_gateway(application)
             definition = loads(gateway.read_harness_definition(self.request.harness_id))
-            interface = next(
-                (
-                    item
-                    for item in definition.interfaces
-                    if item.interface_id == self.request.interface_id
-                ),
-                None,
+            targets = _contact_targets(
+                definition, design, self.request.interface_id, self.request.contact_ids
             )
-            if interface is None:
-                raise ValueError("The selected Interface no longer exists.")
-            contacts = {item.contact_id: item for item in interface.contacts}
-            targets = []
-            for contact_id in self.request.contact_ids:
-                contact = contacts.get(contact_id)
-                if contact is None:
-                    raise ValueError("Selected contacts changed; reopen Auto Connect.")
-                entity = next(
-                    (
-                        item
-                        for item in design.findEntityByToken(contact.entity_token) or ()
-                        if attachment_target_kind(item) is contact.kind
-                    ),
-                    None,
+            if target_ending is None:
+                count = batch_connect_interface_contacts(
+                    self.request.harness_id,
+                    self.request.interface_id,
+                    connection_id,
+                    self.request.contact_ids,
+                    targets,
+                    self.request.include_pins,
+                    self.request.include_values,
+                    self.request.diameter_mm,
+                    gateway,
+                    parent_attachment_id=parent_attachment_id,
                 )
-                if entity is None:
-                    raise ValueError("A selected contact's Fusion geometry is unavailable.")
-                targets.append(
-                    CableEndTarget(
-                        contact.kind,
-                        contact.entity_token,
-                        attachment_target_name(entity, contact.kind),
-                        parameters=(
-                            _read_face_parameters(entity)
-                            if contact.kind is AttachmentTargetKind.FACE
-                            else ()
-                        ),
+                summary = f"Connected {count} contacts."
+            else:
+                target_connection_id, target_parent_id = target_ending
+                target_targets = _contact_targets(
+                    definition,
+                    design,
+                    self.request.target_interface_id,
+                    self.request.target_contact_ids,
+                )
+                first_count, second_count, associations = (
+                    batch_connect_and_associate_interface_contacts(
+                        self.request.harness_id,
+                        self.request.interface_id,
+                        connection_id,
+                        self.request.contact_ids,
+                        targets,
+                        self.request.include_pins,
+                        self.request.include_values,
+                        self.request.diameter_mm,
+                        self.request.target_interface_id,
+                        target_connection_id,
+                        self.request.target_contact_ids,
+                        target_targets,
+                        self.request.target_include_pins,
+                        self.request.target_include_values,
+                        self.request.target_diameter_mm,
+                        gateway,
+                        first_parent_attachment_id=parent_attachment_id,
+                        second_parent_attachment_id=target_parent_id,
                     )
                 )
-            count = batch_connect_interface_contacts(
-                self.request.harness_id,
-                self.request.interface_id,
-                connection_id,
-                self.request.contact_ids,
-                tuple(targets),
-                self.request.include_pins,
-                self.request.include_values,
-                self.request.diameter_mm,
-                gateway,
-                parent_attachment_id=parent_attachment_id,
-            )
+                summary = (
+                    f"Connected {first_count} and {second_count} contacts; "
+                    f"associated {associations} matching pins."
+                )
             refreshed = loads(gateway.read_harness_definition(self.request.harness_id))
             refresh_generated_cable_groups_for_connection(
                 design,
@@ -240,9 +313,16 @@ class _ExecuteHandler(adsk.core.CommandEventHandler):
                 refreshed,
                 connection_id,
             )
+            if target_ending is not None:
+                refresh_generated_cable_groups_for_connection(
+                    design,
+                    gateway.harness_component(self.request.harness_id),
+                    refreshed,
+                    target_ending[0],
+                )
             warning = _refresh_active_preview(application, self.request.harness_id)
             application.activeViewport.refresh()
-            _send_palette_state(application, f"Connected {count} contacts. {warning}".strip())
+            _send_palette_state(application, f"{summary} {warning}".strip())
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
@@ -279,9 +359,19 @@ class AutoConnectCreatedHandler(adsk.core.CommandCreatedEventHandler):
             raise RuntimeError("Fusion could not configure cable-ending selection.")
         if not picker.setSelectionLimits(1, 1):
             raise RuntimeError("Fusion could not limit cable-ending selection.")
+        if request.target_interface_id is not None:
+            target_picker = args.command.commandInputs.addSelectionInput(
+                AUTO_CONNECT_TARGET_END_INPUT_ID,
+                "Target Cable Ending",
+                "Pick a different grouped cable end guide or connected profile node",
+            )
+            if target_picker is None or not target_picker.addSelectionFilter("Profiles"):
+                raise RuntimeError("Fusion could not configure target cable-ending selection.")
+            if not target_picker.setSelectionLimits(1, 1):
+                raise RuntimeError("Fusion could not limit target cable-ending selection.")
         handlers = (
             _PreSelectHandler(candidates),
-            _ValidateHandler(candidates),
+            _ValidateHandler(candidates, request.target_interface_id is not None),
             _ExecuteHandler(request, candidates),
         )
         for event, handler in zip(

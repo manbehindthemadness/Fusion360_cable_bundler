@@ -175,7 +175,20 @@ class UiRuntime:
         tuple[UUID, UUID, tuple[UUID, ...], bool, bool, object]
     ] = field(default_factory=PendingSlot)
     pending_auto_connect: PendingSlot[
-        tuple[UUID, UUID, tuple[UUID, ...], bool, bool, Optional[float], object]
+        tuple[
+            UUID,
+            UUID,
+            tuple[UUID, ...],
+            bool,
+            bool,
+            Optional[float],
+            object,
+            Optional[UUID],
+            tuple[UUID, ...],
+            bool,
+            bool,
+            Optional[float],
+        ]
     ] = field(default_factory=PendingSlot)
     pending_junction_relationship: PendingSlot[tuple[UUID, UUID]] = field(
         default_factory=PendingSlot

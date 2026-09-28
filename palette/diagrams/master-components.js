@@ -513,7 +513,10 @@ function renderRelationshipInterfaceCard(
       groups: relationshipInterfaceGroups(harness, item), nodeIds,
     });
   }
-  card.addEventListener("click", () => openInterfaceContacts(harness, item));
+  card.addEventListener("click", () => {
+    if (pendingAutoConnectTargetSelection?.(harness, item)) return;
+    openInterfaceContacts(harness, item);
+  });
   card.addEventListener("contextmenu", (event) => {
     event.stopPropagation();
     showContextMenu(event, [

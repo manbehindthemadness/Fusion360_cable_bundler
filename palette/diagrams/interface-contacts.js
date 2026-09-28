@@ -624,6 +624,10 @@ function openInterfaceContacts(harness, interfaceItem) {
   actions.append(close, rebuild);
   dialog.append(title, toolbar, diagram, actions);
   dialog.addEventListener("close", () => {
+    if (dialog.autoConnectSelectingTarget) return;
+    if (pendingAutoConnectTargetSelection?.dialog === dialog) {
+      pendingAutoConnectTargetSelection = null;
+    }
     diagram.contactState.showContextMenu.close();
     diagram.contactState.items.forEach((item) => item.clearHover?.());
     // A cached SVG must not retain the old workspace's event handlers and state.

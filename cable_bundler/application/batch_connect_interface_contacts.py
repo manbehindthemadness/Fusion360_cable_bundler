@@ -11,17 +11,43 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from ..domain import (
+    AttachmentAssociationDefinition,
     AttachmentTargetKind,
     CableEndAttachment,
     CableEndTarget,
     CableVisualOverrides,
     HarnessDefinition,
+    loads,
     validate_harness,
 )
 from ..domain.connection_packing import required_parent_diameter
 from .harness_edits.attachments import _replace_cable_end_attachment
 from .harness_edits.support import persist_definition, read_definition
 from .harness_edits.types import HarnessEditGateway
+
+
+class _StagedGateway:
+    """
+    Keep successive batch edits in memory until the complete operation validates.
+    """
+
+    def __init__(self, serialized_definition: str) -> None:
+        """
+        Retain the original harness snapshot for staged edits.
+        """
+        self.serialized_definition = serialized_definition
+
+    def read_harness_definition(self, _harness_id: UUID) -> str:
+        """
+        Return the latest staged definition.
+        """
+        return self.serialized_definition
+
+    def replace_harness_definition(self, _harness_id: UUID, serialized_definition: str) -> None:
+        """
+        Stage a replacement without touching Fusion persistence.
+        """
+        self.serialized_definition = serialized_definition
 
 
 def batch_connect_interface_contacts(
@@ -229,3 +255,137 @@ def batch_connect_interface_contacts(
     updated = with_diameter(group.diameter_mm)
     persist_definition(harness_id, original, updated, gateway)
     return len(additions)
+
+
+def batch_connect_and_associate_interface_contacts(
+    harness_id: UUID,
+    first_interface_id: UUID,
+    first_connection_id: UUID,
+    first_contact_ids: tuple[UUID, ...],
+    first_targets: tuple[CableEndTarget, ...],
+    first_include_pins: bool,
+    first_include_values: bool,
+    first_diameter_mm: Optional[float],
+    second_interface_id: UUID,
+    second_connection_id: UUID,
+    second_contact_ids: tuple[UUID, ...],
+    second_targets: tuple[CableEndTarget, ...],
+    second_include_pins: bool,
+    second_include_values: bool,
+    second_diameter_mm: Optional[float],
+    gateway: HarnessEditGateway,
+    id_factory: Callable[[], UUID] = uuid4,
+    *,
+    first_parent_attachment_id: Optional[UUID] = None,
+    second_parent_attachment_id: Optional[UUID] = None,
+) -> tuple[int, int, int]:
+    """
+    Connect two Interfaces and pair unique, nonblank matching pins in one edit.
+
+    Pin matching uses the selected Interface contacts even when copying pin labels
+    onto the generated attachments is disabled. Ambiguous duplicate pins are skipped.
+    """
+    if first_interface_id == second_interface_id or first_connection_id == second_connection_id:
+        raise ValueError("Choose two different Interfaces and cable endings.")
+    original, definition = read_definition(harness_id, gateway)
+    interfaces = {item.interface_id: item for item in definition.interfaces}
+    if first_interface_id not in interfaces or second_interface_id not in interfaces:
+        raise ValueError("A selected Interface no longer exists.")
+    staged = _StagedGateway(original)
+    first_count = batch_connect_interface_contacts(
+        harness_id,
+        first_interface_id,
+        first_connection_id,
+        first_contact_ids,
+        first_targets,
+        first_include_pins,
+        first_include_values,
+        first_diameter_mm,
+        staged,
+        id_factory,
+        parent_attachment_id=first_parent_attachment_id,
+    )
+    after_first = loads(staged.serialized_definition)
+    first_before = next(
+        item for item in definition.connections if item.connection_id == first_connection_id
+    )
+    first_after = next(
+        item for item in after_first.connections if item.connection_id == first_connection_id
+    )
+    first_new = first_after.attachments[len(first_before.attachments) :]
+    second_count = batch_connect_interface_contacts(
+        harness_id,
+        second_interface_id,
+        second_connection_id,
+        second_contact_ids,
+        second_targets,
+        second_include_pins,
+        second_include_values,
+        second_diameter_mm,
+        staged,
+        id_factory,
+        parent_attachment_id=second_parent_attachment_id,
+    )
+    after_second = loads(staged.serialized_definition)
+    second_before = next(
+        item for item in definition.connections if item.connection_id == second_connection_id
+    )
+    second_after = next(
+        item for item in after_second.connections if item.connection_id == second_connection_id
+    )
+    second_new = second_after.attachments[len(second_before.attachments) :]
+
+    def unique_pins(
+        interface_id: UUID,
+        contact_ids: tuple[UUID, ...],
+        attachments: tuple[CableEndAttachment, ...],
+    ) -> dict[str, UUID]:
+        """
+        Return only pins that occur exactly once in the selected contact set.
+        """
+        contacts = {item.contact_id: item for item in interfaces[interface_id].contacts}
+        grouped: dict[str, list[UUID]] = {}
+        for contact_id, attachment in zip(contact_ids, attachments):
+            pin = contacts[contact_id].pin.strip()
+            if pin:
+                grouped.setdefault(pin, []).append(attachment.attachment_id)
+        return {pin: members[0] for pin, members in grouped.items() if len(members) == 1}
+
+    first_pins = unique_pins(first_interface_id, first_contact_ids, first_new)
+    second_pins = unique_pins(second_interface_id, second_contact_ids, second_new)
+    used_ids = {
+        after_second.harness_id,
+        *(item.connection_id for item in after_second.connections),
+        *(member_id for item in after_second.connections for member_id in item.member_identities),
+        *(
+            item.attachment_id
+            for connection in after_second.connections
+            for item in connection.attachments
+        ),
+        *(item.control_id for item in after_second.controls),
+        *(item.pathway_id for item in after_second.pathways),
+        *(item.junction_id for item in after_second.junctions),
+        *(item.cable_group_id for item in after_second.cable_groups),
+        *(item.interface_id for item in after_second.interfaces),
+        *(item.contact_id for interface in after_second.interfaces for item in interface.contacts),
+        *(item.association_id for item in after_second.attachment_associations),
+    }
+    associations = []
+    for pin, first_id in first_pins.items():
+        second_id = second_pins.get(pin)
+        if second_id is None:
+            continue
+        association_id = id_factory()
+        if association_id in used_ids:
+            raise ValueError("Generated association identity is already in use.")
+        used_ids.add(association_id)
+        associations.append(AttachmentAssociationDefinition(association_id, (first_id, second_id)))
+    updated = replace(
+        after_second,
+        attachment_associations=(*after_second.attachment_associations, *associations),
+    )
+    issues = validate_harness(updated)
+    if issues:
+        raise ValueError(issues[0].message)
+    persist_definition(harness_id, original, updated, gateway)
+    return first_count, second_count, len(associations)

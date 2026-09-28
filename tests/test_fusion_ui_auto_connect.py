@@ -17,6 +17,7 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
     HarnessDefinition,
+    InterfaceContact,
     loads,
 )
 from tests.test_batch_connect_interface_contacts import _contact_harness
@@ -161,3 +162,102 @@ def test_auto_connect_native_execute_saves_and_refreshes_one_batch(
     assert stored.connections[0].attachments[0].name == "VCC"
     refresh.assert_called_once()
     send.assert_called_once()
+
+
+def test_auto_connect_native_execute_pairs_two_picked_endings(
+    addin_module: object,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Resolve both Fusion selections and save one association with the two batches.
+    """
+    del addin_module
+    commands = importlib.import_module("cable_bundler.fusion.ui.commands.interface_auto_connect")
+    source = _contact_harness(valid_harness)
+    target_interface = replace(
+        source.interfaces[0],
+        interface_id=UUID(int=810),
+        name="Target",
+        contacts=(
+            InterfaceContact(
+                UUID(int=811), AttachmentTargetKind.SKETCH_POINT, "target-a", "", "A1"
+            ),
+        ),
+    )
+    definition = replace(source, interfaces=(*source.interfaces, target_interface))
+    gateway = _recording_gateway(definition)
+    gateway.harness_component = lambda _identity: object()
+    document = object()
+    first_profile = SimpleNamespace(is_profile=True, nativeObject=None, token="first")
+    second_profile = SimpleNamespace(is_profile=True, nativeObject=None, token="second")
+    contact = SimpleNamespace(is_profile=False)
+    design = SimpleNamespace(
+        findEntityByToken=lambda token: (contact,) if token in {"contact-a", "target-a"} else ()
+    )
+    application = SimpleNamespace(
+        activeDocument=document, activeViewport=SimpleNamespace(refresh=Mock())
+    )
+    core = sys.modules["adsk.core"]
+    fusion = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(
+        vars(core), "SelectionCommandInput", SimpleNamespace(cast=lambda value: value)
+    )
+    monkeypatch.setitem(
+        vars(fusion),
+        "Profile",
+        SimpleNamespace(cast=lambda value: value if getattr(value, "is_profile", False) else None),
+    )
+    monkeypatch.setitem(vars(commands), "_require_active_design", lambda _app: design)
+    monkeypatch.setitem(vars(commands), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(
+        vars(commands), "attachment_target_kind", lambda _entity: AttachmentTargetKind.SKETCH_POINT
+    )
+    monkeypatch.setitem(vars(commands), "attachment_target_name", lambda *_args: "Pad")
+    refresh = Mock()
+    monkeypatch.setitem(vars(commands), "refresh_generated_cable_groups_for_connection", refresh)
+    monkeypatch.setitem(vars(commands), "_refresh_active_preview", lambda *_args: "")
+    monkeypatch.setitem(vars(commands), "_send_palette_state", Mock())
+    pickers = {
+        commands.AUTO_CONNECT_END_INPUT_ID: SimpleNamespace(
+            selectionCount=1, selection=lambda _index: SimpleNamespace(entity=first_profile)
+        ),
+        commands.AUTO_CONNECT_TARGET_END_INPUT_ID: SimpleNamespace(
+            selectionCount=1, selection=lambda _index: SimpleNamespace(entity=second_profile)
+        ),
+    }
+    args = SimpleNamespace(
+        command=SimpleNamespace(
+            commandInputs=SimpleNamespace(itemById=lambda identity: pickers.get(identity))
+        ),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+    request = commands._AutoConnectRequest(
+        definition.harness_id,
+        source.interfaces[0].interface_id,
+        (UUID(int=801),),
+        True,
+        True,
+        None,
+        document,
+        target_interface.interface_id,
+        (UUID(int=811),),
+        False,
+        False,
+        None,
+    )
+    candidates = (
+        (definition.connections[0].connection_id, None, first_profile),
+        (definition.connections[1].connection_id, None, second_profile),
+    )
+    commands._ExecuteHandler(request, candidates).notify(args)
+    assert not args.executeFailed
+    stored = loads(gateway.serialized_definition)
+    assert len(stored.attachment_associations) == 1
+    assert stored.attachment_associations[0].attachment_ids == (
+        stored.connections[0].attachments[0].attachment_id,
+        stored.connections[1].attachments[0].attachment_id,
+    )
+    assert refresh.call_count == 2

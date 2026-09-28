@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 
 from cable_bundler.application.batch_connect_interface_contacts import (
+    batch_connect_and_associate_interface_contacts,
     batch_connect_interface_contacts,
 )
 from cable_bundler.domain import (
@@ -55,6 +56,122 @@ def _targets() -> tuple[CableEndTarget, ...]:
         CableEndTarget(AttachmentTargetKind.SKETCH_POINT, "contact-a", "Pad A"),
         CableEndTarget(AttachmentTargetKind.SKETCH_POINT, "contact-b", "Pad B"),
     )
+
+
+def test_dual_batch_associates_only_unique_matching_nonblank_pins(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep two batches and their pin associations atomic while skipping ambiguity.
+    """
+    definition = _contact_harness(valid_harness)
+    first = replace(
+        definition.interfaces[0],
+        contacts=(
+            *definition.interfaces[0].contacts,
+            InterfaceContact(
+                UUID(int=803), AttachmentTargetKind.SKETCH_POINT, "contact-c", "", "A2"
+            ),
+            InterfaceContact(UUID(int=804), AttachmentTargetKind.SKETCH_POINT, "contact-d", "", ""),
+        ),
+    )
+    second = InterfaceDefinition(
+        UUID(int=810),
+        "Target",
+        (InterfaceTarget(InterfaceTargetKind.BODY, "body-2"),),
+        (
+            InterfaceContact(
+                UUID(int=811), AttachmentTargetKind.SKETCH_POINT, "target-a", "", "A1"
+            ),
+            InterfaceContact(
+                UUID(int=812), AttachmentTargetKind.SKETCH_POINT, "target-b", "", "A2"
+            ),
+            InterfaceContact(UUID(int=813), AttachmentTargetKind.SKETCH_POINT, "target-c", "", ""),
+        ),
+    )
+    definition = replace(definition, interfaces=(first, second))
+    gateway = _recording_gateway(definition)
+    ids = iter(UUID(int=value) for value in range(901, 920))
+    counts = batch_connect_and_associate_interface_contacts(
+        definition.harness_id,
+        first.interface_id,
+        definition.connections[0].connection_id,
+        tuple(item.contact_id for item in first.contacts),
+        (
+            *_targets(),
+            CableEndTarget(AttachmentTargetKind.SKETCH_POINT, "contact-c", "Pad C"),
+            CableEndTarget(AttachmentTargetKind.SKETCH_POINT, "contact-d", "Pad D"),
+        ),
+        False,
+        False,
+        None,
+        second.interface_id,
+        definition.connections[1].connection_id,
+        tuple(item.contact_id for item in second.contacts),
+        tuple(
+            CableEndTarget(AttachmentTargetKind.SKETCH_POINT, item.entity_token, "Target")
+            for item in second.contacts
+        ),
+        False,
+        False,
+        None,
+        gateway,
+        id_factory=ids.__next__,
+    )
+    stored = loads(gateway.serialized_definition)
+    assert counts == (4, 3, 1)
+    assert len(stored.attachment_associations) == 1
+    association = stored.attachment_associations[0]
+    assert association.attachment_ids == (
+        stored.connections[0].attachments[0].attachment_id,
+        stored.connections[1].attachments[0].attachment_id,
+    )
+    assert all(
+        item.pin_number is None
+        for connection in stored.connections
+        for item in connection.attachments
+    )
+
+
+def test_dual_batch_does_not_save_first_half_when_second_is_invalid(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Leave the original definition untouched when the target batch fails.
+    """
+    definition = _contact_harness(valid_harness)
+    second = replace(
+        definition.interfaces[0],
+        interface_id=UUID(int=810),
+        contacts=(
+            InterfaceContact(
+                UUID(int=811), AttachmentTargetKind.SKETCH_POINT, "target-a", "", "A1"
+            ),
+        ),
+    )
+    definition = replace(definition, interfaces=(*definition.interfaces, second))
+    gateway = _recording_gateway(definition)
+    original = gateway.serialized_definition
+    with pytest.raises(ValueError, match="matches its saved geometry"):
+        batch_connect_and_associate_interface_contacts(
+            definition.harness_id,
+            definition.interfaces[0].interface_id,
+            definition.connections[0].connection_id,
+            (UUID(int=801),),
+            _targets()[:1],
+            True,
+            True,
+            None,
+            second.interface_id,
+            definition.connections[1].connection_id,
+            (UUID(int=811),),
+            _targets()[:1],
+            True,
+            True,
+            None,
+            gateway,
+        )
+    assert gateway.serialized_definition == original
 
 
 def test_batch_connects_contacts_without_creating_association_groups(

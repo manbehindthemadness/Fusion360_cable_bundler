@@ -69,14 +69,9 @@
 .interface-contact-auto-connect-ending label { display: flex; align-items: center; gap: 6px; }
 .interface-contact-auto-connect-ending label:last-child { display: grid; }
 .interface-contact-auto-connect-ending input[type="number"] { min-width: 0; width: 100%; }
-.interface-contact-auto-connect-future {
-  display: grid;
-  place-items: center;
-  min-height: 160px;
-  padding: 10px;
+.interface-contact-auto-connect-ending + .interface-contact-auto-connect-ending {
+  padding-left: 12px;
   border-left: 1px solid var(--border);
-  color: var(--muted);
-  text-align: center;
 }
 .interface-contact-geo-import,
 .interface-contact-name-locals {

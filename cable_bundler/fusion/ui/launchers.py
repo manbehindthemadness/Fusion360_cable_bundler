@@ -223,6 +223,35 @@ def _open_auto_connect_command(application: adsk.core.Application, serialized_da
     ):
         raise ValueError("Auto Connect needs contacts, options, and a positive optional diameter.")
     contact_ids = tuple(UUID(item) for item in raw_ids)
+    raw_target_ids = payload.get("targetContactIds", [])
+    target_interface_raw = payload.get("targetInterfaceId")
+    target_include_pins = payload.get("targetIncludePins", True)
+    target_include_values = payload.get("targetIncludeValues", True)
+    target_diameter = payload.get("targetDiameterMm")
+    if (
+        not isinstance(raw_target_ids, list)
+        or len(raw_target_ids) > 1024
+        or any(not isinstance(item, str) for item in raw_target_ids)
+        or (target_interface_raw is None) != (len(raw_target_ids) == 0)
+        or not isinstance(target_include_pins, bool)
+        or not isinstance(target_include_values, bool)
+        or target_diameter is not None
+        and (
+            isinstance(target_diameter, bool)
+            or not isinstance(target_diameter, (int, float))
+            or not math.isfinite(target_diameter)
+            or target_diameter <= 0
+        )
+    ):
+        raise ValueError(
+            "Auto Connect target needs contacts, options, and a positive optional diameter."
+        )
+    target_interface_id = (
+        _read_payload_uuid(payload, "targetInterfaceId", "target Interface")
+        if target_interface_raw is not None
+        else None
+    )
+    target_contact_ids = tuple(UUID(item) for item in raw_target_ids)
     definition = application.userInterface.commandDefinitions.itemById(AUTO_CONNECT_COMMAND_ID)
     if definition is None:
         raise RuntimeError("Fusion Auto Connect command is unavailable; restart the add-in.")
@@ -235,6 +264,11 @@ def _open_auto_connect_command(application: adsk.core.Application, serialized_da
             include_values,
             diameter,
             application.activeDocument,
+            target_interface_id,
+            target_contact_ids,
+            target_include_pins,
+            target_include_values,
+            target_diameter,
         )
     )
     try:
