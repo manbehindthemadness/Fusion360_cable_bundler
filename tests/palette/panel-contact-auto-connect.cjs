@@ -1,5 +1,5 @@
 /** Auto Connect dialog and grouped-end picker request regressions. */
-const { assert, asyncTest, descendants, palette } = require('./support.cjs');
+const { assert, asyncTest, descendants, harness, palette } = require('./support.cjs');
 
 /** Complete one mocked Fusion ending picker without saving an Auto Connect edit. */
 function finishEndingPick(context, calls, connectionId) {
@@ -103,9 +103,10 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   };
   buttons[1].events.click();
   assert.equal(dialog.open, false);
-  assert.equal(filter.value, '');
+  assert.equal(filter.value, 'Source');
   assert.equal(master.dataset.autoConnectSelectingTarget, 'true');
   assert.equal(toolbar.querySelector('.interface-auto-connect-target-prompt')?.tag, 'div');
+  assert.equal(toolbar.querySelector('.interface-auto-connect-target-choice')?.textContent, 'Target');
   state.items = [];
   const card = context.renderRelationshipInterfaceCard(harness, target, () => {});
   card.events.click();
@@ -148,6 +149,48 @@ asyncTest('Auto Connect selects a target Interface and sends both contact sets',
   assert.equal(state.onEditContact, sourceEditContact);
   assert.equal(dialog.querySelector('.interface-contact-auto-connect'), undefined);
   assert.notEqual(dialog.children[1].children[1].children[1].disabled, true);
+});
+
+asyncTest('Auto Connect target picking keeps a redrawn filtered master diagram intact', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const source = { interfaceId: 'source', name: 'Lower source', contacts: [] };
+  const target = { interfaceId: 'target', name: 'Upper target', contacts: [] };
+  definition.interfaces = [source, target];
+  const master = context.renderRelationshipMap(definition);
+  context.document.body.append(master);
+  const filter = master.querySelector('.filter');
+  filter.value = 'lower';
+  filter.events.input();
+  const redraw = descendants(master, (item) => item.textContent === 'Redraw')[0];
+  redraw.events.click();
+  const stack = master.querySelector('.relationship-pathway-stack');
+  const stage = master.querySelector('.block-diagram-stage');
+  const layoutKey = stack.dataset.diagramLayoutKey;
+  const transform = stage.style.transform;
+
+  context.openInterfaceContacts(definition, source);
+  const dialog = context.document.body.querySelector('.interface-contacts-popup');
+  const state = dialog.children[2].contactState;
+  state.items = [{ id: 'pad-1' }];
+  state.workspace.root.hidden = false;
+  dialog.children[1].children[1].children[1].events.click();
+  const panel = dialog.querySelector('.interface-contact-auto-connect');
+  const selectTarget = descendants(panel, (item) => item.textContent === 'Select Target Contacts')[0];
+  selectTarget.events.click();
+
+  assert.equal(filter.value, 'lower');
+  assert.equal(master.querySelector('.relationship-pathway-stack'), stack);
+  assert.equal(stack.dataset.diagramLayoutKey, layoutKey);
+  assert.equal(stage.style.transform, transform);
+  const hiddenTarget = master.querySelector('.interface-auto-connect-target-choice');
+  assert.equal(hiddenTarget.textContent, 'Upper target');
+  state.items = [];
+  hiddenTarget.events.click();
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.dataset.interfaceId, 'target');
+  assert.equal(master.querySelector('.relationship-pathway-stack'), stack);
+  assert.equal(stack.dataset.diagramLayoutKey, layoutKey);
 });
 
 asyncTest('Auto Connect restores the source geometry cache after target preview', async () => {

@@ -224,11 +224,6 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
     prompt.append(promptText, cancelButton);
     masterToolbar.prepend(prompt);
     master.dataset.autoConnectSelectingTarget = "true";
-    const filter = masterToolbar.querySelector(".filter");
-    if (filter?.value) {
-      filter.value = "";
-      filter.dispatchEvent(new window.Event("input"));
-    }
     const finishSelection = () => {
       document.removeEventListener("keydown", cancelSelection);
       prompt.remove();
@@ -282,6 +277,27 @@ function openInterfaceAutoConnect(naming, diagram, harness, interfaceId) {
       return true;
     };
     pendingAutoConnectTargetSelection.dialog = dialog;
+    const visibleInterfaceIds = new Set(
+      [...master.querySelectorAll(".relationship-interface-card")]
+        .map((card) => card.dataset.interfaceId),
+    );
+    const hiddenTargets = (harness.interfaces || []).filter((item) => (
+      item.interfaceId !== interfaceId && !visibleInterfaceIds.has(item.interfaceId)
+    ));
+    if (hiddenTargets.length) {
+      promptText.textContent = "Select a target Interface in the diagram or below.";
+      const choices = document.createElement("div");
+      choices.className = "interface-auto-connect-target-choices";
+      hiddenTargets.forEach((item) => {
+        const choice = document.createElement("button");
+        choice.type = "button";
+        choice.className = "button compact interface-auto-connect-target-choice";
+        choice.textContent = item.name;
+        choice.addEventListener("click", () => pendingAutoConnectTargetSelection?.(harness, item));
+        choices.append(choice);
+      });
+      prompt.append(choices);
+    }
     dialog.autoConnectSuspendedCloses = (dialog.autoConnectSuspendedCloses || 0) + 1;
     dialog.contactCloseReason = "auto-connect-target-pick";
     dialog.close();

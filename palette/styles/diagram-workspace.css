@@ -187,6 +187,7 @@
 .interface-auto-connect-target-prompt {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -194,6 +195,12 @@
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--surface);
+}
+.interface-auto-connect-target-choices {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .relationship-map[data-auto-connect-selecting-target="true"] .relationship-interface-card {
   outline: 2px solid var(--accent);
