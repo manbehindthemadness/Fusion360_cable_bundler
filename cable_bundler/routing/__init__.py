@@ -24,6 +24,7 @@ from .smooth import (
     fair_route,
     minimum_circular_bend_radius,
     sample_centerline,
+    straight_route,
     tightest_bend,
     transition_limits,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "fair_route",
     "minimum_circular_bend_radius",
     "sample_centerline",
+    "straight_route",
     "tightest_bend",
     "transition_limits",
 ]

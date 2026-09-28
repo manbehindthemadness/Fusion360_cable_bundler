@@ -70,6 +70,7 @@ class TransitionAdjustment:
     required_mm: float
     applied_mm: float
     minimum_bend_radius_mm: float
+    applied_bend_radius_mm: Optional[float] = None
 
 
 def minimum_circular_bend_radius(diameter_mm: float) -> float:
@@ -81,6 +82,26 @@ def minimum_circular_bend_radius(diameter_mm: float) -> float:
     return diameter_mm * 0.5 * CIRCULAR_SWEEP_BEND_FACTOR
 
 
+def straight_route(route: RoutePreview) -> RoutePreview:
+    """
+    Keep ordered crossings visible when no tangent-constrained curve can be built.
+
+    Segment joins may be sharp and are not guaranteed to support a solid Sweep.
+    """
+    if len(route.points) < 2:
+        raise ValueError("A route needs at least two crossings.")
+    if any(
+        not math.isfinite(value) for point in route.points for value in (point.x, point.y, point.z)
+    ):
+        raise ValueError("Route crossings must have finite coordinates.")
+    _validate_route_spans(route)
+    curves = tuple(
+        CubicBezier(start, lerp(start, end, 1.0 / 3.0), lerp(start, end, 2.0 / 3.0), end)
+        for start, end in zip(route.points, route.points[1:])
+    )
+    return replace(route, curves=curves)
+
+
 def fair_route(
     route: RoutePreview,
     normals: tuple[Vector3, ...],
@@ -89,6 +110,7 @@ def fair_route(
     adjustments: Optional[list[TransitionAdjustment]] = None,
     auto_transition_fraction: float = 0.25,
     fixed_normal_indices: frozenset[int] = frozenset(),
+    allow_bend_radius_clamp: bool = False,
 ) -> RoutePreview:
     """
     Preserve crossings and connect them with tangent-continuous local transitions.
@@ -96,7 +118,8 @@ def fair_route(
     Normal signs follow stored traversal except at explicitly fixed crossings;
     points are never reordered. Automatic transitions occupy the requested share
     of each span. All lengths clamp to the nearest proportional fit above their
-    safe minima when a span is crowded.
+    safe minima when a span is crowded. An explicit last-resort policy may
+    sacrifice the bend floor while preserving the ordered crossings.
     """
     points = route.points
     if len(points) < 2 or len(normals) != len(points):
@@ -159,6 +182,13 @@ def fair_route(
                         )
                     )
                 continue
+        if minimum_departure + minimum_approach > distance + 1e-9 and allow_bend_radius_clamp:
+            scale = distance / (minimum_departure + minimum_approach)
+            minimum_departure *= scale
+            minimum_approach *= scale
+            sacrificed_radius = True
+        else:
+            sacrificed_radius = False
         departure, approach = _resolve_span_lengths(
             route.cable_number,
             index,
@@ -173,16 +203,32 @@ def fair_route(
         right = end.translated(direction, -approach)
         if magnitude(difference(right, left)) <= 1e-9:
             right = left
-        curves.extend(
+        span_curves = list(
             _transition(start, left, tangents[index], direction, departure, route.cable_number)
         )
         if magnitude(difference(right, left)) > 1e-9:
-            curves.append(
+            span_curves.append(
                 CubicBezier(left, lerp(left, right, 1.0 / 3.0), lerp(left, right, 2.0 / 3.0), right)
             )
-        curves.extend(
+        span_curves.extend(
             _transition(right, end, direction, tangents[index + 1], approach, route.cable_number)
         )
+        curves.extend(span_curves)
+        if sacrificed_radius and adjustments is not None:
+            achieved_radius = min(
+                _minimum_sampled_radius(curve, _SAFETY_RADIUS_SAMPLES) for curve in span_curves
+            )
+            adjustments.append(
+                TransitionAdjustment(
+                    route.cable_number,
+                    index + 1,
+                    index + 2,
+                    limits[index].departure_mm + limits[index + 1].approach_mm,
+                    distance,
+                    minimum_bend_radius_mm,
+                    achieved_radius,
+                )
+            )
     return replace(route, curves=tuple(curves))
 
 

@@ -36,6 +36,7 @@ from ...routing import (
     minimum_circular_bend_radius,
     place_route_crossings,
     separate_route_collisions,
+    straight_route,
 )
 from ...routing.conditioning import (
     CircularGuideConstraint,
@@ -554,19 +555,37 @@ def solve_cable_group_routes(
             accepted_normals = conditioned_normals
         except ValueError:
             adjustments.clear()
-            faired_route = fair_route(
-                route,
-                original_normals,
-                route_transition_lengths,
-                minimum_bend_radius_mm=minimum_bend_radii[route_index],
-                adjustments=adjustments,
-                auto_transition_fraction=auto_transition_fraction,
-            )
-            accepted_normals = original_normals
-            solve_notices.append(
-                f"{route.cable_number}: retained the original guide interpolation because "
-                "the relaxed guide shape was infeasible."
-            )
+            try:
+                faired_route = fair_route(
+                    route,
+                    original_normals,
+                    route_transition_lengths,
+                    minimum_bend_radius_mm=minimum_bend_radii[route_index],
+                    adjustments=adjustments,
+                    auto_transition_fraction=auto_transition_fraction,
+                )
+                accepted_normals = original_normals
+                solve_notices.append(
+                    f"{route.cable_number}: retained the original guide interpolation because "
+                    "the relaxed guide shape was infeasible."
+                )
+            except ValueError:
+                adjustments.clear()
+                try:
+                    faired_route = fair_route(
+                        route,
+                        conditioned_normals,
+                        route_transition_lengths,
+                        minimum_bend_radius_mm=minimum_bend_radii[route_index],
+                        adjustments=adjustments,
+                        auto_transition_fraction=auto_transition_fraction,
+                        allow_bend_radius_clamp=True,
+                    )
+                except ValueError as error:
+                    adjustments.clear()
+                    faired_route = straight_route(route)
+                    solve_notices.append(_straight_route_notice(route.cable_number, error))
+                accepted_normals = conditioned_normals
         routes.append(faired_route)
         route_normals.append(accepted_normals)
         solve_notices.extend(_adjustment_notice(item) for item in adjustments)
@@ -590,6 +609,7 @@ def solve_cable_group_routes(
         profile_frames,
         auto_transition_fraction,
         _root_branch_anchors(legs, separated_routes),
+        solve_notices,
     )
     solved_routes = (*separated_routes, *branch_routes)
     solved_legs = (*legs, *branch_legs)
@@ -616,6 +636,7 @@ def _connection_branch_routes(
     cache: dict[str, ProfileFrame],
     auto_transition_fraction: float,
     root_anchors: Optional[dict[tuple[UUID, UUID], _BranchAnchor]] = None,
+    notices: Optional[list[str]] = None,
 ) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
     """
     Build every root split and descendant connection span.
@@ -711,18 +732,46 @@ def _connection_branch_routes(
                             )
                         ),
                     )
-                    route = fair_route(
-                        raw_route,
-                        tuple(frame.normal for frame in branch_frames),
-                        transitions,
-                        minimum_bend_radius_mm=minimum_circular_bend_radius(branch_diameter_mm),
-                        auto_transition_fraction=auto_transition_fraction,
-                        fixed_normal_indices=(
-                            frozenset({len(branch_frames) - 1})
-                            if parent_attachment_id is not None or parent_side_point is not None
-                            else frozenset()
-                        ),
+                    branch_normals = tuple(frame.normal for frame in branch_frames)
+                    branch_radius = minimum_circular_bend_radius(branch_diameter_mm)
+                    fixed_indices = (
+                        frozenset({len(branch_frames) - 1})
+                        if parent_attachment_id is not None or parent_side_point is not None
+                        else frozenset()
                     )
+                    adjustments: list[TransitionAdjustment] = []
+                    try:
+                        route = fair_route(
+                            raw_route,
+                            branch_normals,
+                            transitions,
+                            minimum_bend_radius_mm=branch_radius,
+                            auto_transition_fraction=auto_transition_fraction,
+                            fixed_normal_indices=fixed_indices,
+                            adjustments=adjustments,
+                        )
+                    except ValueError:
+                        adjustments.clear()
+                        try:
+                            route = fair_route(
+                                raw_route,
+                                branch_normals,
+                                transitions,
+                                minimum_bend_radius_mm=branch_radius,
+                                auto_transition_fraction=auto_transition_fraction,
+                                fixed_normal_indices=fixed_indices,
+                                allow_bend_radius_clamp=True,
+                                adjustments=adjustments,
+                            )
+                        except ValueError as error:
+                            adjustments.clear()
+                            route = straight_route(raw_route)
+                            if notices is not None:
+                                notices.append(
+                                    _straight_route_notice(raw_route.cable_number, error)
+                                )
+                    if notices is not None:
+                        notices.extend(_adjustment_notice(item) for item in adjustments)
                     routes.append(route)
                     legs.append(
                         CableGroupRouteLeg(
@@ -745,11 +794,31 @@ def _adjustment_notice(adjustment: TransitionAdjustment) -> str:
     """
     Format a dynamic transition correction for the palette event console.
     """
+    if adjustment.applied_bend_radius_mm is not None:
+        return (
+            f"Warning — Cable {adjustment.cable_number}: clamped transitions between profiles "
+            f"{adjustment.start_profile} and {adjustment.end_profile} from "
+            f"{adjustment.required_mm:.3f} mm to {adjustment.applied_mm:.3f} mm; "
+            f"the {adjustment.minimum_bend_radius_mm:.3f} mm minimum sweep radius was "
+            f"sacrificed (achieved {adjustment.applied_bend_radius_mm:.3f} mm). "
+            "Fusion may reject the resulting solid."
+        )
     return (
         f"Cable {adjustment.cable_number}: dynamically adjusted transitions between profiles "
         f"{adjustment.start_profile} and {adjustment.end_profile} from "
         f"{adjustment.required_mm:.3f} mm to {adjustment.applied_mm:.3f} mm; "
         f"the {adjustment.minimum_bend_radius_mm:.3f} mm sweep radius is preserved."
+    )
+
+
+def _straight_route_notice(cable_number: str, error: ValueError) -> str:
+    """
+    Explain when only an ordered straight-segment preview could be retained.
+    """
+    return (
+        f"Warning — Cable {cable_number}: showing straight segments through the ordered "
+        f"crossings because curved fairing failed ({error}). Profile tangents and bend "
+        "clearance are not preserved; Fusion may reject the resulting solid."
     )
 
 

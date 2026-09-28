@@ -17,6 +17,7 @@ from cable_bundler.routing import (
     Vector3,
     fair_route,
     sample_centerline,
+    straight_route,
     tightest_bend,
     transition_limits,
 )
@@ -174,6 +175,54 @@ def test_automatic_distance_contracts_only_to_safe_bend_floor() -> None:
     assert smooth.curves[-1].start.z == pytest.approx(8.0)
     bend = tightest_bend(smooth, 1024)
     assert bend is not None and bend.radius_mm >= required_radius - 1e-9
+
+
+def test_explicit_bend_radius_clamp_preserves_crowded_crossings_with_warning_data() -> None:
+    """
+    Preserve the route when a short span cannot meet its sweep-radius floor.
+    """
+    distance = 3.801
+    route = _route((Vector3(0, 0, 0), Vector3(0, 0, distance)))
+    normal = Vector3(1, 0, 0.01)
+    radius = 10.0
+    adjustments: list[TransitionAdjustment] = []
+
+    with pytest.raises(ValueError, match="but only 3.801 mm is available"):
+        fair_route(route, (normal, normal), minimum_bend_radius_mm=radius)
+
+    clamped = fair_route(
+        route,
+        (normal, normal),
+        minimum_bend_radius_mm=radius,
+        adjustments=adjustments,
+        allow_bend_radius_clamp=True,
+    )
+
+    assert clamped.points == route.points
+    assert clamped.curves[0].start == route.points[0]
+    assert clamped.curves[-1].end == route.points[-1]
+    assert len(adjustments) == 1
+    assert adjustments[0].applied_mm == distance
+    assert adjustments[0].required_mm > distance
+    bend = tightest_bend(clamped, 1024)
+    assert bend is not None
+    assert adjustments[0].applied_bend_radius_mm == pytest.approx(bend.radius_mm)
+    assert bend.radius_mm < radius
+
+
+def test_straight_route_keeps_all_crossings_when_tangents_cannot_be_fitted() -> None:
+    """
+    Retain a visible path through authored crossings despite sharp joins.
+    """
+    route = _route((Vector3(0, 0, 0), Vector3(0, 0, 4), Vector3(4, 0, 4)))
+
+    fallback = straight_route(route)
+
+    assert fallback.points == route.points
+    assert len(fallback.curves) == 2
+    assert fallback.curves[0].start == route.points[0]
+    assert fallback.curves[0].end == fallback.curves[1].start == route.points[1]
+    assert fallback.curves[1].end == route.points[2]
 
 
 def test_crowded_profile_span_uses_direct_dynamic_transition() -> None:

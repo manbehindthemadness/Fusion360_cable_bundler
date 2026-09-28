@@ -36,6 +36,7 @@ from cable_bundler.routing import (
     RoutePreview,
     TransitionLengths,
     Vector3,
+    tightest_bend,
 )
 from cable_bundler.routing.aperture import contains_disk
 from cable_bundler.routing.geometry import dot
@@ -578,6 +579,129 @@ def test_square_gate_routes_through_public_product_solver(
     crossings = [point for point in routes[0].points if abs(point.z - 10.0) <= 1e-6]
     assert crossings
     assert all(contains_disk((point.x, point.y), 0.6, outline) for point in crossings)
+
+
+def test_product_solver_previews_unavoidable_short_bend_with_warning(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep a crowded main leg visible when its safe sweep radius cannot fit.
+    """
+    from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    definition = replace(
+        valid_harness,
+        cable_groups=(replace(valid_harness.cable_groups[0], diameter_mm=20.0),),
+    )
+
+    def routing_frame(
+        _design: object,
+        _control: ControlStructure,
+        control_id: UUID,
+    ) -> GateFrame:
+        """
+        Return an ample aperture only 3.801 mm from the first terminal.
+        """
+        return GateFrame(
+            control_id,
+            "Routing Gate 01",
+            Vector3(0.0, 0.0, 3.801),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+            50.0,
+        )
+
+    def profile_frame(_design: object, token: str) -> route_solver.ProfileFrame:
+        """
+        Make the first physical face nearly transverse to its short span.
+        """
+        return route_solver.ProfileFrame(
+            Vector3(0.0, 0.0, 0.0 if token == "fusion-start-token" else 40.0),
+            Vector3(1.0, 0.0, 0.01) if token == "fusion-start-token" else Vector3(0.0, 0.0, 1.0),
+            Vector3(0.0, 1.0, 0.0),
+            Vector3(0.0, 0.0, 1.0),
+        )
+
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
+    notices: list[str] = []
+
+    routes, legs = route_preview.solve_cable_group_centerlines(object(), definition, notices)
+
+    assert len(routes) == len(legs) == 1
+    assert Vector3(0.0, 0.0, 0.0) in routes[0].points
+    assert Vector3(0.0, 0.0, 3.801) in routes[0].points
+    assert any("minimum sweep radius was sacrificed" in notice for notice in notices)
+    bend = tightest_bend(routes[0], 1024)
+    assert bend is not None and bend.radius_mm < 10.5
+
+
+def test_product_solver_retains_straight_preview_after_fairing_failure(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Fall through to ordered straight segments if no curved route survives.
+    """
+    from cable_bundler.fusion import route_preview
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+
+    def routing_frame(
+        _design: object,
+        _control: ControlStructure,
+        control_id: UUID,
+    ) -> GateFrame:
+        """
+        Return a roomy intermediate gate.
+        """
+        return GateFrame(
+            control_id,
+            "Routing Gate 01",
+            Vector3(0.0, 0.0, 10.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+            50.0,
+        )
+
+    def profile_frame(_design: object, token: str) -> route_solver.ProfileFrame:
+        """
+        Return ordered terminal faces on opposite sides of the gate.
+        """
+        return route_solver.ProfileFrame(
+            Vector3(0.0, 0.0, 0.0 if token == "fusion-start-token" else 20.0),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            Vector3(0.0, 1.0, 0.0),
+        )
+
+    def reject_curved_route(*_args: object, **_kwargs: object) -> RoutePreview:
+        """
+        Simulate all tangent-constrained attempts failing.
+        """
+        raise ValueError("tangent conflict")
+
+    monkeypatch.setitem(vars(route_solver), "routing_frame", routing_frame)
+    monkeypatch.setattr(route_frames, "_profile_frame", profile_frame)
+    monkeypatch.setitem(vars(route_solver), "fair_route", reject_curved_route)
+    monkeypatch.setattr(route_solver, "_route_solve_cache", None)
+    notices: list[str] = []
+
+    routes, legs = route_preview.solve_cable_group_centerlines(object(), valid_harness, notices)
+
+    assert len(routes) == len(legs) == 1
+    assert len(routes[0].curves) == len(routes[0].points) - 1
+    assert any("showing straight segments" in notice for notice in notices)
+    assert any("tangent conflict" in notice for notice in notices)
 
 
 def test_reuses_solve_until_resolved_geometry_or_definition_changes(
