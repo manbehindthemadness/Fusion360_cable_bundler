@@ -454,7 +454,7 @@ test('empty pathway end opens the current pathway popup', () => {
   assert.equal(popup.attributes['aria-label'], 'Pathway configuration: Pathway 002');
 });
 
-test('pathway end menu places Properties immediately below Route Editor', () => {
+test('pathway end menu places Add Ending below Route Editor and above Properties', () => {
   const { context } = palette();
   const definition = harness();
   const diagram = context.renderRelationshipMap(definition);
@@ -473,9 +473,9 @@ test('pathway end menu places Properties immediately below Route Editor', () => 
     diagram, (node) => node.className === 'relationship-map-context-menu' && !node.hidden,
   )[0];
   assert.deepEqual(menu.children.map((item) => item.textContent), [
-    'Route Editor', 'Properties',
+    'Route Editor', 'Add Ending', 'Properties',
   ]);
-  menu.children[1].events.click();
+  menu.children[2].events.click();
   assert.equal(
     context.document.body.querySelector('.pathway-end-properties').open,
     true,

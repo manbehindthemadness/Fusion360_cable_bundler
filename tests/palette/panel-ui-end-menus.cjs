@@ -43,6 +43,52 @@ test('master end menu groups connection and routing actions under Add', () => {
   assert.deepEqual(actions, [['guides', 'a1'], ['refine', 'a1']]);
 });
 
+test('both end headers and pathway Add use the master Add Ending action', () => {
+  const { context } = palette();
+  const definition = harness();
+  const actions = [];
+  context.addEnd = () => actions.push('add_end');
+  const diagram = context.renderRelationshipMap(definition);
+  const menu = descendants(
+    diagram, (node) => node.className === 'relationship-map-context-menu',
+  )[0];
+  const openMenu = (target) => {
+    target.events.contextmenu({
+      clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {}, target,
+    });
+  };
+
+  for (const endpoint of ['start', 'end']) {
+    const list = descendants(diagram, (node) => (
+      node.className?.split(' ').includes('relationship-end-list')
+        && node.dataset.endpoint === endpoint
+    ))[0];
+    openMenu(list.children[0]);
+    assert.deepEqual(menu.children.map((item) => item.textContent), [
+      'Route Editor', 'Add Ending', 'Properties',
+    ]);
+    menu.children[1].events.click();
+  }
+
+  const pathway = descendants(
+    diagram, (node) => node.className === 'relationship-pathway-hub',
+  )[0];
+  openMenu(pathway);
+  const pathwayAdd = contextMenuBranch(menu, 'Add');
+  assert.deepEqual(pathwayAdd.children[1].children.map((item) => item.textContent), [
+    'Ending', 'Refine',
+  ]);
+  pathwayAdd.children[1].children[0].events.click();
+
+  const viewport = descendants(
+    diagram, (node) => node.className === 'block-diagram-viewport',
+  )[0];
+  openMenu(viewport);
+  contextMenuBranch(menu, 'Add').children[1].children[3].events.click();
+
+  assert.deepEqual(actions, ['add_end', 'add_end', 'add_end', 'add_end']);
+});
+
 test('master end menu switches only unassigned ends immediately above Rename', () => {
   const { context, calls } = palette();
   const definition = harness();

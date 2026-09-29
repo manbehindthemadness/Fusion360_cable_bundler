@@ -339,6 +339,7 @@ function renderRelationshipEndList(
         disabled: !groups.length,
         title: groups.length ? "" : "Requires at least one end",
       },
+      { label: "Add Ending", action: addEnd },
       {
         label: "Properties",
         action: () => openPathwayEndProperties(harness, pathway, endpoint),

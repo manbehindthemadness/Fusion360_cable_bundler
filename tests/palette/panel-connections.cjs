@@ -578,9 +578,9 @@ test('Cable Details pathway and junction nodes share master diagram interactions
   ]);
   assert.deepEqual(
     addBranch.children[1].children.map((item) => item.textContent),
-    ['Refine'],
+    ['Ending', 'Refine'],
   );
-  addBranch.children[1].children[0].events.click();
+  addBranch.children[1].children[1].events.click();
   invokeContextMenu(node('junction:j1'));
   assert.deepEqual(menu.children.map((item) => item.textContent), [
     'Associate', 'Delete', 'Properties',

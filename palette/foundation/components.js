@@ -418,7 +418,10 @@ function pathwayNodeContextItems(harness, pathway) {
   return [
     {
       label: "Add",
-      items: [{ label: "Refine", action: () => addPathwayRefine(harness, pathway) }],
+      items: [
+        { label: "Ending", action: addEnd },
+        { label: "Refine", action: () => addPathwayRefine(harness, pathway) },
+      ],
     },
     {
       label: "Segment",
