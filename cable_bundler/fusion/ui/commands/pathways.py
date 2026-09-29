@@ -24,7 +24,7 @@ from ....application import (
     suggest_pathway_extension_name,
     suggest_pathway_name,
 )
-from ....domain import ControlKind, loads
+from ....domain import CableEndShape, ControlKind, loads
 from ..constants import (
     PATHWAY_GATES_INPUT_ID,
     PATHWAY_NAME_INPUT_ID,
@@ -40,6 +40,7 @@ from ..support import (
     _require_active_design,
 )
 from ..viewport import _refresh_active_preview
+from .end_guides import read_end_guides
 from .refines import (
     reconcile_active_refines,
 )
@@ -164,6 +165,7 @@ class _AppendGatesExecuteHandler(adsk.core.CommandEventHandler):
         harness_id: UUID,
         target_id: UUID,
         target_kind: str = "pathway",
+        end_shape: CableEndShape = CableEndShape.CLOSED,
     ) -> None:
         """
         Bind the handler to the selected harness routing target.
@@ -172,6 +174,7 @@ class _AppendGatesExecuteHandler(adsk.core.CommandEventHandler):
         self._target_kind = target_kind
         self._harness_id = harness_id
         self._target_id = target_id
+        self._end_shape = end_shape
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
@@ -179,17 +182,23 @@ class _AppendGatesExecuteHandler(adsk.core.CommandEventHandler):
         """
         try:
             application = adsk.core.Application.get()
-            tokens = _read_pathway_gate_tokens(args.command.commandInputs)
             gateway = _create_harness_gateway(application)
             if self._target_kind == "end":
+                tokens, _shape = read_end_guides(
+                    args.command.commandInputs,
+                    PATHWAY_GATES_INPUT_ID,
+                    expected_shape=self._end_shape,
+                )
                 append_end_guides(
                     self._harness_id,
                     self._target_id,
                     tokens,
                     gateway,
+                    shape=self._end_shape,
                 )
                 label = "guides"
             else:
+                tokens = _read_pathway_gate_tokens(args.command.commandInputs)
                 append_pathway_gates(
                     self._harness_id,
                     self._target_id,
@@ -220,24 +229,45 @@ class _AppendGatesCreatedHandler(adsk.core.CommandCreatedEventHandler):
             if pending_ids is None:
                 raise RuntimeError("No routing target was selected for guide creation.")
             target_kind, harness_id, target_id = pending_ids
+            end_shape = CableEndShape.CLOSED
+            if target_kind == "end":
+                definition = loads(
+                    _create_harness_gateway(adsk.core.Application.get()).read_harness_definition(
+                        harness_id
+                    )
+                )
+                end = next(
+                    (
+                        item
+                        for item in definition.standalone_ends
+                        if item.connection_id == target_id
+                    ),
+                    None,
+                )
+                if end is None:
+                    raise ValueError("Selected cable end no longer exists.")
+                end_shape = end.shape
             gate_input = args.command.commandInputs.addSelectionInput(
                 PATHWAY_GATES_INPUT_ID,
-                "Additional Guide Profiles" if target_kind == "end" else "Additional Gate Profiles",
+                "Additional End Guides" if target_kind == "end" else "Additional Gate Profiles",
                 (
-                    "Select additional profiles in terminal-to-pathway order"
+                    "Select additional matching guides in terminal-to-pathway order"
                     if target_kind == "end"
                     else "Select additional sketch profiles in traversal order"
                 ),
             )
             if gate_input is None:
                 raise RuntimeError("Fusion did not create the gate selection input.")
-            if not gate_input.addSelectionFilter("Profiles"):
-                raise RuntimeError("Fusion did not apply the sketch-profile selection filter.")
+            selection_filter = "SketchCurves" if end_shape is CableEndShape.OPEN else "Profiles"
+            if not gate_input.addSelectionFilter(selection_filter):
+                raise RuntimeError("Fusion did not apply the end-guide selection filter.")
             if not gate_input.setSelectionLimits(1, 0):
                 raise RuntimeError("Fusion did not configure the gate selection limits.")
 
-            execute_handler = _AppendGatesExecuteHandler(harness_id, target_id, target_kind)
-            validate_handler = _AppendGatesValidateInputsHandler()
+            execute_handler = _AppendGatesExecuteHandler(
+                harness_id, target_id, target_kind, end_shape
+            )
+            validate_handler = _AppendGatesValidateInputsHandler(target_kind, end_shape)
             if not args.command.execute.add(execute_handler):
                 raise RuntimeError("Fusion did not register the add-gates execution handler.")
             if not args.command.validateInputs.add(validate_handler):
@@ -254,17 +284,31 @@ class _AppendGatesCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
 class _AppendGatesValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
     """
-    Require at least one selected gate profile.
+    Require selected gates or matching end guides.
     """
 
-    # noinspection PyMethodMayBeStatic
+    def __init__(self, target_kind: str, end_shape: CableEndShape) -> None:
+        """
+        Retain the target's required guide shape for validation.
+        """
+        super().__init__()
+        self._target_kind = target_kind
+        self._end_shape = end_shape
+
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
         Validate gate selections before Fusion enables execution.
         """
         try:
-            _read_pathway_gate_tokens(args.inputs)
-        except ValueError:
+            if self._target_kind == "end":
+                read_end_guides(
+                    args.inputs,
+                    PATHWAY_GATES_INPUT_ID,
+                    expected_shape=self._end_shape,
+                )
+            else:
+                _read_pathway_gate_tokens(args.inputs)
+        except (AttributeError, TypeError, ValueError):
             args.areInputsValid = False
             return
         args.areInputsValid = True

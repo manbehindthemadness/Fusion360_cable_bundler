@@ -28,6 +28,15 @@ function suspendCreateCablesPopup() {
 /** Commit every staged Route Editor change through one host transaction. */
 async function saveCableCreationAssignments(harness, boundaries, assignments, saveButton) {
   const pairings = cableCreationCompletePairings(assignments);
+  const shapes = new Map((harness.standaloneEnds || []).map(
+    (end) => [end.connectionId, end.shape || "closed"],
+  ));
+  if (pairings.some((pairing) => (
+    shapes.get(pairing.leftConnectionId) !== shapes.get(pairing.rightConnectionId)
+  ))) {
+    appendNotice("Open and closed cable ends cannot be grouped together.", true);
+    return;
+  }
   const deletedConnectionIds = Object.keys(assignments.deletedConnectionIds);
   const deleted = new Set(deletedConnectionIds);
   const detachedConnectionIds = cableCreationDetachedConnectionIds(

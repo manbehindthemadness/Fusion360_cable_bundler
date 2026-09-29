@@ -17,6 +17,8 @@ from cable_bundler.application import CableGroupRouteLeg
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
+    CableGroupType,
     CableVisualOverrides,
     Connection,
     ControlKind,
@@ -36,6 +38,49 @@ from cable_bundler.routing import (
 )
 from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
+
+
+def test_ribbon_routes_stop_before_closed_profile_resolution(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Report deferred ribbon rendering before asking Fusion for profile frames.
+    """
+    from cable_bundler.fusion.route_preview_parts.solver import solve_cable_group_routes
+
+    del addin_module
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(
+        valid_harness,
+        cable_groups=(ribbon,),
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Ribbon route preview"):
+        solve_cable_group_routes(object(), definition)
+
+
+def test_mixed_harness_preview_retains_loose_groups(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep the existing loose preview eligible beside a deferred ribbon group.
+    """
+    from cable_bundler.fusion.route_preview import _previewable_definition
+
+    del addin_module
+    loose = valid_harness.cable_groups[0]
+    ribbon = replace(loose, cable_group_id=UUID(int=7001), group_type=CableGroupType.RIBBON)
+    definition = replace(valid_harness, cable_groups=(loose, ribbon))
+
+    preview = _previewable_definition(definition)
+
+    assert preview.cable_groups == (loose,)
+    assert definition.cable_groups == (loose, ribbon)
 
 
 def test_profile_resolution_skips_invalid_candidates_after_geometry_change(

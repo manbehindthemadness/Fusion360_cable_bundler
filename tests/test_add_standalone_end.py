@@ -15,7 +15,7 @@ from cable_bundler.application import (
     StandaloneEndUpdateError,
     add_standalone_end,
 )
-from cable_bundler.domain import HarnessDefinition, PathwayEndpoint, dumps, loads
+from cable_bundler.domain import CableEndShape, HarnessDefinition, PathwayEndpoint, dumps, loads
 from cable_bundler.domain.model import InterpolationSettings
 
 END_ID = UUID("86000000-0000-0000-0000-000000000001")
@@ -106,6 +106,28 @@ def test_new_end_guides_inherit_end_interpolation_defaults(
 
     assert result.connection.interpolation == end_defaults
     assert result.connection.member_settings == (end_defaults, end_defaults, end_defaults)
+
+
+def test_adds_open_end_without_assigning_it_to_a_group(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist an open curve stack's type before a ribbon group exists.
+    """
+    gateway = _RecordingGateway(valid_harness)
+
+    result = add_standalone_end(
+        valid_harness.harness_id,
+        ("open-line", "open-curve"),
+        valid_harness.pathways[0].pathway_id,
+        PathwayEndpoint.END,
+        gateway,
+        id_factory=lambda: END_ID,
+        shape=CableEndShape.OPEN,
+    )
+
+    assert result.standalone_end.shape is CableEndShape.OPEN
+    assert loads(gateway.serialized_definition).standalone_ends[-1] == result.standalone_end
 
 
 @pytest.mark.parametrize("tokens", [(), ("",), ("valid", " ")])

@@ -18,6 +18,7 @@ from ..application import CableGroupRouteLeg
 from ..domain import (
     CableColor,
     CableGroupDefinition,
+    CableGroupType,
     CableMaterialSettings,
     HarnessDefinition,
 )
@@ -88,6 +89,16 @@ class RoutePreviewRefreshResult:
 
 _preview_states: dict[str, _PreviewState] = {}
 _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
+
+
+def _previewable_definition(definition: HarnessDefinition) -> HarnessDefinition:
+    """
+    Retain loose groups for the existing profile-based preview solver.
+    """
+    loose_groups = tuple(
+        group for group in definition.cable_groups if group.group_type is CableGroupType.LOOSE
+    )
+    return replace(definition, cable_groups=loose_groups)
 
 
 def _remember_preview(group_id: str, state: _PreviewState) -> None:
@@ -199,7 +210,8 @@ def show_route_previews(
         RuntimeError: If referenced geometry is unavailable or unsupported.
         ValueError: If route inputs are invalid.
     """
-    routes, legs = solve_cable_group_routes(design, definition, notices)
+    preview_definition = _previewable_definition(definition)
+    routes, legs = solve_cable_group_routes(design, preview_definition, notices)
     root_component = design.rootComponent
     clear_route_previews(design)
     preview_group = root_component.customGraphicsGroups.add()
@@ -461,7 +473,8 @@ def _refresh_cable_group_preview(
     reports a warning; removing every group intentionally clears every leg.
     """
     _remember_preview(group.id, state)
-    if not definition.cable_groups:
+    preview_definition = _previewable_definition(definition)
+    if not preview_definition.cable_groups:
         removed_count = len(state.routes)
         for child in _cable_graphics(group, set(state.routes)):
             child.deleteMe()
@@ -475,7 +488,7 @@ def _refresh_cable_group_preview(
         return RoutePreviewRefreshResult((), removed_count)
     solve_notices: list[str] = []
     try:
-        routes, legs = solve_cable_group_routes(design, definition, solve_notices)
+        routes, legs = solve_cable_group_routes(design, preview_definition, solve_notices)
     except (AttributeError, RuntimeError, TypeError, ValueError) as error:
         return RoutePreviewRefreshResult(
             (f"Preview update failed for a cable group: {error}",),

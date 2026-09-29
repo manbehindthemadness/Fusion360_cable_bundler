@@ -303,9 +303,10 @@ def test_standalone_end_selector_reads_guides_and_one_pathway_boundary(
     }
     inputs = SimpleNamespace(itemById=inputs_by_id.get)
 
-    guides, selected = addin_module._read_standalone_end_inputs(inputs, state)
+    guides, shape, selected = addin_module._read_standalone_end_inputs(inputs, state)
 
     assert guides == ("guide",)
+    assert shape.value == "closed"
     assert selected == candidate
     selection_args = SimpleNamespace(
         activeInput=SimpleNamespace(id=addin_module.STANDALONE_END_BOUNDARY_INPUT_ID),
@@ -371,3 +372,62 @@ def test_standalone_end_resolves_all_harness_owned_profiles(
     registered = addin_module._harness_profile_entities(definition, design)
 
     assert set(registered) == {connection_native, control_native}
+
+
+def test_standalone_end_accepts_open_curves_and_rejects_mixed_guides(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Classify open Fusion sketch curves and keep one end stack homogeneous.
+    """
+    _configure_relationship_selector_casts()
+    fusion_module = sys.modules["adsk.fusion"]
+    start = SimpleNamespace(distanceTo=lambda _other: 1.0)
+    end = object()
+    open_curve = SimpleNamespace(
+        entityToken="open-curve",
+        nativeObject=None,
+        geometry=SimpleNamespace(
+            evaluator=SimpleNamespace(getEndPoints=lambda: (True, start, end))
+        ),
+    )
+    closed_profile = SimpleNamespace(entityToken="closed-profile", nativeObject=None)
+    boundary = SimpleNamespace(entityToken="boundary", nativeObject=None)
+    fusion_module.Profile = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value if value in (closed_profile, boundary) else None
+    )
+    fusion_module.SketchCurve = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda value: value if value is open_curve else None
+    )
+    candidate = addin_module._JunctionRelationshipCandidate(
+        JunctionPathwayRelationship(UUID(int=10), PathwayEndpoint.END),
+        "Main · End B",
+        UUID(int=11),
+        boundary,
+    )
+    state = addin_module._AddStandaloneEndCommandState(UUID(int=1), (candidate,), ())
+    selections = [open_curve]
+    guide_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda index: SimpleNamespace(entity=selections[index]),
+    )
+    boundary_input = SimpleNamespace(
+        selectionCount=1,
+        selection=lambda _index: SimpleNamespace(entity=boundary),
+    )
+    inputs = SimpleNamespace(
+        itemById=lambda identity: {
+            addin_module.STANDALONE_END_GUIDES_INPUT_ID: guide_input,
+            addin_module.STANDALONE_END_BOUNDARY_INPUT_ID: boundary_input,
+        }.get(identity)
+    )
+
+    guides, shape, selected = addin_module._read_standalone_end_inputs(inputs, state)
+    assert guides == ("open-curve",)
+    assert shape.value == "open"
+    assert selected == candidate
+
+    selections.append(closed_profile)
+    guide_input.selectionCount = 2
+    with pytest.raises(ValueError, match="All end guides"):
+        addin_module._read_standalone_end_inputs(inputs, state)

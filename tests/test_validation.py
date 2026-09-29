@@ -8,7 +8,9 @@ from uuid import UUID
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
     CableGroupDefinition,
+    CableGroupType,
     CableVisualOverrides,
     Connection,
     ControlKind,
@@ -30,6 +32,24 @@ def test_accepts_complete_harness(valid_harness: HarnessDefinition) -> None:
     issues = validate_harness(valid_harness)
 
     assert issues == ()
+
+
+def test_group_type_requires_matching_end_shapes(valid_harness: HarnessDefinition) -> None:
+    """
+    Match closed ends to loose groups and open ends to ribbon groups.
+    """
+    open_ends = tuple(
+        replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+    )
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    assert (
+        validate_harness(replace(valid_harness, standalone_ends=open_ends, cable_groups=(ribbon,)))
+        == ()
+    )
+
+    mixed = replace(valid_harness, standalone_ends=(open_ends[0], valid_harness.standalone_ends[1]))
+    issues = validate_harness(mixed)
+    assert any(issue.code == "cable_group_shape_mismatch" for issue in issues)
 
 
 def test_rejects_an_empty_cable_group_system(

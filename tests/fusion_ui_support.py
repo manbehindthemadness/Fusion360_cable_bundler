@@ -408,3 +408,6 @@ def _configure_relationship_selector_casts() -> None:
         cast=lambda value: value
     )
     fusion_module.Profile = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    fusion_module.SketchCurve = SimpleNamespace(  # type: ignore[attr-defined]
+        cast=lambda _value: None
+    )

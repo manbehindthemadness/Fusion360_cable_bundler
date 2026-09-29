@@ -17,6 +17,7 @@ import adsk.fusion
 
 from ...application import CableGroupRouteLeg, plan_cable_group_routes
 from ...domain import (
+    CableGroupType,
     Connection,
     ControlStructure,
     HarnessDefinition,
@@ -103,6 +104,8 @@ def solve_cable_group_routes(
 
     if not definition.cable_groups:
         raise ValueError("Create at least one cable group before previewing routes.")
+    if any(group.group_type is CableGroupType.RIBBON for group in definition.cable_groups):
+        raise ValueError("Ribbon route preview and geometry generation are not implemented yet.")
     legs = plan_cable_group_routes(definition)
     groups_by_id = {group.cable_group_id: group for group in definition.cable_groups}
     controls = {control.control_id: control for control in definition.controls}

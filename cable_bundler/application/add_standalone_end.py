@@ -10,6 +10,7 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from ..domain import (
+    CableEndShape,
     Connection,
     PathwayEndpoint,
     StandaloneEndDefinition,
@@ -58,6 +59,8 @@ def add_standalone_end(
     endpoint: PathwayEndpoint,
     gateway: StandaloneEndGateway,
     id_factory: Callable[[], UUID] = uuid4,
+    *,
+    shape: CableEndShape = CableEndShape.CLOSED,
 ) -> StandaloneEndResult:
     """
     Persist one ordered guide stack without creating a conductor or route.
@@ -68,9 +71,11 @@ def add_standalone_end(
     """
     normalized_tokens = tuple(token.strip() for token in guide_entity_tokens)
     if not normalized_tokens or any(not token for token in normalized_tokens):
-        raise ValueError("Select at least one valid end guide profile.")
+        raise ValueError("Select at least one valid end guide shape.")
     if not isinstance(endpoint, PathwayEndpoint):
         raise ValueError("Select a valid pathway end.")
+    if not isinstance(shape, CableEndShape):
+        raise ValueError("Select a valid cable-end shape.")
 
     original = gateway.read_harness_definition(harness_id)
     definition = loads(original)
@@ -98,7 +103,7 @@ def add_standalone_end(
         additional_entity_tokens=normalized_tokens[1:],
         interpolation=definition.end_defaults,
     )
-    standalone_end = StandaloneEndDefinition(connection_id, pathway_id, endpoint)
+    standalone_end = StandaloneEndDefinition(connection_id, pathway_id, endpoint, shape=shape)
     updated = replace(
         definition,
         connections=(*definition.connections, connection),

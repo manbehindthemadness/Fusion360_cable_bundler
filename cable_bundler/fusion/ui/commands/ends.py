@@ -17,6 +17,7 @@ import adsk.fusion
 
 from ....application import add_standalone_end
 from ....domain import (
+    CableEndShape,
     ControlKind,
     HarnessDefinition,
     JunctionPathwayRelationship,
@@ -36,6 +37,7 @@ from ..support import (
     _report_failure,
     _require_active_design,
 )
+from .end_guides import end_guide_shape, read_end_guides
 from .junctions import (
     _JunctionRelationshipCandidate,
 )
@@ -52,43 +54,18 @@ def _add_profile_selection_input(
     prompt: str,
 ) -> adsk.core.SelectionCommandInput:
     """
-    Add a required multi-profile selection input.
+    Add a required multi-shape selection input for end guides.
     """
     selection_input = command_inputs.addSelectionInput(input_id, name, prompt)
     if selection_input is None:
         raise RuntimeError(f"Fusion did not create the {name} input.")
     if not selection_input.addSelectionFilter("Profiles"):
         raise RuntimeError(f"Fusion did not apply the sketch-profile filter to {name}.")
+    if not selection_input.addSelectionFilter("SketchCurves"):
+        raise RuntimeError(f"Fusion did not apply the sketch-curve filter to {name}.")
     if not selection_input.setSelectionLimits(1, 0):
         raise RuntimeError(f"Fusion did not configure the selection limits for {name}.")
     return selection_input
-
-
-def _read_profile_tokens(
-    command_inputs: adsk.core.CommandInputs,
-    input_id: str,
-    role: str,
-    unavailable_profiles: tuple[object, ...] = (),
-) -> tuple[str, ...]:
-    """
-    Return unused Fusion profile tokens in user selection order.
-    """
-    selection_input = adsk.core.SelectionCommandInput.cast(command_inputs.itemById(input_id))
-    if selection_input is None or selection_input.selectionCount < 1:
-        raise ValueError(f"Select at least one {role} profile.")
-    tokens: list[str] = []
-    for index in range(selection_input.selectionCount):
-        selection = selection_input.selection(index)
-        profile = adsk.fusion.Profile.cast(selection.entity if selection is not None else None)
-        if profile is None or not profile.entityToken.strip():
-            raise ValueError(f"{role.title()} selection {index + 1} is not a valid sketch profile.")
-        selected = _native_fusion_entity(profile)
-        if any(selected == registered for registered in unavailable_profiles):
-            raise ValueError(
-                f"{role.title()} selection {index + 1} is already registered in this harness."
-            )
-        tokens.append(profile.entityToken)
-    return tuple(tokens)
 
 
 @dataclass(frozen=True)
@@ -107,7 +84,7 @@ def _harness_profile_entities(
     design: adsk.fusion.Design,
 ) -> tuple[object, ...]:
     """
-    Resolve native profiles already owned by controls or connection members.
+    Resolve native profiles and sketch curves already owned by the harness.
     """
     registered_tokens = (
         token for connection in definition.connections for token in connection.member_tokens
@@ -115,7 +92,12 @@ def _harness_profile_entities(
     control_tokens = (
         control.entity_token for control in definition.controls if control.entity_token
     )
-    return _native_profile_entities(design, (*registered_tokens, *control_tokens))
+    registered: list[object] = list(_native_profile_entities(design, control_tokens))
+    for token in set(registered_tokens):
+        for entity in design.findEntityByToken(token) or ():
+            if end_guide_shape(entity) is not None:
+                registered.append(_native_fusion_entity(entity))
+    return tuple(registered)
 
 
 def _standalone_end_candidates(
@@ -240,21 +222,20 @@ def _update_standalone_end_choices(
 def _read_standalone_end_inputs(
     command_inputs: adsk.core.CommandInputs,
     state: _AddStandaloneEndCommandState,
-) -> tuple[tuple[str, ...], _JunctionRelationshipCandidate]:
+) -> tuple[tuple[str, ...], CableEndShape, _JunctionRelationshipCandidate]:
     """
     Return guides and placement while keeping the boundary outside the guide stack.
     """
-    guides = _read_profile_tokens(
+    guides, shape = read_end_guides(
         command_inputs,
         STANDALONE_END_GUIDES_INPUT_ID,
-        "end guide",
         state.unavailable_guide_profiles,
     )
     candidate = _read_standalone_end_candidate(command_inputs, state)
     boundary_token = getattr(candidate.profile, "entityToken", "")
     if boundary_token and boundary_token in guides:
         raise ValueError("The selected pathway end cannot also be an end guide.")
-    return guides, candidate
+    return guides, shape, candidate
 
 
 class _AddStandaloneEndPreSelectHandler(adsk.core.SelectionEventHandler):
@@ -278,9 +259,9 @@ class _AddStandaloneEndPreSelectHandler(adsk.core.SelectionEventHandler):
         selection = args.selection
         entity = selection.entity if selection is not None else None
         if input_id == STANDALONE_END_GUIDES_INPUT_ID:
-            profile = adsk.fusion.Profile.cast(entity)
-            selected = _native_fusion_entity(profile) if profile is not None else None
-            args.isSelectable = profile is not None and all(
+            shape = end_guide_shape(entity)
+            selected = _native_fusion_entity(entity) if shape is not None else None
+            args.isSelectable = shape is not None and all(
                 selected != registered for registered in self._state.unavailable_guide_profiles
             )
             return
@@ -355,7 +336,7 @@ class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
         try:
             started = perf_counter()
             inputs = args.command.commandInputs
-            guides, candidate = _read_standalone_end_inputs(inputs, self._state)
+            guides, shape, candidate = _read_standalone_end_inputs(inputs, self._state)
             selected_at = perf_counter()
             result = add_standalone_end(
                 self._state.harness_id,
@@ -363,6 +344,7 @@ class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
                 candidate.relationship.pathway_id,
                 candidate.relationship.endpoint,
                 _create_harness_gateway(application),
+                shape=shape,
             )
             persisted_at = perf_counter()
             application.activeViewport.refresh()
@@ -416,7 +398,7 @@ class _AddStandaloneEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs,
             STANDALONE_END_GUIDES_INPUT_ID,
             "Ordered End Guides",
-            "Select one or more guide profiles in end-to-pathway order",
+            "Select closed profiles or open sketch curves in end-to-pathway order",
         )
         boundary_input = inputs.addSelectionInput(
             STANDALONE_END_BOUNDARY_INPUT_ID,

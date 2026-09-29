@@ -34,6 +34,7 @@ from cable_bundler.application.harness_edits import set_interpolation
 from cable_bundler.domain import (
     AutoTransitionPreset,
     CableColor,
+    CableEndShape,
     CableGroupType,
     CableMaterialOverrides,
     Connection,
@@ -75,6 +76,41 @@ def test_appends_guides_to_end_without_mutating_parent_pathway(
     assert updated_connection.member_tokens == (connection.entity_token, "new-end-guide")
     assert updated_connection.member_identities[-1] == new_member_id
     assert stored.pathways == valid_harness.pathways
+
+
+def test_appended_end_guides_must_match_saved_shape(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Permit open-curve extension only on an open cable end.
+    """
+    connection = valid_harness.connections[0]
+    definition = replace(
+        valid_harness,
+        standalone_ends=(
+            replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN),
+            valid_harness.standalone_ends[1],
+        ),
+    )
+    gateway = _recording_gateway(definition)
+
+    with pytest.raises(ValueError, match="match"):
+        append_end_guides(
+            definition.harness_id,
+            connection.connection_id,
+            ("closed-profile",),
+            gateway,
+        )
+
+    updated = append_end_guides(
+        definition.harness_id,
+        connection.connection_id,
+        ("open-curve",),
+        gateway,
+        id_factory=lambda: UUID(int=2101),
+        shape=CableEndShape.OPEN,
+    )
+    assert updated.member_tokens == (connection.entity_token, "open-curve")
 
 
 def test_removes_end_guides_and_controls_by_stable_identity(
@@ -694,6 +730,74 @@ def test_cable_editor_creates_group_from_two_standalone_ends(
     assert stored.cable_groups[0].group_type is CableGroupType.LOOSE
 
 
+def test_cable_editor_creates_ribbon_group_from_open_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Infer ribbon type from two open end stacks during a new pairing.
+    """
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(),
+    )
+    gateway = _recording_gateway(definition)
+    pathway = definition.pathways[0]
+
+    save_cable_editor(
+        definition.harness_id,
+        pathway.pathway_id,
+        PathwayEndpoint.START,
+        pathway.pathway_id,
+        PathwayEndpoint.END,
+        (CableEditorPairing(*tuple(end.connection_id for end in definition.standalone_ends)),),
+        (),
+        (),
+        (),
+        gateway,
+        id_factory=lambda: UUID(int=6301),
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
+
+
+def test_cable_editor_rejects_mixed_open_and_closed_ends(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Prevent a mixed pairing before writing any group change.
+    """
+    definition = replace(
+        valid_harness,
+        standalone_ends=(
+            replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN),
+            valid_harness.standalone_ends[1],
+        ),
+        cable_groups=(),
+    )
+    gateway = _recording_gateway(definition)
+    pathway = definition.pathways[0]
+
+    with pytest.raises(ValueError, match="Open and closed"):
+        save_cable_editor(
+            definition.harness_id,
+            pathway.pathway_id,
+            PathwayEndpoint.START,
+            pathway.pathway_id,
+            PathwayEndpoint.END,
+            (CableEditorPairing(*(end.connection_id for end in definition.standalone_ends)),),
+            (),
+            (),
+            (),
+            gateway,
+        )
+
+    assert loads(gateway.serialized_definition) == definition
+
+
 def test_cable_editor_preserves_existing_group_properties(
     valid_harness: HarnessDefinition,
 ) -> None:
@@ -706,7 +810,13 @@ def test_cable_editor_preserves_existing_group_properties(
         name="Engine loom",
         group_type=CableGroupType.RIBBON,
     )
-    definition = replace(valid_harness, cable_groups=(group,))
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(group,),
+    )
     gateway = _recording_gateway(definition)
 
     save_cable_editor(

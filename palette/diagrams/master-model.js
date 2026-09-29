@@ -119,6 +119,7 @@ function relationshipEndGroups(harness, pathwayId, endpoint, connections) {
         connectionName: connection?.name || "",
         groups: cableGroup ? [cableGroup] : [],
         standalone: true,
+        shape: end.shape || "closed",
         cableGroupId: cableGroup?.cableGroupId || "",
         label,
         searchable: `${label} ${connection?.name || ""} ${cableGroup?.materials?.insulationMaterial || ""} ${cableGroup?.materials?.mainColor?.name || ""}`

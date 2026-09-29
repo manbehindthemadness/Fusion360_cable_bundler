@@ -399,6 +399,7 @@ def test_palette_state_contains_complete_group_definition(
             "connectionId": str(end.connection_id),
             "pathwayId": str(end.pathway_id),
             "endpoint": end.endpoint.value,
+            "shape": end.shape.value,
             "orderedControlIds": [str(control_id) for control_id in end.ordered_control_ids],
         }
         for end in valid_harness.standalone_ends
@@ -433,6 +434,7 @@ def test_palette_state_contains_complete_group_definition(
     cable_group = harness["cableGroups"][0]
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
     assert cable_group["name"] == ""
+    assert cable_group["groupType"] == "loose"
     assert cable_group["connectionIds"] == [
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]

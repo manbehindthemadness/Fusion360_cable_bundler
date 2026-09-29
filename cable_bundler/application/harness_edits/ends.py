@@ -9,6 +9,7 @@ from dataclasses import replace
 from uuid import UUID, uuid4
 
 from ...domain import (
+    CableEndShape,
     Connection,
     ControlKind,
     ControlStructure,
@@ -35,16 +36,24 @@ def append_end_guides(
     guide_entity_tokens: tuple[str, ...],
     gateway: HarnessEditGateway,
     id_factory: Callable[[], UUID] = uuid4,
+    *,
+    shape: CableEndShape = CableEndShape.CLOSED,
 ) -> Connection:
     """
-    Append ordered guide profiles to one end without modifying its pathway.
+    Append ordered matching guide shapes without modifying the pathway.
     """
     normalized_tokens = tuple(token.strip() for token in guide_entity_tokens)
     if not normalized_tokens or any(not token for token in normalized_tokens):
-        raise ValueError("Select at least one valid end guide profile.")
+        raise ValueError("Select at least one valid end guide shape.")
     original, definition = read_definition(harness_id, gateway)
-    if all(end.connection_id != connection_id for end in definition.standalone_ends):
+    standalone_end = next(
+        (end for end in definition.standalone_ends if end.connection_id == connection_id),
+        None,
+    )
+    if standalone_end is None:
         raise ValueError("Selected standalone end does not exist in this harness.")
+    if not isinstance(shape, CableEndShape) or shape is not standalone_end.shape:
+        raise ValueError("Added end guides must match the cable end's open or closed shape.")
     connection = next(
         (item for item in definition.connections if item.connection_id == connection_id),
         None,

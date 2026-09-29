@@ -532,6 +532,7 @@ def serialize_palette_state(
                         "connectionId": str(end.connection_id),
                         "pathwayId": str(end.pathway_id),
                         "endpoint": end.endpoint.value,
+                        "shape": end.shape.value,
                         "orderedControlIds": [
                             str(control_id) for control_id in end.ordered_control_ids
                         ],
@@ -623,6 +624,7 @@ def _cable_group_payloads(
         {
             "cableGroupId": str(group.cable_group_id),
             "name": group.name,
+            "groupType": group.group_type.value,
             "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
             "diameterMm": group.diameter_mm,
             "conductorDiameterMm": group.conductor_diameter_mm,

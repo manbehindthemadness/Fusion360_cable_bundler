@@ -98,6 +98,28 @@ test('Route Editor opens Details only for assigned cable ends', () => {
   assert.equal(context.document.body.querySelector('.cable-group-details-popup'), undefined);
 });
 
+asyncTest('Route Editor rejects open and closed end pairings before save', async () => {
+  const { context, calls } = palette();
+  const definition = harness();
+  definition.standaloneEnds.find((end) => end.connectionId === 'a1').shape = 'open';
+  const assignments = {
+    rows: [{ left: { connectionId: 'a1' }, right: { connectionId: 'b1' } }],
+    deletedConnectionIds: {}, movedConnectionIds: {}, initialPartners: {}, renames: {},
+  };
+  const saveButton = { disabled: false };
+
+  await context.saveCableCreationAssignments(
+    definition,
+    { left: { pathway: definition.pathways[0], endpoint: 'start' },
+      right: { pathway: definition.pathways[0], endpoint: 'end' } },
+    assignments,
+    saveButton,
+  );
+
+  assert.equal(saveButton.disabled, false);
+  assert.deepEqual(calls, []);
+});
+
 asyncTest('editing a master end isolates keyboard and pointer events until saved', async () => {
   const { context, calls } = palette();
   const definition = harness();

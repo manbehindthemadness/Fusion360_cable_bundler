@@ -10,6 +10,8 @@ from uuid import UUID
 
 from .model import (
     SCHEMA_VERSION,
+    CableEndShape,
+    CableGroupType,
     ControlKind,
     HarnessDefinition,
     InterfaceTargetKind,
@@ -620,6 +622,7 @@ def _validate_cable_groups(
     locations: dict[UUID, tuple[UUID, PathwayEndpoint]] = {
         end.connection_id: (end.pathway_id, end.endpoint) for end in definition.standalone_ends
     }
+    shapes = {end.connection_id: end.shape for end in definition.standalone_ends}
     memberships: dict[UUID, str] = {}
     for group_index, group in enumerate(definition.cable_groups):
         group_path = f"cable_groups[{group_index}]"
@@ -645,6 +648,9 @@ def _validate_cable_groups(
                     "A cable group must contain at least two ends.",
                 )
             )
+        expected_shape = (
+            CableEndShape.CLOSED if group.group_type is CableGroupType.LOOSE else CableEndShape.OPEN
+        )
         boundaries: dict[tuple[UUID, PathwayEndpoint], str] = {}
         for member_index, connection_id in enumerate(group.connection_ids):
             member_path = f"{group_path}.connection_ids[{member_index}]"
@@ -656,6 +662,15 @@ def _validate_cable_groups(
                 issues,
             )
             connection = connections_by_id.get(connection_id)
+            member_shape = shapes.get(connection_id)
+            if member_shape is not None and member_shape is not expected_shape:
+                issues.append(
+                    ValidationIssue(
+                        "cable_group_shape_mismatch",
+                        member_path,
+                        "Cable ends in a group must all be closed for loose or open for ribbon.",
+                    )
+                )
             if connection is not None and valid_group_diameter:
                 parent_ids = tuple(
                     dict.fromkeys(item.parent_attachment_id for item in connection.attachments)

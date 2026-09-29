@@ -13,7 +13,7 @@ function renderCableCreationEndCard(
   card.dataset.cableGroupIds = relationshipGroupIds(group.groups);
   card.setAttribute("role", "listitem");
   name.textContent = assignments.renames[group.connectionId] ?? group.label;
-  status.textContent = assigned ? "Assigned" : "Unassigned";
+  status.textContent = `${assigned ? "Assigned" : "Unassigned"} · ${group.shape}`;
   card.append(name, status);
   hoverHighlight(card, () => highlightCableCreationEnd(harness, group));
   const openDetails = assigned && group.cableGroupId

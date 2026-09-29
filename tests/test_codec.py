@@ -16,6 +16,7 @@ from cable_bundler.domain import (
     AutoTransitionPreset,
     CableColor,
     CableEndAttachment,
+    CableEndShape,
     CableEndTarget,
     CableGroupType,
     CablePullbackSettings,
@@ -93,6 +94,40 @@ def test_current_schema_requires_cable_group_type(valid_harness: HarnessDefiniti
         loads(json.dumps(payload))
 
     assert error.value.path == "$.cable_groups[0].group_type"
+
+
+def test_end_shape_round_trip_and_schema_34_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist open end guides while treating saved schema-34 ends as closed.
+    """
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(valid_harness, standalone_ends=(end, *valid_harness.standalone_ends[1:]))
+    payload = json.loads(dumps(definition))
+
+    assert payload["standalone_ends"][0]["shape"] == "open"
+    assert loads(json.dumps(payload)).standalone_ends[0].shape is CableEndShape.OPEN
+
+    payload["schema_version"] = 34
+    for item in payload["standalone_ends"]:
+        del item["shape"]
+    migrated = loads(json.dumps(payload))
+    assert all(item.shape is CableEndShape.CLOSED for item in migrated.standalone_ends)
+
+
+@pytest.mark.parametrize("shape", ["unknown", None, 1])
+def test_rejects_invalid_end_shape(valid_harness: HarnessDefinition, shape: object) -> None:
+    """
+    Reject malformed persisted end shapes at their exact field path.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["standalone_ends"][0]["shape"] = shape
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.standalone_ends[0].shape"
 
 
 def test_round_trip_and_schema_24_migration_preserve_pullback_settings(

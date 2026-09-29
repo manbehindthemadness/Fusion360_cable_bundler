@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from ..domain import (
     DEFAULT_CABLE_DIAMETER_MM,
+    CableEndShape,
     CableGroupDefinition,
     CableGroupType,
     CableMaterialOverrides,
@@ -105,6 +106,7 @@ def save_cable_editor(
         raise ValueError("A deleted Route Editor end cannot also be renamed.")
 
     standalone_ids = {end.connection_id for end in definition.standalone_ends}
+    end_shapes = {end.connection_id: end.shape for end in definition.standalone_ends}
     selected_ids = {
         connection_id
         for connection_id, location in locations.items()
@@ -123,6 +125,8 @@ def save_cable_editor(
             raise ValueError("A pairing contains an end outside the selected left boundary.")
         if locations.get(pairing.right_connection_id) != selected_locations["right"]:
             raise ValueError("A pairing contains an end outside the selected right boundary.")
+        if end_shapes[pairing.left_connection_id] is not end_shapes[pairing.right_connection_id]:
+            raise ValueError("Open and closed cable ends cannot be grouped together.")
         paired_ids.extend((pairing.left_connection_id, pairing.right_connection_id))
     if len(set(paired_ids)) != len(paired_ids):
         raise ValueError("A Route Editor end may appear in only one final pairing.")
@@ -162,6 +166,17 @@ def save_cable_editor(
     for pairing in pairings:
         left_index = _cable_group_member_index(groups, pairing.left_connection_id)
         right_index = _cable_group_member_index(groups, pairing.right_connection_id)
+        expected_type = (
+            CableGroupType.RIBBON
+            if end_shapes[pairing.left_connection_id] is CableEndShape.OPEN
+            else CableGroupType.LOOSE
+        )
+        if any(
+            groups[index].group_type is not expected_type
+            for index in (left_index, right_index)
+            if index is not None
+        ):
+            raise ValueError("Cable ends may only join a group with matching shapes.")
         if left_index is not None and left_index == right_index:
             continue
         if left_index is None and right_index is None:
@@ -178,7 +193,7 @@ def save_cable_editor(
                     (),
                     "",
                     None,
-                    CableGroupType.LOOSE,
+                    expected_type,
                 )
             )
         elif left_index is None:

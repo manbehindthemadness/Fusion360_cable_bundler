@@ -20,7 +20,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 34
+SCHEMA_VERSION = 35
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -40,6 +40,15 @@ class CableGroupType(str, Enum):
 
     LOOSE = "loose"
     RIBBON = "ribbon"
+
+
+class CableEndShape(str, Enum):
+    """
+    Identify whether an end's ordered guides are closed profiles or open curves.
+    """
+
+    CLOSED = "closed"
+    OPEN = "open"
 
 
 class ControlKind(str, Enum):
@@ -526,6 +535,14 @@ class StandaloneEndDefinition:
     pathway_id: UUID
     endpoint: PathwayEndpoint
     ordered_control_ids: tuple[UUID, ...] = ()
+    shape: CableEndShape = CableEndShape.CLOSED
+
+    def __post_init__(self) -> None:
+        """
+        Require an explicit supported shape for the whole end guide stack.
+        """
+        if not isinstance(self.shape, CableEndShape):
+            raise ValueError("Cable-end shape is invalid.")
 
 
 @dataclass(frozen=True)

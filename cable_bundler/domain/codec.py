@@ -36,6 +36,7 @@ from .model import (
     AttachmentTargetKind,
     AutoTransitionPreset,
     CableEndAttachment,
+    CableEndShape,
     CableEndTarget,
     CableGroupDefinition,
     CableGroupType,
@@ -103,12 +104,13 @@ def loads(serialized: str) -> HarnessDefinition:
         31,
         32,
         33,
+        34,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 33 are migratable)",
+            "(schemas 12 through 34 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -141,6 +143,7 @@ def loads(serialized: str) -> HarnessDefinition:
             item,
             f"$.standalone_ends[{index}]",
             require_controls=schema_version >= 16,
+            require_shape=schema_version >= 35,
         )
         for index, item in enumerate(_require_list(payload, "standalone_ends", "$.standalone_ends"))
     )
@@ -319,6 +322,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                 "connection_id": str(end.connection_id),
                 "pathway_id": str(end.pathway_id),
                 "endpoint": end.endpoint.value,
+                "shape": end.shape.value,
                 "ordered_control_ids": [str(control_id) for control_id in end.ordered_control_ids],
             }
             for end in definition.standalone_ends
@@ -815,6 +819,7 @@ def _parse_standalone_end(
     path: str,
     *,
     require_controls: bool,
+    require_shape: bool,
 ) -> StandaloneEndDefinition:
     """
     Parse one pathway-end definition independently of cable assignment.
@@ -829,6 +834,11 @@ def _parse_standalone_end(
         connection_id=_require_uuid(value, "connection_id", f"{path}.connection_id"),
         pathway_id=_require_uuid(value, "pathway_id", f"{path}.pathway_id"),
         endpoint=_require_enum(PathwayEndpoint, value, "endpoint", f"{path}.endpoint"),
+        shape=(
+            _require_enum(CableEndShape, value, "shape", f"{path}.shape")
+            if require_shape
+            else CableEndShape.CLOSED
+        ),
         ordered_control_ids=tuple(
             _parse_uuid(control_id, f"{path}.ordered_control_ids[{index}]")
             for index, control_id in enumerate(raw_control_ids)
