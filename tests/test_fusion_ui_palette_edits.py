@@ -605,8 +605,41 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         (("drawing-zone", "B4"),),
         gateway,
         conductor_diameter_mm=2.0,
+        ribbon_lines=None,
+        ribbon_geometry=None,
     )
     assert notice == "Saved connected-cable properties."
+
+
+def test_palette_edit_reads_ribbon_properties(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Pass explicit line count and style from the ribbon Properties form.
+    """
+    from cable_bundler.domain import RibbonGeometryType
+
+    save = Mock()
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
+    monkeypatch.setattr(addin_module, "set_cable_group_properties", save)
+
+    addin_module._apply_palette_edit(
+        object(),
+        "set_cable_group_properties",
+        json.dumps(
+            {
+                "harnessId": str(UUID(int=1)),
+                "cableGroupId": str(UUID(int=2)),
+                "diameterMm": 1.5,
+                "ribbonLines": 5,
+                "ribbonGeometry": "ffc",
+            }
+        ),
+    )
+
+    assert save.call_args.kwargs["ribbon_lines"] == 5
+    assert save.call_args.kwargs["ribbon_geometry"] is RibbonGeometryType.FFC
 
 
 def test_palette_edit_saves_harness_properties_without_visual_materials(

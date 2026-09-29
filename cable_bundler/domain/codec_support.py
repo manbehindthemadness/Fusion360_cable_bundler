@@ -18,6 +18,7 @@ from .model import (
     ControlKind,
     InterpolationSettings,
     PathwayEndpoint,
+    RibbonGeometryType,
     RoutingMode,
 )
 
@@ -32,6 +33,7 @@ EnumType = TypeVar(
     PullbackMode,
     CableGroupType,
     CableEndShape,
+    RibbonGeometryType,
 )
 
 

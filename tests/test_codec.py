@@ -26,6 +26,7 @@ from cable_bundler.domain import (
     HarnessDefinition,
     JunctionDefinition,
     PullbackMode,
+    RibbonGeometryType,
     dumps,
     loads,
 )
@@ -64,6 +65,63 @@ def test_cable_group_type_round_trip_and_schema_33_migration(
     migrated = loads(json.dumps(payload))
     assert migrated.cable_groups[0].group_type is CableGroupType.LOOSE
     assert json.loads(dumps(migrated))["cable_groups"][0]["group_type"] == "loose"
+
+
+def test_ribbon_properties_round_trip_and_schema_35_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist explicit ribbon values and default earlier ribbons to three discrete lines.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_lines=8,
+        ribbon_geometry=RibbonGeometryType.FFC,
+    )
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    saved = payload["cable_groups"][0]
+    assert (saved["ribbon_lines"], saved["ribbon_geometry"]) == (8, "ffc")
+    assert loads(json.dumps(payload)).cable_groups[0] == ribbon
+
+    payload["schema_version"] = 35
+    del saved["ribbon_lines"]
+    del saved["ribbon_geometry"]
+    migrated = loads(json.dumps(payload)).cable_groups[0]
+    assert migrated.ribbon_lines == 3
+    assert migrated.ribbon_geometry is RibbonGeometryType.DISCRETE
+
+
+@pytest.mark.parametrize("field", ["ribbon_lines", "ribbon_geometry"])
+def test_current_ribbon_requires_explicit_properties(
+    valid_harness: HarnessDefinition, field: str
+) -> None:
+    """
+    Require both non-inherited ribbon settings in current-schema records.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    del payload["cable_groups"][0][field]
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == f"$.cable_groups[0].{field}"
+
+
+@pytest.mark.parametrize("lines", [0, -1, True, 1.5])
+def test_rejects_invalid_ribbon_line_count(valid_harness: HarnessDefinition, lines: object) -> None:
+    """
+    Reject non-positive or non-integral line counts from saved data.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    payload["cable_groups"][0]["ribbon_lines"] = lines
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.cable_groups[0].ribbon_lines"
 
 
 @pytest.mark.parametrize("group_type", ["unknown", None, 1])

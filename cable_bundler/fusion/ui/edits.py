@@ -48,7 +48,7 @@ from ...application import (
     switch_standalone_end,
 )
 from ...application.harness_edits import set_interpolation
-from ...domain import AutoTransitionPreset, PathwayEndpoint
+from ...domain import AutoTransitionPreset, PathwayEndpoint, RibbonGeometryType
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
 from ..interface_contact_local_naming import name_interface_contact_locals
@@ -566,6 +566,17 @@ def _apply_property_edit(
             isinstance(conductor_diameter, bool) or not isinstance(conductor_diameter, (int, float))
         ):
             raise ValueError("Conductor diameter must be a number in millimeters or null for Auto.")
+        ribbon_lines = payload.get("ribbonLines")
+        if ribbon_lines is not None and (
+            isinstance(ribbon_lines, bool) or not isinstance(ribbon_lines, int)
+        ):
+            raise ValueError("Ribbon Lines must be an integer.")
+        ribbon_geometry = payload.get("ribbonGeometry")
+        if ribbon_geometry is not None:
+            try:
+                ribbon_geometry = RibbonGeometryType(ribbon_geometry)
+            except (TypeError, ValueError) as error:
+                raise ValueError("Ribbon geometry type must be Discrete or FFC.") from error
         property_materials = _read_material_overrides(
             {
                 "insulationMaterial": payload.get("insulationMaterial"),
@@ -589,6 +600,8 @@ def _apply_property_edit(
             _read_metadata(payload.get("metadataOverrides", []), "Cable metadata overrides"),
             gateway,
             conductor_diameter_mm=conductor_diameter,
+            ribbon_lines=ribbon_lines,
+            ribbon_geometry=ribbon_geometry,
         )
         return "Saved connected-cable properties."
     if action == "set_harness_material_defaults":

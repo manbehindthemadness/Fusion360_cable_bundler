@@ -20,7 +20,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 35
+SCHEMA_VERSION = 36
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -40,6 +40,15 @@ class CableGroupType(str, Enum):
 
     LOOSE = "loose"
     RIBBON = "ribbon"
+
+
+class RibbonGeometryType(str, Enum):
+    """
+    Identify a ribbon's non-inherited line construction style.
+    """
+
+    DISCRETE = "discrete"
+    FFC = "ffc"
 
 
 class CableEndShape(str, Enum):
@@ -562,6 +571,8 @@ class CableGroupDefinition:
     name: str = ""
     conductor_diameter_mm: Optional[float] = None
     group_type: CableGroupType = CableGroupType.LOOSE
+    ribbon_lines: int = 3
+    ribbon_geometry: RibbonGeometryType = RibbonGeometryType.DISCRETE
 
     def __post_init__(self) -> None:
         """
@@ -570,6 +581,18 @@ class CableGroupDefinition:
         _validate_metadata(self.metadata_overrides, "Cable metadata overrides")
         if not isinstance(self.group_type, CableGroupType):
             raise ValueError("Cable-group type is invalid.")
+        if (
+            isinstance(self.ribbon_lines, bool)
+            or not isinstance(self.ribbon_lines, int)
+            or self.ribbon_lines < 1
+        ):
+            raise ValueError("Ribbon Lines must be a positive integer.")
+        if not isinstance(self.ribbon_geometry, RibbonGeometryType):
+            raise ValueError("Ribbon geometry type is invalid.")
+        if self.group_type is CableGroupType.LOOSE and (
+            self.ribbon_lines != 3 or self.ribbon_geometry is not RibbonGeometryType.DISCRETE
+        ):
+            raise ValueError("Loose cable groups cannot have ribbon properties.")
         if self.conductor_diameter_mm is not None and (
             isinstance(self.conductor_diameter_mm, bool)
             or not isinstance(self.conductor_diameter_mm, (int, float))

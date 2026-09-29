@@ -53,6 +53,7 @@ from .model import (
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
+    RibbonGeometryType,
     RoutingMode,
     StandaloneEndDefinition,
 )
@@ -105,12 +106,13 @@ def loads(serialized: str) -> HarnessDefinition:
         32,
         33,
         34,
+        35,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 34 are migratable)",
+            "(schemas 12 through 35 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -331,6 +333,14 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
             {
                 "cable_group_id": str(group.cable_group_id),
                 "group_type": group.group_type.value,
+                **(
+                    {
+                        "ribbon_lines": group.ribbon_lines,
+                        "ribbon_geometry": group.ribbon_geometry.value,
+                    }
+                    if group.group_type is CableGroupType.RIBBON
+                    else {}
+                ),
                 "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
                 "diameter_mm": group.diameter_mm,
                 "conductor_diameter_mm": group.conductor_diameter_mm,
@@ -864,6 +874,13 @@ def _parse_cable_group(
         if schema_version >= 34
         else CableGroupType.LOOSE
     )
+    ribbon_lines = (
+        _require_int(value, "ribbon_lines", f"{path}.ribbon_lines")
+        if schema_version >= 36 and group_type is CableGroupType.RIBBON
+        else 3
+    )
+    if ribbon_lines < 1:
+        raise DefinitionParseError(f"{path}.ribbon_lines", "expected a positive integer")
     return CableGroupDefinition(
         cable_group_id=_require_uuid(value, "cable_group_id", f"{path}.cable_group_id"),
         connection_ids=tuple(
@@ -882,4 +899,10 @@ def _parse_cable_group(
         ),
         name=name,
         group_type=group_type,
+        ribbon_lines=ribbon_lines,
+        ribbon_geometry=(
+            _require_enum(RibbonGeometryType, value, "ribbon_geometry", f"{path}.ribbon_geometry")
+            if schema_version >= 36 and group_type is CableGroupType.RIBBON
+            else RibbonGeometryType.DISCRETE
+        ),
     )

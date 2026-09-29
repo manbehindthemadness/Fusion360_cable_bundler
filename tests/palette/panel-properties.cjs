@@ -332,6 +332,38 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
   assert.equal(descendants(dialog, (node) => node.textContent === 'Notes').length, 0);
 });
 
+asyncTest('ribbon properties save explicit Lines and geometry style', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const cableGroup = definition.cableGroups[0];
+  cableGroup.groupType = 'ribbon';
+  cableGroup.ribbonLines = 3;
+  cableGroup.ribbonGeometry = 'discrete';
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableGroupProperties(definition, cableGroup);
+
+  const dialog = context.document.body.querySelector('.cable-group-properties');
+  const lines = descendants(dialog, (node) => node.tag === 'input' && node.value === '3')[0];
+  const geometry = descendants(dialog, (node) => node.tag === 'select'
+    && node.value === 'discrete')[0];
+  assert.equal(lines.min, '1');
+  assert.equal(geometry.children.length, 2);
+  assert.equal(descendants(lines.parentElement, (node) => node.type === 'checkbox').length, 0);
+  assert.equal(descendants(geometry.parentElement, (node) => node.type === 'checkbox').length, 0);
+  lines.value = '6';
+  geometry.value = 'ffc';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_cable_group_properties');
+  assert.equal(calls[0].payload.ribbonLines, 6);
+  assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
+});
+
 asyncTest('cable diameter fields use the active design length units', async () => {
   const { context } = palette();
   const definition = harness();

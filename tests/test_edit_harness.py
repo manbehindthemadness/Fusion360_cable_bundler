@@ -44,6 +44,7 @@ from cable_bundler.domain import (
     JunctionDefinition,
     PathwayEndpoint,
     RefineGeometry,
+    RibbonGeometryType,
     StandaloneEndDefinition,
     loads,
 )
@@ -372,6 +373,69 @@ def test_edits_group_construction_and_visual_overrides(
     assert main_color.name == "Red"
     assert stored.cable_group_materials(stored.cable_groups[0]).part_number == "WG-01"
     assert stored.cable_groups[0].metadata_overrides == (("drawing-zone", "B4"),)
+
+
+def test_edits_ribbon_properties_without_inheritance(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save each ribbon's explicit line count and geometry style independently.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(ribbon,),
+    )
+    gateway = _recording_gateway(definition)
+
+    set_cable_group_properties(
+        definition.harness_id,
+        ribbon.cable_group_id,
+        ribbon.diameter_mm,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        (),
+        gateway,
+        ribbon_lines=7,
+        ribbon_geometry=RibbonGeometryType.FFC,
+    )
+
+    stored = loads(gateway.serialized_definition).cable_groups[0]
+    assert stored.ribbon_lines == 7
+    assert stored.ribbon_geometry is RibbonGeometryType.FFC
+
+
+def test_loose_group_rejects_ribbon_properties(valid_harness: HarnessDefinition) -> None:
+    """
+    Keep ribbon-only values off existing loose groups without saving a partial edit.
+    """
+    gateway = _recording_gateway(valid_harness)
+    group = valid_harness.cable_groups[0]
+
+    with pytest.raises(ValueError, match="require a ribbon"):
+        set_cable_group_properties(
+            valid_harness.harness_id,
+            group.cable_group_id,
+            group.diameter_mm,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            (),
+            gateway,
+            ribbon_lines=4,
+        )
+
+    assert loads(gateway.serialized_definition) == valid_harness
 
 
 def test_renames_cable_group_without_changing_its_route_members(
@@ -762,6 +826,7 @@ def test_cable_editor_creates_ribbon_group_from_open_ends(
 
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
+    assert stored.cable_groups[0].ribbon_lines == 3
 
 
 def test_cable_editor_rejects_mixed_open_and_closed_ends(
@@ -809,6 +874,8 @@ def test_cable_editor_preserves_existing_group_properties(
         valid_harness.cable_groups[0],
         name="Engine loom",
         group_type=CableGroupType.RIBBON,
+        ribbon_lines=6,
+        ribbon_geometry=RibbonGeometryType.FFC,
     )
     definition = replace(
         valid_harness,
@@ -835,3 +902,5 @@ def test_cable_editor_preserves_existing_group_properties(
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].name == "Engine loom"
     assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
+    assert stored.cable_groups[0].ribbon_lines == 6
+    assert stored.cable_groups[0].ribbon_geometry is RibbonGeometryType.FFC

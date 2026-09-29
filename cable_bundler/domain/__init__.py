@@ -40,6 +40,7 @@ from .model import (
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
+    RibbonGeometryType,
     RoutingMode,
     StandaloneEndDefinition,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "PathwayDefinition",
     "PathwayEndpoint",
     "RefineGeometry",
+    "RibbonGeometryType",
     "RoutingMode",
     "StandaloneEndDefinition",
     "StripePattern",

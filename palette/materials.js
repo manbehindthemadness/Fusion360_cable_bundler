@@ -279,6 +279,8 @@ function openPropertiesDialog(harness, cableGroup = null) {
 
   let diameter = null;
   let conductorDiameter = null;
+  let ribbonLines = null;
+  let ribbonGeometry = null;
   if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
@@ -290,6 +292,33 @@ function openPropertiesDialog(harness, cableGroup = null) {
     diameter.value = displayLengthValue(cableGroup.diameterMm, units);
     diameterLabel.append(diameter);
     form.append(diameterLabel);
+  }
+  if (cableGroup?.groupType === "ribbon") {
+    const linesLabel = document.createElement("label");
+    ribbonLines = document.createElement("input");
+    linesLabel.textContent = "Lines";
+    ribbonLines.type = "number";
+    ribbonLines.className = "filter";
+    ribbonLines.min = "1";
+    ribbonLines.step = "1";
+    ribbonLines.required = true;
+    ribbonLines.value = `${cableGroup.ribbonLines ?? 3}`;
+    linesLabel.append(ribbonLines);
+    form.append(linesLabel);
+
+    const geometryLabel = document.createElement("label");
+    ribbonGeometry = document.createElement("select");
+    geometryLabel.textContent = "Geometry Type";
+    ribbonGeometry.className = "filter";
+    [["discrete", "Discrete"], ["ffc", "FFC"]].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      ribbonGeometry.append(option);
+    });
+    ribbonGeometry.value = cableGroup.ribbonGeometry || "discrete";
+    geometryLabel.append(ribbonGeometry);
+    form.append(geometryLabel);
   }
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
@@ -348,6 +377,11 @@ function openPropertiesDialog(harness, cableGroup = null) {
       error.textContent = `Enter a positive diameter in ${units.symbol}.`;
       return;
     }
+    const lineCount = ribbonLines ? Number(ribbonLines.value) : null;
+    if (ribbonLines && (!Number.isInteger(lineCount) || lineCount < 1)) {
+      error.textContent = "Lines must be a positive whole number.";
+      return;
+    }
     let conductorDiameterMm = null;
     if (isCableGroup) {
       try {
@@ -385,6 +419,10 @@ function openPropertiesDialog(harness, cableGroup = null) {
             cableGroupId: cableGroup.cableGroupId,
             diameterMm,
             conductorDiameterMm,
+            ...(ribbonLines ? {
+              ribbonLines: lineCount,
+              ribbonGeometry: ribbonGeometry.value,
+            } : {}),
             insulationMaterial,
             conductorMaterial,
             shielding,

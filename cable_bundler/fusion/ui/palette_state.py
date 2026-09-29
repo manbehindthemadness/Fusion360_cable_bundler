@@ -29,6 +29,7 @@ from ...application import (
 from ...domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableGroupType,
     HarnessDefinition,
 )
 from ..attachment_targets import attachment_display_name, resolve_attachment_target
@@ -625,6 +626,14 @@ def _cable_group_payloads(
             "cableGroupId": str(group.cable_group_id),
             "name": group.name,
             "groupType": group.group_type.value,
+            **(
+                {
+                    "ribbonLines": group.ribbon_lines,
+                    "ribbonGeometry": group.ribbon_geometry.value,
+                }
+                if group.group_type is CableGroupType.RIBBON
+                else {}
+            ),
             "connectionIds": [str(connection_id) for connection_id in group.connection_ids],
             "diameterMm": group.diameter_mm,
             "conductorDiameterMm": group.conductor_diameter_mm,

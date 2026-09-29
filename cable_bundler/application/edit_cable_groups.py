@@ -19,6 +19,7 @@ from ..domain import (
     HarnessDefinition,
     Metadata,
     PathwayEndpoint,
+    RibbonGeometryType,
     validate_harness,
 )
 from .edit_harness import HarnessEditGateway
@@ -63,6 +64,8 @@ class _MutableCableGroup:
     name: str
     conductor_diameter_mm: Optional[float]
     group_type: CableGroupType
+    ribbon_lines: int
+    ribbon_geometry: RibbonGeometryType
 
 
 def save_cable_editor(
@@ -143,6 +146,8 @@ def save_cable_editor(
             group.name,
             group.conductor_diameter_mm,
             group.group_type,
+            group.ribbon_lines,
+            group.ribbon_geometry,
         )
         for group in definition.cable_groups
     ]
@@ -194,6 +199,8 @@ def save_cable_editor(
                     "",
                     None,
                     expected_type,
+                    3,
+                    RibbonGeometryType.DISCRETE,
                 )
             )
         elif left_index is None:
@@ -218,6 +225,8 @@ def save_cable_editor(
             group.name,
             group.conductor_diameter_mm,
             group.group_type,
+            group.ribbon_lines,
+            group.ribbon_geometry,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -268,6 +277,8 @@ def set_cable_group_properties(
     gateway: HarnessEditGateway,
     *,
     conductor_diameter_mm: Optional[float] = None,
+    ribbon_lines: Optional[int] = None,
+    ribbon_geometry: Optional[RibbonGeometryType] = None,
 ) -> None:
     """
     Replace one connected cable group's construction properties atomically.
@@ -289,14 +300,27 @@ def set_cable_group_properties(
         raise ValueError(
             "Conductor diameter must be positive and no larger than the cable diameter."
         )
-    _update_cable_group(
-        harness_id,
-        cable_group_id,
-        gateway,
-        lambda group: replace(
+    if ribbon_lines is not None and (
+        isinstance(ribbon_lines, bool) or not isinstance(ribbon_lines, int) or ribbon_lines < 1
+    ):
+        raise ValueError("Ribbon Lines must be a positive integer.")
+    if ribbon_geometry is not None and not isinstance(ribbon_geometry, RibbonGeometryType):
+        raise ValueError("Ribbon geometry type is invalid.")
+
+    def update(group: CableGroupDefinition) -> CableGroupDefinition:
+        """
+        Keep non-inherited ribbon values on ribbons and reject them on loose groups.
+        """
+        if group.group_type is CableGroupType.LOOSE and (
+            ribbon_lines is not None or ribbon_geometry is not None
+        ):
+            raise ValueError("Ribbon properties require a ribbon cable group.")
+        return replace(
             group,
             diameter_mm=diameter_mm,
             conductor_diameter_mm=conductor_diameter_mm,
+            ribbon_lines=group.ribbon_lines if ribbon_lines is None else ribbon_lines,
+            ribbon_geometry=group.ribbon_geometry if ribbon_geometry is None else ribbon_geometry,
             material_overrides=replace(
                 group.material_overrides,
                 insulation_material=insulation_material,
@@ -307,7 +331,13 @@ def set_cable_group_properties(
                 part_number=part_number,
             ),
             metadata_overrides=metadata_overrides,
-        ),
+        )
+
+    _update_cable_group(
+        harness_id,
+        cable_group_id,
+        gateway,
+        update,
     )
 
 

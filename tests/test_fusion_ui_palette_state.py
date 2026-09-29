@@ -14,12 +14,15 @@ from uuid import UUID
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
     CableEndTarget,
+    CableGroupType,
     InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
     InterfaceTargetKind,
     JunctionDefinition,
+    RibbonGeometryType,
 )
 from tests.fusion_ui_support import (
     HarnessDefinition,
@@ -435,6 +438,8 @@ def test_palette_state_contains_complete_group_definition(
     assert cable_group["cableGroupId"] == str(valid_harness.cable_groups[0].cable_group_id)
     assert cable_group["name"] == ""
     assert cable_group["groupType"] == "loose"
+    assert "ribbonLines" not in cable_group
+    assert "ribbonGeometry" not in cable_group
     assert cable_group["connectionIds"] == [
         str(connection_id) for connection_id in valid_harness.cable_groups[0].connection_ids
     ]
@@ -450,6 +455,36 @@ def test_palette_state_contains_complete_group_definition(
     assert cable_group["metadataOverrides"] == []
     assert len(cable_group["routeLegs"]) == 1
     assert cable_group["routeLegs"][0]["pathwayIds"] == [str(valid_harness.pathways[0].pathway_id)]
+
+
+def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Send the explicit ribbon values to the Properties dialog.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_lines=9,
+        ribbon_geometry=RibbonGeometryType.FFC,
+    )
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(ribbon,),
+    )
+    state = _serialize_definition(
+        addin_module, monkeypatch, definition, addin_module.serialize_palette_state
+    )
+
+    group = state["harnesses"][0]["cableGroups"][0]
+    assert group["ribbonLines"] == 9
+    assert group["ribbonGeometry"] == "ffc"
 
 
 def test_palette_state_reports_attachment_and_connection_status(
