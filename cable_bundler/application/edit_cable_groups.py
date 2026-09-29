@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 from ..domain import (
     DEFAULT_CABLE_DIAMETER_MM,
     CableGroupDefinition,
+    CableGroupType,
     CableMaterialOverrides,
     HarnessDefinition,
     Metadata,
@@ -60,6 +61,7 @@ class _MutableCableGroup:
     metadata_overrides: Metadata
     name: str
     conductor_diameter_mm: Optional[float]
+    group_type: CableGroupType
 
 
 def save_cable_editor(
@@ -136,6 +138,7 @@ def save_cable_editor(
             group.metadata_overrides,
             group.name,
             group.conductor_diameter_mm,
+            group.group_type,
         )
         for group in definition.cable_groups
     ]
@@ -175,6 +178,7 @@ def save_cable_editor(
                     (),
                     "",
                     None,
+                    CableGroupType.LOOSE,
                 )
             )
         elif left_index is None:
@@ -198,6 +202,7 @@ def save_cable_editor(
             group.metadata_overrides,
             group.name,
             group.conductor_diameter_mm,
+            group.group_type,
         )
         for group in groups
         if len(group.connection_ids) >= 2

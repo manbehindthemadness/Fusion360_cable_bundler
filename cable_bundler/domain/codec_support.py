@@ -13,6 +13,7 @@ from .materials import PullbackMode, StripePattern
 from .model import (
     AttachmentTargetKind,
     AutoTransitionPreset,
+    CableGroupType,
     ControlKind,
     InterpolationSettings,
     PathwayEndpoint,
@@ -28,6 +29,7 @@ EnumType = TypeVar(
     AutoTransitionPreset,
     AttachmentTargetKind,
     PullbackMode,
+    CableGroupType,
 )
 
 

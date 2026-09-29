@@ -38,6 +38,7 @@ from .model import (
     CableEndAttachment,
     CableEndTarget,
     CableGroupDefinition,
+    CableGroupType,
     Connection,
     ControlKind,
     ControlStructure,
@@ -101,12 +102,13 @@ def loads(serialized: str) -> HarnessDefinition:
         30,
         31,
         32,
+        33,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 32 are migratable)",
+            "(schemas 12 through 33 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -143,7 +145,7 @@ def loads(serialized: str) -> HarnessDefinition:
         for index, item in enumerate(_require_list(payload, "standalone_ends", "$.standalone_ends"))
     )
     cable_groups = tuple(
-        _parse_cable_group(item, f"$.cable_groups[{index}]")
+        _parse_cable_group(item, f"$.cable_groups[{index}]", schema_version)
         for index, item in enumerate(_require_list(payload, "cable_groups", "$.cable_groups"))
     )
     raw_associations = payload.get("attachment_associations", [])
@@ -324,6 +326,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
         "cable_groups": [
             {
                 "cable_group_id": str(group.cable_group_id),
+                "group_type": group.group_type.value,
                 "connection_ids": [str(connection_id) for connection_id in group.connection_ids],
                 "diameter_mm": group.diameter_mm,
                 "conductor_diameter_mm": group.conductor_diameter_mm,
@@ -836,6 +839,7 @@ def _parse_standalone_end(
 def _parse_cable_group(
     raw_value: object,
     path: str,
+    schema_version: int,
 ) -> CableGroupDefinition:
     """
     Parse one persistent collection of assigned cable ends.
@@ -845,6 +849,11 @@ def _parse_cable_group(
     name = value.get("name", "")
     if not isinstance(name, str):
         raise DefinitionParseError(f"{path}.name", "expected a string")
+    group_type = (
+        _require_enum(CableGroupType, value, "group_type", f"{path}.group_type")
+        if schema_version >= 34
+        else CableGroupType.LOOSE
+    )
     return CableGroupDefinition(
         cable_group_id=_require_uuid(value, "cable_group_id", f"{path}.cable_group_id"),
         connection_ids=tuple(
@@ -862,4 +871,5 @@ def _parse_cable_group(
             value.get("metadata_overrides", []), f"{path}.metadata_overrides"
         ),
         name=name,
+        group_type=group_type,
     )

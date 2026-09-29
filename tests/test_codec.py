@@ -17,6 +17,7 @@ from cable_bundler.domain import (
     CableColor,
     CableEndAttachment,
     CableEndTarget,
+    CableGroupType,
     CablePullbackSettings,
     CableVisualOverrides,
     CableWeldSettings,
@@ -39,8 +40,59 @@ def test_round_trip_preserves_group_only_definition(valid_harness: HarnessDefini
     payload = json.loads(serialized)
     assert payload["schema_version"] == SCHEMA_VERSION
     assert payload["auto_transition_preset"] == "tight"
+    assert payload["cable_groups"][0]["group_type"] == "loose"
     assert "profiles" not in payload
     assert "cables" not in payload
+
+
+def test_cable_group_type_round_trip_and_schema_33_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist ribbon groups and migrate earlier groups to loose construction.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(valid_harness, cable_groups=(ribbon,))
+    payload = json.loads(dumps(definition))
+
+    assert payload["cable_groups"][0]["group_type"] == "ribbon"
+    assert loads(json.dumps(payload)).cable_groups[0].group_type is CableGroupType.RIBBON
+
+    payload["schema_version"] = 33
+    del payload["cable_groups"][0]["group_type"]
+    migrated = loads(json.dumps(payload))
+    assert migrated.cable_groups[0].group_type is CableGroupType.LOOSE
+    assert json.loads(dumps(migrated))["cable_groups"][0]["group_type"] == "loose"
+
+
+@pytest.mark.parametrize("group_type", ["unknown", None, 1])
+def test_rejects_invalid_cable_group_type(
+    valid_harness: HarnessDefinition,
+    group_type: object,
+) -> None:
+    """
+    Reject unrecognized current-schema construction types at the field path.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["cable_groups"][0]["group_type"] = group_type
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.cable_groups[0].group_type"
+
+
+def test_current_schema_requires_cable_group_type(valid_harness: HarnessDefinition) -> None:
+    """
+    Require explicit construction type in newly saved harness definitions.
+    """
+    payload = json.loads(dumps(valid_harness))
+    del payload["cable_groups"][0]["group_type"]
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.cable_groups[0].group_type"
 
 
 def test_round_trip_and_schema_24_migration_preserve_pullback_settings(

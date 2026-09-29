@@ -20,7 +20,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 33
+SCHEMA_VERSION = 34
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -31,6 +31,15 @@ class RoutingMode(str, Enum):
 
     ROUTING_GATES = "routing_gates"
     PROFILE_GATES = "profile_gates"
+
+
+class CableGroupType(str, Enum):
+    """
+    Identify the construction type of a persistent cable group.
+    """
+
+    LOOSE = "loose"
+    RIBBON = "ribbon"
 
 
 class ControlKind(str, Enum):
@@ -525,6 +534,7 @@ class CableGroupDefinition:
     Connect two or more physical ends as one routed conductor group.
 
     Member order is stable metadata order and has no electrical precedence.
+    The construction type is persisted; ribbon geometry is defined separately.
     """
 
     cable_group_id: UUID
@@ -534,12 +544,15 @@ class CableGroupDefinition:
     metadata_overrides: Metadata = ()
     name: str = ""
     conductor_diameter_mm: Optional[float] = None
+    group_type: CableGroupType = CableGroupType.LOOSE
 
     def __post_init__(self) -> None:
         """
-        Require unambiguous searchable metadata overrides.
+        Require valid construction type, metadata, and conductor diameter.
         """
         _validate_metadata(self.metadata_overrides, "Cable metadata overrides")
+        if not isinstance(self.group_type, CableGroupType):
+            raise ValueError("Cable-group type is invalid.")
         if self.conductor_diameter_mm is not None and (
             isinstance(self.conductor_diameter_mm, bool)
             or not isinstance(self.conductor_diameter_mm, (int, float))

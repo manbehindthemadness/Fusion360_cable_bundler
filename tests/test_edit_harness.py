@@ -34,6 +34,7 @@ from cable_bundler.application.harness_edits import set_interpolation
 from cable_bundler.domain import (
     AutoTransitionPreset,
     CableColor,
+    CableGroupType,
     CableMaterialOverrides,
     Connection,
     ControlKind,
@@ -690,16 +691,21 @@ def test_cable_editor_creates_group_from_two_standalone_ends(
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].cable_group_id == group_id
     assert stored.cable_groups[0].connection_ids == (left_id, right_id)
+    assert stored.cable_groups[0].group_type is CableGroupType.LOOSE
 
 
-def test_cable_editor_preserves_existing_group_name(
+def test_cable_editor_preserves_existing_group_properties(
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Retain the group's display identity while committing unchanged membership.
+    Retain the group's name and type while committing unchanged membership.
     """
     pathway = valid_harness.pathways[0]
-    group = replace(valid_harness.cable_groups[0], name="Engine loom")
+    group = replace(
+        valid_harness.cable_groups[0],
+        name="Engine loom",
+        group_type=CableGroupType.RIBBON,
+    )
     definition = replace(valid_harness, cable_groups=(group,))
     gateway = _recording_gateway(definition)
 
@@ -718,3 +724,4 @@ def test_cable_editor_preserves_existing_group_name(
 
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].name == "Engine loom"
+    assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
