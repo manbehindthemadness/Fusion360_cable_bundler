@@ -324,7 +324,7 @@ def serialize_palette_state(
         else None
     )
     length_units = _length_units_payload(design)
-    lookup = PaletteEntityLookup(design, gateway)
+    lookup = PaletteEntityLookup(design, gateway, measure_lookups=_runtime.developer_mode_enabled)
     prepared_at = perf_counter()
     route_seconds = 0.0
     diameter_seconds = 0.0
@@ -591,6 +591,11 @@ def serialize_palette_state(
             f"renderStateMs={render_seconds * 1000:.0f} "
             f"memberLinksMs={member_links_seconds * 1000:.0f} "
             f"membersMs={payload_seconds * 1000:.0f} "
+            f"tokenQueries={lookup.query_count} "
+            f"emptyTokens={lookup.empty_count} "
+            f"tokenCacheHits={lookup.cache_hit_count} "
+            f"persistentHits={lookup.persistent_hit_count} "
+            f"tokenQueryMs={lookup.query_seconds * 1000:.0f} "
             f"otherMs={other_seconds * 1000:.0f} "
             f"jsonMs={(finished - payload_built_at) * 1000:.0f}"
         )

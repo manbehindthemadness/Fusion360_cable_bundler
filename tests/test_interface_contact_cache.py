@@ -87,6 +87,7 @@ def test_contact_cache_lifecycle_invalidation(
     Keep metadata-only reuse but release native proxies on edits and document transitions.
     """
     cache = importlib.import_module("cable_bundler.fusion.interface_contact_cache")
+    palette_cache = importlib.import_module("cable_bundler.fusion.ui.palette_geometry")
     lifecycle = importlib.import_module("cable_bundler.fusion.ui.lifecycle")
     monkeypatch.setitem(
         vars(sys.modules["adsk.core"]),
@@ -99,10 +100,19 @@ def test_contact_cache_lifecycle_invalidation(
     design = SimpleNamespace(rootComponent=SimpleNamespace(entityToken="design"))
     entity = SimpleNamespace(entityToken="face", isValid=True)
     cache.remember_contact_entity(design, entity)
+    palette_cache.PaletteEntityLookup(
+        SimpleNamespace(
+            rootComponent=SimpleNamespace(entityToken="design"),
+            findEntityByToken=lambda _token: (entity,),
+        ),
+        object(),
+    ).find_entities("face")
     lifecycle._HistoryChangedHandler().notify(SimpleNamespace(commandId=command))
     assert bool(cache._entries) is not invalidates
+    assert palette_cache._valid_entities
     lifecycle._ContactDocumentChangedHandler().notify(SimpleNamespace())
     assert not cache._entries
+    assert not palette_cache._valid_entities
 
 
 def test_contact_geometry_dispatch_limits_work_to_requested_batch(

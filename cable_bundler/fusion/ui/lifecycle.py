@@ -54,6 +54,7 @@ from .palette import (
     _remove_deferred_palette_launch,
     _restore_native_dialog_palette,
 )
+from .palette_geometry import clear_palette_entity_cache
 from .palette_state import (
     _send_palette_state,
 )
@@ -370,6 +371,7 @@ class _ContactDocumentChangedHandler(adsk.core.DocumentEventHandler):
         Invalidate geometry without performing geometry work during a document event.
         """
         clear_contact_resolutions()
+        clear_palette_entity_cache()
         _runtime.contact_geometry_revision += 1
 
 
@@ -378,6 +380,7 @@ def _remove_document_handlers(application: adsk.core.Application) -> None:
     Remove save guards and contact cleanup, restoring changed preferences.
     """
     clear_contact_resolutions()
+    clear_palette_entity_cache()
     if _runtime.contact_document_handler is not None:
         for event_name in ("documentActivated", "documentClosing"):
             event = getattr(application, event_name, None)
@@ -473,6 +476,7 @@ def start(_context: object) -> None:
     application = None
     user_interface = None
     _runtime.developer_mode_enabled = False
+    clear_palette_entity_cache()
     try:
         application = adsk.core.Application.get()
         user_interface = application.userInterface
@@ -546,6 +550,7 @@ def stop(_context: object) -> None:
 
     _runtime.developer_mode_enabled = False
     clear_contact_resolutions()
+    clear_palette_entity_cache()
     try:
         application = adsk.core.Application.get()
         _log_document_checkpoint(application, "stop:entry")
