@@ -12,8 +12,7 @@ import adsk.fusion
 
 from ....application import create_empty_harness, suggest_harness_name
 from ....domain import RoutingMode
-from ..constants import DEFAULT_HARNESS_NAME, HARNESS_NAME_INPUT_ID, ROUTING_MODE_INPUT_ID
-from ..constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
+from ..constants import DEFAULT_HARNESS_NAME, HARNESS_NAME_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _report_failure
@@ -114,23 +113,6 @@ def _read_harness_name(command_inputs: adsk.core.CommandInputs) -> str:
     if not name:
         raise ValueError("Harness name must not be empty.")
     return name
-
-
-def _read_routing_mode(command_inputs: adsk.core.CommandInputs) -> RoutingMode:
-    """
-    Map the selected Fusion label to its routing-mode domain value.
-
-    Add Pathway still uses this reader for its own routing-mode selector.
-    """
-    mode_input = adsk.core.DropDownCommandInput.cast(command_inputs.itemById(ROUTING_MODE_INPUT_ID))
-    if mode_input is None or mode_input.selectedItem is None:
-        raise ValueError("Routing mode input is unavailable.")
-
-    selected_label = mode_input.selectedItem.name
-    for routing_mode, label in _ROUTING_MODE_LABELS.items():
-        if selected_label == label:
-            return routing_mode
-    raise ValueError(f"Unsupported routing mode selection: {selected_label}")
 
 
 CreateHarnessCreatedHandler = _CreateHarnessCreatedHandler

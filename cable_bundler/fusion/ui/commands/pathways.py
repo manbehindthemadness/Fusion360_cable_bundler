@@ -28,12 +28,8 @@ from ....domain import ControlKind, loads
 from ..constants import (
     PATHWAY_GATES_INPUT_ID,
     PATHWAY_NAME_INPUT_ID,
-    ROUTING_MODE_INPUT_ID,
     SEGMENT_CONTROL_INPUT_ID,
     SEGMENT_PATHWAY_NAME_INPUT_ID,
-)
-from ..constants import (
-    ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS,
 )
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
@@ -44,9 +40,6 @@ from ..support import (
     _require_active_design,
 )
 from ..viewport import _refresh_active_preview
-from .harness import (
-    _read_routing_mode,
-)
 from .refines import (
     reconcile_active_refines,
 )
@@ -72,12 +65,14 @@ class _AddPathwayExecuteHandler(adsk.core.CommandEventHandler):
         try:
             application = adsk.core.Application.get()
             command_inputs = args.command.commandInputs
+            gateway = _create_harness_gateway(application)
+            definition = loads(gateway.read_harness_definition(self._harness_id))
             pathway = add_pathway(
                 self._harness_id,
                 _read_pathway_name(command_inputs),
-                _read_routing_mode(command_inputs),
+                definition.routing_mode,
                 _read_pathway_gate_tokens(command_inputs),
-                _create_harness_gateway(application),
+                gateway,
             )
             _send_palette_state(application, f"Created {pathway.name}.")
         except (AttributeError, RuntimeError, TypeError, ValueError):
@@ -86,7 +81,7 @@ class _AddPathwayExecuteHandler(adsk.core.CommandEventHandler):
 
 class _AddPathwayValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
     """
-    Require a name, routing mode, and at least one selected profile.
+    Require a name and at least one selected profile.
     """
 
     # noinspection PyMethodMayBeStatic
@@ -96,7 +91,6 @@ class _AddPathwayValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         """
         try:
             _read_pathway_name(args.inputs)
-            _read_routing_mode(args.inputs)
             _read_pathway_gate_tokens(args.inputs)
         except ValueError:
             args.areInputsValid = False
@@ -121,7 +115,6 @@ class _AddPathwayCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 raise RuntimeError("No harness was selected for pathway creation.")
             application = adsk.core.Application.get()
             gateway = _create_harness_gateway(application)
-            definition = loads(gateway.read_harness_definition(harness_id))
             initial_name = suggest_pathway_name(harness_id, "Pathway_001", gateway)
             command_inputs = args.command.commandInputs
 
@@ -132,21 +125,6 @@ class _AddPathwayCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             if name_input is None:
                 raise RuntimeError("Fusion did not create the pathway name input.")
-
-            routing_mode_input = command_inputs.addDropDownCommandInput(
-                ROUTING_MODE_INPUT_ID,
-                "Routing Mode",
-                adsk.core.DropDownStyles.TextListDropDownStyle,
-            )
-            if routing_mode_input is None:
-                raise RuntimeError("Fusion did not create the pathway routing-mode input.")
-            for routing_mode, label in _ROUTING_MODE_LABELS.items():
-                list_item = routing_mode_input.listItems.add(
-                    label,
-                    routing_mode is definition.routing_mode,
-                )
-                if list_item is None:
-                    raise RuntimeError(f"Fusion did not add the routing mode option: {label}")
 
             gate_input = command_inputs.addSelectionInput(
                 PATHWAY_GATES_INPUT_ID,
