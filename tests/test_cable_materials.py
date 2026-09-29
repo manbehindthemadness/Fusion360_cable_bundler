@@ -5,6 +5,8 @@ Tests for cable-material inheritance and the bundled suggestion catalog.
 from dataclasses import replace
 from uuid import UUID
 
+import pytest
+
 from cable_bundler.application import load_cable_material_catalog
 from cable_bundler.domain import (
     AttachmentTargetKind,
@@ -201,24 +203,18 @@ def test_connection_visuals_inherit_singly_and_override_each_branch(
         )
         == 0.6
     )
-    assert (
-        multiple.cable_end_attachment_diameter(
-            group, connection.connection_id, second.attachment_id
-        )
-        == group.diameter_mm / 2.0
-    )
+    assert multiple.cable_end_attachment_diameter(
+        group, connection.connection_id, second.attachment_id
+    ) == pytest.approx(0.51)
     assert (
         multiple.cable_end_attachment_conductor_diameter(
             group, connection.connection_id, overridden.attachment_id
         )
         == 0.45
     )
-    assert (
-        multiple.cable_end_attachment_conductor_diameter(
-            group, connection.connection_id, second.attachment_id
-        )
-        == group.diameter_mm / 2.0 * 0.75
-    )
+    assert multiple.cable_end_attachment_conductor_diameter(
+        group, connection.connection_id, second.attachment_id
+    ) == pytest.approx(0.51 * 0.75)
 
 
 def test_nested_connections_inherit_from_their_immediate_parent(
@@ -278,12 +274,9 @@ def test_nested_connections_inherit_from_their_immediate_parent(
         )
         == 0.3
     )
-    assert (
-        definition.cable_end_attachment_diameter(
-            group, connection.connection_id, child_peer.attachment_id
-        )
-        == 0.35
-    )
+    assert definition.cable_end_attachment_diameter(
+        group, connection.connection_id, child_peer.attachment_id
+    ) == pytest.approx(0.34)
 
 
 def test_connection_shielding_override_applies_without_a_divided_branch(

@@ -152,7 +152,8 @@ def test_local_board_preview_returns_names_to_palette_without_edit(
             "unresolved": [],
         }
     )
-    monkeypatch.setitem(vars(palette_module), "preview_board_file_contact_names", preview)
+    auxiliary_module = importlib.import_module("cable_bundler.fusion.ui.palette_auxiliary")
+    monkeypatch.setitem(vars(auxiliary_module), "preview_board_file_contact_names", preview)
     palette_module._send_board_file_preview(
         application,
         json.dumps(

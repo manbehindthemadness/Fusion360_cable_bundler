@@ -122,11 +122,11 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.pin_number == "B3"
 
     group = valid_harness.cable_groups[0]
-    with pytest.raises(ValueError, match="collectively exceed"):
+    with pytest.raises(ValueError, match="cannot fit inside"):
         set_cable_group_properties(
             valid_harness.harness_id,
             group.cable_group_id,
-            1.0,
+            0.5,
             None,
             None,
             None,
@@ -137,7 +137,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
             gateway,
         )
 
-    with pytest.raises(ValueError, match="collectively exceed"):
+    with pytest.raises(ValueError, match="cannot fit inside"):
         set_cable_end_attachment_properties(
             valid_harness.harness_id,
             connection_id,

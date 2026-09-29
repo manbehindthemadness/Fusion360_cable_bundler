@@ -23,18 +23,14 @@ from ...domain import (
 )
 from ...routing import (
     CableRouteInput,
-    GateCapacityError,
-    GateCapacityPolicy,
     GateFrame,
     RefineFrame,
-    RouteCollision,
     RoutePreview,
     TransitionAdjustment,
     TransitionLengths,
     Vector3,
     fair_route,
     minimum_circular_bend_radius,
-    place_route_crossings,
     separate_route_collisions,
     straight_route,
 )
@@ -44,7 +40,7 @@ from ...routing.conditioning import (
     condition_route_normals,
     junction_normal_indices,
 )
-from ...routing.geometry import cross, difference, dot, magnitude, unit
+from ...routing.geometry import cross, difference, dot, unit
 from . import branch_layout
 from .frames import (
     ProfileFrame,
@@ -57,6 +53,20 @@ from .frames import (
     routing_frame,
 )
 from .frames import connection_profile_points as _connection_profile_points
+from .solver_controls import (
+    _append_route_control,
+    _BranchAnchor,
+    _place_control_crossings,
+    _root_branch_anchors,
+    leg_control_ids,
+)
+from .solver_notices import (
+    _adjustment_below_cable_radius,
+    _adjustment_notice,
+    _collision_notice,
+    _straight_for_sweep_notice,
+    _straight_route_notice,
+)
 
 
 @dataclass(frozen=True)
@@ -74,141 +84,7 @@ class _RouteSolveCache:
     notices: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class _BranchAnchor:
-    """
-    Locate a solved parent sweep end and a point inside that sweep.
-    """
-
-    origin: Vector3
-    interior: Vector3
-
-
 _route_solve_cache: Optional[_RouteSolveCache] = None
-
-
-def _terminal_branch_anchor(route: RoutePreview, *, at_start: bool) -> _BranchAnchor:
-    """
-    Recover one parent cap and its inward tangent from an exact or raw route.
-    """
-    if route.curves:
-        curve = route.curves[0] if at_start else route.curves[-1]
-        origin = curve.start if at_start else curve.end
-        derivative = curve.derivative(0.0 if at_start else 1.0)
-        inward = derivative if at_start else Vector3(-derivative.x, -derivative.y, -derivative.z)
-        if magnitude(inward) <= 1e-9:
-            inward = (
-                difference(curve.end, curve.start)
-                if at_start
-                else difference(curve.start, curve.end)
-            )
-    else:
-        origin = route.points[0] if at_start else route.points[-1]
-        neighbor = route.points[1] if at_start else route.points[-2]
-        inward = difference(neighbor, origin)
-    return _BranchAnchor(origin, origin.translated(unit(inward), 1.0))
-
-
-def _root_branch_anchors(
-    legs: tuple[CableGroupRouteLeg, ...],
-    routes: tuple[RoutePreview, ...],
-) -> dict[tuple[UUID, UUID], _BranchAnchor]:
-    """
-    Follow conditioned main-route endpoints rather than unshifted guide centers.
-    """
-    anchors: dict[tuple[UUID, UUID], _BranchAnchor] = {}
-    for leg, route in zip(legs, routes):
-        if leg.start_connection_id is not None:
-            anchors[leg.cable_group_id, leg.start_connection_id] = _terminal_branch_anchor(
-                route, at_start=True
-            )
-        if leg.end_connection_id is not None:
-            anchors[leg.cable_group_id, leg.end_connection_id] = _terminal_branch_anchor(
-                route, at_start=False
-            )
-    return anchors
-
-
-def leg_control_ids(
-    leg: CableGroupRouteLeg,
-    end_control_ids: dict[UUID, tuple[UUID, ...]],
-) -> tuple[UUID, ...]:
-    """
-    Return end-owned and pathway controls in one leg's traversal order.
-    """
-    return (
-        *(
-            end_control_ids.get(leg.start_connection_id, ())
-            if leg.start_connection_id is not None
-            else ()
-        ),
-        *(step.control_id for step in leg.control_steps),
-        *(
-            reversed(end_control_ids.get(leg.end_connection_id, ()))
-            if leg.end_connection_id is not None
-            else ()
-        ),
-    )
-
-
-def _place_control_crossings(
-    cables: tuple[CableRouteInput, ...],
-    frame: Union[GateFrame, RefineFrame],
-    clearance_mm: float,
-    preferred_points: tuple[Optional[Vector3], ...],
-    notices: list[str],
-) -> tuple[Vector3, ...]:
-    """
-    Preserve deterministic spacing and warn when it exceeds a gate aperture.
-    """
-    try:
-        return place_route_crossings(cables, frame, clearance_mm, preferred_points)
-    except GateCapacityError as error:
-        notices.append(
-            f"{error} Cable spacing is preserved, so routes may extend outside the aperture."
-        )
-        return place_route_crossings(
-            cables,
-            frame,
-            clearance_mm,
-            preferred_points,
-            capacity_policy=GateCapacityPolicy.ALLOW_OVERFLOW,
-        )
-
-
-def _append_route_control(
-    leg_label: str,
-    cable_group_id: UUID,
-    control_id: UUID,
-    reversed_direction: bool,
-    controls: dict[UUID, ControlStructure],
-    frames: dict[UUID, Union[GateFrame, RefineFrame]],
-    crossings: dict[tuple[UUID, UUID], Vector3],
-    points: list[Vector3],
-    normals: list[Vector3],
-    transitions: list[TransitionLengths],
-    point_control_ids: list[Optional[UUID]],
-    soft_guide_indices: set[int],
-) -> None:
-    """
-    Append one shared or end-owned routing control in traversal order.
-    """
-    control = controls.get(control_id)
-    if control is None:
-        raise RuntimeError(f"{leg_label} references a missing routing control.")
-    frame = frames[control_id]
-    control_point_index = len(points)
-    points.append(crossings[control_id, cable_group_id])
-    normals.append(cross(frame.u_direction, frame.v_direction))
-    point_control_ids.append(control_id)
-    soft_guide_indices.add(control_point_index)
-    settings = control.interpolation
-    transitions.append(
-        TransitionLengths(
-            settings.departure_mm if reversed_direction else settings.approach_mm,
-            settings.approach_mm if reversed_direction else settings.departure_mm,
-        )
-    )
 
 
 # noinspection DuplicatedCode
@@ -887,81 +763,6 @@ def _connection_branch_routes(
                 routes.extend(sibling_routes)
                 legs.extend(sibling_legs)
     return tuple(routes), tuple(legs)
-
-
-def _adjustment_notice(adjustment: TransitionAdjustment) -> str:
-    """
-    Format a dynamic transition correction for the palette event console.
-    """
-    if adjustment.applied_bend_radius_mm is not None:
-        return (
-            f"Warning — Cable {adjustment.cable_number}: clamped transitions between profiles "
-            f"{adjustment.start_profile} and {adjustment.end_profile} from "
-            f"{adjustment.required_mm:.3f} mm to {adjustment.applied_mm:.3f} mm; "
-            f"the {adjustment.minimum_bend_radius_mm:.3f} mm minimum sweep radius was "
-            f"sacrificed (achieved {adjustment.applied_bend_radius_mm:.3f} mm). "
-            "Fusion may reject the resulting solid."
-        )
-    return (
-        f"Cable {adjustment.cable_number}: dynamically adjusted transitions between profiles "
-        f"{adjustment.start_profile} and {adjustment.end_profile} from "
-        f"{adjustment.required_mm:.3f} mm to {adjustment.applied_mm:.3f} mm; "
-        f"the {adjustment.minimum_bend_radius_mm:.3f} mm sweep radius is preserved."
-    )
-
-
-def _straight_route_notice(cable_number: str, error: ValueError) -> str:
-    """
-    Explain when only an ordered straight-segment preview could be retained.
-    """
-    return (
-        f"Warning — Cable {cable_number}: showing straight segments through the ordered "
-        f"crossings because curved fairing failed ({error}). Profile tangents and bend "
-        "clearance are not preserved; Fusion may reject the resulting solid."
-    )
-
-
-def _adjustment_below_cable_radius(
-    adjustments: list[TransitionAdjustment], cable_radius_mm: float
-) -> Optional[TransitionAdjustment]:
-    """
-    Find a clamped span whose local curvature would invert a circular sweep.
-    """
-    return next(
-        (
-            adjustment
-            for adjustment in adjustments
-            if adjustment.applied_bend_radius_mm is not None
-            and adjustment.applied_bend_radius_mm <= cable_radius_mm + 1e-9
-        ),
-        None,
-    )
-
-
-def _straight_for_sweep_notice(
-    cable_number: str, adjustment: TransitionAdjustment, diameter_mm: float
-) -> str:
-    """
-    Explain a whole-leg straight fallback chosen to avoid a self-inverting sweep.
-    """
-    return (
-        f"Warning — Cable {cable_number}: the clamped bend between profiles "
-        f"{adjustment.start_profile} and {adjustment.end_profile} reached "
-        f"{adjustment.applied_bend_radius_mm:.3f} mm, below the cable radius "
-        f"{diameter_mm / 2.0:.3f} mm. Showing straight segments through the ordered "
-        "crossings for the solid sweep; profile tangents and bend clearance are not preserved."
-    )
-
-
-def _collision_notice(collision: RouteCollision) -> str:
-    """
-    Format one residual member collision for the event console.
-    """
-    return (
-        f"{collision.left_label} and {collision.right_label} remain "
-        f"{collision.clearance_shortfall_mm:.3f} mm inside the requested separation; "
-        "the original deterministic route is retained."
-    )
 
 
 def reset_route_solve_cache() -> None:

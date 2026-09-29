@@ -27,7 +27,6 @@ from ..interface_contact_disk_cache import (
     read_complete_cached_contacts,
 )
 from ..interface_contact_naming import (
-    preview_board_file_contact_names,
     preview_interface_contact_names,
 )
 from ..interface_contact_projection import project_interface_contact
@@ -49,13 +48,16 @@ from .edits import (
 from .launchers import (
     _open_palette_edit,
 )
+from .palette_auxiliary import _log_slow_palette_edit, _send_board_file_preview
 from .palette_edit_policy import _PALETTE_EDIT_POLICIES
+from .palette_material_payloads import (
+    _appearance_libraries_payload,
+    _library_appearances_payload,
+)
 from .palette_native_dialogs import _NATIVE_DIALOG_ACTIONS, _NATIVE_DIALOG_COMMAND_IDS
 from .palette_request_scope import _stale_palette_document_request
 from .palette_state import (
-    _appearance_libraries_payload,
     _delete_damaged_harness,
-    _library_appearances_payload,
     _palette_theme_payload,
     _send_palette_state,
     serialize_palette_state,
@@ -204,35 +206,6 @@ def _remove_deferred_palette_launch(application: adsk.core.Application) -> None:
     _runtime.pending_native_dialog.clear()
 
 
-def _send_board_file_preview(application: adsk.core.Application, data: str) -> None:
-    """
-    Return a local board's read-only name preview to the active palette form.
-    """
-    payload = _read_palette_payload(data)
-    harness_id = _read_payload_uuid(payload, "harnessId", "harness")
-    interface_id = _read_payload_uuid(payload, "interfaceId", "Interface")
-    project = payload.get("project", False)
-    if not isinstance(project, bool):
-        raise ValueError("Project must be a boolean.")
-    response: dict[str, object] = {
-        "harnessId": str(harness_id),
-        "interfaceId": str(interface_id),
-    }
-    try:
-        preview = preview_board_file_contact_names(application, harness_id, interface_id, project)
-    except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
-        response["error"] = str(error)
-    else:
-        if preview is None:
-            response["cancelled"] = True
-        else:
-            response.update(preview)
-    palette = application.userInterface.palettes.itemById(PALETTE_ID)
-    if palette is None:
-        raise RuntimeError("Fusion could not return the board preview to the palette.")
-    palette.sendInfoToHTML("board_file_preview", json.dumps(response))
-
-
 class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
     """
     Apply a palette edit and its preview inside one Fusion command transaction.
@@ -353,20 +326,6 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             args.executeFailedMessage = str(error)
             _runtime.last_command_error = str(error)
             _log_to_fusion(f"Harness command failed: {error}\n{traceback.format_exc()}")
-
-
-def _log_slow_palette_edit(action: str, started: float, applied_at: float) -> None:
-    """
-    Record slow edit persistence separately from subsequent preview and palette work.
-    """
-    finished = perf_counter()
-    if not _runtime.developer_mode_enabled or finished - started < 0.25:
-        return
-    _log_to_fusion(
-        f"Harness Builder slow edit {action}: "
-        f"applyMs={(applied_at - started) * 1000:.0f} "
-        f"postMs={(finished - applied_at) * 1000:.0f}"
-    )
 
 
 class _PaletteEditCreatedHandler(adsk.core.CommandCreatedEventHandler):
