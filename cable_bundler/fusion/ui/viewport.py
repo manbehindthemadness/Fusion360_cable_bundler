@@ -18,6 +18,7 @@ from ...application import plan_cable_group_routes
 from ...domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
     CableEndTarget,
     ControlKind,
     HarnessDefinition,
@@ -127,6 +128,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     generated_group_ids: tuple[UUID, ...] = ()
     generated_attachment_ids: tuple[UUID, ...] = ()
     attachment_entities: tuple[object, ...] = ()
+    connection_shape = CableEndShape.CLOSED
     if member_type == "interface":
         interface = next(
             (item for item in definition.interfaces if item.interface_id == member_id),
@@ -227,6 +229,10 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     else:
         tokens = _member_entity_tokens(definition, member_type, member_id)
         if member_type == "connection":
+            connection_shape = next(
+                (end.shape for end in definition.standalone_ends if end.connection_id == member_id),
+                CableEndShape.CLOSED,
+            )
             preview_connection_ids = (member_id,)
             generated_group_ids = tuple(
                 group.cable_group_id
@@ -259,12 +265,20 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
     )
     refine_count = highlight_refine_graphics(design, refine_ids)
     profiles: list[adsk.fusion.Profile] = []
+    curves: list[adsk.fusion.SketchCurve] = []
     for token in tokens:
         entities = design.findEntityByToken(token)
-        profile = adsk.fusion.Profile.cast(entities[0] if entities else None)
-        if profile is None:
-            raise ValueError("The selected item no longer resolves to a sketch profile.")
-        profiles.append(profile)
+        entity = entities[0] if entities else None
+        if member_type == "connection" and connection_shape is CableEndShape.OPEN:
+            curve = adsk.fusion.SketchCurve.cast(entity)
+            if curve is None:
+                raise ValueError("The selected open end no longer resolves to a sketch curve.")
+            curves.append(curve)
+        else:
+            profile = adsk.fusion.Profile.cast(entity)
+            if profile is None:
+                raise ValueError("The selected item no longer resolves to a sketch profile.")
+            profiles.append(profile)
 
     selections = application.userInterface.activeSelections
     if not selections.clear():
@@ -287,7 +301,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
             attachment_id,
         )
     )
-    for entity in (*profiles, *attachment_entities, *attachment_bodies, *group_bodies):
+    for entity in (*profiles, *curves, *attachment_entities, *attachment_bodies, *group_bodies):
         if not selections.add(entity):
             selections.clear()
             highlight_route_preview(design, None)
@@ -314,6 +328,7 @@ def _highlight_member(application: adsk.core.Application, serialized_data: str) 
         preview_count
         + refine_count
         + len(profiles)
+        + len(curves)
         + len(attachment_entities)
         + len(attachment_bodies)
         + len(group_bodies)

@@ -246,6 +246,60 @@ def test_connection_highlights_its_generated_cable_group_body(
     )
 
 
+def test_open_connection_hover_selects_its_sketch_curve(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    hover_widget_adapter: Mock,
+) -> None:
+    """
+    Highlight the line itself without requesting a profile fill or centroid marker.
+    """
+    from dataclasses import replace
+
+    from cable_bundler.domain import CableEndShape
+
+    connection = valid_harness.connections[0]
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(
+        valid_harness,
+        standalone_ends=(end, *valid_harness.standalone_ends[1:]),
+        cable_groups=(),
+    )
+    curve = object()
+    design = SimpleNamespace(
+        findEntityByToken=lambda _token: [curve],
+        rootComponent=SimpleNamespace(customGraphicsGroups=SimpleNamespace(count=0)),
+    )
+    selections = SimpleNamespace(clear=Mock(return_value=True), add=Mock(return_value=True))
+    application = SimpleNamespace(
+        userInterface=SimpleNamespace(activeSelections=selections),
+        activeViewport=SimpleNamespace(refresh=Mock()),
+    )
+    gateway = SimpleNamespace(read_harness_definition=lambda _id: dumps(definition))
+    fusion = sys.modules["adsk.fusion"]
+    profile_cast = Mock(side_effect=AssertionError("Open ends must not select profile fills."))
+    curve_cast = Mock(return_value=curve)
+    monkeypatch.setitem(vars(fusion), "Profile", SimpleNamespace(cast=profile_cast))
+    monkeypatch.setitem(vars(fusion), "SketchCurve", SimpleNamespace(cast=curve_cast))
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    payload = json.dumps(
+        {
+            "harnessId": str(definition.harness_id),
+            "memberType": "connection",
+            "memberId": str(connection.connection_id),
+        }
+    )
+
+    assert addin_module._highlight_member(application, payload) == 1
+
+    curve_cast.assert_called_once_with(curve)
+    profile_cast.assert_not_called()
+    selections.add.assert_called_once_with(curve)
+    hover_widget_adapter.assert_called_once_with(design, ())
+
+
 def test_contact_hover_selects_only_its_persistent_fusion_target(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
