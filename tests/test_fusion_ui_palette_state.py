@@ -92,6 +92,70 @@ def test_palette_state_includes_saved_interface_contacts_without_live_design(
     assert payload["harnesses"][0]["interfaces"][0]["connectedConnectionIds"] == []
 
 
+def test_palette_state_reads_contact_revision_once_for_all_contacts(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Avoid repeated Fusion document lookups while projecting contact metadata.
+    """
+    interfaces = tuple(
+        InterfaceDefinition(
+            UUID(int=920 + interface_index),
+            f"Socket {interface_index}",
+            (InterfaceTarget(InterfaceTargetKind.BODY, f"body-{interface_index}"),),
+            tuple(
+                InterfaceContact(
+                    UUID(int=930 + interface_index * 3 + contact_index),
+                    AttachmentTargetKind.FACE,
+                    f"face-{interface_index}-{contact_index}",
+                )
+                for contact_index in range(3)
+            ),
+        )
+        for interface_index in range(2)
+    )
+    revision = Mock(return_value=17)
+    runtime = importlib.import_module("cable_bundler.fusion.ui.runtime").runtime
+    monkeypatch.setitem(vars(runtime), "contact_cache_revision", revision)
+    payload = _serialize_definition(
+        addin_module,
+        monkeypatch,
+        replace(valid_harness, interfaces=interfaces),
+        addin_module.serialize_palette_state,
+    )
+
+    revision.assert_called_once()
+    assert [
+        contact["geometryRevision"]
+        for interface in payload["harnesses"][0]["interfaces"]
+        for contact in interface["contacts"]
+    ] == [17] * 6
+
+
+def test_palette_state_skips_contact_revision_without_contacts(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Leave contact document lookups out of harnesses without contacts.
+    """
+    revision = Mock()
+    runtime = importlib.import_module("cable_bundler.fusion.ui.runtime").runtime
+    monkeypatch.setitem(vars(runtime), "contact_cache_revision", revision)
+
+    _serialize_definition(
+        addin_module,
+        monkeypatch,
+        replace(valid_harness, interfaces=()),
+        addin_module.serialize_palette_state,
+    )
+
+    revision.assert_not_called()
+
+
 def test_palette_state_links_interfaces_by_resolved_contact_targets(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

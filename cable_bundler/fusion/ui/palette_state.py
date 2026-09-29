@@ -291,6 +291,12 @@ def serialize_palette_state(
     """
     gateway = _create_harness_gateway(application)
     results = load_harnesses(gateway)
+    has_contacts = any(
+        result.definition is not None
+        and any(interface.contacts for interface in result.definition.interfaces)
+        for result in results
+    )
+    contact_revision = _runtime.contact_cache_revision(application) if has_contacts else 0
     catalog = load_cable_material_catalog()
     design_type = getattr(adsk.fusion, "Design", None)
     design = (
@@ -471,7 +477,7 @@ def serialize_palette_state(
                                 "assignedName": contact.name,
                                 "pin": contact.pin,
                                 "orientationName": contact.orientation_name,
-                                "geometryRevision": _runtime.contact_cache_revision(application),
+                                "geometryRevision": contact_revision,
                             }
                             for contact in interface.contacts
                         ],
