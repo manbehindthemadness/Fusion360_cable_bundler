@@ -254,7 +254,7 @@ def test_palette_edit_waits_for_execute_and_releases_handlers(
     addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, action: str
 ) -> None:
     """
-    Queue without changing data, then group persistence and preview in execute.
+    Queue without changing data, then apply only required viewport work in execute.
     """
     document = object()
     definition = Mock(execute=Mock(return_value=True))
@@ -287,11 +287,54 @@ def test_palette_edit_waits_for_execute_and_releases_handlers(
     args = SimpleNamespace(executeFailed=False)
     cast(Mock, handlers[0]).notify(args)
     applied.assert_called_once_with(application, action, payload)
-    refreshed.assert_called_once_with(application, UUID(int=1), ensure_visible=False)
+    if action == "rename_pathway":
+        refreshed.assert_not_called()
+        application.activeViewport.refresh.assert_not_called()
+    else:
+        refreshed.assert_called_once_with(application, UUID(int=1), ensure_visible=False)
+        application.activeViewport.refresh.assert_called_once_with()
     assert not args.executeFailed
     cast(Mock, cleanup[0]).notify(SimpleNamespace())
     assert handlers[0] not in addin_module._runtime.handlers
     assert cleanup[0] not in addin_module._runtime.handlers
+
+
+@pytest.mark.parametrize(
+    "action",
+    (
+        "rename_cable_end_attachment",
+        "rename_cable_group",
+        "rename_harness",
+        "rename_junction",
+        "rename_standalone_end",
+    ),
+)
+def test_name_only_edit_skips_route_and_viewport_refresh(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+) -> None:
+    """
+    A persisted name change updates the palette without recomputing route geometry.
+    """
+    document = object()
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", Mock(return_value="Saved name."))
+    refreshed = Mock(return_value="")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", refreshed)
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps({"harnessId": str(UUID(int=1))})
+    args = SimpleNamespace(executeFailed=False)
+
+    addin_module._PaletteEditExecuteHandler((action, payload, document)).notify(args)
+
+    assert not args.executeFailed
+    refreshed.assert_not_called()
+    application.activeViewport.refresh.assert_not_called()
+    sent.assert_called_once_with(application, "Saved name.")
 
 
 # noinspection DuplicatedCode

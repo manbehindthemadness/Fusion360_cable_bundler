@@ -245,6 +245,7 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
         super().__init__()
         self.request = request
         self.clear_preview_after_destroy = False
+        self.execute_finished_at: float | None = None
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
@@ -283,7 +284,9 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             policy = _PALETTE_EDIT_POLICIES.get(action)
             if policy is None:
                 raise ValueError(f"Unsupported harness edit: {action}")
+            edit_started = perf_counter()
             notice = _apply_palette_edit(application, action, data)
+            edit_finished = perf_counter()
             if action in (
                 "pos_import_interface_contacts",
                 "geo_import_interface_contacts",
@@ -298,6 +301,8 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 "rename_interface",
             ):
                 _send_palette_state(application, notice)
+                _log_slow_palette_edit(action, edit_started, edit_finished)
+                self.execute_finished_at = perf_counter()
                 return
             payload = _read_palette_payload(data)
             harness_id = _read_payload_uuid(payload, "harnessId", "harness")
@@ -330,21 +335,38 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                         f"group{'s' if updated_count != 1 else ''}."
                     )
             warning = (
-                ""
-                if is_data_only_disconnect
-                else _refresh_active_preview(
+                _refresh_active_preview(
                     application,
                     harness_id,
                     ensure_visible=policy.ensure_preview_visible,
                 )
+                if policy.refresh_preview and not is_data_only_disconnect
+                else ""
             )
-            application.activeViewport.refresh()
+            if policy.refresh_preview:
+                application.activeViewport.refresh()
             _send_palette_state(application, f"{notice} {warning}".strip())
+            _log_slow_palette_edit(action, edit_started, edit_finished)
+            self.execute_finished_at = perf_counter()
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
             _runtime.last_command_error = str(error)
             _log_to_fusion(f"Harness command failed: {error}\n{traceback.format_exc()}")
+
+
+def _log_slow_palette_edit(action: str, started: float, applied_at: float) -> None:
+    """
+    Record slow edit persistence separately from subsequent preview and palette work.
+    """
+    finished = perf_counter()
+    if finished - started < 0.25:
+        return
+    _log_to_fusion(
+        f"Harness Builder slow edit {action}: "
+        f"applyMs={(applied_at - started) * 1000:.0f} "
+        f"postMs={(finished - applied_at) * 1000:.0f}"
+    )
 
 
 class _PaletteEditCreatedHandler(adsk.core.CommandCreatedEventHandler):
@@ -386,6 +408,14 @@ class _PaletteEditDestroyedHandler(adsk.core.CommandEventHandler):
         """
         Clear a completed solid preview, then release the short-lived handlers.
         """
+        finished_at = self.execute_handler.execute_finished_at
+        if finished_at is not None:
+            elapsed = perf_counter() - finished_at
+            if elapsed >= 0.25:
+                _log_to_fusion(
+                    "Harness Builder slow command completion "
+                    f"{self.execute_handler.request[0]}: afterExecuteMs={elapsed * 1000:.0f}"
+                )
         if self.execute_handler.clear_preview_after_destroy:
             application = adsk.core.Application.get()
             _action, _data, document = self.execute_handler.request
@@ -671,6 +701,23 @@ def _dispatch_palette_action(
         return json.dumps({"ok": True})
     if action == "qa_diagram_observation":
         _runtime.last_diagram_qa_observation = read_diagram_qa_observation(data)
+        return json.dumps({"ok": True})
+    if action == "palette_performance":
+        payload = _read_palette_payload(data)
+        metrics = ("keyMs", "prepareMs", "libraryMs", "editorMs", "totalMs")
+        values = tuple(payload.get(metric) for metric in metrics)
+        if not isinstance(payload.get("rebuilt"), bool) or any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not 0 <= value <= 60000
+            for value in values
+        ):
+            raise ValueError("Palette performance report is malformed.")
+        _log_to_fusion(
+            "Harness Builder slow browser render: "
+            f"rebuilt={payload['rebuilt']} "
+            + " ".join(f"{metric}={value:.0f}" for metric, value in zip(metrics, values))
+        )
         return json.dumps({"ok": True})
     return json.dumps({"ok": False, "error": f"Unsupported palette action: {action}"})
 

@@ -19,10 +19,22 @@ class PaletteEditPolicy:
     apply_generated_materials: bool = False
     ensure_preview_visible: bool = False
     refresh_connection_geometry: bool = False
+    refresh_preview: bool = True
 
 
 _DEFAULT_EDIT_POLICY = PaletteEditPolicy()
 _PALETTE_EDIT_POLICIES = {action: _DEFAULT_EDIT_POLICY for action in _PALETTE_EDIT_NAMES}
+_NAME_ONLY_EDIT_POLICY = PaletteEditPolicy(refresh_preview=False)
+for _action in (
+    "rename_cable_end_attachment",
+    "rename_cable_group",
+    "rename_harness",
+    "rename_interface",
+    "rename_junction",
+    "rename_pathway",
+    "rename_standalone_end",
+):
+    _PALETTE_EDIT_POLICIES[_action] = _NAME_ONLY_EDIT_POLICY
 _PALETTE_EDIT_POLICIES["remove_pathway_gate"] = PaletteEditPolicy(reconcile_refines=True)
 _PALETTE_EDIT_POLICIES["remove_end_control"] = PaletteEditPolicy(reconcile_refines=True)
 _CONNECTION_GEOMETRY_EDIT_POLICY = PaletteEditPolicy(refresh_connection_geometry=True)

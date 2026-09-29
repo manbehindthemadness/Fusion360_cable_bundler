@@ -5,6 +5,7 @@ Autodesk Fusion component and attribute operations for harness creation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Optional, Protocol, cast
 from uuid import UUID
 
@@ -259,12 +260,24 @@ class FusionHarnessGateway:
         """
         Replace the serialized definition owned by one harness.
         """
+        started = perf_counter()
         component, _attribute = self._find_harness_component(harness_id)
+        found_at = perf_counter()
         updated_attribute = component.attributes.add(
             ATTRIBUTE_GROUP,
             DEFINITION_ATTRIBUTE_NAME,
             serialized_definition,
         )
+        written_at = perf_counter()
+        if written_at - started >= 0.25:
+            adsk.core.Application.log(
+                "Harness Builder slow definition write: "
+                f"findMs={(found_at - started) * 1000:.0f} "
+                f"attributeMs={(written_at - found_at) * 1000:.0f} "
+                f"bytes={len(serialized_definition)}",
+                adsk.core.LogLevels.InfoLogLevel,
+                adsk.core.LogTypes.FileLogType,
+            )
         if updated_attribute is None:
             raise RuntimeError("Fusion did not update the harness definition attribute.")
 

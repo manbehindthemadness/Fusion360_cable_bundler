@@ -352,6 +352,90 @@ def test_completed_native_command_still_reloads_contact_geometry(
     send.assert_called_once_with(application)
 
 
+@pytest.mark.parametrize(
+    "action",
+    (
+        "rename_cable_end_attachment",
+        "rename_cable_group",
+        "rename_harness",
+        "rename_junction",
+        "rename_pathway",
+        "rename_standalone_end",
+    ),
+)
+def test_completed_name_edit_preserves_contact_geometry_cache(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+) -> None:
+    """
+    Name-only commands do not make cached contact geometry stale.
+    """
+    core = sys.modules["adsk.core"]
+    monkeypatch.setitem(
+        vars(core), "CommandTerminationReason", SimpleNamespace(CompletedTerminationReason=1)
+    )
+    application = SimpleNamespace(activeProduct=object())
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda value: value)
+    )
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
+    monkeypatch.setattr(addin_module, "load_harnesses", Mock(return_value=()))
+    monkeypatch.setattr(addin_module, "reconcile_preview_history", Mock())
+    send = Mock()
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    clear = Mock()
+    monkeypatch.setitem(vars(addin_module), "clear_contact_resolutions", clear)
+    revision = addin_module._runtime.contact_geometry_revision
+
+    addin_module._HistoryChangedHandler().notify(
+        SimpleNamespace(
+            commandId=f"kev0_cable_bundler_harness_builder_{action}",
+            terminationReason=1,
+        )
+    )
+
+    assert addin_module._runtime.contact_geometry_revision == revision
+    clear.assert_not_called()
+    send.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("action", "expects_history_state"),
+    (("set_pathway_end_properties", False), ("load_brd_interface_contacts", True)),
+)
+def test_history_avoids_duplicate_palette_state_after_execute(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    expects_history_state: bool,
+) -> None:
+    """
+    Only commands without an execute-time state push serialize again on completion.
+    """
+    core = sys.modules["adsk.core"]
+    application = SimpleNamespace(activeProduct=object())
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    monkeypatch.setitem(
+        vars(sys.modules["adsk.fusion"]), "Design", SimpleNamespace(cast=lambda value: value)
+    )
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
+    monkeypatch.setattr(addin_module, "load_harnesses", Mock(return_value=()))
+    monkeypatch.setattr(addin_module, "reconcile_preview_history", Mock())
+    send = Mock()
+    monkeypatch.setattr(addin_module, "_send_palette_state", send)
+
+    addin_module._HistoryChangedHandler().notify(
+        SimpleNamespace(commandId=f"kev0_cable_bundler_harness_builder_{action}")
+    )
+
+    if expects_history_state:
+        send.assert_called_once_with(application)
+    else:
+        send.assert_not_called()
+
+
 def test_deferred_stripe_restore_event_registers_and_releases(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

@@ -27,6 +27,26 @@ function closeEditor() {
 
 let lastEditorStateKey = null;
 
+/** Report only visibly slow palette work without making rendering wait for Fusion. */
+function reportSlowPaletteRender(started, keyedAt, preparedAt, libraryAt, rebuilt) {
+  const finished = Date.now();
+  if (finished - started < 250 || !window.adsk?.fusionSendData) return;
+  const metrics = {
+    rebuilt,
+    keyMs: keyedAt - started,
+    prepareMs: preparedAt - keyedAt,
+    libraryMs: libraryAt - preparedAt,
+    editorMs: finished - libraryAt,
+    totalMs: finished - started,
+  };
+  try {
+    Promise.resolve(window.adsk.fusionSendData("palette_performance", JSON.stringify(metrics)))
+      .catch(() => {});
+  } catch (_error) {
+    // Diagnostics must not interrupt the editor.
+  }
+}
+
 /** Ignore notifications and contact revisions when deciding to rebuild the master editor. */
 function editorStateKey(state) {
   const { notice, theme, ...content } = state;
@@ -36,14 +56,21 @@ function editorStateKey(state) {
 }
 
 function render(state) {
+  const started = Date.now();
   const scrollTop = document.scrollingElement.scrollTop;
   const nextEditorStateKey = editorStateKey(state);
+  const keyedAt = Date.now();
   currentState = state;
   refreshInterfaceContacts();
   applyPaletteTheme(state.theme);
   appendNotice(state.notice);
-  if (lastEditorStateKey === nextEditorStateKey) return;
+  const preparedAt = Date.now();
+  if (lastEditorStateKey === nextEditorStateKey) {
+    reportSlowPaletteRender(started, keyedAt, preparedAt, preparedAt, false);
+    return;
+  }
   renderLibrary();
+  const libraryAt = Date.now();
   const selected = state.harnesses.find(
     (harness) => harnessKey(harness) === selectedHarnessKey,
   );
@@ -64,6 +91,7 @@ function render(state) {
   }
   lastEditorStateKey = editorStateKey(state);
   window.requestAnimationFrame(() => window.scrollTo(0, scrollTop));
+  reportSlowPaletteRender(started, keyedAt, preparedAt, libraryAt, true);
 }
 
 function appendNotice(message, isError = false) {

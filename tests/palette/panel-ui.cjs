@@ -62,6 +62,33 @@ test('unchanged Fusion state leaves the master diagram mounted', () => {
   assert.notEqual(context.ui.editor.children[0], master);
 });
 
+test('slow palette render reports bounded phase timings to Fusion', () => {
+  const { context } = palette();
+  const ticks = [0, 50, 100, 150, 400];
+  context.Date = { now: () => ticks.shift() };
+  const reports = [];
+  context.window.adsk = {
+    fusionSendData: (action, data) => {
+      reports.push({ action, metrics: JSON.parse(data) });
+      return Promise.resolve('{"ok":true}');
+    },
+  };
+
+  context.render({ harnesses: [], notice: '', theme: { mode: 'fixed', active: 'dark' } });
+
+  assert.deepEqual(reports, [{
+    action: 'palette_performance',
+    metrics: {
+      rebuilt: true,
+      keyMs: 50,
+      prepareMs: 50,
+      libraryMs: 50,
+      editorMs: 250,
+      totalMs: 400,
+    },
+  }]);
+});
+
 asyncTest('Auto hide setting persists and controls native picker requests', async () => {
   const preferences = new Map();
   const { context } = palette(new Map(), preferences);

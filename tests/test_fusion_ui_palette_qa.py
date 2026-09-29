@@ -5,12 +5,50 @@ Focused Fusion UI regressions for palette.
 from __future__ import annotations
 
 from tests.fusion_ui_support import (
+    Mock,
     SimpleNamespace,
     _PaletteLifecycleModule,
     json,
     pytest,
     sys,
 )
+
+
+def test_palette_logs_bounded_slow_browser_render(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A slow browser report records timings without including harness content.
+    """
+    application = object()
+    core_module = sys.modules["adsk.core"]
+    vars(core_module)["Application"] = SimpleNamespace(get=lambda: application)
+    vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
+    log = Mock()
+    monkeypatch.setattr(addin_module, "_log_to_fusion", log)
+    args = SimpleNamespace(
+        action="palette_performance",
+        data=json.dumps(
+            {
+                "rebuilt": True,
+                "keyMs": 25,
+                "prepareMs": 30,
+                "libraryMs": 40,
+                "editorMs": 410,
+                "totalMs": 505,
+            }
+        ),
+        returnData="",
+    )
+
+    addin_module._PaletteIncomingHandler().notify(args)
+
+    assert json.loads(args.returnData) == {"ok": True}
+    log.assert_called_once_with(
+        "Harness Builder slow browser render: "
+        "rebuilt=True keyMs=25 prepareMs=30 libraryMs=40 editorMs=410 totalMs=505"
+    )
 
 
 # noinspection DuplicatedCode

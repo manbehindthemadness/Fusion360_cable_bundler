@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 from dataclasses import asdict
+from time import perf_counter
 from typing import Any, Callable, Optional, cast
 from uuid import UUID, uuid4
 
@@ -55,6 +56,7 @@ from .runtime import _contact_document_identity, _contact_document_key
 from .runtime import runtime as _runtime
 from .support import (
     _create_harness_gateway,
+    _log_to_fusion,
 )
 
 
@@ -189,7 +191,18 @@ def _send_palette_state(
     palette = application.userInterface.palettes.itemById(PALETTE_ID)
     if palette is None:
         return
-    palette.sendInfoToHTML("state", serialize_palette_state(application, notice))
+    started = perf_counter()
+    serialized = serialize_palette_state(application, notice)
+    serialized_at = perf_counter()
+    palette.sendInfoToHTML("state", serialized)
+    sent_at = perf_counter()
+    if sent_at - started >= 0.25:
+        _log_to_fusion(
+            "Harness Builder slow palette state: "
+            f"serializeMs={(serialized_at - started) * 1000:.0f} "
+            f"sendMs={(sent_at - serialized_at) * 1000:.0f} "
+            f"bytes={len(serialized)}"
+        )
 
 
 def _harness_render_state(
@@ -289,6 +302,7 @@ def serialize_palette_state(
     """
     Serialize discovered harness summaries for the palette boundary.
     """
+    started = perf_counter()
     gateway = _create_harness_gateway(application)
     results = load_harnesses(gateway)
     has_contacts = any(
@@ -305,6 +319,12 @@ def serialize_palette_state(
         else None
     )
     length_units = _length_units_payload(design)
+    prepared_at = perf_counter()
+    route_seconds = 0.0
+    diameter_seconds = 0.0
+    connection_seconds = 0.0
+    render_seconds = 0.0
+    payload_seconds = 0.0
     harnesses: list[dict[str, object]] = []
     for result in results:
         definition = result.definition
@@ -319,7 +339,10 @@ def serialize_palette_state(
                 }
             )
             continue
+        phase_started = perf_counter()
         cable_groups, cable_group_route_error = _cable_group_payloads(definition)
+        route_seconds += perf_counter() - phase_started
+        phase_started = perf_counter()
         resolved_attachment_diameters = {
             attachment.attachment_id: definition.cable_end_attachment_diameter(
                 group, connection.connection_id, attachment.attachment_id
@@ -329,14 +352,20 @@ def serialize_palette_state(
             if connection.connection_id in group.connection_ids
             for attachment in connection.attachments
         }
+        diameter_seconds += perf_counter() - phase_started
+        phase_started = perf_counter()
         connected_interface_connections = _connected_interface_connections(
             definition, design, gateway
         )
+        connection_seconds += perf_counter() - phase_started
+        phase_started = perf_counter()
         has_route_preview, has_generated_solids, has_finalized_geometry = _harness_render_state(
             application,
             gateway,
             definition,
         )
+        render_seconds += perf_counter() - phase_started
+        phase_started = perf_counter()
         harnesses.append(
             {
                 "componentName": result.component_name,
@@ -510,6 +539,7 @@ def serialize_palette_state(
                 "validationMessages": result.validation_messages,
             }
         )
+        payload_seconds += perf_counter() - phase_started
     payload = {
         "catalog": {
             "insulationMaterials": list(catalog.insulation_materials),
@@ -524,7 +554,26 @@ def serialize_palette_state(
         "ok": True,
         "theme": _palette_theme_payload(application),
     }
-    return json.dumps(payload, sort_keys=True)
+    payload_built_at = perf_counter()
+    serialized = json.dumps(payload, sort_keys=True)
+    finished = perf_counter()
+    if finished - started >= 0.25:
+        measured_seconds = (
+            route_seconds + diameter_seconds + connection_seconds + render_seconds + payload_seconds
+        )
+        other_seconds = payload_built_at - prepared_at - measured_seconds
+        _log_to_fusion(
+            "Harness Builder slow state construction: "
+            f"prepareMs={(prepared_at - started) * 1000:.0f} "
+            f"routesMs={route_seconds * 1000:.0f} "
+            f"diametersMs={diameter_seconds * 1000:.0f} "
+            f"connectionsMs={connection_seconds * 1000:.0f} "
+            f"renderStateMs={render_seconds * 1000:.0f} "
+            f"membersMs={payload_seconds * 1000:.0f} "
+            f"otherMs={other_seconds * 1000:.0f} "
+            f"jsonMs={(finished - payload_built_at) * 1000:.0f}"
+        )
+    return serialized
 
 
 def _cable_group_payloads(

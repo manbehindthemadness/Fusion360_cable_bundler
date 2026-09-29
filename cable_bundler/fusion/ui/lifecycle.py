@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from time import perf_counter
 from typing import Optional
 
 # noinspection PyUnresolvedReferences
@@ -77,6 +78,11 @@ _VIEW_COMMAND_IDS = frozenset(
     )
 )
 _NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand", COMMAND_ID))
+_PALETTE_COMMANDS_WITH_EXECUTE_STATE = frozenset(
+    f"{COMMAND_ID}_{action}"
+    for action in _PALETTE_EDIT_NAMES
+    if action != "load_brd_interface_contacts"
+)
 _DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
 
 
@@ -151,6 +157,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                 return
             if args.commandId in _NON_MODEL_COMMAND_IDS or args.commandId.startswith("ViewCube"):
                 return
+            started = perf_counter()
             metadata_commands = {
                 f"{COMMAND_ID}_{action}"
                 for action in (
@@ -164,6 +171,12 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
                     "clear_interface_contact_values",
                     "rename_interface_contact_orientation",
                     "rename_interface",
+                    "rename_cable_end_attachment",
+                    "rename_cable_group",
+                    "rename_harness",
+                    "rename_junction",
+                    "rename_pathway",
+                    "rename_standalone_end",
                 )
             }
             metadata_commands.add(SELECT_INTERFACE_CONTACTS_COMMAND_ID)
@@ -175,13 +188,24 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             if design is None:
                 return
             results = load_harnesses(_create_harness_gateway(application))
+            loaded_at = perf_counter()
             definitions = tuple(
                 result.definition for result in results if result.definition is not None
             )
             reconcile_preview_history(design, definitions)
+            reconciled_at = perf_counter()
             if args.commandId in _HISTORY_NAVIGATION_COMMAND_IDS:
                 _request_deferred_stripe_restore(application)
-            _send_palette_state(application)
+            if args.commandId not in _PALETTE_COMMANDS_WITH_EXECUTE_STATE:
+                _send_palette_state(application)
+            finished = perf_counter()
+            if finished - started >= 0.25:
+                _log_to_fusion(
+                    f"Harness Builder slow history {args.commandId}: "
+                    f"loadMs={(loaded_at - started) * 1000:.0f} "
+                    f"reconcileMs={(reconciled_at - loaded_at) * 1000:.0f} "
+                    f"stateMs={(finished - reconciled_at) * 1000:.0f}"
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             _log_to_fusion(f"Could not synchronize harness history: {error}")
 
