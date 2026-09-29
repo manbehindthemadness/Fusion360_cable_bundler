@@ -25,6 +25,7 @@ from cable_bundler.domain import (
     DefinitionParseError,
     HarnessDefinition,
     JunctionDefinition,
+    OpenGuideAlignment,
     PullbackMode,
     RibbonGeometryType,
     dumps,
@@ -172,6 +173,53 @@ def test_end_shape_round_trip_and_schema_34_migration(
         del item["shape"]
     migrated = loads(json.dumps(payload))
     assert all(item.shape is CableEndShape.CLOSED for item in migrated.standalone_ends)
+
+
+def test_open_guide_alignments_round_trip_and_schema_36_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve per-guide positions and center open guides from older definitions.
+    """
+    connection = replace(
+        valid_harness.connections[0],
+        additional_entity_tokens=("second-open-guide",),
+        member_alignments=(OpenGuideAlignment.LEFT, OpenGuideAlignment.RIGHT),
+    )
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+        standalone_ends=(end, *valid_harness.standalone_ends[1:]),
+        cable_groups=(),
+    )
+    payload = json.loads(dumps(definition))
+    assert payload["connections"][0]["member_alignments"] == ["left", "right"]
+    assert loads(json.dumps(payload)) == definition
+
+    payload["schema_version"] = 36
+    del payload["connections"][0]["member_alignments"]
+    migrated = loads(json.dumps(payload))
+    assert migrated.connections[0].resolved_member_alignments == (
+        OpenGuideAlignment.CENTER,
+        OpenGuideAlignment.CENTER,
+    )
+
+
+@pytest.mark.parametrize("alignments", [["bad"], ["left", "right"]])
+def test_rejects_invalid_open_guide_alignments(
+    valid_harness: HarnessDefinition, alignments: list[str]
+) -> None:
+    """
+    Reject unknown values and arrays that do not match guide count.
+    """
+    payload = json.loads(dumps(valid_harness))
+    payload["connections"][0]["member_alignments"] = alignments
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path.startswith("$.connections[0].member_alignments")
 
 
 @pytest.mark.parametrize("shape", ["unknown", None, 1])

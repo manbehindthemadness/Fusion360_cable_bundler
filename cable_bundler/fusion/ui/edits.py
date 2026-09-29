@@ -48,7 +48,7 @@ from ...application import (
     switch_standalone_end,
 )
 from ...application.harness_edits import set_interpolation
-from ...domain import AutoTransitionPreset, PathwayEndpoint, RibbonGeometryType
+from ...domain import AutoTransitionPreset, OpenGuideAlignment, PathwayEndpoint, RibbonGeometryType
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
 from ..interface_contact_local_naming import name_interface_contact_locals
@@ -531,6 +531,13 @@ def _apply_property_edit(
         except ValueError as error:
             raise ValueError("Auto transition preset is not supported.") from error
         settings = parse_interpolation(payload.get("settings"), "settings")
+        raw_alignment = payload.get("guideAlignment")
+        try:
+            guide_alignment = (
+                OpenGuideAlignment(raw_alignment) if raw_alignment is not None else None
+            )
+        except (TypeError, ValueError) as error:
+            raise ValueError("Open guide alignment must be Left, Right, or Center.") from error
         set_interpolation(
             harness_id,
             target,
@@ -555,6 +562,7 @@ def _apply_property_edit(
                 else None
             ),
             auto_transition_preset=(auto_transition_preset if target == "defaults" else None),
+            guide_alignment=guide_alignment,
         )
         return "Saved interpolation options."
     if action == "set_cable_group_properties":

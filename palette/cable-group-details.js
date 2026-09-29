@@ -20,6 +20,7 @@ function renderCableEndRoutingControls(harness, connection, end) {
       member.interpolation,
       member.usesDefaults,
       member.memberId,
+      ...(end.shape === "open" ? [member.alignment || "center"] : []),
     ),
     highlight: () => highlightMember(
       harness, "connection", connection.connectionId, { memberIndex: member.index },

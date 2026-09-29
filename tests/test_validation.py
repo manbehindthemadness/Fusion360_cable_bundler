@@ -18,6 +18,7 @@ from cable_bundler.domain import (
     HarnessDefinition,
     JunctionDefinition,
     JunctionPathwayRelationship,
+    OpenGuideAlignment,
     PathwayDefinition,
     PathwayEndpoint,
     StandaloneEndDefinition,
@@ -50,6 +51,19 @@ def test_group_type_requires_matching_end_shapes(valid_harness: HarnessDefinitio
     mixed = replace(valid_harness, standalone_ends=(open_ends[0], valid_harness.standalone_ends[1]))
     issues = validate_harness(mixed)
     assert any(issue.code == "cable_group_shape_mismatch" for issue in issues)
+
+
+def test_closed_end_rejects_open_guide_alignment(valid_harness: HarnessDefinition) -> None:
+    """
+    Prevent a saved open-guide option from being applied to a closed profile.
+    """
+    connection = replace(valid_harness.connections[0], member_alignments=(OpenGuideAlignment.LEFT,))
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+    )
+
+    assert any(issue.code == "closed_end_alignment" for issue in validate_harness(definition))
 
 
 def test_rejects_an_empty_cable_group_system(

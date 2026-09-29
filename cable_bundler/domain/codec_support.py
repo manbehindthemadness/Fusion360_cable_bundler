@@ -17,6 +17,7 @@ from .model import (
     CableGroupType,
     ControlKind,
     InterpolationSettings,
+    OpenGuideAlignment,
     PathwayEndpoint,
     RibbonGeometryType,
     RoutingMode,
@@ -34,6 +35,7 @@ EnumType = TypeVar(
     CableGroupType,
     CableEndShape,
     RibbonGeometryType,
+    OpenGuideAlignment,
 )
 
 

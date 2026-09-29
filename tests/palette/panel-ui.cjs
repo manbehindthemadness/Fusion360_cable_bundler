@@ -399,6 +399,26 @@ test('closing junction configuration returns to its Cable Details parent', () =>
   assert.equal(context.document.body.querySelector('.cable-group-details-popup').open, true);
 });
 
+test('open end routing controls pass each guide alignment to options', () => {
+  const { context } = palette();
+  const definition = harness();
+  const calls = [];
+  definition.standaloneEnds[0].shape = 'open';
+  definition.connections[0].members = [{
+    index: 0, memberId: 'guide-1', alignment: 'left',
+    interpolation: { approach_mm: null, departure_mm: null },
+    usesDefaults: true, hasLinkedGeometry: true,
+  }];
+  context.openInterpolationOptions = (...args) => calls.push(args);
+
+  context.openCableEndRoutingPopup(definition, 'a1');
+
+  const routing = context.document.body.querySelector('.cable-end-routing-popup');
+  const options = routing.querySelector('.options-button');
+  options.events.click();
+  assert.equal(calls[0].at(-1), 'left');
+});
+
 test('generation defaults expose persisted generation preferences', () => {
   const { context } = palette();
   const definition = harness();
@@ -435,6 +455,43 @@ test('generation defaults expose persisted generation preferences', () => {
   assert.equal(relaxationHeading.children[0].textContent, 'Automatic transition relaxation');
   assert.equal(relaxationHeading.children[1].textContent, 'Relaxed');
   assert.equal(endpointLabels.length, 0);
+});
+
+asyncTest('open guide options place alignment below interpolation controls', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openInterpolationOptions(
+    definition, 'end', 'a1', 'Guide 1',
+    { approach_mm: 1, departure_mm: 2 }, false, 'guide-1', 'right',
+  );
+
+  const dialog = context.document.body.querySelector('.cable-options');
+  const form = dialog.querySelector('form');
+  const alignmentLabel = descendants(
+    form, (node) => node.tag === 'label' && node.textContent === 'Open guide alignment',
+  )[0];
+  const alignment = alignmentLabel.querySelector('select');
+  const reset = descendants(form, (node) => node.tag === 'button'
+    && node.textContent === 'Use harness defaults')[0];
+  assert.ok(form.children.indexOf(alignmentLabel) > form.children.indexOf(reset));
+  assert.deepEqual(alignment.children.map((option) => option.textContent), [
+    'Left', 'Right', 'Center',
+  ]);
+  assert.equal(alignment.value, 'right');
+  reset.events.click();
+  assert.equal(alignment.value, 'right');
+  alignment.value = 'left';
+  await form.events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_interpolation');
+  assert.equal(calls[0].payload.guideAlignment, 'left');
+  assert.equal(calls[0].payload.memberId, 'guide-1');
 });
 
 asyncTest('routing measurements use the active design length units', async () => {

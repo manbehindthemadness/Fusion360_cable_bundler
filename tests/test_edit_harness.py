@@ -42,6 +42,7 @@ from cable_bundler.domain import (
     ControlStructure,
     HarnessDefinition,
     JunctionDefinition,
+    OpenGuideAlignment,
     PathwayEndpoint,
     RefineGeometry,
     RibbonGeometryType,
@@ -112,6 +113,80 @@ def test_appended_end_guides_must_match_saved_shape(
         shape=CableEndShape.OPEN,
     )
     assert updated.member_tokens == (connection.entity_token, "open-curve")
+
+
+def test_open_guide_alignment_follows_member_identity_through_edits(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save a guide's independent alignment and retain it when an earlier guide is removed.
+    """
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(
+        valid_harness, standalone_ends=(end, *valid_harness.standalone_ends[1:]), cable_groups=()
+    )
+    gateway = _recording_gateway(definition)
+    connection = definition.connections[0]
+    new_member_id = UUID(int=2102)
+    appended = append_end_guides(
+        definition.harness_id,
+        connection.connection_id,
+        ("second-open-guide",),
+        gateway,
+        id_factory=lambda: new_member_id,
+        shape=CableEndShape.OPEN,
+    )
+    assert appended.member_alignments == (
+        OpenGuideAlignment.CENTER,
+        OpenGuideAlignment.CENTER,
+    )
+    set_interpolation(
+        definition.harness_id,
+        "end",
+        definition.end_defaults,
+        gateway,
+        target_id=connection.connection_id,
+        member_id=new_member_id,
+        guide_alignment=OpenGuideAlignment.RIGHT,
+    )
+
+    stored = loads(gateway.serialized_definition).connections[0]
+    assert stored.member_ids == appended.member_ids
+    assert stored.resolved_member_alignments == (
+        OpenGuideAlignment.CENTER,
+        OpenGuideAlignment.RIGHT,
+    )
+
+    remove_end_guide(
+        definition.harness_id,
+        connection.connection_id,
+        appended.member_identities[0],
+        gateway,
+    )
+    remaining = loads(gateway.serialized_definition).connections[0]
+    assert remaining.member_ids == (new_member_id,)
+    assert remaining.member_alignments == (OpenGuideAlignment.RIGHT,)
+
+
+def test_closed_end_rejects_open_guide_alignment(valid_harness: HarnessDefinition) -> None:
+    """
+    Leave a closed end unchanged when a stale palette sends an open-guide setting.
+    """
+    gateway = _recording_gateway(valid_harness)
+    connection = valid_harness.connections[0]
+
+    with pytest.raises(ValueError, match="Only open"):
+        set_interpolation(
+            valid_harness.harness_id,
+            "end",
+            valid_harness.end_defaults,
+            gateway,
+            target_id=connection.connection_id,
+            member_id=connection.member_identities[0],
+            guide_alignment=OpenGuideAlignment.LEFT,
+        )
+
+    assert loads(gateway.serialized_definition) == valid_harness
 
 
 def test_removes_end_guides_and_controls_by_stable_identity(

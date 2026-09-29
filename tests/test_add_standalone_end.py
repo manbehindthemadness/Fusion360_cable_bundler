@@ -15,7 +15,14 @@ from cable_bundler.application import (
     StandaloneEndUpdateError,
     add_standalone_end,
 )
-from cable_bundler.domain import CableEndShape, HarnessDefinition, PathwayEndpoint, dumps, loads
+from cable_bundler.domain import (
+    CableEndShape,
+    HarnessDefinition,
+    OpenGuideAlignment,
+    PathwayEndpoint,
+    dumps,
+    loads,
+)
 from cable_bundler.domain.model import InterpolationSettings
 
 END_ID = UUID("86000000-0000-0000-0000-000000000001")
@@ -127,6 +134,10 @@ def test_adds_open_end_without_assigning_it_to_a_group(
     )
 
     assert result.standalone_end.shape is CableEndShape.OPEN
+    assert result.connection.member_alignments == (
+        OpenGuideAlignment.CENTER,
+        OpenGuideAlignment.CENTER,
+    )
     assert loads(gateway.serialized_definition).standalone_ends[-1] == result.standalone_end
 
 

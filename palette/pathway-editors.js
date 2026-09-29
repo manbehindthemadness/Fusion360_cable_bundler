@@ -69,7 +69,7 @@ function enableSequenceDrag(
 /** Open interpolation settings for harness defaults or one routing section. */
 function openInterpolationOptions(
   harness, target, targetId = null, name = "", settings = {}, useDefaults = false,
-  memberId = null,
+  memberId = null, guideAlignment = null,
 ) {
   if (!["defaults", "gate", "end"].includes(target)) {
     throw new TypeError(`Unsupported routing interpolation target: ${target}`);
@@ -208,6 +208,24 @@ function openInterpolationOptions(
     });
     form.append(reset);
   }
+  let alignmentSelect = null;
+  if (isEnd && guideAlignment !== null) {
+    const alignmentLabel = document.createElement("label");
+    alignmentSelect = document.createElement("select");
+    alignmentLabel.textContent = "Open guide alignment";
+    alignmentSelect.className = "filter";
+    [["left", "Left"], ["right", "Right"], ["center", "Center"]].forEach(
+      ([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        alignmentSelect.append(option);
+      },
+    );
+    alignmentSelect.value = guideAlignment;
+    alignmentLabel.append(alignmentSelect);
+    form.append(alignmentLabel);
+  }
   const values = (inputs) => Object.fromEntries(Object.entries(inputs).map(([key, input]) => (
     [
       key,
@@ -228,6 +246,7 @@ function openInterpolationOptions(
         target,
         targetId,
         ...(memberId ? { memberId } : {}),
+        ...(alignmentSelect ? { guideAlignment: alignmentSelect.value } : {}),
         useDefaults,
         settings: values(primary),
         ...(ends ? { endDefaults: values(ends), applyExisting: applyExisting.checked } : {}),

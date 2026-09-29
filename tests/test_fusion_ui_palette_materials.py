@@ -395,6 +395,45 @@ def test_interpolation_bridge_persists_selected_target(
         assert saved.controls == valid_harness.controls
 
 
+def test_interpolation_bridge_persists_open_guide_alignment(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save the open guide's alignment alongside its interpolation values.
+    """
+    from cable_bundler.domain import CableEndShape, OpenGuideAlignment
+
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(
+        valid_harness,
+        standalone_ends=(end, *valid_harness.standalone_ends[1:]),
+        cable_groups=(),
+    )
+    gateway = Mock(read_harness_definition=Mock(return_value=dumps(definition)))
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    connection = definition.connections[0]
+
+    addin_module._apply_palette_edit(
+        object(),
+        "set_interpolation",
+        json.dumps(
+            {
+                "harnessId": str(definition.harness_id),
+                "target": "end",
+                "targetId": str(connection.connection_id),
+                "memberId": str(connection.member_identities[0]),
+                "settings": {"approach_mm": 2, "departure_mm": None},
+                "guideAlignment": "left",
+            }
+        ),
+    )
+
+    saved = loads(gateway.replace_harness_definition.call_args.args[1])
+    assert saved.connections[0].member_alignments == (OpenGuideAlignment.LEFT,)
+
+
 def test_junction_relationship_bridge_persists_endpoint_list(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

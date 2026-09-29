@@ -11,8 +11,10 @@ from uuid import UUID
 
 from ...domain import (
     AutoTransitionPreset,
+    CableEndShape,
     CableMaterialSettings,
     Metadata,
+    OpenGuideAlignment,
 )
 from ...domain.model import InterpolationSettings
 from .support import persist_definition, read_definition
@@ -104,6 +106,7 @@ def set_interpolation(
     use_defaults: bool = False,
     minimum_clearance_mm: Optional[float] = None,
     auto_transition_preset: Optional[AutoTransitionPreset] = None,
+    guide_alignment: Optional[OpenGuideAlignment] = None,
 ) -> None:
     """
     Save section controls or creation defaults in one reversible metadata edit.
@@ -111,6 +114,10 @@ def set_interpolation(
     Optionally apply both presets to existing sections in the same transaction.
     """
     original, definition = read_definition(harness_id, gateway)
+    if guide_alignment is not None and not isinstance(guide_alignment, OpenGuideAlignment):
+        raise ValueError("Open guide alignment must be Left, Right, or Center.")
+    if guide_alignment is not None and (target != "end" or member_id is None):
+        raise ValueError("Open guide alignment requires one cable-end guide.")
     if target == "defaults":
         if end_defaults is None:
             raise ValueError("Both gate and end defaults are required.")
@@ -177,6 +184,11 @@ def set_interpolation(
         else:
             if member_id not in connection.member_identities:
                 raise ValueError("Selected end member no longer exists.")
+            if guide_alignment is not None and not any(
+                end.connection_id == target_id and end.shape is CableEndShape.OPEN
+                for end in definition.standalone_ends
+            ):
+                raise ValueError("Only open cable ends can set guide alignment.")
             edited = replace(
                 connection,
                 interpolation=definition.end_defaults if use_defaults else connection.interpolation,
@@ -186,6 +198,17 @@ def set_interpolation(
                         connection.member_identities,
                         connection.member_interpolations or (None,) * len(connection.member_tokens),
                     )
+                ),
+                member_alignments=(
+                    tuple(
+                        guide_alignment if identity == member_id else previous
+                        for identity, previous in zip(
+                            connection.member_identities,
+                            connection.resolved_member_alignments,
+                        )
+                    )
+                    if guide_alignment is not None
+                    else connection.member_alignments
                 ),
             )
         updated = replace(

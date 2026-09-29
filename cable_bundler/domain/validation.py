@@ -473,6 +473,9 @@ def _validate_standalone_ends(
     Validate cable-end placement without requiring a cable assignment.
     """
     connection_ids = {connection.connection_id for connection in definition.connections}
+    connections_by_id = {
+        connection.connection_id: connection for connection in definition.connections
+    }
     pathway_ids = {pathway.pathway_id for pathway in definition.pathways}
     controls = {control.control_id: control for control in definition.controls}
     pathway_control_ids = {
@@ -541,6 +544,19 @@ def _validate_standalone_ends(
     seen_connections: dict[UUID, str] = {}
     for index, end in enumerate(definition.standalone_ends):
         path = f"standalone_ends[{index}]"
+        connection = connections_by_id.get(end.connection_id)
+        if (
+            end.shape is CableEndShape.CLOSED
+            and connection is not None
+            and connection.member_alignments
+        ):
+            issues.append(
+                ValidationIssue(
+                    "closed_end_alignment",
+                    f"{path}.shape",
+                    "Only open cable-end guides can have Left, Right, or Center alignment.",
+                )
+            )
         _validate_reference(
             end.connection_id,
             connection_ids,

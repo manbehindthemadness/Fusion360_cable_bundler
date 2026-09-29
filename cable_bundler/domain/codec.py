@@ -50,6 +50,7 @@ from .model import (
     InterfaceTargetKind,
     JunctionDefinition,
     JunctionPathwayRelationship,
+    OpenGuideAlignment,
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
@@ -107,12 +108,13 @@ def loads(serialized: str) -> HarnessDefinition:
         33,
         34,
         35,
+        36,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 35 are migratable)",
+            "(schemas 12 through 36 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -241,6 +243,11 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                         ]
                     }
                     if connection.member_interpolations
+                    else {}
+                ),
+                **(
+                    {"member_alignments": [item.value for item in connection.member_alignments]}
+                    if connection.member_alignments
                     else {}
                 ),
                 **(
@@ -495,6 +502,23 @@ def _parse_connection(raw_value: object, path: str) -> Connection:
         raise DefinitionParseError(
             f"{path}.member_interpolations", "expected one setting per member"
         )
+    alignments = tuple(
+        _require_enum(
+            OpenGuideAlignment,
+            {"alignment": item},
+            "alignment",
+            f"{path}.member_alignments[{index}]",
+        )
+        for index, item in enumerate(
+            _require_list(
+                {"member_alignments": [], **value},
+                "member_alignments",
+                f"{path}.member_alignments",
+            )
+        )
+    )
+    if "member_alignments" in value and len(alignments) != len(members) + 1:
+        raise DefinitionParseError(f"{path}.member_alignments", "expected one alignment per member")
     connection = Connection(
         connection_id=_require_uuid(value, "connection_id", f"{path}.connection_id"),
         name=_require_str(value, "name", f"{path}.name"),
@@ -502,6 +526,7 @@ def _parse_connection(raw_value: object, path: str) -> Connection:
         additional_entity_tokens=tuple(members),
         member_ids=identities,
         member_interpolations=settings,
+        member_alignments=alignments,
         interpolation=parse_interpolation(value.get("interpolation", {}), f"{path}.interpolation"),
         metadata=_parse_metadata(value.get("metadata", []), f"{path}.metadata"),
         attachment=_parse_attachment(value.get("attachment"), f"{path}.attachment"),

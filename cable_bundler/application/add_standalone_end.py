@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from ..domain import (
     CableEndShape,
     Connection,
+    OpenGuideAlignment,
     PathwayEndpoint,
     StandaloneEndDefinition,
     dumps,
@@ -102,6 +103,11 @@ def add_standalone_end(
         entity_token=normalized_tokens[0],
         additional_entity_tokens=normalized_tokens[1:],
         interpolation=definition.end_defaults,
+        member_alignments=(
+            (OpenGuideAlignment.CENTER,) * len(normalized_tokens)
+            if shape is CableEndShape.OPEN
+            else ()
+        ),
     )
     standalone_end = StandaloneEndDefinition(connection_id, pathway_id, endpoint, shape=shape)
     updated = replace(

@@ -29,6 +29,7 @@ from ...application import (
 from ...domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
     CableGroupType,
     HarnessDefinition,
 )
@@ -379,6 +380,7 @@ def serialize_palette_state(
             )
             for connection in definition.connections
         }
+        end_shapes = {end.connection_id: end.shape for end in definition.standalone_ends}
         member_links_seconds += perf_counter() - phase_started
         phase_started = perf_counter()
         harnesses.append(
@@ -433,6 +435,16 @@ def serialize_palette_state(
                                 "interpolation": asdict(connection.member_settings[index]),
                                 "usesDefaults": not connection.member_interpolations
                                 or connection.member_interpolations[index] is None,
+                                **(
+                                    {
+                                        "alignment": connection.resolved_member_alignments[
+                                            index
+                                        ].value
+                                    }
+                                    if end_shapes.get(connection.connection_id)
+                                    is CableEndShape.OPEN
+                                    else {}
+                                ),
                                 "hasLinkedGeometry": member_links[connection.connection_id][index],
                             }
                             for index in range(len(connection.member_tokens))

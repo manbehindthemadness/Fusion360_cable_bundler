@@ -22,6 +22,7 @@ from cable_bundler.domain import (
     InterfaceTarget,
     InterfaceTargetKind,
     JunctionDefinition,
+    OpenGuideAlignment,
     RibbonGeometryType,
 )
 from tests.fusion_ui_support import (
@@ -485,6 +486,34 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
     group = state["harnesses"][0]["cableGroups"][0]
     assert group["ribbonLines"] == 9
     assert group["ribbonGeometry"] == "ffc"
+
+
+def test_palette_state_exposes_alignment_only_for_open_end_guides(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep the options selector scoped to open physical end guides.
+    """
+    connection = replace(
+        valid_harness.connections[0],
+        member_alignments=(OpenGuideAlignment.RIGHT,),
+    )
+    end = replace(valid_harness.standalone_ends[0], shape=CableEndShape.OPEN)
+    definition = replace(
+        valid_harness,
+        connections=(connection, *valid_harness.connections[1:]),
+        standalone_ends=(end, *valid_harness.standalone_ends[1:]),
+        cable_groups=(),
+    )
+    state = _serialize_definition(
+        addin_module, monkeypatch, definition, addin_module.serialize_palette_state
+    )
+
+    members = [item["members"][0] for item in state["harnesses"][0]["connections"]]
+    assert members[0]["alignment"] == "right"
+    assert "alignment" not in members[1]
 
 
 def test_palette_state_reports_attachment_and_connection_status(

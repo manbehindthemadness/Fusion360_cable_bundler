@@ -20,7 +20,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 36
+SCHEMA_VERSION = 37
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -58,6 +58,16 @@ class CableEndShape(str, Enum):
 
     CLOSED = "closed"
     OPEN = "open"
+
+
+class OpenGuideAlignment(str, Enum):
+    """
+    Retain the selected placement of an open cable-end guide.
+    """
+
+    LEFT = "left"
+    RIGHT = "right"
+    CENTER = "center"
 
 
 class ControlKind(str, Enum):
@@ -254,9 +264,9 @@ class CableEndAttachment:
 @dataclass(frozen=True)
 class Connection:
     """
-    Reference a physical connection profile in a Fusion design.
+    Reference a physical cable-end guide stack in a Fusion design.
 
-    Member identities and interpolation settings align with the full token sequence.
+    Member identities, interpolation, and open-guide alignments follow token order.
     """
 
     connection_id: UUID
@@ -269,12 +279,21 @@ class Connection:
     metadata: Metadata = ()
     attachment: Optional[CableEndAttachment] = None
     additional_attachments: tuple[CableEndAttachment, ...] = ()
+    member_alignments: tuple[OpenGuideAlignment, ...] = ()
 
     def __post_init__(self) -> None:
         """
         Require unambiguous searchable cable-end metadata.
         """
         _validate_metadata(self.metadata, "Cable-end metadata")
+        if not isinstance(self.member_alignments, tuple) or (
+            self.member_alignments
+            and (
+                len(self.member_alignments) != len(self.member_tokens)
+                or any(not isinstance(item, OpenGuideAlignment) for item in self.member_alignments)
+            )
+        ):
+            raise ValueError("Open end guide alignments must match the ordered guide stack.")
         if not isinstance(self.additional_attachments, tuple) or any(
             not isinstance(item, CableEndAttachment) for item in self.additional_attachments
         ):
@@ -333,6 +352,13 @@ class Connection:
         return tuple(
             item if item is not None else self.interpolation for item in self.member_interpolations
         ) or (self.interpolation,) * len(self.member_tokens)
+
+    @property
+    def resolved_member_alignments(self) -> tuple[OpenGuideAlignment, ...]:
+        """
+        Treat legacy open guides without saved alignment as centered.
+        """
+        return self.member_alignments or (OpenGuideAlignment.CENTER,) * len(self.member_tokens)
 
     @property
     def member_identities(self) -> tuple[UUID, ...]:

@@ -14,6 +14,7 @@ from ...domain import (
     ControlKind,
     ControlStructure,
     Metadata,
+    OpenGuideAlignment,
     PathwayEndpoint,
     RefineGeometry,
     StandaloneEndDefinition,
@@ -85,6 +86,12 @@ def append_end_guides(
     member_interpolations = connection.member_interpolations
     if member_interpolations:
         member_interpolations = (*member_interpolations, *(None for _ in normalized_tokens))
+    member_alignments = connection.member_alignments
+    if shape is CableEndShape.OPEN:
+        member_alignments = (
+            *connection.resolved_member_alignments,
+            *(OpenGuideAlignment.CENTER for _ in normalized_tokens),
+        )
     updated_connection = replace(
         connection,
         additional_entity_tokens=(
@@ -93,6 +100,7 @@ def append_end_guides(
         ),
         member_ids=(*connection.member_identities, *new_member_ids),
         member_interpolations=member_interpolations,
+        member_alignments=member_alignments,
     )
     updated = replace(
         definition,
@@ -146,12 +154,22 @@ def remove_end_guide(
         if connection.member_interpolations
         else ()
     )
+    remaining_alignments = (
+        tuple(
+            alignment
+            for index, alignment in enumerate(connection.member_alignments)
+            if index != member_index
+        )
+        if connection.member_alignments
+        else ()
+    )
     updated_connection = replace(
         connection,
         entity_token=remaining_tokens[0],
         additional_entity_tokens=remaining_tokens[1:],
         member_ids=remaining_ids,
         member_interpolations=remaining_interpolations,
+        member_alignments=remaining_alignments,
     )
     updated = replace(
         definition,
