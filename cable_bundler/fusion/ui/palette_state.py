@@ -49,6 +49,7 @@ from ..interface_targets import resolve_interface_target
 from ..route_preview import has_route_preview_for_harness
 from .constants import PALETTE_ID
 from .constants import ROUTING_MODE_LABELS as _ROUTING_MODE_LABELS
+from .palette_geometry import PaletteEntityLookup
 from .payloads import (
     _read_palette_payload,
 )
@@ -92,7 +93,7 @@ def _contact_palette_cache_scope(
 
 def _attachment_payload(
     design: Optional[adsk.fusion.Design],
-    gateway: Any,
+    lookup: PaletteEntityLookup,
     attachment: CableEndAttachment,
     resolved_diameter_mm: Optional[float] = None,
 ) -> dict[str, object]:
@@ -100,16 +101,17 @@ def _attachment_payload(
     Serialize one independently addressable cable-end connection node.
     """
     connected = (
-        resolve_attachment_target(design, attachment) is not None
+        resolve_attachment_target(design, attachment, find_entities=lookup.find_entities)
+        is not None
         if design is not None
-        else attachment.has_target and gateway.is_entity_token_resolvable(attachment.entity_token)
+        else attachment.has_target and lookup.is_resolvable(attachment.entity_token)
     )
     shielding_target = attachment.shielding_target
     shielding_connected = (
-        resolve_attachment_target(design, shielding_target) is not None
+        resolve_attachment_target(design, shielding_target, find_entities=lookup.find_entities)
+        is not None
         if design is not None and shielding_target is not None
-        else shielding_target is not None
-        and gateway.is_entity_token_resolvable(shielding_target.entity_token)
+        else shielding_target is not None and lookup.is_resolvable(shielding_target.entity_token)
     )
     return {
         "attachmentId": str(attachment.attachment_id),
@@ -118,7 +120,7 @@ def _attachment_payload(
             if attachment.parent_attachment_id is not None
             else None
         ),
-        "name": attachment_display_name(design, attachment),
+        "name": attachment_display_name(design, attachment, find_entities=lookup.find_entities),
         "nameOverride": attachment.name,
         "pinNumber": attachment.pin_number,
         "targetKind": attachment.target_kind.value if attachment.target_kind is not None else None,
@@ -129,7 +131,9 @@ def _attachment_payload(
             if shielding_target is None
             else {
                 "targetKind": shielding_target.target_kind.value,
-                "name": attachment_display_name(design, shielding_target),
+                "name": attachment_display_name(
+                    design, shielding_target, find_entities=lookup.find_entities
+                ),
                 "connected": shielding_connected,
             }
         ),
@@ -142,7 +146,7 @@ def _attachment_payload(
 def _connected_interface_connections(
     definition: HarnessDefinition,
     design: Optional[adsk.fusion.Design],
-    gateway: Any,
+    lookup: PaletteEntityLookup,
 ) -> dict[UUID, tuple[UUID, ...]]:
     """
     Project resolved contact-target matches without adding a persisted relationship.
@@ -168,9 +172,10 @@ def _connected_interface_connections(
             if not interface_ids or not attachment.has_target:
                 continue
             resolved = (
-                resolve_attachment_target(design, attachment) is not None
+                resolve_attachment_target(design, attachment, find_entities=lookup.find_entities)
+                is not None
                 if design is not None
-                else gateway.is_entity_token_resolvable(attachment.entity_token)
+                else lookup.is_resolvable(attachment.entity_token)
             )
             if resolved:
                 matched.update(interface_ids)
@@ -319,6 +324,7 @@ def serialize_palette_state(
         else None
     )
     length_units = _length_units_payload(design)
+    lookup = PaletteEntityLookup(design, gateway)
     prepared_at = perf_counter()
     route_seconds = 0.0
     diameter_seconds = 0.0
@@ -356,7 +362,7 @@ def serialize_palette_state(
         diameter_seconds += perf_counter() - phase_started
         phase_started = perf_counter()
         connected_interface_connections = _connected_interface_connections(
-            definition, design, gateway
+            definition, design, lookup
         )
         connection_seconds += perf_counter() - phase_started
         phase_started = perf_counter()
@@ -369,7 +375,7 @@ def serialize_palette_state(
         phase_started = perf_counter()
         member_links = {
             connection.connection_id: tuple(
-                gateway.is_entity_token_resolvable(token) for token in connection.member_tokens
+                lookup.is_resolvable(token) for token in connection.member_tokens
             )
             for connection in definition.connections
         }
@@ -401,7 +407,7 @@ def serialize_palette_state(
                         "attachment": (
                             _attachment_payload(
                                 design,
-                                gateway,
+                                lookup,
                                 connection.attachment,
                                 resolved_attachment_diameters.get(
                                     connection.attachment.attachment_id
@@ -413,7 +419,7 @@ def serialize_palette_state(
                         "attachments": [
                             _attachment_payload(
                                 design,
-                                gateway,
+                                lookup,
                                 attachment,
                                 resolved_attachment_diameters.get(attachment.attachment_id),
                             )
@@ -444,7 +450,7 @@ def serialize_palette_state(
                         "hasLinkedGeometry": (
                             control.refine_geometry is not None
                             if control.kind.value == "refine"
-                            else gateway.is_entity_token_resolvable(control.entity_token)
+                            else lookup.is_resolvable(control.entity_token)
                         ),
                         "displayRadiusMm": (
                             control.refine_geometry.display_radius_mm
@@ -500,7 +506,10 @@ def serialize_palette_state(
                             {
                                 "kind": target.kind.value,
                                 "hasLinkedGeometry": design is not None
-                                and resolve_interface_target(design, target) is not None,
+                                and resolve_interface_target(
+                                    design, target, find_entities=lookup.find_entities
+                                )
+                                is not None,
                             }
                             for target in interface.targets
                         ],

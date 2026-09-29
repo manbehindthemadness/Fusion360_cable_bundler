@@ -210,6 +210,61 @@ def test_palette_state_links_interfaces_by_resolved_contact_targets(
     ]
 
 
+def test_palette_state_resolves_shared_tokens_once_per_snapshot(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Reuse Fusion lookups across contact matches, attachments, and member status.
+    """
+    token = valid_harness.connections[0].member_tokens[0]
+    attachment = CableEndAttachment(
+        AttachmentTargetKind.CONSTRUCTION_POINT,
+        token,
+        "Connection point",
+        attachment_id=UUID(int=915),
+    )
+    interface = InterfaceDefinition(
+        UUID(int=916),
+        "Connector",
+        (InterfaceTarget(InterfaceTargetKind.BODY, token),),
+        (InterfaceContact(UUID(int=917), AttachmentTargetKind.CONSTRUCTION_POINT, token),),
+    )
+    definition = replace(
+        valid_harness,
+        interfaces=(interface,),
+        connections=(
+            replace(valid_harness.connections[0], attachment=attachment),
+            valid_harness.connections[1],
+        ),
+    )
+    find_entities = Mock(return_value=())
+    design = SimpleNamespace(findEntityByToken=find_entities)
+    fusion_module = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(
+        vars(fusion_module), "Design", SimpleNamespace(cast=lambda _product: design)
+    )
+    interface_fusion = importlib.import_module("cable_bundler.fusion.interface_targets").adsk.fusion
+    for type_name in ("BRepBody", "Sketch", "Occurrence"):
+        monkeypatch.setattr(
+            interface_fusion, type_name, SimpleNamespace(cast=lambda _entity: None), raising=False
+        )
+    gateway = SimpleNamespace(is_entity_token_resolvable=Mock())
+    result = HarnessLoadResult("Harness_001", definition, None, ())
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+    application = SimpleNamespace(activeProduct=design)
+
+    first = json.loads(addin_module.serialize_palette_state(application, ""))
+    assert first["harnesses"][0]["connections"][0]["hasLinkedGeometry"] is False
+    assert [args.args[0] for args in find_entities.call_args_list].count(token) == 1
+    gateway.is_entity_token_resolvable.assert_not_called()
+
+    addin_module.serialize_palette_state(application, "")
+    assert [args.args[0] for args in find_entities.call_args_list].count(token) == 2
+
+
 def test_contact_palette_document_scope_survives_save_while_cache_scope_changes(
     addin_module: _PaletteLifecycleModule,
 ) -> None:

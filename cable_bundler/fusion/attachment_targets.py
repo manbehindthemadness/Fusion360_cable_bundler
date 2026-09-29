@@ -161,13 +161,19 @@ def attachment_target_name(entity: object, kind: AttachmentTargetKind) -> str:
 def resolve_attachment_target(
     design: adsk.fusion.Design,
     attachment: Union[CableEndAttachment, CableEndTarget],
+    *,
+    find_entities: Optional[Callable[[str], tuple[object, ...]]] = None,
 ) -> Optional[object]:
     """
     Resolve the saved token only when it still identifies the expected entity kind.
     """
     if not attachment.has_target:
         return None
-    entities = design.findEntityByToken(attachment.entity_token) or ()
+    entities = (
+        find_entities(attachment.entity_token)
+        if find_entities is not None
+        else design.findEntityByToken(attachment.entity_token) or ()
+    )
     return next(
         (entity for entity in entities if attachment_target_kind(entity) is attachment.target_kind),
         None,
@@ -177,13 +183,19 @@ def resolve_attachment_target(
 def attachment_display_name(
     design: Optional[adsk.fusion.Design],
     attachment: Union[CableEndAttachment, CableEndTarget],
+    *,
+    find_entities: Optional[Callable[[str], tuple[object, ...]]] = None,
 ) -> str:
     """
     Resolve a live inherited name while retaining the saved fallback when disconnected.
     """
     if attachment.name.strip():
         return attachment.name.strip()
-    entity = resolve_attachment_target(design, attachment) if design is not None else None
+    entity = (
+        resolve_attachment_target(design, attachment, find_entities=find_entities)
+        if design is not None
+        else None
+    )
     return (
         attachment_target_name(entity, attachment.target_kind)
         if entity is not None and attachment.target_kind is not None
