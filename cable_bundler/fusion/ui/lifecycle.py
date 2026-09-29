@@ -36,6 +36,7 @@ from .commands.refines import (
     reconcile_active_refines,
 )
 from .constants import (
+    ADD_END_COMMAND_ID,
     COMMAND_ID,
     COMMAND_RESOURCE_FOLDER,
     PALETTE_ID,
@@ -77,12 +78,14 @@ _VIEW_COMMAND_IDS = frozenset(
         "ClearSelectionCommand",
     )
 )
-_NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(("ScriptsManagerCommand", COMMAND_ID))
+_NON_MODEL_COMMAND_IDS = _VIEW_COMMAND_IDS | frozenset(
+    ("AutoSaveFilesCommand", "ScriptsManagerCommand", COMMAND_ID)
+)
 _PALETTE_COMMANDS_WITH_EXECUTE_STATE = frozenset(
     f"{COMMAND_ID}_{action}"
     for action in _PALETTE_EDIT_NAMES
     if action != "load_brd_interface_contacts"
-)
+) | frozenset((ADD_END_COMMAND_ID,))
 _DEFERRED_STRIPE_RESTORE_EVENT_ID = f"{COMMAND_ID}_deferred_stripe_restore"
 
 
@@ -181,6 +184,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             }
             metadata_commands.add(SELECT_INTERFACE_CONTACTS_COMMAND_ID)
             metadata_commands.add(SELECT_SOURCE_INTERFACE_COMMAND_ID)
+            metadata_commands.add(ADD_END_COMMAND_ID)
             if args.commandId not in metadata_commands:
                 _runtime.mark_contact_model_edit(application)
                 clear_contact_resolutions()
@@ -199,7 +203,7 @@ class _HistoryChangedHandler(adsk.core.ApplicationCommandEventHandler):
             if args.commandId not in _PALETTE_COMMANDS_WITH_EXECUTE_STATE:
                 _send_palette_state(application)
             finished = perf_counter()
-            if finished - started >= 0.25:
+            if _runtime.developer_mode_enabled and finished - started >= 0.25:
                 _log_to_fusion(
                     f"Harness Builder slow history {args.commandId}: "
                     f"loadMs={(loaded_at - started) * 1000:.0f} "
@@ -468,6 +472,7 @@ def start(_context: object) -> None:
     """
     application = None
     user_interface = None
+    _runtime.developer_mode_enabled = False
     try:
         application = adsk.core.Application.get()
         user_interface = application.userInterface
@@ -539,6 +544,7 @@ def stop(_context: object) -> None:
     Remove the command and release retained Fusion event handlers.
     """
 
+    _runtime.developer_mode_enabled = False
     clear_contact_resolutions()
     try:
         application = adsk.core.Application.get()

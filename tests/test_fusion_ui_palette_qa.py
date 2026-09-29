@@ -27,6 +27,7 @@ def test_palette_logs_bounded_slow_browser_render(
     vars(core_module)["HTMLEventArgs"] = SimpleNamespace(cast=lambda value: value)
     log = Mock()
     monkeypatch.setattr(addin_module, "_log_to_fusion", log)
+    monkeypatch.setitem(vars(addin_module._runtime), "developer_mode_enabled", False)
     args = SimpleNamespace(
         action="palette_performance",
         data=json.dumps(
@@ -44,6 +45,18 @@ def test_palette_logs_bounded_slow_browser_render(
 
     addin_module._PaletteIncomingHandler().notify(args)
 
+    assert json.loads(args.returnData) == {"ok": True}
+    log.assert_not_called()
+
+    mode_args = SimpleNamespace(
+        action="set_developer_mode",
+        data=json.dumps({"enabled": True}),
+        returnData="",
+    )
+    addin_module._PaletteIncomingHandler().notify(mode_args)
+    addin_module._PaletteIncomingHandler().notify(args)
+
+    assert json.loads(mode_args.returnData) == {"ok": True}
     assert json.loads(args.returnData) == {"ok": True}
     log.assert_called_once_with(
         "Harness Builder slow browser render: "

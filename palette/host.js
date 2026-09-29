@@ -30,7 +30,7 @@ let lastEditorStateKey = null;
 /** Report only visibly slow palette work without making rendering wait for Fusion. */
 function reportSlowPaletteRender(started, keyedAt, preparedAt, libraryAt, rebuilt) {
   const finished = Date.now();
-  if (finished - started < 250 || !window.adsk?.fusionSendData) return;
+  if (!developerModeEnabled || finished - started < 250 || !window.adsk?.fusionSendData) return;
   const metrics = {
     rebuilt,
     keyMs: keyedAt - started,
@@ -118,6 +118,7 @@ function updateNoticeEntry(entry) {
 
 function setDeveloperMode(enabled) {
   developerModeEnabled = enabled;
+  void send("set_developer_mode", { enabled }).catch(() => {});
   ui.developerMode.checked = enabled;
   ui.verboseDiagnostics.disabled = !enabled;
   writePreference(DEVELOPER_MODE_STORAGE_KEY, String(enabled));
@@ -656,5 +657,8 @@ window.fusionJavaScriptHandler = { handle(action, data) {
 }};
 if (typeof window.setInterval === "function") {
   window.setInterval(() => void pollFusionTheme(), 10000);
+}
+if (developerModeEnabled) {
+  void send("set_developer_mode", { enabled: true }).catch(() => {});
 }
 void refresh();

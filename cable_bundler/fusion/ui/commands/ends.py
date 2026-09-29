@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass
+from time import perf_counter
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -352,8 +353,10 @@ class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
         """
         application = adsk.core.Application.get()
         try:
+            started = perf_counter()
             inputs = args.command.commandInputs
             guides, candidate = _read_standalone_end_inputs(inputs, self._state)
+            selected_at = perf_counter()
             result = add_standalone_end(
                 self._state.harness_id,
                 guides,
@@ -361,8 +364,17 @@ class _AddStandaloneEndExecuteHandler(adsk.core.CommandEventHandler):
                 candidate.relationship.endpoint,
                 _create_harness_gateway(application),
             )
+            persisted_at = perf_counter()
             application.activeViewport.refresh()
             _send_palette_state(application, f"Created unassigned {result.connection.name}.")
+            finished = perf_counter()
+            if _runtime.developer_mode_enabled and finished - started >= 0.25:
+                _log_to_fusion(
+                    "Harness Builder slow add ending execute: "
+                    f"selectionMs={(selected_at - started) * 1000:.0f} "
+                    f"persistMs={(persisted_at - selected_at) * 1000:.0f} "
+                    f"refreshMs={(finished - persisted_at) * 1000:.0f}"
+                )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
@@ -384,12 +396,18 @@ class _AddStandaloneEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
         if harness_id is None:
             raise RuntimeError("No harness was selected for standalone-end creation.")
         application = adsk.core.Application.get()
+        started = perf_counter()
         design = _require_active_design(application)
         definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
+        loaded_at = perf_counter()
+        candidates = _standalone_end_candidates(definition, design)
+        candidates_at = perf_counter()
+        profile_entities = _harness_profile_entities(definition, design)
+        profiles_at = perf_counter()
         state = _AddStandaloneEndCommandState(
             harness_id,
-            _standalone_end_candidates(definition, design),
-            _harness_profile_entities(definition, design),
+            candidates,
+            profile_entities,
         )
         if not state.candidates:
             raise ValueError("No profile-backed pathway ends are available.")
@@ -436,6 +454,15 @@ class _AddStandaloneEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             validate,
             execute,
         )
+        finished = perf_counter()
+        if _runtime.developer_mode_enabled and finished - started >= 0.25:
+            _log_to_fusion(
+                "Harness Builder slow add ending setup: "
+                f"loadMs={(loaded_at - started) * 1000:.0f} "
+                f"candidatesMs={(candidates_at - loaded_at) * 1000:.0f} "
+                f"profilesMs={(profiles_at - candidates_at) * 1000:.0f} "
+                f"inputsMs={(finished - profiles_at) * 1000:.0f}"
+            )
 
 
 AddStandaloneEndCreatedHandler = _AddStandaloneEndCreatedHandler

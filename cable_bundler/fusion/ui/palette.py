@@ -360,7 +360,7 @@ def _log_slow_palette_edit(action: str, started: float, applied_at: float) -> No
     Record slow edit persistence separately from subsequent preview and palette work.
     """
     finished = perf_counter()
-    if finished - started < 0.25:
+    if not _runtime.developer_mode_enabled or finished - started < 0.25:
         return
     _log_to_fusion(
         f"Harness Builder slow edit {action}: "
@@ -411,7 +411,7 @@ class _PaletteEditDestroyedHandler(adsk.core.CommandEventHandler):
         finished_at = self.execute_handler.execute_finished_at
         if finished_at is not None:
             elapsed = perf_counter() - finished_at
-            if elapsed >= 0.25:
+            if _runtime.developer_mode_enabled and elapsed >= 0.25:
                 _log_to_fusion(
                     "Harness Builder slow command completion "
                     f"{self.execute_handler.request[0]}: afterExecuteMs={elapsed * 1000:.0f}"
@@ -702,6 +702,12 @@ def _dispatch_palette_action(
     if action == "qa_diagram_observation":
         _runtime.last_diagram_qa_observation = read_diagram_qa_observation(data)
         return json.dumps({"ok": True})
+    if action == "set_developer_mode":
+        enabled = _read_palette_payload(data).get("enabled")
+        if not isinstance(enabled, bool):
+            raise ValueError("Developer Mode must be enabled or disabled.")
+        _runtime.developer_mode_enabled = enabled
+        return json.dumps({"ok": True})
     if action == "palette_performance":
         payload = _read_palette_payload(data)
         metrics = ("keyMs", "prepareMs", "libraryMs", "editorMs", "totalMs")
@@ -713,11 +719,12 @@ def _dispatch_palette_action(
             for value in values
         ):
             raise ValueError("Palette performance report is malformed.")
-        _log_to_fusion(
-            "Harness Builder slow browser render: "
-            f"rebuilt={payload['rebuilt']} "
-            + " ".join(f"{metric}={value:.0f}" for metric, value in zip(metrics, values))
-        )
+        if _runtime.developer_mode_enabled:
+            _log_to_fusion(
+                "Harness Builder slow browser render: "
+                f"rebuilt={payload['rebuilt']} "
+                + " ".join(f"{metric}={value:.0f}" for metric, value in zip(metrics, values))
+            )
         return json.dumps({"ok": True})
     return json.dumps({"ok": False, "error": f"Unsupported palette action: {action}"})
 

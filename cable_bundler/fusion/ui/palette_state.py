@@ -196,7 +196,7 @@ def _send_palette_state(
     serialized_at = perf_counter()
     palette.sendInfoToHTML("state", serialized)
     sent_at = perf_counter()
-    if sent_at - started >= 0.25:
+    if _runtime.developer_mode_enabled and sent_at - started >= 0.25:
         _log_to_fusion(
             "Harness Builder slow palette state: "
             f"serializeMs={(serialized_at - started) * 1000:.0f} "
@@ -324,6 +324,7 @@ def serialize_palette_state(
     diameter_seconds = 0.0
     connection_seconds = 0.0
     render_seconds = 0.0
+    member_links_seconds = 0.0
     payload_seconds = 0.0
     harnesses: list[dict[str, object]] = []
     for result in results:
@@ -365,6 +366,14 @@ def serialize_palette_state(
             definition,
         )
         render_seconds += perf_counter() - phase_started
+        phase_started = perf_counter()
+        member_links = {
+            connection.connection_id: tuple(
+                gateway.is_entity_token_resolvable(token) for token in connection.member_tokens
+            )
+            for connection in definition.connections
+        }
+        member_links_seconds += perf_counter() - phase_started
         phase_started = perf_counter()
         harnesses.append(
             {
@@ -410,10 +419,7 @@ def serialize_palette_state(
                             )
                             for attachment in connection.attachments
                         ],
-                        "hasLinkedGeometry": all(
-                            gateway.is_entity_token_resolvable(token)
-                            for token in connection.member_tokens
-                        ),
+                        "hasLinkedGeometry": all(member_links[connection.connection_id]),
                         "members": [
                             {
                                 "index": index,
@@ -421,9 +427,9 @@ def serialize_palette_state(
                                 "interpolation": asdict(connection.member_settings[index]),
                                 "usesDefaults": not connection.member_interpolations
                                 or connection.member_interpolations[index] is None,
-                                "hasLinkedGeometry": gateway.is_entity_token_resolvable(token),
+                                "hasLinkedGeometry": member_links[connection.connection_id][index],
                             }
-                            for index, token in enumerate(connection.member_tokens)
+                            for index in range(len(connection.member_tokens))
                         ],
                     }
                     for connection in definition.connections
@@ -557,9 +563,14 @@ def serialize_palette_state(
     payload_built_at = perf_counter()
     serialized = json.dumps(payload, sort_keys=True)
     finished = perf_counter()
-    if finished - started >= 0.25:
+    if _runtime.developer_mode_enabled and finished - started >= 0.25:
         measured_seconds = (
-            route_seconds + diameter_seconds + connection_seconds + render_seconds + payload_seconds
+            route_seconds
+            + diameter_seconds
+            + connection_seconds
+            + render_seconds
+            + member_links_seconds
+            + payload_seconds
         )
         other_seconds = payload_built_at - prepared_at - measured_seconds
         _log_to_fusion(
@@ -569,6 +580,7 @@ def serialize_palette_state(
             f"diametersMs={diameter_seconds * 1000:.0f} "
             f"connectionsMs={connection_seconds * 1000:.0f} "
             f"renderStateMs={render_seconds * 1000:.0f} "
+            f"memberLinksMs={member_links_seconds * 1000:.0f} "
             f"membersMs={payload_seconds * 1000:.0f} "
             f"otherMs={other_seconds * 1000:.0f} "
             f"jsonMs={(finished - payload_built_at) * 1000:.0f}"

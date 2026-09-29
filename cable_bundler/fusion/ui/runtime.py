@@ -200,6 +200,7 @@ class UiRuntime:
     pending_palette_edit: PendingSlot[tuple[str, str, object]] = field(default_factory=PendingSlot)
     pending_native_dialog: PendingSlot[tuple[str, str]] = field(default_factory=PendingSlot)
     palette_restore_command_id: Optional[str] = None
+    developer_mode_enabled: bool = False
     last_command_error: str = ""
     contact_geometry_revision: int = 0
     contact_document_revisions: dict[tuple[str, int], int] = field(default_factory=dict)

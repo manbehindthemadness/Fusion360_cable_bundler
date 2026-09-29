@@ -280,6 +280,30 @@ def test_length_units_payload_uses_the_active_design_conversion(
     }
 
 
+def test_palette_state_resolves_each_connection_member_once(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Derive connection and member link status from one Fusion token lookup per member.
+    """
+    resolve = Mock(return_value=True)
+    gateway = SimpleNamespace(is_entity_token_resolvable=resolve)
+    result = HarnessLoadResult("Harness_001", valid_harness, None, ())
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+
+    payload = json.loads(addin_module.serialize_palette_state(object(), ""))
+
+    for connection in payload["harnesses"][0]["connections"]:
+        assert connection["hasLinkedGeometry"] is True
+        assert connection["members"][0]["hasLinkedGeometry"] is True
+    resolved_tokens = [call.args[0] for call in resolve.call_args_list]
+    assert resolved_tokens.count("fusion-start-token") == 1
+    assert resolved_tokens.count("fusion-end-token") == 1
+
+
 def test_palette_state_contains_complete_group_definition(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

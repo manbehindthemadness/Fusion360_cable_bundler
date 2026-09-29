@@ -251,6 +251,7 @@ def test_native_command_termination_does_not_create_an_undo_entry(
         "ClearSelectionCommand",
         "ViewCubeOrbitCommand",
         "ScriptsManagerCommand",
+        "AutoSaveFilesCommand",
         "kev0_cable_bundler_harness_builder",
     ),
 )
@@ -403,7 +404,11 @@ def test_completed_name_edit_preserves_contact_geometry_cache(
 
 @pytest.mark.parametrize(
     ("action", "expects_history_state"),
-    (("set_pathway_end_properties", False), ("load_brd_interface_contacts", True)),
+    (
+        ("set_pathway_end_properties", False),
+        ("load_brd_interface_contacts", True),
+        ("add_end", False),
+    ),
 )
 def test_history_avoids_duplicate_palette_state_after_execute(
     addin_module: _PaletteLifecycleModule,
@@ -425,15 +430,21 @@ def test_history_avoids_duplicate_palette_state_after_execute(
     monkeypatch.setattr(addin_module, "reconcile_preview_history", Mock())
     send = Mock()
     monkeypatch.setattr(addin_module, "_send_palette_state", send)
+    revision = addin_module._runtime.contact_geometry_revision
 
-    addin_module._HistoryChangedHandler().notify(
-        SimpleNamespace(commandId=f"kev0_cable_bundler_harness_builder_{action}")
+    command_id = (
+        "kev0_cable_bundler_add_end"
+        if action == "add_end"
+        else f"kev0_cable_bundler_harness_builder_{action}"
     )
+    addin_module._HistoryChangedHandler().notify(SimpleNamespace(commandId=command_id))
 
     if expects_history_state:
         send.assert_called_once_with(application)
     else:
         send.assert_not_called()
+    if action == "add_end":
+        assert addin_module._runtime.contact_geometry_revision == revision
 
 
 def test_deferred_stripe_restore_event_registers_and_releases(

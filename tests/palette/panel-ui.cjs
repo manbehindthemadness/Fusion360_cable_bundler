@@ -73,6 +73,7 @@ test('slow palette render reports bounded phase timings to Fusion', () => {
       return Promise.resolve('{"ok":true}');
     },
   };
+  context.setDeveloperMode(true);
 
   context.render({ harnesses: [], notice: '', theme: { mode: 'fixed', active: 'dark' } });
 
@@ -87,6 +88,20 @@ test('slow palette render reports bounded phase timings to Fusion', () => {
       totalMs: 400,
     },
   }]);
+});
+
+test('normal palette mode does not report slow render timings', () => {
+  const { context } = palette();
+  const ticks = [0, 50, 100, 150, 400];
+  context.Date = { now: () => ticks.shift() };
+  const reports = [];
+  context.window.adsk = {
+    fusionSendData: (action) => { reports.push(action); return Promise.resolve('{"ok":true}'); },
+  };
+
+  context.render({ harnesses: [], notice: '', theme: { mode: 'fixed', active: 'dark' } });
+
+  assert.deepEqual(reports, []);
 });
 
 asyncTest('Auto hide setting persists and controls native picker requests', async () => {
