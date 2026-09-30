@@ -675,7 +675,7 @@ def _connection_branch_routes(
                         controls,
                         frames,
                         cache,
-                        parent_side_point=parent_side_point,
+                        parent_side_point=None if ribbon_root else parent_side_point,
                     )
                     for index, attachment in enumerate(siblings)
                 )
@@ -720,7 +720,7 @@ def _connection_branch_routes(
                             controls,
                             frames,
                             cache,
-                            parent_side_point=parent_side_point,
+                            parent_side_point=None if ribbon_root else parent_side_point,
                         )
                     if not branch_frames:
                         continue

@@ -12,6 +12,7 @@ import adsk.fusion
 from ...application import CableGroupRouteLeg
 from ...domain import CableGroupType, HarnessDefinition
 from ...routing import RoutePreview
+from ...routing.geometry import difference, magnitude, unit
 from ..ribbon_geometry import ribbon_route_shape
 from .frames import ProfileFrame, connection_profile_frames
 
@@ -62,11 +63,18 @@ def ribbon_branch_guides(
                 line_index = int(attachment.pin_number) - 1
                 if not 0 <= line_index < group.ribbon_lines:
                     raise ValueError("A ribbon root pin is outside its line count.")
-                center = fitted.shape.lanes[line_index][0 if at_start else -1]
+                lane = fitted.shape.lanes[line_index]
+                if len(lane) < 2:
+                    raise ValueError("A connected ribbon line needs two fitted route samples.")
+                center = lane[0 if at_start else -1]
+                inside = lane[1 if at_start else -2]
+                inward = difference(inside, center)
+                if magnitude(inward) <= 1e-9:
+                    raise ValueError("A connected ribbon line has no usable end tangent.")
                 guides[group.cable_group_id, connection_id, attachment.attachment_id] = (
                     ProfileFrame(
                         center,
-                        profile.normal,
+                        unit(inward),
                         profile.u_direction,
                         profile.v_direction,
                     )

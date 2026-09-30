@@ -114,21 +114,24 @@ def test_ribbon_validation_requires_numbered_targets_and_one_line_per_root(
     assert "ribbon_connection_capacity_exceeded" in codes
 
 
-def test_branch_guide_uses_numbered_line_end_face(
+@pytest.mark.parametrize("at_start", [True, False])
+def test_branch_guide_uses_numbered_line_end_face_and_fitted_tangent(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    at_start: bool,
 ) -> None:
     """
-    Root branches begin at the matching lobe, not the ribbon centerline.
+    Root branches meet the matching lobe with its actual terminal angle.
     """
     from cable_bundler.application import CableGroupRouteLeg
     from cable_bundler.fusion.route_preview_parts import ribbon_branches
     from cable_bundler.fusion.route_preview_parts.frames import ProfileFrame
     from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+    from cable_bundler.routing.geometry import difference, unit
 
     del addin_module
-    base = valid_harness.connections[0]
+    base = valid_harness.connections[0 if at_start else 1]
     target = CableEndAttachment(
         AttachmentTargetKind.SKETCH_POINT,
         "target",
@@ -138,7 +141,12 @@ def test_branch_guide_uses_numbered_line_end_face(
     )
     definition = replace(
         valid_harness,
-        connections=(replace(base, attachment=target), valid_harness.connections[1]),
+        connections=tuple(
+            replace(connection, attachment=target)
+            if connection.connection_id == base.connection_id
+            else connection
+            for connection in valid_harness.connections
+        ),
         cable_groups=(replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON),),
     )
     start, end = Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0)
@@ -150,19 +158,19 @@ def test_branch_guide_uses_numbered_line_end_face(
         route.cable_id,
         group.cable_group_id,
         "Ribbon",
-        base.connection_id,
+        definition.connections[0].connection_id,
         definition.connections[1].connection_id,
         (),
         (),
     )
-    lane_end = Vector3(0.0, 4.0, 0.0)
+    lane = (Vector3(0.0, 4.0, 0.0), Vector3(8.0, 5.0, 0.0), Vector3(10.0, 6.0, 0.0))
     shape = SimpleNamespace(
         start_fit=object(),
         end_fit=object(),
-        lanes=((start, end), (start, end), (lane_end, end)),
+        lanes=((start, end), (start, end), lane),
     )
     profile = ProfileFrame(
-        start, Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, 1.0)
+        start, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0)
     )
     monkeypatch.setitem(
         vars(ribbon_branches), "ribbon_route_shape", lambda *_args: SimpleNamespace(shape=shape)
@@ -173,7 +181,82 @@ def test_branch_guide_uses_numbered_line_end_face(
 
     guides = ribbon_branches.ribbon_branch_guides(object(), definition, (leg,), (route,))
 
-    assert guides[group.cable_group_id, base.connection_id, target.attachment_id].origin == lane_end
+    guide = guides[group.cable_group_id, base.connection_id, target.attachment_id]
+    expected_center, inside = (lane[0], lane[1]) if at_start else (lane[-1], lane[-2])
+    assert guide.origin == expected_center
+    assert guide.normal == unit(difference(inside, expected_center))
+
+
+def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagrees(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    A banked lobe's inward tangent wins over the ribbon centerline side test.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames, solver
+    from cable_bundler.fusion.route_preview_parts.frames import ProfileFrame
+    from cable_bundler.routing import Vector3
+
+    del addin_module
+    target = CableEndAttachment(
+        AttachmentTargetKind.SKETCH_POINT,
+        "target",
+        "Target",
+        attachment_id=UUID(int=95),
+        pin_number="1",
+    )
+    connection = replace(valid_harness.connections[0], attachment=target)
+    group = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+        cable_groups=(group,),
+    )
+    guide = ProfileFrame(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        Vector3(0.0, 0.0, 1.0),
+    )
+    contact = replace(guide, origin=Vector3(-10.0, 0.0, 0.0))
+    monkeypatch.setitem(vars(solver), "connection_profile_frames", lambda *_args: (guide,))
+    monkeypatch.setattr(frames, "connection_attachment_frame", lambda *_args: contact)
+    tangents: list[tuple[Vector3, frozenset[int]]] = []
+
+    def capture_fairing(
+        route: object, normals: tuple[Vector3, ...], *_args: object, **kwargs: object
+    ) -> object:
+        """
+        Record the terminal tangent passed to branch fairing.
+        """
+        fixed = kwargs["fixed_normal_indices"]
+        assert isinstance(fixed, frozenset)
+        tangents.append((normals[-1], fixed))
+        return route
+
+    monkeypatch.setitem(vars(solver), "fair_route", capture_fairing)
+    routes, _legs = solver._connection_branch_routes(
+        object(),
+        definition,
+        {item.connection_id: item for item in definition.connections},
+        {},
+        {},
+        {},
+        definition.auto_transition_preset.span_fraction,
+        {
+            (group.cable_group_id, connection.connection_id): solver._BranchAnchor(
+                guide.origin, Vector3(-1.0, 0.0, 0.0)
+            )
+        },
+        ribbon_guides={
+            (group.cable_group_id, connection.connection_id, target.attachment_id): guide
+        },
+    )
+
+    assert len(routes) == 1
+    assert tangents == [(guide.normal, frozenset({1}))]
 
 
 def test_target_numbering_is_persisted_and_not_recomputed(
