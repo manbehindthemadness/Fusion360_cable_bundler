@@ -230,7 +230,11 @@ def apply_cable_group_materials(
                 _main_pullbacks_from_metadata(metadata)
             )
         }
-        expected_main_pullbacks = _expected_main_pullbacks(definition, group)
+        expected_main_pullbacks = (
+            {}
+            if group.group_type is CableGroupType.RIBBON
+            else _expected_main_pullbacks(definition, group)
+        )
         if stored_main_pullbacks.keys() != expected_main_pullbacks.keys() or any(
             not math.isclose(
                 stored_main_pullbacks[attachment_id][0],
@@ -257,7 +261,11 @@ def apply_cable_group_materials(
                 _length_mm,
             ) in _main_welds_from_metadata(metadata)
         }
-        expected_main_welds = _expected_main_welds(design, definition, group)
+        expected_main_welds = (
+            {}
+            if group.group_type is CableGroupType.RIBBON
+            else _expected_main_welds(design, definition, group)
+        )
         if stored_main_welds.keys() != expected_main_welds.keys() or any(
             not math.isclose(
                 stored_main_welds[attachment_id][0],
@@ -346,7 +354,14 @@ def apply_cable_group_materials(
         if group.group_type is CableGroupType.RIBBON:
             materials = definition.cable_group_materials(group)
             line_colors = group.resolved_ribbon_line_colors(materials.main_color)
-            body = occurrence.component.bRepBodies.item(0)
+            branches = connection_branches_from_metadata(metadata)
+            bodies = occurrence.component.bRepBodies
+            if bodies.count != 1 + sum(
+                branch.insulation_body_count + branch.pullback_body_count + branch.weld_body_count
+                for branch in branches
+            ):
+                raise RuntimeError("Generated ribbon has invalid branch body ownership.")
+            body = bodies.item(0)
             if body is None:
                 raise RuntimeError("Generated discrete ribbon has no solid body.")
             body.appearance = _cable_solid_services().cable_appearance(
@@ -365,6 +380,60 @@ def apply_cable_group_materials(
                         "Generated ribbon has invalid line-color identity."
                     ) from error
                 face.appearance = _cable_solid_services().cable_appearance(design, color)
+            raw_branches = metadata.get("connection_branches", [])
+            if not isinstance(raw_branches, list) or len(raw_branches) != len(branches):
+                raise RuntimeError("Generated ribbon has invalid branch metadata.")
+            body_index = 1
+            for branch, raw_branch in zip(branches, raw_branches):
+                branch_settings = _service("_attachment_materials")(
+                    definition, group, branch.attachment_id
+                )
+                owner = next(
+                    (
+                        attachment
+                        for connection in definition.connections
+                        if connection.connection_id in group.connection_ids
+                        for attachment in connection.attachments
+                        if attachment.attachment_id == branch.attachment_id
+                    ),
+                    None,
+                )
+                if owner is None:
+                    raise RuntimeError("Generated ribbon branch attachment no longer exists.")
+                if not isinstance(raw_branch, dict):
+                    raise RuntimeError("Generated ribbon has invalid branch metadata.")
+                line_number = raw_branch.get("ribbon_line_number")
+                if (
+                    isinstance(line_number, bool)
+                    or not isinstance(line_number, int)
+                    or not (1 <= line_number <= len(line_colors))
+                ):
+                    raise RuntimeError("Generated ribbon has invalid branch line identity.")
+                branch_color = (
+                    line_colors[line_number - 1]
+                    if owner.visual_overrides.main_color is None
+                    else branch_settings.main_color
+                )
+                for count, color, appearance in (
+                    (branch.insulation_body_count, branch_color, branch_settings.appearance),
+                    (
+                        branch.pullback_body_count,
+                        branch_settings.pullback.color,
+                        branch_settings.pullback.appearance,
+                    ),
+                    (
+                        branch.weld_body_count,
+                        branch_settings.weld.color,
+                        branch_settings.weld.appearance,
+                    ),
+                ):
+                    for _ in range(count):
+                        branch_body = bodies.item(body_index)
+                        if branch_body is not None:
+                            branch_body.appearance = _cable_solid_services().cable_appearance(
+                                design, color, appearance
+                            )
+                        body_index += 1
             metadata.update(material_metadata(materials))
             attribute.value = json.dumps(metadata, sort_keys=True)
             applied += 1

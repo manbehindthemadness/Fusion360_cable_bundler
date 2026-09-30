@@ -106,7 +106,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         dielectric_material="FEP",
         manufacturer="Branch maker",
         part_number="BR-01",
-        pin_number="B3",
+        pin_number="3",
     )
     stored = loads(gateway.serialized_definition)
     saved_attachment = stored.connections[0].attachments[1]
@@ -119,7 +119,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
     assert saved_attachment.visual_overrides.dielectric_material == "FEP"
     assert saved_attachment.visual_overrides.manufacturer == "Branch maker"
     assert saved_attachment.visual_overrides.part_number == "BR-01"
-    assert saved_attachment.pin_number == "B3"
+    assert saved_attachment.pin_number == "3"
 
     group = valid_harness.cable_groups[0]
     with pytest.raises(ValueError, match="cannot fit inside"):
@@ -160,7 +160,7 @@ def test_attaches_renames_and_removes_external_cable_end_target(
         attachment_id=second_attachment_id,
         name="Bulkhead socket",
         metadata=(("connector", "J1"),),
-        pin_number="B3",
+        pin_number="3",
         visual_overrides=saved_attachment.visual_overrides,
     )
     assert stored.cable_groups == valid_harness.cable_groups
@@ -222,11 +222,11 @@ def test_pin_numbers_belong_only_to_terminal_connections(
         child.attachment_id,
         (),
         gateway,
-        pin_number=" A2 ",
+        pin_number=" 2 ",
     )
     stored = loads(gateway.serialized_definition)
     assert stored.connections[0].attachments[0].pin_number is None
-    assert stored.connections[0].attachments[1].pin_number == "A2"
+    assert stored.connections[0].attachments[1].pin_number == "2"
 
     set_cable_end_attachment_shielding(
         definition.harness_id,
@@ -237,7 +237,7 @@ def test_pin_numbers_belong_only_to_terminal_connections(
         (),
         gateway,
     )
-    assert loads(gateway.serialized_definition).connections[0].attachments[1].pin_number == "A2"
+    assert loads(gateway.serialized_definition).connections[0].attachments[1].pin_number == "2"
     set_cable_end_attachment_shielding(
         definition.harness_id,
         connection.connection_id,

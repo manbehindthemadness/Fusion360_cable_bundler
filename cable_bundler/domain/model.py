@@ -200,9 +200,12 @@ class CableEndAttachment:
         if not isinstance(self.name, str):
             raise ValueError("Cable-end attachment name must be text.")
         if self.pin_number is not None and (
-            not isinstance(self.pin_number, str) or not self.pin_number.strip()
+            not isinstance(self.pin_number, str)
+            or not self.pin_number.isascii()
+            or not self.pin_number.isdecimal()
+            or int(self.pin_number) < 1
         ):
-            raise ValueError("Cable-end attachment pin number must be non-empty text or null.")
+            raise ValueError("Connection pin number must be a positive integer or null.")
         if not isinstance(self.parameters, tuple) or any(
             isinstance(value, bool)
             or not isinstance(value, (int, float))
@@ -795,6 +798,8 @@ class HarnessDefinition:
             group, connection_id, attachment_id
         )
         siblings = connection.attachment_children(attachment.parent_attachment_id)
+        if group.group_type is CableGroupType.RIBBON and attachment.parent_attachment_id is None:
+            return group.diameter_mm
         parent_diameter_mm = (
             group.diameter_mm
             if attachment.parent_attachment_id is None

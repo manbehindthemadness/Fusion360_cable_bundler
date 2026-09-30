@@ -609,6 +609,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         ribbon_lines=None,
         ribbon_geometry=None,
         ribbon_line_colors=None,
+        normalize_definition=save.call_args.kwargs["normalize_definition"],
     )
     assert notice == "Saved connected-cable properties."
 

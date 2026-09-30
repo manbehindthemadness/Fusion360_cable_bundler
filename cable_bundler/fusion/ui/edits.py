@@ -48,11 +48,18 @@ from ...application import (
     switch_standalone_end,
 )
 from ...application.harness_edits import set_interpolation
-from ...domain import AutoTransitionPreset, OpenGuideAlignment, PathwayEndpoint, RibbonGeometryType
+from ...domain import (
+    AutoTransitionPreset,
+    HarnessDefinition,
+    OpenGuideAlignment,
+    PathwayEndpoint,
+    RibbonGeometryType,
+)
 from ...domain.codec import parse_interpolation
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
 from ..interface_contact_local_naming import name_interface_contact_locals
 from ..interface_contact_projection_copy import copy_projected_interface_details
+from ..ribbon_connections import number_ribbon_connections
 from .payloads import (
     _read_harness_properties,
     _read_material_color,
@@ -84,6 +91,16 @@ _TOPOLOGY_ACTIONS = frozenset(
         "remove_cable_end_attachment",
     )
 )
+
+
+def _require_active_design(application: adsk.core.Application) -> adsk.fusion.Design:
+    """
+    Resolve the Fusion design needed to fit unnumbered ribbon targets.
+    """
+    design = adsk.fusion.Design.cast(application.activeProduct)
+    if design is None:
+        raise ValueError("Ribbon connection numbering requires an active Fusion design.")
+    return design
 
 
 def _apply_palette_edit(
@@ -267,7 +284,12 @@ def _apply_palette_edit(
     if action in _TOPOLOGY_ACTIONS:
         return _apply_topology_edit(action, payload, harness_id, gateway)
     if action == "save_cable_editor":
-        return _apply_route_editor_edit(payload, harness_id, gateway)
+        return _apply_route_editor_edit(
+            payload,
+            harness_id,
+            gateway,
+            application,
+        )
     if action == "save_attachment_associations":
         return _apply_attachment_association_edit(payload, harness_id, gateway)
     return _apply_property_edit(action, payload, harness_id, gateway)
@@ -277,6 +299,7 @@ def _apply_route_editor_edit(
     payload: dict[str, object],
     harness_id: UUID,
     gateway: HarnessEditGateway,
+    application: adsk.core.Application,
 ) -> str:
     """
     Parse and persist one complete Route Editor transaction.
@@ -341,6 +364,9 @@ def _apply_route_editor_edit(
             for connection_id in raw_deleted
         ),
         gateway,
+        normalize_definition=lambda candidate: number_ribbon_connections(
+            _require_active_design(application), candidate
+        ),
     )
     return "Saved Route Editor changes."
 
@@ -622,6 +648,9 @@ def _apply_property_edit(
             ribbon_lines=ribbon_lines,
             ribbon_geometry=ribbon_geometry,
             ribbon_line_colors=ribbon_line_colors,
+            normalize_definition=lambda candidate: number_ribbon_connections(
+                _require_active_design(adsk.core.Application.get()), candidate
+            ),
         )
         return "Saved connected-cable properties."
     if action == "set_harness_material_defaults":
@@ -721,9 +750,24 @@ def _apply_property_edit(
         attachment_id = _read_payload_uuid(payload, "attachmentId", "connection node")
         metadata = _read_metadata(payload.get("metadata", []), "Cable-end connection metadata")
         pin_edit = {"pin_number": payload["pinNumber"]} if "pinNumber" in payload else {}
+
+        def normalize(candidate: HarnessDefinition) -> HarnessDefinition:
+            """
+            Number any newly targeted ribbon roots in the same edit.
+            """
+            return number_ribbon_connections(
+                _require_active_design(adsk.core.Application.get()), candidate
+            )
+
         if property_overrides is None:
             set_cable_end_attachment_properties(
-                harness_id, connection_id, attachment_id, metadata, gateway, **pin_edit
+                harness_id,
+                connection_id,
+                attachment_id,
+                metadata,
+                gateway,
+                normalize_definition=normalize,
+                **pin_edit,
             )
         else:
             set_cable_end_attachment_properties(
@@ -740,6 +784,7 @@ def _apply_property_edit(
                 dielectric_material=property_overrides.dielectric_material,
                 manufacturer=property_overrides.manufacturer,
                 part_number=property_overrides.part_number,
+                normalize_definition=normalize,
                 **pin_edit,
             )
         return "Saved cable-end connection properties."
@@ -758,6 +803,9 @@ def _apply_property_edit(
             dielectric_material,
             _read_metadata(payload.get("metadata", []), "Cable-end connection metadata"),
             gateway,
+            normalize_definition=lambda candidate: number_ribbon_connections(
+                _require_active_design(adsk.core.Application.get()), candidate
+            ),
             **({"pin_number": payload["pinNumber"]} if "pinNumber" in payload else {}),
         )
         return "Saved cable-end connection shielding."

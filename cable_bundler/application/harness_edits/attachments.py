@@ -15,8 +15,10 @@ from ...domain import (
     AttachmentTargetKind,
     CableEndAttachment,
     CableEndTarget,
+    CableGroupType,
     CableVisualOverrides,
     Connection,
+    HarnessDefinition,
     Metadata,
 )
 from ...domain.connection_packing import pack_connections
@@ -36,6 +38,8 @@ def _edited_pin_number(
     connection: Connection,
     attachment: CableEndAttachment,
     pin_number: Optional[str] | _PinNumberEdit,
+    *,
+    allow_parent_pin: bool = False,
 ) -> Optional[str]:
     """
     Resolve a node-owned pin edit without inheriting from any ancestor.
@@ -45,9 +49,25 @@ def _edited_pin_number(
     if pin_number is not None and not isinstance(pin_number, str):
         raise ValueError("Pin number must be text or null.")
     normalized = pin_number.strip() if pin_number is not None else None
-    if normalized and connection.attachment_children(attachment.attachment_id):
-        raise ValueError("Only a terminal connection can have a pin number.")
-    return normalized or None
+    if normalized:
+        if not normalized.isascii() or not normalized.isdecimal() or int(normalized) < 1:
+            raise ValueError("Connection pin number must be a positive integer.")
+        if connection.attachment_children(attachment.attachment_id) and not allow_parent_pin:
+            raise ValueError("Only a terminal connection can have a pin number.")
+        return str(int(normalized))
+    return None
+
+
+def _is_ribbon_root(
+    definition: HarnessDefinition, connection_id: UUID, attachment: CableEndAttachment
+) -> bool:
+    """
+    Permit one line number on a ribbon's top-level profile connection.
+    """
+    return attachment.parent_attachment_id is None and any(
+        group.group_type is CableGroupType.RIBBON and connection_id in group.connection_ids
+        for group in definition.cable_groups
+    )
 
 
 # noinspection DuplicatedCode
@@ -57,6 +77,7 @@ def attach_cable_end(
     attachment_id: UUID,
     attachment: CableEndAttachment,
     gateway: HarnessEditGateway,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Attach or reconnect one existing cable end to an external Fusion target.
@@ -107,6 +128,8 @@ def attach_cable_end(
             for item in definition.connections
         ),
     )
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     persist_definition(harness_id, original, updated, gateway)
 
 
@@ -314,7 +337,11 @@ def add_cable_end_connection(
         None,
     )
     if group is not None:
-        _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
+        if group.group_type is CableGroupType.RIBBON:
+            if len(updated_connection.attachment_children(None)) > group.ribbon_lines:
+                raise ValueError("A ribbon end cannot have more top-level connections than lines.")
+        else:
+            _validate_connection_diameter_budget(group.diameter_mm, updated_connection)
     updated = replace(
         definition,
         connections=tuple(
@@ -375,6 +402,7 @@ def set_cable_end_attachment_properties(
     manufacturer: Optional[str] = None,
     part_number: Optional[str] = None,
     pin_number: Optional[str] | _PinNumberEdit = _PinNumberEdit.UNCHANGED,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Replace metadata and optional construction overrides owned by one branch.
@@ -387,7 +415,12 @@ def set_cable_end_attachment_properties(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
-    edited_pin_number = _edited_pin_number(connection, attachment, pin_number)
+    edited_pin_number = _edited_pin_number(
+        connection,
+        attachment,
+        pin_number,
+        allow_parent_pin=_is_ribbon_root(definition, connection_id, attachment),
+    )
     branch_overrides = attachment.visual_overrides
     group_diameter_mm: Optional[float] = None
     if diameter_mm is not None:
@@ -441,6 +474,8 @@ def set_cable_end_attachment_properties(
             for item in definition.connections
         ),
     )
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     persist_definition(harness_id, original, updated, gateway)
 
 
@@ -454,6 +489,7 @@ def set_cable_end_attachment_shielding(
     gateway: HarnessEditGateway,
     *,
     pin_number: Optional[str] | _PinNumberEdit = _PinNumberEdit.UNCHANGED,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Replace connector metadata and its shielding construction overrides atomically.
@@ -473,7 +509,12 @@ def set_cable_end_attachment_shielding(
     if connection is None:
         raise ValueError("Selected cable end does not exist.")
     attachment = _cable_end_attachment(connection, attachment_id)
-    edited_pin_number = _edited_pin_number(connection, attachment, pin_number)
+    edited_pin_number = _edited_pin_number(
+        connection,
+        attachment,
+        pin_number,
+        allow_parent_pin=_is_ribbon_root(definition, connection_id, attachment),
+    )
     normalized = None if shielding is None else shielding.strip()
     normalized_dielectric = None if dielectric_material is None else dielectric_material.strip()
     updated_attachment = replace(
@@ -496,6 +537,8 @@ def set_cable_end_attachment_shielding(
             for item in definition.connections
         ),
     )
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     persist_definition(harness_id, original, updated, gateway)
 
 

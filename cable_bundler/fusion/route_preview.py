@@ -731,7 +731,7 @@ def _add_group_route_graphics(
     Draw a loose centerline or ordered colored lanes for one discrete ribbon.
     """
     main_color = _route_materials(definition, cable_group, leg).main_color
-    if cable_group.group_type is CableGroupType.LOOSE:
+    if cable_group.group_type is CableGroupType.LOOSE or leg.is_connection_branch:
         _add_route_graphics(preview_group, route, color_index, main_color)
         return
     fitted = ribbon_route_shape(

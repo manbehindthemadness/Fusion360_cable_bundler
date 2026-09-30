@@ -110,14 +110,20 @@ function appendShieldingOverrideControls(form, inherited, overrides) {
   return { shielding, dielectricMaterial };
 }
 
-/** Add an optional, node-owned pin field only for a terminal connection. */
-function appendTerminalPinNumberField(form, connection, attachment) {
-  if ((connection.attachments || []).some((candidate) => (
+/** Add a node-owned pin field to leaves and numbered ribbon roots. */
+function appendConnectionPinNumberField(form, cableGroup, connection, attachment) {
+  const hasChildren = (connection.attachments || []).some((candidate) => (
     candidate.parentAttachmentId === attachment.attachmentId
-  ))) return null;
+  ));
+  if (hasChildren && !(cableGroup?.groupType === "ribbon" && !attachment.parentAttachmentId)) {
+    return null;
+  }
   const { wrapper, input } = createMaterialTextField(
     attachment, "pinNumber", "Pin number",
   );
+  input.type = "number";
+  input.min = "1";
+  input.step = "1";
   form.append(wrapper);
   return input;
 }
@@ -152,7 +158,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
     const shieldingControls = appendShieldingOverrideControls(
       form, inheritedMaterials, overrides,
     );
-    const pinNumber = appendTerminalPinNumberField(form, connection, attachment);
+    const pinNumber = appendConnectionPinNumberField(form, cableGroup, connection, attachment);
     const metadataEditor = createMetadataEditor(attachment.metadata || []);
     form.append(metadataEditor.wrapper);
     form.addEventListener("submit", async (event) => {
@@ -236,7 +242,7 @@ function openCableEndAttachmentProperties(harness, cableGroup, attachment) {
   updateDielectricVisibility();
   addMaterialOverride("manufacturer", "Manufacturer", []);
   addMaterialOverride("partNumber", "Part Number", []);
-  const pinNumber = appendTerminalPinNumberField(form, connection, attachment);
+  const pinNumber = appendConnectionPinNumberField(form, cableGroup, connection, attachment);
   const metadataEditor = createMetadataEditor(attachment.metadata || []);
   form.append(metadataEditor.wrapper);
   form.addEventListener("submit", async (event) => {

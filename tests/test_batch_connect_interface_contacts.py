@@ -199,7 +199,7 @@ def test_batch_connects_contacts_without_creating_association_groups(
     assert count == 2
     assert tuple(item.attachment_id for item in attachments) == (UUID(int=901), UUID(int=902))
     assert tuple(item.name for item in attachments) == ("VCC", "GND")
-    assert tuple(item.pin_number for item in attachments) == ("A1", "A2")
+    assert tuple(item.pin_number for item in attachments) == (None, None)
     assert tuple(item.entity_token for item in attachments) == ("contact-a", "contact-b")
     assert all(item.visual_overrides.diameter_mm is None for item in attachments)
     assert stored.cable_groups[0].diameter_mm == 1.2

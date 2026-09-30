@@ -82,6 +82,8 @@ def save_cable_editor(
     deleted_connection_ids: tuple[UUID, ...],
     gateway: HarnessEditGateway,
     id_factory: Callable[[], UUID] = uuid4,
+    *,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Commit all staged Route Editor changes as one reversible metadata edit.
@@ -260,6 +262,8 @@ def save_cable_editor(
             },
         ),
     )
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     group_issues = tuple(
         issue for issue in validate_harness(updated) if issue.path.startswith("cable_groups[")
     )
@@ -285,6 +289,7 @@ def set_cable_group_properties(
     ribbon_lines: Optional[int] = None,
     ribbon_geometry: Optional[RibbonGeometryType] = None,
     ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Replace one connected cable group's construction properties atomically.
@@ -355,6 +360,7 @@ def set_cable_group_properties(
         cable_group_id,
         gateway,
         update,
+        normalize_definition=normalize_definition,
     )
 
 
@@ -382,6 +388,8 @@ def _update_cable_group(
     cable_group_id: UUID,
     gateway: HarnessEditGateway,
     update: Callable[[CableGroupDefinition], CableGroupDefinition],
+    *,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
     Apply one validated replacement to an existing connected cable group.
@@ -394,6 +402,8 @@ def _update_cable_group(
         for group in definition.cable_groups
     )
     updated = replace(definition, cable_groups=groups)
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     diameter_issue = next(
         (
             issue

@@ -23,6 +23,7 @@ from ...attachment_targets import (
     resolve_attachment_target,
 )
 from ...cable_solids import refresh_generated_cable_groups_for_connection
+from ...ribbon_connections import number_ribbon_connections
 from ..constants import CABLE_END_ATTACHMENT_NAME_INPUT_ID, CABLE_END_ATTACHMENT_TARGET_INPUT_ID
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
@@ -206,6 +207,9 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
                     self._state.attachment_id,
                     attachment,
                     gateway,
+                    normalize_definition=lambda candidate: number_ribbon_connections(
+                        _require_active_design(application), candidate
+                    ),
                 )
                 definition = loads(gateway.read_harness_definition(self._state.harness_id))
                 updated_count = refresh_generated_cable_groups_for_connection(

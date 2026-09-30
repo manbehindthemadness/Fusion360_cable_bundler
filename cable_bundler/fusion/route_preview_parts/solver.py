@@ -25,6 +25,7 @@ from ...domain import (
     HarnessDefinition,
     RibbonGeometryType,
 )
+from ...domain.connection_packing import PackedConnection
 from ...routing import (
     CableRouteInput,
     GateFrame,
@@ -57,6 +58,7 @@ from .frames import (
     routing_frame,
 )
 from .frames import connection_profile_points as _connection_profile_points
+from .ribbon_branches import ribbon_branch_guides
 from .solver_controls import (
     _append_route_control,
     _BranchAnchor,
@@ -146,11 +148,6 @@ def solve_cable_group_routes(
             raise ValueError("FFC ribbon route preview and geometry are not implemented yet.")
         if sum(leg.cable_group_id == group.cable_group_id for leg in legs) != 1:
             raise ValueError("Discrete ribbons currently require one continuous two-ended route.")
-        if any(
-            connection.connection_id in group.connection_ids and connection.attachments
-            for connection in definition.connections
-        ):
-            raise ValueError("Discrete ribbon connection branches are not implemented yet.")
     controls = {control.control_id: control for control in definition.controls}
     connections = {connection.connection_id: connection for connection in definition.connections}
     end_control_ids = {
@@ -545,6 +542,7 @@ def solve_cable_group_routes(
         auto_transition_fraction,
         _root_branch_anchors(legs, separated_routes),
         solve_notices,
+        ribbon_guides=ribbon_branch_guides(design, definition, legs, separated_routes),
     )
     solved_routes = (*separated_routes, *branch_routes)
     solved_legs = (*legs, *branch_legs)
@@ -572,6 +570,8 @@ def _connection_branch_routes(
     auto_transition_fraction: float,
     root_anchors: Optional[dict[tuple[UUID, UUID], _BranchAnchor]] = None,
     notices: Optional[list[str]] = None,
+    *,
+    ribbon_guides: Optional[dict[tuple[UUID, UUID, UUID], ProfileFrame]] = None,
 ) -> tuple[tuple[RoutePreview, ...], tuple[CableGroupRouteLeg, ...]]:
     """
     Build every root split and descendant connection span.
@@ -589,11 +589,14 @@ def _connection_branch_routes(
             )
             for parent_attachment_id in parent_ids:
                 siblings = connection.attachment_children(parent_attachment_id)
+                ribbon_root = (
+                    group.group_type is CableGroupType.RIBBON and parent_attachment_id is None
+                )
                 if parent_attachment_id is None:
                     anchor = (root_anchors or {}).get((group.cable_group_id, connection_id))
                     guide = replace(end_guide, origin=anchor.origin) if anchor else end_guide
                     parent_side_point = anchor.interior if anchor else None
-                    if len(siblings) <= 1:
+                    if len(siblings) <= 1 and not ribbon_root:
                         continue
                 else:
                     parent = next(
@@ -620,8 +623,12 @@ def _connection_branch_routes(
                         controls,
                         frames,
                     )
-                packing = definition.cable_end_attachment_pack(
-                    group, connection_id, parent_attachment_id
+                packing = (
+                    tuple(PackedConnection(0.0, 0.0, group.diameter_mm) for _ in siblings)
+                    if ribbon_root
+                    else definition.cable_end_attachment_pack(
+                        group, connection_id, parent_attachment_id
+                    )
                 )
                 if packing is None:
                     continue
@@ -637,7 +644,15 @@ def _connection_branch_routes(
                         design,
                         connection,
                         attachment,
-                        guide,
+                        (
+                            (ribbon_guides or {})[
+                                group.cable_group_id,
+                                connection_id,
+                                attachment.attachment_id,
+                            ]
+                            if ribbon_root and attachment.has_target
+                            else guide
+                        ),
                         packing[index].x_mm,
                         packing[index].y_mm,
                         controls,
@@ -651,7 +666,9 @@ def _connection_branch_routes(
                     branch_frames[0] if branch_frames else None
                     for branch_frames in initial_branch_frames
                 )
-                fan_axis = branch_layout.connection_fan_axis(guide, targets)
+                fan_axis = (
+                    None if ribbon_root else branch_layout.connection_fan_axis(guide, targets)
+                )
                 fan_extent_mm = (
                     max(
                         abs(dot(difference(target.origin, guide.origin), fan_axis))
@@ -662,7 +679,8 @@ def _connection_branch_routes(
                     else 0.0
                 )
                 original_packing = packing
-                packing = branch_layout.assign_connection_packing(guide, packing, targets)
+                if not ribbon_root:
+                    packing = branch_layout.assign_connection_packing(guide, packing, targets)
                 if fan_axis is not None:
                     packing = branch_layout.expand_connection_packing(packing, parent_diameter_mm)
                 sibling_routes: list[RoutePreview] = []
@@ -689,7 +707,7 @@ def _connection_branch_routes(
                         )
                     if not branch_frames:
                         continue
-                    if len(siblings) > 1:
+                    if len(siblings) > 1 and not ribbon_root:
                         branch_frames = branch_layout.parallel_branch_lead(
                             branch_frames,
                             guide,
@@ -797,7 +815,7 @@ def _connection_branch_routes(
                             attachment_id=attachment.attachment_id,
                         )
                     )
-                if len(sibling_routes) > 1:
+                if len(sibling_routes) > 1 and not ribbon_root:
                     separated, collisions = separate_route_collisions(
                         tuple(sibling_routes),
                         tuple(route.cable_id for route in sibling_routes),

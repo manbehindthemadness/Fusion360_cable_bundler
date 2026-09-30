@@ -426,7 +426,7 @@ def test_round_trip_preserves_optional_cable_end_attachment(
         "Pin 4",
         (0.25, 0.75),
         (("drawing-reference", "J1"),),
-        pin_number="A2",
+        pin_number="2",
     )
     definition = replace(
         valid_harness,

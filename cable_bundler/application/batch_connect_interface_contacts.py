@@ -15,6 +15,7 @@ from ..domain import (
     AttachmentTargetKind,
     CableEndAttachment,
     CableEndTarget,
+    CableGroupType,
     CableVisualOverrides,
     HarnessDefinition,
     loads,
@@ -63,6 +64,7 @@ def batch_connect_interface_contacts(
     id_factory: Callable[[], UUID] = uuid4,
     *,
     parent_attachment_id: Optional[UUID] = None,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> int:
     """
     Add contact-backed nodes beneath a grouped end or profile node in one edit.
@@ -151,7 +153,14 @@ def batch_connect_interface_contacts(
             parameters=target.parameters,
             attachment_id=attachment_id,
             parent_attachment_id=parent_attachment_id,
-            pin_number=contact.pin if include_pins and contact.pin else None,
+            pin_number=(
+                str(int(contact.pin))
+                if include_pins
+                and contact.pin.isascii()
+                and contact.pin.isdecimal()
+                and int(contact.pin) > 0
+                else None
+            ),
             visual_overrides=CableVisualOverrides(diameter_mm=diameter_mm),
         )
         for contact_id, target, attachment_id in zip(contact_ids, targets, new_ids)
@@ -183,6 +192,17 @@ def batch_connect_interface_contacts(
                 for item in definition.cable_groups
             ),
         )
+
+    if group.group_type is CableGroupType.RIBBON:
+        if parent_attachment_id is None and diameter_mm is not None:
+            raise ValueError("A ribbon root connection must match one line diameter.")
+        if len(updated_connection.attachment_children(None)) > group.ribbon_lines:
+            raise ValueError("A ribbon end cannot have more top-level connections than lines.")
+        updated = with_diameter(group.diameter_mm)
+        if normalize_definition is not None:
+            updated = normalize_definition(updated)
+        persist_definition(harness_id, original, updated, gateway)
+        return len(additions)
 
     current_parent_id = parent_attachment_id
     while True:
@@ -253,6 +273,8 @@ def batch_connect_interface_contacts(
             raise ValueError(budget_issue)
         group = replace(group, diameter_mm=upper)
     updated = with_diameter(group.diameter_mm)
+    if normalize_definition is not None:
+        updated = normalize_definition(updated)
     persist_definition(harness_id, original, updated, gateway)
     return len(additions)
 
@@ -278,6 +300,7 @@ def batch_connect_and_associate_interface_contacts(
     *,
     first_parent_attachment_id: Optional[UUID] = None,
     second_parent_attachment_id: Optional[UUID] = None,
+    normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> tuple[int, int, int]:
     """
     Connect two Interfaces and pair unique, nonblank matching pins in one edit.
@@ -304,6 +327,7 @@ def batch_connect_and_associate_interface_contacts(
         staged,
         id_factory,
         parent_attachment_id=first_parent_attachment_id,
+        normalize_definition=normalize_definition,
     )
     after_first = loads(staged.serialized_definition)
     first_before = next(
@@ -325,6 +349,7 @@ def batch_connect_and_associate_interface_contacts(
         staged,
         id_factory,
         parent_attachment_id=second_parent_attachment_id,
+        normalize_definition=normalize_definition,
     )
     after_second = loads(staged.serialized_definition)
     second_before = next(

@@ -22,6 +22,7 @@ from ....application.batch_connect_interface_contacts import (
 from ....domain import AttachmentTargetKind, CableEndTarget, HarnessDefinition, loads
 from ...attachment_targets import attachment_target_kind, attachment_target_name
 from ...cable_solids import refresh_generated_cable_groups_for_connection
+from ...ribbon_connections import number_ribbon_connections
 from ..auto_connect_requests import AutoConnectApplyRequest, AutoConnectPickRequest
 from ..constants import AUTO_CONNECT_END_INPUT_ID, PALETTE_ID
 from ..palette_state import _send_palette_state
@@ -324,6 +325,9 @@ class _ApplyExecuteHandler(adsk.core.CommandEventHandler):
                     self.request.diameter_mm,
                     gateway,
                     parent_attachment_id=parent_attachment_id,
+                    normalize_definition=lambda candidate: number_ribbon_connections(
+                        design, candidate
+                    ),
                 )
                 summary = f"Connected {count} contacts."
             else:
@@ -354,6 +358,9 @@ class _ApplyExecuteHandler(adsk.core.CommandEventHandler):
                         gateway,
                         first_parent_attachment_id=parent_attachment_id,
                         second_parent_attachment_id=target_parent_id,
+                        normalize_definition=lambda candidate: number_ribbon_connections(
+                            design, candidate
+                        ),
                     )
                 )
                 summary = (

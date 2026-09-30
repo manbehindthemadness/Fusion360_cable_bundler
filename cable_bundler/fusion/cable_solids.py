@@ -39,6 +39,7 @@ from .cable_solid_parts.metadata import (
     route_in_component_space,
     world_to_harness,
 )
+from .cable_solid_parts.ribbon_branches import build_ribbon_connection_branches
 from .cable_solid_parts.ribbon_builder import build_discrete_ribbon_solid
 from .cable_solid_parts.solid_builder import build_cable_group_solid
 from .cable_solid_parts.stripes import (
@@ -501,9 +502,11 @@ def _build_group_output(
     Dispatch separate loose and discrete-ribbon construction contracts.
     """
     if group.group_type is CableGroupType.RIBBON:
-        if len(group_legs) != 1:
+        main_legs = tuple(item for item in group_legs if not item[0].is_connection_branch)
+        branches = tuple(item for item in group_legs if item[0].is_connection_branch)
+        if len(main_legs) != 1:
             raise ValueError("A discrete ribbon requires exactly one two-ended route.")
-        leg, route = group_legs[0]
+        leg, route = main_legs[0]
         fitted = ribbon_route_shape(
             design, definition, leg, route, group.ribbon_lines, group.diameter_mm
         )
@@ -523,6 +526,16 @@ def _build_group_output(
             design,
             output_mode,
             notices,
+        )
+        build_ribbon_connection_branches(
+            component,
+            group,
+            group_index,
+            branches,
+            transform,
+            definition,
+            design,
+            output_mode,
         )
         return
     route_options = _route_build_options(

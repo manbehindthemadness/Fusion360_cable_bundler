@@ -688,10 +688,52 @@ def _validate_cable_groups(
                     )
                 )
             if connection is not None and valid_group_diameter:
+                if group.group_type is CableGroupType.RIBBON:
+                    roots = connection.attachment_children(None)
+                    if len(roots) > group.ribbon_lines:
+                        issues.append(
+                            ValidationIssue(
+                                "ribbon_connection_capacity_exceeded",
+                                f"{member_path}.attachments",
+                                "A ribbon end cannot have more top-level connections than lines.",
+                            )
+                        )
+                    used_pins: set[int] = set()
+                    for root_index, root in enumerate(roots):
+                        if root.visual_overrides.diameter_mm is not None:
+                            issues.append(
+                                ValidationIssue(
+                                    "ribbon_root_diameter_override",
+                                    f"{member_path}.attachments[{root_index}]",
+                                    "A ribbon root connection must match one line diameter.",
+                                )
+                            )
+                        if root.pin_number is None:
+                            if root.has_target:
+                                issues.append(
+                                    ValidationIssue(
+                                        "ribbon_target_without_pin",
+                                        f"{member_path}.attachments[{root_index}].pin_number",
+                                        "A targeted ribbon connection must be assigned a line pin.",
+                                    )
+                                )
+                            continue
+                        pin = int(root.pin_number)
+                        if pin > group.ribbon_lines or pin in used_pins:
+                            issues.append(
+                                ValidationIssue(
+                                    "ribbon_pin_conflict",
+                                    f"{member_path}.attachments[{root_index}].pin_number",
+                                    "Ribbon root pins must claim distinct existing lines.",
+                                )
+                            )
+                        used_pins.add(pin)
                 parent_ids = tuple(
                     dict.fromkeys(item.parent_attachment_id for item in connection.attachments)
                 )
                 for parent_attachment_id in parent_ids:
+                    if group.group_type is CableGroupType.RIBBON and parent_attachment_id is None:
+                        continue
                     children = connection.attachment_children(parent_attachment_id)
                     if not children:
                         continue
