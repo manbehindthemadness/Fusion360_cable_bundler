@@ -27,7 +27,9 @@ from cable_bundler.domain import (
     AttachmentTargetKind,
     CableColor,
     CableEndAttachment,
+    CableEndShape,
     CableEndTarget,
+    CableGroupType,
     CablePullbackSettings,
     CableVisualOverrides,
     CableWeldSettings,
@@ -37,6 +39,44 @@ from cable_bundler.domain import (
     loads,
 )
 from tests.test_edit_harness import _recording_gateway
+
+
+def test_ribbon_target_attachment_saves_explicit_line_pin(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    An individual picker choice replaces a placeholder pin in the same edit.
+    """
+    connection = valid_harness.connections[0]
+    placeholder = CableEndAttachment(None, attachment_id=UUID(int=705), pin_number="1")
+    definition = replace(
+        valid_harness,
+        connections=(replace(connection, attachment=placeholder), valid_harness.connections[1]),
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON),),
+    )
+    gateway = _recording_gateway(definition)
+    target = CableEndAttachment(
+        AttachmentTargetKind.SKETCH_POINT,
+        "target-token",
+        "Contact",
+        attachment_id=placeholder.attachment_id,
+    )
+
+    attach_cable_end(
+        definition.harness_id,
+        connection.connection_id,
+        placeholder.attachment_id,
+        target,
+        gateway,
+        pin_number="2",
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.connections[0].attachment.pin_number == "2"
+    assert stored.connections[0].attachment.entity_token == "target-token"
 
 
 def test_attaches_renames_and_removes_external_cable_end_target(

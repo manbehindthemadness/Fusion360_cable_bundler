@@ -17,6 +17,8 @@ import pytest
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
+    CableEndShape,
+    CableGroupType,
     HarnessDefinition,
     InterfaceContact,
     loads,
@@ -147,7 +149,7 @@ def test_auto_connect_picker_returns_ending_without_saving(
     }
 
 
-def test_auto_connect_picker_only_accepts_grouped_end_profiles(
+def test_auto_connect_picker_only_accepts_grouped_closed_end_profiles(
     addin_module: object,
     valid_harness: HarnessDefinition,
     monkeypatch: pytest.MonkeyPatch,
@@ -171,7 +173,7 @@ def test_auto_connect_picker_only_accepts_grouped_end_profiles(
         "fusion-end-token": (second,),
     }
     design = SimpleNamespace(findEntityByToken=lambda token: entities.get(token, ()))
-    candidates = commands._grouped_end_profiles(valid_harness, design)
+    candidates = commands._grouped_end_guides(valid_harness, design)
     assert tuple(item[0] for item in candidates) == tuple(
         item.connection_id for item in valid_harness.connections
     )
@@ -190,9 +192,9 @@ def test_auto_connect_picker_only_accepts_grouped_end_profiles(
         ),
         connections=valid_harness.connections,
     )
-    assert tuple(
-        item[0] for item in commands._grouped_end_profiles(only_first_grouped, design)
-    ) == (valid_harness.connections[0].connection_id,)
+    assert tuple(item[0] for item in commands._grouped_end_guides(only_first_grouped, design)) == (
+        valid_harness.connections[0].connection_id,
+    )
     parent_id = UUID(int=910)
     parent_profile = SimpleNamespace(
         is_profile=True, nativeObject=None, entityToken="parent-profile"
@@ -208,11 +210,144 @@ def test_auto_connect_picker_only_accepts_grouped_end_profiles(
         ),
     )
     with_parent = replace(valid_harness, connections=(connected, valid_harness.connections[1]))
-    candidates = commands._grouped_end_profiles(with_parent, design)
+    candidates = commands._grouped_end_guides(with_parent, design)
     assert commands._picked_ending(parent_profile, candidates) == (
         connected.connection_id,
         parent_id,
     )
+
+
+def test_auto_connect_picker_accepts_only_grouped_open_ribbon_guides(
+    addin_module: object,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    An open sketch curve identifies a ribbon end without becoming a contact target.
+    """
+    del addin_module
+    commands = importlib.import_module("cable_bundler.fusion.ui.commands.interface_auto_connect")
+    fusion = sys.modules["adsk.fusion"]
+    monkeypatch.setitem(
+        vars(fusion),
+        "Profile",
+        SimpleNamespace(cast=lambda value: value if getattr(value, "is_profile", False) else None),
+    )
+    monkeypatch.setitem(
+        vars(fusion),
+        "SketchCurve",
+        SimpleNamespace(cast=lambda value: value if getattr(value, "is_curve", False) else None),
+    )
+
+    def curve(token: str, distance: float) -> SimpleNamespace:
+        """
+        Model the Fusion endpoint test used for valid open end guides.
+        """
+        return SimpleNamespace(
+            entityToken=token,
+            is_curve=True,
+            nativeObject=None,
+            geometry=SimpleNamespace(
+                evaluator=SimpleNamespace(
+                    getEndPoints=lambda: (
+                        True,
+                        SimpleNamespace(distanceTo=lambda _end: distance),
+                        object(),
+                    )
+                )
+            ),
+        )
+
+    first = curve("ribbon-a", 1.0)
+    first_secondary = curve("ribbon-a-secondary", 1.0)
+    second = curve("ribbon-b", 1.0)
+    closed = curve("closed", 0.0)
+    unrelated = curve("other", 1.0)
+    entities = {
+        "fusion-start-token": (first,),
+        "ribbon-a-secondary": (first_secondary,),
+        "fusion-end-token": (second,),
+    }
+    design = SimpleNamespace(findEntityByToken=lambda token: entities.get(token, ()))
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(
+                valid_harness.connections[0],
+                additional_entity_tokens=("ribbon-a-secondary",),
+            ),
+            valid_harness.connections[1],
+        ),
+        cable_groups=(replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON),),
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+    )
+
+    candidates = commands._grouped_end_guides(definition, design)
+
+    assert commands._picked_ending(first, candidates) == (
+        valid_harness.connections[0].connection_id,
+        None,
+    )
+    assert commands._picked_ending(second, candidates) == (
+        valid_harness.connections[1].connection_id,
+        None,
+    )
+    for rejected in (first_secondary, closed, unrelated):
+        with pytest.raises(ValueError, match="existing cable group"):
+            commands._picked_ending(rejected, candidates)
+
+
+def test_auto_connect_native_picker_enables_open_curve_selection(
+    addin_module: object,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Fusion offers the same open-curve filter used by standalone end guides.
+    """
+    del addin_module
+    commands = importlib.import_module("cable_bundler.fusion.ui.commands.interface_auto_connect")
+    core = sys.modules["adsk.core"]
+    fusion = sys.modules["adsk.fusion"]
+    profile = SimpleNamespace(is_profile=True, nativeObject=None)
+    monkeypatch.setitem(
+        vars(fusion),
+        "Profile",
+        SimpleNamespace(cast=lambda value: value if getattr(value, "is_profile", False) else None),
+    )
+    document = object()
+    application = SimpleNamespace(activeDocument=document)
+    monkeypatch.setitem(vars(core), "Application", SimpleNamespace(get=lambda: application))
+    design = SimpleNamespace(findEntityByToken=lambda _token: (profile,))
+    monkeypatch.setitem(vars(commands), "_require_active_design", lambda _app: design)
+    monkeypatch.setitem(
+        vars(commands),
+        "_create_harness_gateway",
+        lambda _app: SimpleNamespace(read_harness_definition=lambda _id: "definition"),
+    )
+    monkeypatch.setitem(vars(commands), "loads", lambda _serialized: valid_harness)
+    filters: list[str] = []
+    picker = SimpleNamespace(
+        addSelectionFilter=lambda value: filters.append(value) or True,
+        setSelectionLimits=Mock(return_value=True),
+    )
+    event = SimpleNamespace(add=Mock(return_value=True))
+    command = SimpleNamespace(
+        commandInputs=SimpleNamespace(addSelectionInput=Mock(return_value=picker)),
+        preSelect=event,
+        validateInputs=event,
+        execute=event,
+        destroy=event,
+    )
+    commands._runtime.pending_auto_connect.prepare(
+        commands.AutoConnectPickRequest(valid_harness.harness_id, "source", "pick-2", document)
+    )
+
+    commands.AutoConnectCreatedHandler().notify(SimpleNamespace(command=command))
+
+    assert filters == ["Profiles", "SketchCurves"]
 
 
 def test_auto_connect_native_execute_saves_and_refreshes_one_batch(

@@ -4,7 +4,15 @@ Focused Fusion UI regressions for native commands.
 
 from __future__ import annotations
 
-from cable_bundler.domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget
+from dataclasses import replace
+
+from cable_bundler.domain import (
+    AttachmentTargetKind,
+    CableEndAttachment,
+    CableEndTarget,
+    CableGroupType,
+    HarnessDefinition,
+)
 from tests.fusion_ui_support import (
     UUID,
     Mock,
@@ -197,7 +205,15 @@ def test_attachment_completion_partially_refreshes_generated_geometry(
 
     attachments._AttachCableEndExecuteHandler(state).notify(args)
 
-    attach.assert_called_once_with(harness_id, connection_id, attachment_id, attachment, gateway)
+    attach.assert_called_once_with(
+        harness_id,
+        connection_id,
+        attachment_id,
+        attachment,
+        gateway,
+        normalize_definition=attach.call_args.kwargs["normalize_definition"],
+        pin_number=None,
+    )
     refresh_generated.assert_called_once_with(design, component, definition, connection_id)
     viewport.refresh.assert_called_once_with()
     send.assert_called_once_with(
@@ -292,7 +308,7 @@ def test_cable_end_attachment_picker_opens_for_an_unresolved_saved_target(
     monkeypatch.setitem(
         vars(attachments),
         "loads",
-        lambda _serialized: SimpleNamespace(connections=(connection,)),
+        lambda _serialized: SimpleNamespace(connections=(connection,), cable_groups=()),
     )
     filters: list[str] = []
     selection_input = SimpleNamespace(
@@ -401,9 +417,205 @@ def test_cable_end_attachment_validation_enables_ok_for_each_filtered_target(
     args = SimpleNamespace(inputs=inputs, areInputsValid=False)
     attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
 
-    attachments._AttachCableEndValidateInputsHandler().notify(args)
+    pending = CableEndAttachment(None, attachment_id=UUID(int=3))
+    state = attachments._AttachCableEndCommandState(
+        UUID(int=1), UUID(int=2), pending.attachment_id, (), pending
+    )
+    attachments._AttachCableEndValidateInputsHandler(state).notify(args)
 
     assert args.areInputsValid, target_kind
+
+
+def test_ribbon_picker_lists_only_free_root_pins(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve the current root's pin while excluding pins owned by siblings.
+    """
+    first = CableEndAttachment(None, attachment_id=UUID(int=901), pin_number="2")
+    second = CableEndAttachment(None, attachment_id=UUID(int=902), pin_number="1")
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=first,
+        additional_attachments=(second,),
+    )
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+        cable_groups=(ribbon,),
+    )
+
+    assert addin_module._available_ribbon_line_pins(definition, connection, first, "main") == (
+        "2",
+        "3",
+    )
+    assert (
+        addin_module._available_ribbon_line_pins(definition, connection, first, "shielding") is None
+    )
+    with pytest.raises(ValueError, match="invalid"):
+        invalid = replace(first, pin_number="1")
+        addin_module._available_ribbon_line_pins(definition, connection, invalid, "main")
+
+
+def test_ribbon_target_picker_requires_an_explicit_free_pin(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    A target alone cannot enable OK until a usable ribbon line is selected.
+    """
+    core_module = sys.modules["adsk.core"]
+    core_module.SelectionCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    core_module.DropDownCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    target = SimpleNamespace(selectionCount=1)
+    selected = SimpleNamespace(name="Select line…")
+    pin_choice = SimpleNamespace(selectedItem=selected)
+    inputs = SimpleNamespace(
+        itemById=lambda identity: (
+            target if identity == addin_module.CABLE_END_ATTACHMENT_TARGET_INPUT_ID else pin_choice
+        )
+    )
+    pending = CableEndAttachment(None, attachment_id=UUID(int=903))
+    state = addin_module._AttachCableEndCommandState(
+        UUID(int=1), UUID(int=2), pending.attachment_id, (), pending, "main", ("1", "3")
+    )
+    args = SimpleNamespace(inputs=inputs, areInputsValid=False)
+
+    addin_module._AttachCableEndValidateInputsHandler(state).notify(args)
+    assert not args.areInputsValid
+    selected.name = "2"
+    addin_module._AttachCableEndValidateInputsHandler(state).notify(args)
+    assert not args.areInputsValid
+    selected.name = "3"
+    addin_module._AttachCableEndValidateInputsHandler(state).notify(args)
+    assert args.areInputsValid
+    assert addin_module._selected_ribbon_pin(inputs, state) == "3"
+
+
+def test_ribbon_target_picker_displays_unselected_available_lines(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    New ribbon roots require an explicit choice rather than defaulting to line one.
+    """
+    pending = CableEndAttachment(None, attachment_id=UUID(int=904))
+    connection = replace(valid_harness.connections[0], attachment=pending)
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+        cable_groups=(replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON),),
+    )
+    application = object()
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    core_module.DropDownStyles = SimpleNamespace(TextListDropDownStyle=object())  # type: ignore[attr-defined]
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+    monkeypatch.setitem(
+        vars(attachments),
+        "_require_active_design",
+        lambda _app: SimpleNamespace(findEntityByToken=lambda _token: ()),
+    )
+    monkeypatch.setitem(
+        vars(attachments),
+        "_create_harness_gateway",
+        lambda _app: SimpleNamespace(read_harness_definition=lambda _id: "definition"),
+    )
+    monkeypatch.setitem(vars(attachments), "loads", lambda _serialized: definition)
+    list_items = SimpleNamespace(add=Mock(return_value=object()))
+    pin_input = SimpleNamespace(listItems=list_items)
+    selection_input = SimpleNamespace(
+        addSelectionFilter=Mock(return_value=True),
+        setSelectionLimits=Mock(return_value=True),
+    )
+    inputs = SimpleNamespace(
+        addSelectionInput=Mock(return_value=selection_input),
+        addStringValueInput=Mock(return_value=object()),
+        addDropDownCommandInput=Mock(return_value=pin_input),
+    )
+    event = SimpleNamespace(add=Mock(return_value=True))
+    command = SimpleNamespace(
+        commandInputs=inputs,
+        preSelect=event,
+        validateInputs=event,
+        execute=event,
+        destroy=event,
+    )
+    attachments._runtime.pending_cable_end_attachment.prepare(
+        (definition.harness_id, connection.connection_id, pending.attachment_id, "main")
+    )
+
+    attachments._AttachCableEndCreatedHandler().notify(SimpleNamespace(command=command))
+
+    assert [call.args for call in list_items.add.call_args_list] == [
+        ("Select line…", True),
+        ("1", False),
+        ("2", False),
+        ("3", False),
+    ]
+
+
+def test_ribbon_picker_rechecks_line_ownership_before_saving(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A line claimed while the picker is open cannot be assigned a second time.
+    """
+    pending = CableEndAttachment(None, attachment_id=UUID(int=905))
+    sibling = CableEndAttachment(None, attachment_id=UUID(int=906), pin_number="2")
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=pending,
+        additional_attachments=(sibling,),
+    )
+    definition = replace(
+        valid_harness,
+        connections=(connection, valid_harness.connections[1]),
+        cable_groups=(replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON),),
+    )
+    application = SimpleNamespace(activeViewport=SimpleNamespace(refresh=Mock()))
+    core_module = sys.modules["adsk.core"]
+    core_module.Application = SimpleNamespace(get=lambda: application)  # type: ignore[attr-defined]
+    core_module.DropDownCommandInput = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    attachments = importlib.import_module("cable_bundler.fusion.ui.commands.attachments")
+    gateway = SimpleNamespace(read_harness_definition=lambda _id: "definition")
+    save = Mock()
+    monkeypatch.setitem(vars(attachments), "_create_harness_gateway", lambda _app: gateway)
+    monkeypatch.setitem(vars(attachments), "loads", lambda _serialized: definition)
+    monkeypatch.setitem(vars(attachments), "attach_cable_end", save)
+    monkeypatch.setitem(vars(attachments), "_log_to_fusion", lambda _message: None)
+    monkeypatch.setitem(
+        vars(attachments),
+        "_read_attachment_inputs",
+        lambda *_args: CableEndTarget(AttachmentTargetKind.SKETCH_POINT, "target", "Target"),
+    )
+    inputs = SimpleNamespace(
+        itemById=lambda _id: SimpleNamespace(selectedItem=SimpleNamespace(name="2"))
+    )
+    state = attachments._AttachCableEndCommandState(
+        definition.harness_id,
+        connection.connection_id,
+        pending.attachment_id,
+        (),
+        pending,
+        "main",
+        ("1", "2", "3"),
+    )
+    args = SimpleNamespace(
+        command=SimpleNamespace(commandInputs=inputs),
+        executeFailed=False,
+        executeFailedMessage="",
+    )
+
+    attachments._AttachCableEndExecuteHandler(state).notify(args)
+
+    assert args.executeFailed
+    assert "no longer available" in args.executeFailedMessage
+    save.assert_not_called()
 
 
 def test_relationship_selector_refreshes_only_for_geometry_input_changes(

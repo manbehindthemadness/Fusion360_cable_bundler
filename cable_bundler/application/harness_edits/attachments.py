@@ -78,9 +78,13 @@ def attach_cable_end(
     attachment: CableEndAttachment,
     gateway: HarnessEditGateway,
     normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
+    *,
+    pin_number: Optional[str] = None,
 ) -> None:
     """
-    Attach or reconnect one existing cable end to an external Fusion target.
+    Attach or reconnect one existing cable end and optionally choose its line pin.
+
+    Without an explicit pin, the node retains its saved assignment.
     """
     if not isinstance(attachment, CableEndAttachment) or not attachment.has_target:
         raise ValueError("Cable-end attachment is invalid.")
@@ -112,7 +116,7 @@ def attach_cable_end(
         attachment_id=attachment_id,
         parent_attachment_id=existing.parent_attachment_id,
         name=attachment.name or existing.name,
-        pin_number=existing.pin_number,
+        pin_number=pin_number if pin_number is not None else existing.pin_number,
         metadata=existing.metadata,
         ordered_control_ids=existing.ordered_control_ids,
         visual_overrides=existing.visual_overrides,

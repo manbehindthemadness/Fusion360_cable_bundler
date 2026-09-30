@@ -19,7 +19,14 @@ from ....application.batch_connect_interface_contacts import (
     batch_connect_and_associate_interface_contacts,
     batch_connect_interface_contacts,
 )
-from ....domain import AttachmentTargetKind, CableEndTarget, HarnessDefinition, loads
+from ....domain import (
+    AttachmentTargetKind,
+    CableEndShape,
+    CableEndTarget,
+    CableGroupType,
+    HarnessDefinition,
+    loads,
+)
 from ...attachment_targets import attachment_target_kind, attachment_target_name
 from ...cable_solids import refresh_generated_cable_groups_for_connection
 from ...ribbon_connections import number_ribbon_connections
@@ -30,21 +37,25 @@ from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _log_to_fusion, _require_active_design
 from ..viewport import _refresh_active_preview
 from .attachments import _read_face_parameters
+from .end_guides import end_guide_shape
 from .pathways import _native_fusion_entity
 
 
-def _grouped_end_profiles(
+def _grouped_end_guides(
     definition: HarnessDefinition, design: adsk.fusion.Design
 ) -> tuple[tuple[UUID, Optional[UUID], object], ...]:
     """
-    Resolve grouped end guides and connected profile nodes eligible as parents.
+    Resolve grouped closed/open end guides and connected profile nodes.
     """
-    grouped_ids = {
-        connection_id for group in definition.cable_groups for connection_id in group.connection_ids
+    groups_by_connection = {
+        connection_id: group
+        for group in definition.cable_groups
+        for connection_id in group.connection_ids
     }
     result: list[tuple[UUID, Optional[UUID], object]] = []
     for connection in definition.connections:
-        if connection.connection_id not in grouped_ids:
+        group = groups_by_connection.get(connection.connection_id)
+        if group is None:
             continue
         candidates = ((None, connection.member_tokens[0]),) + tuple(
             (item.attachment_id, item.entity_token)
@@ -53,10 +64,19 @@ def _grouped_end_profiles(
         )
         for parent_id, token in candidates:
             for entity in design.findEntityByToken(token) or ():
-                profile = adsk.fusion.Profile.cast(entity)
-                if profile is not None:
+                expected_shape = (
+                    CableEndShape.OPEN
+                    if group.group_type is CableGroupType.RIBBON
+                    else CableEndShape.CLOSED
+                )
+                eligible = (
+                    end_guide_shape(entity) is expected_shape
+                    if parent_id is None
+                    else adsk.fusion.Profile.cast(entity) is not None
+                )
+                if eligible:
                     result.append(
-                        (connection.connection_id, parent_id, _native_fusion_entity(profile))
+                        (connection.connection_id, parent_id, _native_fusion_entity(entity))
                     )
                     break
     return tuple(result)
@@ -66,17 +86,16 @@ def _picked_ending(
     entity: object, candidates: tuple[tuple[UUID, Optional[UUID], object], ...]
 ) -> tuple[UUID, Optional[UUID]]:
     """
-    Match one mouse selection to a grouped end or its connected profile node.
+    Match one mouse selection to a grouped guide or connected profile node.
     """
-    profile = adsk.fusion.Profile.cast(entity)
-    native = _native_fusion_entity(profile) if profile is not None else None
+    native = _native_fusion_entity(entity) if end_guide_shape(entity) is not None else None
     matches = tuple(
         (connection_id, parent_id)
         for connection_id, parent_id, candidate in candidates
         if native == candidate
     )
     if len(matches) != 1:
-        raise ValueError("Select one ending profile on an existing cable group.")
+        raise ValueError("Select one ending profile or open curve on an existing cable group.")
     return matches[0]
 
 
@@ -85,7 +104,7 @@ def _selected_ending(
     candidates: tuple[tuple[UUID, Optional[UUID], object], ...],
 ) -> tuple[UUID, Optional[UUID]]:
     """
-    Read one eligible profile from the native picker.
+    Read one eligible end guide from the native picker.
     """
     picker = adsk.core.SelectionCommandInput.cast(inputs.itemById(AUTO_CONNECT_END_INPUT_ID))
     if picker is None or picker.selectionCount != 1:
@@ -96,12 +115,12 @@ def _selected_ending(
 
 class _PreSelectHandler(adsk.core.SelectionEventHandler):
     """
-    Reject profiles outside grouped ends and their connected profile nodes.
+    Reject shapes outside grouped ends and their connected profile nodes.
     """
 
     def __init__(self, candidates: tuple[tuple[UUID, Optional[UUID], object], ...]) -> None:
         """
-        Retain eligible profile identities.
+        Retain eligible end-guide identities.
         """
         super().__init__()
         self.candidates = candidates
@@ -207,7 +226,7 @@ class _PickExecuteHandler(adsk.core.CommandEventHandler):
 
     def notify(self, args: adsk.core.CommandEventArgs) -> None:
         """
-        Resolve the selected profile for the originating document.
+        Resolve the selected end guide for the originating document.
         """
         application = adsk.core.Application.get()
         try:
@@ -304,7 +323,7 @@ class _ApplyExecuteHandler(adsk.core.CommandEventHandler):
             definition = loads(gateway.read_harness_definition(self.request.harness_id))
             eligible = {
                 (item_id, attachment_id)
-                for item_id, attachment_id, _profile in _grouped_end_profiles(definition, design)
+                for item_id, attachment_id, _guide in _grouped_end_guides(definition, design)
             }
             if (connection_id, parent_attachment_id) not in eligible or (
                 target_ending is not None and target_ending not in eligible
@@ -415,16 +434,18 @@ class AutoConnectCreatedHandler(adsk.core.CommandCreatedEventHandler):
         definition = loads(
             _create_harness_gateway(application).read_harness_definition(request.harness_id)
         )
-        candidates = _grouped_end_profiles(definition, design)
+        candidates = _grouped_end_guides(definition, design)
         if not candidates:
-            raise ValueError("No grouped cable ending profiles are available.")
+            raise ValueError("No grouped cable ending guides are available.")
         picker = args.command.commandInputs.addSelectionInput(
             AUTO_CONNECT_END_INPUT_ID,
             "Cable Ending",
-            "Pick a grouped cable end guide or connected profile node",
+            "Pick a grouped cable end profile/open curve or connected profile node",
         )
         if picker is None or not picker.addSelectionFilter("Profiles"):
             raise RuntimeError("Fusion could not configure cable-ending selection.")
+        if not picker.addSelectionFilter("SketchCurves"):
+            raise RuntimeError("Fusion could not enable open-curve ending selection.")
         if not picker.setSelectionLimits(1, 1):
             raise RuntimeError("Fusion could not limit cable-ending selection.")
         execute = _PickExecuteHandler(request, candidates)

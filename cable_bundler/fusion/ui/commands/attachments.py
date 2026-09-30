@@ -16,7 +16,16 @@ import adsk.core
 import adsk.fusion
 
 from ....application import attach_cable_end, attach_cable_end_shielding
-from ....domain import AttachmentTargetKind, CableEndAttachment, CableEndTarget, loads
+from ....domain import (
+    AttachmentTargetKind,
+    CableEndAttachment,
+    CableEndTarget,
+    CableGroupType,
+    Connection,
+    HarnessDefinition,
+    loads,
+)
+from ....domain.ribbon_connections import ribbon_pin_number
 from ...attachment_targets import (
     attachment_target_kind,
     attachment_target_name,
@@ -24,7 +33,11 @@ from ...attachment_targets import (
 )
 from ...cable_solids import refresh_generated_cable_groups_for_connection
 from ...ribbon_connections import number_ribbon_connections
-from ..constants import CABLE_END_ATTACHMENT_NAME_INPUT_ID, CABLE_END_ATTACHMENT_TARGET_INPUT_ID
+from ..constants import (
+    CABLE_END_ATTACHMENT_NAME_INPUT_ID,
+    CABLE_END_ATTACHMENT_PIN_INPUT_ID,
+    CABLE_END_ATTACHMENT_TARGET_INPUT_ID,
+)
 from ..palette_state import _send_palette_state
 from ..runtime import runtime as _runtime
 from ..support import _create_harness_gateway, _log_to_fusion, _require_active_design
@@ -44,6 +57,73 @@ class _AttachCableEndCommandState:
     excluded_entities: tuple[object, ...]
     attachment: CableEndAttachment
     relationship: Literal["main", "shielding"] = "main"
+    available_line_pins: Optional[tuple[str, ...]] = None
+
+
+def _available_ribbon_line_pins(
+    definition: HarnessDefinition,
+    connection: Connection,
+    attachment: CableEndAttachment,
+    relationship: Literal["main", "shielding"],
+) -> Optional[tuple[str, ...]]:
+    """
+    Offer only unclaimed lines for a top-level ribbon main connection.
+    """
+    group = next(
+        (
+            item
+            for item in definition.cable_groups
+            if connection.connection_id in item.connection_ids
+        ),
+        None,
+    )
+    if (
+        relationship != "main"
+        or group is None
+        or group.group_type is not CableGroupType.RIBBON
+        or attachment.parent_attachment_id is not None
+    ):
+        return None
+    roots = connection.attachment_children(None)
+    if len(roots) > group.ribbon_lines:
+        raise ValueError("This ribbon end has more connections than lines.")
+    occupied: set[int] = set()
+    for sibling in roots:
+        if sibling.attachment_id == attachment.attachment_id:
+            continue
+        number = ribbon_pin_number(sibling.pin_number)
+        if number is None:
+            continue
+        if number > group.ribbon_lines or number in occupied:
+            raise ValueError("Existing ribbon pin assignments must be corrected first.")
+        occupied.add(number)
+    current = ribbon_pin_number(attachment.pin_number)
+    if current is not None and (current > group.ribbon_lines or current in occupied):
+        raise ValueError("This connection's ribbon pin assignment is invalid.")
+    available = tuple(
+        str(number) for number in range(1, group.ribbon_lines + 1) if number not in occupied
+    )
+    if not available:
+        raise ValueError("No free ribbon line is available for this connection.")
+    return available
+
+
+def _selected_ribbon_pin(
+    command_inputs: adsk.core.CommandInputs,
+    state: _AttachCableEndCommandState,
+) -> Optional[str]:
+    """
+    Require an explicitly chosen line from the opening picker state.
+    """
+    if state.available_line_pins is None:
+        return state.attachment.pin_number
+    pin_input = adsk.core.DropDownCommandInput.cast(
+        command_inputs.itemById(CABLE_END_ATTACHMENT_PIN_INPUT_ID)
+    )
+    selected = getattr(getattr(pin_input, "selectedItem", None), "name", None)
+    if selected not in state.available_line_pins:
+        raise ValueError("Select an available ribbon line pin before connecting.")
+    return selected
 
 
 def _surface_parameters(
@@ -152,7 +232,13 @@ class _AttachCableEndValidateInputsHandler(adsk.core.ValidateInputsEventHandler)
     Enable execution after one target accepted by the picker filters is selected.
     """
 
-    # noinspection PyMethodMayBeStatic
+    def __init__(self, state: _AttachCableEndCommandState) -> None:
+        """
+        Retain the ribbon lines available when the picker opened.
+        """
+        super().__init__()
+        self._state = state
+
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         """
         Avoid requiring persistent geometry data that Fusion defers until execution.
@@ -161,6 +247,11 @@ class _AttachCableEndValidateInputsHandler(adsk.core.ValidateInputsEventHandler)
             args.inputs.itemById(CABLE_END_ATTACHMENT_TARGET_INPUT_ID)
         )
         args.areInputsValid = selection_input is not None and selection_input.selectionCount == 1
+        if args.areInputsValid and self._state.available_line_pins is not None:
+            try:
+                _selected_ribbon_pin(args.inputs, self._state)
+            except ValueError:
+                args.areInputsValid = False
 
 
 class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
@@ -193,6 +284,37 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
                 )
                 _send_palette_state(application, f"Connected shielding to {target.display_name}.")
             else:
+                pin_number = _selected_ribbon_pin(args.command.commandInputs, self._state)
+                if self._state.available_line_pins is not None:
+                    current = loads(gateway.read_harness_definition(self._state.harness_id))
+                    current_connection = next(
+                        (
+                            item
+                            for item in current.connections
+                            if item.connection_id == self._state.connection_id
+                        ),
+                        None,
+                    )
+                    if current_connection is None:
+                        raise ValueError("The selected ribbon end no longer exists.")
+                    current_attachment = next(
+                        (
+                            item
+                            for item in current_connection.attachments
+                            if item.attachment_id == self._state.attachment_id
+                        ),
+                        None,
+                    )
+                    if current_attachment is None or pin_number not in (
+                        _available_ribbon_line_pins(
+                            current,
+                            current_connection,
+                            current_attachment,
+                            "main",
+                        )
+                        or ()
+                    ):
+                        raise ValueError("The ribbon line pin is no longer available.")
                 attachment = replace(
                     self._state.attachment,
                     target_kind=target.target_kind,
@@ -210,6 +332,7 @@ class _AttachCableEndExecuteHandler(adsk.core.CommandEventHandler):
                     normalize_definition=lambda candidate: number_ribbon_connections(
                         _require_active_design(application), candidate
                     ),
+                    pin_number=pin_number,
                 )
                 definition = loads(gateway.read_harness_definition(self._state.harness_id))
                 updated_count = refresh_generated_cable_groups_for_connection(
@@ -292,6 +415,9 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             )
             for entity in (design.findEntityByToken(token) or ())
         )
+        available_line_pins = _available_ribbon_line_pins(
+            definition, connection, attachment, relationship
+        )
         state = _AttachCableEndCommandState(
             harness_id,
             connection_id,
@@ -299,6 +425,7 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             excluded_entities,
             attachment,
             relationship,
+            available_line_pins,
         )
         inputs = args.command.commandInputs
         selection_input = inputs.addSelectionInput(
@@ -331,8 +458,22 @@ class _AttachCableEndCreatedHandler(adsk.core.CommandCreatedEventHandler):
             is None
         ):
             raise RuntimeError("Fusion could not create the optional connection-name field.")
+        if available_line_pins is not None:
+            saved_pin = ribbon_pin_number(attachment.pin_number)
+            pin_input = inputs.addDropDownCommandInput(
+                CABLE_END_ATTACHMENT_PIN_INPUT_ID,
+                "Ribbon Line Pin",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            if pin_input is None:
+                raise RuntimeError("Fusion could not create the ribbon line-pin choice.")
+            if saved_pin is None and pin_input.listItems.add("Select line…", True) is None:
+                raise RuntimeError("Fusion could not add the ribbon line-pin prompt.")
+            for pin in available_line_pins:
+                if pin_input.listItems.add(pin, pin == str(saved_pin)) is None:
+                    raise RuntimeError("Fusion could not add an available ribbon line pin.")
         preselect = _AttachCableEndPreSelectHandler(state)
-        validate = _AttachCableEndValidateInputsHandler()
+        validate = _AttachCableEndValidateInputsHandler(state)
         execute = _AttachCableEndExecuteHandler(state)
         if not args.command.preSelect.add(preselect):
             raise RuntimeError("Fusion could not filter connection targets.")
