@@ -495,6 +495,7 @@ def _build_group_output(
     output_mode: str,
     *,
     is_visible: bool = True,
+    notices: Optional[list[str]] = None,
 ) -> None:
     """
     Dispatch separate loose and discrete-ribbon construction contracts.
@@ -503,7 +504,7 @@ def _build_group_output(
         if len(group_legs) != 1:
             raise ValueError("A discrete ribbon requires exactly one two-ended route.")
         leg, route = group_legs[0]
-        frames = ribbon_route_frames(design, definition, leg, route, maximum_sections=24)
+        frames = ribbon_route_frames(design, definition, leg, route)
         build_discrete_ribbon_solid(
             component,
             group,
@@ -515,6 +516,7 @@ def _build_group_output(
             definition.cable_group_materials(group),
             design,
             output_mode,
+            notices,
         )
         return
     route_options = _route_build_options(
@@ -587,6 +589,7 @@ def generate_cable_group_solids(
                     definition,
                     design,
                     output_mode,
+                    notices=notices,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
@@ -672,6 +675,7 @@ def refresh_changed_generated_cable_groups(
             and (
                 metadata.get("ribbon_lines") != group.ribbon_lines
                 or metadata.get("diameter_mm") != group.diameter_mm
+                or not isinstance(metadata.get("ribbon_line_lengths_mm"), list)
             )
         ):
             changed_ids.add(group_id)
@@ -783,6 +787,7 @@ def _refresh_generated_cable_groups(
                 design,
                 generated_cable_group_output_mode(previous),
                 is_visible=previous.isLightBulbOn,
+                notices=notices,
             )
             occurrence.isLightBulbOn = previous.isLightBulbOn
         for occurrence in previous_by_id.values():

@@ -26,8 +26,8 @@ from ..domain import (
 from ..routing import (
     RoutePreview,
     Vector3,
-    ribbon_lane_points,
     sample_centerline,
+    solve_ribbon_shape,
 )
 from .ribbon_geometry import ribbon_route_frames
 from .route_preview_parts.solver import (
@@ -239,6 +239,7 @@ def show_route_previews(
                 index,
                 cable_group,
                 legs_by_id[route.cable_id],
+                notices,
             )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         preview_group.deleteMe()
@@ -550,6 +551,7 @@ def _refresh_cable_group_preview(
                 color_index,
                 new_group,
                 legs_by_id[route.cable_id],
+                warnings,
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             for child in _cable_graphics(group, {route.cable_id}):
@@ -723,6 +725,7 @@ def _add_group_route_graphics(
     color_index: int,
     cable_group: CableGroupDefinition,
     leg: CableGroupRouteLeg,
+    notices: Optional[list[str]] = None,
 ) -> None:
     """
     Draw a loose centerline or ordered colored lanes for one discrete ribbon.
@@ -732,12 +735,22 @@ def _add_group_route_graphics(
         _add_route_graphics(preview_group, route, color_index, main_color)
         return
     frames = ribbon_route_frames(design, definition, leg, route)
+    shape = solve_ribbon_shape(frames, cable_group.ribbon_lines, cable_group.diameter_mm)
+    if notices is not None:
+        status = "meets" if shape.meets_length_target else "exceeds"
+        notices.append(
+            f"{'Warning: ' if not shape.meets_length_target else ''}"
+            f"{route.cable_number}: ribbon line lengths "
+            f"{min(shape.lengths_mm):.2f}–{max(shape.lengths_mm):.2f} mm "
+            f"({shape.spread:.1%} spread; {status} 1% target; "
+            f"maximum adjacent pitch {shape.maximum_pitch_ratio:.2f}× nominal)."
+        )
     _add_route_graphics(
         preview_group,
         route,
         color_index,
         main_color,
-        ribbon_lanes=ribbon_lane_points(frames, cable_group.ribbon_lines, cable_group.diameter_mm),
+        ribbon_lanes=shape.lanes,
         ribbon_colors=cable_group.resolved_ribbon_line_colors(main_color),
     )
 

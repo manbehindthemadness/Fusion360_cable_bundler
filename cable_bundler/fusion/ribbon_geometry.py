@@ -19,7 +19,7 @@ def ribbon_route_frames(
     leg: CableGroupRouteLeg,
     route: RoutePreview,
     *,
-    maximum_sections: int = 80,
+    maximum_sections: int = 32,
 ) -> tuple[RibbonFrame, ...]:
     """
     Carry each end's curve direction through one two-ended discrete ribbon leg.
