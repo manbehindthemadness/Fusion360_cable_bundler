@@ -123,6 +123,21 @@ def _warn_short_ribbon_guide(
         )
 
 
+def _main_route_connection_frames(
+    design: adsk.fusion.Design,
+    group: CableGroupDefinition,
+    connection: Connection,
+    frames: dict[UUID, Union[GateFrame, RefineFrame]],
+    cache: dict[str, ProfileFrame],
+) -> tuple[ProfileFrame, ...]:
+    """
+    Stop ribbon trunks at their guides; route contacts as numbered branches.
+    """
+    if group.group_type is CableGroupType.RIBBON:
+        return connection_profile_frames(design, connection, cache)
+    return connection_route_frames(design, connection, frames, cache)
+
+
 # noinspection DuplicatedCode
 def solve_cable_group_routes(
     design: adsk.fusion.Design,
@@ -266,8 +281,9 @@ def solve_cable_group_routes(
             connection = connections.get(leg.start_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing start connection.")
-            connection_frames = connection_route_frames(
+            connection_frames = _main_route_connection_frames(
                 design,
+                group,
                 connection,
                 frames,
                 profile_frames,
@@ -356,8 +372,9 @@ def solve_cable_group_routes(
             connection = connections.get(leg.end_connection_id)
             if connection is None:
                 raise RuntimeError(f"{leg.label} references a missing end connection.")
-            connection_frames = connection_route_frames(
+            connection_frames = _main_route_connection_frames(
                 design,
+                group,
                 connection,
                 frames,
                 profile_frames,

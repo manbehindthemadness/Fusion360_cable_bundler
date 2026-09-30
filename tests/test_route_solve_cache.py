@@ -358,6 +358,51 @@ def test_attached_connection_prepends_external_contact_frame(
     assert frames == (target_frame, member_frame)
 
 
+def test_ribbon_trunk_stops_at_open_guide_before_numbered_connection_branch(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep a ribbon contact off the main route while preserving loose behavior.
+    """
+    from cable_bundler.fusion.route_preview_parts import solver as route_solver
+
+    del addin_module
+    connection = replace(
+        valid_harness.connections[0],
+        attachment=CableEndAttachment(
+            AttachmentTargetKind.SKETCH_POINT,
+            "target-token",
+            "Target",
+            attachment_id=UUID(int=901),
+            pin_number="1",
+        ),
+    )
+    guide = route_solver.ProfileFrame(
+        Vector3(0.0, 0.0, 10.0),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+    )
+    target = replace(guide, origin=Vector3(0.0, 0.0, 0.0))
+    native_frames = Mock(return_value=(guide,))
+    attached_frames = Mock(return_value=(target, guide))
+    monkeypatch.setattr(route_solver, "connection_profile_frames", native_frames)
+    monkeypatch.setattr(route_solver, "connection_route_frames", attached_frames)
+    group = valid_harness.cable_groups[0]
+
+    ribbon_frames = route_solver._main_route_connection_frames(
+        object(), replace(group, group_type=CableGroupType.RIBBON), connection, {}, {}
+    )
+    loose_frames = route_solver._main_route_connection_frames(object(), group, connection, {}, {})
+
+    assert ribbon_frames == (guide,)
+    assert loose_frames == (target, guide)
+    native_frames.assert_called_once()
+    attached_frames.assert_called_once()
+
+
 def test_multiple_connections_create_loosely_packed_branches(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
