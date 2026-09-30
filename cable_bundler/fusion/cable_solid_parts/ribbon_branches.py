@@ -78,6 +78,10 @@ def build_ribbon_connection_branches(
         )
         materials = definition.cable_end_attachment_materials(group, connection_id, attachment_id)
         diameter_mm = leg.diameter_mm or group.diameter_mm
+        configured_conductor_mm = attachment.visual_overrides.conductor_diameter_mm
+        pullback_diameter_mm = (
+            configured_conductor_mm if configured_conductor_mm is not None else diameter_mm * 0.75
+        )
         pullback = materials.pullback
         requested_pullback_mm = (
             pullback.value
@@ -89,6 +93,10 @@ def build_ribbon_connection_branches(
         split = split_route_for_pullback(
             route, requested_pullback_mm if output_mode == FINALIZED_OUTPUT_MODE else 0.0
         )
+        if split.pullback is not None and pullback_diameter_mm > diameter_mm:
+            raise ValueError(
+                f"Ribbon line {line_number} connection conductor is wider than its fitted insulation."
+            )
         overlap_mm = diameter_mm * 0.5
         insulation_count = 0
         pullback_count = 0
@@ -113,15 +121,12 @@ def build_ribbon_connection_branches(
             insulation_count = 1
             length_mm += measured - overlap_mm
         if split.pullback is not None:
-            pullback_diameter = definition.cable_end_attachment_conductor_diameter(
-                group, connection_id, attachment_id
-            )
             body, measured = _build_route_sweep(
                 component,
                 extend_route_tail(split.pullback, overlap_mm)
                 if split.insulation is None
                 else split.pullback,
-                pullback_diameter,
+                pullback_diameter_mm,
                 transform,
                 f"Ribbon Connection {index} Pullback Centerline",
                 f"Ribbon Connection {index} Pullback Diameter",
@@ -168,9 +173,7 @@ def build_ribbon_connection_branches(
                 "pullback_requested_mm": (
                     requested_pullback_mm if output_mode == FINALIZED_OUTPUT_MODE else 0.0
                 ),
-                "pullback_diameter_mm": definition.cable_end_attachment_conductor_diameter(
-                    group, connection_id, attachment_id
-                ),
+                "pullback_diameter_mm": pullback_diameter_mm,
                 "insulation_body_count": insulation_count,
                 "pullback_body_count": pullback_count,
                 "weld_body_count": weld_count,

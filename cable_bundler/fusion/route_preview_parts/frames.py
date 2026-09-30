@@ -42,6 +42,8 @@ class ProfileFrame:
     v_direction: Vector3
     usable_radius_mm: Optional[float] = None
     guide_length_mm: Optional[float] = None
+    ribbon_connection_diameter_mm: Optional[float] = None
+    ribbon_terminal_tangent: Optional[Vector3] = None
 
 
 def connection_branch_route_frames(

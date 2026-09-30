@@ -58,7 +58,7 @@ from .frames import (
     routing_frame,
 )
 from .frames import connection_profile_points as _connection_profile_points
-from .ribbon_branches import ribbon_branch_guides
+from .ribbon_branches import align_ribbon_branch_end, ribbon_branch_guides
 from .solver_controls import (
     _append_route_control,
     _BranchAnchor,
@@ -100,6 +100,19 @@ def _packing_diameter_mm(group: CableGroupDefinition) -> float:
     if group.group_type is CableGroupType.RIBBON:
         return math.hypot(group.ribbon_lines * group.diameter_mm, group.diameter_mm)
     return group.diameter_mm
+
+
+def _ribbon_root_connection_diameter(
+    group: CableGroupDefinition,
+    connection_id: UUID,
+    attachment_id: UUID,
+    guides: Optional[dict[tuple[UUID, UUID, UUID], ProfileFrame]],
+) -> float:
+    """
+    Use the fitted lobe width for a targeted root and nominal width for a placeholder.
+    """
+    guide = (guides or {}).get((group.cable_group_id, connection_id, attachment_id))
+    return (guide.ribbon_connection_diameter_mm if guide is not None else None) or group.diameter_mm
 
 
 def _warn_short_ribbon_guide(
@@ -641,7 +654,19 @@ def _connection_branch_routes(
                         frames,
                     )
                 packing = (
-                    tuple(PackedConnection(0.0, 0.0, group.diameter_mm) for _ in siblings)
+                    tuple(
+                        PackedConnection(
+                            0.0,
+                            0.0,
+                            _ribbon_root_connection_diameter(
+                                group,
+                                connection_id,
+                                attachment.attachment_id,
+                                ribbon_guides,
+                            ),
+                        )
+                        for attachment in siblings
+                    )
                     if ribbon_root
                     else definition.cable_end_attachment_pack(
                         group, connection_id, parent_attachment_id
@@ -811,6 +836,19 @@ def _connection_branch_routes(
                                     raw_route.cable_number, unsafe, branch_diameter_mm
                                 )
                             )
+                    if ribbon_root:
+                        ribbon_guide = (ribbon_guides or {})[
+                            group.cable_group_id, connection_id, attachment.attachment_id
+                        ]
+                        if ribbon_guide.ribbon_terminal_tangent is not None:
+                            route, aligned = align_ribbon_branch_end(
+                                route, ribbon_guide.ribbon_terminal_tangent, branch_diameter_mm
+                            )
+                            if not aligned and notices is not None:
+                                notices.append(
+                                    f"Warning: {label}: connection could not match the ribbon "
+                                    "line tangent without exceeding the sweep bend limit."
+                                )
                     if notices is not None:
                         notices.extend(_adjustment_notice(item) for item in adjustments)
                     sibling_routes.append(route)

@@ -127,7 +127,7 @@ def test_branch_guide_uses_numbered_line_end_face_and_fitted_tangent(
     from cable_bundler.application import CableGroupRouteLeg
     from cable_bundler.fusion.route_preview_parts import ribbon_branches
     from cable_bundler.fusion.route_preview_parts.frames import ProfileFrame
-    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+    from cable_bundler.routing import CubicBezier, RibbonEndFit, RoutePreview, Vector3
     from cable_bundler.routing.geometry import difference, unit
 
     del addin_module
@@ -164,10 +164,26 @@ def test_branch_guide_uses_numbered_line_end_face_and_fitted_tangent(
         (),
     )
     lane = (Vector3(0.0, 4.0, 0.0), Vector3(8.0, 5.0, 0.0), Vector3(10.0, 6.0, 0.0))
+    half_diameter = group.diameter_mm / 2.0
+
+    def fit(center: Vector3) -> RibbonEndFit:
+        """
+        Supply the exact line-three edge interval of a fitted guide.
+        """
+        return RibbonEndFit(
+            (start, start, center),
+            (Vector3(0.0, 0.0, 1.0),) * 3,
+            (
+                Vector3(center.x, center.y - 2.5 * group.diameter_mm, center.z),
+                Vector3(center.x, center.y - 1.5 * group.diameter_mm, center.z),
+                Vector3(center.x, center.y - half_diameter, center.z),
+                Vector3(center.x, center.y + half_diameter, center.z),
+            ),
+            approach_normal=Vector3(1.0, 0.0, 0.0),
+        )
+
     shape = SimpleNamespace(
-        start_fit=object(),
-        end_fit=object(),
-        lanes=((start, end), (start, end), lane),
+        start_fit=fit(lane[0]), end_fit=fit(lane[-1]), lanes=((start, end), (start, end), lane)
     )
     profile = ProfileFrame(
         start, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0)
@@ -185,6 +201,107 @@ def test_branch_guide_uses_numbered_line_end_face_and_fitted_tangent(
     expected_center, inside = (lane[0], lane[1]) if at_start else (lane[-1], lane[-2])
     assert guide.origin == expected_center
     assert guide.normal == unit(difference(inside, expected_center))
+    assert guide.ribbon_connection_diameter_mm == pytest.approx(0.9 * group.diameter_mm)
+    assert guide.ribbon_terminal_tangent == ribbon_branches._terminal_lane_tangent(
+        lane, at_start=at_start
+    )
+    assert guide.ribbon_terminal_tangent != guide.normal
+
+
+def test_ribbon_terminal_tangent_uses_curvature_beyond_first_chord(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Capture the loft's initial turn rather than treating its first chord as tangent.
+    """
+    del addin_module
+    from cable_bundler.fusion.route_preview_parts.ribbon_branches import _terminal_lane_tangent
+    from cable_bundler.routing import Vector3
+    from cable_bundler.routing.geometry import unit
+
+    lane = (Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(1.0, 1.0, 0.0))
+
+    assert _terminal_lane_tangent(lane, at_start=True) == unit(Vector3(1.5, -0.5, 0.0))
+
+
+def test_fitted_ribbon_connection_diameter_uses_narrower_side(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    A fitted edge line cannot protrude beyond its asymmetric lobe.
+    """
+    del addin_module
+    from cable_bundler.fusion.route_preview_parts.ribbon_branches import (
+        _fitted_connection_diameter,
+    )
+    from cable_bundler.routing import Vector3
+
+    diameter = _fitted_connection_diameter(
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(-0.4, 0.0, 0.0),
+        Vector3(0.6, 0.0, 0.0),
+        1.0,
+    )
+
+    assert diameter == pytest.approx(0.72)
+
+
+def test_ribbon_branch_terminal_tangent_changes_without_straightening_route(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Preserve the preceding curve and branch start while matching its lobe tangent.
+    """
+    del addin_module
+    from cable_bundler.fusion.route_preview_parts.ribbon_branches import align_ribbon_branch_end
+    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+    from cable_bundler.routing.geometry import dot, unit
+
+    first = CubicBezier(
+        Vector3(-20.0, 0.0, 0.0),
+        Vector3(-17.0, 0.0, 0.0),
+        Vector3(-13.0, 0.0, 0.0),
+        Vector3(-10.0, 0.0, 0.0),
+    )
+    last = CubicBezier(
+        first.end,
+        Vector3(-7.0, 0.0, 0.0),
+        Vector3(-3.0, 0.0, 0.0),
+        Vector3(0.0, 0.0, 0.0),
+    )
+    route = RoutePreview(UUID(int=700), "Branch", (first.start, first.end, last.end), (first, last))
+    tangent = Vector3(1.0, 0.25, 0.0)
+
+    adjusted, aligned = align_ribbon_branch_end(route, tangent, 0.5)
+
+    assert aligned
+    assert adjusted.curves[0] == first
+    assert adjusted.curves[-1].start == last.start
+    assert adjusted.curves[-1].control_a == last.control_a
+    assert adjusted.curves[-1].end == last.end
+    assert adjusted.curves[-1].control_b != last.control_b
+    assert dot(unit(adjusted.curves[-1].derivative(1.0)), unit(tangent)) == pytest.approx(1.0)
+
+
+def test_ribbon_branch_keeps_original_when_end_bend_is_too_tight(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Do not replace a valid branch with an unsweepable cap correction.
+    """
+    del addin_module
+    from cable_bundler.fusion.route_preview_parts.ribbon_branches import align_ribbon_branch_end
+    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+
+    start = Vector3(-2.0, 0.0, 0.0)
+    end = Vector3(0.0, 0.0, 0.0)
+    curve = CubicBezier(start, Vector3(-1.5, 0.0, 0.0), Vector3(-0.5, 0.0, 0.0), end)
+    route = RoutePreview(UUID(int=701), "Short branch", (start, end), (curve,))
+
+    adjusted, aligned = align_ribbon_branch_end(route, Vector3(1.0, 1.0, 0.0), 2.0)
+
+    assert not aligned
+    assert adjusted is route
 
 
 def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagrees(
@@ -197,7 +314,8 @@ def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagree
     """
     from cable_bundler.fusion.route_preview_parts import frames, solver
     from cable_bundler.fusion.route_preview_parts.frames import ProfileFrame
-    from cable_bundler.routing import Vector3
+    from cable_bundler.routing import RoutePreview, Vector3, straight_route
+    from cable_bundler.routing.geometry import dot, unit
 
     del addin_module
     target = CableEndAttachment(
@@ -219,6 +337,8 @@ def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagree
         Vector3(1.0, 0.0, 0.0),
         Vector3(0.0, 1.0, 0.0),
         Vector3(0.0, 0.0, 1.0),
+        ribbon_connection_diameter_mm=0.8,
+        ribbon_terminal_tangent=Vector3(1.0, 0.1, 0.0),
     )
     contact = replace(guide, origin=Vector3(-10.0, 0.0, 0.0))
     monkeypatch.setitem(vars(solver), "connection_profile_frames", lambda *_args: (guide,))
@@ -226,18 +346,18 @@ def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagree
     tangents: list[tuple[Vector3, frozenset[int]]] = []
 
     def capture_fairing(
-        route: object, normals: tuple[Vector3, ...], *_args: object, **kwargs: object
-    ) -> object:
+        route: RoutePreview, normals: tuple[Vector3, ...], *_args: object, **kwargs: object
+    ) -> RoutePreview:
         """
         Record the terminal tangent passed to branch fairing.
         """
         fixed = kwargs["fixed_normal_indices"]
         assert isinstance(fixed, frozenset)
         tangents.append((normals[-1], fixed))
-        return route
+        return straight_route(route)
 
     monkeypatch.setitem(vars(solver), "fair_route", capture_fairing)
-    routes, _legs = solver._connection_branch_routes(
+    routes, legs = solver._connection_branch_routes(
         object(),
         definition,
         {item.connection_id: item for item in definition.connections},
@@ -257,6 +377,10 @@ def test_ribbon_root_branch_keeps_fitted_tangent_when_parent_centerline_disagree
 
     assert len(routes) == 1
     assert tangents == [(guide.normal, frozenset({1}))]
+    assert legs[0].diameter_mm == 0.8
+    assert dot(
+        unit(routes[0].curves[-1].derivative(1.0)), unit(guide.ribbon_terminal_tangent)
+    ) == pytest.approx(1.0)
 
 
 def test_target_numbering_is_persisted_and_not_recomputed(
@@ -362,7 +486,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
         None,
         (),
         (),
-        diameter_mm=group.diameter_mm,
+        diameter_mm=group.diameter_mm * 0.9,
         is_connection_branch=True,
         attachment_id=target.attachment_id,
     )
@@ -397,5 +521,39 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     branch = json.loads(attribute.value)["connection_branches"][0]
     assert branch["attachment_id"] == str(target.attachment_id)
     assert branch["ribbon_line_number"] == 2
+    assert branch["diameter_mm"] == pytest.approx(group.diameter_mm * 0.9)
+    assert branch["pullback_diameter_mm"] == pytest.approx(group.diameter_mm * 0.9 * 0.75)
     assert branch["insulation_body_count"] == 1
     assert body.name.startswith("Cable Group 1 Line 2")
+
+    oversized = replace(
+        target,
+        visual_overrides=CableVisualOverrides(conductor_diameter_mm=group.diameter_mm * 0.95),
+    )
+    oversized_definition = replace(
+        definition,
+        connections=(
+            replace(definition.connections[0], attachment=oversized),
+            definition.connections[1],
+        ),
+    )
+    monkeypatch.setitem(
+        vars(ribbon_branches),
+        "split_route_for_pullback",
+        lambda route_to_split, _distance: SimpleNamespace(
+            insulation=route_to_split,
+            pullback=route_to_split,
+            pullback_length_mm=1.0,
+        ),
+    )
+    with pytest.raises(ValueError, match="wider than its fitted insulation"):
+        ribbon_branches.build_ribbon_connection_branches(
+            component,
+            group,
+            0,
+            ((leg, route),),
+            object(),
+            oversized_definition,
+            object(),
+            ribbon_branches.FINALIZED_OUTPUT_MODE,
+        )
