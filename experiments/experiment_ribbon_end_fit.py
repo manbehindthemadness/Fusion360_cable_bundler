@@ -77,7 +77,7 @@ def rebuild_candidate() -> dict[str, Any]:
     fitted = ribbon_route_shape(
         design, definition, leg, matched, group.ribbon_lines, group.diameter_mm
     )
-    if fitted.fit_warnings or fitted.shape.start_fit is None or fitted.shape.end_fit is None:
+    if fitted.shape.start_fit is None or fitted.shape.end_fit is None:
         raise RuntimeError(f"Pathway_001 did not fit both guides: {fitted.fit_warnings!r}")
     notices: list[str] = []
     replaced = _refresh_generated_cable_groups(
@@ -102,6 +102,9 @@ def rebuild_candidate() -> dict[str, Any]:
         "endFitted": fitted.shape.end_fit is not None,
         "spread": fitted.shape.spread,
         "maximumPitchRatio": fitted.shape.maximum_pitch_ratio,
+        "minimumEndRadiusMm": fitted.shape.minimum_end_radius_mm,
+        "endLeadMm": fitted.shape.end_lead_mm,
+        "fitWarnings": fitted.fit_warnings,
         "notices": notices,
         "saved": False,
     }

@@ -221,6 +221,10 @@ def _add_section(
         if cap is None:
             raise RuntimeError("Fusion could not close the ribbon section.")
     if section.profiles.count != 1:
+        if section.isValid and not section.deleteMe():
+            raise RuntimeError("Fusion could not clean an invalid ribbon section sketch.")
+        if plane.isValid and not plane.deleteMe():
+            raise RuntimeError("Fusion could not clean an invalid ribbon section plane.")
         raise RuntimeError("Fusion did not produce one joined ribbon profile.")
     return section, plane
 
@@ -361,18 +365,23 @@ def _build_folded_loft(
                 if section_index == len(shape.frames) - 1
                 else None
             )
-            section, plane = _add_section(
-                component,
-                center_path,
-                frame,
-                group,
-                transform,
-                path_fraction=section_index / (len(shape.frames) - 1),
-                lane_centers=centers,
-                lane_normals=normals,
-                end_fit=fit,
-                guide_plane=guide_plane,
-            )
+            try:
+                section, plane = _add_section(
+                    component,
+                    center_path,
+                    frame,
+                    group,
+                    transform,
+                    path_fraction=section_index / (len(shape.frames) - 1),
+                    lane_centers=centers,
+                    lane_normals=normals,
+                    end_fit=fit,
+                    guide_plane=guide_plane,
+                )
+            except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+                raise RibbonLoftUnavailable(
+                    f"Ribbon section {section_index + 1} could not be drawn ({error})."
+                ) from error
             sections.append(section)
             planes.append(plane)
             loft_input.loftSections.add(section.profiles.item(0))
@@ -518,6 +527,8 @@ def build_discrete_ribbon_solid(
             "ribbon_length_spread": spread,
             "ribbon_folded": folded,
             "ribbon_maximum_pitch_ratio": maximum_pitch_ratio,
+            "ribbon_end_lead_mm": shape.end_lead_mm if folded else None,
+            "ribbon_minimum_end_radius_mm": shape.minimum_end_radius_mm if folded else None,
             "route_legs": [
                 {
                     "route_id": str(route.cable_id),

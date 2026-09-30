@@ -16,6 +16,7 @@ import adsk.fusion
 from ..application import CableGroupRouteLeg
 from ..domain import HarnessDefinition, OpenGuideAlignment
 from ..routing import (
+    RIBBON_END_BEND_RADIUS_FACTOR,
     RIBBON_NEIGHBOR_PITCH_LIMIT,
     RibbonEndFit,
     RibbonFrame,
@@ -145,6 +146,7 @@ def _guide_fit(
             normals,
             tuple(point for point, _normal in edge_samples),
             tuple(normal for _point, normal in edge_samples),
+            plane_normal,
         ),
         guide_plane,
     )
@@ -215,6 +217,15 @@ def ribbon_route_shape(
     elif shape.maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT + 1e-6:
         warnings.append(
             "guide transition exceeds the 3% adjacent-line pitch target; anchors preserved"
+        )
+    required_radius = RIBBON_END_BEND_RADIUS_FACTOR * diameter_mm
+    if (
+        shape.minimum_end_radius_mm is not None
+        and shape.minimum_end_radius_mm < required_radius - 1e-6
+    ):
+        warnings.append(
+            f"ribbon end approach bends to {shape.minimum_end_radius_mm:.2f} mm "
+            f"(trial minimum {required_radius:.2f} mm); route unchanged"
         )
     return RibbonRouteShape(shape, (planes[0], planes[1]), tuple(warnings))
 

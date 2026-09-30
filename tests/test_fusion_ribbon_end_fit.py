@@ -74,6 +74,7 @@ def test_center_alignment_samples_ordered_guide_curve(
 
     assert resolved_plane.reference_plane is plane
     assert resolved_plane.origin == Vector3(50, 0, 0)
+    assert fit.approach_normal == resolved_plane.normal
     assert len(fit.centers) == line_count
     assert all(
         math.isclose(point.y, curvature * (point.x / 10.0 - 5.0) ** 2 * 10.0)
@@ -175,6 +176,7 @@ def test_nonparametric_guide_never_reads_reference_plane(
     assert fit.centers[1] == Vector3(50, 0, 20)
     assert guide_plane.origin == Vector3(0, 0, 20)
     assert guide_plane.normal == Vector3(0, 0, 1)
+    assert fit.approach_normal == guide_plane.normal
     assert guide_plane.reference_plane is None
 
 
@@ -276,14 +278,16 @@ def test_terminal_profile_uses_sampled_guide_edges(
 
 
 @pytest.mark.parametrize("parametric", (False, True))
+@pytest.mark.parametrize("profile_count", (0, 1))
 def test_terminal_section_uses_the_available_guide_plane_kind(
     addin_module: _PaletteLifecycleModule,
     valid_harness: HarnessDefinition,
     monkeypatch: pytest.MonkeyPatch,
     parametric: bool,
+    profile_count: int,
 ) -> None:
     """
-    Define direct guide planes by geometry and parametric ones by reference.
+    Define the available plane kind and clean an invalid projected profile.
     """
     ribbon = import_module("cable_bundler.fusion.ribbon_geometry")
     builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
@@ -294,15 +298,22 @@ def test_terminal_section_uses_the_available_guide_plane_kind(
         setByPlane=lambda _plane: calls.append("direct") or True,
         setByOffset=lambda _plane, _distance: calls.append("parametric") or True,
     )
-    plane = SimpleNamespace(name="", isLightBulbOn=True)
+    plane = SimpleNamespace(
+        name="",
+        isLightBulbOn=True,
+        isValid=True,
+        deleteMe=lambda: calls.append("plane deleted") or True,
+    )
     section = SimpleNamespace(
         name="",
         isLightBulbOn=True,
+        isValid=True,
+        deleteMe=lambda: calls.append("section deleted") or True,
         modelToSketchSpace=lambda point: point,
         sketchCurves=SimpleNamespace(
             sketchArcs=SimpleNamespace(addByThreePoints=lambda _start, _middle, _end: object())
         ),
-        profiles=SimpleNamespace(count=1),
+        profiles=SimpleNamespace(count=profile_count),
     )
     component = SimpleNamespace(
         constructionPlanes=SimpleNamespace(
@@ -331,9 +342,16 @@ def test_terminal_section_uses_the_available_guide_plane_kind(
     group = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
     frame = RibbonFrame(Vector3(0, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))
 
-    created_section, created_plane = builder._add_section(
-        component, object(), frame, group, object(), guide_plane=guide
-    )
-
-    assert (created_section, created_plane) == (section, plane)
-    assert calls == (["parametric"] if parametric else ["direct"])
+    if profile_count:
+        created_section, created_plane = builder._add_section(
+            component, object(), frame, group, object(), guide_plane=guide
+        )
+        assert (created_section, created_plane) == (section, plane)
+        assert calls == (["parametric"] if parametric else ["direct"])
+    else:
+        with pytest.raises(RuntimeError, match="one joined ribbon profile"):
+            builder._add_section(component, object(), frame, group, object(), guide_plane=guide)
+        assert calls == (["parametric"] if parametric else ["direct"]) + [
+            "section deleted",
+            "plane deleted",
+        ]

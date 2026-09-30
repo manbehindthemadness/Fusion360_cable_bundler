@@ -100,6 +100,8 @@ def test_straight_ribbon_needs_no_length_correction() -> None:
     assert shape.lengths_mm == (100.0,) * 40
     assert shape.meets_length_target
     assert not shape.folded
+    assert shape.end_lead_mm == 0.0
+    assert shape.minimum_end_radius_mm is None
 
 
 def test_single_line_ribbon_keeps_its_supported_domain_shape() -> None:
@@ -215,11 +217,38 @@ def test_terminal_fit_blends_exact_guide_samples_and_remeasures_lines() -> None:
     assert tuple(lane[0] for lane in shape.lanes) == start.centers
     assert tuple(lane[-1] for lane in shape.lanes) == end.centers
     assert all(
-        lane[4] == Vector3((index - 1) * 1.5, 0, frames[4].origin.z)
+        lane[6] == Vector3((index - 1) * 1.5, 0, frames[6].origin.z)
         for index, lane in enumerate(shape.lanes)
     )
+    assert shape.end_lead_mm == 13.5
     assert shape.lengths_mm == ribbon_line_lengths(shape.lanes)
     assert shape.maximum_pitch_ratio >= 1.0
+
+
+def test_guide_approach_scales_with_line_diameter() -> None:
+    """
+    Give larger lines a longer tangent-matched lead without moving their ends.
+    """
+    route = RoutePreview(UUID(int=14), "Entry", (Vector3(0, 0, 0), Vector3(0, 0, 100)))
+    frames = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0), maximum_sections=49)
+    fit = RibbonEndFit(
+        (Vector3(0, 0, 0),),
+        (Vector3(0, 1, 0),),
+        approach_normal=Vector3(0, 1, 1),
+    )
+
+    small = solve_ribbon_shape(frames, 1, 1.0, start_fit=fit)
+    large = solve_ribbon_shape(frames, 1, 2.0, start_fit=fit)
+
+    assert small.lanes[0][0] == large.lanes[0][0] == fit.centers[0]
+    assert small.end_lead_mm == 9.0
+    assert large.end_lead_mm == 18.0
+    assert small.lanes[0][1].y > 0.0
+    assert large.lanes[0][1].y > small.lanes[0][1].y
+    assert small.lanes[0][12] == large.lanes[0][12] == frames[12].origin
+    assert small.minimum_end_radius_mm is not None
+    assert large.minimum_end_radius_mm is not None
+    assert large.minimum_end_radius_mm > small.minimum_end_radius_mm
 
 
 def test_terminal_fit_rejects_missing_conductors() -> None:
