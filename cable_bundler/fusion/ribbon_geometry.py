@@ -18,16 +18,21 @@ from ..domain import HarnessDefinition, OpenGuideAlignment
 from ..routing import (
     RIBBON_END_BEND_RADIUS_FACTOR,
     RIBBON_NEIGHBOR_PITCH_LIMIT,
+    GateFrame,
+    RibbonBankGate,
     RibbonEndFit,
     RibbonFrame,
     RibbonShape,
     RoutePreview,
     Vector3,
+    bank_ribbon_frames,
     ribbon_frames,
+    ribbon_has_hard_axis_bend,
     solve_ribbon_shape,
 )
 from ..routing.geometry import cross, difference, dot, magnitude, unit
-from .route_preview_parts.frames import ProfileFrame, connection_profile_frames
+from .route_preview_parts.frames import ProfileFrame, connection_profile_frames, routing_frame
+from .route_preview_parts.solver_controls import leg_control_ids
 
 
 @dataclass(frozen=True)
@@ -173,10 +178,15 @@ def ribbon_route_shape(
     section_count = max(32, 8 * maximum_cycles + 1)
     if section_count > len(frames):
         frames = ribbon_route_frames(design, definition, leg, route, maximum_sections=section_count)
+    frames = bank_ribbon_frames(
+        frames, line_count, diameter_mm, _bank_gates(design, definition, leg, frames)
+    )
     connections = {connection.connection_id: connection for connection in definition.connections}
     fits: list[RibbonEndFit | None] = []
     planes: list[RibbonGuidePlane | None] = []
     warnings = []
+    if ribbon_has_hard_axis_bend(frames):
+        warnings.append("route retains a stiff-direction ribbon bend after banking")
     for connection_id, frame, label in (
         (leg.start_connection_id, frames[0], "start"),
         (leg.end_connection_id, frames[-1], "end"),
@@ -228,6 +238,36 @@ def ribbon_route_shape(
             f"(trial minimum {required_radius:.2f} mm); route unchanged"
         )
     return RibbonRouteShape(shape, (planes[0], planes[1]), tuple(warnings))
+
+
+def _bank_gates(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    leg: CableGroupRouteLeg,
+    frames: tuple[RibbonFrame, ...],
+) -> tuple[RibbonBankGate, ...]:
+    """
+    Bind authored gate crossings to their nearest sampled route sections.
+    """
+    end_controls = {
+        end.connection_id: end.ordered_control_ids for end in definition.standalone_ends
+    }
+    controls = {control.control_id: control for control in definition.controls}
+    constraints = []
+    for control_id in leg_control_ids(leg, end_controls):
+        gate = routing_frame(design, controls.get(control_id), control_id)
+        if not isinstance(gate, GateFrame):
+            continue
+        normal = unit(cross(gate.u_direction, gate.v_direction))
+        index = min(
+            range(len(frames)),
+            key=lambda item: (
+                abs(dot(difference(frames[item].origin, gate.origin), normal)),
+                magnitude(difference(frames[item].origin, gate.origin)),
+            ),
+        )
+        constraints.append(RibbonBankGate(index, gate))
+    return tuple(constraints)
 
 
 def ribbon_route_frames(

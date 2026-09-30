@@ -35,8 +35,6 @@ from ...routing import (
     Vector3,
     fair_route,
     minimum_circular_bend_radius,
-    ribbon_frames,
-    ribbon_has_hard_axis_bend,
     separate_route_collisions,
     straight_route,
 )
@@ -537,23 +535,6 @@ def solve_cable_group_routes(
         auto_transition_fraction=auto_transition_fraction,
     )
     solve_notices.extend(_collision_notice(item) for item in collisions)
-    for leg, route in zip(legs, separated_routes):
-        group = groups_by_id[leg.cable_group_id]
-        if group.group_type is not CableGroupType.RIBBON:
-            continue
-        if leg.start_connection_id is None or leg.end_connection_id is None:
-            raise ValueError("A discrete ribbon requires two physical open ends.")
-        start_width = connection_profile_frames(
-            design, connections[leg.start_connection_id], profile_frames
-        )[0].u_direction
-        end_width = connection_profile_frames(
-            design, connections[leg.end_connection_id], profile_frames
-        )[0].u_direction
-        if ribbon_has_hard_axis_bend(ribbon_frames(route, start_width, end_width)):
-            solve_notices.append(
-                f"{leg.label}: route bends across the ribbon width; "
-                "this stiff-direction bend may be difficult to form."
-            )
     branch_routes, branch_legs = _connection_branch_routes(
         design,
         definition,

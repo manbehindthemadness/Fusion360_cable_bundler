@@ -8,16 +8,19 @@ import math
 from uuid import UUID
 
 from cable_bundler.routing import (
+    GateFrame,
+    RibbonBankGate,
     RibbonEndFit,
     RoutePreview,
     Vector3,
+    bank_ribbon_frames,
     ribbon_frames,
     ribbon_has_hard_axis_bend,
     ribbon_lane_points,
     ribbon_line_lengths,
     solve_ribbon_shape,
 )
-from cable_bundler.routing.geometry import dot
+from cable_bundler.routing.geometry import cross, difference, dot
 
 
 def test_straight_ribbon_preserves_line_order_and_width() -> None:
@@ -85,6 +88,104 @@ def test_stiff_direction_bend_is_distinguished_from_easy_bend() -> None:
 
     assert ribbon_has_hard_axis_bend(ribbon_frames(hard, Vector3(1, 0, 0), Vector3(1, 0, 0)))
     assert not ribbon_has_hard_axis_bend(ribbon_frames(easy, Vector3(1, 0, 0), Vector3(1, 0, 0)))
+
+
+def test_normal_generation_banks_a_width_axis_turn_before_folding() -> None:
+    """
+    Move a ninety-degree route turn onto the flexible axis without swapping ends.
+    """
+    route = RoutePreview(
+        UUID(int=16),
+        "Banked turn",
+        (Vector3(0, 0, 0), Vector3(0, 0, 45), Vector3(45, 0, 45)),
+    )
+    original = ribbon_frames(route, Vector3(1, 0, 0), Vector3(0, 0, -1), maximum_sections=49)
+
+    banked = bank_ribbon_frames(original, 9, 1.0)
+    original_shape = solve_ribbon_shape(original, 9, 1.0)
+    banked_shape = solve_ribbon_shape(banked, 9, 1.0)
+
+    assert banked[0] == original[0]
+    assert banked[-1] == original[-1]
+    assert banked != original
+    assert not ribbon_has_hard_axis_bend(banked)
+    assert banked_shape.spread < original_shape.spread
+    assert all(dot(right.width, left.width) > 0.75 for left, right in zip(banked, banked[1:]))
+    assert all(
+        dot(difference(right, left), frame.width) > 0.0
+        for frame, left, right in zip(
+            banked,
+            banked_shape.lanes[0],
+            banked_shape.lanes[-1],
+        )
+    )
+
+
+def test_gate_aperture_limits_bank_without_moving_end_guides() -> None:
+    """
+    Keep line disks within an authored narrow profile while bending elsewhere.
+    """
+    route = RoutePreview(
+        UUID(int=17),
+        "Gate",
+        (Vector3(0, 0, 0), Vector3(0, 0, 45), Vector3(45, 0, 45)),
+    )
+    original = ribbon_frames(route, Vector3(1, 0, 0), Vector3(0, 0, -1), maximum_sections=49)
+    crossing = 12
+    gate = GateFrame(
+        UUID(int=18),
+        "Narrow",
+        original[crossing].origin,
+        Vector3(1, 0, 0),
+        Vector3(0, 1, 0),
+        None,
+        (((-4.7, -0.55), (4.7, -0.55), (4.7, 0.55), (-4.7, 0.55)),),
+    )
+
+    banked = bank_ribbon_frames(original, 9, 1.0, (RibbonBankGate(crossing, gate),))
+    crossing_width = banked[crossing].width
+
+    assert banked[0] == original[0]
+    assert banked[-1] == original[-1]
+    assert abs(crossing_width.x) > 0.98
+    assert banked != original
+
+
+def test_rotating_turn_can_use_full_twist_without_reordering_lines() -> None:
+    """
+    Follow a spatially rotating bend through 360 degrees with fixed signed ends.
+    """
+    points = tuple(
+        Vector3(
+            20.0 * math.cos(2.0 * math.pi * index / 48),
+            20.0 * math.sin(2.0 * math.pi * index / 48),
+            200.0 * index / 48,
+        )
+        for index in range(49)
+    )
+    route = RoutePreview(UUID(int=19), "Helix", points)
+    original = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0), maximum_sections=49)
+
+    banked = bank_ribbon_frames(original, 9, 1.0)
+    lanes = ribbon_lane_points(banked, 9, 1.0)
+    relative_angles = tuple(
+        math.atan2(
+            dot(cross(base.width, section.width), base.tangent), dot(base.width, section.width)
+        )
+        for base, section in zip(original, banked)
+    )
+    winding = 0.0
+    for left, right in zip(relative_angles, relative_angles[1:]):
+        winding += (right - left + math.pi) % (2.0 * math.pi) - math.pi
+
+    assert banked[0] == original[0]
+    assert banked[-1] == original[-1]
+    assert abs(winding) >= 2.0 * math.pi - 0.1
+    assert not ribbon_has_hard_axis_bend(banked)
+    assert all(
+        dot(difference(right, left), frame.width) > 0.0
+        for frame, left, right in zip(banked, lanes[0], lanes[-1])
+    )
 
 
 def test_straight_ribbon_needs_no_length_correction() -> None:

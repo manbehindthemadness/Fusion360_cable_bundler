@@ -17,6 +17,7 @@ from .parallel import (
     solve_parallel_routes,
 )
 from .ribbon import RibbonFrame, ribbon_frames, ribbon_has_hard_axis_bend, ribbon_lane_points
+from .ribbon_bank import RibbonBankGate, bank_ribbon_frames
 from .ribbon_shape import (
     RIBBON_END_BEND_RADIUS_FACTOR,
     RIBBON_LENGTH_SPREAD_LIMIT,
@@ -56,6 +57,7 @@ __all__ = [
     "RefineFrame",
     "RoutePreview",
     "RibbonFrame",
+    "RibbonBankGate",
     "RibbonEndFit",
     "RibbonShape",
     "RIBBON_LENGTH_SPREAD_LIMIT",
@@ -73,6 +75,7 @@ __all__ = [
     "solve_parallel_routes",
     "route_collisions",
     "ribbon_frames",
+    "bank_ribbon_frames",
     "ribbon_has_hard_axis_bend",
     "ribbon_lane_points",
     "ribbon_line_lengths",

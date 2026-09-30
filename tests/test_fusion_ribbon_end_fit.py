@@ -13,7 +13,14 @@ from uuid import UUID
 import pytest
 
 from cable_bundler.domain import CableGroupType, HarnessDefinition, OpenGuideAlignment
-from cable_bundler.routing import RibbonEndFit, RibbonFrame, RoutePreview, Vector3, ribbon_frames
+from cable_bundler.routing import (
+    GateFrame,
+    RibbonEndFit,
+    RibbonFrame,
+    RoutePreview,
+    Vector3,
+    ribbon_frames,
+)
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
@@ -215,6 +222,8 @@ def test_fixed_guide_pitch_warning_preserves_fitted_end_samples(
         ),
     )
     definition = SimpleNamespace(
+        controls=(),
+        standalone_ends=(),
         connections=(
             SimpleNamespace(
                 connection_id=start_id,
@@ -226,9 +235,9 @@ def test_fixed_guide_pitch_warning_preserves_fitted_end_samples(
                 member_tokens=("end",),
                 resolved_member_alignments=(OpenGuideAlignment.CENTER,),
             ),
-        )
+        ),
     )
-    leg = SimpleNamespace(start_connection_id=start_id, end_connection_id=end_id)
+    leg = SimpleNamespace(start_connection_id=start_id, end_connection_id=end_id, control_steps=())
 
     fitted = ribbon.ribbon_route_shape(object(), definition, leg, route, 3, 1.5)
 
@@ -239,6 +248,54 @@ def test_fixed_guide_pitch_warning_preserves_fitted_end_samples(
     assert fitted.shape.maximum_pitch_ratio >= 1.08
     assert fitted.fit_warnings == (
         "fixed guide ends exceed the 3% adjacent-line pitch target; anchors preserved",
+    )
+
+
+def test_bank_gate_binding_follows_authored_control_order(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Include end-owned and pathway gates without changing their route order.
+    """
+    ribbon = import_module("cable_bundler.fusion.ribbon_geometry")
+    start_id, end_id = UUID(int=101), UUID(int=102)
+    first_id, middle_id, last_id = UUID(int=103), UUID(int=104), UUID(int=105)
+    gates = {
+        gate_id: GateFrame(
+            gate_id,
+            "Gate",
+            Vector3(0, 0, z),
+            Vector3(1, 0, 0),
+            Vector3(0, 1, 0),
+            10.0,
+        )
+        for gate_id, z in ((first_id, 20), (middle_id, 50), (last_id, 80))
+    }
+    monkeypatch.setitem(
+        vars(ribbon), "routing_frame", lambda _design, _control, gate_id: gates[gate_id]
+    )
+    definition = SimpleNamespace(
+        controls=tuple(SimpleNamespace(control_id=gate_id) for gate_id in gates),
+        standalone_ends=(
+            SimpleNamespace(connection_id=start_id, ordered_control_ids=(first_id,)),
+            SimpleNamespace(connection_id=end_id, ordered_control_ids=(last_id,)),
+        ),
+    )
+    leg = SimpleNamespace(
+        start_connection_id=start_id,
+        end_connection_id=end_id,
+        control_steps=(SimpleNamespace(control_id=middle_id),),
+    )
+    route = RoutePreview(UUID(int=106), "Gated", (Vector3(0, 0, 0), Vector3(0, 0, 100)))
+    frames = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0))
+
+    constraints = ribbon._bank_gates(object(), definition, leg, frames)
+
+    assert tuple(item.frame.gate_id for item in constraints) == (first_id, middle_id, last_id)
+    assert tuple(item.sample_index for item in constraints) == tuple(
+        min(range(len(frames)), key=lambda index: abs(frames[index].origin.z - z))
+        for z in (20, 50, 80)
     )
 
 
