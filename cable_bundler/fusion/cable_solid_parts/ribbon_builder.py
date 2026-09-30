@@ -17,16 +17,17 @@ import adsk.fusion
 
 from ...domain import CableGroupDefinition, CableMaterialSettings
 from ...routing import (
+    RibbonEndFit,
     RibbonFrame,
     RibbonShape,
     RoutePreview,
     Vector3,
     ribbon_lane_points,
     ribbon_line_lengths,
-    solve_ribbon_shape,
 )
 from ...routing.geometry import difference, dot
 from ..harness_gateway import ATTRIBUTE_GROUP
+from ..ribbon_geometry import RibbonGuidePlane
 from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE, GENERATED_OUTPUT_MODE_KEY
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
@@ -53,6 +54,55 @@ def _section_point(
     return section.modelToSketchSpace(fusion_point(world, transform))
 
 
+def _lane_section_point(
+    section: adsk.fusion.Sketch,
+    frame: RibbonFrame,
+    centers: tuple[Vector3, ...],
+    normals: tuple[Vector3, ...],
+    end_fit: RibbonEndFit | None,
+    across_mm: float,
+    height_mm: float,
+    diameter_mm: float,
+    transform: adsk.core.Matrix3D,
+) -> adsk.core.Point3D:
+    """
+    Interpolate a lobe point from measured lanes before sketch-plane projection.
+    """
+    position = across_mm / diameter_mm + (len(centers) - 1) / 2.0
+    edge_index = round(position + 0.5)
+    if (
+        end_fit is not None
+        and len(end_fit.edges) == len(centers) + 1
+        and len(end_fit.edge_normals) == len(end_fit.edges)
+        and 0 <= edge_index <= len(centers)
+        and abs(position - (edge_index - 0.5)) < 1e-8
+    ):
+        center = end_fit.edges[edge_index]
+        normal = end_fit.edge_normals[edge_index]
+    elif len(centers) == 1:
+        center = centers[0].translated(frame.width, across_mm)
+        normal = normals[0]
+    else:
+        left = max(0, min(len(centers) - 2, math.floor(position)))
+        fraction = position - left
+        center = centers[left].translated(difference(centers[left + 1], centers[left]), fraction)
+        normal = normals[left].translated(difference(normals[left + 1], normals[left]), fraction)
+    world = center.translated(normal, height_mm)
+    return section.modelToSketchSpace(fusion_point(world, transform))
+
+
+def _direct_guide_plane(guide: RibbonGuidePlane, transform: adsk.core.Matrix3D) -> adsk.core.Plane:
+    """
+    Transform a nonparametric end sketch's plane into harness-local space.
+    """
+    origin = fusion_point(guide.origin, transform)
+    tip = fusion_point(guide.origin.translated(guide.normal, 10.0), transform)
+    normal = adsk.core.Vector3D.create(tip.x - origin.x, tip.y - origin.y, tip.z - origin.z)
+    if not normal.normalize():
+        raise ValueError("A ribbon guide plane has no usable normal.")
+    return adsk.core.Plane.create(origin, normal)
+
+
 def _add_section(
     component: adsk.fusion.Component,
     route_curve: adsk.fusion.Path,
@@ -61,13 +111,24 @@ def _add_section(
     transform: adsk.core.Matrix3D,
     offsets_mm: tuple[float, ...] = (),
     path_fraction: float = 0.0,
+    lane_centers: tuple[Vector3, ...] = (),
+    lane_normals: tuple[Vector3, ...] = (),
+    end_fit: RibbonEndFit | None = None,
+    guide_plane: RibbonGuidePlane | None = None,
 ) -> tuple[adsk.fusion.Sketch, adsk.fusion.ConstructionPlane]:
     """
     Draw a joined moderate-groove profile with two lobe arcs per line.
     """
     plane_input = component.constructionPlanes.createInput()
     distance = adsk.core.ValueInput.createByReal(path_fraction)
-    if hasattr(plane_input, "setByPath"):
+    if guide_plane is not None:
+        if guide_plane.reference_plane is not None:
+            positioned = plane_input.setByOffset(
+                guide_plane.reference_plane, adsk.core.ValueInput.createByReal(0.0)
+            )
+        else:
+            positioned = plane_input.setByPlane(_direct_guide_plane(guide_plane, transform))
+    elif hasattr(plane_input, "setByPath"):
         positioned = plane_input.setByPath(
             route_curve,
             adsk.fusion.PathDistanceTypes.ProportionalPathDistanceType,
@@ -81,10 +142,12 @@ def _add_section(
     if plane is None:
         raise RuntimeError("Fusion did not create the ribbon cross-section plane.")
     plane.name = "Ribbon section plane"
+    plane.isLightBulbOn = False
     section = component.sketches.add(plane)
     if section is None:
         raise RuntimeError("Fusion did not create the ribbon section sketch.")
     section.name = "Discrete ribbon section"
+    section.isLightBulbOn = False
     diameter = group.diameter_mm
     radius = diameter / 2.0
     valley = radius * 0.60
@@ -93,6 +156,29 @@ def _add_section(
     shifts = offsets_mm or (0.0,) * group.ribbon_lines
     if len(shifts) != group.ribbon_lines:
         raise ValueError("Ribbon section shifts must match its line count.")
+    if lane_centers and (
+        len(lane_centers) != group.ribbon_lines or len(lane_normals) != group.ribbon_lines
+    ):
+        raise ValueError("Ribbon section lanes must match its line count.")
+
+    def point(across_mm: float, height_mm: float) -> adsk.core.Point3D:
+        """
+        Use the final sampled lanes for fitted lofts and legacy coordinates for sweeps.
+        """
+        if lane_centers:
+            return _lane_section_point(
+                section,
+                frame,
+                lane_centers,
+                lane_normals,
+                end_fit,
+                across_mm,
+                height_mm,
+                diameter,
+                transform,
+            )
+        return _section_point(section, frame, across_mm, height_mm, transform)
+
     for index in range(group.ribbon_lines):
         left = -half_width + index * diameter
         right = left + diameter
@@ -108,9 +194,9 @@ def _add_section(
             (right, right_shift - valley, shifts[index] - radius, left, left_shift - valley),
         ):
             arc = arcs.addByThreePoints(
-                _section_point(section, frame, start_x, start_y, transform),
-                _section_point(section, frame, center, peak_y, transform),
-                _section_point(section, frame, end_x, end_y, transform),
+                point(start_x, start_y),
+                point(center, peak_y),
+                point(end_x, end_y),
             )
             if arc is None:
                 raise RuntimeError("Fusion could not draw a ribbon line lobe.")
@@ -127,9 +213,9 @@ def _add_section(
             )
         )
         cap = arcs.addByThreePoints(
-            _section_point(section, frame, x, top_y, transform),
-            _section_point(section, frame, x + side * cap_extension, shift, transform),
-            _section_point(section, frame, x, bottom_y, transform),
+            point(x, top_y),
+            point(x + side * cap_extension, shift),
+            point(x, bottom_y),
         )
         if cap is None:
             raise RuntimeError("Fusion could not close the ribbon section.")
@@ -236,6 +322,7 @@ def _build_folded_loft(
     shape: RibbonShape,
     group: CableGroupDefinition,
     transform: adsk.core.Matrix3D,
+    guide_planes: tuple[RibbonGuidePlane | None, RibbonGuidePlane | None],
 ) -> tuple[
     adsk.fusion.LoftFeature,
     tuple[adsk.fusion.Sketch, ...],
@@ -257,9 +344,21 @@ def _build_folded_loft(
         if loft_input is None:
             raise RibbonLoftUnavailable("Fusion could not define a folded ribbon loft.")
         for section_index, frame in enumerate(shape.frames):
-            shifts = tuple(
-                dot(difference(lane[section_index], frame.origin), frame.thickness)
-                for lane in shape.lanes
+            centers = tuple(lane[section_index] for lane in shape.lanes)
+            fit: RibbonEndFit | None = (
+                shape.start_fit
+                if section_index == 0
+                else shape.end_fit
+                if section_index == len(shape.frames) - 1
+                else None
+            )
+            normals = fit.normals if fit is not None else (frame.thickness,) * group.ribbon_lines
+            guide_plane = (
+                guide_planes[0]
+                if section_index == 0
+                else guide_planes[1]
+                if section_index == len(shape.frames) - 1
+                else None
             )
             section, plane = _add_section(
                 component,
@@ -267,8 +366,11 @@ def _build_folded_loft(
                 frame,
                 group,
                 transform,
-                shifts,
-                section_index / (len(shape.frames) - 1),
+                path_fraction=section_index / (len(shape.frames) - 1),
+                lane_centers=centers,
+                lane_normals=normals,
+                end_fit=fit,
+                guide_plane=guide_plane,
             )
             sections.append(section)
             planes.append(plane)
@@ -293,7 +395,7 @@ def _build_folded_loft(
         for plane in reversed(planes):
             if plane.isValid and not plane.deleteMe():
                 raise RuntimeError("Fusion could not clean a ribbon section plane.") from error
-        raise
+        raise RibbonLoftUnavailable(str(error)) from error
 
 
 def build_discrete_ribbon_solid(
@@ -301,7 +403,8 @@ def build_discrete_ribbon_solid(
     group: CableGroupDefinition,
     group_index: int,
     route: RoutePreview,
-    frames: tuple[RibbonFrame, ...],
+    shape: RibbonShape,
+    guide_planes: tuple[RibbonGuidePlane | None, RibbonGuidePlane | None],
     transform: adsk.core.Matrix3D,
     harness_id: UUID,
     materials: CableMaterialSettings,
@@ -312,16 +415,16 @@ def build_discrete_ribbon_solid(
     """
     Build one visible joined ribbon and color its physical lobe faces.
     """
+    frames = shape.frames
     if not route.curves or len(frames) < 2:
         raise ValueError("A discrete ribbon needs one curved route and banking frames.")
-    shape = solve_ribbon_shape(frames, group.ribbon_lines, group.diameter_mm)
     center_sketch, center_path, _first_curve = _build_path(component, route, transform)
     feature = None
     folded = False
-    if shape.folded:
+    if shape.folded or shape.start_fit is not None or shape.end_fit is not None:
         try:
             feature, sections, planes = _build_folded_loft(
-                component, center_path, shape, group, transform
+                component, center_path, shape, group, transform, guide_planes
             )
             folded = True
             for section in sections:
@@ -331,8 +434,8 @@ def build_discrete_ribbon_solid(
         except RibbonLoftUnavailable as error:
             if notices is not None:
                 notices.append(
-                    f"Cable Group {group_index + 1}: folded loft unavailable ({error}); "
-                    "using the original sweep with unequal line lengths."
+                    f"Cable Group {group_index + 1}: fitted loft unavailable ({error}); "
+                    "using the original sweep; guide fit and measured line lengths are not achieved."
                 )
     if feature is None:
         rail_sketch, rail_path = _build_guide_rail(component, frames, group, transform)
@@ -380,6 +483,11 @@ def build_discrete_ribbon_solid(
     spread = (length_mm - min(lengths)) / length_mm
     maximum_pitch_ratio = shape.maximum_pitch_ratio if folded else 1.0
     if notices is not None:
+        if folded and maximum_pitch_ratio > 1.10 + 1e-6:
+            notices.append(
+                f"Warning: Cable Group {group_index + 1}: ribbon end fit exceeds "
+                "the 10% adjacent-line pitch allowance."
+            )
         status = "meets" if spread <= 0.01 + 1e-9 else "exceeds"
         notices.append(
             f"{'Warning: ' if status == 'exceeds' else ''}"

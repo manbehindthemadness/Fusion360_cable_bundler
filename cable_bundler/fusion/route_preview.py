@@ -27,9 +27,8 @@ from ..routing import (
     RoutePreview,
     Vector3,
     sample_centerline,
-    solve_ribbon_shape,
 )
-from .ribbon_geometry import ribbon_route_frames
+from .ribbon_geometry import ribbon_route_shape
 from .route_preview_parts.solver import (
     leg_control_ids,
     reset_route_solve_cache,
@@ -734,9 +733,18 @@ def _add_group_route_graphics(
     if cable_group.group_type is CableGroupType.LOOSE:
         _add_route_graphics(preview_group, route, color_index, main_color)
         return
-    frames = ribbon_route_frames(design, definition, leg, route)
-    shape = solve_ribbon_shape(frames, cable_group.ribbon_lines, cable_group.diameter_mm)
+    fitted = ribbon_route_shape(
+        design, definition, leg, route, cable_group.ribbon_lines, cable_group.diameter_mm
+    )
+    shape = fitted.shape
     if notices is not None:
+        for warning in fitted.fit_warnings:
+            notices.append(f"Warning: {route.cable_number}: {warning}.")
+        if shape.maximum_pitch_ratio > 1.10 + 1e-6:
+            notices.append(
+                f"Warning: {route.cable_number}: ribbon end fit exceeds the "
+                "10% adjacent-line pitch allowance."
+            )
         status = "meets" if shape.meets_length_target else "exceeds"
         notices.append(
             f"{'Warning: ' if not shape.meets_length_target else ''}"

@@ -8,11 +8,13 @@ import math
 from uuid import UUID
 
 from cable_bundler.routing import (
+    RibbonEndFit,
     RoutePreview,
     Vector3,
     ribbon_frames,
     ribbon_has_hard_axis_bend,
     ribbon_lane_points,
+    ribbon_line_lengths,
     solve_ribbon_shape,
 )
 from cable_bundler.routing.geometry import dot
@@ -169,3 +171,46 @@ def test_severe_twist_warns_instead_of_stretching_joined_web() -> None:
     assert not shape.meets_length_target
     assert shape.spread > 0.20
     assert shape.maximum_pitch_ratio <= 1.100001
+
+
+def test_terminal_fit_blends_exact_guide_samples_and_remeasures_lines() -> None:
+    """
+    Match both sampled guide ends while retaining the untouched route interior.
+    """
+    route = RoutePreview(UUID(int=11), "Fit", (Vector3(0, 0, 0), Vector3(0, 0, 100)))
+    frames = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0))
+    start = RibbonEndFit(
+        tuple(Vector3((index - 1) * 1.5, 0.03 * (index - 1) ** 2, 0) for index in range(3)),
+        (Vector3(0, 1, 0),) * 3,
+    )
+    end = RibbonEndFit(
+        tuple(Vector3((index - 1) * 1.5, 0.2 * (index - 1), 100) for index in range(3)),
+        (Vector3(0, 1, 0),) * 3,
+    )
+
+    shape = solve_ribbon_shape(frames, 3, 1.5, start_fit=start, end_fit=end)
+
+    assert tuple(lane[0] for lane in shape.lanes) == start.centers
+    assert tuple(lane[-1] for lane in shape.lanes) == end.centers
+    assert all(
+        lane[4] == Vector3((index - 1) * 1.5, 0, frames[4].origin.z)
+        for index, lane in enumerate(shape.lanes)
+    )
+    assert shape.lengths_mm == ribbon_line_lengths(shape.lanes)
+    assert shape.maximum_pitch_ratio >= 1.0
+
+
+def test_terminal_fit_rejects_missing_conductors() -> None:
+    """
+    Never silently misalign a guide sample with conductor identity.
+    """
+    route = RoutePreview(UUID(int=12), "Fit", (Vector3(0, 0, 0), Vector3(0, 0, 50)))
+    frames = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0))
+    incomplete = RibbonEndFit((Vector3(0, 0, 0),), (Vector3(0, 1, 0),))
+
+    try:
+        solve_ribbon_shape(frames, 3, 1.5, start_fit=incomplete)
+    except ValueError as error:
+        assert "every line" in str(error)
+    else:
+        raise AssertionError("Incomplete ribbon guide samples must not be accepted.")

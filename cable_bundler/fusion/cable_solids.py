@@ -64,7 +64,7 @@ from .cable_solid_visibility import (
     restore_generated_cable_group_visibility,
 )
 from .harness_gateway import ATTRIBUTE_GROUP
-from .ribbon_geometry import ribbon_route_frames
+from .ribbon_geometry import ribbon_route_shape
 from .route_preview import solve_cable_group_centerlines
 
 _build_continuous_segment_stripes = build_continuous_segment_stripes
@@ -504,13 +504,19 @@ def _build_group_output(
         if len(group_legs) != 1:
             raise ValueError("A discrete ribbon requires exactly one two-ended route.")
         leg, route = group_legs[0]
-        frames = ribbon_route_frames(design, definition, leg, route)
+        fitted = ribbon_route_shape(
+            design, definition, leg, route, group.ribbon_lines, group.diameter_mm
+        )
+        if notices is not None:
+            for warning in fitted.fit_warnings:
+                notices.append(f"Warning: Cable Group {group_index + 1}: {warning}.")
         build_discrete_ribbon_solid(
             component,
             group,
             group_index,
             route,
-            frames,
+            fitted.shape,
+            fitted.guide_planes,
             transform,
             definition.harness_id,
             definition.cable_group_materials(group),

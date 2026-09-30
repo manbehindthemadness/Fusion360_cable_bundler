@@ -26,6 +26,8 @@ class RibbonShape:
     spread: float
     folded: bool
     maximum_pitch_ratio: float
+    start_fit: RibbonEndFit | None = None
+    end_fit: RibbonEndFit | None = None
 
     @property
     def meets_length_target(self) -> bool:
@@ -33,6 +35,45 @@ class RibbonShape:
         Report whether the longest and shortest lines differ by at most 1%.
         """
         return self.spread <= RIBBON_LENGTH_SPREAD_LIMIT + 1e-9
+
+
+@dataclass(frozen=True)
+class RibbonEndFit:
+    """
+    Specify ordered lane centers and in-plane lobe normals on an end guide.
+    """
+
+    centers: tuple[Vector3, ...]
+    normals: tuple[Vector3, ...]
+    edges: tuple[Vector3, ...] = ()
+    edge_normals: tuple[Vector3, ...] = ()
+
+
+def _blend_end_fit(
+    lanes: tuple[tuple[Vector3, ...], ...],
+    fit: RibbonEndFit | None,
+    *,
+    at_start: bool,
+) -> tuple[tuple[Vector3, ...], ...]:
+    """
+    Move four terminal sections toward the exact guide without moving the route.
+    """
+    if fit is None:
+        return lanes
+    if len(fit.centers) != len(lanes) or len(fit.normals) != len(lanes):
+        raise ValueError("Ribbon end fit must supply every line in route order.")
+    section_count = min(4, len(lanes[0]) - 1)
+    adjusted = []
+    for lane, target in zip(lanes, fit.centers):
+        delta = difference(target, lane[0 if at_start else -1])
+        points = list(lane)
+        for offset in range(section_count):
+            section = offset if at_start else len(points) - 1 - offset
+            fraction = 1.0 - offset / section_count
+            weight = fraction * fraction * (3.0 - 2.0 * fraction)
+            points[section] = points[section].translated(delta, weight)
+        adjusted.append(tuple(points))
+    return tuple(adjusted)
 
 
 def _line_length(points: tuple[Vector3, ...]) -> float:
@@ -68,6 +109,7 @@ def _folded_lane(
     fractions: tuple[float, ...],
     cycles: int,
     amplitude_mm: float,
+    terminal_fade: bool,
 ) -> tuple[Vector3, ...]:
     """
     Add a zero-displacement, zero-slope-ended buckle in the flexible direction.
@@ -79,14 +121,24 @@ def _folded_lane(
             frame.thickness,
             amplitude_mm
             * math.sin(math.pi * fraction) ** 2
-            * math.sin(2.0 * math.pi * cycles * fraction),
+            * math.sin(2.0 * math.pi * cycles * fraction)
+            * (
+                min(1.0, index / 4.0, (len(frames) - 1 - index) / 4.0) ** 2
+                if terminal_fade
+                else 1.0
+            ),
         )
-        for point, frame, fraction in zip(base, frames, fractions)
+        for index, (point, frame, fraction) in enumerate(zip(base, frames, fractions))
     )
 
 
 def solve_ribbon_shape(
-    frames: tuple[RibbonFrame, ...], line_count: int, line_diameter_mm: float
+    frames: tuple[RibbonFrame, ...],
+    line_count: int,
+    line_diameter_mm: float,
+    *,
+    start_fit: RibbonEndFit | None = None,
+    end_fit: RibbonEndFit | None = None,
 ) -> RibbonShape:
     """
     Match shorter lines to the longest path using bounded, joined local folds.
@@ -99,6 +151,8 @@ def solve_ribbon_shape(
     if line_diameter_mm <= 0.0:
         raise ValueError("Ribbon line diameter must be positive.")
     base_lanes = ribbon_lane_points(frames, line_count, line_diameter_mm)
+    base_lanes = _blend_end_fit(base_lanes, start_fit, at_start=True)
+    base_lanes = _blend_end_fit(base_lanes, end_fit, at_start=False)
     base_lengths = ribbon_line_lengths(base_lanes)
     longest = max(base_lengths)
     if longest <= 1e-8:
@@ -112,6 +166,8 @@ def solve_ribbon_shape(
             spread,
             False,
             _maximum_pitch_ratio(base_lanes, line_diameter_mm),
+            start_fit,
+            end_fit,
         )
 
     distances = [0.0]
@@ -129,19 +185,25 @@ def solve_ribbon_shape(
         if (longest - base_length) / longest <= 1e-5:
             fitted_lanes.append(base)
             continue
-        upper_lane = _folded_lane(frames, base, fractions, cycles, maximum_amplitude)
+        upper_lane = _folded_lane(
+            frames, base, fractions, cycles, maximum_amplitude, bool(start_fit or end_fit)
+        )
         if _line_length(upper_lane) < longest:
             fitted_lanes.append(upper_lane)
             continue
         lower, upper = 0.0, maximum_amplitude
         for _ in range(28):
             middle = (lower + upper) / 2.0
-            candidate = _folded_lane(frames, base, fractions, cycles, middle)
+            candidate = _folded_lane(
+                frames, base, fractions, cycles, middle, bool(start_fit or end_fit)
+            )
             if _line_length(candidate) < longest:
                 lower = middle
             else:
                 upper = middle
-        fitted_lanes.append(_folded_lane(frames, base, fractions, cycles, upper))
+        fitted_lanes.append(
+            _folded_lane(frames, base, fractions, cycles, upper, bool(start_fit or end_fit))
+        )
     lanes = tuple(fitted_lanes)
     maximum_pitch_ratio = _maximum_pitch_ratio(lanes, line_diameter_mm)
     if maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT:
@@ -177,4 +239,6 @@ def solve_ribbon_shape(
         maximum_pitch_ratio = _maximum_pitch_ratio(lanes, line_diameter_mm)
     lengths = ribbon_line_lengths(lanes)
     spread = (max(lengths) - min(lengths)) / max(lengths)
-    return RibbonShape(frames, lanes, lengths, spread, True, maximum_pitch_ratio)
+    return RibbonShape(
+        frames, lanes, lengths, spread, True, maximum_pitch_ratio, start_fit, end_fit
+    )
