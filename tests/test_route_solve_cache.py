@@ -24,12 +24,14 @@ from cable_bundler.domain import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
+    OpenGuideAlignment,
     RefineGeometry,
 )
 from cable_bundler.domain.connection_packing import PackedConnection, pack_connections
 from cable_bundler.routing import (
     CubicBezier,
     RefineFrame,
+    RibbonFrame,
     RoutePreview,
     TransitionLengths,
     Vector3,
@@ -40,17 +42,23 @@ from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
-def test_ribbon_routes_stop_before_closed_profile_resolution(
+def test_ffc_routes_stop_before_closed_profile_resolution(
     addin_module: _PaletteLifecycleModule,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Report deferred ribbon rendering before asking Fusion for profile frames.
+    Report deferred FFC construction before asking Fusion for profile frames.
     """
     from cable_bundler.fusion.route_preview_parts.solver import solve_cable_group_routes
 
     del addin_module
-    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    from cable_bundler.domain import RibbonGeometryType
+
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_geometry=RibbonGeometryType.FFC,
+    )
     definition = replace(
         valid_harness,
         cable_groups=(ribbon,),
@@ -59,16 +67,16 @@ def test_ribbon_routes_stop_before_closed_profile_resolution(
         ),
     )
 
-    with pytest.raises(ValueError, match="Ribbon route preview"):
+    with pytest.raises(ValueError, match="FFC ribbon route preview"):
         solve_cable_group_routes(object(), definition)
 
 
-def test_mixed_harness_preview_retains_loose_groups(
+def test_mixed_harness_preview_retains_loose_and_discrete_groups(
     addin_module: _PaletteLifecycleModule,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Keep the existing loose preview eligible beside a deferred ribbon group.
+    Preview existing loose and discrete groups together.
     """
     from cable_bundler.fusion.route_preview import _previewable_definition
 
@@ -79,8 +87,109 @@ def test_mixed_harness_preview_retains_loose_groups(
 
     preview = _previewable_definition(definition)
 
-    assert preview.cable_groups == (loose,)
+    assert preview.cable_groups == (loose, ribbon)
     assert definition.cable_groups == (loose, ribbon)
+
+
+def test_open_guide_alignment_uses_curve_length_and_signed_tangent(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Anchor left, right, and center from curve direction without camera dependence.
+    """
+    from cable_bundler.fusion.route_preview_parts import frames as route_frames
+
+    del addin_module
+    evaluator = SimpleNamespace(
+        getParameterExtents=lambda: (True, 0.0, 1.0),
+        getLengthAtParameter=lambda _start, _end: (True, 5.0),
+        getParameterAtLength=lambda _start, length: (True, length / 5.0),
+        getPointAtParameter=lambda parameter: (
+            True,
+            SimpleNamespace(x=parameter * 5.0, y=0.0, z=0.0),
+        ),
+        getFirstDerivative=lambda _parameter: (True, SimpleNamespace(x=1.0, y=0.0, z=0.0)),
+    )
+    sketch = SimpleNamespace(
+        xDirection=SimpleNamespace(x=1.0, y=0.0, z=0.0),
+        yDirection=SimpleNamespace(x=0.0, y=1.0, z=0.0),
+    )
+    curve = SimpleNamespace(
+        isValid=True,
+        worldGeometry=SimpleNamespace(evaluator=evaluator),
+        parentSketch=sketch,
+    )
+    monkeypatch.setitem(
+        vars(route_frames.adsk.fusion),
+        "SketchCurve",
+        SimpleNamespace(cast=lambda candidate: candidate if candidate is curve else None),
+    )
+    design = SimpleNamespace(findEntityByToken=lambda _token: (curve,))
+
+    left = route_frames._profile_frame(design, "curve", OpenGuideAlignment.LEFT)
+    right = route_frames._profile_frame(design, "curve", OpenGuideAlignment.RIGHT)
+    center = route_frames._profile_frame(design, "curve", OpenGuideAlignment.CENTER)
+
+    assert (left.origin.x, center.origin.x, right.origin.x) == (0.0, 25.0, 50.0)
+    assert all(frame.guide_length_mm == 50.0 for frame in (left, center, right))
+    assert left.u_direction == right.u_direction == center.u_direction == Vector3(1.0, 0.0, 0.0)
+
+
+def test_forty_line_section_uses_one_joined_profile(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Build eighty lobe arcs plus two caps without multiplying solid features.
+    """
+    from cable_bundler.fusion.cable_solid_parts import ribbon_builder
+
+    del addin_module
+    arcs = []
+    sketch = SimpleNamespace(
+        sketchCurves=SimpleNamespace(
+            sketchArcs=SimpleNamespace(
+                addByThreePoints=lambda start, middle, end: (
+                    arcs.append((start, middle, end)) or object()
+                )
+            )
+        ),
+        profiles=SimpleNamespace(count=1),
+        modelToSketchSpace=lambda point: point,
+        name="",
+    )
+    plane = SimpleNamespace(name="")
+    plane_input = SimpleNamespace(setByDistanceOnPath=lambda _curve, _distance: True)
+    component = SimpleNamespace(
+        constructionPlanes=SimpleNamespace(
+            createInput=lambda: plane_input, add=lambda _input: plane
+        ),
+        sketches=SimpleNamespace(add=lambda _plane: sketch),
+    )
+    monkeypatch.setitem(
+        vars(ribbon_builder.adsk.core),
+        "ValueInput",
+        SimpleNamespace(createByReal=lambda _value: 0.0),
+    )
+    monkeypatch.setattr(
+        "cable_bundler.fusion.cable_solid_parts.ribbon_builder.fusion_point",
+        lambda point, _transform: point,
+    )
+    frame = RibbonFrame(Vector3(0, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))
+    group = replace(
+        valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON, ribbon_lines=40
+    )
+
+    created_sketch, created_plane = ribbon_builder._add_section(
+        component, object(), frame, group, object()
+    )
+
+    assert (created_sketch, created_plane) == (sketch, plane)
+    assert len(arcs) == 82
+    assert arcs[0][1].y > arcs[0][0].y
+    assert arcs[1][1].y < arcs[1][0].y
 
 
 def test_profile_resolution_skips_invalid_candidates_after_geometry_change(

@@ -18,6 +18,7 @@ from ..application import CableGroupRouteLeg
 from ..domain import (
     AttachmentTargetKind,
     CableGroupDefinition,
+    CableGroupType,
     CableMaterialSettings,
     HarnessDefinition,
     PullbackMode,
@@ -38,6 +39,7 @@ from .cable_solid_parts.metadata import (
     route_in_component_space,
     world_to_harness,
 )
+from .cable_solid_parts.ribbon_builder import build_discrete_ribbon_solid
 from .cable_solid_parts.solid_builder import build_cable_group_solid
 from .cable_solid_parts.stripes import (
     build_continuous_segment_stripes,
@@ -62,6 +64,7 @@ from .cable_solid_visibility import (
     restore_generated_cable_group_visibility,
 )
 from .harness_gateway import ATTRIBUTE_GROUP
+from .ribbon_geometry import ribbon_route_frames
 from .route_preview import solve_cable_group_centerlines
 
 _build_continuous_segment_stripes = build_continuous_segment_stripes
@@ -480,6 +483,59 @@ def _route_build_options(
     return options
 
 
+def _build_group_output(
+    component: adsk.fusion.Component,
+    harness: adsk.fusion.Component,
+    group: CableGroupDefinition,
+    group_index: int,
+    group_legs: list[tuple[CableGroupRouteLeg, RoutePreview]],
+    transform: adsk.core.Matrix3D,
+    definition: HarnessDefinition,
+    design: adsk.fusion.Design,
+    output_mode: str,
+    *,
+    is_visible: bool = True,
+) -> None:
+    """
+    Dispatch separate loose and discrete-ribbon construction contracts.
+    """
+    if group.group_type is CableGroupType.RIBBON:
+        if len(group_legs) != 1:
+            raise ValueError("A discrete ribbon requires exactly one two-ended route.")
+        leg, route = group_legs[0]
+        frames = ribbon_route_frames(design, definition, leg, route, maximum_sections=24)
+        build_discrete_ribbon_solid(
+            component,
+            group,
+            group_index,
+            route,
+            frames,
+            transform,
+            definition.harness_id,
+            definition.cable_group_materials(group),
+            design,
+            output_mode,
+        )
+        return
+    route_options = _route_build_options(
+        design, definition, group, tuple(leg for leg, _route in group_legs)
+    )
+    build_cable_group_solid(
+        component,
+        harness,
+        group,
+        group_index,
+        tuple(route for _leg, route in group_legs),
+        transform,
+        definition.harness_id,
+        definition.cable_group_materials(group),
+        design,
+        output_mode,
+        is_visible=is_visible,
+        **route_options,
+    )
+
+
 def generate_cable_group_solids(
     design: adsk.fusion.Design,
     harness: adsk.fusion.Component,
@@ -521,24 +577,16 @@ def generate_cable_group_solids(
                 )
             created.append(occurrence)
             try:
-                route_options = _route_build_options(
-                    design,
-                    definition,
-                    group,
-                    tuple(leg for leg, _route in group_legs),
-                )
-                build_cable_group_solid(
+                _build_group_output(
                     occurrence.component,
                     harness,
                     group,
                     group_index,
-                    tuple(route for _leg, route in group_legs),
+                    group_legs,
                     local_transform,
-                    definition.harness_id,
-                    definition.cable_group_materials(group),
+                    definition,
                     design,
                     output_mode,
-                    **route_options,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
@@ -612,9 +660,21 @@ def refresh_changed_generated_cable_groups(
         current_by_group.setdefault(leg.cable_group_id, {})[route.cable_id] = route
 
     changed_ids: set[UUID] = set()
+    groups_by_id = {group.cable_group_id: group for group in definition.cable_groups}
     for group_id, (_occurrence, metadata) in occurrences_by_id.items():
         current = current_by_group.get(group_id)
         if current is None:
+            continue
+        group = groups_by_id.get(group_id)
+        if (
+            group is not None
+            and group.group_type is CableGroupType.RIBBON
+            and (
+                metadata.get("ribbon_lines") != group.ribbon_lines
+                or metadata.get("diameter_mm") != group.diameter_mm
+            )
+        ):
+            changed_ids.add(group_id)
             continue
         stored_curves = {
             route.cable_id: route.curves for route in group_geometry_routes_from_metadata(metadata)
@@ -693,9 +753,9 @@ def _refresh_generated_cable_groups(
         return 0
 
     routes, legs, routes_by_id = _solve_complete_group_routes(design, definition, notices)
-    legs_by_group: dict[UUID, list[RoutePreview]] = {}
+    legs_by_group: dict[UUID, list[tuple[CableGroupRouteLeg, RoutePreview]]] = {}
     for leg in legs:
-        legs_by_group.setdefault(leg.cable_group_id, []).append(routes_by_id[leg.route_id])
+        legs_by_group.setdefault(leg.cable_group_id, []).append((leg, routes_by_id[leg.route_id]))
     local_transform = world_to_harness(design, harness)
     created: list[adsk.fusion.Occurrence] = []
     try:
@@ -703,8 +763,8 @@ def _refresh_generated_cable_groups(
             if group.cable_group_id not in previous_by_id:
                 continue
             previous = previous_by_id[group.cable_group_id]
-            group_routes = tuple(legs_by_group.get(group.cable_group_id, ()))
-            if not group_routes:
+            group_legs = legs_by_group.get(group.cable_group_id, [])
+            if not group_legs:
                 raise ValueError(f"Cable Group {group_index + 1} has no route legs.")
             occurrence = harness.occurrences.addNewComponent(adsk.core.Matrix3D.create())
             if occurrence is None:
@@ -712,21 +772,17 @@ def _refresh_generated_cable_groups(
                     f"Fusion could not update Cable Group {group_index + 1} geometry."
                 )
             created.append(occurrence)
-            group_legs = tuple(leg for leg in legs if leg.cable_group_id == group.cable_group_id)
-            route_options = _route_build_options(design, definition, group, group_legs)
-            build_cable_group_solid(
+            _build_group_output(
                 occurrence.component,
                 harness,
                 group,
                 group_index,
-                group_routes,
+                group_legs,
                 local_transform,
-                definition.harness_id,
-                definition.cable_group_materials(group),
+                definition,
                 design,
                 generated_cable_group_output_mode(previous),
                 is_visible=previous.isLightBulbOn,
-                **route_options,
             )
             occurrence.isLightBulbOn = previous.isLightBulbOn
         for occurrence in previous_by_id.values():

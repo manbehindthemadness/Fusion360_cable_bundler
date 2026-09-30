@@ -55,6 +55,7 @@ from ..interface_contact_local_naming import name_interface_contact_locals
 from ..interface_contact_projection_copy import copy_projected_interface_details
 from .payloads import (
     _read_harness_properties,
+    _read_material_color,
     _read_material_overrides,
     _read_material_settings,
     _read_metadata,
@@ -585,6 +586,16 @@ def _apply_property_edit(
                 ribbon_geometry = RibbonGeometryType(ribbon_geometry)
             except (TypeError, ValueError) as error:
                 raise ValueError("Ribbon geometry type must be Discrete or FFC.") from error
+        raw_line_colors = payload.get("ribbonLineColors")
+        if raw_line_colors is not None and not isinstance(raw_line_colors, list):
+            raise ValueError("Ribbon line colors must be a list.")
+        ribbon_line_colors = (
+            tuple(
+                None if color is None else _read_material_color(color) for color in raw_line_colors
+            )
+            if raw_line_colors is not None
+            else None
+        )
         property_materials = _read_material_overrides(
             {
                 "insulationMaterial": payload.get("insulationMaterial"),
@@ -610,6 +621,7 @@ def _apply_property_edit(
             conductor_diameter_mm=conductor_diameter,
             ribbon_lines=ribbon_lines,
             ribbon_geometry=ribbon_geometry,
+            ribbon_line_colors=ribbon_line_colors,
         )
         return "Saved connected-cable properties."
     if action == "set_harness_material_defaults":

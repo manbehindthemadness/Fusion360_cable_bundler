@@ -12,8 +12,10 @@ from typing import Any, Optional, cast
 from uuid import UUID
 
 from .codec_materials import (
+    _color_to_dict,
     _material_overrides_to_dict,
     _materials_to_dict,
+    _parse_color,
     _parse_visual_overrides,
     _visual_overrides_to_dict,
     parse_material_overrides,
@@ -109,12 +111,13 @@ def loads(serialized: str) -> HarnessDefinition:
         34,
         35,
         36,
+        37,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 36 are migratable)",
+            "(schemas 12 through 37 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -344,6 +347,10 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                     {
                         "ribbon_lines": group.ribbon_lines,
                         "ribbon_geometry": group.ribbon_geometry.value,
+                        "ribbon_line_colors": [
+                            None if color is None else _color_to_dict(color)
+                            for color in group.ribbon_line_colors
+                        ],
                     }
                     if group.group_type is CableGroupType.RIBBON
                     else {}
@@ -906,6 +913,15 @@ def _parse_cable_group(
     )
     if ribbon_lines < 1:
         raise DefinitionParseError(f"{path}.ribbon_lines", "expected a positive integer")
+    raw_line_colors = (
+        _require_list(value, "ribbon_line_colors", f"{path}.ribbon_line_colors")
+        if schema_version >= 38 and group_type is CableGroupType.RIBBON
+        else []
+    )
+    if raw_line_colors and len(raw_line_colors) != ribbon_lines:
+        raise DefinitionParseError(
+            f"{path}.ribbon_line_colors", "expected one color per ribbon line"
+        )
     return CableGroupDefinition(
         cable_group_id=_require_uuid(value, "cable_group_id", f"{path}.cable_group_id"),
         connection_ids=tuple(
@@ -925,6 +941,12 @@ def _parse_cable_group(
         name=name,
         group_type=group_type,
         ribbon_lines=ribbon_lines,
+        ribbon_line_colors=tuple(
+            None
+            if raw_color is None
+            else _parse_color(raw_color, f"{path}.ribbon_line_colors[{index}]")
+            for index, raw_color in enumerate(raw_line_colors)
+        ),
         ribbon_geometry=(
             _require_enum(RibbonGeometryType, value, "ribbon_geometry", f"{path}.ribbon_geometry")
             if schema_version >= 36 and group_type is CableGroupType.RIBBON

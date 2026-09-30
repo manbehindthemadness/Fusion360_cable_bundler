@@ -12,6 +12,7 @@ from uuid import UUID, uuid5
 
 from .connection_packing import PackedConnection, pack_connections
 from .materials import (
+    CableColor,
     CableMaterialOverrides,
     CableMaterialSettings,
     CableVisualOverrides,
@@ -20,7 +21,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 37
+SCHEMA_VERSION = 38
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -599,6 +600,7 @@ class CableGroupDefinition:
     group_type: CableGroupType = CableGroupType.LOOSE
     ribbon_lines: int = 3
     ribbon_geometry: RibbonGeometryType = RibbonGeometryType.DISCRETE
+    ribbon_line_colors: tuple[Optional[CableColor], ...] = ()
 
     def __post_init__(self) -> None:
         """
@@ -615,8 +617,21 @@ class CableGroupDefinition:
             raise ValueError("Ribbon Lines must be a positive integer.")
         if not isinstance(self.ribbon_geometry, RibbonGeometryType):
             raise ValueError("Ribbon geometry type is invalid.")
+        if not isinstance(self.ribbon_line_colors, tuple) or (
+            self.ribbon_line_colors
+            and (
+                len(self.ribbon_line_colors) != self.ribbon_lines
+                or any(
+                    color is not None and not isinstance(color, CableColor)
+                    for color in self.ribbon_line_colors
+                )
+            )
+        ):
+            raise ValueError("Ribbon line colors must match the ordered line count.")
         if self.group_type is CableGroupType.LOOSE and (
-            self.ribbon_lines != 3 or self.ribbon_geometry is not RibbonGeometryType.DISCRETE
+            self.ribbon_lines != 3
+            or self.ribbon_geometry is not RibbonGeometryType.DISCRETE
+            or self.ribbon_line_colors
         ):
             raise ValueError("Loose cable groups cannot have ribbon properties.")
         if self.conductor_diameter_mm is not None and (
@@ -638,6 +653,13 @@ class CableGroupDefinition:
         if self.conductor_diameter_mm is None:
             return self.diameter_mm * 0.75
         return self.conductor_diameter_mm
+
+    def resolved_ribbon_line_colors(self, main_color: CableColor) -> tuple[CableColor, ...]:
+        """
+        Resolve each line's optional override against the group's main color.
+        """
+        overrides = self.ribbon_line_colors or (None,) * self.ribbon_lines
+        return tuple(color or main_color for color in overrides)
 
 
 @dataclass(frozen=True)

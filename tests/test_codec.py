@@ -93,6 +93,31 @@ def test_ribbon_properties_round_trip_and_schema_35_migration(
     assert migrated.ribbon_geometry is RibbonGeometryType.DISCRETE
 
 
+def test_ribbon_line_colors_round_trip_and_schema_37_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve ordered color overrides while old ribbons inherit their main color.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_line_colors=(None, CableColor("Red", 255, 0, 0), None),
+    )
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    assert loads(json.dumps(payload)).cable_groups[0] == ribbon
+
+    payload["schema_version"] = 37
+    del payload["cable_groups"][0]["ribbon_line_colors"]
+    migrated = loads(json.dumps(payload)).cable_groups[0]
+    assert migrated.ribbon_line_colors == ()
+    assert migrated.resolved_ribbon_line_colors(CableColor("Blue", 0, 0, 255)) == (
+        CableColor("Blue", 0, 0, 255),
+        CableColor("Blue", 0, 0, 255),
+        CableColor("Blue", 0, 0, 255),
+    )
+
+
 @pytest.mark.parametrize("field", ["ribbon_lines", "ribbon_geometry"])
 def test_current_ribbon_requires_explicit_properties(
     valid_harness: HarnessDefinition, field: str

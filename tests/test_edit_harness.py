@@ -487,6 +487,50 @@ def test_edits_ribbon_properties_without_inheritance(
     assert stored.ribbon_geometry is RibbonGeometryType.FFC
 
 
+def test_ribbon_line_colors_follow_line_count_changes(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve authored colors by line index and inherit newly appended lines.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_line_colors=(None, CableColor("Red", 255, 0, 0), None),
+    )
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(ribbon,),
+    )
+    gateway = _recording_gateway(definition)
+
+    set_cable_group_properties(
+        definition.harness_id,
+        ribbon.cable_group_id,
+        ribbon.diameter_mm,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        (),
+        gateway,
+        ribbon_lines=5,
+    )
+
+    assert loads(gateway.serialized_definition).cable_groups[0].ribbon_line_colors == (
+        None,
+        CableColor("Red", 255, 0, 0),
+        None,
+        None,
+        None,
+    )
+
+
 def test_loose_group_rejects_ribbon_properties(valid_harness: HarnessDefinition) -> None:
     """
     Keep ribbon-only values off existing loose groups without saving a partial edit.

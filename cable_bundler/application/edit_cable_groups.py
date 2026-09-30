@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from ..domain import (
     DEFAULT_CABLE_DIAMETER_MM,
+    CableColor,
     CableEndShape,
     CableGroupDefinition,
     CableGroupType,
@@ -22,12 +23,12 @@ from ..domain import (
     RibbonGeometryType,
     validate_harness,
 )
-from .edit_harness import HarnessEditGateway
 from .harness_edits.support import (
     persist_definition,
     prune_attachment_associations,
     read_definition,
 )
+from .harness_edits.types import HarnessEditGateway
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ class _MutableCableGroup:
     group_type: CableGroupType
     ribbon_lines: int
     ribbon_geometry: RibbonGeometryType
+    ribbon_line_colors: tuple[Optional[CableColor], ...]
 
 
 def save_cable_editor(
@@ -148,6 +150,7 @@ def save_cable_editor(
             group.group_type,
             group.ribbon_lines,
             group.ribbon_geometry,
+            group.ribbon_line_colors,
         )
         for group in definition.cable_groups
     ]
@@ -201,6 +204,7 @@ def save_cable_editor(
                     expected_type,
                     3,
                     RibbonGeometryType.DISCRETE,
+                    (),
                 )
             )
         elif left_index is None:
@@ -227,6 +231,7 @@ def save_cable_editor(
             group.group_type,
             group.ribbon_lines,
             group.ribbon_geometry,
+            group.ribbon_line_colors,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -279,6 +284,7 @@ def set_cable_group_properties(
     conductor_diameter_mm: Optional[float] = None,
     ribbon_lines: Optional[int] = None,
     ribbon_geometry: Optional[RibbonGeometryType] = None,
+    ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
 ) -> None:
     """
     Replace one connected cable group's construction properties atomically.
@@ -312,15 +318,26 @@ def set_cable_group_properties(
         Keep non-inherited ribbon values on ribbons and reject them on loose groups.
         """
         if group.group_type is CableGroupType.LOOSE and (
-            ribbon_lines is not None or ribbon_geometry is not None
+            ribbon_lines is not None
+            or ribbon_geometry is not None
+            or ribbon_line_colors is not None
         ):
             raise ValueError("Ribbon properties require a ribbon cable group.")
+        line_count = group.ribbon_lines if ribbon_lines is None else ribbon_lines
+        if ribbon_line_colors is None:
+            existing = group.ribbon_line_colors or (None,) * group.ribbon_lines
+            colors = existing[:line_count] + (None,) * max(0, line_count - len(existing))
+            if not any(color is not None for color in colors):
+                colors = ()
+        else:
+            colors = ribbon_line_colors
         return replace(
             group,
             diameter_mm=diameter_mm,
             conductor_diameter_mm=conductor_diameter_mm,
             ribbon_lines=group.ribbon_lines if ribbon_lines is None else ribbon_lines,
             ribbon_geometry=group.ribbon_geometry if ribbon_geometry is None else ribbon_geometry,
+            ribbon_line_colors=colors,
             material_overrides=replace(
                 group.material_overrides,
                 insulation_material=insulation_material,

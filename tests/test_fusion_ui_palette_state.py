@@ -486,6 +486,7 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
     group = state["harnesses"][0]["cableGroups"][0]
     assert group["ribbonLines"] == 9
     assert group["ribbonGeometry"] == "ffc"
+    assert group["ribbonLineColors"] == []
 
 
 def test_palette_state_exposes_alignment_only_for_open_end_guides(

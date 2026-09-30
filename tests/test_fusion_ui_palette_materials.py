@@ -263,6 +263,46 @@ def test_connected_cable_property_save_refreshes_only_group_preview(
     assert not args.executeFailed
 
 
+def test_ribbon_property_save_refreshes_visible_generated_shape(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep a generated ribbon visible and recolored after line property edits.
+    """
+    document = object()
+    application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
+    sys.modules["adsk.core"].Application = SimpleNamespace(get=lambda: application)
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _identity: dumps(valid_harness),
+        harness_component=lambda _identity: object(),
+    )
+    refreshed_geometry = Mock(return_value=1)
+    applied_materials = Mock(return_value="Applied materials to 1 generated cable group.")
+    sent = Mock()
+    monkeypatch.setattr(addin_module, "_apply_palette_edit", Mock(return_value="Saved properties."))
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: object())
+    monkeypatch.setattr(addin_module, "refresh_changed_generated_cable_groups", refreshed_geometry)
+    monkeypatch.setattr(addin_module, "_apply_generated_materials", applied_materials)
+    monkeypatch.setattr(addin_module, "_refresh_active_preview", Mock(return_value=""))
+    monkeypatch.setattr(addin_module, "_send_palette_state", sent)
+    payload = json.dumps(
+        {"harnessId": str(valid_harness.harness_id), "ribbonLineColors": [None, None, None]}
+    )
+    args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
+
+    addin_module._PaletteEditExecuteHandler(
+        ("set_cable_group_properties", payload, document)
+    ).notify(args)
+
+    assert not args.executeFailed
+    refreshed_geometry.assert_called_once()
+    applied_materials.assert_called_once_with(application, valid_harness.harness_id)
+    assert "Updated 1 generated ribbon group(s)." in sent.call_args.args[1]
+
+
 def test_material_refresh_shows_striped_preview_when_none_is_active(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

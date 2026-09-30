@@ -21,6 +21,7 @@ from ...domain import (
     Connection,
     ControlKind,
     ControlStructure,
+    OpenGuideAlignment,
 )
 from ...routing import GateFrame, RefineFrame, TransitionLengths, Vector3
 from ...routing.aperture import PlanarLoops, interior_center
@@ -40,6 +41,7 @@ class ProfileFrame:
     u_direction: Vector3
     v_direction: Vector3
     usable_radius_mm: Optional[float] = None
+    guide_length_mm: Optional[float] = None
 
 
 def connection_branch_route_frames(
@@ -157,10 +159,17 @@ def connection_profile_frames(
     Resolve and cache every ordered profile frame owned by one connection.
     """
     member_tokens = connection.member_tokens
-    for token in member_tokens:
-        if token not in cache:
-            cache[token] = _profile_frame(design, token)
-    return tuple(cache[token] for token in member_tokens)
+    resolved: list[ProfileFrame] = []
+    for token, alignment in zip(member_tokens, connection.resolved_member_alignments):
+        key = token if alignment is OpenGuideAlignment.CENTER else f"{token}:{alignment.value}"
+        if key not in cache:
+            cache[key] = (
+                _profile_frame(design, token)
+                if alignment is OpenGuideAlignment.CENTER
+                else _profile_frame(design, token, alignment)
+            )
+        resolved.append(cache[key])
+    return tuple(resolved)
 
 
 def connection_route_frames(
@@ -516,10 +525,50 @@ def _join_gate_boundary(
     return None
 
 
-def _profile_frame(design: adsk.fusion.Design, entity_token: str) -> ProfileFrame:
+def _profile_frame(
+    design: adsk.fusion.Design,
+    entity_token: str,
+    alignment: OpenGuideAlignment = OpenGuideAlignment.CENTER,
+) -> ProfileFrame:
     """
     Return a millimeter-scale model centroid and dimensionless unit plane normal.
     """
+    sketch_curve_type = getattr(adsk.fusion, "SketchCurve", None)
+    curve = (
+        next(
+            (
+                candidate
+                for entity in design.findEntityByToken(entity_token) or ()
+                if (candidate := sketch_curve_type.cast(entity)) is not None and candidate.isValid
+            ),
+            None,
+        )
+        if sketch_curve_type is not None
+        else None
+    )
+    if curve is not None:
+        evaluator = curve.worldGeometry.evaluator
+        success, start_parameter, end_parameter = evaluator.getParameterExtents()
+        if not success:
+            raise RuntimeError("Fusion could not measure an open end guide.")
+        success, length = evaluator.getLengthAtParameter(start_parameter, end_parameter)
+        if not success or length <= 0.0:
+            raise RuntimeError("An open end guide has no measurable length.")
+        if alignment is OpenGuideAlignment.CENTER:
+            success, parameter = evaluator.getParameterAtLength(start_parameter, length / 2.0)
+            if not success:
+                raise RuntimeError("Fusion could not find the open guide midpoint.")
+        else:
+            parameter = start_parameter if alignment is OpenGuideAlignment.LEFT else end_parameter
+        point_ok, point = evaluator.getPointAtParameter(parameter)
+        tangent_ok, derivative = evaluator.getFirstDerivative(parameter)
+        if not point_ok or not tangent_ok:
+            raise RuntimeError("Fusion could not orient an open end guide.")
+        sketch = curve.parentSketch
+        width = unit(_vector(derivative))
+        normal = unit(cross(_vector(sketch.xDirection), _vector(sketch.yDirection)))
+        depth = unit(cross(normal, width))
+        return ProfileFrame(_point_to_mm(point), normal, width, depth, None, length * 10.0)
     profile = _resolve_profile(design, entity_token)
     area_properties = profile.areaProperties()
     if area_properties is None:

@@ -356,12 +356,23 @@ asyncTest('ribbon properties save explicit Lines and geometry style', async () =
   assert.equal(descendants(lines.parentElement, (node) => node.type === 'checkbox').length, 0);
   assert.equal(descendants(geometry.parentElement, (node) => node.type === 'checkbox').length, 0);
   lines.value = '6';
+  lines.events.change();
   geometry.value = 'ffc';
+  const firstColorRow = descendants(dialog, (node) => node.tag === 'label'
+    && node.textContent === 'Line 1 ')[0];
+  const colorToggle = firstColorRow.children.find((node) => node.type === 'checkbox');
+  const colorPicker = firstColorRow.children.find((node) => node.type === 'color');
+  colorToggle.checked = true;
+  colorToggle.events.change();
+  colorPicker.value = '#ff0000';
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
 
   assert.equal(calls[0].action, 'set_cable_group_properties');
   assert.equal(calls[0].payload.ribbonLines, 6);
   assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
+  assert.equal(calls[0].payload.ribbonLineColors.length, 6);
+  assert.equal(calls[0].payload.ribbonLineColors[0].red, 255);
+  assert.equal(calls[0].payload.ribbonLineColors[1], null);
 });
 
 asyncTest('cable diameter fields use the active design length units', async () => {

@@ -4,6 +4,7 @@ Resolve Fusion route inputs into deterministic centerline solutions.
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from typing import Optional, Union
@@ -17,10 +18,12 @@ import adsk.fusion
 
 from ...application import CableGroupRouteLeg, plan_cable_group_routes
 from ...domain import (
+    CableGroupDefinition,
     CableGroupType,
     Connection,
     ControlStructure,
     HarnessDefinition,
+    RibbonGeometryType,
 )
 from ...routing import (
     CableRouteInput,
@@ -32,6 +35,8 @@ from ...routing import (
     Vector3,
     fair_route,
     minimum_circular_bend_radius,
+    ribbon_frames,
+    ribbon_has_hard_axis_bend,
     separate_route_collisions,
     straight_route,
 )
@@ -88,6 +93,36 @@ class _RouteSolveCache:
 _route_solve_cache: Optional[_RouteSolveCache] = None
 
 
+def _packing_diameter_mm(group: CableGroupDefinition) -> float:
+    """
+    Conservatively enclose a ribbon's full width and thickness for shared packing.
+    """
+    if group.group_type is CableGroupType.RIBBON:
+        return math.hypot(group.ribbon_lines * group.diameter_mm, group.diameter_mm)
+    return group.diameter_mm
+
+
+def _warn_short_ribbon_guide(
+    group: CableGroupDefinition,
+    frames: tuple[ProfileFrame, ...],
+    label: str,
+    notices: list[str],
+) -> None:
+    """
+    Report a guide that cannot contain the selected ribbon width.
+    """
+    if group.group_type is not CableGroupType.RIBBON:
+        return
+    width_mm = group.ribbon_lines * group.diameter_mm
+    if any(
+        frame.guide_length_mm is not None and frame.guide_length_mm < width_mm for frame in frames
+    ):
+        notices.append(
+            f"{label}: open guide is shorter than the ribbon width; "
+            "the selected alignment will overhang."
+        )
+
+
 # noinspection DuplicatedCode
 def solve_cable_group_routes(
     design: adsk.fusion.Design,
@@ -104,10 +139,20 @@ def solve_cable_group_routes(
 
     if not definition.cable_groups:
         raise ValueError("Create at least one cable group before previewing routes.")
-    if any(group.group_type is CableGroupType.RIBBON for group in definition.cable_groups):
-        raise ValueError("Ribbon route preview and geometry generation are not implemented yet.")
     legs = plan_cable_group_routes(definition)
     groups_by_id = {group.cable_group_id: group for group in definition.cable_groups}
+    for group in definition.cable_groups:
+        if group.group_type is not CableGroupType.RIBBON:
+            continue
+        if group.ribbon_geometry is RibbonGeometryType.FFC:
+            raise ValueError("FFC ribbon route preview and geometry are not implemented yet.")
+        if sum(leg.cable_group_id == group.cable_group_id for leg in legs) != 1:
+            raise ValueError("Discrete ribbons currently require one continuous two-ended route.")
+        if any(
+            connection.connection_id in group.connection_ids and connection.attachments
+            for connection in definition.connections
+        ):
+            raise ValueError("Discrete ribbon connection branches are not implemented yet.")
     controls = {control.control_id: control for control in definition.controls}
     connections = {connection.connection_id: connection for connection in definition.connections}
     end_control_ids = {
@@ -186,7 +231,7 @@ def solve_cable_group_routes(
                 cable_number=f"Group {group_order[group_id] + 1}",
                 start=origin,
                 end=origin,
-                diameter_mm=groups_by_id[group_id].diameter_mm,
+                diameter_mm=_packing_diameter_mm(groups_by_id[group_id]),
             )
             for group_id in ordered_group_ids
         )
@@ -212,7 +257,8 @@ def solve_cable_group_routes(
     minimum_bend_radii: list[float] = []
     auto_transition_fraction = definition.auto_transition_preset.span_fraction
     for leg in legs:
-        diameter_mm = groups_by_id[leg.cable_group_id].diameter_mm
+        group = groups_by_id[leg.cable_group_id]
+        diameter_mm = _packing_diameter_mm(group)
         points: list[Vector3] = []
         normals: list[Vector3] = []
         transitions: list[TransitionLengths] = []
@@ -231,6 +277,7 @@ def solve_cable_group_routes(
                 frames,
                 profile_frames,
             )
+            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices)
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
             root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
@@ -320,6 +367,7 @@ def solve_cable_group_routes(
                 frames,
                 profile_frames,
             )
+            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices)
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
             root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
@@ -379,7 +427,7 @@ def solve_cable_group_routes(
         route_transitions.append(tuple(transitions))
         route_control_ids.append(tuple(point_control_ids))
         route_soft_guide_indices.append(frozenset(soft_guide_indices))
-        minimum_bend_radii.append(minimum_circular_bend_radius(diameter_mm))
+        minimum_bend_radii.append(minimum_circular_bend_radius(group.diameter_mm))
 
     junction_control_ids = frozenset(junction.control_id for junction in definition.junctions)
     control_constraints = {
@@ -466,11 +514,14 @@ def solve_cable_group_routes(
                     faired_route = straight_route(route)
                     solve_notices.append(_straight_route_notice(route.cable_number, error))
                 accepted_normals = conditioned_normals
-        if (unsafe := _adjustment_below_cable_radius(adjustments, diameter_mm / 2.0)) is not None:
+        physical_diameter_mm = groups_by_id[route_group_ids[route_index]].diameter_mm
+        if (
+            unsafe := _adjustment_below_cable_radius(adjustments, physical_diameter_mm / 2.0)
+        ) is not None:
             faired_route = straight_route(route)
             adjustments.clear()
             solve_notices.append(
-                _straight_for_sweep_notice(route.cable_number, unsafe, diameter_mm)
+                _straight_for_sweep_notice(route.cable_number, unsafe, physical_diameter_mm)
             )
         routes.append(faired_route)
         route_normals.append(accepted_normals)
@@ -486,6 +537,23 @@ def solve_cable_group_routes(
         auto_transition_fraction=auto_transition_fraction,
     )
     solve_notices.extend(_collision_notice(item) for item in collisions)
+    for leg, route in zip(legs, separated_routes):
+        group = groups_by_id[leg.cable_group_id]
+        if group.group_type is not CableGroupType.RIBBON:
+            continue
+        if leg.start_connection_id is None or leg.end_connection_id is None:
+            raise ValueError("A discrete ribbon requires two physical open ends.")
+        start_width = connection_profile_frames(
+            design, connections[leg.start_connection_id], profile_frames
+        )[0].u_direction
+        end_width = connection_profile_frames(
+            design, connections[leg.end_connection_id], profile_frames
+        )[0].u_direction
+        if ribbon_has_hard_axis_bend(ribbon_frames(route, start_width, end_width)):
+            solve_notices.append(
+                f"{leg.label}: route bends across the ribbon width; "
+                "this stiff-direction bend may be difficult to form."
+            )
     branch_routes, branch_legs = _connection_branch_routes(
         design,
         definition,

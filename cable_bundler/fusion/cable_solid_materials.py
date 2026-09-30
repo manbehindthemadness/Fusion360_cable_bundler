@@ -15,7 +15,7 @@ from uuid import UUID
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ..domain import CableGroupDefinition, HarnessDefinition
+from ..domain import CableGroupDefinition, CableGroupType, HarnessDefinition
 from .cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, GENERATED_CABLE_GROUP_ATTRIBUTE
 from .cable_solid_parts.materials import material_metadata
 from .cable_solid_parts.metadata import (
@@ -343,6 +343,32 @@ def apply_cable_group_materials(
         group = groups.get(group_id)
         if group is None:
             continue
+        if group.group_type is CableGroupType.RIBBON:
+            materials = definition.cable_group_materials(group)
+            line_colors = group.resolved_ribbon_line_colors(materials.main_color)
+            body = occurrence.component.bRepBodies.item(0)
+            if body is None:
+                raise RuntimeError("Generated discrete ribbon has no solid body.")
+            body.appearance = _cable_solid_services().cable_appearance(
+                design, materials.main_color, materials.appearance
+            )
+            for face_index in range(body.faces.count):
+                face = body.faces.item(face_index)
+                marker = face.attributes.itemByName(ATTRIBUTE_GROUP, "ribbon_lane")
+                if marker is None:
+                    continue
+                try:
+                    line_index = int(marker.value)
+                    color = line_colors[line_index]
+                except (ValueError, IndexError) as error:
+                    raise RuntimeError(
+                        "Generated ribbon has invalid line-color identity."
+                    ) from error
+                face.appearance = _cable_solid_services().cable_appearance(design, color)
+            metadata.update(material_metadata(materials))
+            attribute.value = json.dumps(metadata, sort_keys=True)
+            applied += 1
+            continue
         materials = definition.cable_group_materials(group)
         branches = connection_branches_from_metadata(metadata)
         main_pullbacks = _main_pullbacks_from_metadata(metadata)
@@ -553,6 +579,8 @@ def restore_cable_group_stripe_graphics(
             raise RuntimeError("A generated cable group has invalid identity metadata.") from error
         group = groups.get(group_id)
         if group is None:
+            continue
+        if group.group_type is CableGroupType.RIBBON:
             continue
         stripes = definition.cable_group_materials(group).stripes
         routes = group_routes_from_metadata(metadata)

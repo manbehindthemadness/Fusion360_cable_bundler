@@ -134,6 +134,7 @@ class _PaletteLifecycleModule(Protocol):
     remove_junction: Callable[..., None]
     remove_pathway: Callable[..., None]
     _apply_generated_materials: Callable[[object, UUID], str]
+    refresh_changed_generated_cable_groups: Callable[..., int]
     _send_palette_state: Callable[[object, str], None]
     _length_units_payload: Callable[[Any], dict[str, object]]
     _dispatch_palette_action: Callable[[object, str, str], str]

@@ -21,12 +21,15 @@ from ..domain import (
     CableGroupType,
     CableMaterialSettings,
     HarnessDefinition,
+    RibbonGeometryType,
 )
 from ..routing import (
     RoutePreview,
     Vector3,
+    ribbon_lane_points,
     sample_centerline,
 )
+from .ribbon_geometry import ribbon_route_frames
 from .route_preview_parts.solver import (
     leg_control_ids,
     reset_route_solve_cache,
@@ -93,12 +96,15 @@ _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
 
 def _previewable_definition(definition: HarnessDefinition) -> HarnessDefinition:
     """
-    Retain loose groups for the existing profile-based preview solver.
+    Retain routable loose and discrete groups while deferring FFC geometry.
     """
-    loose_groups = tuple(
-        group for group in definition.cable_groups if group.group_type is CableGroupType.LOOSE
+    routable_groups = tuple(
+        group
+        for group in definition.cable_groups
+        if group.group_type is CableGroupType.LOOSE
+        or group.ribbon_geometry is RibbonGeometryType.DISCRETE
     )
-    return replace(definition, cable_groups=loose_groups)
+    return replace(definition, cable_groups=routable_groups)
 
 
 def _remember_preview(group_id: str, state: _PreviewState) -> None:
@@ -225,11 +231,14 @@ def show_route_previews(
     try:
         for index, route in enumerate(routes):
             cable_group = groups_by_id[route_group_ids[route.cable_id]]
-            _add_route_graphics(
+            _add_group_route_graphics(
+                design,
+                definition,
                 preview_group,
                 route,
                 index,
-                _route_materials(definition, cable_group, legs_by_id[route.cable_id]).main_color,
+                cable_group,
+                legs_by_id[route.cable_id],
             )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         preview_group.deleteMe()
@@ -520,7 +529,11 @@ def _refresh_cable_group_preview(
             except ValueError:
                 pass
         color_changed = (
-            old_materials is None or old_materials.main_color != new_materials.main_color
+            old_materials is None
+            or old_materials.main_color != new_materials.main_color
+            or old_group is None
+            or old_group.ribbon_line_colors != new_group.ribbon_line_colors
+            or old_group.ribbon_lines != new_group.ribbon_lines
         )
         if state.routes.get(route.cable_id) == route and not color_changed:
             continue
@@ -529,11 +542,14 @@ def _refresh_cable_group_preview(
             route.cable_id, max(state.color_indices.values(), default=-1) + 1
         )
         try:
-            _add_route_graphics(
+            _add_group_route_graphics(
+                design,
+                definition,
                 group,
                 route,
                 color_index,
-                new_materials.main_color,
+                new_group,
+                legs_by_id[route.cable_id],
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             for child in _cable_graphics(group, {route.cable_id}):
@@ -633,7 +649,7 @@ def highlight_route_members(
             for line_index in range(cable_group.count):
                 lines = adsk.fusion.CustomGraphicsLines.cast(cable_group.item(line_index))
                 if lines is not None:
-                    lines.weight = 5.0 if selected else 1.0
+                    lines.weight = 5.0 if selected else (2.0 if line_index > 0 else 1.0)
                     if selected:
                         selected_count += 1
     return selected_count
@@ -644,6 +660,9 @@ def _add_route_graphics(
     route: RoutePreview,
     color_index: int,
     cable_color: Optional[CableColor] = None,
+    *,
+    ribbon_lanes: tuple[tuple[Vector3, ...], ...] = (),
+    ribbon_colors: tuple[CableColor, ...] = (),
 ) -> None:
     """
     Add one selectable colored line strip to a preview group.
@@ -678,6 +697,49 @@ def _add_route_graphics(
     if color_effect is None:
         raise RuntimeError(f"Fusion did not create a color for cable {route.cable_number}.")
     lines.color = color_effect
+    for lane, lane_color in zip(ribbon_lanes, ribbon_colors):
+        lane_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(
+            [coordinate / 10.0 for point in lane for coordinate in (point.x, point.y, point.z)]
+        )
+        if lane_coordinates is None:
+            raise RuntimeError("Fusion did not create ribbon lane preview coordinates.")
+        lane_lines = cable_group.addLines(lane_coordinates, [], True)
+        if lane_lines is None:
+            raise RuntimeError("Fusion did not draw a ribbon lane preview.")
+        lane_lines.weight = 2.0
+        lane_effect = adsk.fusion.CustomGraphicsSolidColorEffect.create(
+            adsk.core.Color.create(lane_color.red, lane_color.green, lane_color.blue, 255)
+        )
+        if lane_effect is None:
+            raise RuntimeError("Fusion did not create a ribbon lane color.")
+        lane_lines.color = lane_effect
+
+
+def _add_group_route_graphics(
+    design: adsk.fusion.Design,
+    definition: HarnessDefinition,
+    preview_group: adsk.fusion.CustomGraphicsGroup,
+    route: RoutePreview,
+    color_index: int,
+    cable_group: CableGroupDefinition,
+    leg: CableGroupRouteLeg,
+) -> None:
+    """
+    Draw a loose centerline or ordered colored lanes for one discrete ribbon.
+    """
+    main_color = _route_materials(definition, cable_group, leg).main_color
+    if cable_group.group_type is CableGroupType.LOOSE:
+        _add_route_graphics(preview_group, route, color_index, main_color)
+        return
+    frames = ribbon_route_frames(design, definition, leg, route)
+    _add_route_graphics(
+        preview_group,
+        route,
+        color_index,
+        main_color,
+        ribbon_lanes=ribbon_lane_points(frames, cable_group.ribbon_lines, cable_group.diameter_mm),
+        ribbon_colors=cable_group.resolved_ribbon_line_colors(main_color),
+    )
 
 
 def _point_to_mm(point: adsk.core.Point3D) -> Vector3:

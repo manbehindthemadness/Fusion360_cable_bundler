@@ -16,6 +16,7 @@ from .parallel import (
     place_route_crossings,
     solve_parallel_routes,
 )
+from .ribbon import RibbonFrame, ribbon_frames, ribbon_has_hard_axis_bend, ribbon_lane_points
 from .smooth import (
     CIRCULAR_SWEEP_BEND_FACTOR,
     BendRadius,
@@ -45,6 +46,7 @@ __all__ = [
     "GateFrame",
     "RefineFrame",
     "RoutePreview",
+    "RibbonFrame",
     "RouteCollision",
     "StripeContinuation",
     "StripeMeshResult",
@@ -56,6 +58,9 @@ __all__ = [
     "build_stripe_mesh",
     "solve_parallel_routes",
     "route_collisions",
+    "ribbon_frames",
+    "ribbon_has_hard_axis_bend",
+    "ribbon_lane_points",
     "separate_route_collisions",
     "TransitionLengths",
     "TransitionAdjustment",

@@ -4,6 +4,7 @@ Focused Fusion UI regressions for palette.
 
 from __future__ import annotations
 
+from cable_bundler.domain import CableColor
 from tests.fusion_ui_support import (
     UUID,
     Mock,
@@ -607,6 +608,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         conductor_diameter_mm=2.0,
         ribbon_lines=None,
         ribbon_geometry=None,
+        ribbon_line_colors=None,
     )
     assert notice == "Saved connected-cable properties."
 
@@ -634,12 +636,26 @@ def test_palette_edit_reads_ribbon_properties(
                 "diameterMm": 1.5,
                 "ribbonLines": 5,
                 "ribbonGeometry": "ffc",
+                "ribbonLineColors": [
+                    None,
+                    {"name": "Red", "red": 255, "green": 0, "blue": 0},
+                    None,
+                    None,
+                    None,
+                ],
             }
         ),
     )
 
     assert save.call_args.kwargs["ribbon_lines"] == 5
     assert save.call_args.kwargs["ribbon_geometry"] is RibbonGeometryType.FFC
+    assert save.call_args.kwargs["ribbon_line_colors"] == (
+        None,
+        CableColor("Red", 255, 0, 0),
+        None,
+        None,
+        None,
+    )
 
 
 def test_palette_edit_saves_harness_properties_without_visual_materials(

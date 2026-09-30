@@ -16,7 +16,10 @@ import adsk.fusion
 
 from ...domain import loads
 from .. import highlight_route_preview
-from ..cable_solids import refresh_generated_cable_groups_for_connection
+from ..cable_solids import (
+    refresh_changed_generated_cable_groups,
+    refresh_generated_cable_groups_for_connection,
+)
 from ..interface_board_source import linked_interface_boards, read_linked_board_pads
 from ..interface_contact_cache import clear_contact_resolutions
 from ..interface_contact_disk_cache import (
@@ -285,6 +288,17 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             )
             if policy.reconcile_refines and not is_data_only_disconnect:
                 reconcile_active_refines(application)
+            if action == "set_cable_group_properties" and "ribbonLineColors" in payload:
+                gateway = _create_harness_gateway(application)
+                definition = loads(gateway.read_harness_definition(harness_id))
+                refreshed_count = refresh_changed_generated_cable_groups(
+                    _require_active_design(application),
+                    gateway.harness_component(harness_id),
+                    definition,
+                )
+                if refreshed_count:
+                    notice = f"{notice} Updated {refreshed_count} generated ribbon group(s)."
+                notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
             if policy.apply_generated_materials:
                 notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
             refreshes_connection_geometry = (
