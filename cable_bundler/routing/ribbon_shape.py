@@ -11,7 +11,7 @@ from .geometry import Vector3, difference, magnitude
 from .ribbon import RibbonFrame, ribbon_lane_points
 
 RIBBON_LENGTH_SPREAD_LIMIT = 0.01
-RIBBON_NEIGHBOR_PITCH_LIMIT = 1.10
+RIBBON_NEIGHBOR_PITCH_LIMIT = 1.03
 
 
 @dataclass(frozen=True)
@@ -132,6 +132,23 @@ def _folded_lane(
     )
 
 
+def _scaled_folds(
+    base_lanes: tuple[tuple[Vector3, ...], ...],
+    folded_lanes: tuple[tuple[Vector3, ...], ...],
+    scale: float,
+) -> tuple[tuple[Vector3, ...], ...]:
+    """
+    Reduce differential folds without moving any terminal lane center.
+    """
+    return tuple(
+        tuple(
+            original.translated(difference(folded, original), scale)
+            for original, folded in zip(base, fitted)
+        )
+        for base, fitted in zip(base_lanes, folded_lanes)
+    )
+
+
 def solve_ribbon_shape(
     frames: tuple[RibbonFrame, ...],
     line_count: int,
@@ -178,67 +195,78 @@ def solve_ribbon_shape(
         raise ValueError("A ribbon route has no usable centerline length.")
     fractions = tuple(distance / route_length for distance in distances)
     width = line_count * line_diameter_mm
-    cycles = 3 if route_length < 3.0 * width else 4
+    maximum_cycles = min(6, math.floor(route_length / width), (len(frames) - 1) // 8)
     maximum_amplitude = min(0.2 * route_length, max(2.0 * line_diameter_mm, 0.25 * width))
-    fitted_lanes = []
-    for base, base_length in zip(base_lanes, base_lengths):
-        if (longest - base_length) / longest <= 1e-5:
-            fitted_lanes.append(base)
-            continue
-        upper_lane = _folded_lane(
-            frames, base, fractions, cycles, maximum_amplitude, bool(start_fit or end_fit)
-        )
-        if _line_length(upper_lane) < longest:
-            fitted_lanes.append(upper_lane)
-            continue
-        lower, upper = 0.0, maximum_amplitude
-        for _ in range(28):
-            middle = (lower + upper) / 2.0
-            candidate = _folded_lane(
-                frames, base, fractions, cycles, middle, bool(start_fit or end_fit)
+    pitch_limit = max(
+        RIBBON_NEIGHBOR_PITCH_LIMIT, _maximum_pitch_ratio(base_lanes, line_diameter_mm)
+    )
+    best_lanes = base_lanes
+    best_lengths = base_lengths
+    best_spread = spread
+    best_folded = False
+    maximum_neighbor_amplitude_step = line_diameter_mm * math.sqrt(
+        RIBBON_NEIGHBOR_PITCH_LIMIT**2 - 1.0
+    )
+    for cycles in range(1, maximum_cycles + 1):
+        target_amplitudes = []
+        for base, base_length in zip(base_lanes, base_lengths):
+            if (longest - base_length) / longest <= 1e-5:
+                target_amplitudes.append(0.0)
+                continue
+            upper_lane = _folded_lane(
+                frames, base, fractions, cycles, maximum_amplitude, bool(start_fit or end_fit)
             )
-            if _line_length(candidate) < longest:
-                lower = middle
-            else:
-                upper = middle
-        fitted_lanes.append(
-            _folded_lane(frames, base, fractions, cycles, upper, bool(start_fit or end_fit))
-        )
-    lanes = tuple(fitted_lanes)
-    maximum_pitch_ratio = _maximum_pitch_ratio(lanes, line_diameter_mm)
-    if maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT:
-        lower, upper = 0.0, 1.0
-        for _ in range(24):
-            scale = (lower + upper) / 2.0
-            scaled = tuple(
-                tuple(
-                    Vector3(
-                        original.x + scale * (folded.x - original.x),
-                        original.y + scale * (folded.y - original.y),
-                        original.z + scale * (folded.z - original.z),
-                    )
-                    for original, folded in zip(base, fitted)
+            if _line_length(upper_lane) < longest:
+                target_amplitudes.append(maximum_amplitude)
+                continue
+            lower, upper = 0.0, maximum_amplitude
+            for _ in range(28):
+                middle = (lower + upper) / 2.0
+                candidate = _folded_lane(
+                    frames, base, fractions, cycles, middle, bool(start_fit or end_fit)
                 )
-                for base, fitted in zip(base_lanes, lanes)
+                if _line_length(candidate) < longest:
+                    lower = middle
+                else:
+                    upper = middle
+            target_amplitudes.append(upper)
+        bounded_amplitudes = tuple(
+            min(
+                target + maximum_neighbor_amplitude_step * abs(index - target_index)
+                for target_index, target in enumerate(target_amplitudes)
             )
-            if _maximum_pitch_ratio(scaled, line_diameter_mm) <= RIBBON_NEIGHBOR_PITCH_LIMIT:
-                lower = scale
-            else:
-                upper = scale
-        lanes = tuple(
-            tuple(
-                Vector3(
-                    original.x + lower * (folded.x - original.x),
-                    original.y + lower * (folded.y - original.y),
-                    original.z + lower * (folded.z - original.z),
-                )
-                for original, folded in zip(base, fitted)
-            )
-            for base, fitted in zip(base_lanes, lanes)
+            for index in range(line_count)
         )
-        maximum_pitch_ratio = _maximum_pitch_ratio(lanes, line_diameter_mm)
-    lengths = ribbon_line_lengths(lanes)
-    spread = (max(lengths) - min(lengths)) / max(lengths)
+        candidate_lanes = tuple(
+            _folded_lane(frames, base, fractions, cycles, amplitude, bool(start_fit or end_fit))
+            for base, amplitude in zip(base_lanes, bounded_amplitudes)
+        )
+        if _maximum_pitch_ratio(candidate_lanes, line_diameter_mm) > pitch_limit + 1e-9:
+            lower, upper = 0.0, 1.0
+            for _ in range(24):
+                middle = (lower + upper) / 2.0
+                scaled = _scaled_folds(base_lanes, candidate_lanes, middle)
+                if _maximum_pitch_ratio(scaled, line_diameter_mm) <= pitch_limit + 1e-9:
+                    lower = middle
+                else:
+                    upper = middle
+            candidate_lanes = _scaled_folds(base_lanes, candidate_lanes, lower)
+        candidate_lengths = ribbon_line_lengths(candidate_lanes)
+        candidate_spread = (max(candidate_lengths) - min(candidate_lengths)) / max(
+            candidate_lengths
+        )
+        if candidate_spread < best_spread - 1e-9:
+            best_lanes = candidate_lanes
+            best_lengths = candidate_lengths
+            best_spread = candidate_spread
+            best_folded = True
     return RibbonShape(
-        frames, lanes, lengths, spread, True, maximum_pitch_ratio, start_fit, end_fit
+        frames,
+        best_lanes,
+        best_lengths,
+        best_spread,
+        best_folded,
+        _maximum_pitch_ratio(best_lanes, line_diameter_mm),
+        start_fit,
+        end_fit,
     )

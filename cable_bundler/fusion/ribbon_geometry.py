@@ -4,6 +4,7 @@ Resolve open end guides into a banked frame shared by ribbon preview and output.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 # noinspection PyUnresolvedReferences
@@ -15,6 +16,7 @@ import adsk.fusion
 from ..application import CableGroupRouteLeg
 from ..domain import HarnessDefinition, OpenGuideAlignment
 from ..routing import (
+    RIBBON_NEIGHBOR_PITCH_LIMIT,
     RibbonEndFit,
     RibbonFrame,
     RibbonShape,
@@ -159,7 +161,16 @@ def ribbon_route_shape(
     """
     Build one terminal-aware shape for both preview and generated geometry.
     """
+    if line_count < 1 or not math.isfinite(diameter_mm) or diameter_mm <= 0.0:
+        raise ValueError("A ribbon needs a positive line count and finite diameter.")
     frames = ribbon_route_frames(design, definition, leg, route)
+    route_length = sum(
+        magnitude(difference(right.origin, left.origin)) for left, right in zip(frames, frames[1:])
+    )
+    maximum_cycles = min(6, math.floor(route_length / (line_count * diameter_mm)))
+    section_count = max(32, 8 * maximum_cycles + 1)
+    if section_count > len(frames):
+        frames = ribbon_route_frames(design, definition, leg, route, maximum_sections=section_count)
     connections = {connection.connection_id: connection for connection in definition.connections}
     fits: list[RibbonEndFit | None] = []
     planes: list[RibbonGuidePlane | None] = []
@@ -188,13 +199,23 @@ def ribbon_route_shape(
             fits.append(fit)
             planes.append(plane)
     shape = solve_ribbon_shape(frames, line_count, diameter_mm, start_fit=fits[0], end_fit=fits[1])
-    if shape.maximum_pitch_ratio > 1.10 + 1e-6 and any(fit is not None for fit in fits):
+    guide_pitch = max(
+        (
+            magnitude(difference(right, left)) / diameter_mm
+            for fit in fits
+            if fit is not None
+            for left, right in zip(fit.centers, fit.centers[1:])
+        ),
+        default=1.0,
+    )
+    if guide_pitch > RIBBON_NEIGHBOR_PITCH_LIMIT + 1e-6:
         warnings.append(
-            "guide-fitted ends would exceed the 10% adjacent-line pitch allowance; "
-            "using unfitted ends"
+            "fixed guide ends exceed the 3% adjacent-line pitch target; anchors preserved"
         )
-        shape = solve_ribbon_shape(frames, line_count, diameter_mm)
-        planes = [None, None]
+    elif shape.maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT + 1e-6:
+        warnings.append(
+            "guide transition exceeds the 3% adjacent-line pitch target; anchors preserved"
+        )
     return RibbonRouteShape(shape, (planes[0], planes[1]), tuple(warnings))
 
 

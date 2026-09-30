@@ -17,6 +17,7 @@ import adsk.fusion
 
 from ...domain import CableGroupDefinition, CableMaterialSettings
 from ...routing import (
+    RIBBON_NEIGHBOR_PITCH_LIMIT,
     RibbonEndFit,
     RibbonFrame,
     RibbonShape,
@@ -483,10 +484,17 @@ def build_discrete_ribbon_solid(
     spread = (length_mm - min(lengths)) / length_mm
     maximum_pitch_ratio = shape.maximum_pitch_ratio if folded else 1.0
     if notices is not None:
-        if folded and maximum_pitch_ratio > 1.10 + 1e-6:
+        if (
+            folded
+            and maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT + 1e-6
+            and not any(
+                f"Cable Group {group_index + 1}:" in notice and "pitch target" in notice
+                for notice in notices
+            )
+        ):
             notices.append(
                 f"Warning: Cable Group {group_index + 1}: ribbon end fit exceeds "
-                "the 10% adjacent-line pitch allowance."
+                "the 3% adjacent-line pitch target."
             )
         status = "meets" if spread <= 0.01 + 1e-9 else "exceeds"
         notices.append(

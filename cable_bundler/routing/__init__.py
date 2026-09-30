@@ -19,6 +19,7 @@ from .parallel import (
 from .ribbon import RibbonFrame, ribbon_frames, ribbon_has_hard_axis_bend, ribbon_lane_points
 from .ribbon_shape import (
     RIBBON_LENGTH_SPREAD_LIMIT,
+    RIBBON_NEIGHBOR_PITCH_LIMIT,
     RibbonEndFit,
     RibbonShape,
     ribbon_line_lengths,
@@ -57,6 +58,7 @@ __all__ = [
     "RibbonEndFit",
     "RibbonShape",
     "RIBBON_LENGTH_SPREAD_LIMIT",
+    "RIBBON_NEIGHBOR_PITCH_LIMIT",
     "RouteCollision",
     "StripeContinuation",
     "StripeMeshResult",

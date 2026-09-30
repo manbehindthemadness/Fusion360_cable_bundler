@@ -135,7 +135,7 @@ def test_bent_ribbon_reports_lengths_and_preserves_end_anchors() -> None:
     assert shape.lanes[-1][-1] == original[-1][-1]
     assert shape.spread < 0.03
     assert not shape.meets_length_target
-    assert shape.maximum_pitch_ratio <= 1.100001
+    assert shape.maximum_pitch_ratio <= 1.030001
     assert shape == solve_ribbon_shape(frames, 3, 1.5)
 
 
@@ -155,7 +155,7 @@ def test_moderate_twist_reaches_length_target_without_separating_lines() -> None
 
     assert shape.folded
     assert shape.meets_length_target
-    assert shape.maximum_pitch_ratio <= 1.100001
+    assert shape.maximum_pitch_ratio <= 1.030001
 
 
 def test_severe_twist_warns_instead_of_stretching_joined_web() -> None:
@@ -170,7 +170,29 @@ def test_severe_twist_warns_instead_of_stretching_joined_web() -> None:
     assert shape.folded
     assert not shape.meets_length_target
     assert shape.spread > 0.20
-    assert shape.maximum_pitch_ratio <= 1.100001
+    assert shape.maximum_pitch_ratio <= 1.030001
+
+
+def test_dense_folds_reduce_length_spread_without_stretching_the_web() -> None:
+    """
+    Smooth conductor-to-conductor amplitudes before bounding the entire fold.
+    """
+    route = RoutePreview(
+        UUID(int=13),
+        "Wrinkle",
+        (Vector3(0, 0, 0), Vector3(0, 0, 40), Vector3(30, 0, 75)),
+    )
+    frames = ribbon_frames(route, Vector3(1, 0, 0), Vector3(1, 0, 0), maximum_sections=49)
+    base_lengths = ribbon_line_lengths(ribbon_lane_points(frames, 19, 0.75))
+    base_spread = (max(base_lengths) - min(base_lengths)) / max(base_lengths)
+
+    shape = solve_ribbon_shape(frames, 19, 0.75)
+
+    assert shape.folded
+    assert shape.spread < base_spread - 0.05
+    assert shape.maximum_pitch_ratio <= 1.030001
+    assert shape.lengths_mm == ribbon_line_lengths(shape.lanes)
+    assert shape == solve_ribbon_shape(frames, 19, 0.75)
 
 
 def test_terminal_fit_blends_exact_guide_samples_and_remeasures_lines() -> None:

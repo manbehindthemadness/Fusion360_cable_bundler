@@ -24,6 +24,7 @@ from ..domain import (
     RibbonGeometryType,
 )
 from ..routing import (
+    RIBBON_NEIGHBOR_PITCH_LIMIT,
     RoutePreview,
     Vector3,
     sample_centerline,
@@ -740,10 +741,12 @@ def _add_group_route_graphics(
     if notices is not None:
         for warning in fitted.fit_warnings:
             notices.append(f"Warning: {route.cable_number}: {warning}.")
-        if shape.maximum_pitch_ratio > 1.10 + 1e-6:
+        if shape.maximum_pitch_ratio > RIBBON_NEIGHBOR_PITCH_LIMIT + 1e-6 and not any(
+            "pitch target" in warning for warning in fitted.fit_warnings
+        ):
             notices.append(
                 f"Warning: {route.cable_number}: ribbon end fit exceeds the "
-                "10% adjacent-line pitch allowance."
+                "3% adjacent-line pitch target."
             )
         status = "meets" if shape.meets_length_target else "exceeds"
         notices.append(

@@ -8,11 +8,12 @@ import math
 from dataclasses import replace
 from importlib import import_module
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 
 from cable_bundler.domain import CableGroupType, HarnessDefinition, OpenGuideAlignment
-from cable_bundler.routing import RibbonEndFit, RibbonFrame, Vector3
+from cable_bundler.routing import RibbonEndFit, RibbonFrame, RoutePreview, Vector3, ribbon_frames
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
@@ -175,6 +176,68 @@ def test_nonparametric_guide_never_reads_reference_plane(
     assert guide_plane.origin == Vector3(0, 0, 20)
     assert guide_plane.normal == Vector3(0, 0, 1)
     assert guide_plane.reference_plane is None
+
+
+def test_fixed_guide_pitch_warning_preserves_fitted_end_samples(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Report an overwide guide without discarding its physical end anchors.
+    """
+    ribbon = import_module("cable_bundler.fusion.ribbon_geometry")
+    route = RoutePreview(UUID(int=91), "Guide", (Vector3(0, 0, 0), Vector3(0, 0, 100)))
+    start_id, end_id = UUID(int=92), UUID(int=93)
+    start_fit = RibbonEndFit(
+        (Vector3(-1.62, 0, 0), Vector3(0, 0, 0), Vector3(1.62, 0, 0)),
+        (Vector3(0, 1, 0),) * 3,
+    )
+    end_fit = RibbonEndFit(
+        (Vector3(-1.5, 0, 100), Vector3(0, 0, 100), Vector3(1.5, 0, 100)),
+        (Vector3(0, 1, 0),) * 3,
+    )
+    plane = ribbon.RibbonGuidePlane(Vector3(0, 0, 0), Vector3(0, 0, 1))
+    monkeypatch.setitem(
+        vars(ribbon),
+        "ribbon_route_frames",
+        lambda _design, _definition, _leg, _route, maximum_sections=32: ribbon_frames(
+            route, Vector3(1, 0, 0), Vector3(1, 0, 0), maximum_sections=maximum_sections
+        ),
+    )
+    monkeypatch.setitem(
+        vars(ribbon),
+        "_guide_fit",
+        lambda _design, token, _alignment, _frame, _count, _diameter: (
+            start_fit if token == "start" else end_fit,
+            plane,
+        ),
+    )
+    definition = SimpleNamespace(
+        connections=(
+            SimpleNamespace(
+                connection_id=start_id,
+                member_tokens=("start",),
+                resolved_member_alignments=(OpenGuideAlignment.CENTER,),
+            ),
+            SimpleNamespace(
+                connection_id=end_id,
+                member_tokens=("end",),
+                resolved_member_alignments=(OpenGuideAlignment.CENTER,),
+            ),
+        )
+    )
+    leg = SimpleNamespace(start_connection_id=start_id, end_connection_id=end_id)
+
+    fitted = ribbon.ribbon_route_shape(object(), definition, leg, route, 3, 1.5)
+
+    assert fitted.shape.start_fit == start_fit
+    assert fitted.shape.end_fit == end_fit
+    assert tuple(lane[0] for lane in fitted.shape.lanes) == start_fit.centers
+    assert tuple(lane[-1] for lane in fitted.shape.lanes) == end_fit.centers
+    assert fitted.shape.maximum_pitch_ratio >= 1.08
+    assert fitted.fit_warnings == (
+        "fixed guide ends exceed the 3% adjacent-line pitch target; anchors preserved",
+    )
 
 
 def test_terminal_profile_uses_sampled_guide_edges(
