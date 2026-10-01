@@ -600,6 +600,10 @@ def _generate_cable_geometry(
         _hide_finalized_supports(design, definition)
     else:
         _show_render_supports(design, definition)
+        # Solid output retains editable sketches, but preview overlays must not
+        # remain visible while Fusion finishes the command transaction.
+        hide_route_previews(design)
+        hide_refine_graphics(design)
     supports_seconds = perf_counter() - stage_started
     stage_started = perf_counter()
     application.activeViewport.refresh()
