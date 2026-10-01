@@ -406,6 +406,77 @@ asyncTest('ribbon materials collapse and save individual line colors', async () 
   assert.equal(saved.payload.ribbonLineColors[2], null);
 });
 
+asyncTest('ribbon materials omit procedural stripes without changing their overrides', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  const stripe = {
+    color: { name: 'White', hex: '#f5f5f5' }, widthMm: 0.4,
+    pattern: 'longitudinal', angleDeg: 0, repeatMm: null,
+  };
+  group.groupType = 'ribbon';
+  group.ribbonLines = 3;
+  group.materials = { ...group.materials, stripes: [stripe] };
+  group.materialOverrides.stripes = [stripe];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return action === 'get_appearance_libraries'
+      ? { ok: true, libraries: [] } : { ok: true };
+  };
+
+  context.openMaterialOptions(definition, group);
+  const dialog = context.document.body.querySelector('.material-options');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Procedural stripes').length, 0);
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const saved = calls.find((call) => call.action === 'set_cable_group_material_overrides');
+  assert.deepEqual(saved.payload.overrides.stripes, [stripe]);
+});
+
+asyncTest('ribbon connection materials omit procedural stripes', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  const connection = definition.connections[0];
+  const stripe = {
+    color: { name: 'White', hex: '#f5f5f5' }, widthMm: 0.4,
+    pattern: 'longitudinal', angleDeg: 0, repeatMm: null,
+  };
+  group.groupType = 'ribbon';
+  const attachment = {
+    attachmentId: 'root-1', connectionId: connection.connectionId,
+    parentAttachmentId: null, visualOverrides: { stripes: [stripe] },
+  };
+  connection.attachments = [attachment, {
+    attachmentId: 'root-2', connectionId: connection.connectionId,
+    parentAttachmentId: null, visualOverrides: {},
+  }];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return action === 'get_appearance_libraries'
+      ? { ok: true, libraries: [] } : { ok: true };
+  };
+
+  context.openMaterialOptions(definition, group, attachment);
+  const dialog = context.document.body.querySelector('.material-options');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Procedural stripes').length, 0);
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const saved = calls.find((call) => call.action === 'set_cable_end_attachment_visual_overrides');
+  assert.deepEqual(saved.payload.overrides.stripes, [stripe]);
+});
+
+test('loose cable group materials retain procedural stripes', () => {
+  const { context } = palette();
+  const definition = harness();
+  context.openMaterialOptions(definition, definition.cableGroups[0]);
+
+  const dialog = context.document.body.querySelector('.material-options');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Procedural stripes').length, 1);
+});
+
 asyncTest('cable diameter fields use the active design length units', async () => {
   const { context } = palette();
   const definition = harness();

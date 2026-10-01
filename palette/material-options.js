@@ -177,6 +177,7 @@ function createAppearanceEditor(settings, title, catalog, error, addOverrideTogg
 function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const isCableGroup = cableGroup !== null;
   const isConnectionBranch = attachment !== null;
+  const isRibbon = cableGroup?.groupType === "ribbon";
   const hasOverrides = isCableGroup || isConnectionBranch;
   const units = cableLengthUnits(harness);
   const connection = isConnectionBranch ? harness.connections.find(
@@ -368,7 +369,7 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   addStripe.addEventListener("click", () => appendStripe());
   updateStripes();
   stripeWrapper.append(stripeHeader, stripeList, addStripe);
-  if (hasFullVisualOverrides) form.append(stripeWrapper);
+  if (hasFullVisualOverrides && !isRibbon) form.append(stripeWrapper);
 
   const pullbackSettings = settings.pullback || {
     mode: "percent",
@@ -507,8 +508,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
           ? overrides.dielectricMaterial : settings.dielectricMaterial,
         mainColor: selectedMainAppearance?.color ?? null,
         appearance: selectedMainAppearance?.appearance ?? null,
-        stripes: !hasFullVisualOverrides || (hasOverrides && !stripeToggle.checked)
-          ? null : readStripes(),
+        stripes: isRibbon ? (overrides.stripes ?? null)
+          : (!hasFullVisualOverrides || (hasOverrides && !stripeToggle.checked)
+            ? null : readStripes()),
         manufacturer: isCableGroup && !isConnectionBranch
           ? overrides.manufacturer : settings.manufacturer,
         partNumber: isCableGroup && !isConnectionBranch
