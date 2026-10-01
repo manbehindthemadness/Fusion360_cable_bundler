@@ -608,6 +608,7 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         conductor_diameter_mm=2.0,
         ribbon_lines=None,
         ribbon_geometry=None,
+        ribbon_body_type=None,
         ribbon_line_colors=None,
         normalize_definition=save.call_args.kwargs["normalize_definition"],
     )
@@ -621,7 +622,7 @@ def test_palette_edit_reads_ribbon_properties(
     """
     Pass explicit line count and style from the ribbon Properties form.
     """
-    from cable_bundler.domain import RibbonGeometryType
+    from cable_bundler.domain import RibbonBodyType, RibbonGeometryType
 
     save = Mock()
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
@@ -637,6 +638,7 @@ def test_palette_edit_reads_ribbon_properties(
                 "diameterMm": 1.5,
                 "ribbonLines": 5,
                 "ribbonGeometry": "ffc",
+                "ribbonBodyType": "solid",
                 "ribbonLineColors": [
                     None,
                     {"name": "Red", "red": 255, "green": 0, "blue": 0},
@@ -650,6 +652,7 @@ def test_palette_edit_reads_ribbon_properties(
 
     assert save.call_args.kwargs["ribbon_lines"] == 5
     assert save.call_args.kwargs["ribbon_geometry"] is RibbonGeometryType.FFC
+    assert save.call_args.kwargs["ribbon_body_type"] is RibbonBodyType.SOLID
     assert save.call_args.kwargs["ribbon_line_colors"] == (
         None,
         CableColor("Red", 255, 0, 0),

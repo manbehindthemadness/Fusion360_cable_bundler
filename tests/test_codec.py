@@ -27,6 +27,7 @@ from cable_bundler.domain import (
     JunctionDefinition,
     OpenGuideAlignment,
     PullbackMode,
+    RibbonBodyType,
     RibbonGeometryType,
     dumps,
     loads,
@@ -118,12 +119,49 @@ def test_ribbon_line_colors_round_trip_and_schema_37_migration(
     )
 
 
-@pytest.mark.parametrize("field", ["ribbon_lines", "ribbon_geometry"])
+def test_ribbon_body_type_round_trip_and_schema_38_migration(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Persist Solid while older ribbons acquire the Split default.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_body_type=RibbonBodyType.SOLID,
+    )
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    assert payload["cable_groups"][0]["ribbon_body_type"] == "solid"
+    assert loads(json.dumps(payload)).cable_groups[0] == ribbon
+
+    payload["schema_version"] = 38
+    del payload["cable_groups"][0]["ribbon_body_type"]
+    assert loads(json.dumps(payload)).cable_groups[0].ribbon_body_type is RibbonBodyType.SPLIT
+
+
+@pytest.mark.parametrize("body_type", ["other", None, 1])
+def test_rejects_invalid_ribbon_body_type(
+    valid_harness: HarnessDefinition, body_type: object
+) -> None:
+    """
+    Require a supported Body type in current ribbon records.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    payload["cable_groups"][0]["ribbon_body_type"] = body_type
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.cable_groups[0].ribbon_body_type"
+
+
+@pytest.mark.parametrize("field", ["ribbon_lines", "ribbon_geometry", "ribbon_body_type"])
 def test_current_ribbon_requires_explicit_properties(
     valid_harness: HarnessDefinition, field: str
 ) -> None:
     """
-    Require both non-inherited ribbon settings in current-schema records.
+    Require non-inherited ribbon settings in current-schema records.
     """
     ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
     payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))

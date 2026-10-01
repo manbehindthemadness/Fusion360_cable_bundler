@@ -358,12 +358,54 @@ asyncTest('ribbon properties save explicit Lines and geometry style without line
   lines.value = '6';
   geometry.value = 'ffc';
   assert.equal(dialog.querySelector('.ribbon-line-colors'), undefined);
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Body type').length, 0);
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
 
   assert.equal(calls[0].action, 'set_cable_group_properties');
   assert.equal(calls[0].payload.ribbonLines, 6);
   assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
   assert.equal('ribbonLineColors' in calls[0].payload, false);
+  assert.equal('ribbonBodyType' in calls[0].payload, false);
+});
+
+asyncTest('ribbon Body type appears only with Interfaces at both ends', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.groupType = 'ribbon';
+  group.ribbonLines = 3;
+  definition.interfaces = [{ interfaceId: 'i1', connectedConnectionIds: ['a1'] }];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableGroupProperties(definition, group);
+  let dialog = context.document.body.querySelector('.cable-group-properties');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Body type').length, 0);
+  dialog.close();
+
+  definition.interfaces.push({ interfaceId: 'i2', connectedConnectionIds: ['b1'] });
+  context.openCableGroupProperties(definition, group);
+  dialog = context.document.body.querySelector('.cable-group-properties');
+  const label = descendants(dialog, (node) => node.textContent === 'Body type')[0];
+  const select = label.querySelector('select');
+  assert.equal(select.value, 'split');
+  assert.deepEqual(select.children.map((option) => option.textContent), ['Split', 'Solid']);
+  select.value = 'solid';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  assert.equal(calls[0].action, 'set_cable_group_properties');
+  assert.equal(calls[0].payload.ribbonBodyType, 'solid');
+
+  group.ribbonBodyType = 'solid';
+  definition.interfaces.pop();
+  context.openCableGroupProperties(definition, group);
+  dialog = context.document.body.querySelector('.cable-group-properties');
+  assert.equal(descendants(dialog, (node) => node.textContent === 'Body type').length, 0);
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal('ribbonBodyType' in calls[1].payload, false);
 });
 
 asyncTest('ribbon materials collapse and save individual line colors', async () => {

@@ -45,6 +45,7 @@ from cable_bundler.domain import (
     OpenGuideAlignment,
     PathwayEndpoint,
     RefineGeometry,
+    RibbonBodyType,
     RibbonGeometryType,
     StandaloneEndDefinition,
     loads,
@@ -480,11 +481,13 @@ def test_edits_ribbon_properties_without_inheritance(
         gateway,
         ribbon_lines=7,
         ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
     )
 
     stored = loads(gateway.serialized_definition).cable_groups[0]
     assert stored.ribbon_lines == 7
     assert stored.ribbon_geometry is RibbonGeometryType.FFC
+    assert stored.ribbon_body_type is RibbonBodyType.SOLID
 
 
 def test_ribbon_line_colors_follow_line_count_changes(
@@ -1025,6 +1028,7 @@ def test_cable_editor_preserves_existing_group_properties(
         group_type=CableGroupType.RIBBON,
         ribbon_lines=6,
         ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
     )
     definition = replace(
         valid_harness,
@@ -1053,3 +1057,4 @@ def test_cable_editor_preserves_existing_group_properties(
     assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
     assert stored.cable_groups[0].ribbon_lines == 6
     assert stored.cable_groups[0].ribbon_geometry is RibbonGeometryType.FFC
+    assert stored.cable_groups[0].ribbon_body_type is RibbonBodyType.SOLID

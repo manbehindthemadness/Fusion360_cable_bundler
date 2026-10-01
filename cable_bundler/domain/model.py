@@ -21,7 +21,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 38
+SCHEMA_VERSION = 39
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -50,6 +50,15 @@ class RibbonGeometryType(str, Enum):
 
     DISCRETE = "discrete"
     FFC = "ffc"
+
+
+class RibbonBodyType(str, Enum):
+    """
+    Retain the selected ribbon body layout without changing current geometry.
+    """
+
+    SPLIT = "split"
+    SOLID = "solid"
 
 
 class CableEndShape(str, Enum):
@@ -604,6 +613,7 @@ class CableGroupDefinition:
     ribbon_lines: int = 3
     ribbon_geometry: RibbonGeometryType = RibbonGeometryType.DISCRETE
     ribbon_line_colors: tuple[Optional[CableColor], ...] = ()
+    ribbon_body_type: RibbonBodyType = RibbonBodyType.SPLIT
 
     def __post_init__(self) -> None:
         """
@@ -620,6 +630,8 @@ class CableGroupDefinition:
             raise ValueError("Ribbon Lines must be a positive integer.")
         if not isinstance(self.ribbon_geometry, RibbonGeometryType):
             raise ValueError("Ribbon geometry type is invalid.")
+        if not isinstance(self.ribbon_body_type, RibbonBodyType):
+            raise ValueError("Ribbon body type is invalid.")
         if not isinstance(self.ribbon_line_colors, tuple) or (
             self.ribbon_line_colors
             and (
@@ -635,6 +647,7 @@ class CableGroupDefinition:
             self.ribbon_lines != 3
             or self.ribbon_geometry is not RibbonGeometryType.DISCRETE
             or self.ribbon_line_colors
+            or self.ribbon_body_type is not RibbonBodyType.SPLIT
         ):
             raise ValueError("Loose cable groups cannot have ribbon properties.")
         if self.conductor_diameter_mm is not None and (

@@ -281,6 +281,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
   let conductorDiameter = null;
   let ribbonLines = null;
   let ribbonGeometry = null;
+  let ribbonBodyType = null;
   if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
@@ -319,6 +320,28 @@ function openPropertiesDialog(harness, cableGroup = null) {
     ribbonGeometry.value = cableGroup.ribbonGeometry || "discrete";
     geometryLabel.append(ribbonGeometry);
     form.append(geometryLabel);
+
+    const interfaceConnectionIds = new Set((harness.interfaces || []).flatMap(
+      (item) => item.connectedConnectionIds || [],
+    ));
+    const connectionIds = cableGroup.connectionIds || [];
+    if (connectionIds.length >= 2 && connectionIds.every(
+      (connectionId) => interfaceConnectionIds.has(connectionId),
+    )) {
+      const bodyTypeLabel = document.createElement("label");
+      ribbonBodyType = document.createElement("select");
+      bodyTypeLabel.textContent = "Body type";
+      ribbonBodyType.className = "filter";
+      [["split", "Split"], ["solid", "Solid"]].forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        ribbonBodyType.append(option);
+      });
+      ribbonBodyType.value = cableGroup.ribbonBodyType || "split";
+      bodyTypeLabel.append(ribbonBodyType);
+      form.append(bodyTypeLabel);
+    }
   }
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
@@ -422,6 +445,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             ...(ribbonLines ? {
               ribbonLines: lineCount,
               ribbonGeometry: ribbonGeometry.value,
+              ...(ribbonBodyType ? { ribbonBodyType: ribbonBodyType.value } : {}),
             } : {}),
             insulationMaterial,
             conductorMaterial,

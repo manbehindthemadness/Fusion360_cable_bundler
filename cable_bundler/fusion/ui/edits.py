@@ -53,6 +53,7 @@ from ...domain import (
     HarnessDefinition,
     OpenGuideAlignment,
     PathwayEndpoint,
+    RibbonBodyType,
     RibbonGeometryType,
 )
 from ...domain.codec import parse_interpolation
@@ -612,6 +613,12 @@ def _apply_property_edit(
                 ribbon_geometry = RibbonGeometryType(ribbon_geometry)
             except (TypeError, ValueError) as error:
                 raise ValueError("Ribbon geometry type must be Discrete or FFC.") from error
+        ribbon_body_type = payload.get("ribbonBodyType")
+        if ribbon_body_type is not None:
+            try:
+                ribbon_body_type = RibbonBodyType(ribbon_body_type)
+            except (TypeError, ValueError) as error:
+                raise ValueError("Ribbon body type must be Split or Solid.") from error
         raw_line_colors = payload.get("ribbonLineColors")
         if raw_line_colors is not None and not isinstance(raw_line_colors, list):
             raise ValueError("Ribbon line colors must be a list.")
@@ -647,6 +654,7 @@ def _apply_property_edit(
             conductor_diameter_mm=conductor_diameter,
             ribbon_lines=ribbon_lines,
             ribbon_geometry=ribbon_geometry,
+            ribbon_body_type=ribbon_body_type,
             ribbon_line_colors=ribbon_line_colors,
             normalize_definition=lambda candidate: number_ribbon_connections(
                 _require_active_design(adsk.core.Application.get()), candidate

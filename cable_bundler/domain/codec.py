@@ -56,6 +56,7 @@ from .model import (
     PathwayDefinition,
     PathwayEndpoint,
     RefineGeometry,
+    RibbonBodyType,
     RibbonGeometryType,
     RoutingMode,
     StandaloneEndDefinition,
@@ -112,12 +113,13 @@ def loads(serialized: str) -> HarnessDefinition:
         35,
         36,
         37,
+        38,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 37 are migratable)",
+            "(schemas 12 through 38 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -347,6 +349,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                     {
                         "ribbon_lines": group.ribbon_lines,
                         "ribbon_geometry": group.ribbon_geometry.value,
+                        "ribbon_body_type": group.ribbon_body_type.value,
                         "ribbon_line_colors": [
                             None if color is None else _color_to_dict(color)
                             for color in group.ribbon_line_colors
@@ -951,5 +954,10 @@ def _parse_cable_group(
             _require_enum(RibbonGeometryType, value, "ribbon_geometry", f"{path}.ribbon_geometry")
             if schema_version >= 36 and group_type is CableGroupType.RIBBON
             else RibbonGeometryType.DISCRETE
+        ),
+        ribbon_body_type=(
+            _require_enum(RibbonBodyType, value, "ribbon_body_type", f"{path}.ribbon_body_type")
+            if schema_version >= 39 and group_type is CableGroupType.RIBBON
+            else RibbonBodyType.SPLIT
         ),
     )

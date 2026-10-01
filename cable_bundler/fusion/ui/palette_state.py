@@ -642,6 +642,7 @@ def _cable_group_payloads(
                 {
                     "ribbonLines": group.ribbon_lines,
                     "ribbonGeometry": group.ribbon_geometry.value,
+                    "ribbonBodyType": group.ribbon_body_type.value,
                     "ribbonLineColors": [
                         None if color is None else _color_payload(color)
                         for color in group.ribbon_line_colors

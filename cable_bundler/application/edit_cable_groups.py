@@ -20,6 +20,7 @@ from ..domain import (
     HarnessDefinition,
     Metadata,
     PathwayEndpoint,
+    RibbonBodyType,
     RibbonGeometryType,
     validate_harness,
 )
@@ -68,6 +69,7 @@ class _MutableCableGroup:
     ribbon_lines: int
     ribbon_geometry: RibbonGeometryType
     ribbon_line_colors: tuple[Optional[CableColor], ...]
+    ribbon_body_type: RibbonBodyType
 
 
 def save_cable_editor(
@@ -153,6 +155,7 @@ def save_cable_editor(
             group.ribbon_lines,
             group.ribbon_geometry,
             group.ribbon_line_colors,
+            group.ribbon_body_type,
         )
         for group in definition.cable_groups
     ]
@@ -207,6 +210,7 @@ def save_cable_editor(
                     3,
                     RibbonGeometryType.DISCRETE,
                     (),
+                    RibbonBodyType.SPLIT,
                 )
             )
         elif left_index is None:
@@ -234,6 +238,7 @@ def save_cable_editor(
             group.ribbon_lines,
             group.ribbon_geometry,
             group.ribbon_line_colors,
+            group.ribbon_body_type,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -289,6 +294,7 @@ def set_cable_group_properties(
     ribbon_lines: Optional[int] = None,
     ribbon_geometry: Optional[RibbonGeometryType] = None,
     ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
+    ribbon_body_type: Optional[RibbonBodyType] = None,
     normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
@@ -317,6 +323,8 @@ def set_cable_group_properties(
         raise ValueError("Ribbon Lines must be a positive integer.")
     if ribbon_geometry is not None and not isinstance(ribbon_geometry, RibbonGeometryType):
         raise ValueError("Ribbon geometry type is invalid.")
+    if ribbon_body_type is not None and not isinstance(ribbon_body_type, RibbonBodyType):
+        raise ValueError("Ribbon body type is invalid.")
 
     def update(group: CableGroupDefinition) -> CableGroupDefinition:
         """
@@ -326,6 +334,7 @@ def set_cable_group_properties(
             ribbon_lines is not None
             or ribbon_geometry is not None
             or ribbon_line_colors is not None
+            or ribbon_body_type is not None
         ):
             raise ValueError("Ribbon properties require a ribbon cable group.")
         line_count = group.ribbon_lines if ribbon_lines is None else ribbon_lines
@@ -343,6 +352,9 @@ def set_cable_group_properties(
             ribbon_lines=group.ribbon_lines if ribbon_lines is None else ribbon_lines,
             ribbon_geometry=group.ribbon_geometry if ribbon_geometry is None else ribbon_geometry,
             ribbon_line_colors=colors,
+            ribbon_body_type=(
+                group.ribbon_body_type if ribbon_body_type is None else ribbon_body_type
+            ),
             material_overrides=replace(
                 group.material_overrides,
                 insulation_material=insulation_material,
