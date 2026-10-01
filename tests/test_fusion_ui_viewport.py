@@ -706,12 +706,14 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
     hide_supports = Mock(return_value=4)
     show_supports = Mock(return_value=4)
     send_state = Mock()
+    log_timing = Mock()
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "generate_cable_group_solids", generate)
     monkeypatch.setattr(addin_module, "_hide_finalized_supports", hide_supports)
     monkeypatch.setattr(addin_module, "_show_render_supports", show_supports)
     monkeypatch.setattr(addin_module, "_send_palette_state", send_state)
+    monkeypatch.setattr(addin_module, "_log_to_fusion", log_timing)
     payload = json.dumps({"harnessId": str(valid_harness.harness_id), "replaceExisting": True})
 
     entrypoint = (
@@ -720,6 +722,7 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
         else addin_module._finalize_solids
     )
     assert entrypoint(application, payload) == 2
+    assert log_timing.call_args.args[0].startswith("Cable Bundler solid timing: workflow ")
 
     notices = generate.call_args.args[4]
     assert notices == []

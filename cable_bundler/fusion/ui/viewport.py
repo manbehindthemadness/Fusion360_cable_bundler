@@ -5,6 +5,7 @@ Fusion UI services for viewport.
 from __future__ import annotations
 
 import json
+from time import perf_counter
 from typing import Any, Union, cast
 from uuid import UUID
 
@@ -584,6 +585,7 @@ def _generate_cable_geometry(
     definition = loads(gateway.read_harness_definition(harness_id))
     notices: list[str] = []
     design = _require_active_design(application)
+    workflow_started = perf_counter()
     count = generate_cable_group_solids(
         design,
         gateway.harness_component(harness_id),
@@ -592,17 +594,32 @@ def _generate_cable_geometry(
         notices,
         output_mode,
     )
+    solids_seconds = perf_counter() - workflow_started
+    stage_started = perf_counter()
     if output_mode == FINALIZED_OUTPUT_MODE:
         _hide_finalized_supports(design, definition)
     else:
         _show_render_supports(design, definition)
+    supports_seconds = perf_counter() - stage_started
+    stage_started = perf_counter()
     application.activeViewport.refresh()
+    refresh_seconds = perf_counter() - stage_started
     summary = (
         f"Finalized {count} cable-group geometries."
         if output_mode == FINALIZED_OUTPUT_MODE
         else f"Generated {count} cable-group solids."
     )
+    stage_started = perf_counter()
     _send_palette_state(application, "\n".join((summary, *notices)))
+    palette_seconds = perf_counter() - stage_started
+    _log_to_fusion(
+        "Cable Bundler solid timing: workflow "
+        f"solids_ms={solids_seconds * 1000.0:.1f} "
+        f"supports_ms={supports_seconds * 1000.0:.1f} "
+        f"viewport_refresh_ms={refresh_seconds * 1000.0:.1f} "
+        f"palette_ms={palette_seconds * 1000.0:.1f} "
+        f"total_ms={(perf_counter() - workflow_started) * 1000.0:.1f}"
+    )
     return count
 
 

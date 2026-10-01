@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import math
 from importlib import import_module
+from time import perf_counter
 from typing import Optional
 from uuid import UUID
 
@@ -58,12 +59,17 @@ def build_ribbon_connection_branches(
     ribbon_body: adsk.fusion.BRepBody,
     end_planes: dict[UUID, RibbonGuidePlane],
     notices: Optional[list[str]] = None,
+    *,
+    timings: Optional[dict[str, float]] = None,
 ) -> None:
     """
     Add touching branch solids and append their stable identities to ribbon metadata.
     """
     if not branches:
         return
+    if timings is not None:
+        timings["overlap_fit"] = 0.0
+        timings["branch_sweeps"] = 0.0
     attribute = component.attributes.itemByName(ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE)
     if attribute is None:
         raise RuntimeError("Generated ribbon metadata is missing before branch construction.")
@@ -90,9 +96,12 @@ def build_ribbon_connection_branches(
             if guide_plane is None:
                 raise ValueError("A ribbon root connection needs its fitted end plane.")
             try:
+                fit_started = perf_counter()
                 diameter_mm = fitted_ribbon_overlap_diameter(
                     ribbon_body, route, guide_plane, cap_diameter_mm, transform
                 )
+                if timings is not None:
+                    timings["overlap_fit"] += perf_counter() - fit_started
             except (RuntimeError, ValueError) as error:
                 raise RuntimeError(
                     f"Ribbon line {line_number} connection overlap fit failed: {error}"
@@ -127,6 +136,7 @@ def build_ribbon_connection_branches(
         pullback_count = 0
         length_mm = 0.0
         if split.insulation is not None:
+            sweep_started = perf_counter()
             body, measured = _build_route_sweep(
                 component,
                 extend_route_tail(split.insulation, overlap_mm),
@@ -136,6 +146,8 @@ def build_ribbon_connection_branches(
                 f"Ribbon Connection {index} Diameter",
                 f"Ribbon Connection {index} Sweep",
             )
+            if timings is not None:
+                timings["branch_sweeps"] += perf_counter() - sweep_started
             body.name = f"Cable Group {group_index + 1} Line {line_number} Connection {index}"
             color = (
                 line_colors[line_number - 1]
@@ -146,6 +158,7 @@ def build_ribbon_connection_branches(
             insulation_count = 1
             length_mm += measured - overlap_mm
         if split.pullback is not None:
+            sweep_started = perf_counter()
             body, measured = _build_route_sweep(
                 component,
                 extend_route_tail(split.pullback, overlap_mm)
@@ -157,6 +170,8 @@ def build_ribbon_connection_branches(
                 f"Ribbon Connection {index} Pullback Diameter",
                 f"Ribbon Connection {index} Pullback Sweep",
             )
+            if timings is not None:
+                timings["branch_sweeps"] += perf_counter() - sweep_started
             body.name = f"Cable Group {group_index + 1} Line {line_number} Pullback {index}"
             body.appearance = cable_appearance(
                 design, materials.pullback.color, materials.pullback.appearance

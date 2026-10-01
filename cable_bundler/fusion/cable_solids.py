@@ -5,6 +5,7 @@ Build persistent cable-group solids from the exact curves used by previews.
 from __future__ import annotations
 
 import json
+from time import perf_counter
 from typing import Optional
 from uuid import UUID
 
@@ -99,6 +100,31 @@ __all__ = [
     "restore_cable_group_stripe_graphics",
     "restore_generated_cable_group_visibility",
 ]
+
+
+def _log_generation_timing(message: str) -> None:
+    """
+    Record diagnostic stage timings without making logging a generation dependency.
+    """
+    application = getattr(adsk.core, "Application", None)
+    log = getattr(application, "log", None)
+    if not callable(log):
+        return
+    try:
+        log(
+            f"Cable Bundler solid timing: {message}",
+            adsk.core.LogLevels.InfoLogLevel,
+            adsk.core.LogTypes.FileLogType,
+        )
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        pass
+
+
+def _format_generation_timings(timings: dict[str, float]) -> str:
+    """
+    Produce stable millisecond fields for one Fusion application-log entry.
+    """
+    return " ".join(f"{key}_ms={seconds * 1000.0:.1f}" for key, seconds in timings.items())
 
 
 def _leg_materials(
@@ -497,6 +523,7 @@ def _build_group_output(
     *,
     is_visible: bool = True,
     notices: Optional[list[str]] = None,
+    timings: Optional[dict[str, float]] = None,
 ) -> None:
     """
     Dispatch separate loose and discrete-ribbon construction contracts.
@@ -507,12 +534,16 @@ def _build_group_output(
         if len(main_legs) != 1:
             raise ValueError("A discrete ribbon requires exactly one two-ended route.")
         leg, route = main_legs[0]
+        stage_started = perf_counter()
         fitted = ribbon_route_shape(
             design, definition, leg, route, group.ribbon_lines, group.diameter_mm
         )
+        if timings is not None:
+            timings["ribbon_shape"] = perf_counter() - stage_started
         if notices is not None:
             for warning in fitted.fit_warnings:
                 notices.append(f"Warning: Cable Group {group_index + 1}: {warning}.")
+        stage_started = perf_counter()
         ribbon_body = build_discrete_ribbon_solid(
             component,
             group,
@@ -527,6 +558,8 @@ def _build_group_output(
             output_mode,
             notices,
         )
+        if timings is not None:
+            timings["ribbon_body"] = perf_counter() - stage_started
         end_planes = {
             connection_id: plane
             for connection_id, plane in (
@@ -535,6 +568,7 @@ def _build_group_output(
             )
             if connection_id is not None and plane is not None
         }
+        stage_started = perf_counter()
         build_ribbon_connection_branches(
             component,
             group,
@@ -547,7 +581,10 @@ def _build_group_output(
             ribbon_body,
             end_planes,
             notices,
+            timings=timings,
         )
+        if timings is not None:
+            timings["ribbon_branches"] = perf_counter() - stage_started
         return
     route_options = _route_build_options(
         design, definition, group, tuple(leg for leg, _route in group_legs)
@@ -591,7 +628,10 @@ def generate_cable_group_solids(
         raise ValueError(
             "Generated solids already exist; confirm rebuilding before replacing them."
         )
+    generation_started = perf_counter()
+    stage_started = perf_counter()
     routes, legs, routes_by_id = _solve_complete_group_routes(design, definition, notices)
+    route_solve_seconds = perf_counter() - stage_started
     legs_by_group: dict[UUID, list[tuple[CableGroupRouteLeg, RoutePreview]]] = {}
     for leg in legs:
         legs_by_group.setdefault(leg.cable_group_id, []).append((leg, routes_by_id[leg.route_id]))
@@ -599,6 +639,8 @@ def generate_cable_group_solids(
     created: list[adsk.fusion.Occurrence] = []
     try:
         for group_index, group in enumerate(definition.cable_groups):
+            group_started = perf_counter()
+            group_timings: dict[str, float] = {}
             group_legs = legs_by_group.get(group.cable_group_id, [])
             if not group_legs:
                 raise ValueError(f"Cable Group {group_index + 1} has no route legs.")
@@ -620,14 +662,23 @@ def generate_cable_group_solids(
                     design,
                     output_mode,
                     notices=notices,
+                    timings=group_timings,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
                     f"Cable Group {group_index + 1} could not be generated: {error}"
                 ) from error
+            finally:
+                group_timings["group_total"] = perf_counter() - group_started
+                _log_generation_timing(
+                    f"group={group_index + 1} type={group.group_type.value} "
+                    f"legs={len(group_legs)} {_format_generation_timings(group_timings)}"
+                )
+        stage_started = perf_counter()
         for occurrence in previous:
             if not occurrence.deleteMe():
                 raise RuntimeError("Fusion could not remove old generated cable-group geometry.")
+        replace_seconds = perf_counter() - stage_started
     except Exception as error:
         for group in definition.cable_groups:
             clear_group_stripe_graphics(harness, group.cable_group_id)
@@ -639,6 +690,16 @@ def generate_cable_group_solids(
         if previous:
             restore_cable_group_stripe_graphics(harness, definition)
         raise
+    _log_generation_timing(
+        f"groups={len(created)} "
+        + _format_generation_timings(
+            {
+                "route_solve": route_solve_seconds,
+                "replace_previous": replace_seconds,
+                "generation_total": perf_counter() - generation_started,
+            }
+        )
+    )
     return len(created)
 
 

@@ -539,6 +539,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     monkeypatch.setattr(cable_solids, "_attachment_weld_endpoint", lambda *_args: None)
 
     notices: list[str] = []
+    timings: dict[str, float] = {}
     ribbon_branches.build_ribbon_connection_branches(
         component,
         group,
@@ -551,6 +552,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
         ribbon_body,
         {definition.connections[0].connection_id: end_plane},
         notices,
+        timings=timings,
     )
 
     branch = json.loads(attribute.value)["connection_branches"][0]
@@ -563,6 +565,8 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     assert body.name.startswith("Cable Group 1 Line 2")
     assert sweep_diameters == [pytest.approx(expected_diameter)]
     assert fit_calls == [(ribbon_body, end_plane)]
+    assert timings["overlap_fit"] >= 0.0
+    assert timings["branch_sweeps"] >= 0.0
     assert bool(notices) is (fitted_fraction < 1.0)
 
     oversized = replace(
