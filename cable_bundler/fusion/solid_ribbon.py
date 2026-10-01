@@ -15,6 +15,8 @@ from ..routing import RibbonShape, RoutePreview, Vector3
 from ..routing.geometry import difference, dot, magnitude, unit
 from .route_preview_parts.frames import connection_attachment_frame, connection_profile_frames
 
+SOLID_RIBBON_LEAD_FRACTIONS = (0.0, 0.25, 0.5, 0.75)
+
 
 @dataclass(frozen=True)
 class SolidRibbonSection:
@@ -61,17 +63,54 @@ def _section(
     centers: tuple[Vector3, ...], normal: Vector3, guide_width: Vector3, diameter_mm: float
 ) -> SolidRibbonSection:
     """
-    Preserve nominal line width unless adjacent centers require narrower lobes.
+    Flatten lanes onto the section plane and fit lobe width to their pitch.
     """
-    width_delta = difference(centers[-1], centers[0])
-    width = unit(width_delta) if magnitude(width_delta) > 1e-8 else guide_width
+    plane_normal = unit(normal)
+    planar_centers = tuple(_project(center, centers[0], plane_normal) for center in centers)
+    width_delta = difference(planar_centers[-1], planar_centers[0])
+    if magnitude(width_delta) > 1e-8:
+        width = unit(width_delta)
+    else:
+        planar_guide_width = guide_width.translated(plane_normal, -dot(guide_width, plane_normal))
+        width = unit(planar_guide_width)
     pitches = tuple(
-        dot(difference(right, left), width) for left, right in zip(centers, centers[1:])
+        dot(difference(right, left), width)
+        for left, right in zip(planar_centers, planar_centers[1:])
     )
     if any(pitch <= 1e-6 for pitch in pitches):
         raise ValueError("Solid ribbon contacts are not ordered across the ribbon width.")
     lobe_width = min(diameter_mm, *(pitch * 0.98 for pitch in pitches))
-    return SolidRibbonSection(centers, unit(normal), width, lobe_width)
+    return SolidRibbonSection(planar_centers, plane_normal, width, lobe_width)
+
+
+def _uniform_sections(
+    sections: tuple[SolidRibbonSection, ...], diameter_mm: float
+) -> tuple[SolidRibbonSection, ...]:
+    """
+    Carry the first contact bank's pitch and lobe size through the entire ribbon.
+    """
+    line_count = len(sections[0].centers)
+    pitch = (
+        magnitude(difference(sections[0].centers[-1], sections[0].centers[0])) / (line_count - 1)
+        if line_count > 1
+        else diameter_mm
+    )
+    lobe_width = min(diameter_mm, pitch * 0.98) if line_count > 1 else diameter_mm
+    half_index = (line_count - 1) / 2.0
+    uniform: list[SolidRibbonSection] = []
+    for section in sections:
+        first, last = section.centers[0], section.centers[-1]
+        midpoint = Vector3(
+            (first.x + last.x) / 2.0,
+            (first.y + last.y) / 2.0,
+            (first.z + last.z) / 2.0,
+        )
+        centers = tuple(
+            midpoint.translated(section.width, (index - half_index) * pitch)
+            for index in range(line_count)
+        )
+        uniform.append(SolidRibbonSection(centers, section.normal, section.width, lobe_width))
+    return tuple(uniform)
 
 
 def solid_ribbon_plan(
@@ -96,7 +135,6 @@ def solid_ribbon_plan(
     ends: list[tuple[SolidRibbonSection, ...]] = []
     identities: list[tuple[str, ...]] = []
     attachment_identities: list[tuple[str, ...]] = []
-    signatures: list[tuple[float, ...]] = []
     for connection_id, at_start in (
         (leg.start_connection_id, True),
         (leg.end_connection_id, False),
@@ -150,7 +188,7 @@ def solid_ribbon_plan(
             normal = Vector3(-normal.x, -normal.y, -normal.z)
         routes = tuple(routes_by_attachment[root.attachment_id] for root in ordered)
         stations: list[SolidRibbonSection] = []
-        for fraction in (0.0, 0.25, 0.5, 0.75):
+        for fraction in SOLID_RIBBON_LEAD_FRACTIONS:
             raw = tuple(_branch_point(route, fraction) for route in routes)
             if fraction == 0.0:
                 centers = tuple(_project(point, first_frame.origin, normal) for point in raw)
@@ -178,14 +216,6 @@ def solid_ribbon_plan(
             tuple(contact_tokens[(root.target_kind, root.entity_token)] for root in ordered)
         )
         attachment_identities.append(tuple(str(root.attachment_id) for root in ordered))
-        signatures.append(
-            tuple(
-                coordinate
-                for point in stations[0].centers
-                for coordinate in (point.x, point.y, point.z)
-            )
-            + (normal.x, normal.y, normal.z)
-        )
     middle = tuple(
         _section(
             tuple(lane[index] for lane in shape.lanes),
@@ -195,10 +225,15 @@ def solid_ribbon_plan(
         )
         for index, frame in enumerate(shape.frames)
     )
-    sections = ends[0] + middle + tuple(reversed(ends[1]))
+    sections = _uniform_sections(ends[0] + middle + tuple(reversed(ends[1])), group.diameter_mm)
     lanes = tuple(
         tuple(section.centers[index] for section in sections) for index in range(group.ribbon_lines)
     )
+    signatures = [
+        tuple(coordinate for point in section.centers for coordinate in (point.x, point.y, point.z))
+        + (section.normal.x, section.normal.y, section.normal.z)
+        for section in (sections[0], sections[-1])
+    ]
     return SolidRibbonPlan(
         sections,
         lanes,

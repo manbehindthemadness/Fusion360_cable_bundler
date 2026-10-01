@@ -29,7 +29,11 @@ from ...routing import (
 from ...routing.geometry import difference, dot
 from ..harness_gateway import ATTRIBUTE_GROUP
 from ..ribbon_geometry import RibbonGuidePlane
-from ..solid_ribbon import SolidRibbonPlan, SolidRibbonSection
+from ..solid_ribbon import (
+    SOLID_RIBBON_LEAD_FRACTIONS,
+    SolidRibbonPlan,
+    SolidRibbonSection,
+)
 from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE, GENERATED_OUTPUT_MODE_KEY
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
@@ -473,32 +477,50 @@ def _add_solid_section(
 
     arcs = sketch.sketchCurves.sketchArcs
     lines = sketch.sketchCurves.sketchLines
+    nodes: list[tuple[adsk.fusion.SketchPoint, ...]] = []
     for index in range(len(station.centers)):
-        left_top = point(index, -half_width, valley)
-        right_top = point(index, half_width, valley)
-        right_bottom = point(index, half_width, -valley)
-        left_bottom = point(index, -half_width, -valley)
+        junctions = tuple(
+            sketch.sketchPoints.add(point(index, across, height))
+            for across, height in (
+                (-half_width, valley),
+                (half_width, valley),
+                (half_width, -valley),
+                (-half_width, -valley),
+            )
+        )
+        if any(junction is None for junction in junctions):
+            raise RuntimeError("Fusion could not place a Solid ribbon contour junction.")
+        nodes.append(junctions)
+        left_top, right_top, right_bottom, left_bottom = junctions
         if arcs.addByThreePoints(left_top, point(index, 0.0, radius), right_top) is None:
             raise RuntimeError("Fusion could not draw a Solid ribbon top lobe.")
         if arcs.addByThreePoints(right_bottom, point(index, 0.0, -radius), left_bottom) is None:
             raise RuntimeError("Fusion could not draw a Solid ribbon bottom lobe.")
         if index:
-            if lines.addByTwoPoints(point(index - 1, half_width, valley), left_top) is None:
+            if lines.addByTwoPoints(nodes[index - 1][1], left_top) is None:
                 raise RuntimeError("Fusion could not join a Solid ribbon top web.")
-            if lines.addByTwoPoints(left_bottom, point(index - 1, half_width, -valley)) is None:
+            if lines.addByTwoPoints(left_bottom, nodes[index - 1][2]) is None:
                 raise RuntimeError("Fusion could not join a Solid ribbon bottom web.")
-    for index, sign in ((0, -1.0), (len(station.centers) - 1, 1.0)):
+    for index, sign, top, bottom in (
+        (0, -1.0, nodes[0][0], nodes[0][3]),
+        (len(station.centers) - 1, 1.0, nodes[-1][1], nodes[-1][2]),
+    ):
         if (
             arcs.addByThreePoints(
-                point(index, sign * half_width, valley),
+                top,
                 point(index, sign * (half_width + radius * 0.2), 0.0),
-                point(index, sign * half_width, -valley),
+                bottom,
             )
             is None
         ):
             raise RuntimeError("Fusion could not cap a Solid ribbon section.")
-    if sketch.profiles.count != 1:
-        raise RuntimeError("Fusion did not produce one joined Solid ribbon section.")
+    profile_count = sketch.profiles.count
+    if profile_count != 1:
+        raise RuntimeError(
+            "Fusion did not produce one joined Solid ribbon section "
+            f"(profiles={profile_count}, lines={len(station.centers)}, "
+            f"lobe width={station.lobe_width_mm:.3f} mm)."
+        )
     return sketch, plane
 
 
@@ -509,25 +531,54 @@ def _build_solid_loft(
     transform: adsk.core.Matrix3D,
 ) -> adsk.fusion.LoftFeature:
     """
-    Require one loft spanning both contact planes without a sweep fallback.
+    Loft a fixed-width ribbon through sparse route guides and both contact planes.
     """
     sections: list[adsk.fusion.Sketch] = []
     planes: list[adsk.fusion.ConstructionPlane] = []
     loft = None
     try:
+        station_count = len(plan.sections)
+        if station_count < 2:
+            raise ValueError("Solid ribbon loft needs at least two sections.")
+        lead_count = len(SOLID_RIBBON_LEAD_FRACTIONS)
+        first_main = lead_count
+        last_main = station_count - lead_count - 1
+        main_indices = (
+            tuple(
+                first_main + math.ceil(fraction * (last_main - first_main))
+                for fraction in (0.0, 0.25, 0.5, 0.75, 1.0)
+            )
+            if first_main <= last_main
+            else ()
+        )
+        station_indices = tuple(dict.fromkeys((0, *main_indices, station_count - 1)))
         loft_input = component.features.loftFeatures.createInput(
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         if loft_input is None:
             raise RuntimeError("Fusion could not define the Solid ribbon loft.")
-        for station in plan.sections:
-            sketch, plane = _add_solid_section(component, station, diameter_mm, transform)
+        for section_index in station_indices:
+            station = plan.sections[section_index]
+            role = (
+                "start contact lead"
+                if section_index < lead_count
+                else "end contact lead"
+                if section_index >= station_count - lead_count
+                else "main ribbon"
+            )
+            try:
+                sketch, plane = _add_solid_section(component, station, diameter_mm, transform)
+            except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+                raise RuntimeError(
+                    f"section {section_index + 1}/{station_count} ({role}): {error}"
+                ) from error
             sections.append(sketch)
             planes.append(plane)
             loft_input.loftSections.add(sketch.profiles.item(0))
         loft_input.isSolid = True
+        loft_input.isTangentEdgesMerged = True
         loft = component.features.loftFeatures.add(loft_input)
-        if loft is None or loft.bodies.count != 1:
+        if loft is None or loft.bodies.count != 1 or component.bRepBodies.count != 1:
             raise RuntimeError("Fusion could not loft the Solid ribbon into one body.")
         body = loft.bodies.item(0)
         if body is None or not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:

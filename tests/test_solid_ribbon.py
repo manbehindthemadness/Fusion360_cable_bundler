@@ -42,6 +42,10 @@ def _route(identity: int, start: Vector3, end: Vector3) -> RoutePreview:
 
 def _fixture(
     definition: HarnessDefinition,
+    endpoints: tuple[tuple[float, float, float], tuple[float, float, float]] = (
+        (-3.0, 0.0, 3.0),
+        (-3.0, 0.0, 3.0),
+    ),
 ) -> tuple[
     HarnessDefinition,
     CableGroupRouteLeg,
@@ -49,7 +53,7 @@ def _fixture(
     RibbonShape,
 ]:
     """
-    Connect three persistent lines to wider and tighter inline contacts.
+    Connect three persistent lines to matching inline contact banks.
     """
     group = replace(
         definition.cable_groups[0],
@@ -57,7 +61,6 @@ def _fixture(
         ribbon_body_type=RibbonBodyType.SOLID,
         ribbon_lines=3,
     )
-    endpoints = ((-3.0, 0.0, 3.0), (-0.8, 0.0, 0.8))
     connections = []
     interfaces = []
     branches = []
@@ -142,18 +145,21 @@ def _fixture(
     return definition, leg, tuple(branches), shape
 
 
-def test_solid_plan_expands_web_and_shrinks_lobes(
+@pytest.mark.parametrize("contact_pitch", (3.0, 0.8))
+def test_solid_plan_uses_contact_pitch_at_every_station(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    contact_pitch: float,
 ) -> None:
     """
-    Keep nominal lobe thickness while ending on both contact planes.
+    Keep one contact-sized width and lobe size through the complete route.
     """
     del addin_module
     solid = import_module("cable_bundler.fusion.solid_ribbon")
     frames = import_module("cable_bundler.fusion.route_preview_parts.frames")
-    definition, leg, branches, shape = _fixture(valid_harness)
+    endpoints = (-contact_pitch, 0.0, contact_pitch)
+    definition, leg, branches, shape = _fixture(valid_harness, (endpoints, endpoints))
     profile = frames.ProfileFrame(
         Vector3(0.0, 0.0, 0.0),
         Vector3(0.0, 0.0, 1.0),
@@ -175,16 +181,68 @@ def test_solid_plan_expands_web_and_shrinks_lobes(
     )
 
     assert len(plan.sections) == 10
-    assert plan.sections[0].lobe_width_mm == pytest.approx(1.2)
-    assert plan.sections[-1].lobe_width_mm == pytest.approx(0.8 * 0.98)
-    assert tuple(point.x for point in plan.sections[0].centers) == (-3.0, 0.0, 3.0)
-    assert tuple(point.x for point in plan.sections[-1].centers) == (-0.8, 0.0, 0.8)
+    expected_lobe = min(1.2, contact_pitch * 0.98)
+    assert all(section.lobe_width_mm == pytest.approx(expected_lobe) for section in plan.sections)
+    assert all(
+        abs(section.centers[-1].x - section.centers[0].x) == pytest.approx(2 * contact_pitch)
+        for section in plan.sections
+    )
+    assert tuple(point.x for point in plan.sections[0].centers) == endpoints
+    assert tuple(point.x for point in plan.sections[-1].centers) == endpoints
     assert all(point.z == 0.0 for point in plan.sections[0].centers)
     assert all(point.z == 100.0 for point in plan.sections[-1].centers)
     assert len(plan.lanes) == 3
     assert len(plan.contact_ids[0]) == len(plan.contact_ids[1]) == 3
     assert plan.contact_ids[0][0] == str(UUID(int=300))
     assert plan.attachment_ids[0][0] == str(UUID(int=101))
+
+
+def test_solid_section_projects_oblique_lane_centers_onto_one_plane(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep a wide, tilted 19-lane station coplanar before sketching its contour.
+    """
+    del addin_module
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    normal = Vector3(-0.2164505224, 0.9754181554, 0.0413351356)
+    lane_direction = Vector3(0.7501628242, 0.0764321807, 0.6568210251)
+    origin = Vector3(66.8490159818, 43.9711035568, 7.3029517285)
+    centers = tuple(origin.translated(lane_direction, index * 1.4916855) for index in range(19))
+
+    station = solid._section(centers, normal, lane_direction, 1.5)
+
+    assert station.centers[0] == origin
+    assert len(station.centers) == 19
+    assert station.lobe_width_mm < 1.5
+    assert (
+        abs(station.width.x * normal.x + station.width.y * normal.y + station.width.z * normal.z)
+        < 1e-10
+    )
+    for center in station.centers:
+        displacement = Vector3(center.x - origin.x, center.y - origin.y, center.z - origin.z)
+        assert (
+            abs(displacement.x * normal.x + displacement.y * normal.y + displacement.z * normal.z)
+            < 1e-9
+        )
+
+
+def test_solid_uniform_section_accepts_one_line(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Preserve the valid one-line ribbon case without a pitch denominator.
+    """
+    del addin_module
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    station = solid.SolidRibbonSection(
+        (Vector3(0.0, 0.0, 0.0),),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        1.2,
+    )
+
+    assert solid._uniform_sections((station,), 1.2) == (station,)
 
 
 def test_solid_plan_rejects_missing_contact_route(
@@ -319,3 +377,247 @@ def test_solid_generation_records_contact_routes_without_branch_bodies(
     )
     assert records[0]["ribbon_line_number"] == 1
     assert records[0]["interface_contact_id"] == contact_ids[0][0]
+
+
+@pytest.mark.parametrize("profile_count", (1, 0, 2))
+@pytest.mark.parametrize(
+    ("centers", "heights", "lobe_width_mm"),
+    (
+        ((-3.0, 0.0, 3.0), (0.0, 0.0, 0.0), 1.2),
+        ((-1.2, 0.0, 1.2), (0.0, 0.0, 0.0), 1.176),
+        ((-0.8, 0.0, 0.8), (0.0, 0.0, 0.0), 0.784),
+        ((-1.2, 0.0, 1.2), (0.0, 0.2, 0.0), 1.176),
+    ),
+)
+def test_solid_section_reuses_contour_junctions_and_reports_profile_count(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    profile_count: int,
+    centers: tuple[float, float, float],
+    heights: tuple[float, float, float],
+    lobe_width_mm: float,
+) -> None:
+    """
+    Connect each lobe, web, and cap to the same explicit sketch points.
+    """
+    del addin_module
+    builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    junctions = []
+    arcs = []
+    lines = []
+
+    def add_junction(position: Vector3) -> SimpleNamespace:
+        """
+        Keep one distinct object for each contour endpoint.
+        """
+        junction = SimpleNamespace(position=position)
+        junctions.append(junction)
+        return junction
+
+    def add_arc(start: object, middle: object, end: object) -> object:
+        """
+        Capture the exact endpoint objects passed to Fusion.
+        """
+        arcs.append((start, middle, end))
+        return object()
+
+    def add_line(start: object, end: object) -> object:
+        """
+        Capture each web's shared endpoint objects.
+        """
+        lines.append((start, end))
+        return object()
+
+    sketch = SimpleNamespace(
+        sketchPoints=SimpleNamespace(add=add_junction),
+        sketchCurves=SimpleNamespace(
+            sketchArcs=SimpleNamespace(addByThreePoints=add_arc),
+            sketchLines=SimpleNamespace(addByTwoPoints=add_line),
+        ),
+        profiles=SimpleNamespace(count=profile_count),
+        modelToSketchSpace=lambda point: point,
+    )
+    plane = SimpleNamespace()
+    component = SimpleNamespace(
+        constructionPlanes=SimpleNamespace(
+            createInput=lambda: SimpleNamespace(setByPlane=lambda _plane: True),
+            add=lambda _input: plane,
+        ),
+        sketches=SimpleNamespace(add=lambda _plane: sketch),
+    )
+    monkeypatch.setitem(vars(builder), "_direct_guide_plane", lambda *_args: object())
+    monkeypatch.setitem(vars(builder), "fusion_point", lambda point, _transform: point)
+    station = solid.SolidRibbonSection(
+        tuple(Vector3(position, height, 0.0) for position, height in zip(centers, heights)),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        lobe_width_mm,
+    )
+
+    if profile_count != 1:
+        with pytest.raises(RuntimeError, match=f"profiles={profile_count}, lines=3"):
+            builder._add_solid_section(component, station, 1.2, None)
+    else:
+        assert builder._add_solid_section(component, station, 1.2, None) == (sketch, plane)
+    assert len(junctions) == 12
+    assert len(arcs) == 8
+    assert len(lines) == 4
+    assert arcs[0][2] is lines[0][0]
+    assert lines[0][1] is arcs[2][0]
+    assert arcs[3][2] is lines[1][0]
+    assert lines[1][1] is arcs[1][0]
+    assert arcs[6][0] is arcs[0][0]
+    assert arcs[6][2] is arcs[1][2]
+    assert arcs[7][0] is arcs[4][2]
+    assert arcs[7][2] is arcs[5][0]
+
+
+@pytest.mark.parametrize(
+    ("failed_index", "role"),
+    ((0, "start contact lead"), (4, "main ribbon"), (8, "end contact lead")),
+)
+def test_solid_loft_identifies_the_failed_station(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_index: int,
+    role: str,
+) -> None:
+    """
+    Keep section failures actionable without falling back to Split geometry.
+    """
+    del addin_module
+    builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    stations = tuple(
+        solid.SolidRibbonSection(
+            (Vector3(float(index), 0.0, 0.0),),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            1.2,
+        )
+        for index in range(9)
+    )
+    plan = solid.SolidRibbonPlan(stations, (), ((), ()), ((), ()), ())
+    body = SimpleNamespace(isSolid=True, volume=1.0)
+    feature = SimpleNamespace(
+        isValid=False,
+        bodies=SimpleNamespace(count=1, item=lambda _index: body),
+    )
+    component = SimpleNamespace(
+        bRepBodies=SimpleNamespace(count=1),
+        features=SimpleNamespace(
+            loftFeatures=SimpleNamespace(
+                createInput=lambda _operation: SimpleNamespace(
+                    loftSections=SimpleNamespace(add=lambda _profile: None), isSolid=False
+                ),
+                add=lambda _loft_input: feature,
+            )
+        ),
+    )
+    monkeypatch.setitem(
+        vars(builder.adsk.fusion),
+        "FeatureOperations",
+        SimpleNamespace(NewBodyFeatureOperation=object()),
+    )
+
+    def add_section(
+        _component: object,
+        current_station: object,
+        _diameter_mm: float,
+        _transform: object,
+    ) -> tuple[SimpleNamespace, SimpleNamespace]:
+        """
+        Fail at one selected loft station with its original route index.
+        """
+        if current_station.centers[0].x == failed_index:
+            raise RuntimeError("profiles=0")
+        sketch = SimpleNamespace(
+            isValid=False,
+            profiles=SimpleNamespace(item=lambda _index: object()),
+        )
+        return sketch, SimpleNamespace(isValid=False)
+
+    monkeypatch.setitem(vars(builder), "_add_solid_section", add_section)
+
+    with pytest.raises(
+        RuntimeError, match=f"section {failed_index + 1}/9 \\({role}\\): profiles=0"
+    ):
+        builder._build_solid_loft(component, plan, 1.2, None)
+
+
+def test_solid_loft_uses_one_feature_with_sparse_uniform_guides(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Use both contacts and a few route guides without segmented joins.
+    """
+    del addin_module
+    builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    stations = tuple(
+        solid.SolidRibbonSection(
+            (Vector3(float(index), 0.0, 0.0),),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            1.2,
+        )
+        for index in range(40)
+    )
+    plan = solid.SolidRibbonPlan(stations, (), ((), ()), ((), ()), ())
+    new_body = object()
+    monkeypatch.setitem(
+        vars(builder.adsk.fusion),
+        "FeatureOperations",
+        SimpleNamespace(NewBodyFeatureOperation=new_body),
+    )
+    operations: list[object] = []
+    profiles: list[list[object]] = []
+    features: list[SimpleNamespace] = []
+
+    def create_input(operation: object) -> SimpleNamespace:
+        """
+        Record the operation and section order for the single loft.
+        """
+        operations.append(operation)
+        section_profiles: list[object] = []
+        profiles.append(section_profiles)
+        return SimpleNamespace(
+            loftSections=SimpleNamespace(add=section_profiles.append), isSolid=False
+        )
+
+    def add_loft(_loft_input: object) -> SimpleNamespace:
+        """
+        Return one positive-volume body for the loft.
+        """
+        body = SimpleNamespace(isSolid=True, volume=1.0)
+        feature = SimpleNamespace(bodies=SimpleNamespace(count=1, item=lambda _index: body))
+        features.append(feature)
+        return feature
+
+    component = SimpleNamespace(
+        bRepBodies=SimpleNamespace(count=1),
+        features=SimpleNamespace(
+            loftFeatures=SimpleNamespace(createInput=create_input, add=add_loft)
+        ),
+    )
+
+    def add_section(
+        _component: object,
+        station: object,
+        _diameter_mm: float,
+        _transform: object,
+    ) -> tuple[SimpleNamespace, SimpleNamespace]:
+        """
+        Give each station a stable index marker.
+        """
+        marker = int(station.centers[0].x)
+        sketch = SimpleNamespace(profiles=SimpleNamespace(item=lambda _index: marker))
+        return sketch, SimpleNamespace()
+
+    monkeypatch.setitem(vars(builder), "_add_solid_section", add_section)
+
+    assert builder._build_solid_loft(component, plan, 1.2, None) is features[0]
+    assert operations == [new_body]
+    assert profiles == [[0, 4, 12, 20, 28, 35, 39]]
