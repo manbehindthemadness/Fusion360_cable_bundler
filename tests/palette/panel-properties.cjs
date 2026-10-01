@@ -332,7 +332,7 @@ asyncTest('connected cable metadata inherits until explicitly overridden', async
   assert.equal(descendants(dialog, (node) => node.textContent === 'Notes').length, 0);
 });
 
-asyncTest('ribbon properties save explicit Lines and geometry style', async () => {
+asyncTest('ribbon properties save explicit Lines and geometry style without line colors', async () => {
   const { context } = palette();
   const definition = harness();
   const cableGroup = definition.cableGroups[0];
@@ -356,23 +356,54 @@ asyncTest('ribbon properties save explicit Lines and geometry style', async () =
   assert.equal(descendants(lines.parentElement, (node) => node.type === 'checkbox').length, 0);
   assert.equal(descendants(geometry.parentElement, (node) => node.type === 'checkbox').length, 0);
   lines.value = '6';
-  lines.events.change();
   geometry.value = 'ffc';
-  const firstColorRow = descendants(dialog, (node) => node.tag === 'label'
-    && node.textContent === 'Line 1 ')[0];
-  const colorToggle = firstColorRow.children.find((node) => node.type === 'checkbox');
-  const colorPicker = firstColorRow.children.find((node) => node.type === 'color');
-  colorToggle.checked = true;
-  colorToggle.events.change();
-  colorPicker.value = '#ff0000';
+  assert.equal(dialog.querySelector('.ribbon-line-colors'), undefined);
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
 
   assert.equal(calls[0].action, 'set_cable_group_properties');
   assert.equal(calls[0].payload.ribbonLines, 6);
   assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
-  assert.equal(calls[0].payload.ribbonLineColors.length, 6);
-  assert.equal(calls[0].payload.ribbonLineColors[0].red, 255);
-  assert.equal(calls[0].payload.ribbonLineColors[1], null);
+  assert.equal('ribbonLineColors' in calls[0].payload, false);
+});
+
+asyncTest('ribbon materials collapse and save individual line colors', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.groupType = 'ribbon';
+  group.ribbonLines = 3;
+  group.ribbonLineColors = [
+    null, { name: 'Blue', red: 0, green: 0, blue: 255, hex: '#0000ff' }, null,
+  ];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return action === 'get_appearance_libraries'
+      ? { ok: true, libraries: [] } : { ok: true };
+  };
+
+  context.openMaterialOptions(definition, group);
+  const dialog = context.document.body.querySelector('.material-options');
+  const colors = dialog.querySelector('.ribbon-line-colors');
+  const rows = descendants(colors, (node) => node.tag === 'label');
+  assert.equal(colors.tag, 'details');
+  assert.equal(colors.open, undefined);
+  assert.equal(colors.querySelector('summary').textContent, 'Individual line colors');
+  assert.equal(rows.length, 3);
+  assert.equal(rows[1].querySelector('input').checked, true);
+  const toggle = descendants(rows[0], (node) => node.type === 'checkbox')[0];
+  const picker = descendants(rows[0], (node) => node.type === 'color')[0];
+  toggle.checked = true;
+  toggle.events.change();
+  picker.value = '#ff0000';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+
+  const saved = calls.find((call) => call.action === 'set_cable_group_material_overrides');
+  assert.equal(saved.payload.ribbonLineColors.length, 3);
+  assert.equal(saved.payload.ribbonLineColors[0].red, 255);
+  assert.equal(saved.payload.ribbonLineColors[1].blue, 255);
+  assert.equal(saved.payload.ribbonLineColors[1].name, 'Blue');
+  assert.equal(saved.payload.ribbonLineColors[2], null);
 });
 
 asyncTest('cable diameter fields use the active design length units', async () => {

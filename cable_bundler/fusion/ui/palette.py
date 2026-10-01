@@ -288,7 +288,10 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
             )
             if policy.reconcile_refines and not is_data_only_disconnect:
                 reconcile_active_refines(application)
-            if action == "set_cable_group_properties" and "ribbonLineColors" in payload:
+            if (
+                action == "set_cable_group_properties"
+                and ("ribbonLines" in payload or "ribbonGeometry" in payload)
+            ) or (action == "set_cable_group_material_overrides" and "ribbonLineColors" in payload):
                 gateway = _create_harness_gateway(application)
                 definition = loads(gateway.read_harness_definition(harness_id))
                 refreshed_count = refresh_changed_generated_cable_groups(
@@ -298,7 +301,10 @@ class _PaletteEditExecuteHandler(adsk.core.CommandEventHandler):
                 )
                 if refreshed_count:
                     notice = f"{notice} Updated {refreshed_count} generated ribbon group(s)."
-                notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
+                if not policy.apply_generated_materials:
+                    notice = (
+                        f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
+                    )
             if policy.apply_generated_materials:
                 notice = f"{notice} {_apply_generated_materials(application, harness_id)}".strip()
             refreshes_connection_geometry = (

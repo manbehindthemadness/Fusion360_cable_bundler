@@ -281,8 +281,6 @@ function openPropertiesDialog(harness, cableGroup = null) {
   let conductorDiameter = null;
   let ribbonLines = null;
   let ribbonGeometry = null;
-  let ribbonColorRows = [];
-  let updateRibbonLineColors = null;
   if (isCableGroup) {
     const diameterLabel = document.createElement("label");
     diameter = document.createElement("input");
@@ -321,43 +319,6 @@ function openPropertiesDialog(harness, cableGroup = null) {
     ribbonGeometry.value = cableGroup.ribbonGeometry || "discrete";
     geometryLabel.append(ribbonGeometry);
     form.append(geometryLabel);
-
-    const colorList = document.createElement("div");
-    const colorHeading = document.createElement("strong");
-    colorList.className = "material-field";
-    colorHeading.textContent = "Line colors";
-    colorList.append(colorHeading);
-    const initialColors = cableGroup.ribbonLineColors || [];
-    const renderLineColors = () => {
-      const requested = Number(ribbonLines.value);
-      if (!Number.isInteger(requested) || requested < 1) return;
-      const previous = ribbonColorRows.map(({ toggle, picker }) => ({
-        enabled: toggle.checked, hex: picker.value,
-      }));
-      ribbonColorRows = [];
-      colorList.replaceChildren(colorHeading);
-      for (let index = 0; index < requested; index += 1) {
-        const saved = initialColors[index];
-        const state = previous[index];
-        const row = document.createElement("label");
-        const toggle = document.createElement("input");
-        const picker = document.createElement("input");
-        row.textContent = `Line ${index + 1} `;
-        toggle.type = "checkbox";
-        toggle.checked = state?.enabled ?? Boolean(saved);
-        picker.type = "color";
-        picker.value = state?.hex || saved?.hex || settings.mainColor.hex;
-        picker.disabled = !toggle.checked;
-        toggle.addEventListener("change", () => { picker.disabled = !toggle.checked; });
-        row.append(toggle, picker);
-        colorList.append(row);
-        ribbonColorRows.push({ toggle, picker });
-      }
-    };
-    ribbonLines.addEventListener("change", renderLineColors);
-    updateRibbonLineColors = renderLineColors;
-    renderLineColors();
-    form.append(colorList);
   }
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
@@ -421,7 +382,6 @@ function openPropertiesDialog(harness, cableGroup = null) {
       error.textContent = "Lines must be a positive whole number.";
       return;
     }
-    if (ribbonLines && ribbonColorRows.length !== lineCount) updateRibbonLineColors();
     let conductorDiameterMm = null;
     if (isCableGroup) {
       try {
@@ -462,9 +422,6 @@ function openPropertiesDialog(harness, cableGroup = null) {
             ...(ribbonLines ? {
               ribbonLines: lineCount,
               ribbonGeometry: ribbonGeometry.value,
-              ribbonLineColors: ribbonColorRows.map(({ toggle, picker }) => (
-                toggle.checked ? colorFromHex("Custom", picker.value) : null
-              )),
             } : {}),
             insulationMaterial,
             conductorMaterial,

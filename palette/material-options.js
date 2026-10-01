@@ -191,6 +191,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
   const overrides = isConnectionBranch
     ? (attachment.visualOverrides || {}) : (isCableGroup ? cableGroup.materialOverrides : null);
   const originalMaterials = JSON.parse(JSON.stringify(hasOverrides ? overrides : settings));
+  const originalRibbonLineColors = isCableGroup && !isConnectionBranch
+    && cableGroup.groupType === "ribbon"
+    ? JSON.parse(JSON.stringify(cableGroup.ribbonLineColors || [])) : null;
   let hasAppliedChanges = false;
   let cancelInProgress = false;
   const catalog = currentState["catalog"] || {
@@ -231,6 +234,34 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
     "Main insulation appearance", catalog, error, addOverrideToggle, "mainColor",
   ) : null;
   if (mainAppearance) form.append(mainAppearance.wrapper);
+
+  const ribbonColorRows = [];
+  if (originalRibbonLineColors !== null) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const list = document.createElement("div");
+    details.className = "nested-details ribbon-line-colors";
+    summary.textContent = "Individual line colors";
+    list.className = "ribbon-line-color-list section-content";
+    for (let index = 0; index < cableGroup.ribbonLines; index += 1) {
+      const saved = originalRibbonLineColors[index];
+      const row = document.createElement("label");
+      const toggle = document.createElement("input");
+      const picker = document.createElement("input");
+      row.textContent = `Line ${index + 1}`;
+      toggle.type = "checkbox";
+      toggle.checked = Boolean(saved);
+      picker.type = "color";
+      picker.value = saved?.hex || settings.mainColor.hex;
+      picker.disabled = !toggle.checked;
+      toggle.addEventListener("change", () => { picker.disabled = !toggle.checked; });
+      row.append(toggle, picker);
+      list.append(row);
+      ribbonColorRows.push({ toggle, picker });
+    }
+    details.append(summary, list);
+    form.append(details);
+  }
 
   const stripeWrapper = document.createElement("div");
   const stripeHeader = document.createElement("div");
@@ -516,6 +547,14 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
             harnessId: harness.harnessId,
             cableGroupId: cableGroup.cableGroupId,
             overrides: materials,
+            ...(originalRibbonLineColors === null ? {} : {
+              ribbonLineColors: ribbonColorRows.map(({ toggle, picker }, index) => (
+                !toggle.checked ? null
+                  : originalRibbonLineColors[index]?.hex.toLowerCase() === picker.value.toLowerCase()
+                    ? originalRibbonLineColors[index]
+                    : colorFromHex("Custom", picker.value)
+              )),
+            }),
           }
           : { harnessId: harness.harnessId, materials }),
       );
@@ -560,6 +599,9 @@ function openMaterialOptions(harness, cableGroup = null, attachment = null) {
             harnessId: harness.harnessId,
             cableGroupId: cableGroup.cableGroupId,
             overrides: originalMaterials,
+            ...(originalRibbonLineColors === null ? {} : {
+              ribbonLineColors: originalRibbonLineColors,
+            }),
           }
           : { harnessId: harness.harnessId, materials: originalMaterials }),
       );

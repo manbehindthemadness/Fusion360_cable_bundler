@@ -63,3 +63,6 @@
 .nested-details + .nested-details { margin-top: 6px; }
 .nested-details > summary { padding: 8px 9px; font-size: 12px; }
 .nested-details > .section-content { padding: 0 9px 9px; }
+.ribbon-line-color-list { display: grid; gap: 7px; max-height: 220px; overflow-y: auto; }
+.ribbon-line-color-list label { display: flex; align-items: center; gap: 8px; }
+.ribbon-line-color-list input[type="color"] { margin-left: auto; width: 46px; height: 34px; padding: 2px; }

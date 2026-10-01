@@ -659,6 +659,42 @@ def test_palette_edit_reads_ribbon_properties(
     )
 
 
+def test_palette_edit_reads_ribbon_colors_from_materials(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Pass ordered line overrides through the cable-group materials action.
+    """
+    gateway, save = _mock_palette_service(
+        addin_module, monkeypatch, "set_cable_group_material_overrides"
+    )
+
+    addin_module._apply_palette_edit(
+        object(),
+        "set_cable_group_material_overrides",
+        json.dumps(
+            {
+                "harnessId": str(UUID(int=1)),
+                "cableGroupId": str(UUID(int=2)),
+                "overrides": {},
+                "ribbonLineColors": [
+                    None,
+                    {"name": "Red", "red": 255, "green": 0, "blue": 0},
+                    None,
+                ],
+            }
+        ),
+    )
+
+    assert save.call_args.args[3] is gateway
+    assert save.call_args.kwargs["ribbon_line_colors"] == (
+        None,
+        CableColor("Red", 255, 0, 0),
+        None,
+    )
+
+
 def test_palette_edit_saves_harness_properties_without_visual_materials(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

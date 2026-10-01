@@ -263,13 +263,22 @@ def test_connected_cable_property_save_refreshes_only_group_preview(
     assert not args.executeFailed
 
 
-def test_ribbon_property_save_refreshes_visible_generated_shape(
+@pytest.mark.parametrize(
+    ("action", "values"),
+    (
+        ("set_cable_group_properties", {"ribbonLines": 3}),
+        ("set_cable_group_material_overrides", {"ribbonLineColors": [None, None, None]}),
+    ),
+)
+def test_ribbon_edit_refreshes_visible_generated_shape(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    action: str,
+    values: dict[str, object],
 ) -> None:
     """
-    Keep a generated ribbon visible and recolored after line property edits.
+    Keep a generated ribbon visible after construction or material edits.
     """
     document = object()
     application = SimpleNamespace(activeDocument=document, activeViewport=Mock())
@@ -288,14 +297,10 @@ def test_ribbon_property_save_refreshes_visible_generated_shape(
     monkeypatch.setattr(addin_module, "_apply_generated_materials", applied_materials)
     monkeypatch.setattr(addin_module, "_refresh_active_preview", Mock(return_value=""))
     monkeypatch.setattr(addin_module, "_send_palette_state", sent)
-    payload = json.dumps(
-        {"harnessId": str(valid_harness.harness_id), "ribbonLineColors": [None, None, None]}
-    )
+    payload = json.dumps({"harnessId": str(valid_harness.harness_id), **values})
     args = SimpleNamespace(executeFailed=False, executeFailedMessage="")
 
-    addin_module._PaletteEditExecuteHandler(
-        ("set_cable_group_properties", payload, document)
-    ).notify(args)
+    addin_module._PaletteEditExecuteHandler((action, payload, document)).notify(args)
 
     assert not args.executeFailed
     refreshed_geometry.assert_called_once()

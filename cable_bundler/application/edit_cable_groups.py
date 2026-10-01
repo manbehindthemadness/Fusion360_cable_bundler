@@ -369,17 +369,34 @@ def set_cable_group_material_overrides(
     cable_group_id: UUID,
     overrides: CableMaterialOverrides,
     gateway: HarnessEditGateway,
+    *,
+    ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
 ) -> None:
     """
-    Replace one connected cable group's field-level material overrides.
+    Replace a group's material overrides and optional ordered ribbon colors atomically.
     """
     if not isinstance(overrides, CableMaterialOverrides):
         raise ValueError("Cable-group material overrides are invalid.")
+
+    def update(group: CableGroupDefinition) -> CableGroupDefinition:
+        """
+        Apply line colors only to a ribbon group.
+        """
+        if ribbon_line_colors is not None and group.group_type is not CableGroupType.RIBBON:
+            raise ValueError("Ribbon line colors require a ribbon cable group.")
+        return replace(
+            group,
+            material_overrides=overrides,
+            ribbon_line_colors=(
+                group.ribbon_line_colors if ribbon_line_colors is None else ribbon_line_colors
+            ),
+        )
+
     _update_cable_group(
         harness_id,
         cable_group_id,
         gateway,
-        lambda group: replace(group, material_overrides=overrides),
+        update,
     )
 
 

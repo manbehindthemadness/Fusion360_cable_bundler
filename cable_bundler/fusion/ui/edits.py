@@ -683,11 +683,22 @@ def _apply_property_edit(
         )
         return "Saved harness properties."
     if action == "set_cable_group_material_overrides":
+        raw_line_colors = payload.get("ribbonLineColors")
+        if raw_line_colors is not None and not isinstance(raw_line_colors, list):
+            raise ValueError("Ribbon line colors must be a list.")
         set_cable_group_material_overrides(
             harness_id,
             _read_payload_uuid(payload, "cableGroupId", "cable group"),
             _read_material_overrides(payload.get("overrides")),
             gateway,
+            ribbon_line_colors=(
+                tuple(
+                    None if color is None else _read_material_color(color)
+                    for color in raw_line_colors
+                )
+                if raw_line_colors is not None
+                else None
+            ),
         )
         return "Saved connected-cable material overrides."
     if action == "set_pathway_properties":

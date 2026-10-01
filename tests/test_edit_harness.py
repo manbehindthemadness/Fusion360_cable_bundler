@@ -531,6 +531,36 @@ def test_ribbon_line_colors_follow_line_count_changes(
     )
 
 
+def test_ribbon_materials_save_line_colors_with_overrides(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Save ordered ribbon colors with visual material overrides in one update.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    definition = replace(
+        valid_harness,
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(ribbon,),
+    )
+    gateway = _recording_gateway(definition)
+    colors = (None, CableColor("Red", 255, 0, 0), None)
+
+    set_cable_group_material_overrides(
+        definition.harness_id,
+        ribbon.cable_group_id,
+        CableMaterialOverrides(main_color=CableColor("Blue", 0, 0, 255)),
+        gateway,
+        ribbon_line_colors=colors,
+    )
+
+    stored = loads(gateway.serialized_definition).cable_groups[0]
+    assert stored.ribbon_line_colors == colors
+    assert stored.material_overrides.main_color == CableColor("Blue", 0, 0, 255)
+
+
 def test_loose_group_rejects_ribbon_properties(valid_harness: HarnessDefinition) -> None:
     """
     Keep ribbon-only values off existing loose groups without saving a partial edit.
