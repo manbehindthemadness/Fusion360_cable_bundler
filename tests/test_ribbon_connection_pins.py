@@ -445,15 +445,13 @@ def test_target_numbering_is_persisted_and_not_recomputed(
     assert ribbon_connections.number_ribbon_connections(object(), numbered) == numbered
 
 
-@pytest.mark.parametrize("fitted_fraction", [1.0, 0.75])
 def test_generated_ribbon_branch_records_line_and_attachment_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
-    fitted_fraction: float,
 ) -> None:
     """
-    Use the surface-fitted diameter in the sweep, conductor, and metadata.
+    Use an in-place lobe loft for a numbered root and retain its metadata.
     """
     from cable_bundler.application import CableGroupRouteLeg
     from cable_bundler.fusion import cable_solids
@@ -496,35 +494,28 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     attribute = SimpleNamespace(value=json.dumps({"connection_branches": []}))
     component = SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
     body = SimpleNamespace(name="", appearance=None)
-    sweep_diameters: list[float] = []
-
-    def capture_sweep(*args: object) -> tuple[SimpleNamespace, float]:
-        """
-        Record the physical diameter supplied to the Fusion sweep.
-        """
-        assert isinstance(args[2], float)
-        sweep_diameters.append(args[2])
-        return body, 10.6
-
     ribbon_body = object()
-    end_plane = object()
-    fit_calls: list[tuple[object, object]] = []
+    end_section = object()
+    loft_calls: list[tuple[object, object, int, float]] = []
 
-    def fit_overlap(
+    def capture_loft(
+        _component: object,
         actual_ribbon: object,
         _route: RoutePreview,
-        plane: object,
-        cap: float,
+        actual_end: object,
+        line_index: int,
+        _ribbon_diameter: float,
+        cap_diameter: float,
         _transform: object,
-    ) -> float:
+    ) -> SimpleNamespace:
         """
-        Supply the measured branch size while checking its owning ribbon.
+        Confirm the numbered lobe and cap diameter reach the loft builder.
         """
-        fit_calls.append((actual_ribbon, plane))
-        return cap * fitted_fraction
+        loft_calls.append((actual_ribbon, actual_end, line_index, cap_diameter))
+        return body
 
-    monkeypatch.setitem(vars(ribbon_branches), "_build_route_sweep", capture_sweep)
-    monkeypatch.setitem(vars(ribbon_branches), "fitted_ribbon_overlap_diameter", fit_overlap)
+    monkeypatch.setitem(vars(ribbon_branches), "build_ribbon_exit_loft", capture_loft)
+    monkeypatch.setitem(vars(ribbon_branches), "route_length_mm", lambda _route: 10.0)
     monkeypatch.setitem(
         vars(ribbon_branches),
         "split_route_for_pullback",
@@ -550,7 +541,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
         object(),
         ribbon_branches.FINALIZED_OUTPUT_MODE,
         ribbon_body,
-        {definition.connections[0].connection_id: end_plane},
+        {definition.connections[0].connection_id: end_section},
         notices,
         timings=timings,
     )
@@ -558,20 +549,19 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     branch = json.loads(attribute.value)["connection_branches"][0]
     assert branch["attachment_id"] == str(target.attachment_id)
     assert branch["ribbon_line_number"] == 2
-    expected_diameter = group.diameter_mm * 0.9 * fitted_fraction
+    expected_diameter = group.diameter_mm * 0.9
     assert branch["diameter_mm"] == pytest.approx(expected_diameter)
     assert branch["pullback_diameter_mm"] == pytest.approx(expected_diameter * 0.75)
     assert branch["insulation_body_count"] == 1
     assert body.name.startswith("Cable Group 1 Line 2")
-    assert sweep_diameters == [pytest.approx(expected_diameter)]
-    assert fit_calls == [(ribbon_body, end_plane)]
-    assert timings["overlap_fit"] >= 0.0
+    assert loft_calls == [(ribbon_body, end_section, 1, expected_diameter)]
+    assert timings["branch_lofts"] >= 0.0
     assert timings["branch_sweeps"] >= 0.0
-    assert bool(notices) is (fitted_fraction < 1.0)
+    assert notices == []
 
     oversized = replace(
         target,
-        visual_overrides=CableVisualOverrides(conductor_diameter_mm=group.diameter_mm * 0.95),
+        visual_overrides=CableVisualOverrides(conductor_diameter_mm=group.diameter_mm * 1.05),
     )
     oversized_definition = replace(
         definition,
@@ -589,7 +579,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
             pullback_length_mm=1.0,
         ),
     )
-    with pytest.raises(ValueError, match="wider than its fitted insulation"):
+    with pytest.raises(ValueError, match="wider than its insulation"):
         ribbon_branches.build_ribbon_connection_branches(
             component,
             group,
@@ -600,17 +590,9 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
             object(),
             ribbon_branches.FINALIZED_OUTPUT_MODE,
             ribbon_body,
-            {definition.connections[0].connection_id: end_plane},
+            {definition.connections[0].connection_id: end_section},
         )
-
-    def failed_fit(*_args: object) -> float:
-        """
-        Simulate a Fusion containment failure for a numbered root.
-        """
-        raise RuntimeError("Fusion could not classify the ribbon connection overlap.")
-
-    monkeypatch.setitem(vars(ribbon_branches), "fitted_ribbon_overlap_diameter", failed_fit)
-    with pytest.raises(RuntimeError, match="Ribbon line 2 connection overlap fit failed"):
+    with pytest.raises(ValueError, match="fitted end section"):
         ribbon_branches.build_ribbon_connection_branches(
             component,
             group,
@@ -621,7 +603,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
             object(),
             ribbon_branches.FINALIZED_OUTPUT_MODE,
             ribbon_body,
-            {definition.connections[0].connection_id: end_plane},
+            {},
         )
 
 

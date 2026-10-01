@@ -42,6 +42,7 @@ from .cable_solid_parts.metadata import (
 )
 from .cable_solid_parts.ribbon_branches import build_ribbon_connection_branches
 from .cable_solid_parts.ribbon_builder import build_discrete_ribbon_solid
+from .cable_solid_parts.ribbon_exit_loft import RibbonExitEnd
 from .cable_solid_parts.solid_builder import build_cable_group_solid
 from .cable_solid_parts.stripes import (
     build_continuous_segment_stripes,
@@ -560,13 +561,18 @@ def _build_group_output(
         )
         if timings is not None:
             timings["ribbon_body"] = perf_counter() - stage_started
-        end_planes = {
-            connection_id: plane
-            for connection_id, plane in (
-                (leg.start_connection_id, fitted.guide_planes[0]),
-                (leg.end_connection_id, fitted.guide_planes[1]),
+        end_sections = {
+            connection_id: RibbonExitEnd(
+                plane,
+                fitted.shape.frames[section_index],
+                tuple(lane[section_index] for lane in fitted.shape.lanes),
+                fit,
             )
-            if connection_id is not None and plane is not None
+            for connection_id, plane, fit, section_index in (
+                (leg.start_connection_id, fitted.guide_planes[0], fitted.shape.start_fit, 0),
+                (leg.end_connection_id, fitted.guide_planes[1], fitted.shape.end_fit, -1),
+            )
+            if connection_id is not None and plane is not None and fit is not None
         }
         stage_started = perf_counter()
         build_ribbon_connection_branches(
@@ -579,7 +585,7 @@ def _build_group_output(
             design,
             output_mode,
             ribbon_body,
-            end_planes,
+            end_sections,
             notices,
             timings=timings,
         )

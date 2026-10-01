@@ -103,6 +103,15 @@ def extend_route_tail(route: RoutePreview, distance_mm: float) -> RoutePreview:
     )
 
 
+def route_length_mm(route: RoutePreview) -> float:
+    """
+    Measure the exact routed cubic span without constructing Fusion geometry.
+    """
+    if not route.curves:
+        raise ValueError("A routed length requires at least one curve.")
+    return sum(_curve_arc_length(curve) for curve in route.curves)
+
+
 def split_route_for_pullback(route: RoutePreview, distance_mm: float) -> RoutePullbackSplit:
     """
     Split a route by arc length measured from its target-facing start.

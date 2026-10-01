@@ -21,13 +21,12 @@ from ...application import CableGroupRouteLeg
 from ...domain import CableGroupDefinition, HarnessDefinition, PullbackMode
 from ...routing import RoutePreview
 from ..harness_gateway import ATTRIBUTE_GROUP
-from ..ribbon_geometry import RibbonGuidePlane
 from .constants import FINALIZED_OUTPUT_MODE, GENERATED_CABLE_GROUP_ATTRIBUTE
 from .materials import cable_appearance
 from .metadata import route_in_component_space, route_metadata
-from .ribbon_overlap import fitted_ribbon_overlap_diameter
+from .ribbon_exit_loft import RibbonExitEnd, build_ribbon_exit_loft
 from .solid_builder import _build_route_sweep
-from .sweep_geometry import extend_route_tail, split_route_for_pullback
+from .sweep_geometry import extend_route_tail, route_length_mm, split_route_for_pullback
 from .welds import build_weld_body
 
 
@@ -57,7 +56,7 @@ def build_ribbon_connection_branches(
     design: adsk.fusion.Design,
     output_mode: str,
     ribbon_body: adsk.fusion.BRepBody,
-    end_planes: dict[UUID, RibbonGuidePlane],
+    end_sections: dict[UUID, RibbonExitEnd],
     notices: Optional[list[str]] = None,
     *,
     timings: Optional[dict[str, float]] = None,
@@ -68,7 +67,7 @@ def build_ribbon_connection_branches(
     if not branches:
         return
     if timings is not None:
-        timings["overlap_fit"] = 0.0
+        timings["branch_lofts"] = 0.0
         timings["branch_sweeps"] = 0.0
     attribute = component.attributes.itemByName(ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE)
     if attribute is None:
@@ -91,27 +90,10 @@ def build_ribbon_connection_branches(
         materials = definition.cable_end_attachment_materials(group, connection_id, attachment_id)
         cap_diameter_mm = leg.diameter_mm or group.diameter_mm
         diameter_mm = cap_diameter_mm
-        if attachment.parent_attachment_id is None:
-            guide_plane = end_planes.get(connection_id)
-            if guide_plane is None:
-                raise ValueError("A ribbon root connection needs its fitted end plane.")
-            try:
-                fit_started = perf_counter()
-                diameter_mm = fitted_ribbon_overlap_diameter(
-                    ribbon_body, route, guide_plane, cap_diameter_mm, transform
-                )
-                if timings is not None:
-                    timings["overlap_fit"] += perf_counter() - fit_started
-            except (RuntimeError, ValueError) as error:
-                raise RuntimeError(
-                    f"Ribbon line {line_number} connection overlap fit failed: {error}"
-                ) from error
-            if notices is not None and cap_diameter_mm - diameter_mm > 0.01:
-                notices.append(
-                    f"Warning: {group.name or 'Ribbon'} line {line_number}: "
-                    f"ribbon surface fit reduces connection diameter to "
-                    f"{diameter_mm:.2f} mm from {cap_diameter_mm:.2f} mm."
-                )
+        is_root = attachment.parent_attachment_id is None
+        end_section = end_sections.get(connection_id) if is_root else None
+        if is_root and end_section is None:
+            raise ValueError("A ribbon root connection needs its fitted end section.")
         configured_conductor_mm = attachment.visual_overrides.conductor_diameter_mm
         pullback_diameter_mm = (
             configured_conductor_mm if configured_conductor_mm is not None else diameter_mm * 0.75
@@ -129,25 +111,42 @@ def build_ribbon_connection_branches(
         )
         if split.pullback is not None and pullback_diameter_mm > diameter_mm:
             raise ValueError(
-                f"Ribbon line {line_number} connection conductor is wider than its fitted insulation."
+                f"Ribbon line {line_number} connection conductor is wider than its insulation."
             )
         overlap_mm = diameter_mm * 0.5
         insulation_count = 0
         pullback_count = 0
         length_mm = 0.0
         if split.insulation is not None:
-            sweep_started = perf_counter()
-            body, measured = _build_route_sweep(
-                component,
-                extend_route_tail(split.insulation, overlap_mm),
-                diameter_mm,
-                transform,
-                f"Ribbon Connection {index} Centerline",
-                f"Ribbon Connection {index} Diameter",
-                f"Ribbon Connection {index} Sweep",
-            )
-            if timings is not None:
-                timings["branch_sweeps"] += perf_counter() - sweep_started
+            build_started = perf_counter()
+            if is_root:
+                assert end_section is not None
+                body = build_ribbon_exit_loft(
+                    component,
+                    ribbon_body,
+                    split.insulation,
+                    end_section,
+                    line_number - 1,
+                    group.diameter_mm,
+                    cap_diameter_mm,
+                    transform,
+                )
+                measured = route_length_mm(split.insulation)
+                if timings is not None:
+                    timings["branch_lofts"] += perf_counter() - build_started
+            else:
+                body, measured_with_overlap = _build_route_sweep(
+                    component,
+                    extend_route_tail(split.insulation, overlap_mm),
+                    diameter_mm,
+                    transform,
+                    f"Ribbon Connection {index} Centerline",
+                    f"Ribbon Connection {index} Diameter",
+                    f"Ribbon Connection {index} Sweep",
+                )
+                measured = measured_with_overlap - overlap_mm
+                if timings is not None:
+                    timings["branch_sweeps"] += perf_counter() - build_started
             body.name = f"Cable Group {group_index + 1} Line {line_number} Connection {index}"
             color = (
                 line_colors[line_number - 1]
@@ -156,7 +155,7 @@ def build_ribbon_connection_branches(
             )
             body.appearance = cable_appearance(design, color, materials.appearance)
             insulation_count = 1
-            length_mm += measured - overlap_mm
+            length_mm += measured
         if split.pullback is not None:
             sweep_started = perf_counter()
             body, measured = _build_route_sweep(
