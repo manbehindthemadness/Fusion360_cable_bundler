@@ -6,7 +6,16 @@
 }
 .connection-associations-popup {
   width: 900px;
+  height: 95vh;
+  max-height: 95vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+}
+.connection-associations-popup:not([open]) { display: none; }
+.connection-associations-popup .create-cables-layout {
+  height: 100%;
+  min-height: 0;
 }
 .connection-associations-popup > h2 { margin-bottom: 12px; }
 .connection-associations-popup .connection-auto-associate { margin-right: auto; }
