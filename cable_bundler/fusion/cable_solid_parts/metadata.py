@@ -266,7 +266,10 @@ def connection_branches_from_metadata(
                     or raw_weld_length <= 0.0
                 )
             )
-            or insulation_body_count + pullback_body_count + weld_body_count < 1
+            or (
+                insulation_body_count + pullback_body_count + weld_body_count < 1
+                and metadata.get("ribbon_body_type") != "solid"
+            )
         ):
             raise RuntimeError("Generated cable-group branch metadata is malformed.")
         branches.append(

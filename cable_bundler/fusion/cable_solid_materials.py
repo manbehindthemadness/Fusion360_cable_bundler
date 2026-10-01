@@ -282,6 +282,8 @@ def apply_cable_group_materials(
             geometry_changed_ids.add(group_id)
             continue
         for branch in connection_branches_from_metadata(metadata):
+            if metadata.get("ribbon_body_type") == "solid":
+                continue
             requested_mm = _service("_attachment_pullback_mm")(
                 definition,
                 group,

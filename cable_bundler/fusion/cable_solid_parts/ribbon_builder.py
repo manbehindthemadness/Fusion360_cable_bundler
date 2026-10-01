@@ -29,6 +29,7 @@ from ...routing import (
 from ...routing.geometry import difference, dot
 from ..harness_gateway import ATTRIBUTE_GROUP
 from ..ribbon_geometry import RibbonGuidePlane
+from ..solid_ribbon import SolidRibbonPlan, SolidRibbonSection
 from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE, GENERATED_OUTPUT_MODE_KEY
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
@@ -298,6 +299,7 @@ def _face_lane(
     frames: tuple[RibbonFrame, ...],
     transform: adsk.core.Matrix3D,
     group: CableGroupDefinition,
+    solid_plan: SolidRibbonPlan | None = None,
 ) -> int:
     """
     Match one generated side face to its nearest transported line lane.
@@ -309,6 +311,25 @@ def _face_lane(
     if not point.transformBy(inverse):
         raise RuntimeError("Ribbon color mapping could not transform a face point.")
     world = Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
+    if solid_plan is not None:
+        nearest_station = min(
+            solid_plan.sections,
+            key=lambda station: min(
+                math.dist((world.x, world.y, world.z), (center.x, center.y, center.z))
+                for center in station.centers
+            ),
+        )
+        return min(
+            range(group.ribbon_lines),
+            key=lambda index: math.dist(
+                (world.x, world.y, world.z),
+                (
+                    nearest_station.centers[index].x,
+                    nearest_station.centers[index].y,
+                    nearest_station.centers[index].z,
+                ),
+            ),
+        )
     nearest = min(
         frames,
         key=lambda frame: math.dist(
@@ -408,6 +429,122 @@ def _build_folded_loft(
         raise RibbonLoftUnavailable(str(error)) from error
 
 
+def _add_solid_section(
+    component: adsk.fusion.Component,
+    station: SolidRibbonSection,
+    diameter_mm: float,
+    transform: adsk.core.Matrix3D,
+) -> tuple[adsk.fusion.Sketch, adsk.fusion.ConstructionPlane]:
+    """
+    Draw one constant-thickness profile with variable web and lobe width.
+    """
+    origin = station.centers[0]
+    plane_input = component.constructionPlanes.createInput()
+    guide = RibbonGuidePlane(origin, station.normal)
+    if not plane_input.setByPlane(_direct_guide_plane(guide, transform)):
+        raise RuntimeError("Fusion could not orient a Solid ribbon section.")
+    plane = component.constructionPlanes.add(plane_input)
+    if plane is None:
+        raise RuntimeError("Fusion could not create a Solid ribbon section plane.")
+    plane.name = "Solid ribbon section plane"
+    plane.isLightBulbOn = False
+    sketch = component.sketches.add(plane)
+    if sketch is None:
+        raise RuntimeError("Fusion could not create a Solid ribbon section sketch.")
+    sketch.name = "Solid ribbon section"
+    sketch.isLightBulbOn = False
+    thickness = Vector3(
+        station.normal.y * station.width.z - station.normal.z * station.width.y,
+        station.normal.z * station.width.x - station.normal.x * station.width.z,
+        station.normal.x * station.width.y - station.normal.y * station.width.x,
+    )
+    radius = diameter_mm / 2.0
+    valley = radius * 0.60
+    half_width = station.lobe_width_mm / 2.0
+
+    def point(index: int, across: float, height: float) -> adsk.core.Point3D:
+        """
+        Place a lobe or web endpoint on this section's own plane.
+        """
+        world = (
+            station.centers[index].translated(station.width, across).translated(thickness, height)
+        )
+        return sketch.modelToSketchSpace(fusion_point(world, transform))
+
+    arcs = sketch.sketchCurves.sketchArcs
+    lines = sketch.sketchCurves.sketchLines
+    for index in range(len(station.centers)):
+        left_top = point(index, -half_width, valley)
+        right_top = point(index, half_width, valley)
+        right_bottom = point(index, half_width, -valley)
+        left_bottom = point(index, -half_width, -valley)
+        if arcs.addByThreePoints(left_top, point(index, 0.0, radius), right_top) is None:
+            raise RuntimeError("Fusion could not draw a Solid ribbon top lobe.")
+        if arcs.addByThreePoints(right_bottom, point(index, 0.0, -radius), left_bottom) is None:
+            raise RuntimeError("Fusion could not draw a Solid ribbon bottom lobe.")
+        if index:
+            if lines.addByTwoPoints(point(index - 1, half_width, valley), left_top) is None:
+                raise RuntimeError("Fusion could not join a Solid ribbon top web.")
+            if lines.addByTwoPoints(left_bottom, point(index - 1, half_width, -valley)) is None:
+                raise RuntimeError("Fusion could not join a Solid ribbon bottom web.")
+    for index, sign in ((0, -1.0), (len(station.centers) - 1, 1.0)):
+        if (
+            arcs.addByThreePoints(
+                point(index, sign * half_width, valley),
+                point(index, sign * (half_width + radius * 0.2), 0.0),
+                point(index, sign * half_width, -valley),
+            )
+            is None
+        ):
+            raise RuntimeError("Fusion could not cap a Solid ribbon section.")
+    if sketch.profiles.count != 1:
+        raise RuntimeError("Fusion did not produce one joined Solid ribbon section.")
+    return sketch, plane
+
+
+def _build_solid_loft(
+    component: adsk.fusion.Component,
+    plan: SolidRibbonPlan,
+    diameter_mm: float,
+    transform: adsk.core.Matrix3D,
+) -> adsk.fusion.LoftFeature:
+    """
+    Require one loft spanning both contact planes without a sweep fallback.
+    """
+    sections: list[adsk.fusion.Sketch] = []
+    planes: list[adsk.fusion.ConstructionPlane] = []
+    loft = None
+    try:
+        loft_input = component.features.loftFeatures.createInput(
+            adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+        )
+        if loft_input is None:
+            raise RuntimeError("Fusion could not define the Solid ribbon loft.")
+        for station in plan.sections:
+            sketch, plane = _add_solid_section(component, station, diameter_mm, transform)
+            sections.append(sketch)
+            planes.append(plane)
+            loft_input.loftSections.add(sketch.profiles.item(0))
+        loft_input.isSolid = True
+        loft = component.features.loftFeatures.add(loft_input)
+        if loft is None or loft.bodies.count != 1:
+            raise RuntimeError("Fusion could not loft the Solid ribbon into one body.")
+        body = loft.bodies.item(0)
+        if body is None or not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
+            raise RuntimeError("Fusion produced an invalid Solid ribbon body.")
+        return loft
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        if loft is not None and loft.isValid:
+            loft.deleteMe()
+        for sketch in reversed(sections):
+            if sketch.isValid:
+                sketch.deleteMe()
+        for plane in reversed(planes):
+            if plane.isValid:
+                plane.deleteMe()
+        raise RuntimeError(f"Solid ribbon contact-to-contact loft failed: {error}") from error
+
+
 def build_discrete_ribbon_solid(
     component: adsk.fusion.Component,
     group: CableGroupDefinition,
@@ -421,6 +558,7 @@ def build_discrete_ribbon_solid(
     design: adsk.fusion.Design,
     output_mode: str,
     notices: Optional[list[str]] = None,
+    solid_plan: SolidRibbonPlan | None = None,
 ) -> adsk.fusion.BRepBody:
     """
     Build one visible joined ribbon and color its physical lobe faces.
@@ -428,10 +566,16 @@ def build_discrete_ribbon_solid(
     frames = shape.frames
     if not route.curves or len(frames) < 2:
         raise ValueError("A discrete ribbon needs one curved route and banking frames.")
-    center_sketch, center_path, _first_curve = _build_path(component, route, transform)
+    center_sketch = None
+    center_path = None
+    if solid_plan is None:
+        center_sketch, center_path, _first_curve = _build_path(component, route, transform)
     feature = None
     folded = False
-    if shape.folded or shape.start_fit is not None or shape.end_fit is not None:
+    if solid_plan is not None:
+        feature = _build_solid_loft(component, solid_plan, group.diameter_mm, transform)
+        folded = True
+    elif shape.folded or shape.start_fit is not None or shape.end_fit is not None:
         try:
             feature, sections, planes = _build_folded_loft(
                 component, center_path, shape, group, transform, guide_planes
@@ -471,21 +615,34 @@ def build_discrete_ribbon_solid(
     body = feature.bodies.item(0)
     if not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
         raise RuntimeError("Fusion produced an invalid discrete ribbon solid.")
-    body.name = f"Cable Group {group_index + 1} Discrete Ribbon"
+    body.name = (
+        f"Cable Group {group_index + 1} Solid Ribbon"
+        if solid_plan is not None
+        else f"Cable Group {group_index + 1} Discrete Ribbon"
+    )
     body.isLightBulbOn = True
     body.appearance = cable_appearance(design, materials.main_color, materials.appearance)
     line_colors = group.resolved_ribbon_line_colors(materials.main_color)
     for face_index in range(feature.sideFaces.count):
         face = feature.sideFaces.item(face_index)
         if face is not None:
-            lane = _face_lane(face, frames, transform, group)
+            lane = _face_lane(face, frames, transform, group, solid_plan)
             face.appearance = cable_appearance(design, line_colors[lane])
             if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
                 raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")
-    center_sketch.isLightBulbOn = False
-    feature.name = "Discrete ribbon folded loft" if folded else "Discrete ribbon sweep"
+    if center_sketch is not None:
+        center_sketch.isLightBulbOn = False
+    feature.name = (
+        "Solid ribbon contact loft"
+        if solid_plan is not None
+        else "Discrete ribbon folded loft"
+        if folded
+        else "Discrete ribbon sweep"
+    )
     lengths = (
-        shape.lengths_mm
+        ribbon_line_lengths(solid_plan.lanes)
+        if solid_plan is not None
+        else shape.lengths_mm
         if folded
         else ribbon_line_lengths(ribbon_lane_points(frames, group.ribbon_lines, group.diameter_mm))
     )
@@ -522,6 +679,12 @@ def build_discrete_ribbon_solid(
             GENERATED_OUTPUT_MODE_KEY: output_mode,
             "diameter_mm": group.diameter_mm,
             "ribbon_lines": group.ribbon_lines,
+            "ribbon_body_type": group.ribbon_body_type.value,
+            "ribbon_contact_ids": solid_plan.contact_ids if solid_plan is not None else None,
+            "ribbon_attachment_ids": solid_plan.attachment_ids if solid_plan is not None else None,
+            "ribbon_contact_signature": (
+                solid_plan.contact_signature if solid_plan is not None else None
+            ),
             "length_mm": length_mm,
             "ribbon_line_lengths_mm": lengths,
             "ribbon_length_spread": spread,

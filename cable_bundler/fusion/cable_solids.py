@@ -23,6 +23,7 @@ from ..domain import (
     CableMaterialSettings,
     HarnessDefinition,
     PullbackMode,
+    RibbonBodyType,
     validate_harness,
 )
 from ..routing import (
@@ -38,9 +39,10 @@ from .cable_solid_parts.materials import cable_appearance as cable_appearance
 from .cable_solid_parts.metadata import (
     group_geometry_routes_from_metadata,
     route_in_component_space,
+    route_metadata,
     world_to_harness,
 )
-from .cable_solid_parts.ribbon_branches import build_ribbon_connection_branches
+from .cable_solid_parts.ribbon_branches import _line_number, build_ribbon_connection_branches
 from .cable_solid_parts.ribbon_builder import build_discrete_ribbon_solid
 from .cable_solid_parts.ribbon_exit_loft import RibbonExitEnd
 from .cable_solid_parts.solid_builder import build_cable_group_solid
@@ -52,6 +54,7 @@ from .cable_solid_parts.stripes import (
 )
 from .cable_solid_parts.sweep_geometry import (
     prepare_group_sweep_segments,
+    route_length_mm,
     split_route_endpoint_pullbacks,
     split_route_for_pullback,
 )
@@ -69,6 +72,7 @@ from .cable_solid_visibility import (
 from .harness_gateway import ATTRIBUTE_GROUP
 from .ribbon_geometry import ribbon_route_shape
 from .route_preview import solve_cable_group_centerlines
+from .solid_ribbon import SolidRibbonPlan, solid_ribbon_plan
 
 _build_continuous_segment_stripes = build_continuous_segment_stripes
 _prepare_group_sweep_segments = prepare_group_sweep_segments
@@ -544,6 +548,11 @@ def _build_group_output(
         if notices is not None:
             for warning in fitted.fit_warnings:
                 notices.append(f"Warning: Cable Group {group_index + 1}: {warning}.")
+        solid_plan = (
+            solid_ribbon_plan(design, definition, group, leg, branches, fitted.shape)
+            if group.ribbon_body_type is RibbonBodyType.SOLID
+            else None
+        )
         stage_started = perf_counter()
         ribbon_body = build_discrete_ribbon_solid(
             component,
@@ -558,9 +567,13 @@ def _build_group_output(
             design,
             output_mode,
             notices,
+            solid_plan,
         )
         if timings is not None:
             timings["ribbon_body"] = perf_counter() - stage_started
+        if solid_plan is not None:
+            _record_solid_ribbon_contacts(component, branches, transform, definition, solid_plan)
+            return
         end_sections = {
             connection_id: RibbonExitEnd(
                 plane,
@@ -609,6 +622,56 @@ def _build_group_output(
         is_visible=is_visible,
         **route_options,
     )
+
+
+def _record_solid_ribbon_contacts(
+    component: adsk.fusion.Component,
+    branches: tuple[tuple[CableGroupRouteLeg, RoutePreview], ...],
+    transform: adsk.core.Matrix3D,
+    definition: HarnessDefinition,
+    plan: SolidRibbonPlan,
+) -> None:
+    """
+    Persist contact routing and line identity with zero owned branch bodies.
+    """
+    attribute = component.attributes.itemByName(ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE)
+    if attribute is None:
+        raise RuntimeError("Generated Solid ribbon metadata is missing.")
+    metadata = json.loads(attribute.value)
+    contact_by_attachment = {
+        attachment_id: contact_id
+        for contact_ids, attachment_ids in zip(plan.contact_ids, plan.attachment_ids)
+        for contact_id, attachment_id in zip(contact_ids, attachment_ids)
+    }
+    records = []
+    for leg, route in branches:
+        if leg.start_connection_id is None or leg.attachment_id is None:
+            raise ValueError("Solid ribbon contact routing has no saved attachment identity.")
+        if not route.curves:
+            raise ValueError("Solid ribbon contact routing is empty.")
+        diameter_mm = leg.diameter_mm or float(metadata["diameter_mm"])
+        records.append(
+            {
+                "route_id": str(route.cable_id),
+                "label": route.cable_number,
+                "diameter_mm": diameter_mm,
+                "attachment_id": str(leg.attachment_id),
+                "interface_contact_id": contact_by_attachment[str(leg.attachment_id)],
+                "ribbon_line_number": _line_number(
+                    definition, leg.start_connection_id, leg.attachment_id
+                ),
+                "length_mm": route_length_mm(route),
+                "pullback_mm": 0.0,
+                "pullback_requested_mm": 0.0,
+                "pullback_diameter_mm": diameter_mm * 0.75,
+                "insulation_body_count": 0,
+                "pullback_body_count": 0,
+                "weld_body_count": 0,
+                "route_curves_mm": route_metadata(route_in_component_space(route, transform)),
+            }
+        )
+    metadata["connection_branches"] = records
+    attribute.value = json.dumps(metadata, sort_keys=True)
 
 
 def generate_cable_group_solids(
@@ -773,10 +836,36 @@ def refresh_changed_generated_cable_groups(
                 metadata.get("ribbon_lines") != group.ribbon_lines
                 or metadata.get("diameter_mm") != group.diameter_mm
                 or not isinstance(metadata.get("ribbon_line_lengths_mm"), list)
+                or metadata.get("ribbon_body_type", "split") != group.ribbon_body_type.value
             )
         ):
             changed_ids.add(group_id)
             continue
+        if group is not None and group.ribbon_body_type is RibbonBodyType.SOLID:
+            group_legs = tuple(
+                (leg, routes_by_id[leg.route_id]) for leg in legs if leg.cable_group_id == group_id
+            )
+            main = tuple(item for item in group_legs if not item[0].is_connection_branch)
+            if len(main) != 1:
+                raise ValueError("Solid ribbon requires one main route for refresh.")
+            main_leg, main_route = main[0]
+            fitted = ribbon_route_shape(
+                design, definition, main_leg, main_route, group.ribbon_lines, group.diameter_mm
+            )
+            plan = solid_ribbon_plan(
+                design,
+                definition,
+                group,
+                main_leg,
+                tuple(item for item in group_legs if item[0].is_connection_branch),
+                fitted.shape,
+            )
+            if metadata.get("ribbon_contact_ids") != json.loads(json.dumps(plan.contact_ids)) or (
+                metadata.get("ribbon_contact_signature")
+                != json.loads(json.dumps(plan.contact_signature))
+            ):
+                changed_ids.add(group_id)
+                continue
         stored_curves = {
             route.cable_id: route.curves for route in group_geometry_routes_from_metadata(metadata)
         }

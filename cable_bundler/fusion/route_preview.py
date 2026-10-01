@@ -21,6 +21,7 @@ from ..domain import (
     CableGroupType,
     CableMaterialSettings,
     HarnessDefinition,
+    RibbonBodyType,
     RibbonGeometryType,
 )
 from ..routing import (
@@ -35,6 +36,7 @@ from .route_preview_parts.solver import (
     reset_route_solve_cache,
     solve_cable_group_routes,
 )
+from .solid_ribbon import solid_ribbon_plan
 
 PREVIEW_GROUP_ID = "kev0.cable_bundler.route_preview"
 _PREVIEW_COLORS = (
@@ -240,6 +242,7 @@ def show_route_previews(
                 cable_group,
                 legs_by_id[route.cable_id],
                 notices,
+                tuple(zip(legs, routes)),
             )
     except (AttributeError, RuntimeError, TypeError, ValueError):
         preview_group.deleteMe()
@@ -535,6 +538,11 @@ def _refresh_cable_group_preview(
             or old_group is None
             or old_group.ribbon_line_colors != new_group.ribbon_line_colors
             or old_group.ribbon_lines != new_group.ribbon_lines
+            or old_group.ribbon_body_type != new_group.ribbon_body_type
+            or (
+                new_group.ribbon_body_type is RibbonBodyType.SOLID
+                and state.definition != definition
+            )
         )
         if state.routes.get(route.cable_id) == route and not color_changed:
             continue
@@ -552,6 +560,7 @@ def _refresh_cable_group_preview(
                 new_group,
                 legs_by_id[route.cable_id],
                 warnings,
+                tuple(zip(legs, routes)),
             )
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             for child in _cable_graphics(group, {route.cable_id}):
@@ -665,6 +674,7 @@ def _add_route_graphics(
     *,
     ribbon_lanes: tuple[tuple[Vector3, ...], ...] = (),
     ribbon_colors: tuple[CableColor, ...] = (),
+    ribbon_centerline: tuple[Vector3, ...] = (),
 ) -> None:
     """
     Add one selectable colored line strip to a preview group.
@@ -674,7 +684,7 @@ def _add_route_graphics(
         raise RuntimeError(f"Fusion did not create graphics for cable {route.cable_number}.")
     cable_group.id = str(route.cable_id)
     cable_group.name = f"Cable {route.cable_number} Preview"
-    sampled_points = sample_centerline(route)
+    sampled_points = ribbon_centerline or sample_centerline(route)
     coordinates = adsk.fusion.CustomGraphicsCoordinates.create(
         [
             coordinate / 10.0
@@ -726,11 +736,16 @@ def _add_group_route_graphics(
     cable_group: CableGroupDefinition,
     leg: CableGroupRouteLeg,
     notices: Optional[list[str]] = None,
+    all_legs_routes: tuple[tuple[CableGroupRouteLeg, RoutePreview], ...] = (),
 ) -> None:
     """
     Draw a loose centerline or ordered colored lanes for one discrete ribbon.
     """
     main_color = _route_materials(definition, cable_group, leg).main_color
+    if cable_group.group_type is CableGroupType.RIBBON and (
+        cable_group.ribbon_body_type is RibbonBodyType.SOLID and leg.is_connection_branch
+    ):
+        return
     if cable_group.group_type is CableGroupType.LOOSE or leg.is_connection_branch:
         _add_route_graphics(preview_group, route, color_index, main_color)
         return
@@ -738,6 +753,14 @@ def _add_group_route_graphics(
         design, definition, leg, route, cable_group.ribbon_lines, cable_group.diameter_mm
     )
     shape = fitted.shape
+    solid_plan = None
+    if cable_group.ribbon_body_type is RibbonBodyType.SOLID:
+        branches = tuple(
+            item
+            for item in all_legs_routes
+            if item[0].cable_group_id == cable_group.cable_group_id and item[0].is_connection_branch
+        )
+        solid_plan = solid_ribbon_plan(design, definition, cable_group, leg, branches, shape)
     if notices is not None:
         for warning in fitted.fit_warnings:
             notices.append(f"Warning: {route.cable_number}: {warning}.")
@@ -761,8 +784,20 @@ def _add_group_route_graphics(
         route,
         color_index,
         main_color,
-        ribbon_lanes=shape.lanes,
+        ribbon_lanes=solid_plan.lanes if solid_plan is not None else shape.lanes,
         ribbon_colors=cable_group.resolved_ribbon_line_colors(main_color),
+        ribbon_centerline=(
+            tuple(
+                Vector3(
+                    sum(point.x for point in section.centers) / len(section.centers),
+                    sum(point.y for point in section.centers) / len(section.centers),
+                    sum(point.z for point in section.centers) / len(section.centers),
+                )
+                for section in solid_plan.sections
+            )
+            if solid_plan is not None
+            else ()
+        ),
     )
 
 

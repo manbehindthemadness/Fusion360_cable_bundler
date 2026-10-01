@@ -54,7 +54,7 @@ class RibbonGeometryType(str, Enum):
 
 class RibbonBodyType(str, Enum):
     """
-    Retain the selected ribbon body layout without changing current geometry.
+    Choose separate line exits or one contact-to-contact ribbon loft.
     """
 
     SPLIT = "split"
