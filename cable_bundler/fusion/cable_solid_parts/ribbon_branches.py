@@ -89,9 +89,14 @@ def build_ribbon_connection_branches(
             guide_plane = end_planes.get(connection_id)
             if guide_plane is None:
                 raise ValueError("A ribbon root connection needs its fitted end plane.")
-            diameter_mm = fitted_ribbon_overlap_diameter(
-                ribbon_body, route, guide_plane, cap_diameter_mm, transform
-            )
+            try:
+                diameter_mm = fitted_ribbon_overlap_diameter(
+                    ribbon_body, route, guide_plane, cap_diameter_mm, transform
+                )
+            except (RuntimeError, ValueError) as error:
+                raise RuntimeError(
+                    f"Ribbon line {line_number} connection overlap fit failed: {error}"
+                ) from error
             if notices is not None and cap_diameter_mm - diameter_mm > 0.01:
                 notices.append(
                     f"Warning: {group.name or 'Ribbon'} line {line_number}: "

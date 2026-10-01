@@ -20,61 +20,45 @@ from .sweep_geometry import route_tail_axis
 
 _MINIMUM_DIAMETER_MM = 0.01
 _DIAMETER_PRECISION_MM = 0.005
-_ESCAPED_VOLUME_TOLERANCE_CM3 = 1e-12
-_ESCAPED_VOLUME_FRACTION = 1e-5
+_MAXIMUM_BISECTION_STEPS = 10
+_AXIAL_STATIONS = 8
+_ANGULAR_SAMPLES = 16
+_END_PLANE_TOLERANCE_MM = 1e-6
+_DIRECTION_TOLERANCE = 1e-6
 
 
-def _local_direction(
-    origin: Vector3, direction: Vector3, transform: adsk.core.Matrix3D
-) -> adsk.core.Vector3D:
+def _radial_axes(axis: Vector3) -> tuple[Vector3, Vector3]:
     """
-    Transform a world-space direction into the generated component's coordinates.
+    Build a stable perpendicular basis around the straight branch extension.
     """
-    start = fusion_point(origin, transform)
-    end = fusion_point(origin.translated(direction, 1.0), transform)
-    local = adsk.core.Vector3D.create(end.x - start.x, end.y - start.y, end.z - start.z)
-    if not local.normalize():
-        raise ValueError("A ribbon end plane has no usable local direction.")
-    return local
+    reference = Vector3(0.0, 0.0, 1.0) if abs(axis.z) < 0.9 else Vector3(1.0, 0.0, 0.0)
+    first = unit(cross(axis, reference))
+    return first, unit(cross(axis, first))
 
 
-def _inside_end_box(
-    manager: adsk.fusion.TemporaryBRepManager,
-    guide_plane: RibbonGuidePlane,
-    route_end: Vector3,
-    axis: Vector3,
-    diameter_mm: float,
+def _point_escapes_ribbon(
+    ribbon_body: adsk.fusion.BRepBody,
+    point: Vector3,
     transform: adsk.core.Matrix3D,
-) -> adsk.fusion.BRepBody:
+) -> bool:
     """
-    Bound the inward half-space so an external connection is not called a bulge.
+    Classify one sampled branch-surface point against the stable ribbon body.
     """
-    inward = unit(guide_plane.normal)
-    if dot(inward, axis) < 0.0:
-        inward = Vector3(-inward.x, -inward.y, -inward.z)
-    sideways = cross(inward, Vector3(0.0, 0.0, 1.0))
-    if abs(sideways.x) + abs(sideways.y) + abs(sideways.z) < 1e-8:
-        sideways = cross(inward, Vector3(1.0, 0.0, 0.0))
-    extent_mm = max(10.0, diameter_mm * 8.0)
-    plane_offset_mm = dot(difference(route_end, guide_plane.origin), inward)
-    end_on_plane = route_end.translated(inward, -plane_offset_mm)
-    center = end_on_plane.translated(inward, extent_mm / 2.0)
-    box = adsk.core.OrientedBoundingBox3D.create(
-        fusion_point(center, transform),
-        _local_direction(guide_plane.origin, inward, transform),
-        _local_direction(guide_plane.origin, unit(sideways), transform),
-        extent_mm / 10.0,
-        extent_mm * 2.0 / 10.0,
-        extent_mm * 2.0 / 10.0,
-    )
-    half_space = manager.createBox(box)
-    if half_space is None:
-        raise RuntimeError("Fusion could not define the ribbon's inward overlap boundary.")
-    return half_space
+    try:
+        containment = ribbon_body.pointContainment(fusion_point(point, transform))
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        raise RuntimeError("Fusion could not classify the ribbon connection overlap.") from error
+    if containment == adsk.fusion.PointContainment.PointOutsidePointContainment:
+        return True
+    if containment in (
+        adsk.fusion.PointContainment.PointInsidePointContainment,
+        adsk.fusion.PointContainment.PointOnPointContainment,
+    ):
+        return False
+    raise RuntimeError("Fusion returned an unknown ribbon connection overlap classification.")
 
 
 def _overlap_escapes_ribbon(
-    manager: adsk.fusion.TemporaryBRepManager,
     ribbon_body: adsk.fusion.BRepBody,
     route: RoutePreview,
     guide_plane: RibbonGuidePlane,
@@ -82,37 +66,40 @@ def _overlap_escapes_ribbon(
     transform: adsk.core.Matrix3D,
 ) -> bool:
     """
-    Test the same half-diameter straight extension used by the final sweep.
+    Sample the inward branch surface along the final sweep's straight overlap.
     """
     axis = route_tail_axis(route)
     start = route.curves[-1].end
-    end = start.translated(axis, diameter_mm * 0.5)
-    radius_cm = diameter_mm / 20.0
-    overlap = manager.createCylinderOrCone(
-        fusion_point(start, transform),
-        radius_cm,
-        fusion_point(end, transform),
-        radius_cm,
-    )
-    if overlap is None:
-        raise RuntimeError("Fusion could not measure the ribbon connection overlap.")
-    inward_box = _inside_end_box(manager, guide_plane, start, axis, diameter_mm, transform)
-    if not manager.booleanOperation(
-        overlap, inward_box, adsk.fusion.BooleanTypes.IntersectionBooleanType
-    ):
-        raise RuntimeError("Fusion could not clip the ribbon connection to its inward side.")
-    if not overlap.isValid or overlap.volume <= 0.0:
+    inward = unit(guide_plane.normal)
+    if dot(inward, axis) < 0.0:
+        inward = Vector3(-inward.x, -inward.y, -inward.z)
+    if dot(inward, axis) <= _DIRECTION_TOLERANCE:
+        raise ValueError("A ribbon connection has no inward overlap direction.")
+    first, second = _radial_axes(axis)
+    probe_radius_mm = diameter_mm / 2.0 + max(0.01, diameter_mm * 0.01)
+    overlap_length_mm = diameter_mm * 0.5
+    inspected_points = 0
+    for station_index in range(_AXIAL_STATIONS):
+        fraction = station_index / (_AXIAL_STATIONS - 1)
+        center = start.translated(axis, overlap_length_mm * fraction)
+        ring = (center,)
+        ring += tuple(
+            center.translated(
+                first, probe_radius_mm * math.cos(2.0 * math.pi * index / _ANGULAR_SAMPLES)
+            ).translated(
+                second, probe_radius_mm * math.sin(2.0 * math.pi * index / _ANGULAR_SAMPLES)
+            )
+            for index in range(_ANGULAR_SAMPLES)
+        )
+        for point in ring:
+            if dot(difference(point, guide_plane.origin), inward) <= _END_PLANE_TOLERANCE_MM:
+                continue
+            inspected_points += 1
+            if _point_escapes_ribbon(ribbon_body, point, transform):
+                return True
+    if inspected_points == 0:
         raise ValueError("A ribbon connection has no overlap inside its end plane.")
-    clipped_volume_cm3 = overlap.volume
-    if not manager.booleanOperation(
-        overlap, ribbon_body, adsk.fusion.BooleanTypes.DifferenceBooleanType
-    ):
-        raise RuntimeError("Fusion could not compare the connection with the ribbon surface.")
-    tolerance_cm3 = max(
-        _ESCAPED_VOLUME_TOLERANCE_CM3,
-        clipped_volume_cm3 * _ESCAPED_VOLUME_FRACTION,
-    )
-    return overlap.isValid and overlap.volume > tolerance_cm3
+    return False
 
 
 def fitted_ribbon_overlap_diameter(
@@ -125,29 +112,22 @@ def fitted_ribbon_overlap_diameter(
     """
     Return the largest constant branch diameter that stays inside the ribbon.
 
-    Temporary BRep probes leave the design untouched. The fitted end-face size
-    is an upper bound, and a failed containment operation stops generation.
+    Read-only surface probes leave the design untouched. The fitted end-face
+    size is an upper bound, and an unknown classification stops generation.
     """
     if not math.isfinite(cap_diameter_mm) or cap_diameter_mm <= 0.0:
         raise ValueError("A ribbon connection needs a positive end-face diameter.")
-    manager = adsk.fusion.TemporaryBRepManager.get()
-    if manager is None:
-        raise RuntimeError("Fusion could not access temporary ribbon geometry.")
-    if not _overlap_escapes_ribbon(
-        manager, ribbon_body, route, guide_plane, cap_diameter_mm, transform
-    ):
+    if not _overlap_escapes_ribbon(ribbon_body, route, guide_plane, cap_diameter_mm, transform):
         return cap_diameter_mm
-    if _overlap_escapes_ribbon(
-        manager, ribbon_body, route, guide_plane, _MINIMUM_DIAMETER_MM, transform
-    ):
+    if _overlap_escapes_ribbon(ribbon_body, route, guide_plane, _MINIMUM_DIAMETER_MM, transform):
         raise ValueError("A ribbon line has no usable circular connection overlap.")
     lower_mm = _MINIMUM_DIAMETER_MM
     upper_mm = cap_diameter_mm
-    while upper_mm - lower_mm > _DIAMETER_PRECISION_MM:
+    for _step in range(_MAXIMUM_BISECTION_STEPS):
+        if upper_mm - lower_mm <= _DIAMETER_PRECISION_MM:
+            break
         candidate_mm = (lower_mm + upper_mm) / 2.0
-        if _overlap_escapes_ribbon(
-            manager, ribbon_body, route, guide_plane, candidate_mm, transform
-        ):
+        if _overlap_escapes_ribbon(ribbon_body, route, guide_plane, candidate_mm, transform):
             upper_mm = candidate_mm
         else:
             lower_mm = candidate_mm
