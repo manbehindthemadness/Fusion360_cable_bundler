@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import math
 from importlib import import_module
+from typing import Optional
 from uuid import UUID
 
 # noinspection PyUnresolvedReferences
@@ -19,9 +20,11 @@ from ...application import CableGroupRouteLeg
 from ...domain import CableGroupDefinition, HarnessDefinition, PullbackMode
 from ...routing import RoutePreview
 from ..harness_gateway import ATTRIBUTE_GROUP
+from ..ribbon_geometry import RibbonGuidePlane
 from .constants import FINALIZED_OUTPUT_MODE, GENERATED_CABLE_GROUP_ATTRIBUTE
 from .materials import cable_appearance
 from .metadata import route_in_component_space, route_metadata
+from .ribbon_overlap import fitted_ribbon_overlap_diameter
 from .solid_builder import _build_route_sweep
 from .sweep_geometry import extend_route_tail, split_route_for_pullback
 from .welds import build_weld_body
@@ -52,6 +55,9 @@ def build_ribbon_connection_branches(
     definition: HarnessDefinition,
     design: adsk.fusion.Design,
     output_mode: str,
+    ribbon_body: adsk.fusion.BRepBody,
+    end_planes: dict[UUID, RibbonGuidePlane],
+    notices: Optional[list[str]] = None,
 ) -> None:
     """
     Add touching branch solids and append their stable identities to ribbon metadata.
@@ -77,7 +83,21 @@ def build_ribbon_connection_branches(
             item for item in connection.attachments if item.attachment_id == attachment_id
         )
         materials = definition.cable_end_attachment_materials(group, connection_id, attachment_id)
-        diameter_mm = leg.diameter_mm or group.diameter_mm
+        cap_diameter_mm = leg.diameter_mm or group.diameter_mm
+        diameter_mm = cap_diameter_mm
+        if attachment.parent_attachment_id is None:
+            guide_plane = end_planes.get(connection_id)
+            if guide_plane is None:
+                raise ValueError("A ribbon root connection needs its fitted end plane.")
+            diameter_mm = fitted_ribbon_overlap_diameter(
+                ribbon_body, route, guide_plane, cap_diameter_mm, transform
+            )
+            if notices is not None and cap_diameter_mm - diameter_mm > 0.01:
+                notices.append(
+                    f"Warning: {group.name or 'Ribbon'} line {line_number}: "
+                    f"ribbon surface fit reduces connection diameter to "
+                    f"{diameter_mm:.2f} mm from {cap_diameter_mm:.2f} mm."
+                )
         configured_conductor_mm = attachment.visual_overrides.conductor_diameter_mm
         pullback_diameter_mm = (
             configured_conductor_mm if configured_conductor_mm is not None else diameter_mm * 0.75

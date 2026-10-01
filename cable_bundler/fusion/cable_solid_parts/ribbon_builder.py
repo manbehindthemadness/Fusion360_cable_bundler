@@ -421,7 +421,7 @@ def build_discrete_ribbon_solid(
     design: adsk.fusion.Design,
     output_mode: str,
     notices: Optional[list[str]] = None,
-) -> None:
+) -> adsk.fusion.BRepBody:
     """
     Build one visible joined ribbon and color its physical lobe faces.
     """
@@ -547,3 +547,4 @@ def build_discrete_ribbon_solid(
     )
     if component.attributes.add(ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE, metadata) is None:
         raise RuntimeError("Fusion could not store the generated ribbon identity.")
+    return body

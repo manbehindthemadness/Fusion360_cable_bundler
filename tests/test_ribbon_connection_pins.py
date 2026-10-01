@@ -444,13 +444,15 @@ def test_target_numbering_is_persisted_and_not_recomputed(
     assert ribbon_connections.number_ribbon_connections(object(), numbered) == numbered
 
 
+@pytest.mark.parametrize("fitted_fraction", [1.0, 0.75])
 def test_generated_ribbon_branch_records_line_and_attachment_identity(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
+    fitted_fraction: float,
 ) -> None:
     """
-    Branch solids remain separate and retain their source line in metadata.
+    Use the surface-fitted diameter in the sweep, conductor, and metadata.
     """
     from cable_bundler.application import CableGroupRouteLeg
     from cable_bundler.fusion import cable_solids
@@ -493,7 +495,35 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     attribute = SimpleNamespace(value=json.dumps({"connection_branches": []}))
     component = SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
     body = SimpleNamespace(name="", appearance=None)
-    monkeypatch.setitem(vars(ribbon_branches), "_build_route_sweep", lambda *_args: (body, 10.6))
+    sweep_diameters: list[float] = []
+
+    def capture_sweep(*args: object) -> tuple[SimpleNamespace, float]:
+        """
+        Record the physical diameter supplied to the Fusion sweep.
+        """
+        assert isinstance(args[2], float)
+        sweep_diameters.append(args[2])
+        return body, 10.6
+
+    ribbon_body = object()
+    end_plane = object()
+    fit_calls: list[tuple[object, object]] = []
+
+    def fit_overlap(
+        actual_ribbon: object,
+        _route: RoutePreview,
+        plane: object,
+        cap: float,
+        _transform: object,
+    ) -> float:
+        """
+        Supply the measured branch size while checking its owning ribbon.
+        """
+        fit_calls.append((actual_ribbon, plane))
+        return cap * fitted_fraction
+
+    monkeypatch.setitem(vars(ribbon_branches), "_build_route_sweep", capture_sweep)
+    monkeypatch.setitem(vars(ribbon_branches), "fitted_ribbon_overlap_diameter", fit_overlap)
     monkeypatch.setitem(
         vars(ribbon_branches),
         "split_route_for_pullback",
@@ -507,6 +537,7 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
     monkeypatch.setitem(vars(ribbon_branches), "cable_appearance", lambda *_args: object())
     monkeypatch.setattr(cable_solids, "_attachment_weld_endpoint", lambda *_args: None)
 
+    notices: list[str] = []
     ribbon_branches.build_ribbon_connection_branches(
         component,
         group,
@@ -516,15 +547,22 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
         definition,
         object(),
         ribbon_branches.FINALIZED_OUTPUT_MODE,
+        ribbon_body,
+        {definition.connections[0].connection_id: end_plane},
+        notices,
     )
 
     branch = json.loads(attribute.value)["connection_branches"][0]
     assert branch["attachment_id"] == str(target.attachment_id)
     assert branch["ribbon_line_number"] == 2
-    assert branch["diameter_mm"] == pytest.approx(group.diameter_mm * 0.9)
-    assert branch["pullback_diameter_mm"] == pytest.approx(group.diameter_mm * 0.9 * 0.75)
+    expected_diameter = group.diameter_mm * 0.9 * fitted_fraction
+    assert branch["diameter_mm"] == pytest.approx(expected_diameter)
+    assert branch["pullback_diameter_mm"] == pytest.approx(expected_diameter * 0.75)
     assert branch["insulation_body_count"] == 1
     assert body.name.startswith("Cable Group 1 Line 2")
+    assert sweep_diameters == [pytest.approx(expected_diameter)]
+    assert fit_calls == [(ribbon_body, end_plane)]
+    assert bool(notices) is (fitted_fraction < 1.0)
 
     oversized = replace(
         target,
@@ -556,4 +594,192 @@ def test_generated_ribbon_branch_records_line_and_attachment_identity(
             oversized_definition,
             object(),
             ribbon_branches.FINALIZED_OUTPUT_MODE,
+            ribbon_body,
+            {definition.connections[0].connection_id: end_plane},
         )
+
+
+@pytest.mark.parametrize("fit_limit_mm", [0.9, 0.62])
+def test_ribbon_overlap_finds_largest_surface_fitting_diameter(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    fit_limit_mm: float,
+) -> None:
+    """
+    A surface fit changes the final diameter while retaining the cap as its maximum.
+    """
+    del addin_module
+    from cable_bundler.fusion.cable_solid_parts import ribbon_overlap
+    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+
+    start, end = Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0)
+    route = RoutePreview(
+        UUID(int=113), "Root", (start, end), (CubicBezier(start, start, end, end),)
+    )
+    manager = object()
+    monkeypatch.setitem(
+        vars(ribbon_overlap.adsk.fusion),
+        "TemporaryBRepManager",
+        SimpleNamespace(get=lambda: manager),
+    )
+    probed: list[float] = []
+
+    def escapes(
+        actual_manager: object,
+        _body: object,
+        _route: RoutePreview,
+        _plane: object,
+        diameter_mm: float,
+        _transform: object,
+    ) -> bool:
+        """
+        Model a generated ribbon boundary with a known round clearance.
+        """
+        assert actual_manager is manager
+        probed.append(diameter_mm)
+        return diameter_mm > fit_limit_mm
+
+    monkeypatch.setitem(vars(ribbon_overlap), "_overlap_escapes_ribbon", escapes)
+    fitted = ribbon_overlap.fitted_ribbon_overlap_diameter(object(), route, object(), 0.9, object())
+
+    assert fit_limit_mm - 0.005 <= fitted <= fit_limit_mm
+    assert probed[0] == 0.9
+    assert len(probed) == (1 if fit_limit_mm == 0.9 else 10)
+
+
+def test_ribbon_overlap_rejects_an_end_without_circular_clearance(
+    addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Never generate an exposed root when even the minimum candidate protrudes.
+    """
+    del addin_module
+    from cable_bundler.fusion.cable_solid_parts import ribbon_overlap
+    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+
+    start, end = Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0)
+    route = RoutePreview(
+        UUID(int=114), "Root", (start, end), (CubicBezier(start, start, end, end),)
+    )
+    monkeypatch.setitem(
+        vars(ribbon_overlap.adsk.fusion),
+        "TemporaryBRepManager",
+        SimpleNamespace(get=lambda: object()),
+    )
+    monkeypatch.setitem(vars(ribbon_overlap), "_overlap_escapes_ribbon", lambda *_args: True)
+
+    with pytest.raises(ValueError, match="no usable circular connection overlap"):
+        ribbon_overlap.fitted_ribbon_overlap_diameter(object(), route, object(), 0.9, object())
+
+
+def test_ribbon_overlap_probes_exact_generated_tail(
+    addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The surface test uses the sweep's half-diameter extension and inward clip.
+    """
+    del addin_module
+    from cable_bundler.fusion.cable_solid_parts import ribbon_overlap
+    from cable_bundler.routing import CubicBezier, RoutePreview, Vector3
+
+    start, end = Vector3(0.0, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)
+    route = RoutePreview(
+        UUID(int=115), "Root", (start, end), (CubicBezier(start, start, end, end),)
+    )
+    cylinder = SimpleNamespace(isValid=True, volume=0.01)
+    inside_box = object()
+    ribbon_body = object()
+    operations: list[tuple[object, object]] = []
+    cylinder_args: list[tuple[Vector3, float, Vector3, float]] = []
+
+    class FakeManager:
+        """
+        Record temporary construction and the two ordered Boolean operations.
+        """
+
+        def createCylinderOrCone(
+            self, point_a: Vector3, radius_a: float, point_b: Vector3, radius_b: float
+        ) -> SimpleNamespace:
+            """
+            Return one temporary overlap cylinder.
+            """
+            cylinder_args.append((point_a, radius_a, point_b, radius_b))
+            return cylinder
+
+        def booleanOperation(self, target: object, tool: object, operation: object) -> bool:
+            """
+            Simulate a tiny escaped remainder after the ribbon subtraction.
+            """
+            assert target is cylinder
+            operations.append((tool, operation))
+            if tool is ribbon_body:
+                cylinder.volume = 0.002
+            return True
+
+    monkeypatch.setitem(
+        vars(ribbon_overlap.adsk.fusion),
+        "BooleanTypes",
+        SimpleNamespace(IntersectionBooleanType="intersection", DifferenceBooleanType="difference"),
+    )
+    monkeypatch.setitem(vars(ribbon_overlap), "fusion_point", lambda point, _transform: point)
+    monkeypatch.setitem(vars(ribbon_overlap), "_inside_end_box", lambda *_args: inside_box)
+
+    escaped = ribbon_overlap._overlap_escapes_ribbon(
+        FakeManager(), ribbon_body, route, object(), 0.8, object()
+    )
+
+    assert escaped
+    assert cylinder_args == [(end, 0.04, Vector3(2.4, 0.0, 0.0), 0.04)]
+    assert operations == [(inside_box, "intersection"), (ribbon_body, "difference")]
+
+
+def test_ribbon_overlap_clip_follows_a_remote_guide_location(
+    addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    A sketch origin far from its guide must not place the clip away from the branch.
+    """
+    del addin_module
+    from cable_bundler.fusion.cable_solid_parts import ribbon_overlap
+    from cable_bundler.fusion.ribbon_geometry import RibbonGuidePlane
+    from cable_bundler.routing import Vector3
+
+    captured_centers: list[Vector3] = []
+
+    class FakeDirection:
+        """
+        Supply the normalization operation used by Fusion box directions.
+        """
+
+        def normalize(self) -> bool:
+            """
+            Accept a nonzero direction for this geometry placement test.
+            """
+            return True
+
+    def create_box(center: Vector3, *_args: object) -> object:
+        """
+        Record the location of the inward clipping volume.
+        """
+        captured_centers.append(center)
+        return object()
+
+    monkeypatch.setitem(
+        vars(ribbon_overlap.adsk.core),
+        "Vector3D",
+        SimpleNamespace(create=lambda *_args: FakeDirection()),
+    )
+    monkeypatch.setitem(
+        vars(ribbon_overlap.adsk.core),
+        "OrientedBoundingBox3D",
+        SimpleNamespace(create=create_box),
+    )
+    monkeypatch.setitem(vars(ribbon_overlap), "fusion_point", lambda point, _transform: point)
+    manager = SimpleNamespace(createBox=lambda _box: object())
+    plane = RibbonGuidePlane(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0))
+
+    ribbon_overlap._inside_end_box(
+        manager, plane, Vector3(100.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), 0.8, object()
+    )
+
+    assert captured_centers == [Vector3(100.0, 0.0, 5.0)]

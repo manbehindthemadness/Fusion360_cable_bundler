@@ -60,6 +60,19 @@ class RouteEndpointPullbackSplit:
     end_length_mm: float
 
 
+def route_tail_axis(route: RoutePreview) -> Vector3:
+    """
+    Return the straight extension direction used for a branch's hidden overlap.
+    """
+    if not route.curves:
+        raise ValueError("A branch overlap requires a routed curve.")
+    endpoint = route.curves[-1].end
+    derivative = route.curves[-1].derivative(1.0)
+    return unit(
+        derivative if magnitude(derivative) > 1e-9 else difference(endpoint, route.curves[-1].start)
+    )
+
+
 def extend_route_tail(route: RoutePreview, distance_mm: float) -> RoutePreview:
     """
     Extend a branch sweep into its parent without changing its logical route.
@@ -75,10 +88,7 @@ def extend_route_tail(route: RoutePreview, distance_mm: float) -> RoutePreview:
     ):
         raise ValueError("Branch overlap needs a positive distance and routed curves.")
     endpoint = route.curves[-1].end
-    derivative = route.curves[-1].derivative(1.0)
-    tangent = unit(
-        derivative if magnitude(derivative) > 1e-9 else difference(endpoint, route.curves[-1].start)
-    )
+    tangent = route_tail_axis(route)
     extension = CubicBezier(
         endpoint,
         endpoint.translated(tangent, distance_mm / 3.0),
