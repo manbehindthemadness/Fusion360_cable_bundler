@@ -8,7 +8,6 @@ import json
 from dataclasses import replace
 from importlib import import_module
 from types import SimpleNamespace
-from typing import Any
 from uuid import UUID
 
 import pytest
@@ -27,7 +26,7 @@ from cable_bundler.domain import (
     dumps,
     loads,
 )
-from cable_bundler.domain.ffc import resolve_ffc_dimensions
+from cable_bundler.domain.ffc import FfcDimensions, resolve_ffc_dimensions
 from cable_bundler.routing import Vector3
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
@@ -186,35 +185,133 @@ def test_ffc_contact_geometry_measures_first_end_outlines(
     assert dimensions.spacing_mm == pytest.approx(0.4)
 
 
+@pytest.mark.parametrize("line_count", [1, 3])
+@pytest.mark.parametrize(("trace_width", "spacing"), [(0.6, 0.4), (0.8, 0.2), (0.2, 0.8)])
 def test_ffc_section_keeps_flat_traces_inside_overall_thickness(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
+    line_count: int,
+    trace_width: float,
+    spacing: float,
 ) -> None:
     """
-    Three flat bands and their recessed web form one closed contour.
+    Keep flat per-trace lands separated from web faces by tiny V notches.
     """
     builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
     monkeypatch.setitem(vars(builder), "fusion_point", lambda point, _transform: point)
     edges: list[tuple[Vector3, Vector3]] = []
-    sketch: Any = SimpleNamespace(
+    junctions: list[Vector3] = []
+    sketch = SimpleNamespace(
         modelToSketchSpace=lambda point: point,
+        sketchPoints=SimpleNamespace(add=lambda point: junctions.append(point) or point),
         sketchCurves=SimpleNamespace(
             sketchLines=SimpleNamespace(
                 addByTwoPoints=lambda left, right: edges.append((left, right)) or object()
-            )
+            ),
         ),
     )
     station = builder.SolidRibbonSection(
-        (Vector3(-1, 0, 0), Vector3(0, 0, 0), Vector3(1, 0, 0)),
+        tuple(Vector3(index - (line_count - 1) / 2, 0, 0) for index in range(line_count)),
         Vector3(0, 0, 1),
         Vector3(1, 0, 0),
         0.6,
     )
-    dimensions = resolve_ffc_dimensions(1.0, (None, None, None), 0.6, 0.4)
+    dimensions = resolve_ffc_dimensions(1.0, (None,) * line_count, trace_width, spacing)
     builder._draw_ffc_section(sketch, station, Vector3(0, 1, 0), 0.2, dimensions, None)
-    corners = [edge[0] for edge in edges]
-    assert len(edges) == 28
-    assert edges[-1][1] == edges[0][0]
-    assert (min(point.x for point in corners), max(point.x for point in corners)) == (-1.5, 1.5)
-    assert (min(point.y for point in corners), max(point.y for point in corners)) == (-0.1, 0.1)
-    assert any(point.y == pytest.approx(0.09) for point in corners)
+    assert len(junctions) == 12 * line_count + 4
+    assert len(edges) == len(junctions)
+    assert all(left[1] is right[0] for left, right in zip(edges, (*edges[1:], edges[0])))
+    top_lands = [
+        right.x - left.x
+        for left, right in edges
+        if left.y == right.y == 0.1 and right.x - left.x == pytest.approx(trace_width)
+    ]
+    assert len(top_lands) == line_count
+    notch_half_width = min(trace_width, spacing) * 0.03
+    top_webs = [
+        right.x - left.x
+        for left, right in edges
+        if left.y == right.y == 0.1
+        and right.x - left.x == pytest.approx(spacing - 4.0 * notch_half_width)
+    ]
+    assert len(top_webs) == line_count - 1
+    assert sum(left.y == right.y == -0.1 for left, right in edges) == 2 * line_count + 1
+    assert sum(corner.y == pytest.approx(0.09) for corner in junctions) == 2 * line_count
+    assert sum(corner.y == pytest.approx(-0.09) for corner in junctions) == 2 * line_count
+    assert all(-0.1 <= corner.y <= 0.1 for corner in junctions)
+
+
+def test_ffc_single_trace_joins_sparse_station_pairs(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Reuse the Solid route stations when one full-lane Fusion loft is invalid.
+    """
+    del addin_module
+    builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    stations = tuple(
+        solid.SolidRibbonSection(
+            (Vector3(float(index), 0.0, 0.0),),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            0.6,
+        )
+        for index in range(40)
+    )
+    plan = solid.SolidRibbonPlan(stations, (), ((), ()), ((), ()), ())
+    new_body, join = object(), object()
+    monkeypatch.setitem(
+        vars(builder.adsk.fusion),
+        "FeatureOperations",
+        SimpleNamespace(NewBodyFeatureOperation=new_body, JoinFeatureOperation=join),
+    )
+    operations: list[object] = []
+    profiles: list[list[int]] = []
+    features: list[SimpleNamespace] = []
+
+    def create_input(operation: object) -> SimpleNamespace:
+        """
+        Record the loft operation and its two source profiles.
+        """
+        operations.append(operation)
+        section_profiles: list[int] = []
+        profiles.append(section_profiles)
+        return SimpleNamespace(loftSections=SimpleNamespace(add=section_profiles.append))
+
+    def add_loft(_loft_input: object) -> SimpleNamespace:
+        """
+        Simulate a successful Join into the same solid body.
+        """
+        feature = SimpleNamespace()
+        features.append(feature)
+        return feature
+
+    body = SimpleNamespace(isSolid=True, volume=1.0)
+    component = SimpleNamespace(
+        bRepBodies=SimpleNamespace(count=1, item=lambda _index: body),
+        features=SimpleNamespace(
+            loftFeatures=SimpleNamespace(createInput=create_input, add=add_loft)
+        ),
+    )
+
+    def add_section(
+        _component: object,
+        station: solid.SolidRibbonSection,
+        _thickness_mm: float,
+        _transform: object,
+        _ffc: FfcDimensions,
+    ) -> tuple[SimpleNamespace, SimpleNamespace]:
+        """
+        Give each route station a stable sketch profile marker.
+        """
+        marker = int(station.centers[0].x)
+        sketch = SimpleNamespace(profiles=SimpleNamespace(item=lambda _index: marker))
+        return sketch, SimpleNamespace()
+
+    monkeypatch.setitem(vars(builder), "_add_solid_section", add_section)
+    dimensions = resolve_ffc_dimensions(1.0, (None,), 0.6, 0.4)
+    assert builder._build_solid_loft(component, plan, 0.2, None, dimensions) is features[-1]
+    assert operations == [new_body, join, join, join, join, join]
+    assert profiles == [[0, 4], [4, 12], [12, 20], [20, 28], [28, 35], [35, 39]]

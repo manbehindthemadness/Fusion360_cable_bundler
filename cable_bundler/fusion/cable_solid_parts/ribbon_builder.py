@@ -540,24 +540,30 @@ def _draw_ffc_section(
     transform: adsk.core.Matrix3D,
 ) -> None:
     """
-    Draw flat trace bands and a shallow symmetric web as one closed profile.
+    Separate flat trace lands from spacing webs with shallow V notches.
+
+    Keep each colorable land exactly trace_width_mm wide; notch relief uses
+    only the neighboring spacing and preserves the overall thickness.
     """
     half_height = thickness_mm / 2.0
-    web_height = half_height * 0.9
+    notch_depth = thickness_mm * 0.05
+    notch_half_width = min(ffc.trace_width_mm, ffc.spacing_mm) * 0.03
     half_trace = ffc.trace_width_mm / 2.0
     half_pitch = ffc.pitch_mm / 2.0
     count = len(station.centers)
-    top = [(0, -half_pitch, web_height)]
+    top = [(0, -half_pitch, half_height)]
     for index in range(count):
         top.extend(
             (
-                (index, -half_trace, web_height),
+                (index, -half_trace - 2.0 * notch_half_width, half_height),
+                (index, -half_trace - notch_half_width, half_height - notch_depth),
                 (index, -half_trace, half_height),
                 (index, half_trace, half_height),
-                (index, half_trace, web_height),
+                (index, half_trace + notch_half_width, half_height - notch_depth),
+                (index, half_trace + 2.0 * notch_half_width, half_height),
             )
         )
-    top.append((count - 1, half_pitch, web_height))
+    top.append((count - 1, half_pitch, half_height))
     bottom = [(index, across, -height) for index, across, height in reversed(top)]
     contour = top + bottom
 
@@ -568,10 +574,72 @@ def _draw_ffc_section(
         world = station.centers[index].translated(station.width, across).translated(normal, height)
         return sketch.modelToSketchSpace(fusion_point(world, transform))
 
-    corners = tuple(point(*corner) for corner in contour)
+    corners = tuple(sketch.sketchPoints.add(point(*corner)) for corner in contour)
+    if any(corner is None for corner in corners):
+        raise RuntimeError("Fusion could not place an FFC section corner.")
     for start, end in zip(corners, (*corners[1:], corners[0])):
         if sketch.sketchCurves.sketchLines.addByTwoPoints(start, end) is None:
             raise RuntimeError("Fusion could not draw an FFC section edge.")
+
+
+def _build_single_trace_ffc_loft(
+    component: adsk.fusion.Component,
+    plan: SolidRibbonPlan,
+    thickness_mm: float,
+    transform: adsk.core.Matrix3D,
+    ffc: FfcDimensions,
+    station_indices: tuple[int, ...],
+) -> adsk.fusion.LoftFeature:
+    """
+    Join two-section lofts where Fusion rejects one loft over the bent lane.
+
+    The same station profiles and solver drive every span. Shared sketches
+    make each adjacent loft meet at exactly the same cross-section.
+    """
+    sections: list[adsk.fusion.Sketch] = []
+    planes: list[adsk.fusion.ConstructionPlane] = []
+    lofts: list[adsk.fusion.LoftFeature] = []
+    try:
+        for section_index in station_indices:
+            section, plane = _add_solid_section(
+                component, plan.sections[section_index], thickness_mm, transform, ffc
+            )
+            sections.append(section)
+            planes.append(plane)
+        for span_index, (start, end) in enumerate(zip(sections, sections[1:])):
+            operation = (
+                adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+                if span_index == 0
+                else adsk.fusion.FeatureOperations.JoinFeatureOperation
+            )
+            loft_input = component.features.loftFeatures.createInput(operation)
+            if loft_input is None:
+                raise RuntimeError(f"Fusion could not define FFC span {span_index + 1}.")
+            loft_input.loftSections.add(start.profiles.item(0))
+            loft_input.loftSections.add(end.profiles.item(0))
+            loft_input.isSolid = True
+            loft_input.isTangentEdgesMerged = True
+            loft = component.features.loftFeatures.add(loft_input)
+            if loft is None:
+                raise RuntimeError(f"Fusion rejected FFC span {span_index + 1}.")
+            lofts.append(loft)
+            if component.bRepBodies.count != 1:
+                raise RuntimeError(f"Fusion did not join FFC span {span_index + 1}.")
+        body = component.bRepBodies.item(0)
+        if body is None or not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
+            raise RuntimeError("Fusion produced an invalid single-trace FFC body.")
+        return lofts[-1]
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        for loft in reversed(lofts):
+            if loft.isValid:
+                loft.deleteMe()
+        for section in reversed(sections):
+            if section.isValid:
+                section.deleteMe()
+        for plane in reversed(planes):
+            if plane.isValid:
+                plane.deleteMe()
+        raise
 
 
 def _build_solid_loft(
@@ -603,6 +671,10 @@ def _build_solid_loft(
             else ()
         )
         station_indices = tuple(dict.fromkeys((0, *main_indices, station_count - 1)))
+        if ffc is not None and len(plan.sections[0].centers) == 1:
+            return _build_single_trace_ffc_loft(
+                component, plan, diameter_mm, transform, ffc, station_indices
+            )
         loft_input = component.features.loftFeatures.createInput(
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
@@ -633,8 +705,27 @@ def _build_solid_loft(
         loft_input.isSolid = True
         loft_input.isTangentEdgesMerged = True
         loft = component.features.loftFeatures.add(loft_input)
-        if loft is None or loft.bodies.count != 1 or component.bRepBodies.count != 1:
-            raise RuntimeError("Fusion could not loft the Solid ribbon into one body.")
+        if loft is None:
+            error_code, description = adsk.core.Application.get().getLastError()
+            raise RuntimeError(
+                "Fusion rejected the Solid ribbon loft "
+                f"(error {error_code}: {description or 'no detail available'})."
+            )
+        feature_bodies = loft.bodies.count
+        component_bodies = component.bRepBodies.count
+        if feature_bodies != 1 or component_bodies != 1:
+            solids = 0
+            for index in range(feature_bodies):
+                candidate = loft.bodies.item(index)
+                if candidate is not None and candidate.isSolid:
+                    solids += 1
+            raise RuntimeError(
+                "Fusion did not produce exactly one Solid ribbon body "
+                f"(feature bodies={feature_bodies}, component bodies={component_bodies}, "
+                f"solid bodies={solids}, "
+                f"feature health={getattr(loft, 'healthState', 'unavailable')}, "
+                f"detail={getattr(loft, 'errorOrWarningMessage', '') or 'none'})."
+            )
         body = loft.bodies.item(0)
         if body is None or not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
             raise RuntimeError("Fusion produced an invalid Solid ribbon body.")
@@ -719,7 +810,7 @@ def build_discrete_ribbon_solid(
         rail_sketch.isLightBulbOn = False
         section.isLightBulbOn = False
         plane.isLightBulbOn = False
-    body = feature.bodies.item(0)
+    body = component.bRepBodies.item(0) if solid_plan is not None else feature.bodies.item(0)
     if not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
         raise RuntimeError("Fusion produced an invalid discrete ribbon solid.")
     body.name = (
@@ -732,8 +823,9 @@ def build_discrete_ribbon_solid(
     body.isLightBulbOn = True
     body.appearance = cable_appearance(design, materials.main_color, materials.appearance)
     line_colors = group.resolved_ribbon_line_colors(materials.main_color)
-    for face_index in range(feature.sideFaces.count):
-        face = feature.sideFaces.item(face_index)
+    color_faces = body.faces if ffc is not None and group.ribbon_lines == 1 else feature.sideFaces
+    for face_index in range(color_faces.count):
+        face = color_faces.item(face_index)
         if face is not None:
             lane = _face_lane(face, frames, transform, group, solid_plan)
             face.appearance = cable_appearance(design, line_colors[lane])
