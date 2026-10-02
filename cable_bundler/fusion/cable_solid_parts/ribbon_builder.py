@@ -27,7 +27,7 @@ from ...routing import (
     ribbon_lane_points,
     ribbon_line_lengths,
 )
-from ...routing.geometry import difference, dot
+from ...routing.geometry import cross, difference, dot, unit
 from ..harness_gateway import ATTRIBUTE_GROUP
 from ..ribbon_geometry import RibbonGuidePlane
 from ..solid_ribbon import (
@@ -299,6 +299,64 @@ def _build_guide_rail(
     return sketch, path
 
 
+def _face_world_point(
+    face: adsk.fusion.BRepFace,
+    transform: adsk.core.Matrix3D,
+) -> Vector3:
+    """
+    Locate a Fusion face sample in the millimeter routing coordinate system.
+    """
+    inverse = transform.copy()
+    if not inverse.invert():
+        raise RuntimeError("Ribbon color mapping could not invert the harness placement.")
+    point = face.pointOnFace.copy()
+    if not point.transformBy(inverse):
+        raise RuntimeError("Ribbon color mapping could not transform a face point.")
+    return Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
+
+
+def _nearest_solid_station(world: Vector3, plan: SolidRibbonPlan) -> SolidRibbonSection:
+    """
+    Find the transported section closest to a generated loft face.
+    """
+    return min(
+        plan.sections,
+        key=lambda station: min(
+            math.dist((world.x, world.y, world.z), (center.x, center.y, center.z))
+            for center in station.centers
+        ),
+    )
+
+
+def _ffc_trace_land_lane(
+    world: Vector3,
+    plan: SolidRibbonPlan,
+    ffc: FfcDimensions,
+    thickness_mm: float,
+) -> int | None:
+    """
+    Color only a trace's upper or lower flat land, never its edge or spacing web.
+
+    Section notches separate each land from its web so each loft face receives
+    one appearance. The face sample is tested in the nearest transported frame.
+    """
+    station = _nearest_solid_station(world, plan)
+    lane = min(
+        range(len(station.centers)),
+        key=lambda index: math.dist(
+            (world.x, world.y, world.z),
+            (station.centers[index].x, station.centers[index].y, station.centers[index].z),
+        ),
+    )
+    offset = difference(world, station.centers[lane])
+    across_mm = abs(dot(offset, station.width))
+    height = unit(cross(station.normal, station.width))
+    height_mm = abs(dot(offset, height))
+    if across_mm >= ffc.trace_width_mm / 2.0 or height_mm < thickness_mm * 0.4:
+        return None
+    return lane
+
+
 def _face_lane(
     face: adsk.fusion.BRepFace,
     frames: tuple[RibbonFrame, ...],
@@ -309,21 +367,9 @@ def _face_lane(
     """
     Match one generated side face to its nearest transported line lane.
     """
-    inverse = transform.copy()
-    if not inverse.invert():
-        raise RuntimeError("Ribbon color mapping could not invert the harness placement.")
-    point = face.pointOnFace.copy()
-    if not point.transformBy(inverse):
-        raise RuntimeError("Ribbon color mapping could not transform a face point.")
-    world = Vector3(point.x * 10.0, point.y * 10.0, point.z * 10.0)
+    world = _face_world_point(face, transform)
     if solid_plan is not None:
-        nearest_station = min(
-            solid_plan.sections,
-            key=lambda station: min(
-                math.dist((world.x, world.y, world.z), (center.x, center.y, center.z))
-                for center in station.centers
-            ),
-        )
+        nearest_station = _nearest_solid_station(world, solid_plan)
         return min(
             range(group.ribbon_lines),
             key=lambda index: math.dist(
@@ -827,7 +873,16 @@ def build_discrete_ribbon_solid(
     for face_index in range(color_faces.count):
         face = color_faces.item(face_index)
         if face is not None:
-            lane = _face_lane(face, frames, transform, group, solid_plan)
+            if ffc is not None:
+                if solid_plan is None:
+                    raise RuntimeError("FFC face colors require a solid ribbon plan.")
+                lane = _ffc_trace_land_lane(
+                    _face_world_point(face, transform), solid_plan, ffc, group.diameter_mm
+                )
+                if lane is None:
+                    continue
+            else:
+                lane = _face_lane(face, frames, transform, group, solid_plan)
             face.appearance = cable_appearance(design, line_colors[lane])
             if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
                 raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")

@@ -241,6 +241,46 @@ def test_ffc_section_keeps_flat_traces_inside_overall_thickness(
     assert all(-0.1 <= corner.y <= 0.1 for corner in junctions)
 
 
+def test_ffc_colors_only_the_top_and_bottom_of_each_trace(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Keep spacing webs, notch slopes, and outer edges in the ribbon base color.
+    """
+    del addin_module
+    builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    station = solid.SolidRibbonSection(
+        (Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(2.0, 0.0, 0.0)),
+        Vector3(0.0, 0.0, 1.0),
+        Vector3(1.0, 0.0, 0.0),
+        0.6,
+    )
+    plan = solid.SolidRibbonPlan((station,), (), ((), ()), ((), ()), ())
+    dimensions = resolve_ffc_dimensions(1.0, (None,) * 3, 0.6, 0.4)
+
+    for lane in range(3):
+        for height in (-0.1, 0.1):
+            sample = Vector3(float(lane), height, 0.0)
+            assert builder._ffc_trace_land_lane(sample, plan, dimensions, 0.2) == lane
+
+    for sample in (
+        Vector3(0.5, 0.1, 0.0),  # upper spacing web
+        Vector3(1.5, -0.1, 0.0),  # lower spacing web
+        Vector3(0.33, 0.09, 0.0),  # sloped notch outside the land
+        Vector3(-0.5, 0.0, 0.0),  # outer edge
+        Vector3(1.0, 0.0, 0.0),  # flat end cap
+    ):
+        assert builder._ffc_trace_land_lane(sample, plan, dimensions, 0.2) is None
+
+    single_station = replace(station, centers=(station.centers[1],))
+    single_plan = replace(plan, sections=(single_station,))
+    assert builder._ffc_trace_land_lane(Vector3(1.0, 0.1, 0.0), single_plan, dimensions, 0.2) == 0
+    assert (
+        builder._ffc_trace_land_lane(Vector3(1.0, 0.0, 0.0), single_plan, dimensions, 0.2) is None
+    )
+
+
 def test_ffc_single_trace_joins_sparse_station_pairs(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
