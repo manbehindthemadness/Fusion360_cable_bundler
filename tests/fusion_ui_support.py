@@ -228,7 +228,7 @@ class _PaletteLifecycleModule(Protocol):
     _preview_routes: Callable[[object, str], int]
     _generate_solids: Callable[[object, str], int]
     _finalize_solids: Callable[[object, str], int]
-    _hide_finalized_supports: Callable[[object, HarnessDefinition], int]
+    _hide_output_supports: Callable[[object, HarnessDefinition], int]
     _show_render_supports: Callable[[object, HarnessDefinition], int]
     generate_cable_group_solids: Callable[..., int]
     refresh_generated_cable_groups_for_connection: Callable[..., int]

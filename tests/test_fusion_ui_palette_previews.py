@@ -96,6 +96,29 @@ def test_clear_preview_deletes_graphics_outside_edit_transaction(
     viewport.refresh.assert_called_once()
 
 
+def test_clear_preview_removes_graphics_even_if_selection_cleanup_fails(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A Fusion selection failure must not leave route shapes over generated solids.
+    """
+    design = object()
+    application = SimpleNamespace(activeViewport=Mock())
+    clear = Mock(return_value=1)
+    monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
+    monkeypatch.setattr(addin_module, "clear_route_previews", clear)
+    monkeypatch.setattr(
+        addin_module, "_clear_highlight", Mock(side_effect=RuntimeError("Selection unavailable"))
+    )
+
+    with pytest.raises(RuntimeError, match="Selection unavailable"):
+        addin_module._clear_preview(application)
+
+    clear.assert_called_once_with(design)
+    application.activeViewport.refresh.assert_called_once()
+
+
 def test_clear_preview_palette_event_bypasses_model_edit_command(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,

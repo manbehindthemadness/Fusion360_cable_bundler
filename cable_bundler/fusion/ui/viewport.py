@@ -425,9 +425,11 @@ def _clear_preview(application: adsk.core.Application) -> int:
     """
     Remove transient route graphics outside a Fusion model-edit transaction.
     """
-    _clear_highlight(application)
     count = clear_route_previews(_require_active_design(application))
-    application.activeViewport.refresh()
+    try:
+        _clear_highlight(application)
+    finally:
+        application.activeViewport.refresh()
     return count
 
 
@@ -548,12 +550,12 @@ def _set_harness_support_visibility(
     return changed_count
 
 
-def _hide_finalized_supports(
+def _hide_output_supports(
     design: adsk.fusion.Design,
     definition: HarnessDefinition,
 ) -> int:
     """
-    Hide support geometry after finalized output replaces the working view.
+    Hide preview and construction supports after generated output replaces the working view.
     """
     return _set_harness_support_visibility(design, definition, is_visible=False)
 
@@ -563,7 +565,7 @@ def _show_render_supports(
     definition: HarnessDefinition,
 ) -> int:
     """
-    Restore support geometry for route previews and ordinary solid output.
+    Restore support geometry when the working route preview is shown.
     """
     return _set_harness_support_visibility(design, definition, is_visible=True)
 
@@ -596,14 +598,7 @@ def _generate_cable_geometry(
     )
     solids_seconds = perf_counter() - workflow_started
     stage_started = perf_counter()
-    if output_mode == FINALIZED_OUTPUT_MODE:
-        _hide_finalized_supports(design, definition)
-    else:
-        _show_render_supports(design, definition)
-        # Solid output retains editable sketches, but preview overlays must not
-        # remain visible while Fusion finishes the command transaction.
-        hide_route_previews(design)
-        hide_refine_graphics(design)
+    _hide_output_supports(design, definition)
     supports_seconds = perf_counter() - stage_started
     stage_started = perf_counter()
     application.activeViewport.refresh()

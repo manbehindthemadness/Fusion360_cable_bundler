@@ -37,7 +37,7 @@ def hover_widget_adapter(
     return shown
 
 
-def test_finalize_hides_support_sketches_and_graphics_but_not_face_bodies(
+def test_generated_output_hides_support_sketches_and_graphics_but_not_face_bodies(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
@@ -93,7 +93,7 @@ def test_finalize_hides_support_sketches_and_graphics_but_not_face_bodies(
     monkeypatch.setattr(addin_module, "hide_refine_graphics", hide_refines)
     monkeypatch.setattr(addin_module, "resolve_attachment_target", resolve_target)
 
-    assert addin_module._hide_finalized_supports(design, definition) == 3
+    assert addin_module._hide_output_supports(design, definition) == 3
 
     assert not shared_sketch.isLightBulbOn
     assert stale_sketch.isLightBulbOn
@@ -113,7 +113,7 @@ def test_finalize_hides_support_sketches_and_graphics_but_not_face_bodies(
     resolve_target.assert_not_called()
 
 
-def test_finalize_hides_non_body_attachment_support(
+def test_generated_output_hides_non_body_attachment_support(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
@@ -151,7 +151,7 @@ def test_finalize_hides_non_body_attachment_support(
         lambda _design, _target: support_point,
     )
 
-    assert addin_module._hide_finalized_supports(design, definition) == 1
+    assert addin_module._hide_output_supports(design, definition) == 1
     assert not support_point.isLightBulbOn
     assert addin_module._show_render_supports(design, definition) == 1
     assert support_point.isLightBulbOn
@@ -712,7 +712,7 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
     monkeypatch.setattr(addin_module, "_require_active_design", lambda _application: design)
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "generate_cable_group_solids", generate)
-    monkeypatch.setattr(addin_module, "_hide_finalized_supports", hide_supports)
+    monkeypatch.setattr(addin_module, "_hide_output_supports", hide_supports)
     monkeypatch.setattr(addin_module, "_show_render_supports", show_supports)
     monkeypatch.setattr(addin_module, "hide_route_previews", hide_routes)
     monkeypatch.setattr(addin_module, "hide_refine_graphics", hide_refines)
@@ -738,15 +738,9 @@ def test_generated_output_uses_selected_geometry_mode_and_reports_group_count(
         notices,
         output_mode,
     )
-    if output_mode == "finalized":
-        hide_supports.assert_called_once_with(design, valid_harness)
-        show_supports.assert_not_called()
-        hide_routes.assert_not_called()
-        hide_refines.assert_not_called()
-    else:
-        hide_supports.assert_not_called()
-        show_supports.assert_called_once_with(design, valid_harness)
-        hide_routes.assert_called_once_with(design)
-        hide_refines.assert_called_once_with(design)
+    hide_supports.assert_called_once_with(design, valid_harness)
+    show_supports.assert_not_called()
+    hide_routes.assert_not_called()
+    hide_refines.assert_not_called()
     viewport.refresh.assert_called_once_with()
     send_state.assert_called_once_with(application, expected_notice)
