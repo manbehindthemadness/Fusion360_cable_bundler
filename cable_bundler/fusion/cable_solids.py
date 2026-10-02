@@ -24,6 +24,7 @@ from ..domain import (
     HarnessDefinition,
     PullbackMode,
     RibbonBodyType,
+    RibbonGeometryType,
     validate_harness,
 )
 from ..routing import (
@@ -69,6 +70,7 @@ from .cable_solid_visibility import (
     hide_generated_cable_group_solids,
     restore_generated_cable_group_visibility,
 )
+from .ffc_dimensions import ffc_dimensions
 from .harness_gateway import ATTRIBUTE_GROUP
 from .ribbon_geometry import ribbon_route_shape
 from .route_preview import solve_cable_group_centerlines
@@ -531,25 +533,37 @@ def _build_group_output(
     timings: Optional[dict[str, float]] = None,
 ) -> None:
     """
-    Dispatch separate loose and discrete-ribbon construction contracts.
+    Dispatch loose and ribbon construction contracts.
     """
     if group.group_type is CableGroupType.RIBBON:
         main_legs = tuple(item for item in group_legs if not item[0].is_connection_branch)
         branches = tuple(item for item in group_legs if item[0].is_connection_branch)
         if len(main_legs) != 1:
-            raise ValueError("A discrete ribbon requires exactly one two-ended route.")
+            raise ValueError("A ribbon requires exactly one two-ended route.")
         leg, route = main_legs[0]
         stage_started = perf_counter()
-        fitted = ribbon_route_shape(
-            design, definition, leg, route, group.ribbon_lines, group.diameter_mm
+        ffc = (
+            ffc_dimensions(design, definition, group)
+            if group.ribbon_geometry is RibbonGeometryType.FFC
+            else None
         )
+        pitch = ffc.pitch_mm if ffc is not None else group.diameter_mm
+        fitted = ribbon_route_shape(design, definition, leg, route, group.ribbon_lines, pitch)
         if timings is not None:
             timings["ribbon_shape"] = perf_counter() - stage_started
         if notices is not None:
             for warning in fitted.fit_warnings:
                 notices.append(f"Warning: Cable Group {group_index + 1}: {warning}.")
         solid_plan = (
-            solid_ribbon_plan(design, definition, group, leg, branches, fitted.shape)
+            solid_ribbon_plan(
+                design,
+                definition,
+                group,
+                leg,
+                branches,
+                fitted.shape,
+                pitch if ffc is not None else None,
+            )
             if group.ribbon_body_type is RibbonBodyType.SOLID
             else None
         )
@@ -568,6 +582,7 @@ def _build_group_output(
             output_mode,
             notices,
             solid_plan,
+            ffc,
         )
         if timings is not None:
             timings["ribbon_body"] = perf_counter() - stage_started
@@ -837,6 +852,14 @@ def refresh_changed_generated_cable_groups(
                 or metadata.get("diameter_mm") != group.diameter_mm
                 or not isinstance(metadata.get("ribbon_line_lengths_mm"), list)
                 or metadata.get("ribbon_body_type", "split") != group.ribbon_body_type.value
+                or metadata.get("ribbon_geometry", "discrete") != group.ribbon_geometry.value
+                or metadata.get("trace_width_mm") != group.trace_width_mm
+                or metadata.get("trace_spacing_mm") != group.trace_spacing_mm
+                or (
+                    group.ribbon_geometry is RibbonGeometryType.FFC
+                    and metadata.get("resolved_trace_width_mm")
+                    != ffc_dimensions(design, definition, group).trace_width_mm
+                )
             )
         ):
             changed_ids.add(group_id)
@@ -849,8 +872,14 @@ def refresh_changed_generated_cable_groups(
             if len(main) != 1:
                 raise ValueError("Solid ribbon requires one main route for refresh.")
             main_leg, main_route = main[0]
+            ffc = (
+                ffc_dimensions(design, definition, group)
+                if group.ribbon_geometry is RibbonGeometryType.FFC
+                else None
+            )
+            pitch = ffc.pitch_mm if ffc is not None else group.diameter_mm
             fitted = ribbon_route_shape(
-                design, definition, main_leg, main_route, group.ribbon_lines, group.diameter_mm
+                design, definition, main_leg, main_route, group.ribbon_lines, pitch
             )
             plan = solid_ribbon_plan(
                 design,
@@ -859,6 +888,7 @@ def refresh_changed_generated_cable_groups(
                 main_leg,
                 tuple(item for item in group_legs if item[0].is_connection_branch),
                 fitted.shape,
+                pitch if ffc is not None else None,
             )
             if metadata.get("ribbon_contact_ids") != json.loads(json.dumps(plan.contact_ids)) or (
                 metadata.get("ribbon_contact_signature")

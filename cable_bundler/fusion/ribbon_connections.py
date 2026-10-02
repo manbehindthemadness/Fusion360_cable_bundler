@@ -39,10 +39,7 @@ def number_ribbon_connections(
     the edit instead of persisting a guessed connection-to-line relationship.
     """
     groups = tuple(
-        group
-        for group in definition.cable_groups
-        if group.group_type is CableGroupType.RIBBON
-        and group.ribbon_geometry is RibbonGeometryType.DISCRETE
+        group for group in definition.cable_groups if group.group_type is CableGroupType.RIBBON
     )
     if not groups:
         return definition
@@ -129,15 +126,6 @@ def number_ribbon_connections(
         width = unit(guide.u_direction)
         tangent = unit(guide.normal)
         frame = RibbonFrame(guide.origin, tangent, width, unit(cross(tangent, width)))
-        fit, _plane = _guide_fit(
-            design,
-            connection.member_tokens[0],
-            connection.resolved_member_alignments[0],
-            frame,
-            group.ribbon_lines,
-            group.diameter_mm,
-        )
-        line_centers = tuple((point.x, point.y, point.z) for point in fit.centers)
         target_centers = {}
         for root in roots:
             if not root.has_target:
@@ -150,6 +138,24 @@ def number_ribbon_connections(
                 target.origin.y,
                 target.origin.z,
             )
+        pitch = group.diameter_mm
+        if group.ribbon_geometry is RibbonGeometryType.FFC and len(target_centers) >= 2:
+            coordinates = tuple(
+                point[0] * width.x + point[1] * width.y + point[2] * width.z
+                for point in target_centers.values()
+            )
+            pitch = (max(coordinates) - min(coordinates)) / (len(coordinates) - 1)
+            if pitch <= 0.0:
+                raise ValueError("FFC target contacts have no usable width order.")
+        fit, _plane = _guide_fit(
+            design,
+            connection.member_tokens[0],
+            connection.resolved_member_alignments[0],
+            frame,
+            group.ribbon_lines,
+            pitch,
+        )
+        line_centers = tuple((point.x, point.y, point.z) for point in fit.centers)
         assigned = assign_ribbon_pins(roots, line_centers, target_centers)
         if not assigned:
             updated.append(connection)

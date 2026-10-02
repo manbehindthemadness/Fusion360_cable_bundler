@@ -30,6 +30,7 @@ from ..routing import (
     Vector3,
     sample_centerline,
 )
+from .ffc_dimensions import ffc_dimensions
 from .ribbon_geometry import ribbon_route_shape
 from .route_preview_parts.solver import (
     leg_control_ids,
@@ -98,15 +99,9 @@ _preview_history: dict[tuple[str, HarnessDefinition], _PreviewState] = {}
 
 def _previewable_definition(definition: HarnessDefinition) -> HarnessDefinition:
     """
-    Retain routable loose and discrete groups while deferring FFC geometry.
+    Retain every supported cable group for route preview.
     """
-    routable_groups = tuple(
-        group
-        for group in definition.cable_groups
-        if group.group_type is CableGroupType.LOOSE
-        or group.ribbon_geometry is RibbonGeometryType.DISCRETE
-    )
-    return replace(definition, cable_groups=routable_groups)
+    return definition
 
 
 def _remember_preview(group_id: str, state: _PreviewState) -> None:
@@ -749,9 +744,13 @@ def _add_group_route_graphics(
     if cable_group.group_type is CableGroupType.LOOSE or leg.is_connection_branch:
         _add_route_graphics(preview_group, route, color_index, main_color)
         return
-    fitted = ribbon_route_shape(
-        design, definition, leg, route, cable_group.ribbon_lines, cable_group.diameter_mm
+    ffc = (
+        ffc_dimensions(design, definition, cable_group)
+        if cable_group.ribbon_geometry is RibbonGeometryType.FFC
+        else None
     )
+    pitch = ffc.pitch_mm if ffc is not None else cable_group.diameter_mm
+    fitted = ribbon_route_shape(design, definition, leg, route, cable_group.ribbon_lines, pitch)
     shape = fitted.shape
     solid_plan = None
     if cable_group.ribbon_body_type is RibbonBodyType.SOLID:
@@ -760,7 +759,15 @@ def _add_group_route_graphics(
             for item in all_legs_routes
             if item[0].cable_group_id == cable_group.cable_group_id and item[0].is_connection_branch
         )
-        solid_plan = solid_ribbon_plan(design, definition, cable_group, leg, branches, shape)
+        solid_plan = solid_ribbon_plan(
+            design,
+            definition,
+            cable_group,
+            leg,
+            branches,
+            shape,
+            pitch if ffc is not None else None,
+        )
     if notices is not None:
         for warning in fitted.fit_warnings:
             notices.append(f"Warning: {route.cable_number}: {warning}.")

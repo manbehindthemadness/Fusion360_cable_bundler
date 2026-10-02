@@ -481,13 +481,34 @@ def test_edits_ribbon_properties_without_inheritance(
         gateway,
         ribbon_lines=7,
         ribbon_geometry=RibbonGeometryType.FFC,
-        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_body_type=RibbonBodyType.SPLIT,
+        trace_width_mm=0.6,
+        trace_spacing_mm=None,
     )
 
     stored = loads(gateway.serialized_definition).cable_groups[0]
     assert stored.ribbon_lines == 7
     assert stored.ribbon_geometry is RibbonGeometryType.FFC
     assert stored.ribbon_body_type is RibbonBodyType.SOLID
+    assert stored.trace_width_mm == 0.6
+    assert stored.trace_spacing_mm is None
+
+    set_cable_group_properties(
+        definition.harness_id,
+        ribbon.cable_group_id,
+        ribbon.diameter_mm,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        (),
+        gateway,
+        ribbon_geometry=RibbonGeometryType.DISCRETE,
+    )
+    switched = loads(gateway.serialized_definition).cable_groups[0]
+    assert switched.ribbon_body_type is RibbonBodyType.SPLIT
 
 
 def test_ribbon_line_colors_follow_line_count_changes(

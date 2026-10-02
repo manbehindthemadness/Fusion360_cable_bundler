@@ -295,6 +295,8 @@ def set_cable_group_properties(
     ribbon_geometry: Optional[RibbonGeometryType] = None,
     ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
     ribbon_body_type: Optional[RibbonBodyType] = None,
+    trace_width_mm: Optional[float] = None,
+    trace_spacing_mm: Optional[float] = None,
     normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
 ) -> None:
     """
@@ -312,7 +314,6 @@ def set_cable_group_properties(
         or not isinstance(conductor_diameter_mm, (int, float))
         or not math.isfinite(conductor_diameter_mm)
         or conductor_diameter_mm <= 0
-        or conductor_diameter_mm > diameter_mm
     ):
         raise ValueError(
             "Conductor diameter must be positive and no larger than the cable diameter."
@@ -325,6 +326,14 @@ def set_cable_group_properties(
         raise ValueError("Ribbon geometry type is invalid.")
     if ribbon_body_type is not None and not isinstance(ribbon_body_type, RibbonBodyType):
         raise ValueError("Ribbon body type is invalid.")
+    for label, value in (("Trace width", trace_width_mm), ("Trace spacing", trace_spacing_mm)):
+        if value is not None and (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0.0
+        ):
+            raise ValueError(f"{label} must be finite and positive or Auto.")
 
     def update(group: CableGroupDefinition) -> CableGroupDefinition:
         """
@@ -335,9 +344,18 @@ def set_cable_group_properties(
             or ribbon_geometry is not None
             or ribbon_line_colors is not None
             or ribbon_body_type is not None
+            or trace_width_mm is not None
+            or trace_spacing_mm is not None
         ):
             raise ValueError("Ribbon properties require a ribbon cable group.")
         line_count = group.ribbon_lines if ribbon_lines is None else ribbon_lines
+        geometry = group.ribbon_geometry if ribbon_geometry is None else ribbon_geometry
+        if (
+            geometry is not RibbonGeometryType.FFC
+            and conductor_diameter_mm is not None
+            and conductor_diameter_mm > diameter_mm
+        ):
+            raise ValueError("Conductor diameter cannot exceed the cable diameter.")
         if ribbon_line_colors is None:
             existing = group.ribbon_line_colors or (None,) * group.ribbon_lines
             colors = existing[:line_count] + (None,) * max(0, line_count - len(existing))
@@ -345,15 +363,22 @@ def set_cable_group_properties(
                 colors = ()
         else:
             colors = ribbon_line_colors
+        body_type = group.ribbon_body_type if ribbon_body_type is None else ribbon_body_type
+        if geometry is RibbonGeometryType.FFC:
+            body_type = RibbonBodyType.SOLID
+        elif group.ribbon_geometry is RibbonGeometryType.FFC and ribbon_body_type is None:
+            body_type = RibbonBodyType.SPLIT
         return replace(
             group,
             diameter_mm=diameter_mm,
             conductor_diameter_mm=conductor_diameter_mm,
             ribbon_lines=group.ribbon_lines if ribbon_lines is None else ribbon_lines,
-            ribbon_geometry=group.ribbon_geometry if ribbon_geometry is None else ribbon_geometry,
+            ribbon_geometry=geometry,
             ribbon_line_colors=colors,
-            ribbon_body_type=(
-                group.ribbon_body_type if ribbon_body_type is None else ribbon_body_type
+            ribbon_body_type=body_type,
+            trace_width_mm=(group.trace_width_mm if ribbon_geometry is None else trace_width_mm),
+            trace_spacing_mm=(
+                group.trace_spacing_mm if ribbon_geometry is None else trace_spacing_mm
             ),
             material_overrides=replace(
                 group.material_overrides,

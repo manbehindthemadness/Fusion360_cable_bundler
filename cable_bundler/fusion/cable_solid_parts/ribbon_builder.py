@@ -16,6 +16,7 @@ import adsk.core
 import adsk.fusion
 
 from ...domain import CableGroupDefinition, CableMaterialSettings
+from ...domain.ffc import FfcDimensions
 from ...routing import (
     RIBBON_NEIGHBOR_PITCH_LIMIT,
     RibbonEndFit,
@@ -438,6 +439,7 @@ def _add_solid_section(
     station: SolidRibbonSection,
     diameter_mm: float,
     transform: adsk.core.Matrix3D,
+    ffc: FfcDimensions | None = None,
 ) -> tuple[adsk.fusion.Sketch, adsk.fusion.ConstructionPlane]:
     """
     Draw one constant-thickness profile with variable web and lobe width.
@@ -462,6 +464,11 @@ def _add_solid_section(
         station.normal.z * station.width.x - station.normal.x * station.width.z,
         station.normal.x * station.width.y - station.normal.y * station.width.x,
     )
+    if ffc is not None:
+        _draw_ffc_section(sketch, station, thickness, diameter_mm, ffc, transform)
+        if sketch.profiles.count != 1:
+            raise RuntimeError("Fusion did not produce one joined FFC section.")
+        return sketch, plane
     radius = diameter_mm / 2.0
     valley = radius * 0.60
     half_width = station.lobe_width_mm / 2.0
@@ -524,11 +531,55 @@ def _add_solid_section(
     return sketch, plane
 
 
+def _draw_ffc_section(
+    sketch: adsk.fusion.Sketch,
+    station: SolidRibbonSection,
+    normal: Vector3,
+    thickness_mm: float,
+    ffc: FfcDimensions,
+    transform: adsk.core.Matrix3D,
+) -> None:
+    """
+    Draw flat trace bands and a shallow symmetric web as one closed profile.
+    """
+    half_height = thickness_mm / 2.0
+    web_height = half_height * 0.9
+    half_trace = ffc.trace_width_mm / 2.0
+    half_pitch = ffc.pitch_mm / 2.0
+    count = len(station.centers)
+    top = [(0, -half_pitch, web_height)]
+    for index in range(count):
+        top.extend(
+            (
+                (index, -half_trace, web_height),
+                (index, -half_trace, half_height),
+                (index, half_trace, half_height),
+                (index, half_trace, web_height),
+            )
+        )
+    top.append((count - 1, half_pitch, web_height))
+    bottom = [(index, across, -height) for index, across, height in reversed(top)]
+    contour = top + bottom
+
+    def point(index: int, across: float, height: float) -> adsk.core.Point3D:
+        """
+        Locate one flat-section corner in the loft station's sketch plane.
+        """
+        world = station.centers[index].translated(station.width, across).translated(normal, height)
+        return sketch.modelToSketchSpace(fusion_point(world, transform))
+
+    corners = tuple(point(*corner) for corner in contour)
+    for start, end in zip(corners, (*corners[1:], corners[0])):
+        if sketch.sketchCurves.sketchLines.addByTwoPoints(start, end) is None:
+            raise RuntimeError("Fusion could not draw an FFC section edge.")
+
+
 def _build_solid_loft(
     component: adsk.fusion.Component,
     plan: SolidRibbonPlan,
     diameter_mm: float,
     transform: adsk.core.Matrix3D,
+    ffc: FfcDimensions | None = None,
 ) -> adsk.fusion.LoftFeature:
     """
     Loft a fixed-width ribbon through sparse route guides and both contact planes.
@@ -567,7 +618,11 @@ def _build_solid_loft(
                 else "main ribbon"
             )
             try:
-                sketch, plane = _add_solid_section(component, station, diameter_mm, transform)
+                sketch, plane = (
+                    _add_solid_section(component, station, diameter_mm, transform, ffc)
+                    if ffc is not None
+                    else _add_solid_section(component, station, diameter_mm, transform)
+                )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 raise RuntimeError(
                     f"section {section_index + 1}/{station_count} ({role}): {error}"
@@ -610,9 +665,10 @@ def build_discrete_ribbon_solid(
     output_mode: str,
     notices: Optional[list[str]] = None,
     solid_plan: SolidRibbonPlan | None = None,
+    ffc: FfcDimensions | None = None,
 ) -> adsk.fusion.BRepBody:
     """
-    Build one visible joined ribbon and color its physical lobe faces.
+    Build one joined ribbon and color its physical trace or lobe faces.
     """
     frames = shape.frames
     if not route.curves or len(frames) < 2:
@@ -624,7 +680,7 @@ def build_discrete_ribbon_solid(
     feature = None
     folded = False
     if solid_plan is not None:
-        feature = _build_solid_loft(component, solid_plan, group.diameter_mm, transform)
+        feature = _build_solid_loft(component, solid_plan, group.diameter_mm, transform, ffc)
         folded = True
     elif shape.folded or shape.start_fit is not None or shape.end_fit is not None:
         try:
@@ -667,7 +723,9 @@ def build_discrete_ribbon_solid(
     if not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
         raise RuntimeError("Fusion produced an invalid discrete ribbon solid.")
     body.name = (
-        f"Cable Group {group_index + 1} Solid Ribbon"
+        f"Cable Group {group_index + 1} FFC Ribbon"
+        if ffc is not None
+        else f"Cable Group {group_index + 1} Solid Ribbon"
         if solid_plan is not None
         else f"Cable Group {group_index + 1} Discrete Ribbon"
     )
@@ -684,7 +742,9 @@ def build_discrete_ribbon_solid(
     if center_sketch is not None:
         center_sketch.isLightBulbOn = False
     feature.name = (
-        "Solid ribbon contact loft"
+        "FFC contact loft"
+        if ffc is not None
+        else "Solid ribbon contact loft"
         if solid_plan is not None
         else "Discrete ribbon folded loft"
         if folded
@@ -731,6 +791,11 @@ def build_discrete_ribbon_solid(
             "diameter_mm": group.diameter_mm,
             "ribbon_lines": group.ribbon_lines,
             "ribbon_body_type": group.ribbon_body_type.value,
+            "ribbon_geometry": group.ribbon_geometry.value,
+            "trace_width_mm": group.trace_width_mm,
+            "trace_spacing_mm": group.trace_spacing_mm,
+            "resolved_trace_width_mm": ffc.trace_width_mm if ffc is not None else None,
+            "resolved_trace_spacing_mm": ffc.spacing_mm if ffc is not None else None,
             "ribbon_contact_ids": solid_plan.contact_ids if solid_plan is not None else None,
             "ribbon_attachment_ids": solid_plan.attachment_ids if solid_plan is not None else None,
             "ribbon_contact_signature": (

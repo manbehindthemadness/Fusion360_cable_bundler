@@ -365,7 +365,7 @@ asyncTest('ribbon properties save explicit Lines and geometry style without line
   assert.equal(calls[0].payload.ribbonLines, 6);
   assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
   assert.equal('ribbonLineColors' in calls[0].payload, false);
-  assert.equal('ribbonBodyType' in calls[0].payload, false);
+  assert.equal(calls[0].payload.ribbonBodyType, 'solid');
 });
 
 asyncTest('ribbon Body type appears only with Interfaces at both ends', async () => {
@@ -406,6 +406,54 @@ asyncTest('ribbon Body type appears only with Interfaces at both ends', async ()
   assert.equal(descendants(dialog, (node) => node.textContent === 'Body type').length, 0);
   await dialog.querySelector('form').events.submit({ preventDefault() {} });
   assert.equal('ribbonBodyType' in calls[1].payload, false);
+});
+
+asyncTest('FFC properties show flat sizing and reject dimensions outside contact pitch', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.groupType = 'ribbon';
+  group.ribbonLines = 3;
+  group.ribbonGeometry = 'discrete';
+  group.ffcPitchMm = 1;
+  group.ffcAutoTraceWidthMm = 0.8;
+  definition.interfaces = [
+    { interfaceId: 'i1', connectedConnectionIds: ['a1'] },
+    { interfaceId: 'i2', connectedConnectionIds: ['b1'] },
+  ];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  context.openCableGroupProperties(definition, group);
+  const dialog = context.document.body.querySelector('.cable-group-properties');
+  const geometry = descendants(dialog, (node) => node.tag === 'select'
+    && node.value === 'discrete')[0];
+  const bodyType = descendants(dialog, (node) => node.textContent === 'Body type')[0];
+  const width = descendants(dialog, (node) => node.textContent === 'Trace Width (mm)')[0];
+  const spacing = descendants(dialog, (node) => node.textContent === 'Spacing (mm)')[0];
+  const thickness = descendants(dialog, (node) => node.textContent === 'Diameter (mm)')[0];
+  assert.equal(width.hidden, true);
+  geometry.value = 'ffc';
+  geometry.events.change();
+  assert.equal(bodyType.hidden, true);
+  assert.equal(width.hidden, false);
+  assert.equal(spacing.hidden, false);
+  assert.equal(thickness.textContent, 'Thickness (mm)');
+  assert.equal(dialog.querySelector('.conductor-diameter-field').hidden, true);
+  width.querySelector('input').value = '1.2';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls.length, 0);
+  width.querySelector('input').value = '0.6';
+  spacing.querySelector('input').value = '0.3';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls.length, 0);
+  spacing.querySelector('input').value = 'auto';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[0].payload.ribbonBodyType, 'solid');
+  assert.equal(calls[0].payload.traceWidthMm, 0.6);
+  assert.equal(calls[0].payload.traceSpacingMm, null);
 });
 
 asyncTest('ribbon materials collapse and save individual line colors', async () => {

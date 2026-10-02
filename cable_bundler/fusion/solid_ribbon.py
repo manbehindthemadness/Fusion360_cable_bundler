@@ -84,16 +84,23 @@ def _section(
 
 
 def _uniform_sections(
-    sections: tuple[SolidRibbonSection, ...], diameter_mm: float
+    sections: tuple[SolidRibbonSection, ...],
+    diameter_mm: float,
+    fixed_pitch_mm: float | None = None,
 ) -> tuple[SolidRibbonSection, ...]:
     """
     Carry the first contact bank's pitch and lobe size through the entire ribbon.
     """
     line_count = len(sections[0].centers)
     pitch = (
-        magnitude(difference(sections[0].centers[-1], sections[0].centers[0])) / (line_count - 1)
-        if line_count > 1
-        else diameter_mm
+        fixed_pitch_mm
+        if fixed_pitch_mm is not None
+        else (
+            magnitude(difference(sections[0].centers[-1], sections[0].centers[0]))
+            / (line_count - 1)
+            if line_count > 1
+            else diameter_mm
+        )
     )
     lobe_width = min(diameter_mm, pitch * 0.98) if line_count > 1 else diameter_mm
     half_index = (line_count - 1) / 2.0
@@ -120,6 +127,7 @@ def solid_ribbon_plan(
     leg: CableGroupRouteLeg,
     branches: tuple[tuple[CableGroupRouteLeg, RoutePreview], ...],
     shape: RibbonShape,
+    pitch_mm: float | None = None,
 ) -> SolidRibbonPlan:
     """
     Resolve complete numbered Interface contacts and loft stations at both ends.
@@ -131,6 +139,7 @@ def solid_ribbon_plan(
         for interface in definition.interfaces
         for contact in interface.contacts
     }
+    lane_pitch_mm = pitch_mm if pitch_mm is not None else group.diameter_mm
     connections = {connection.connection_id: connection for connection in definition.connections}
     ends: list[tuple[SolidRibbonSection, ...]] = []
     identities: list[tuple[str, ...]] = []
@@ -210,7 +219,7 @@ def solid_ribbon_plan(
                         -section_normal.x, -section_normal.y, -section_normal.z
                     )
                 centers = tuple(_project(point, raw[0], section_normal) for point in raw)
-            stations.append(_section(centers, section_normal, guide_frame.width, group.diameter_mm))
+            stations.append(_section(centers, section_normal, guide_frame.width, lane_pitch_mm))
         ends.append(tuple(stations))
         identities.append(
             tuple(contact_tokens[(root.target_kind, root.entity_token)] for root in ordered)
@@ -221,11 +230,13 @@ def solid_ribbon_plan(
             tuple(lane[index] for lane in shape.lanes),
             frame.tangent,
             frame.width,
-            group.diameter_mm,
+            lane_pitch_mm,
         )
         for index, frame in enumerate(shape.frames)
     )
-    sections = _uniform_sections(ends[0] + middle + tuple(reversed(ends[1])), group.diameter_mm)
+    sections = _uniform_sections(
+        ends[0] + middle + tuple(reversed(ends[1])), lane_pitch_mm, pitch_mm
+    )
     lanes = tuple(
         tuple(section.centers[index] for section in sections) for index in range(group.ribbon_lines)
     )

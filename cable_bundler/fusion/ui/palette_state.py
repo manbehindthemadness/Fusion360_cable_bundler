@@ -33,12 +33,14 @@ from ...domain import (
     CableGroupType,
     HarnessDefinition,
 )
+from ...domain.ffc import resolve_ffc_dimensions
 from ..attachment_targets import attachment_display_name, resolve_attachment_target
 from ..cable_solid_parts.constants import FINALIZED_OUTPUT_MODE
 from ..cable_solids import (
     generated_cable_group_occurrences,
     generated_cable_group_output_mode,
 )
+from ..ffc_dimensions import ffc_contact_geometry
 from ..interface_targets import resolve_interface_target
 from ..route_preview import has_route_preview_for_harness
 from .constants import PALETTE_ID
@@ -348,7 +350,7 @@ def serialize_palette_state(
             )
             continue
         phase_started = perf_counter()
-        cable_groups, cable_group_route_error = _cable_group_payloads(definition)
+        cable_groups, cable_group_route_error = _cable_group_payloads(definition, design)
         route_seconds += perf_counter() - phase_started
         phase_started = perf_counter()
         resolved_attachment_diameters = {
@@ -617,6 +619,7 @@ def serialize_palette_state(
 
 def _cable_group_payloads(
     definition: HarnessDefinition,
+    design: Optional[adsk.fusion.Design] = None,
 ) -> tuple[list[dict[str, object]], Optional[str]]:
     """
     Project persistent cable groups and their planned route legs for the palette.
@@ -643,6 +646,8 @@ def _cable_group_payloads(
                     "ribbonLines": group.ribbon_lines,
                     "ribbonGeometry": group.ribbon_geometry.value,
                     "ribbonBodyType": group.ribbon_body_type.value,
+                    "traceWidthMm": group.trace_width_mm,
+                    "traceSpacingMm": group.trace_spacing_mm,
                     "ribbonLineColors": [
                         None if color is None else _color_payload(color)
                         for color in group.ribbon_line_colors
@@ -682,6 +687,17 @@ def _cable_group_payloads(
         }
         for group in definition.cable_groups
     ]
+    if design is not None:
+        for group, payload in zip(definition.cable_groups, payloads):
+            if group.group_type is not CableGroupType.RIBBON or group.ribbon_lines < 2:
+                continue
+            try:
+                pitch, widths = ffc_contact_geometry(design, definition, group)
+                dimensions = resolve_ffc_dimensions(pitch, widths, None, None)
+            except (AttributeError, RuntimeError, TypeError, ValueError):
+                continue
+            payload["ffcPitchMm"] = pitch
+            payload["ffcAutoTraceWidthMm"] = dimensions.trace_width_mm
     return payloads, route_error
 
 

@@ -17,7 +17,6 @@ from cable_bundler.application import CableGroupRouteLeg
 from cable_bundler.domain import (
     AttachmentTargetKind,
     CableEndAttachment,
-    CableEndShape,
     CableGroupType,
     CableVisualOverrides,
     Connection,
@@ -42,53 +41,31 @@ from cable_bundler.routing.geometry import dot
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
-def test_ffc_routes_stop_before_closed_profile_resolution(
+def test_mixed_harness_preview_retains_loose_discrete_and_ffc_groups(
     addin_module: _PaletteLifecycleModule,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Report deferred FFC construction before asking Fusion for profile frames.
-    """
-    from cable_bundler.fusion.route_preview_parts.solver import solve_cable_group_routes
-
-    del addin_module
-    from cable_bundler.domain import RibbonGeometryType
-
-    ribbon = replace(
-        valid_harness.cable_groups[0],
-        group_type=CableGroupType.RIBBON,
-        ribbon_geometry=RibbonGeometryType.FFC,
-    )
-    definition = replace(
-        valid_harness,
-        cable_groups=(ribbon,),
-        standalone_ends=tuple(
-            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
-        ),
-    )
-
-    with pytest.raises(ValueError, match="FFC ribbon route preview"):
-        solve_cable_group_routes(object(), definition)
-
-
-def test_mixed_harness_preview_retains_loose_and_discrete_groups(
-    addin_module: _PaletteLifecycleModule,
-    valid_harness: HarnessDefinition,
-) -> None:
-    """
-    Preview existing loose and discrete groups together.
+    Keep every supported construction type in the preview definition.
     """
     from cable_bundler.fusion.route_preview import _previewable_definition
 
     del addin_module
     loose = valid_harness.cable_groups[0]
+    from cable_bundler.domain import RibbonBodyType, RibbonGeometryType
+
     ribbon = replace(loose, cable_group_id=UUID(int=7001), group_type=CableGroupType.RIBBON)
-    definition = replace(valid_harness, cable_groups=(loose, ribbon))
+    ffc = replace(
+        ribbon,
+        cable_group_id=UUID(int=7002),
+        ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
+    )
+    definition = replace(valid_harness, cable_groups=(loose, ribbon, ffc))
 
     preview = _previewable_definition(definition)
 
-    assert preview.cable_groups == (loose, ribbon)
-    assert definition.cable_groups == (loose, ribbon)
+    assert preview.cable_groups == (loose, ribbon, ffc)
 
 
 def test_open_guide_alignment_uses_curve_length_and_signed_tangent(
@@ -388,8 +365,8 @@ def test_ribbon_trunk_stops_at_open_guide_before_numbered_connection_branch(
     target = replace(guide, origin=Vector3(0.0, 0.0, 0.0))
     native_frames = Mock(return_value=(guide,))
     attached_frames = Mock(return_value=(target, guide))
-    monkeypatch.setattr(route_solver, "connection_profile_frames", native_frames)
-    monkeypatch.setattr(route_solver, "connection_route_frames", attached_frames)
+    monkeypatch.setitem(vars(route_solver), "connection_profile_frames", native_frames)
+    monkeypatch.setitem(vars(route_solver), "connection_route_frames", attached_frames)
     group = valid_harness.cable_groups[0]
 
     ribbon_frames = route_solver._main_route_connection_frames(

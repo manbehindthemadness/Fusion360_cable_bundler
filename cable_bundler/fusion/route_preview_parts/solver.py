@@ -26,6 +26,7 @@ from ...domain import (
     RibbonGeometryType,
 )
 from ...domain.connection_packing import PackedConnection
+from ...domain.ffc import FfcDimensions
 from ...routing import (
     CableRouteInput,
     GateFrame,
@@ -46,6 +47,7 @@ from ...routing.conditioning import (
     junction_normal_indices,
 )
 from ...routing.geometry import cross, difference, dot, unit
+from ..ffc_dimensions import ffc_dimensions
 from . import branch_layout
 from .frames import (
     ProfileFrame,
@@ -88,17 +90,19 @@ class _RouteSolveCache:
     routes: tuple[RoutePreview, ...]
     legs: tuple[CableGroupRouteLeg, ...]
     notices: tuple[str, ...]
+    ffc_dimensions: tuple[tuple[UUID, FfcDimensions], ...] = ()
 
 
 _route_solve_cache: Optional[_RouteSolveCache] = None
 
 
-def _packing_diameter_mm(group: CableGroupDefinition) -> float:
+def _packing_diameter_mm(group: CableGroupDefinition, ffc: Optional[FfcDimensions] = None) -> float:
     """
     Conservatively enclose a ribbon's full width and thickness for shared packing.
     """
     if group.group_type is CableGroupType.RIBBON:
-        return math.hypot(group.ribbon_lines * group.diameter_mm, group.diameter_mm)
+        pitch = ffc.pitch_mm if ffc is not None else group.diameter_mm
+        return math.hypot(group.ribbon_lines * pitch, group.diameter_mm)
     return group.diameter_mm
 
 
@@ -120,13 +124,14 @@ def _warn_short_ribbon_guide(
     frames: tuple[ProfileFrame, ...],
     label: str,
     notices: list[str],
+    ffc: Optional[FfcDimensions] = None,
 ) -> None:
     """
     Report a guide that cannot contain the selected ribbon width.
     """
     if group.group_type is not CableGroupType.RIBBON:
         return
-    width_mm = group.ribbon_lines * group.diameter_mm
+    width_mm = group.ribbon_lines * (ffc.pitch_mm if ffc is not None else group.diameter_mm)
     if any(
         frame.guide_length_mm is not None and frame.guide_length_mm < width_mm for frame in frames
     ):
@@ -172,10 +177,8 @@ def solve_cable_group_routes(
     for group in definition.cable_groups:
         if group.group_type is not CableGroupType.RIBBON:
             continue
-        if group.ribbon_geometry is RibbonGeometryType.FFC:
-            raise ValueError("FFC ribbon route preview and geometry are not implemented yet.")
         if sum(leg.cable_group_id == group.cable_group_id for leg in legs) != 1:
-            raise ValueError("Discrete ribbons currently require one continuous two-ended route.")
+            raise ValueError("Ribbons require one continuous two-ended route.")
     controls = {control.control_id: control for control in definition.controls}
     connections = {connection.connection_id: connection for connection in definition.connections}
     end_control_ids = {
@@ -231,6 +234,12 @@ def solve_cable_group_routes(
                 )
     control_frame_snapshot = tuple(sorted(frames.items(), key=lambda item: str(item[0])))
     profile_frame_snapshot = tuple(sorted(profile_frames.items()))
+    ffc_by_group = {
+        group.cable_group_id: ffc_dimensions(design, definition, group)
+        for group in definition.cable_groups
+        if group.ribbon_geometry is RibbonGeometryType.FFC
+    }
+    ffc_snapshot = tuple(sorted(ffc_by_group.items(), key=lambda item: str(item[0])))
     cached = _route_solve_cache
     if (
         cached is not None
@@ -238,6 +247,7 @@ def solve_cable_group_routes(
         and cached.definition == definition
         and cached.control_frames == control_frame_snapshot
         and cached.profile_frames == profile_frame_snapshot
+        and cached.ffc_dimensions == ffc_snapshot
     ):
         if notices is not None:
             notices.extend(cached.notices)
@@ -254,7 +264,9 @@ def solve_cable_group_routes(
                 cable_number=f"Group {group_order[group_id] + 1}",
                 start=origin,
                 end=origin,
-                diameter_mm=_packing_diameter_mm(groups_by_id[group_id]),
+                diameter_mm=_packing_diameter_mm(
+                    groups_by_id[group_id], ffc_by_group.get(group_id)
+                ),
             )
             for group_id in ordered_group_ids
         )
@@ -281,7 +293,8 @@ def solve_cable_group_routes(
     auto_transition_fraction = definition.auto_transition_preset.span_fraction
     for leg in legs:
         group = groups_by_id[leg.cable_group_id]
-        diameter_mm = _packing_diameter_mm(group)
+        ffc = ffc_by_group.get(group.cable_group_id)
+        diameter_mm = _packing_diameter_mm(group, ffc)
         points: list[Vector3] = []
         normals: list[Vector3] = []
         transitions: list[TransitionLengths] = []
@@ -301,7 +314,7 @@ def solve_cable_group_routes(
                 frames,
                 profile_frames,
             )
-            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices)
+            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices, ffc)
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
             root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
@@ -392,7 +405,7 @@ def solve_cable_group_routes(
                 frames,
                 profile_frames,
             )
-            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices)
+            _warn_short_ribbon_guide(group, connection_frames, leg.label, solve_notices, ffc)
             has_attachment_frame = len(connection_frames) > len(connection.member_tokens)
             root_attachments = connection.attachment_children(None)
             attachment_control_ids = (
@@ -584,6 +597,7 @@ def solve_cable_group_routes(
         solved_routes,
         solved_legs,
         tuple(solve_notices),
+        ffc_snapshot,
     )
     if notices is not None:
         notices.extend(solve_notices)

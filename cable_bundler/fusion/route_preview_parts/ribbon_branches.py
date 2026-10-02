@@ -11,7 +11,7 @@ from uuid import UUID
 import adsk.fusion
 
 from ...application import CableGroupRouteLeg
-from ...domain import CableGroupType, HarnessDefinition
+from ...domain import CableGroupType, HarnessDefinition, RibbonGeometryType
 from ...routing import (
     CubicBezier,
     RoutePreview,
@@ -20,6 +20,7 @@ from ...routing import (
     tightest_bend,
 )
 from ...routing.geometry import difference, dot, magnitude, unit
+from ..ffc_dimensions import ffc_dimensions
 from ..ribbon_geometry import ribbon_route_shape
 from .frames import ProfileFrame, connection_profile_frames
 
@@ -142,9 +143,13 @@ def ribbon_branch_guides(
         )
         if not attached_ends:
             continue
-        fitted = ribbon_route_shape(
-            design, definition, leg, route, group.ribbon_lines, group.diameter_mm
+        ffc = (
+            ffc_dimensions(design, definition, group)
+            if group.ribbon_geometry is RibbonGeometryType.FFC
+            else None
         )
+        pitch = ffc.pitch_mm if ffc is not None else group.diameter_mm
+        fitted = ribbon_route_shape(design, definition, leg, route, group.ribbon_lines, pitch)
         for connection_id, at_start in attached_ends:
             connection = connections[connection_id]
             end_fit = fitted.shape.start_fit if at_start else fitted.shape.end_fit
@@ -179,7 +184,7 @@ def ribbon_branch_guides(
                             center,
                             end_fit.edges[line_index],
                             end_fit.edges[line_index + 1],
-                            group.diameter_mm,
+                            ffc.trace_width_mm if ffc is not None else group.diameter_mm,
                         ),
                         ribbon_terminal_tangent=_terminal_lane_tangent(lane, at_start=at_start),
                     )

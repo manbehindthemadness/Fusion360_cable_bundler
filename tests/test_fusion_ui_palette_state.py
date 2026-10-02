@@ -23,6 +23,7 @@ from cable_bundler.domain import (
     InterfaceTargetKind,
     JunctionDefinition,
     OpenGuideAlignment,
+    RibbonBodyType,
     RibbonGeometryType,
 )
 from tests.fusion_ui_support import (
@@ -471,6 +472,9 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
         group_type=CableGroupType.RIBBON,
         ribbon_lines=9,
         ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        trace_width_mm=0.6,
+        trace_spacing_mm=0.4,
     )
     definition = replace(
         valid_harness,
@@ -486,7 +490,9 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
     group = state["harnesses"][0]["cableGroups"][0]
     assert group["ribbonLines"] == 9
     assert group["ribbonGeometry"] == "ffc"
-    assert group["ribbonBodyType"] == "split"
+    assert group["ribbonBodyType"] == "solid"
+    assert group["traceWidthMm"] == 0.6
+    assert group["traceSpacingMm"] == 0.4
     assert group["ribbonLineColors"] == []
 
 

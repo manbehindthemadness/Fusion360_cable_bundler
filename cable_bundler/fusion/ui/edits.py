@@ -50,6 +50,7 @@ from ...application import (
 from ...application.harness_edits import set_interpolation
 from ...domain import (
     AutoTransitionPreset,
+    CableGroupType,
     HarnessDefinition,
     OpenGuideAlignment,
     PathwayEndpoint,
@@ -57,6 +58,7 @@ from ...domain import (
     RibbonGeometryType,
 )
 from ...domain.codec import parse_interpolation
+from ..ffc_dimensions import ffc_dimensions
 from ..interface_contact_geo_import import import_interface_contact_geometry_names
 from ..interface_contact_local_naming import name_interface_contact_locals
 from ..interface_contact_projection_copy import copy_projected_interface_details
@@ -102,6 +104,30 @@ def _require_active_design(application: adsk.core.Application) -> adsk.fusion.De
     if design is None:
         raise ValueError("Ribbon connection numbering requires an active Fusion design.")
     return design
+
+
+def _normalize_ribbon_properties(candidate: HarnessDefinition) -> HarnessDefinition:
+    """
+    Number ribbon targets and check FFC dimensions when first-end contacts exist.
+    """
+    design = _require_active_design(adsk.core.Application.get())
+    normalized = number_ribbon_connections(design, candidate)
+    connections = {item.connection_id: item for item in normalized.connections}
+    for group in normalized.cable_groups:
+        if (
+            group.group_type is not CableGroupType.RIBBON
+            or group.ribbon_geometry is not RibbonGeometryType.FFC
+        ):
+            continue
+        first = connections.get(group.connection_ids[0]) if group.connection_ids else None
+        if (
+            first is None
+            or len(tuple(item for item in first.attachment_children(None) if item.has_target))
+            < group.ribbon_lines
+        ):
+            continue
+        ffc_dimensions(design, normalized, group)
+    return normalized
 
 
 def _apply_palette_edit(
@@ -619,6 +645,13 @@ def _apply_property_edit(
                 ribbon_body_type = RibbonBodyType(ribbon_body_type)
             except (TypeError, ValueError) as error:
                 raise ValueError("Ribbon body type must be Split or Solid.") from error
+        trace_width = payload.get("traceWidthMm")
+        trace_spacing = payload.get("traceSpacingMm")
+        for label, value in (("Trace width", trace_width), ("Trace spacing", trace_spacing)):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float))
+            ):
+                raise ValueError(f"{label} must be a number in millimeters or null for Auto.")
         raw_line_colors = payload.get("ribbonLineColors")
         if raw_line_colors is not None and not isinstance(raw_line_colors, list):
             raise ValueError("Ribbon line colors must be a list.")
@@ -655,10 +688,10 @@ def _apply_property_edit(
             ribbon_lines=ribbon_lines,
             ribbon_geometry=ribbon_geometry,
             ribbon_body_type=ribbon_body_type,
+            trace_width_mm=trace_width,
+            trace_spacing_mm=trace_spacing,
             ribbon_line_colors=ribbon_line_colors,
-            normalize_definition=lambda candidate: number_ribbon_connections(
-                _require_active_design(adsk.core.Application.get()), candidate
-            ),
+            normalize_definition=lambda candidate: _normalize_ribbon_properties(candidate),
         )
         return "Saved connected-cable properties."
     if action == "set_harness_material_defaults":

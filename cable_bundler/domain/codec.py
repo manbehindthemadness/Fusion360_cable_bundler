@@ -114,12 +114,13 @@ def loads(serialized: str) -> HarnessDefinition:
         36,
         37,
         38,
+        39,
         SCHEMA_VERSION,
     ):
         raise DefinitionParseError(
             "$.schema_version",
             f"unsupported version {schema_version}; expected {SCHEMA_VERSION} "
-            "(schemas 12 through 38 are migratable)",
+            "(schemas 12 through 39 are migratable)",
         )
 
     harness_id = _require_uuid(payload, "harness_id", "$.harness_id")
@@ -350,6 +351,8 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                         "ribbon_lines": group.ribbon_lines,
                         "ribbon_geometry": group.ribbon_geometry.value,
                         "ribbon_body_type": group.ribbon_body_type.value,
+                        "trace_width_mm": group.trace_width_mm,
+                        "trace_spacing_mm": group.trace_spacing_mm,
                         "ribbon_line_colors": [
                             None if color is None else _color_to_dict(color)
                             for color in group.ribbon_line_colors
@@ -925,6 +928,19 @@ def _parse_cable_group(
         raise DefinitionParseError(
             f"{path}.ribbon_line_colors", "expected one color per ribbon line"
         )
+    ribbon_geometry = (
+        _require_enum(RibbonGeometryType, value, "ribbon_geometry", f"{path}.ribbon_geometry")
+        if schema_version >= 36 and group_type is CableGroupType.RIBBON
+        else RibbonGeometryType.DISCRETE
+    )
+    if schema_version < 40 and ribbon_geometry is RibbonGeometryType.FFC:
+        ribbon_body_type = RibbonBodyType.SOLID
+    elif schema_version >= 39 and group_type is CableGroupType.RIBBON:
+        ribbon_body_type = _require_enum(
+            RibbonBodyType, value, "ribbon_body_type", f"{path}.ribbon_body_type"
+        )
+    else:
+        ribbon_body_type = RibbonBodyType.SPLIT
     return CableGroupDefinition(
         cable_group_id=_require_uuid(value, "cable_group_id", f"{path}.cable_group_id"),
         connection_ids=tuple(
@@ -950,14 +966,16 @@ def _parse_cable_group(
             else _parse_color(raw_color, f"{path}.ribbon_line_colors[{index}]")
             for index, raw_color in enumerate(raw_line_colors)
         ),
-        ribbon_geometry=(
-            _require_enum(RibbonGeometryType, value, "ribbon_geometry", f"{path}.ribbon_geometry")
-            if schema_version >= 36 and group_type is CableGroupType.RIBBON
-            else RibbonGeometryType.DISCRETE
+        ribbon_geometry=ribbon_geometry,
+        ribbon_body_type=ribbon_body_type,
+        trace_width_mm=(
+            _optional_float(value.get("trace_width_mm"), f"{path}.trace_width_mm")
+            if schema_version >= 40 and group_type is CableGroupType.RIBBON
+            else None
         ),
-        ribbon_body_type=(
-            _require_enum(RibbonBodyType, value, "ribbon_body_type", f"{path}.ribbon_body_type")
-            if schema_version >= 39 and group_type is CableGroupType.RIBBON
-            else RibbonBodyType.SPLIT
+        trace_spacing_mm=(
+            _optional_float(value.get("trace_spacing_mm"), f"{path}.trace_spacing_mm")
+            if schema_version >= 40 and group_type is CableGroupType.RIBBON
+            else None
         ),
     )

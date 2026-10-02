@@ -80,6 +80,7 @@ def test_ribbon_properties_round_trip_and_schema_35_migration(
         group_type=CableGroupType.RIBBON,
         ribbon_lines=8,
         ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
     )
     payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
     saved = payload["cable_groups"][0]

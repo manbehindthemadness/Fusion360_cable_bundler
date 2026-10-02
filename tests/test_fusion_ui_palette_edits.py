@@ -609,6 +609,8 @@ def test_palette_edit_saves_connected_cable_properties_atomically(
         ribbon_lines=None,
         ribbon_geometry=None,
         ribbon_body_type=None,
+        trace_width_mm=None,
+        trace_spacing_mm=None,
         ribbon_line_colors=None,
         normalize_definition=save.call_args.kwargs["normalize_definition"],
     )
@@ -639,6 +641,8 @@ def test_palette_edit_reads_ribbon_properties(
                 "ribbonLines": 5,
                 "ribbonGeometry": "ffc",
                 "ribbonBodyType": "solid",
+                "traceWidthMm": 0.6,
+                "traceSpacingMm": 0.4,
                 "ribbonLineColors": [
                     None,
                     {"name": "Red", "red": 255, "green": 0, "blue": 0},
@@ -653,6 +657,8 @@ def test_palette_edit_reads_ribbon_properties(
     assert save.call_args.kwargs["ribbon_lines"] == 5
     assert save.call_args.kwargs["ribbon_geometry"] is RibbonGeometryType.FFC
     assert save.call_args.kwargs["ribbon_body_type"] is RibbonBodyType.SOLID
+    assert save.call_args.kwargs["trace_width_mm"] == 0.6
+    assert save.call_args.kwargs["trace_spacing_mm"] == 0.4
     assert save.call_args.kwargs["ribbon_line_colors"] == (
         None,
         CableColor("Red", 255, 0, 0),

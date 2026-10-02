@@ -282,16 +282,24 @@ function openPropertiesDialog(harness, cableGroup = null) {
   let ribbonLines = null;
   let ribbonGeometry = null;
   let ribbonBodyType = null;
+  let diameterLabel = null;
+  let diameterCaption = null;
+  let bodyTypeLabel = null;
+  let traceWidth = null;
+  let traceSpacing = null;
+  let traceWidthLabel = null;
+  let traceSpacingLabel = null;
   if (isCableGroup) {
-    const diameterLabel = document.createElement("label");
+    diameterLabel = document.createElement("label");
+    diameterCaption = document.createElement("span");
     diameter = document.createElement("input");
-    diameterLabel.textContent = `Diameter (${units.symbol})`;
+    diameterCaption.textContent = `Diameter (${units.symbol})`;
     diameter.type = "number";
     diameter.className = "filter";
     diameter.step = "any";
     diameter.required = true;
     diameter.value = displayLengthValue(cableGroup.diameterMm, units);
-    diameterLabel.append(diameter);
+    diameterLabel.append(diameterCaption, diameter);
     form.append(diameterLabel);
   }
   if (cableGroup?.groupType === "ribbon") {
@@ -328,7 +336,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
     if (connectionIds.length >= 2 && connectionIds.every(
       (connectionId) => interfaceConnectionIds.has(connectionId),
     )) {
-      const bodyTypeLabel = document.createElement("label");
+      bodyTypeLabel = document.createElement("label");
       ribbonBodyType = document.createElement("select");
       bodyTypeLabel.textContent = "Body type";
       ribbonBodyType.className = "filter";
@@ -342,7 +350,35 @@ function openPropertiesDialog(harness, cableGroup = null) {
       bodyTypeLabel.append(ribbonBodyType);
       form.append(bodyTypeLabel);
     }
+    const addTraceField = (name, configuredMm) => {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      label.textContent = `${name} (${units.symbol})`;
+      input.type = "text";
+      input.className = "filter";
+      input.value = configuredMm == null ? "auto" : displayLengthValue(configuredMm, units);
+      label.append(input);
+      form.append(label);
+      return { label, input };
+    };
+    ({ label: traceWidthLabel, input: traceWidth } = addTraceField(
+      "Trace Width", cableGroup.traceWidthMm,
+    ));
+    ({ label: traceSpacingLabel, input: traceSpacing } = addTraceField(
+      "Spacing", cableGroup.traceSpacingMm,
+    ));
   }
+  const updateRibbonGeometry = () => {
+    const ffc = ribbonGeometry?.value === "ffc";
+    if (diameterCaption) {
+      diameterCaption.textContent = `${ffc ? "Thickness" : "Diameter"} (${units.symbol})`;
+    }
+    if (bodyTypeLabel) bodyTypeLabel.hidden = ffc;
+    if (traceWidthLabel) traceWidthLabel.hidden = !ffc;
+    if (traceSpacingLabel) traceSpacingLabel.hidden = !ffc;
+    if (conductorDiameter) conductorDiameter.wrapper.hidden = ffc;
+  };
+  ribbonGeometry?.addEventListener("change", updateRibbonGeometry);
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
     const { wrapper, header, input } = createMaterialTextField(
@@ -377,6 +413,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
     );
     form.append(conductorDiameter.wrapper);
   }
+  updateRibbonGeometry();
   addMaterialField("shielding", "Shielding");
   addMaterialField("dielectricMaterial", "Dielectric Material");
   const updateDielectricVisibility = () => {
@@ -401,14 +438,48 @@ function openPropertiesDialog(harness, cableGroup = null) {
       return;
     }
     const lineCount = ribbonLines ? Number(ribbonLines.value) : null;
-    if (ribbonLines && (!Number.isInteger(lineCount) || lineCount < 1)) {
-      error.textContent = "Lines must be a positive whole number.";
+    const isFfc = ribbonGeometry?.value === "ffc";
+    if (ribbonLines && (!Number.isInteger(lineCount) || lineCount < (isFfc ? 2 : 1))) {
+      error.textContent = isFfc
+        ? "FFC requires at least two lines." : "Lines must be a positive whole number.";
       return;
+    }
+    const readTraceSize = (input, name) => {
+      const value = input.value.trim();
+      if (value.toLocaleLowerCase() === "auto") return null;
+      const measured = persistedLengthValue(value, units);
+      if (!value || !Number.isFinite(measured) || measured <= 0) {
+        throw new Error(`${name} must be Auto or a positive number in ${units.symbol}.`);
+      }
+      return measured;
+    };
+    let traceWidthMm = cableGroup?.traceWidthMm ?? null;
+    let traceSpacingMm = cableGroup?.traceSpacingMm ?? null;
+    if (ribbonLines && isFfc) {
+      try {
+        traceWidthMm = readTraceSize(traceWidth, "Trace Width");
+        traceSpacingMm = readTraceSize(traceSpacing, "Spacing");
+      } catch (failure) {
+        error.textContent = failure.message;
+        return;
+      }
+      if (isFfc && Number.isFinite(cableGroup.ffcPitchMm)) {
+        const pitch = cableGroup.ffcPitchMm;
+        const width = traceWidthMm ?? (traceSpacingMm == null
+          ? cableGroup.ffcAutoTraceWidthMm : pitch - traceSpacingMm);
+        const spacing = traceSpacingMm ?? pitch - width;
+        if (!(width > 0) || !(spacing > 0)
+            || Math.abs(width + spacing - pitch) > 0.0001) {
+          error.textContent = "Trace Width and Spacing must be positive and sum to the contact pitch.";
+          return;
+        }
+      }
     }
     let conductorDiameterMm = null;
     if (isCableGroup) {
       try {
-        conductorDiameterMm = conductorDiameter.read();
+        conductorDiameterMm = isFfc
+          ? cableGroup.conductorDiameterMm : conductorDiameter.read();
       } catch (failure) {
         error.textContent = failure.message;
         return;
@@ -445,7 +516,10 @@ function openPropertiesDialog(harness, cableGroup = null) {
             ...(ribbonLines ? {
               ribbonLines: lineCount,
               ribbonGeometry: ribbonGeometry.value,
-              ...(ribbonBodyType ? { ribbonBodyType: ribbonBodyType.value } : {}),
+              ...(isFfc ? { ribbonBodyType: "solid" }
+                : ribbonBodyType ? { ribbonBodyType: ribbonBodyType.value } : {}),
+              traceWidthMm,
+              traceSpacingMm,
             } : {}),
             insulationMaterial,
             conductorMaterial,

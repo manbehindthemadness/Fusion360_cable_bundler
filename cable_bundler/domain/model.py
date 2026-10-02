@@ -21,7 +21,7 @@ from .metadata import Metadata, resolve_metadata
 from .metadata import validate_metadata as _validate_metadata
 from .routing_controls import AutoTransitionPreset, InterpolationSettings, RefineGeometry
 
-SCHEMA_VERSION = 39
+SCHEMA_VERSION = 40
 DEFAULT_CABLE_DIAMETER_MM = 1.5
 
 
@@ -614,6 +614,8 @@ class CableGroupDefinition:
     ribbon_geometry: RibbonGeometryType = RibbonGeometryType.DISCRETE
     ribbon_line_colors: tuple[Optional[CableColor], ...] = ()
     ribbon_body_type: RibbonBodyType = RibbonBodyType.SPLIT
+    trace_width_mm: Optional[float] = None
+    trace_spacing_mm: Optional[float] = None
 
     def __post_init__(self) -> None:
         """
@@ -632,6 +634,23 @@ class CableGroupDefinition:
             raise ValueError("Ribbon geometry type is invalid.")
         if not isinstance(self.ribbon_body_type, RibbonBodyType):
             raise ValueError("Ribbon body type is invalid.")
+        for label, value in (
+            ("Trace width", self.trace_width_mm),
+            ("Trace spacing", self.trace_spacing_mm),
+        ):
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value <= 0.0
+            ):
+                raise ValueError(f"{label} must be finite and positive or Auto.")
+        if self.ribbon_geometry is RibbonGeometryType.FFC and (
+            self.group_type is not CableGroupType.RIBBON
+            or self.ribbon_lines < 2
+            or self.ribbon_body_type is not RibbonBodyType.SOLID
+        ):
+            raise ValueError("FFC requires at least two lines and a Solid ribbon body.")
         if not isinstance(self.ribbon_line_colors, tuple) or (
             self.ribbon_line_colors
             and (
@@ -648,6 +667,8 @@ class CableGroupDefinition:
             or self.ribbon_geometry is not RibbonGeometryType.DISCRETE
             or self.ribbon_line_colors
             or self.ribbon_body_type is not RibbonBodyType.SPLIT
+            or self.trace_width_mm is not None
+            or self.trace_spacing_mm is not None
         ):
             raise ValueError("Loose cable groups cannot have ribbon properties.")
         if self.conductor_diameter_mm is not None and (
@@ -655,7 +676,10 @@ class CableGroupDefinition:
             or not isinstance(self.conductor_diameter_mm, (int, float))
             or not math.isfinite(self.conductor_diameter_mm)
             or self.conductor_diameter_mm <= 0.0
-            or self.conductor_diameter_mm > self.diameter_mm
+            or (
+                self.ribbon_geometry is not RibbonGeometryType.FFC
+                and self.conductor_diameter_mm > self.diameter_mm
+            )
         ):
             raise ValueError(
                 "Cable-group conductor diameter must be positive and no larger than its diameter."
