@@ -703,3 +703,41 @@ matrix remains an unsaved experiment; no saved source design or add-in
 production path was changed. Ignored final report:
 `artifacts/verification/ffc_texture_matrix/matrix_analysis_uv_scale_final.json`;
 matching `*_uv_scale_final.png` captures remain alongside it.
+
+## FFC line-trace production gate: curved transport
+
+`experiment_ffc_trace_transport.py` built nine controlled, one-face PH
+reversal sweeps in an unsaved Fusion scratch and compared display-mesh
+transverse coordinates at the start and finish in the corresponding local
+section frames. Eight produced one solid with one side face and a continuous
+seam: 1 trace at 0°/180°, 3 traces at 0°/90°/180°, and 5 traces at
+0°/90°/180°. All eight midpoint cross-sections had one wire. Every matched
+start/end perimeter node retained exactly the same reported transverse U;
+the maximum physical matching error was below 0.00005 mm. The seam vertex
+has two coincident mesh nodes with different U values, so correspondence
+must include both position **and** U there. This is evidence of exact UV
+transport across these sweeps, not a visual stripe-width measurement at
+the far contact. The 9-trace, 60 mm reversal failed with
+`ASM_SELF_INTER`; it is not a successful transport case. The scratch remains
+open. Ignored report: `artifacts/verification/ffc_trace_transport.json`.
+
+Separate prior experiments established repeatable UVs on two fresh 3- and
+5-trace reversal builds, and exact UV restoration after changing a 5-trace
+sweep from 180° to 170° and back. The 11-case straight-sweep image matrix
+passed its measured start-section stripe-count, center, width, and edge-gap
+checks. These observations support the line-trace rendering technique but
+**do not certify the product path**. The live 19-trace contact-to-contact
+one-face sweep has a split interior section in the trimmed rail case, and
+other live-route variants fail to construct. The experimental texture
+algorithm is not yet part of generated cable material handling. Also,
+`CableGroupDefinition` and `ffc_contact_geometry` currently require at
+least two FFC traces, contrary to the intended single-trace antenna case.
+
+Remaining release gates: integrate deterministic UV-driven stripe creation
+into the generated FFC path; make single-trace contact sizing legal without
+dividing by a nonexistent pitch; reject or resolve live-route sweep
+self-intersection and split sections; measure both faces against persistent
+contact IDs at **both** ends and representative interior sections; verify
+regeneration, reload, appearance edits, and preview cleanup in the actual
+product workflow. Until these pass, the experiments certify a promising
+renderer, not production-ready line traces.
