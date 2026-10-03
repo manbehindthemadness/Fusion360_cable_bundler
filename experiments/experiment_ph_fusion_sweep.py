@@ -25,16 +25,20 @@ def _path_sketch(
     name: str,
     controls_mm: tuple[complex, ...],
     offset_y_cm: float,
+    lateral_displacement_mm: float = 0.0,
 ) -> tuple[adsk.fusion.Sketch, adsk.fusion.SketchControlPointSpline]:
     """
-    Add the exact six-control-point polynomial PH Bézier path on the XY plane.
+    Add PH Bézier controls, optionally with a non-PH lateral Z excursion.
     """
     sketch = root.sketches.add(root.xYConstructionPlane)
     sketch.name = f"{name} PH path"
     points: list[adsk.core.Point3D] = []
-    for control in controls_mm:
+    lateral_controls = (0.0, 0.0, 1.6, 1.6, 0.0, 0.0)
+    for index, control in enumerate(controls_mm):
         world = adsk.core.Point3D.create(
-            control.real / 10.0, offset_y_cm + control.imag / 10.0, 0.0
+            control.real / 10.0,
+            offset_y_cm + control.imag / 10.0,
+            lateral_controls[index] * lateral_displacement_mm / 10.0,
         )
         points.append(sketch.modelToSketchSpace(world))
     spline = sketch.sketchCurves.sketchControlPointSplines.add(
@@ -52,11 +56,13 @@ def _sweep_case(
     offset_y_cm: float,
     wire_radius_mm: float,
     ribbon_width_mm: float | None = None,
+    twist_degrees: float = 0.0,
+    lateral_displacement_mm: float = 0.0,
 ) -> dict[str, object]:
     """
     Make one circular or rectangular sweep; retain its input sketches.
     """
-    sketch, spline = _path_sketch(root, name, controls_mm, offset_y_cm)
+    sketch, spline = _path_sketch(root, name, controls_mm, offset_y_cm, lateral_displacement_mm)
     profile_sketch = root.sketches.add(root.yZConstructionPlane)
     profile_sketch.name = f"{name} profile"
     if ribbon_width_mm is None:
@@ -88,6 +94,8 @@ def _sweep_case(
         adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
     )
     sweep_input.orientation = adsk.fusion.SweepOrientationTypes.PerpendicularOrientationType
+    if twist_degrees:
+        sweep_input.twistAngle = adsk.core.ValueInput.createByString(f"{twist_degrees} deg")
     sweep = root.features.sweepFeatures.add(sweep_input)
     if sweep is None:
         raise RuntimeError("Fusion sweep returned no feature.")
