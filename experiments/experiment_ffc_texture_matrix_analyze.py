@@ -7,6 +7,7 @@ Run after converting the ignored PNG captures to 32-bit, top-down BMP using
 
 from __future__ import annotations
 
+import colorsys
 import json
 import math
 import statistics
@@ -97,6 +98,11 @@ def _measure_case(row: dict[str, object], bmp_dir: Path, image_suffix: str) -> d
             "observed_centers_px": centers,
             "expected_centers_px": expected,
         }
+        if runs:
+            result["outer_gaps_mm"] = [
+                (runs[0][0] - (width / 2 - half_ribbon_cm * pixels_per_cm)) * 10.0 / pixels_per_cm,
+                ((width / 2 + half_ribbon_cm * pixels_per_cm) - runs[-1][1]) * 10.0 / pixels_per_cm,
+            ]
         if len(runs) == count:
             errors = [observed - target for observed, target in zip(centers, expected)]
             result["max_center_error_mm"] = (
@@ -108,6 +114,17 @@ def _measure_case(row: dict[str, object], bmp_dir: Path, image_suffix: str) -> d
                 widths[0] / result["expected_width_px"],
                 widths[-1] / result["expected_width_px"],
             ]
+            hue_errors: list[float] = []
+            for index, center in enumerate(centers):
+                x = round(center)
+                pixel_offset = offset + 4 * (y * width + x)
+                blue, green, red = data[pixel_offset : pixel_offset + 3]
+                observed_hue = colorsys.rgb_to_hsv(red / 255, green / 255, blue / 255)[0]
+                lane = index if side == "top" else count - 1 - index
+                expected_hue = (lane * 0.618033988749895) % 1.0
+                difference = abs(observed_hue - expected_hue)
+                hue_errors.append(min(difference, 1.0 - difference))
+            result["max_hue_error"] = max(hue_errors)
         observations[side] = result
     return observations
 

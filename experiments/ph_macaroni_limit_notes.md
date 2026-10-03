@@ -648,3 +648,58 @@ image intervals rather than assuming a linear millimeter-to-UV relation.
 Ignored evidence: `artifacts/verification/ffc_texture_matrix/matrix.json`,
 `uv_ranges.json`, `uv_fit.json`, `matrix_analysis.json`,
 `matrix_analysis_uv_fit.json`, and the matching top/bottom PNG captures.
+
+## FFC perimeter registration: edge-gap hypothesis resolved
+
+The next matrix pass replaced uniform lane cells with an image sampled from
+the sweep's **actual starting cross-section display-mesh U-to-position map**.
+For each image pixel, `experiment_ffc_texture_uv_exact.py` interpolates the
+section position from U and colors it only when that physical position lies
+inside a requested trace width. The same lane hue is used on both sides;
+outer edges and inter-trace spaces remain dark. At the previously inferred
+repeat scale, this image gave 11/11 correct band counts, but the 19-trace
+case still accumulated about 0.56 mm top and 1.13 mm bottom center error.
+
+We tested the left/right-gap explanation separately. An image-only affine
+edge adjustment, with the material repeat held fixed, put centers within
+0.20 mm but made some return-side widths as much as 27% too broad. This was
+not a stable width rule. The 25%, 50%, and 75% split-color texture probes
+then showed the material's image-coordinate marks drifting in proportion to
+distance around the profile: in the 19-trace reference, the 25% boundary
+was about 0.25 mm beyond the top midpoint and the 75% boundary about
+0.75 mm beyond the bottom midpoint. **This is cumulative repeat-scale
+error, not two independent edge-gap errors.** The first probe attempt was
+invalid because replacing a texture resets Fusion's mapping controls; the
+probe script now explicitly reapplies scale and zero offset before capture.
+
+For these 11 straight, fitted-spline sweep cases, the measured material
+mapping is:
+
+```text
+image:      physical trace colors sampled at each section mesh U
+scale_cm:   0.9883 * 8.282368421052632 * (face_U_span / 20.779499053955078)
+offset_cm:  0
+```
+
+The `0.9883` factor is an **empirical correction for the current Fusion
+appearance mapping**, not a documented Fusion constant. Using the same
+formula without case-specific phase, edge, or width tuning yielded 1, 3,
+7, 9, and 19 bands on **each** face for their corresponding 11 cases. The
+worst contact-center error was 0.075 mm. Mean colored widths were 0.992–
+1.022 times their requested widths. Every measured outside dark gap was
+positive (minimum 0.244 mm), and observed center hues differed from their
+assigned lane hues by at most 0.023 of a hue turn. The single-trace cases
+passed at both 0.2 and 2.0 mm thickness. This passes a practical 0.10 mm
+center / 3% mean-width / positive-edge-gap acceptance rule at the start
+section for **these straight test sweeps**.
+
+Do not promote the `0.9883` factor as a general product invariant yet.
+Curved contact-to-contact routes, changed profile construction, appearance
+settings, Fusion versions, and regeneration may alter the mapping. A product
+rule should regenerate the image from measured section UVs, set scale and
+offset **after** connecting the texture, and validate both broad faces
+against contact identity, centers, widths, and neutral edges. The current
+matrix remains an unsaved experiment; no saved source design or add-in
+production path was changed. Ignored final report:
+`artifacts/verification/ffc_texture_matrix/matrix_analysis_uv_scale_final.json`;
+matching `*_uv_scale_final.png` captures remain alongside it.
