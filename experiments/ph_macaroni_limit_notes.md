@@ -242,3 +242,181 @@ ribbon has lobed arcs, so sharp or changing section features still warrant
 targeted section checks when an actual cable sweep is investigated. No
 production rule or generator was changed. Ignored detailed report:
 `artifacts/verification/banked_triangle_section_audit.json`.
+
+## Production-profile sweep check
+
+`experiment_product_profile_sweeps.py` uses the application's
+`_add_solid_section` sketch builder for one- and three-trace lobed Solid
+ribbons and FFCs, plus a 1 mm diameter circular control. FFC dimensions
+are 2 mm pitch, 1.5 mm trace width, 0.5 mm spacing, and 0.5 mm thickness;
+lobed ribbons use 1 mm diameter and 2 mm trace pitch. The three-trace
+profiles are centered on the PH path. An initial **off-center** probe was
+discarded because it put the first trace, not the profile midpoint, on the
+path. The corrected 30-case matrix used 5/10 mm PH reversals and 0°/90°/180°
+Fusion sweep twist, in a separate unsaved design. It did not exercise the
+production multi-station loft, color assignment, or saved harness routing.
+
+| Section | 5 mm, 0°/90°/180° | 10 mm, 0°/90°/180° |
+| --- | --- | --- |
+| Circle, 1 mm diameter | 3 solids; all 1-wire/1-edge midpoint sections | Same |
+| Lobed, one trace | 3 solids; all 1-wire/4-edge sections | Same |
+| FFC, one trace | 3 solids; all 1-wire/16-edge sections | Same |
+| Lobed, three traces | fail / fail / **solid with 2-wire, 17-edge section** (input 12) | 3 solids; all 1-wire/12-edge sections |
+| FFC, three traces | fail / fail / **solid with 2-wire, 59-edge section** (input 40) | 3 solids; all 1-wire/40-edge sections |
+
+In total Fusion made 26/30 solids, but only 24 had the expected single-wire
+midpoint topology. Both anomalous tight 180° solids had near-nominal volume:
+relative errors were -0.083% for the lobed profile and -0.427% for FFC.
+Therefore **volume, face count, and solid status together still do not
+certify a usable section**. The wide 10 mm FFC 180° control measured exactly
+the input 40 edges, one wire, and nominal volume to numerical tolerance.
+
+The 5 mm path's maximum curvature is 0.6723/mm. Bounding-envelope support
+loads for a parameter-linear 180° bank are at most approximately 0.745 for
+the three-trace lobed profile and 0.723 for FFC, below the local-fold value
+of 1. Nonetheless their endpoint section widths are about 5.2 and 6 mm,
+respectively, exceeding the 5 mm return-leg separation. The anomalous
+sections are thus consistent with **nonlocal return-leg interference**, not
+proof of a local curvature fold. At 10 mm both endpoint gaps are positive
+and all three-trace midpoint sections match. The exact Fusion twist law and
+whole-body nonlocal topology remain unproven; this is a controlled sweep
+observation, not a general sufficiency theorem.
+
+The section-checking approach catches false-positive solids for the
+application's own shapes and helps classify the missing condition: local
+bend clearance and nonlocal profile-envelope clearance must be checked
+separately. It does **not** itself fix the original Solid ribbon/FFC loft
+face-correspondence or coloring problems. No production generator was
+changed. Detailed ignored report:
+`artifacts/verification/product_profile_sweeps.json`. The corrected scratch
+is left open; earlier experimental documents were not modified or closed.
+
+## Discrete ribbon section comparison
+
+`experiment_discrete_ribbon_sweeps.py` repeated the controlled PH reversal
+with the application's actual joined, moderate-groove **Discrete** section
+builder (`_add_section`). The 1 mm-diameter sections had three or five lines;
+their outer widths were 3.2 and 5.2 mm. The 15 cases combined 3/5/10 mm
+return-leg separations with 0°/90°/180° sweep twist, as applicable. Each
+result was cut by a temporary plane at the PH midpoint and compared with its
+input profile topology. This isolated sweep deliberately omitted the
+production banking guide rail and folded multi-station loft; it tests the
+section's behavior, not a complete generated harness.
+
+| Lines / return separation | 0° | 90° | 180° |
+| --- | --- | --- | --- |
+| 3 / 3 mm | self-intersection rejection | self-intersection rejection | **solid; 2 wires, 13 edges** (input 8) |
+| 3 / 5 mm | self-intersection rejection | solid; 1 wire, 8 edges | solid; 1 wire, 8 edges |
+| 3 / 10 mm | solid; 1 wire, 8 edges | solid; 1 wire, 8 edges | solid; 1 wire, 8 edges |
+| 5 / 5 mm | self-intersection rejection | self-intersection rejection | **solid; 2 wires, 17 edges** (input 12) |
+| 5 / 10 mm | solid; 1 wire, 12 edges | solid; 1 wire, 12 edges | solid; 1 wire, 12 edges |
+
+Fusion accepted 10/15 as single solids. Eight had the expected single-wire
+midpoint topology; the two bold cases had an extra disconnected section wire
+and extra edges despite near-nominal volumes (relative errors -0.275% and
+-0.073%). Both had nominal return-leg overlaps of 0.2 mm. Thus the Discrete
+profile is **not categorically immune** to the same false-positive-solid
+failure under deliberately impossible clearance. Its narrower pitch gives
+more margin than the three-line Solid/FFC profiles in the previous test,
+consistent with the user's observation that ordinary Discrete ribbons have
+not shown this defect. This is not evidence that the production guided sweep
+or folded loft exhibits it under feasible routed conditions.
+
+No production geometry was changed. The isolated scratch remains open;
+earlier documents were not modified. Detailed ignored report:
+`artifacts/verification/discrete_ribbon_sweeps.json`.
+
+## Single fitted-spline Discrete outline and seam
+
+`experiment_discrete_spline_seam.py` approximates the same 1 mm Discrete
+ribbon lobes with **one periodic fit-point spline**, rather than the distinct
+arc segments. Its first fit point is deliberately placed at the outer tip
+of the first end cap, so the intended seam has a measurable location. The
+test repeats the PH 180° reversal with three or five lines, 0°/90°/180°
+sweep twist, and 3/5/10 mm return separations. It reads the actual start
+and end cap seam vertices from the resulting BRep, checks for one edge
+joining them, and compares the end vertex to the banked end-tip position.
+
+Eight of 11 sweeps made solids. **Every successful body had exactly three
+faces: two caps and one continuous side face.** Each had one side seam edge
+joining the two cap seam vertices. The start seam coincided with the first
+fit point, and the end seam landed at its corresponding transported cap tip
+within 0.000001 mm (the measured differences were numerical roundoff).
+Their temporary midpoint sections each had one wire and one edge. The three
+failures were Fusion `ASM_SELF_INTER` rejections: three-line/5 mm/0° and
+the deliberately overlapping three-line/3 mm/180° and five-line/5 mm/180°
+cases. Unlike the segmented Discrete outline, the latter two did **not**
+yield false-positive solids in this controlled fit-spline test.
+
+Thus a single periodic section curve preserved the designated seam from
+start to finish in the tested sweeps, including 90° and 180° bank. It also
+collapsed the side into one face, which by itself cannot carry separate
+per-line **face** appearances; the texture-mapping milestone below offers a
+different route to visual per-line colors. This does not yet establish seam
+stability for the application's multi-section loft, production guide rail,
+arbitrary routes, or edits/regeneration. The spline only approximates the
+arc contour, so any future use would need a profile-fidelity and coloring
+strategy.
+
+No production geometry was changed. The isolated unsaved scratch is left
+open, and earlier documents were not modified or closed. Detailed ignored
+report: `artifacts/verification/discrete_spline_seam.json`.
+
+## Milestone: longitudinal stripes survive the one-face sweep
+
+In the user-supplied Fusion image of the fitted-profile U-turn, a rainbow
+texture remains organized as lengthwise bands across the single swept side
+face. The bands visibly follow the bend and 180° reversal without an obvious
+perimeter-order swap. Together with the measured one-face BRep and its
+start-to-end seam edge above, this establishes a **promising visual route to
+per-trace color on one face**, without requiring one BRep face per trace.
+
+This is an observed rendered result, not a numerical UV-coordinate audit.
+It does not show that stripe widths remain exact everywhere, that the texture
+origin/scale survives edits or regeneration, or that a multi-section **loft**
+maps the material the same way as this **sweep**. Localized visual compression
+and rippling are visible near the tight bend, so quantitative registration
+and minimum-clearance checks remain necessary before this becomes a product
+rule. No production material or geometry behavior was changed.
+
+## Single fitted-spline FFC outline and seam
+
+`experiment_ffc_spline_seam.py` repeats the Discrete one-face test with a
+2 mm-pitch FFC section (1.5 mm nominal trace width, 0.5 mm spacing,
+0.5 mm thickness). One closed fit-point spline approximates the flat trace
+lands and shallow spacing grooves; its first point lies at the first outer
+edge's mid-thickness and designates the seam. This is an **approximation** of
+the production FFC section, not exact straight lands or V notches.
+
+The isolated PH 180°-reversal sweep used one, three, and five traces with
+0°/90°/180° twist and deliberately varied return-leg spacing:
+
+| Traces / return separation | 0° | 90° | 180° |
+| --- | --- | --- | --- |
+| 1 / 5 mm | clean | clean | clean |
+| 3 / 5 mm | rejected | rejected | rejected |
+| 3 / 10 mm | clean | clean | clean |
+| 5 / 10 mm | rejected | **2 midpoint wires** | rejected |
+| 5 / 20 mm | clean | clean | clean |
+
+Ten of 15 cases made solids. Every successful body had exactly **one side
+face, two cap faces, and one longitudinal seam edge**. The start seam
+coincided with the designated fit point, and the end seam landed at its
+expected transported location to numerical precision (largest recorded
+error below 0.000001 mm). Nine successful cases had one midpoint-section
+wire and one edge, matching the fitted input profile. The five-trace,
+10 mm-separation, 90°-twist case made a single three-face solid but its
+midpoint section had **two wires and four edges**. It is therefore not a
+usable result merely because Fusion reported one solid. All five rejected
+cases reported `ASM_SELF_INTER`.
+
+The measured fitted profile areas were approximately 1.013, 2.990, and
+4.968 mm² for one, three, and five traces, versus nominal flat envelopes of
+1, 3, and 5 mm². The small mismatch reinforces that a fitted spline does
+not exactly enforce trace width, thickness, or notch dimensions. The
+one-face/seam behavior is encouraging for a texture-based FFC display,
+but **UV registration itself was not measured here**. This neither validates
+the application's multi-section loft nor provides a general clearance
+guarantee. No production geometry or appearance code changed. The unsaved
+FFC test design remains open. Detailed ignored report:
+`artifacts/verification/ffc_spline_seam.json`.
