@@ -201,3 +201,44 @@ Ignored reports: `artifacts/verification/banked_profile_extremes_math.json`,
 `artifacts/verification/banked_profile_extremes_fusion.json`, and
 `artifacts/verification/banked_profile_twist_fusion.json`. The experiment
 scripts are repeatable; production sweep behavior is unchanged.
+
+## Milestone: a solid can conceal a folded triangular sweep
+
+`experiment_banked_triangle_section_audit.py` made **temporary, read-only**
+plane intersections of the existing 31-body scratch at each path midpoint.
+The PH centerline crosses that midpoint plane only once (the centerline's Y
+coordinate is monotone), so the extra section edges below are not caused by
+multiple centerline visits. The saved `Macaroni v1` document was not touched.
+
+| Sweep | Midpoint section edges | Expected profile edges | Body | Measured volume |
+| --- | ---: | ---: | --- | ---: |
+| 5 mm reversal, triangle, 90° twist | 12 | 3 | one five-face solid | 52.811 mm³ |
+| 5 mm reversal, triangle, 180° twist | 11 | 3 | one five-face solid | 54.021 mm³ |
+| 10 mm reversal, triangle, 180° twist | 3 | 3 | one five-face solid | 73.333 mm³ |
+| 10 mm reversal, rectangle, 180° twist | 4 | 4 | one six-face solid | 73.333 mm³ |
+
+The sections of the two tight triangular solids are **not transported
+triangles**. Their single section wire contains extra turns/vertices and has
+a much larger vertical range than its nominal 1 mm section. At 90° twist its
+X range even reaches 0 mm, whereas the assumed rigid midpoint section starts
+at about 2.913 mm. At 180° twist its section starts at 2.669 mm rather than
+the assumed 1.565 mm. These are direct body-geometry observations; they do
+not determine exactly how ASM parameterized, intersected, or trimmed the
+sweep. The 10 mm controls match their intended profile edge counts and
+midpoint extents to numerical tolerance. The triangle's nominal area is 4
+mm², so area times exact PH path length predicts 53.333 mm³ on the 5 mm path
+and 73.333 mm³ on the 10 mm path; the anomalous tight volumes differ from
+the former, while both wide controls match the latter. This reinforces the
+section evidence without treating volume alone as a shape validator.
+
+The application does not use triangular cable sections, so this particular
+counterexample does not directly invalidate its circle, ribbon, or FFC
+geometry. It **does** establish an acceptance-rule boundary: `body.isSolid`
+and face count are insufficient to validate cross-section fidelity, even
+when a support-based local-fold screen predicts trouble. Circle and wide
+rectangle controls behaved as expected, but neither proves all nontriangular
+sections safe. The application's FFC has shallow V notches and its solid
+ribbon has lobed arcs, so sharp or changing section features still warrant
+targeted section checks when an actual cable sweep is investigated. No
+production rule or generator was changed. Ignored detailed report:
+`artifacts/verification/banked_triangle_section_audit.json`.
