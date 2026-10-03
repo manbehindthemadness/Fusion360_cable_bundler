@@ -420,3 +420,43 @@ the application's multi-section loft nor provides a general clearance
 guarantee. No production geometry or appearance code changed. The unsaved
 FFC test design remains open. Detailed ignored report:
 `artifacts/verification/ffc_spline_seam.json`.
+
+## Section-valid textured FFC rebuilds
+
+`experiment_ffc_texture_rebuild.py` read the user's textured FFC scratch
+without editing it, copied its `Rainbow` appearance into a new unsaved test
+design, and rebuilt the fitted one-face FFC sweep twice for each of two
+previously section-valid, generous-gap cases: three traces with 10 mm return separation,
+and five traces with 20 mm separation, both with 180° twist. All four bodies
+had one side face, one midpoint-section wire/edge, and the expected seam end
+location. This is not a whole-body clearance certificate. The source
+document's modified flag was unchanged.
+
+For each pair, Fusion's side-face display meshes had the same node count
+(173 for three traces, 318 for five). After removing the intentional
+8 cm placement difference, corresponding mesh positions differed by at
+most 0.000001 cm, and the reported mesh **texture coordinates matched
+exactly to seven decimal places at every node**. This is a deterministic
+fresh-build result for these particular shapes, not an edit/regeneration
+test of an existing feature. The visual rainbow bands also appeared on all
+four new bodies, but their default body-level projection does **not** yet
+establish one correctly registered color per trace. Copying an appearance
+does not by itself prove that the user's original visual mapping settings
+or lane boundaries are reproduced; the map-control transform and stripe
+registration still need an explicit policy and test.
+
+The scratch was left open, and no production code changed. Detailed ignored
+report: `artifacts/verification/ffc_texture_rebuild.json`.
+
+`experiment_ffc_texture_edit.py` then used a **parametric** scratch for the
+five-trace, 20 mm, 180° case. After assigning the copied texture, it edited
+the existing sweep feature to 170° and restored 180°. The restored body
+remained a three-face solid with one midpoint-section wire and one side
+face, retained its appearance, and placed the seam at the same end point.
+Its 318 local display-mesh positions and all reported UVs matched the
+pre-edit values exactly at seven decimal places. This directly tests a
+feature recompute, but only for this one controlled sweep and round-trip
+twist edit. It does not certify material-to-trace registration, changes to
+the path/profile, or application-level route regeneration. The source
+document remained untouched and the parametric scratch was left open.
+Detailed ignored report: `artifacts/verification/ffc_texture_edit.json`.
