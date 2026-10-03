@@ -211,3 +211,46 @@ width/thickness, nearby nonlocal self-contact, regeneration, or multi-trace
 connectors. Therefore these are *testable design criteria*, not an authorized
 product change or proof of reliable arbitrary lofts. The ignored raw report is
 `artifacts/verification/loft_ribbon_rules.json`.
+
+## Actual 19-trace FFC counterexample (2026-10-03)
+
+`experiment_live_ffc_correspondence.py` and its one-case
+`experiment_live_ffc_dense_unrailed.py` follow-up used the saved FFC group in
+the open `Wire creation tester v109` design. Planning used the current route,
+contact, and FFC-dimension code; each section was drawn by the production FFC
+section builder in an unsaved scratch design. The source was already modified
+and remained modified; the experiment did not save or change it. The scratch
+design stays open for inspection. Raw results are in ignored
+`artifacts/verification/live_ffc_correspondence.json`.
+
+The real plan has 19 numbered traces and 40 stations. Its resolved dimensions
+are 1.515 mm trace width, 0.992 mm spacing, 2.507 mm pitch, and 1.5 mm
+thickness. The production loft selects stations `0, 4, 12, 20, 28, 35, 39`.
+Two proposed rail curves were measured to meet all seven or all forty profile
+corners within `6e-15 cm`.
+
+| Exact profile and gate selection | Fusion result | Face-identity result |
+| --- | --- | --- |
+| Production seven gates, no rails | One solid | 324 side faces instead of the 232 unsplit contour edges; 190 of 228 top/bottom trace-land samples did not remain on their starting face |
+| Same seven gates, two opposite-corner rails | `ASM_BAD_UV_SKIN_DIR` rejection | No body to inspect |
+| All forty gates, two opposite-corner rails | `ASM_LOFT_SURFACE_SELF_INTERSECTS` rejection | No body to inspect |
+| All forty gates, no rails | `ASM_LOFT_SURFACE_SELF_INTERSECTS` rejection | No body to inspect |
+
+Sparse selected gates rotate as much as 89.8° in section normal and 79.7° in
+width axis between neighbors. Using all forty lowers those separate maxima to
+28.6° and 11.8°, yet both dense lofts are rejected. These are *individual
+axis* angles, not the complete frame-rotation metric used in the rectangular
+matrix. More important, neither a gate-count rule nor a two-rail rule is
+sufficient for this actual ribbon. The unrailed dense control shows that the
+rails alone do not cause the self-intersection rejection; it does not tell us
+whether the intended wide ribbon physically self-overlaps or ASM infers a
+different skin correspondence. The sparse body's extra faces and failing
+trace-land samples make per-trace face coloring unreliable even though its
+solid is valid.
+
+The previous candidate rule set should therefore be treated as *necessary
+checks and experimental levers*, not a recipe for this route. Before changing
+production geometry, a further experiment would need to localize the dense
+loft's failing interval or nonlocal overlap, and separately test a controlled
+construction that retains continuous trace-land faces. Do not infer success
+from the 25° target or from the two-rail seven-shape controls.
