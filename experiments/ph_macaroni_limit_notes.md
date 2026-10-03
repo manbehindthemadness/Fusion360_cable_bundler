@@ -741,3 +741,42 @@ contact IDs at **both** ends and representative interior sections; verify
 regeneration, reload, appearance edits, and preview cleanup in the actual
 product workflow. Until these pass, the experiments certify a promising
 renderer, not production-ready line traces.
+
+## Chosen ribbon line-rendering design: Discrete compatibility
+
+The one-periodic-fit-point-profile, explicit side seam, single-side-face
+sweep with measured-UV per-line texture is the selected rendering direction
+for **both** FFC and joined Discrete ribbons. This is a design decision,
+not a claim that the current product generation path has been replaced.
+Keep route feasibility, bend limits, and self-intersection tests in the path
+solver experiments; do not count an invalid path as a line-color failure.
+The earlier 9-trace FFC control was such an invalid path: its starting PH
+radius was about 2.72 mm while the flat half-width reached 9 mm inward.
+
+`experiment_discrete_trace_transport.py` swept 3, 5, and 7-line fitted
+Discrete outlines on eight planar reversals with 0°, 90°, and 180° sweep
+twists. All eight made one solid with one side face and one midpoint section
+wire. After Fusion's display mesh settled, every start perimeter node had
+an end counterpart with identical U. Each numbered line's top and bottom
+lobe crest had a distinct U from its neighbors, and the same U at the far
+end; maximum measured U displacement was zero. The first immediate-mesh
+crest probe was too coarse and was superseded by the settled-mesh audit.
+
+`experiment_discrete_trace_texture.py` applied images generated from those
+actual starting-section U positions to representative 180°-twisted 3-, 5-,
+and 7-line sweeps. Fusion connected the image to one side-face appearance
+for each body. All six top/bottom captures visually showed the requested
+distinct colors following their respective lobes continuously around the
+return, with dark inter-line intervals and outer edges. The image mapping
+used the FFC experiment's empirical repeat-scale factor; these captures
+demonstrate compatibility, not calibrated product dimensions. The unsaved
+Discrete scratch remains open. Ignored evidence:
+`artifacts/verification/discrete_trace_transport.json` and
+`artifacts/verification/discrete_trace_texture/`.
+
+For implementation, derive color bands from the actual generated profile's
+UV-to-physical section map, keyed by persistent conductor identity. Set
+texture scale and offset after attaching the image, keep the shared material
+behavior separate from profile-shape generation, and verify both ends and
+regeneration in the production workflow. Neither the FFC-specific
+`0.9883` scale correction nor these sample lobe widths are universal rules.
