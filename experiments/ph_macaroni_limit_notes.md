@@ -460,3 +460,42 @@ twist edit. It does not certify material-to-trace registration, changes to
 the path/profile, or application-level route regeneration. The source
 document remained untouched and the parametric scratch was left open.
 Detailed ignored report: `artifacts/verification/ffc_texture_edit.json`.
+
+## Live contact-to-contact FFC: one-face sweep gate
+
+`experiment_live_ffc_one_face_sweep.py` read the saved `Wire creation tester
+v110` FFC through the product's planner (19 traces, 40 stations, 2.5067 mm
+pitch, 1.5 mm thickness). All attempts were built in separate unsaved
+scratch designs; the saved source's modified flag remained false. A free
+one-face sweep on the full 40-station fitted spine failed `ASM_SELF_INTER`
+for every centered trace count tested (1, 3, 5, 9, 13, 17, 19). Even circular
+sections of 0.05, 0.25, and 0.75 mm radius failed on that spine. The full
+19-trace banking-rail sweep failed `ASM_SWEEP_ILLEGAL_SURFACE`.
+
+Read-only inspection of the plan found a concrete local reversal near the
+ending contact: center Z went 2.784 → 4.104 → 0.790 mm across stations
+35–37. The experiment omitted only intermediate ending-lead stations 36–38
+from the *scratch* spine while retaining the first and final contact
+stations. On that 37-station spine a 0.05 mm circular sweep and the
+one-trace FFC sweep made three-face solids with one wire and one edge in
+each of three interior section cuts. The circular control establishes that
+the original full-spine failure was not simply ribbon width.
+
+With the width-edge banking rail on the trimmed spine, centered 1, 3, 5,
+9, and 13 trace sections each made one three-face solid and one loop/edge
+at all three sampled sections. At 17 traces Fusion rejected the sweep with
+`ASM_SWEEP_ILLEGAL_SURFACE`. At 19 traces it made one three-face solid, but
+the middle section contained **two wires and three edges**; this is not a
+usable result despite Fusion returning a solid. Free (unrailed) sweeps
+passed the sampled section check for only one and three traces; five and
+more failed `ASM_SELF_INTER`. The closest end seam vertex on the banked
+accepted cases was 0.014–0.173 mm from the planned tip, increasing with
+width, so contact-relative registration is still not exact. These are
+three-cut topology screens, not full-length clearance certificates.
+
+The backtracking end lead is a deterministic spine-construction defect to
+resolve before a production sweep. The width-dependent failure beyond 13
+traces also requires route/bank/envelope validation; simply substituting a
+one-face profile for the production loft would not fix this live route.
+No production geometry or material code was changed. Detailed ignored
+report: `artifacts/verification/live_ffc_one_face_sweep.json`.
