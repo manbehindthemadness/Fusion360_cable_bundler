@@ -407,7 +407,9 @@ error below 0.000001 mm). Nine successful cases had one midpoint-section
 wire and one edge, matching the fitted input profile. The five-trace,
 10 mm-separation, 90°-twist case made a single three-face solid but its
 midpoint section had **two wires and four edges**. It is therefore not a
-usable result merely because Fusion reported one solid. All five rejected
+confirmed single-pass section merely because Fusion reported one solid. A
+plane can also intersect two nonadjacent stretches of a valid folded sweep;
+the wire count alone does not establish a fold. All five rejected
 cases reported `ASM_SELF_INTER`.
 
 The measured fitted profile areas were approximately 1.013, 2.990, and
@@ -486,7 +488,8 @@ With the width-edge banking rail on the trimmed spine, centered 1, 3, 5,
 at all three sampled sections. At 17 traces Fusion rejected the sweep with
 `ASM_SWEEP_ILLEGAL_SURFACE`. At 19 traces it made one three-face solid, but
 the middle section contained **two wires and three edges**; this is not a
-usable result despite Fusion returning a solid. Free (unrailed) sweeps
+proof of a local fold or unusable visual result because the plane may cut
+two distinct stretches of the swept ribbon. Free (unrailed) sweeps
 passed the sampled section check for only one and three traces; five and
 more failed `ASM_SELF_INTER`. The closest end seam vertex on the banked
 accepted cases was 0.014–0.173 mm from the planned tip, increasing with
@@ -494,8 +497,106 @@ width, so contact-relative registration is still not exact. These are
 three-cut topology screens, not full-length clearance certificates.
 
 The backtracking end lead is a deterministic spine-construction defect to
-resolve before a production sweep. The width-dependent failure beyond 13
-traces also requires route/bank/envelope validation; simply substituting a
-one-face profile for the production loft would not fix this live route.
+resolve before a production sweep. The 17-trace rejection and ambiguous
+19-trace section still call for route/bank/envelope validation; simply
+substituting a one-face profile for the production loft on the original
+40-station spine would not fix this live route.
 No production geometry or material code was changed. Detailed ignored
 report: `artifacts/verification/live_ffc_one_face_sweep.json`.
+
+`experiment_ffc_procedural_stripes.py` then generated a 1216 × 16 PNG with
+19 distinct color bands and dark gaps from the measured 1.5147 mm trace width
+and 0.9920 mm spacing. It copied a generic opaque appearance in the active
+unsaved 19-trace scratch, connected the PNG as its color texture, set the
+texture width to the 47.6267 mm ribbon width, and assigned it only to the
+single lengthwise face. Fusion reported the connected texture and assigned
+appearance, and the viewport showed crisp stripes running parallel through
+the sweep; the end caps retained their prior appearance. This confirms the
+procedural-texture route is viable for a visual test. It does not establish
+contact-to-color registration, top-only coloring, or a production-safe
+appearance API. The convenient `Appearance.colorTexture` setter is a Fusion
+preview API, so the script remains experiment-only. The scratch stays open;
+the saved source and production add-in were not changed.
+
+`experiment_ffc_interface_contacts.py` resolved both saved Interface banks
+through the planned, persistent contact and attachment IDs, then copied all
+38 source contact faces into separate, pin-numbered components in that same
+unsaved scratch. The largest centroid difference after copying was below
+`2e-14` mm; the source design remained unmodified. Pin 1 is magenta, pin 19
+cyan, and the other pins gold. Most exact sheets lie behind the opaque sweep
+from the current camera angle, so `experiment_ffc_contact_standoffs.py` also
+placed visibly labeled *display copies* 4 mm straight outside each end
+(`-Y` at START, `-Z` at END), with no lateral displacement. All 38 display
+offsets matched within `2e-15` mm. The exact copies remain in the scratch,
+and the offset components can be hidden independently. This exposes the
+contact ordering for visual alignment checks; it does **not** yet prove the
+texture's color bands land on their intended pin centers. Ignored reports:
+`artifacts/verification/ffc_interface_contacts.json` and
+`artifacts/verification/ffc_contact_standoffs.json`.
+
+`experiment_ffc_texture_calibration.py` adjusted only the unsaved scratch's
+material mapping. The initial 47.6267 mm texture repeat spanned roughly 17
+contact pitches instead of 19. With `texture_RealWorldScaleX = 4.035` cm and
+`texture_RealWorldOffsetX = -0.10` cm, 19 color-band centers at the visible
+contact bank differed from the 19 display-contact centers by 0–2 viewport
+pixels (about 0.11 mm at that zoom), with no cumulative pitch drift. The
+opposite bank was viewed normal to its contact plane: the color order remains
+continuous through the twist and the bands visually meet that row, but this
+view has not been quantitatively registered to the individual contacts. The
+camera was restored afterward and the scratch left open. These material
+coordinates are specific to this scratch's UV mapping, not a general formula
+for all FFC widths or paths. Ignored evidence:
+`artifacts/verification/ffc_texture_calibration.json`,
+`ffc_calibrated_offset_neg010.png`, and `ffc_opposite_end.png` in that folder.
+
+## Perimeter-aware FFC texture experiment
+
+The 19-band image above repeats one ordered palette over the entire closed
+side face, although its sweep UV traverses both broad sides and both rounded
+edges in a single loop. The new `experiment_ffc_perimeter_stripes.py` encodes
+19 colors across the first broad side and the same 19 in reverse order across
+the return side. This is one image and one appearance on the existing
+three-face solid; no extra bodies or grooves are introduced.
+
+The first mirrored trial used a doubled `texture_RealWorldScaleX` of 8.07 cm
+and retained the prior `texture_RealWorldOffsetX` of -0.10 cm. In matched
+orthographic screenshots, the first side showed 19 complete bands, but the
+return side showed 19 complete bands **plus partial bands at both edges**.
+The return-side pitch remained consistent with the contact pitch; its phase
+was displaced by about 19–22 viewport pixels against a 54-pixel pitch.
+Shifting only that half of the generated image by +0.35 pitch cells removed
+both extra bands, but **clipped the outermost return lane** at the image
+boundary. Counting 19 bands alone was therefore an insufficient acceptance
+test. The revised image reserves 0.35 pitch cells at one rounded edge and
+0.65 at the other, with 19 complete lane cells on each broad side: its total
+repeat width is `2*N + edge_right + edge_left = 39` cells, not 38. Keeping
+the original per-cell image scale gave a real-world repeat of 8.28237 cm;
+the measured global offset is +0.118 cm. These values are empirical for this
+scratch, not assumptions about a documented Fusion UV formula.
+
+In the final matched start-contact views there are exactly 19 full-width
+colored runs and 19 contact marks on **each** side. The first and last bands
+are 35–37 viewport pixels wide, comparable with the interior bands, and
+the rounded-edge intervals remain dark. Stripe-center minus contact-center
+errors are -3.5 to +1 pixels on one side and -2 to +3 pixels on the other,
+about 0.16 mm maximum at the 2.5067 mm / 54-pixel contact pitch. The stripe
+palette is mirrored in UV so the same physical lane receives the same color
+when viewed from opposite sides. The opposite end retains the same mesh U
+interval, but its contact plane is skewed against the sweep end and overlapping
+route portions occlude a clean pixel-level contact test; this experiment does
+not certify that interface geometry.
+
+Candidate generation rule: obtain the sweep's transverse UV direction and
+its seam; partition the closed perimeter into first broad side, neutral
+outer-edge interval, reverse broad side, and neutral other-edge interval;
+write the same lane palette in forward and reverse order; size each interval
+from its transverse UV extent; then fit one material pitch and global phase
+to known contact centers. Reject a mapping unless both sides have exactly
+the expected number of full-width bands, dark edge zones, correct color order,
+and acceptable center error. The numeric 8.28237 cm repeat, +0.118 cm offset,
+and 0.35/0.65 pitch edge intervals are **specific to this scratch**, not
+constants to carry into the add-in. Other widths (including one trace),
+profile shapes, seam locations, route regeneration, and Fusion version changes
+still require experimental validation before this becomes a production rule.
+Ignored captures: `artifacts/verification/ffc_edgezone_top_final.png` and
+`ffc_edgezone_bottom_final.png`.
