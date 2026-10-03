@@ -600,3 +600,51 @@ profile shapes, seam locations, route regeneration, and Fusion version changes
 still require experimental validation before this becomes a production rule.
 Ignored captures: `artifacts/verification/ffc_edgezone_top_final.png` and
 `ffc_edgezone_bottom_final.png`.
+
+## FFC count, width, and thickness matrix
+
+`experiment_ffc_texture_matrix.py` built 11 independent straight, one-face
+fitted-spline sweeps in a new unsaved Fusion test design. Cases covered 1, 3,
+7, 9, and 19 traces; pitches 1.2–3.5 mm; trace widths 0.7–2.2 mm; and
+thicknesses 0.2–3.0 mm. Every case produced one solid, three-face body,
+including both single-trace cases. The existing saved source design was not
+modified; the unsaved matrix remains open. These are straight-sweep texture
+tests, **not** a validation of routed contact-to-contact placement.
+
+The first pass extrapolated the 19-trace scratch's image width, neutral-edge
+cells, texture scale, and offset using physical pitch and thickness ratios.
+That hypothesis failed: the 19-trace 0.2 mm case showed only 6 colored bands
+on each side, and the 3.0 mm case showed 28, rather than 19. Thin single-
+and three-trace cases also lost bands on one side. The unchanged 1.5 mm
+19-trace control showed 19 bands on both sides but still had center offsets
+of up to 1.34 mm. Do not reuse the previous numeric scale and offset as a
+general material-mapping formula.
+
+`experiment_ffc_texture_matrix_uv.py` measured each side face's rendered
+mesh UV span. With the same nominal 47.6267 mm width, the 19-trace U span
+was 6.129 at 0.2 mm, 20.779 at 1.5 mm, and 31.683 at 3.0 mm thickness.
+The initial band's count varied in the same direction and approximate ratio.
+`experiment_ffc_texture_matrix_uv_fit.py` therefore tested the narrower
+hypothesis `scale = 8.282368421 cm * (measured_U_span / 20.779499)` and
+scaled the empirical offset by the same ratio. In matched top/bottom captures,
+**all 11 cases then had exactly the requested number of distinct color
+bands on each side**, including one-trace ribbons. This establishes a useful
+UV-normalized repeat rule for these test sweeps, not a universal formula for
+arbitrary Fusion UV layouts.
+
+The corrected band count does not certify registration. At the start-contact
+view, the worst stripe-center error among these cases was 1.34 mm; the
+single-trace thin case was within 0.05 mm, but the thick single-trace case
+missed by up to 0.83 mm. Seven-trace cases stayed within 0.31 mm on both
+sides; 19-trace cases ranged up to 1.34 mm. The residual appears to include
+phase and edge-allocation error; it must be fitted against the actual contact
+centers and checked on **both** broad sides, with neutral outer edges and
+correct mirrored lane colors. Per-trace widths also need validation against
+the requested width, not just band count: across the 11 cases, the mean
+measured colored-width ratio ranged from about 0.63 to 1.11. Use measured
+UV positions of contact centers and trace edges to construct or calibrate
+image intervals rather than assuming a linear millimeter-to-UV relation.
+
+Ignored evidence: `artifacts/verification/ffc_texture_matrix/matrix.json`,
+`uv_ranges.json`, `uv_fit.json`, `matrix_analysis.json`,
+`matrix_analysis_uv_fit.json`, and the matching top/bottom PNG captures.
