@@ -187,7 +187,7 @@ def test_palette_state_links_interfaces_by_resolved_contact_targets(
         "contact-a",
         "Connector point",
         attachment_id=UUID(int=913),
-        pin_number="different pin",
+        pin_number="9",
     )
     unavailable = CableEndAttachment(
         AttachmentTargetKind.CONSTRUCTION_POINT,
@@ -538,7 +538,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         "Connector datum",
         metadata=(("connector", "J1"),),
         attachment_id=UUID(int=901),
-        pin_number="A2",
+        pin_number="2",
         shielding_target=CableEndTarget(
             AttachmentTargetKind.CONSTRUCTION_POINT,
             "shield-token",
@@ -576,7 +576,7 @@ def test_palette_state_reports_attachment_and_connection_status(
         },
         "name": "Connector datum",
         "nameOverride": "",
-        "pinNumber": "A2",
+        "pinNumber": "2",
         "targetKind": "construction_point",
         "metadata": [{"key": "connector", "value": "J1"}],
         "orderedControlIds": [],

@@ -307,10 +307,7 @@ def test_terminal_profile_uses_sampled_guide_edges(
     Place each lobe valley on its sampled curve edge before lofting.
     """
     builder = import_module("cable_bundler.fusion.cable_solid_parts.ribbon_builder")
-    monkeypatch.setattr(
-        "cable_bundler.fusion.cable_solid_parts.ribbon_builder.fusion_point",
-        lambda point, _transform: point,
-    )
+    monkeypatch.setattr(builder, "fusion_point", lambda point, _transform: point)
     sketch = SimpleNamespace(modelToSketchSpace=lambda point: point)
     frame = RibbonFrame(Vector3(0, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))
     fit = RibbonEndFit(
@@ -383,7 +380,8 @@ def test_terminal_section_uses_the_available_guide_plane_kind(
         vars(builder.adsk.core), "ValueInput", SimpleNamespace(createByReal=lambda value: value)
     )
     monkeypatch.setattr(
-        "cable_bundler.fusion.cable_solid_parts.ribbon_builder.fusion_point",
+        builder,
+        "fusion_point",
         lambda point, _transform: _vector(point.x / 10, point.y / 10, point.z / 10),
     )
     monkeypatch.setitem(

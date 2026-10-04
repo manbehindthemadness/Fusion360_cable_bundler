@@ -150,10 +150,7 @@ def test_forty_line_section_uses_one_joined_profile(
         "ValueInput",
         SimpleNamespace(createByReal=lambda _value: 0.0),
     )
-    monkeypatch.setattr(
-        "cable_bundler.fusion.cable_solid_parts.ribbon_builder.fusion_point",
-        lambda point, _transform: point,
-    )
+    monkeypatch.setattr(ribbon_builder, "fusion_point", lambda point, _transform: point)
     frame = RibbonFrame(Vector3(0, 0, 0), Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))
     group = replace(
         valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON, ribbon_lines=40

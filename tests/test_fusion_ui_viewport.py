@@ -157,6 +157,48 @@ def test_generated_output_hides_non_body_attachment_support(
     assert support_point.isLightBulbOn
 
 
+@pytest.mark.parametrize("ensure_visible", (False, True))
+def test_generated_output_stays_preview_hidden_after_edit_refresh(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    ensure_visible: bool,
+) -> None:
+    """
+    Keep a newly refreshed route preview beneath existing generated solids.
+    """
+    import importlib
+
+    viewport = importlib.import_module("cable_bundler.fusion.ui.viewport")
+    design = object()
+    component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _harness_id: dumps(valid_harness),
+        harness_component=lambda _harness_id: component,
+    )
+    refresh = Mock(return_value=())
+    hide = Mock()
+    show = Mock()
+    monkeypatch.setitem(vars(viewport), "_require_active_design", lambda _application: design)
+    monkeypatch.setitem(vars(viewport), "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setitem(
+        vars(viewport), "generated_cable_group_occurrences", lambda _component: (object(),)
+    )
+    monkeypatch.setitem(vars(viewport), "refresh_route_previews", refresh)
+    monkeypatch.setitem(vars(viewport), "hide_route_preview_for_harness", hide)
+    monkeypatch.setitem(vars(viewport), "show_route_previews", show)
+
+    assert (
+        viewport._refresh_active_preview(
+            object(), valid_harness.harness_id, ensure_visible=ensure_visible
+        )
+        == ""
+    )
+    refresh.assert_called_once_with(design, valid_harness)
+    hide.assert_called_once_with(design, valid_harness)
+    show.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("member_type", "identity_attribute", "expected_tokens"),
     [

@@ -4,6 +4,8 @@ Focused Fusion UI regressions for palette.
 
 from __future__ import annotations
 
+from unittest.mock import ANY
+
 from tests.fusion_ui_support import (
     UUID,
     Mock,
@@ -182,7 +184,7 @@ def test_palette_edit_saves_connection_properties(
                 "dielectricMaterial": None,
                 "manufacturer": "Branch maker",
                 "partNumber": "BR-01",
-                "pinNumber": "A2",
+                "pinNumber": "2",
                 "metadata": [{"key": "location", "value": "P2"}],
             }
         ),
@@ -202,8 +204,10 @@ def test_palette_edit_saves_connection_properties(
         dielectric_material=None,
         manufacturer="Branch maker",
         part_number="BR-01",
-        pin_number="A2",
+        pin_number="2",
+        normalize_definition=ANY,
     )
+    assert callable(save.call_args.kwargs["normalize_definition"])
     assert result == "Saved cable-end connection properties."
 
 
@@ -245,7 +249,9 @@ def test_palette_edit_saves_connection_shielding_override(
         (),
         gateway,
         pin_number="7",
+        normalize_definition=ANY,
     )
+    assert callable(save.call_args.kwargs["normalize_definition"])
     assert result == "Saved cable-end connection shielding."
 
 
