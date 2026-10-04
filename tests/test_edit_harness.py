@@ -34,6 +34,7 @@ from cable_bundler.application.harness_edits import set_interpolation
 from cable_bundler.domain import (
     AutoTransitionPreset,
     CableColor,
+    CableEndAttachment,
     CableEndShape,
     CableGroupType,
     CableMaterialOverrides,
@@ -1004,6 +1005,62 @@ def test_cable_editor_creates_ribbon_group_from_open_ends(
     stored = loads(gateway.serialized_definition)
     assert stored.cable_groups[0].group_type is CableGroupType.RIBBON
     assert stored.cable_groups[0].ribbon_lines == 3
+
+
+@pytest.mark.parametrize(
+    ("root_count", "highest_pin", "expected_lines"),
+    ((4, None, 4), (2, "6", 6)),
+)
+def test_cable_editor_new_ribbon_lines_fit_existing_connections(
+    valid_harness: HarnessDefinition,
+    root_count: int,
+    highest_pin: str | None,
+    expected_lines: int,
+) -> None:
+    """
+    Keep every saved root and assigned pin when pairing standalone ribbon ends.
+    """
+    left, right = valid_harness.connections[:2]
+    roots = tuple(
+        CableEndAttachment(
+            None,
+            attachment_id=UUID(int=6400 + index),
+            pin_number=highest_pin if index == root_count - 1 else None,
+        )
+        for index in range(root_count)
+    )
+    definition = replace(
+        valid_harness,
+        connections=(
+            replace(left, attachment=roots[0], additional_attachments=roots[1:]),
+            right,
+            *valid_harness.connections[2:],
+        ),
+        standalone_ends=tuple(
+            replace(end, shape=CableEndShape.OPEN) for end in valid_harness.standalone_ends
+        ),
+        cable_groups=(),
+    )
+    gateway = _recording_gateway(definition)
+    pathway = definition.pathways[0]
+
+    save_cable_editor(
+        definition.harness_id,
+        pathway.pathway_id,
+        PathwayEndpoint.START,
+        pathway.pathway_id,
+        PathwayEndpoint.END,
+        (CableEditorPairing(left.connection_id, right.connection_id),),
+        (),
+        (),
+        (),
+        gateway,
+        id_factory=lambda: UUID(int=6500),
+    )
+
+    stored = loads(gateway.serialized_definition)
+    assert stored.cable_groups[0].ribbon_lines == expected_lines
+    assert stored.connections[0].attachments == roots
 
 
 def test_cable_editor_rejects_mixed_open_and_closed_ends(

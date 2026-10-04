@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import adsk.fusion
 
 from ..application import CableGroupRouteLeg
-from ..domain import CableGroupDefinition, HarnessDefinition
+from ..domain import CableGroupDefinition, HarnessDefinition, InterfaceBehavior
 from ..routing import RibbonShape, RoutePreview, Vector3
 from ..routing.geometry import difference, dot, magnitude, unit
 from .route_preview_parts.frames import connection_attachment_frame, connection_profile_frames
@@ -42,6 +42,7 @@ class SolidRibbonPlan:
     attachment_ids: tuple[tuple[str, ...], tuple[str, ...]]
     contact_signature: tuple[tuple[float, ...], ...]
     contact_centers: tuple[tuple[Vector3, ...], tuple[Vector3, ...]] = ((), ())
+    interface_behavior: InterfaceBehavior = InterfaceBehavior.GATED
 
 
 def _branch_point(route: RoutePreview, fraction: float) -> Vector3:
@@ -131,9 +132,10 @@ def solid_ribbon_plan(
     pitch_mm: float | None = None,
 ) -> SolidRibbonPlan:
     """
-    Resolve complete numbered Interface contacts and loft stations at both ends.
+    Resolve numbered Interface contacts and the sections used by the ribbon body.
 
-    Branch curves are consumed only as lane paths; they never become separate bodies.
+    Gated bodies use branch curves as lead stations; Direct bodies stop at the
+    fitted end guides. Neither construction creates separate branch bodies.
     """
     contact_tokens = {
         (contact.kind, contact.entity_token): str(contact.contact_id)
@@ -141,6 +143,10 @@ def solid_ribbon_plan(
         for contact in interface.contacts
     }
     lane_pitch_mm = pitch_mm if pitch_mm is not None else group.diameter_mm
+    if group.interface_behavior is InterfaceBehavior.DIRECT and (
+        shape.start_fit is None or shape.end_fit is None
+    ):
+        raise ValueError("Direct ribbon requires a fitted cable-end gate at both ends.")
     connections = {connection.connection_id: connection for connection in definition.connections}
     ends: list[tuple[SolidRibbonSection, ...]] = []
     identities: list[tuple[str, ...]] = []
@@ -189,6 +195,15 @@ def solid_ribbon_plan(
         if set(routes_by_attachment) != {root.attachment_id for root in by_pin.values()}:
             raise ValueError("Solid ribbon needs one routed contact lead for each numbered line.")
         ordered = tuple(by_pin[pin] for pin in range(1, group.ribbon_lines + 1))
+        routes = tuple(routes_by_attachment[root.attachment_id] for root in ordered)
+        contact_centers.append(tuple(_branch_point(route, 0.0) for route in routes))
+        identities.append(
+            tuple(contact_tokens[(root.target_kind, root.entity_token)] for root in ordered)
+        )
+        attachment_identities.append(tuple(str(root.attachment_id) for root in ordered))
+        if group.interface_behavior is InterfaceBehavior.DIRECT:
+            ends.append(())
+            continue
         guide = connection_profile_frames(design, connection, {})[0]
         first_frame = connection_attachment_frame(design, connection, ordered[0], guide, {})
         if first_frame is None:
@@ -197,8 +212,6 @@ def solid_ribbon_plan(
         guide_frame = shape.frames[0 if at_start else -1]
         if dot(normal, guide_frame.tangent) < 0.0:
             normal = Vector3(-normal.x, -normal.y, -normal.z)
-        routes = tuple(routes_by_attachment[root.attachment_id] for root in ordered)
-        contact_centers.append(tuple(_branch_point(route, 0.0) for route in routes))
         stations: list[SolidRibbonSection] = []
         for fraction in SOLID_RIBBON_LEAD_FRACTIONS:
             raw = tuple(_branch_point(route, fraction) for route in routes)
@@ -224,10 +237,6 @@ def solid_ribbon_plan(
                 centers = tuple(_project(point, raw[0], section_normal) for point in raw)
             stations.append(_section(centers, section_normal, guide_frame.width, lane_pitch_mm))
         ends.append(tuple(stations))
-        identities.append(
-            tuple(contact_tokens[(root.target_kind, root.entity_token)] for root in ordered)
-        )
-        attachment_identities.append(tuple(str(root.attachment_id) for root in ordered))
     middle = tuple(
         _section(
             tuple(lane[index] for lane in shape.lanes),
@@ -260,4 +269,5 @@ def solid_ribbon_plan(
         (attachment_identities[0], attachment_identities[1]),
         tuple(signatures),
         (contact_centers[0], contact_centers[1]),
+        group.interface_behavior,
     )

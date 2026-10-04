@@ -18,13 +18,21 @@ from cable_bundler.domain import (
     CableEndAttachment,
     CableGroupType,
     HarnessDefinition,
+    InterfaceBehavior,
     InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
     InterfaceTargetKind,
     RibbonBodyType,
 )
-from cable_bundler.routing import CubicBezier, RibbonFrame, RibbonShape, RoutePreview, Vector3
+from cable_bundler.routing import (
+    CubicBezier,
+    RibbonEndFit,
+    RibbonFrame,
+    RibbonShape,
+    RoutePreview,
+    Vector3,
+)
 from tests.fusion_ui_support import _PaletteLifecycleModule
 
 
@@ -195,6 +203,53 @@ def test_solid_plan_uses_contact_pitch_at_every_station(
     assert len(plan.contact_ids[0]) == len(plan.contact_ids[1]) == 3
     assert plan.contact_ids[0][0] == str(UUID(int=300))
     assert plan.attachment_ids[0][0] == str(UUID(int=101))
+
+
+def test_direct_plan_stops_at_fitted_end_gates(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Use only the two gate stations while retaining numbered contact identities.
+    """
+    del addin_module
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    definition, leg, branches, shape = _fixture(valid_harness)
+    group = replace(definition.cable_groups[0], interface_behavior=InterfaceBehavior.DIRECT)
+    definition = replace(definition, cable_groups=(group,))
+    start_fit = RibbonEndFit(
+        tuple(lane[0] for lane in shape.lanes), (shape.frames[0].thickness,) * 3
+    )
+    end_fit = RibbonEndFit(
+        tuple(lane[-1] for lane in shape.lanes), (shape.frames[-1].thickness,) * 3
+    )
+    shape = replace(shape, start_fit=start_fit, end_fit=end_fit)
+
+    plan = solid.solid_ribbon_plan(None, definition, group, leg, branches, shape)
+
+    assert plan.interface_behavior is InterfaceBehavior.DIRECT
+    assert len(plan.sections) == len(shape.frames)
+    assert tuple(point.z for point in plan.sections[0].centers) == (10.0,) * 3
+    assert tuple(point.z for point in plan.sections[-1].centers) == (90.0,) * 3
+    assert all(10.0 <= point.z <= 90.0 for lane in plan.lanes for point in lane)
+    assert plan.contact_ids[0][0] == str(UUID(int=300))
+    assert plan.attachment_ids[1][-1] == str(UUID(int=106))
+
+
+def test_direct_plan_requires_both_end_gate_fits(
+    addin_module: _PaletteLifecycleModule,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Refuse a gate-terminated body when either cable end could not be fitted.
+    """
+    del addin_module
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    definition, leg, branches, shape = _fixture(valid_harness)
+    group = replace(definition.cable_groups[0], interface_behavior=InterfaceBehavior.DIRECT)
+    definition = replace(definition, cable_groups=(group,))
+    with pytest.raises(ValueError, match="fitted cable-end gate"):
+        solid.solid_ribbon_plan(None, definition, group, leg, branches, shape)
 
 
 def test_solid_section_projects_oblique_lane_centers_onto_one_plane(

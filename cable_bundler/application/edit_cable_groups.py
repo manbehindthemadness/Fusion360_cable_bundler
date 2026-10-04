@@ -117,6 +117,9 @@ def save_cable_editor(
         raise ValueError("A deleted Route Editor end cannot also be renamed.")
 
     standalone_ids = {end.connection_id for end in definition.standalone_ends}
+    connections_by_id = {
+        connection.connection_id: connection for connection in definition.connections
+    }
     end_shapes = {end.connection_id: end.shape for end in definition.standalone_ends}
     selected_ids = {
         connection_id
@@ -200,6 +203,17 @@ def save_cable_editor(
             if group_id in used_ids:
                 raise ValueError("Generated cable-group identity is already in use.")
             used_ids.add(group_id)
+            ribbon_lines = 3
+            if expected_type is CableGroupType.RIBBON:
+                for connection_id in (
+                    pairing.left_connection_id,
+                    pairing.right_connection_id,
+                ):
+                    roots = connections_by_id[connection_id].attachment_children(None)
+                    numbered_pins = (
+                        int(root.pin_number) for root in roots if root.pin_number is not None
+                    )
+                    ribbon_lines = max(ribbon_lines, len(roots), *numbered_pins)
             groups.append(
                 _MutableCableGroup(
                     group_id,
@@ -210,7 +224,7 @@ def save_cable_editor(
                     "",
                     None,
                     expected_type,
-                    3,
+                    ribbon_lines,
                     RibbonGeometryType.DISCRETE,
                     (),
                     RibbonBodyType.SPLIT,

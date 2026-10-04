@@ -15,6 +15,7 @@ from cable_bundler.domain import (
     CableColor,
     CableGroupType,
     HarnessDefinition,
+    InterfaceBehavior,
     RibbonBodyType,
     RibbonGeometryType,
 )
@@ -53,6 +54,30 @@ def test_ffc_sweep_conditions_only_a_reversing_destination_lead(
     )
     plan = solid.SolidRibbonPlan(stations, (), ((), ()), ((), ()), ())
     assert module.sweep_station_indices(plan) == expected
+
+
+def test_direct_ffc_keeps_every_gate_to_gate_station(
+    addin_module: _PaletteLifecycleModule,
+) -> None:
+    """
+    Leave the two gate caps and all intervening stations in the FFC sweep.
+    """
+    del addin_module
+    module = import_module("cable_bundler.fusion.cable_solid_parts.one_face_ffc")
+    solid = import_module("cable_bundler.fusion.solid_ribbon")
+    stations = tuple(
+        solid.SolidRibbonSection(
+            (Vector3(0.0, 0.0, float(index)),),
+            Vector3(0.0, 0.0, 1.0),
+            Vector3(1.0, 0.0, 0.0),
+            0.6,
+        )
+        for index in range(4)
+    )
+    plan = solid.SolidRibbonPlan(
+        stations, (), ((), ()), ((), ()), (), interface_behavior=InterfaceBehavior.DIRECT
+    )
+    assert module.sweep_station_indices(plan) == (0, 1, 2, 3)
 
 
 def test_ffc_sweep_checks_numbered_contact_centers(

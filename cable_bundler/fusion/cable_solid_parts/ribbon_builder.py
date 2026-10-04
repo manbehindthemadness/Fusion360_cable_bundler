@@ -15,7 +15,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ...domain import CableGroupDefinition, CableMaterialSettings
+from ...domain import CableGroupDefinition, CableMaterialSettings, InterfaceBehavior
 from ...domain.ffc import FfcDimensions
 from ...routing import (
     RIBBON_NEIGHBOR_PITCH_LIMIT,
@@ -699,7 +699,7 @@ def _build_solid_loft(
     ffc: FfcDimensions | None = None,
 ) -> adsk.fusion.LoftFeature:
     """
-    Loft a fixed-width ribbon through sparse route guides and both contact planes.
+    Loft a fixed-width ribbon through route guides to its selected end planes.
     """
     sections: list[adsk.fusion.Sketch] = []
     planes: list[adsk.fusion.ConstructionPlane] = []
@@ -708,7 +708,11 @@ def _build_solid_loft(
         station_count = len(plan.sections)
         if station_count < 2:
             raise ValueError("Solid ribbon loft needs at least two sections.")
-        lead_count = len(SOLID_RIBBON_LEAD_FRACTIONS)
+        lead_count = (
+            0
+            if plan.interface_behavior is InterfaceBehavior.DIRECT
+            else len(SOLID_RIBBON_LEAD_FRACTIONS)
+        )
         first_main = lead_count
         last_main = station_count - lead_count - 1
         main_indices = (
@@ -788,7 +792,7 @@ def _build_solid_loft(
         for plane in reversed(planes):
             if plane.isValid:
                 plane.deleteMe()
-        raise RuntimeError(f"Solid ribbon contact-to-contact loft failed: {error}") from error
+        raise RuntimeError(f"Solid ribbon loft failed: {error}") from error
 
 
 def build_discrete_ribbon_solid(
@@ -960,6 +964,7 @@ def build_discrete_ribbon_solid(
             "diameter_mm": group.diameter_mm,
             "ribbon_lines": group.ribbon_lines,
             "ribbon_body_type": group.ribbon_body_type.value,
+            "interface_behavior": group.interface_behavior.value,
             "ribbon_geometry": group.ribbon_geometry.value,
             "ribbon_render_mode": "one_face_uv" if ffc is not None else None,
             "ribbon_uv_mapping_revision": FFC_UV_MAPPING_REVISION if ffc is not None else None,

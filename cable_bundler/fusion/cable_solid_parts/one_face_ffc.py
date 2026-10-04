@@ -12,6 +12,7 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
+from ...domain import InterfaceBehavior
 from ...domain.ffc import FfcDimensions
 from ...routing import Vector3
 from ...routing.geometry import cross, difference, dot
@@ -45,6 +46,8 @@ def sweep_station_indices(plan: SolidRibbonPlan) -> tuple[int, ...]:
     count = len(plan.sections)
     if count < 2:
         raise ValueError("FFC sweep needs two distinct stations.")
+    if plan.interface_behavior is InterfaceBehavior.DIRECT:
+        return tuple(range(count))
     lead_count = len(SOLID_RIBBON_LEAD_FRACTIONS)
     if count < lead_count * 2 + 2:
         return tuple(range(count))
@@ -269,9 +272,10 @@ def build_one_face_ffc_sweep(
     transform: adsk.core.Matrix3D,
 ) -> adsk.fusion.SweepFeature:
     """
-    Build and validate one closed-profile sweep and its two contact caps.
+    Build one closed-profile sweep with caps at contacts or cable-end gates.
     """
-    _validate_contact_centers(plan, dimensions)
+    if plan.interface_behavior is InterfaceBehavior.GATED:
+        _validate_contact_centers(plan, dimensions)
     stations = tuple(plan.sections[index] for index in sweep_station_indices(plan))
     edge_offset_mm = -len(stations[0].centers) * dimensions.pitch_mm / 2.0
     center_path = _path(component, stations, transform, 0.0)

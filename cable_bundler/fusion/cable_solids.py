@@ -854,6 +854,7 @@ def refresh_changed_generated_cable_groups(
                 or metadata.get("diameter_mm") != group.diameter_mm
                 or not isinstance(metadata.get("ribbon_line_lengths_mm"), list)
                 or metadata.get("ribbon_body_type", "split") != group.ribbon_body_type.value
+                or metadata.get("interface_behavior", "gated") != group.interface_behavior.value
                 or metadata.get("ribbon_geometry", "discrete") != group.ribbon_geometry.value
                 or metadata.get("trace_width_mm") != group.trace_width_mm
                 or metadata.get("trace_spacing_mm") != group.trace_spacing_mm
