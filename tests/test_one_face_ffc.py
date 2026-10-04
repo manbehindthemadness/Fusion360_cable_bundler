@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 from importlib import import_module
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -120,6 +122,59 @@ def test_ffc_texture_rejects_unknown_uv_phase(addin_module: _PaletteLifecycleMod
             (color,),
             color,
         )
+
+
+def test_ffc_texture_waits_for_rendered_uv_instead_of_calculated_mesh(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A new sweep's normalized calculation UV must never size its appearance.
+    """
+    del addin_module
+    texture = import_module("cable_bundler.fusion.cable_solid_parts.one_face_texture")
+    rendered = object()
+    manager = SimpleNamespace(
+        displayMeshes=SimpleNamespace(count=0),
+        createMeshCalculator=Mock(side_effect=AssertionError("Calculated UV used")),
+    )
+
+    def refresh() -> None:
+        """
+        Simulate Fusion publishing the display mesh on viewport refresh.
+        """
+        manager.displayMeshes = SimpleNamespace(count=1, item=lambda _index: rendered)
+
+    viewport = SimpleNamespace(refresh=Mock(side_effect=refresh))
+    monkeypatch.setitem(
+        vars(texture.adsk.core),
+        "Application",
+        SimpleNamespace(get=lambda: SimpleNamespace(activeViewport=viewport)),
+    )
+    side = SimpleNamespace(meshManager=manager)
+    assert texture._rendered_side_mesh(side) is rendered
+    viewport.refresh.assert_called_once_with()
+    manager.createMeshCalculator.assert_not_called()
+
+
+def test_ffc_texture_rejects_unavailable_rendered_uv(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Report render unavailability instead of silently repeating line bands.
+    """
+    del addin_module
+    texture = import_module("cable_bundler.fusion.cable_solid_parts.one_face_texture")
+    manager = SimpleNamespace(displayMeshes=SimpleNamespace(count=0))
+    viewport = SimpleNamespace(refresh=Mock())
+    monkeypatch.setitem(
+        vars(texture.adsk.core),
+        "Application",
+        SimpleNamespace(get=lambda: SimpleNamespace(activeViewport=viewport)),
+    )
+    with pytest.raises(RuntimeError, match="has not rendered"):
+        texture._rendered_side_mesh(SimpleNamespace(meshManager=manager))
 
 
 def test_ffc_uv_transport_rejects_lane_shift_but_allows_mesh_interpolation(

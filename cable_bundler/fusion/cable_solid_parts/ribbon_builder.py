@@ -36,10 +36,11 @@ from ..solid_ribbon import (
     SolidRibbonSection,
 )
 from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE, GENERATED_OUTPUT_MODE_KEY
+from .contact_trace_faces import CONTACT_TRACE_FACE_REVISION, contact_trace_face_lanes
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
 from .one_face_ffc import build_one_face_ffc_sweep, sweep_station_indices
-from .one_face_texture import apply_ffc_trace_texture
+from .one_face_texture import FFC_UV_MAPPING_REVISION, apply_ffc_trace_texture
 from .sweep_geometry import is_straight
 
 
@@ -893,14 +894,20 @@ def build_discrete_ribbon_solid(
             transform,
         )
     else:
-        color_faces = feature.sideFaces
-        for face_index in range(color_faces.count):
-            face = color_faces.item(face_index)
-            if face is not None:
-                lane = _face_lane(face, frames, transform, group, solid_plan)
-                face.appearance = cable_appearance(design, line_colors[lane])
-                if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
-                    raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")
+        if solid_plan is not None:
+            trace_faces = contact_trace_face_lanes(feature, solid_plan, transform)
+        else:
+            trace_faces = tuple(
+                (
+                    feature.sideFaces.item(index),
+                    _face_lane(feature.sideFaces.item(index), frames, transform, group),
+                )
+                for index in range(feature.sideFaces.count)
+            )
+        for face, lane in trace_faces:
+            face.appearance = cable_appearance(design, line_colors[lane])
+            if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
+                raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")
     if center_sketch is not None:
         center_sketch.isLightBulbOn = False
     feature.name = (
@@ -955,6 +962,10 @@ def build_discrete_ribbon_solid(
             "ribbon_body_type": group.ribbon_body_type.value,
             "ribbon_geometry": group.ribbon_geometry.value,
             "ribbon_render_mode": "one_face_uv" if ffc is not None else None,
+            "ribbon_uv_mapping_revision": FFC_UV_MAPPING_REVISION if ffc is not None else None,
+            "ribbon_trace_face_revision": (
+                CONTACT_TRACE_FACE_REVISION if solid_plan is not None and ffc is None else None
+            ),
             "ribbon_line_colors_hex": (
                 [color.hex_rgb for color in line_colors] if ffc is not None else None
             ),

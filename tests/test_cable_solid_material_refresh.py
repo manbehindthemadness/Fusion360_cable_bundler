@@ -715,6 +715,106 @@ def test_geometry_refresh_rebuilds_only_group_with_changed_branch_curve(
     assert rebuild.call_args.args[3] == frozenset({group.cable_group_id})
 
 
+def test_geometry_refresh_rebuilds_ffc_with_stale_uv_mapping(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Recreate previously generated FFCs whose image used normalized mesh UVs.
+    """
+    group = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_lines=1,
+    )
+    definition = replace(valid_harness, cable_groups=(group,))
+    route = _straight_route(803, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    metadata = {
+        "cable_group_id": str(group.cable_group_id),
+        "ribbon_lines": group.ribbon_lines,
+        "diameter_mm": group.diameter_mm,
+        "ribbon_line_lengths_mm": [10.0],
+        "ribbon_body_type": group.ribbon_body_type.value,
+        "ribbon_geometry": group.ribbon_geometry.value,
+        "trace_width_mm": group.trace_width_mm,
+        "trace_spacing_mm": group.trace_spacing_mm,
+        "ribbon_render_mode": "one_face_uv",
+        "ribbon_uv_mapping_revision": 1,
+    }
+    attribute = SimpleNamespace(value=json.dumps(metadata))
+    occurrence = SimpleNamespace(
+        component=SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
+    )
+    leg = SimpleNamespace(route_id=route.cable_id, cable_group_id=group.cable_group_id)
+    rebuild = Mock(return_value=1)
+    monkeypatch.setattr(cable_solids, "generated_cable_group_occurrences", lambda _h: (occurrence,))
+    monkeypatch.setattr(
+        cable_solids,
+        "solve_cable_group_centerlines",
+        lambda _design, _definition, _notices: ((route,), (leg,)),
+    )
+    monkeypatch.setattr(cable_solids, "world_to_harness", lambda *_args: object())
+    monkeypatch.setattr(cable_solids, "route_in_component_space", lambda candidate, _t: candidate)
+    monkeypatch.setattr(cable_solids, "_refresh_generated_cable_groups", rebuild)
+
+    assert (
+        cable_solids.refresh_changed_generated_cable_groups(object(), object(), definition, []) == 1
+    )
+    assert rebuild.call_args.args[3] == frozenset((group.cable_group_id,))
+
+
+def test_geometry_refresh_rebuilds_discrete_with_legacy_face_colors(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Replace a solid Discrete loft whose gap faces retain old lane colors.
+    """
+    group = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_geometry=RibbonGeometryType.DISCRETE,
+        ribbon_lines=1,
+    )
+    definition = replace(valid_harness, cable_groups=(group,))
+    route = _straight_route(804, Vector3(0.0, 0.0, 0.0), Vector3(10.0, 0.0, 0.0))
+    metadata = {
+        "cable_group_id": str(group.cable_group_id),
+        "ribbon_lines": group.ribbon_lines,
+        "diameter_mm": group.diameter_mm,
+        "ribbon_line_lengths_mm": [10.0],
+        "ribbon_body_type": group.ribbon_body_type.value,
+        "ribbon_geometry": group.ribbon_geometry.value,
+        "trace_width_mm": group.trace_width_mm,
+        "trace_spacing_mm": group.trace_spacing_mm,
+    }
+    attribute = SimpleNamespace(value=json.dumps(metadata))
+    occurrence = SimpleNamespace(
+        component=SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: attribute))
+    )
+    leg = SimpleNamespace(route_id=route.cable_id, cable_group_id=group.cable_group_id)
+    rebuild = Mock(return_value=1)
+    monkeypatch.setattr(cable_solids, "generated_cable_group_occurrences", lambda _h: (occurrence,))
+    monkeypatch.setattr(
+        cable_solids,
+        "solve_cable_group_centerlines",
+        lambda _design, _definition, _notices: ((route,), (leg,)),
+    )
+    monkeypatch.setattr(cable_solids, "world_to_harness", lambda *_args: object())
+    monkeypatch.setattr(cable_solids, "route_in_component_space", lambda candidate, _t: candidate)
+    monkeypatch.setattr(cable_solids, "_refresh_generated_cable_groups", rebuild)
+
+    assert (
+        cable_solids.refresh_changed_generated_cable_groups(object(), object(), definition, []) == 1
+    )
+    assert rebuild.call_args.args[3] == frozenset((group.cable_group_id,))
+
+
 def test_copies_root_decoration_position_to_every_branch(
     cable_solids: _CableSolidsModule,
 ) -> None:

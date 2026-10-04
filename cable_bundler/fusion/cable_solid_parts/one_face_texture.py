@@ -26,6 +26,7 @@ from .one_face_ffc import _midpoint
 
 IMAGE_WIDTH = 4096
 IMAGE_HEIGHT = 16
+FFC_UV_MAPPING_REVISION = 2
 UV_SCALE_CM_PER_UNIT = 8.282368421052632 / 20.779499053955078 * 0.9883
 TEXTURE_CACHE = Path(__file__).resolve().parents[3] / "artifacts/generated_textures"
 
@@ -91,6 +92,22 @@ def _texture_row(
     return bytes(row)
 
 
+def _rendered_side_mesh(side: adsk.fusion.BRepFace) -> adsk.fusion.TriangleMesh:
+    """
+    Require the display mesh whose UV domain Fusion uses for appearances.
+
+    A calculated mesh has normalized surface parameters and is not a valid
+    substitute for texture placement on a newly created sweep.
+    """
+    meshes = side.meshManager.displayMeshes
+    if not meshes.count:
+        adsk.core.Application.get().activeViewport.refresh()
+        meshes = side.meshManager.displayMeshes
+    if not meshes.count:
+        raise RuntimeError("Fusion has not rendered the FFC side-face UV map yet.")
+    return meshes.item(0)
+
+
 def _section_uv_samples(
     side: adsk.fusion.BRepFace,
     station: SolidRibbonSection,
@@ -112,8 +129,7 @@ def _section_uv_samples(
     )
     if not width.normalize() or not normal.normalize():
         raise RuntimeError("The FFC start section has no usable frame.")
-    meshes = side.meshManager.displayMeshes
-    mesh = meshes.item(0) if meshes.count else side.meshManager.createMeshCalculator().calculate()
+    mesh = _rendered_side_mesh(side)
     if mesh is None or len(mesh.nodeCoordinates) != len(mesh.textureCoordinates):
         raise RuntimeError("Fusion did not provide paired FFC mesh UV coordinates.")
     measured: dict[float, float] = {}

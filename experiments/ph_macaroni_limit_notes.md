@@ -748,6 +748,74 @@ The one-periodic-fit-point-profile, explicit side seam, single-side-face
 sweep with measured-UV per-line texture is the selected rendering direction
 for **both** FFC and joined Discrete ribbons. This is a design decision,
 not a claim that the current product generation path has been replaced.
+Read-only inspection of the currently displayed 19-line Discrete output in
+`Wire creation tester v111` found one loft, no sweep, 78 body faces, and zero
+textured faces. Its visible edge-color issue is therefore not a failing
+one-face UV map: production still assigns colors to separate loft faces.
+The validated Discrete UV experiment remains the reference for a valid
+single-side-face body; an out-of-bounds production route is not a UV test.
+
+### Production loft UV comparison (2026-10-03)
+
+`experiment_production_loft_uv_comparison.py` called the unchanged production
+`_build_solid_loft` twice per scratch: once with its Discrete lobe profile and
+once with its FFC flat/notched profile. Each pair shared the exact same
+stations, 1.5 mm thickness, and contact pitch; only the section style changed.
+On the live 19-line route, the Discrete loft made one 78-face solid with 76
+rendered side faces, while the FFC-profile loft failed with
+`ASM_BAD_UV_SKIN_DIR`. That live failure is a loft correspondence observation,
+not evidence about texture-coordinate quality.
+
+On a straight 110 mm control route with 30° total bank rotation, both 5-line
+and 19-line production-profile loft pairs made valid solids side by side. The
+19-line Discrete loft had 76 side faces; the FFC loft had 232. Every side face
+had a rendered display mesh and touched both end planes. Its U range was
+stable from start to finish (maximum endpoint-bound difference: 0 for
+Discrete, under `4e-16` for FFC). But **each side face independently reset U
+at zero**: all 76 Discrete faces used positive local U, and all 232 FFC faces
+used negative local U. The 5-line pair showed the same behavior (20 and 64
+side faces). Thus the loft has stable *face-local* longitudinal texture
+coordinates, but no single global transverse U interval to receive the
+previously validated one-face image without a separate face-index/offset
+mapping. Do not treat a uniform appearance on all loft faces as equivalent
+to the one-face sweep renderer. The saved harness was only read; the 19-line
+control scratch remains open. Ignored reports and captures are under
+`artifacts/verification/production_loft_uv_comparison.*` and
+`production_loft_uv_control*.{json,png}`.
+
+`experiment_production_loft_rendered_pattern.py` then applied the same
+four-color, phase-marked PNG as a real Fusion appearance to all side faces of
+both 19-line control lofts (76/76 Discrete and 232/232 FFC faces). The first
+render scaled from the median face UV span; Discrete stripes appeared, but
+FFC's many tiny groove faces made its broad surface alias to gray. Scaling
+each appearance from its body's maximum rendered side-face U span made
+lengthwise bands visible on both broad sides of both lofts. This verifies
+that Fusion can render an image on those loft faces and that the bands carry
+along the 30°-banked control route. It **does not** establish one global
+transverse U domain, numbered trace alignment, or a production color solution:
+each face still has local U and repeated color phases. See
+`artifacts/verification/production_loft_pattern/{top,bottom}.png` and
+`report.json`. The active scratch remains unsaved and open.
+
+`experiment_production_loft_contact_traces.py` assigned distinct colors only
+to the two broad faces of each numbered trace and placed same-color synthetic
+contact-center spheres just outside both control planes. The 19-line contact
+pitch was 2.506667 mm. The FFC loft's target trace width/gap was
+2.005333/0.501333 mm; the Discrete loft's was 1.5/1.006667 mm. Both lofts
+yielded exactly 38 colored trace faces, with every start/end face centered
+on its intended contact to under `5e-7` mm in the bank's *local width axis*.
+Using world Y alone at the 30°-banked end gave a false mismatch. The initial
+combined capture was visually occluded because the wide lofts overlapped;
+isolated top/bottom captures show 19 continuous, contact-aligned colors and
+neutral gaps on each. See `artifacts/verification/production_loft_contact_traces/`.
+These are synthetic contacts on a controlled route, not copied saved Interface
+faces. The production Discrete face selector was then checked read-only on a
+fresh scratch loft from the saved 19-contact route and found two broad faces
+for all 19 identities. Its 76-side-face mapping took 0.126 seconds on this
+host, excluding route solving and loft construction. Production Solid
+Discrete now uses that selector with revisioned refresh; FFC retains its
+already working one-face UV sweep mapper.
+
 Keep route feasibility, bend limits, and self-intersection tests in the path
 solver experiments; do not count an invalid path as a line-color failure.
 The earlier 9-trace FFC control was such an invalid path: its starting PH
@@ -862,3 +930,31 @@ A separate fresh unsaved 1-trace, 0.2 mm-thick antenna case built one
 three-face body and accepted the same UV renderer. Both test documents were
 left open. Reports: `artifacts/verification/ffc_generated_roundtrip.json`
 and `artifacts/verification/ffc_single_trace_production.json`.
+
+## Generated FFC UV readiness regression
+
+The first saved generated body was solid but repeated its two distinctive
+line colors across the broad face, including a colored run on the side.
+Its appearance scale was 0.393920 cm. The rendered side-face UV span was
+20.779499, so the mapper's own rule required 8.185465 cm. The immediate
+post-sweep calculated mesh has normalized U in `[-1, 0]`; at that instant
+`displayMeshes.count` is zero. A viewport refresh publishes one display
+mesh with U in `[-20.779499, 0]`. The production code had silently used
+the calculated mesh when no display mesh was ready, making both its
+image and material scale for the wrong parameter domain.
+
+The mapper now requests a viewport refresh and accepts only rendered mesh
+UVs, or fails without emitting a falsely registered texture. A fresh
+generated product trial reported scale 8.185465 cm against rendered span
+20.779499, with one solid and one textured side face; the saved source
+remained unmodified. A temporary 19-color image showed 19 separate
+lengthwise bands and neutral edge intervals on the routed body. The
+scratch's original colors were restored afterward. In the saved test
+harness only traces 1 and 19 have non-gray overrides (pink and green);
+the other 17 use the same gray as the web and are visually subtle.
+Existing one-face outputs without UV mapping revision 2 are marked for
+regeneration on the next changed-output refresh. The saved design itself
+was not regenerated during this diagnosis. Ignored evidence:
+`artifacts/verification/ffc_uv_readiness.json`,
+`ffc_generated_pipeline.json`, `ffc_rendered_trace_alignment.json`, and
+`ffc_corrected_all_traces.png`.

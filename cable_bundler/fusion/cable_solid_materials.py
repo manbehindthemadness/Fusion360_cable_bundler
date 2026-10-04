@@ -15,8 +15,16 @@ from uuid import UUID
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ..domain import CableGroupDefinition, CableGroupType, CableMaterialSettings, HarnessDefinition
+from ..domain import (
+    CableGroupDefinition,
+    CableGroupType,
+    CableMaterialSettings,
+    HarnessDefinition,
+    RibbonBodyType,
+    RibbonGeometryType,
+)
 from .cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, GENERATED_CABLE_GROUP_ATTRIBUTE
+from .cable_solid_parts.contact_trace_faces import CONTACT_TRACE_FACE_REVISION
 from .cable_solid_parts.materials import material_metadata
 from .cable_solid_parts.metadata import (
     connection_branches_from_metadata,
@@ -60,6 +68,20 @@ def _ffc_uv_needs_rebuild(
     return (
         metadata.get("ribbon_line_colors_hex") != current_colors
         or metadata.get("main_color") != materials.main_color.hex_rgb
+    )
+
+
+def _contact_trace_faces_need_rebuild(
+    metadata: dict[str, object], group: CableGroupDefinition
+) -> bool:
+    """
+    Replace old solid Discrete outputs whose gap faces were colored as lines.
+    """
+    return (
+        group.group_type is CableGroupType.RIBBON
+        and group.ribbon_body_type is RibbonBodyType.SOLID
+        and group.ribbon_geometry is RibbonGeometryType.DISCRETE
+        and metadata.get("ribbon_trace_face_revision") != CONTACT_TRACE_FACE_REVISION
     )
 
 
@@ -239,7 +261,9 @@ def apply_cable_group_materials(
         group = groups.get(group_id)
         if group is None:
             continue
-        if _ffc_uv_needs_rebuild(metadata, group, definition.cable_group_materials(group)):
+        if _ffc_uv_needs_rebuild(
+            metadata, group, definition.cable_group_materials(group)
+        ) or _contact_trace_faces_need_rebuild(metadata, group):
             geometry_changed_ids.add(group_id)
             continue
         if output_mode != FINALIZED_OUTPUT_MODE:

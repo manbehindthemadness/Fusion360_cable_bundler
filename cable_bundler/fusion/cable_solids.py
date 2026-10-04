@@ -36,6 +36,7 @@ from .cable_solid_parts.constants import (
     GENERATED_STRIPE_GROUP_ID,
     SOLID_OUTPUT_MODE,
 )
+from .cable_solid_parts.contact_trace_faces import CONTACT_TRACE_FACE_REVISION
 from .cable_solid_parts.materials import cable_appearance as cable_appearance
 from .cable_solid_parts.metadata import (
     group_geometry_routes_from_metadata,
@@ -43,6 +44,7 @@ from .cable_solid_parts.metadata import (
     route_metadata,
     world_to_harness,
 )
+from .cable_solid_parts.one_face_texture import FFC_UV_MAPPING_REVISION
 from .cable_solid_parts.ribbon_branches import _line_number, build_ribbon_connection_branches
 from .cable_solid_parts.ribbon_builder import build_discrete_ribbon_solid
 from .cable_solid_parts.ribbon_exit_loft import RibbonExitEnd
@@ -858,6 +860,15 @@ def refresh_changed_generated_cable_groups(
                 or (
                     group.ribbon_geometry is RibbonGeometryType.FFC
                     and metadata.get("ribbon_render_mode") != "one_face_uv"
+                )
+                or (
+                    group.ribbon_geometry is RibbonGeometryType.FFC
+                    and metadata.get("ribbon_uv_mapping_revision") != FFC_UV_MAPPING_REVISION
+                )
+                or (
+                    group.ribbon_body_type is RibbonBodyType.SOLID
+                    and group.ribbon_geometry is RibbonGeometryType.DISCRETE
+                    and metadata.get("ribbon_trace_face_revision") != CONTACT_TRACE_FACE_REVISION
                 )
                 or (
                     group.ribbon_geometry is RibbonGeometryType.FFC

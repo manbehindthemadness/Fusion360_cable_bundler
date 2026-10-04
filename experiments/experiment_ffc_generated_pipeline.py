@@ -19,7 +19,7 @@ import adsk.fusion
 
 from cable_bundler.domain import RibbonGeometryType, loads
 from cable_bundler.fusion import solid_ribbon
-from cable_bundler.fusion.cable_solid_parts import ribbon_builder
+from cable_bundler.fusion.cable_solid_parts import one_face_texture, ribbon_builder
 from cable_bundler.fusion.cable_solids import _solve_complete_group_routes
 from cable_bundler.fusion.ffc_dimensions import ffc_dimensions
 from cable_bundler.fusion.harness_gateway import FusionHarnessGateway
@@ -94,6 +94,7 @@ def run(_context: object) -> None:
     notices: list[str] = []
     row: dict[str, object] = {"source_modified_before": modified_before}
     try:
+        reload(one_face_texture)
         body = reload(ribbon_builder).build_discrete_ribbon_solid(
             component,
             group,
@@ -116,11 +117,28 @@ def run(_context: object) -> None:
             if body.faces.item(index).appearance is not None
             and body.faces.item(index).appearance.hasTexture
         ]
+        if len(sides) != 1:
+            raise RuntimeError("The generated FFC did not retain one textured side face.")
+        side = sides[0]
+        slot = side.appearance.appearanceProperties.itemById("opaque_albedo")
+        texture = None if slot is None else slot.connectedTexture
+        scale = None if texture is None else texture.properties.itemById("texture_RealWorldScaleX")
+        meshes = side.meshManager.displayMeshes
+        if scale is None or not meshes.count:
+            raise RuntimeError("The generated FFC lacks rendered UVs or a texture scale.")
+        rendered_u = tuple(point.x for point in meshes.item(0).textureCoordinates)
+        rendered_span = max(rendered_u) - min(rendered_u)
+        expected_scale = one_face_texture.UV_SCALE_CM_PER_UNIT * rendered_span
+        if abs(scale.value - expected_scale) > 1e-4:
+            raise RuntimeError("The generated FFC texture scale does not match rendered UVs.")
         row.update(
             {
                 "result": "generated",
                 "body_faces": body.faces.count,
                 "textured_faces": len(sides),
+                "rendered_u_span": rendered_span,
+                "texture_scale_cm": scale.value,
+                "expected_scale_cm": expected_scale,
                 "component_attributes": component.attributes.count,
                 "notices": notices,
             }
