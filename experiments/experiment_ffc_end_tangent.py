@@ -19,7 +19,7 @@ import adsk.fusion
 
 from cable_bundler.domain.ffc import FfcDimensions
 from cable_bundler.fusion.cable_solid_parts.metadata import fusion_point
-from cable_bundler.fusion.solid_ribbon import SolidRibbonPlan
+from cable_bundler.fusion.solid_ribbon import SOLID_RIBBON_LEAD_FRACTIONS, SolidRibbonPlan
 from cable_bundler.routing import Vector3
 from experiments.experiment_ffc_interface_contacts import (
     _add_contacts,
@@ -173,6 +173,10 @@ def _case(
             "rebuilt_center_and_rail",
             "rebuilt_both_short",
             "rebuilt_both_long",
+            "full_route_both_tangents",
+            "drop_reversing_end_station",
+            "drop_two_end_stations",
+            "contacts_and_main_route",
         ):
             endpoint = _midpoint(plan.sections[-1]).translated(
                 plan.sections[-1].width,
@@ -422,6 +426,89 @@ def run_repath(_context: object) -> None:
                     )
                     for row in rows
                 ],
+                "source_modified_after": source.isModified,
+                "report": str(OUTPUT),
+            }
+        )
+    )
+
+
+def run_full_route(_context: object) -> None:
+    """
+    Try the complete live plan with both paths rebuilt after tangent control.
+    """
+    application = adsk.core.Application.get()
+    scratch = application.activeDocument
+    if scratch is None or scratch.isSaved or scratch.name != "Untitled":
+        raise RuntimeError("Activate the unsaved FFC tangent scratch first.")
+    design = adsk.fusion.Design.cast(application.activeProduct)
+    if design is None or not any(
+        occurrence.component.name.startswith("FFC contact-cap tangent · baseline")
+        for occurrence in design.rootComponent.occurrences
+    ):
+        raise RuntimeError("The active scratch is not the FFC tangent experiment.")
+    source = next(
+        (
+            document
+            for document in application.documents
+            if document.name.startswith("Wire creation tester v")
+        ),
+        None,
+    )
+    if source is None:
+        raise RuntimeError("The saved FFC source is not open.")
+    source_design = adsk.fusion.Design.cast(source.products.itemByProductType("DesignProductType"))
+    if source_design is None:
+        raise RuntimeError("The saved source is not a Fusion design.")
+    modified_before = source.isModified
+    plan, thickness_mm, dimensions, _group_id = _live_plan(source_design)
+    candidates = (
+        (
+            "drop_reversing_end_station",
+            tuple(index for index in range(len(plan.sections)) if index != 36),
+        ),
+        (
+            "drop_two_end_stations",
+            tuple(index for index in range(len(plan.sections)) if index not in (36, 37)),
+        ),
+        (
+            "contacts_and_main_route",
+            (
+                0,
+                *range(
+                    len(SOLID_RIBBON_LEAD_FRACTIONS),
+                    len(plan.sections) - len(SOLID_RIBBON_LEAD_FRACTIONS),
+                ),
+                len(plan.sections) - 1,
+            ),
+        ),
+    )
+    report = json.loads(OUTPUT.read_text(encoding="utf-8"))
+    prior_rows = report.get("conditioned_end_cases", [])
+    completed = {row["mode"] for row in prior_rows}
+    rows = [
+        _case(
+            design,
+            _station_subset(plan, indices),
+            dimensions,
+            thickness_mm,
+            name,
+            rebuild_path=True,
+        )
+        for name, indices in candidates
+        if name not in completed
+    ]
+    if source.isModified != modified_before:
+        raise RuntimeError("The saved FFC source changed during the full-route experiment.")
+    report["conditioned_end_cases"] = [*prior_rows, *rows]
+    report["source_modified_after"] = source.isModified
+    OUTPUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    application.activeViewport.fit()
+    print(
+        "FFC_FULL_ROUTE_TANGENT="
+        + json.dumps(
+            {
+                "cases": [(row["mode"], row["result"], row.get("error")) for row in rows],
                 "source_modified_after": source.isModified,
                 "report": str(OUTPUT),
             }

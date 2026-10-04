@@ -368,6 +368,26 @@ asyncTest('ribbon properties save explicit Lines and geometry style without line
   assert.equal(calls[0].payload.ribbonBodyType, 'solid');
 });
 
+asyncTest('FFC properties accept one antenna trace', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.groupType = 'ribbon';
+  group.ribbonLines = 1;
+  group.ribbonGeometry = 'ffc';
+  group.ribbonBodyType = 'solid';
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+  context.openCableGroupProperties(definition, group);
+  const dialog = context.document.body.querySelector('.cable-group-properties');
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[0].payload.ribbonLines, 1);
+  assert.equal(calls[0].payload.ribbonGeometry, 'ffc');
+});
+
 asyncTest('ribbon Body type appears only with Interfaces at both ends', async () => {
   const { context } = palette();
   const definition = harness();

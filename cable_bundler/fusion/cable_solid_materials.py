@@ -15,7 +15,7 @@ from uuid import UUID
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from ..domain import CableGroupDefinition, CableGroupType, HarnessDefinition
+from ..domain import CableGroupDefinition, CableGroupType, CableMaterialSettings, HarnessDefinition
 from .cable_solid_parts.constants import FINALIZED_OUTPUT_MODE, GENERATED_CABLE_GROUP_ATTRIBUTE
 from .cable_solid_parts.materials import material_metadata
 from .cable_solid_parts.metadata import (
@@ -42,6 +42,25 @@ def _service(name: str) -> Callable[..., Any]:
     Resolve one reload-safe private facade callback by name.
     """
     return cast(Callable[..., Any], getattr(_cable_solid_services(), name))
+
+
+def _ffc_uv_needs_rebuild(
+    metadata: dict[str, object],
+    group: CableGroupDefinition,
+    materials: CableMaterialSettings,
+) -> bool:
+    """
+    Rebuild a UV-striped FFC when its base or numbered line colors change.
+    """
+    if metadata.get("ribbon_render_mode") != "one_face_uv":
+        return False
+    current_colors = [
+        color.hex_rgb for color in group.resolved_ribbon_line_colors(materials.main_color)
+    ]
+    return (
+        metadata.get("ribbon_line_colors_hex") != current_colors
+        or metadata.get("main_color") != materials.main_color.hex_rgb
+    )
 
 
 def _main_pullbacks_from_metadata(
@@ -206,11 +225,7 @@ def apply_cable_group_materials(
     occurrences = _cable_solid_services().generated_cable_group_occurrences(harness)
     geometry_changed_ids: set[UUID] = set()
     for occurrence in occurrences:
-        if (
-            _cable_solid_services().generated_cable_group_output_mode(occurrence)
-            != FINALIZED_OUTPUT_MODE
-        ):
-            continue
+        output_mode = _cable_solid_services().generated_cable_group_output_mode(occurrence)
         attribute = occurrence.component.attributes.itemByName(
             ATTRIBUTE_GROUP, GENERATED_CABLE_GROUP_ATTRIBUTE
         )
@@ -223,6 +238,11 @@ def apply_cable_group_materials(
             raise RuntimeError("A generated cable group has invalid identity metadata.") from error
         group = groups.get(group_id)
         if group is None:
+            continue
+        if _ffc_uv_needs_rebuild(metadata, group, definition.cable_group_materials(group)):
+            geometry_changed_ids.add(group_id)
+            continue
+        if output_mode != FINALIZED_OUTPUT_MODE:
             continue
         stored_main_pullbacks = {
             attachment_id: (requested_mm, diameter_mm)

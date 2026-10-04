@@ -52,8 +52,8 @@ def ffc_contact_geometry(
     """
     Measure the first end's ordered contact pitch and widths along its width axis.
     """
-    if group.ribbon_lines < 2 or not group.connection_ids:
-        raise ValueError("FFC requires at least two numbered contact traces.")
+    if not group.connection_ids:
+        raise ValueError("FFC requires a numbered Interface contact.")
     connections = {item.connection_id: item for item in definition.connections}
     connection = connections.get(group.connection_ids[0])
     if connection is None:
@@ -80,15 +80,32 @@ def ffc_contact_geometry(
             raise ValueError("FFC contact target is unavailable.")
         centers.append(frame.origin)
         ordered_contacts.append(contact)
-    span = difference(centers[-1], centers[0])
-    pitch = magnitude(span) / (group.ribbon_lines - 1)
-    if not math.isfinite(pitch) or pitch <= 1e-6:
-        raise ValueError("FFC contact centers have no usable pitch.")
-    across = unit(span)
+    if group.ribbon_lines == 1:
+        across = unit(guide.u_direction)
+    else:
+        span = difference(centers[-1], centers[0])
+        pitch = magnitude(span) / (group.ribbon_lines - 1)
+        if not math.isfinite(pitch) or pitch <= 1e-6:
+            raise ValueError("FFC contact centers have no usable pitch.")
+        across = unit(span)
     widths: list[Optional[float]] = []
     for contact in ordered_contacts:
         projection = project_interface_contact(design, contact)
         widths.append(_contact_width_mm(projection, across))
+    if group.ribbon_lines == 1:
+        contact_width = widths[0]
+        trace_width = group.trace_width_mm
+        spacing = group.trace_spacing_mm
+        if trace_width is not None and spacing is not None:
+            pitch = trace_width + spacing
+        elif trace_width is not None:
+            pitch = max(trace_width * 1.25, contact_width or 0.0)
+        elif contact_width is not None:
+            pitch = contact_width + spacing if spacing is not None else contact_width * 1.25
+        else:
+            raise ValueError(
+                "Single-trace FFC needs an explicit Trace Width or a measurable contact width."
+            )
     return pitch, tuple(widths)
 
 

@@ -647,10 +647,9 @@ class CableGroupDefinition:
                 raise ValueError(f"{label} must be finite and positive or Auto.")
         if self.ribbon_geometry is RibbonGeometryType.FFC and (
             self.group_type is not CableGroupType.RIBBON
-            or self.ribbon_lines < 2
             or self.ribbon_body_type is not RibbonBodyType.SOLID
         ):
-            raise ValueError("FFC requires at least two lines and a Solid ribbon body.")
+            raise ValueError("FFC requires a Solid ribbon body.")
         if not isinstance(self.ribbon_line_colors, tuple) or (
             self.ribbon_line_colors
             and (

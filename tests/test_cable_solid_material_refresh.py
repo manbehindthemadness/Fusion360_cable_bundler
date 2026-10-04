@@ -19,9 +19,12 @@ import pytest
 from cable_bundler.domain import (
     CableColor,
     CableEndAttachment,
+    CableGroupType,
     CableStripe,
     CableVisualOverrides,
     HarnessDefinition,
+    RibbonBodyType,
+    RibbonGeometryType,
     StripePattern,
 )
 from cable_bundler.routing import CubicBezier, RoutePreview, StripeMeshResult, Vector3
@@ -354,6 +357,54 @@ def test_applies_connection_branch_appearance_and_stripe_overrides(
     decorations = replace_graphics.call_args.kwargs["branch_decorations"]
     assert decorations[0][1] == ()
     assert decorations[1][1] == (inherited_stripe,)
+
+
+def test_uv_ffc_color_edit_rebuilds_nonfinalized_generated_body(
+    cable_solids: _CableSolidsModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Do not leave a stale image on ordinary generated solids after a line-color edit.
+    """
+    red = CableColor("Red", 255, 0, 0)
+    group = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_lines=1,
+        ribbon_line_colors=(red,),
+    )
+    definition = replace(valid_harness, cable_groups=(group,))
+    materials = definition.cable_group_materials(group)
+    metadata = {
+        "cable_group_id": str(group.cable_group_id),
+        "ribbon_body_type": "solid",
+        "ribbon_render_mode": "one_face_uv",
+        "ribbon_line_colors_hex": [materials.main_color.hex_rgb],
+        "main_color": materials.main_color.hex_rgb,
+        "connection_branches": [],
+    }
+    attribute = SimpleNamespace(value=json.dumps(metadata))
+    face = SimpleNamespace(attributes=SimpleNamespace(itemByName=lambda *_args: None))
+    body = SimpleNamespace(
+        appearance=None,
+        faces=SimpleNamespace(count=1, item=lambda _index: face),
+    )
+    component = SimpleNamespace(
+        attributes=SimpleNamespace(itemByName=lambda *_args: attribute),
+        bRepBodies=SimpleNamespace(count=1, item=lambda _index: body),
+    )
+    occurrence = SimpleNamespace(component=component, isLightBulbOn=True)
+    rebuild = Mock(return_value=1)
+    monkeypatch.setattr(cable_solids, "generated_cable_group_occurrences", lambda _h: (occurrence,))
+    monkeypatch.setattr(cable_solids, "generated_cable_group_output_mode", lambda _o: "solids")
+    monkeypatch.setattr(cable_solids, "_refresh_generated_cable_groups", rebuild)
+    monkeypatch.setattr(cable_solids, "cable_appearance", lambda *_args: object())
+
+    assert cable_solids.apply_cable_group_materials(object(), object(), definition) == 1
+    assert rebuild.call_args.args[3] == frozenset((group.cable_group_id,))
 
 
 def test_replacing_harness_owned_stripes_preserves_other_cable_groups(

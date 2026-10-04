@@ -38,6 +38,8 @@ from ..solid_ribbon import (
 from .constants import GENERATED_CABLE_GROUP_ATTRIBUTE, GENERATED_OUTPUT_MODE_KEY
 from .materials import cable_appearance, material_metadata
 from .metadata import fusion_point, route_in_component_space, route_metadata
+from .one_face_ffc import build_one_face_ffc_sweep, sweep_station_indices
+from .one_face_texture import apply_ffc_trace_texture
 from .sweep_geometry import is_straight
 
 
@@ -816,7 +818,10 @@ def build_discrete_ribbon_solid(
         center_sketch, center_path, _first_curve = _build_path(component, route, transform)
     feature = None
     folded = False
-    if solid_plan is not None:
+    if solid_plan is not None and ffc is not None:
+        feature = build_one_face_ffc_sweep(component, solid_plan, ffc, group.diameter_mm, transform)
+        folded = True
+    elif solid_plan is not None:
         feature = _build_solid_loft(component, solid_plan, group.diameter_mm, transform, ffc)
         folded = True
     elif shape.folded or shape.start_fit is not None or shape.end_fit is not None:
@@ -856,7 +861,11 @@ def build_discrete_ribbon_solid(
         rail_sketch.isLightBulbOn = False
         section.isLightBulbOn = False
         plane.isLightBulbOn = False
-    body = component.bRepBodies.item(0) if solid_plan is not None else feature.bodies.item(0)
+    body = (
+        feature.bodies.item(0)
+        if ffc is not None
+        else (component.bRepBodies.item(0) if solid_plan is not None else feature.bodies.item(0))
+    )
     if not body.isSolid or not math.isfinite(body.volume) or body.volume <= 0:
         raise RuntimeError("Fusion produced an invalid discrete ribbon solid.")
     body.name = (
@@ -869,27 +878,33 @@ def build_discrete_ribbon_solid(
     body.isLightBulbOn = True
     body.appearance = cable_appearance(design, materials.main_color, materials.appearance)
     line_colors = group.resolved_ribbon_line_colors(materials.main_color)
-    color_faces = body.faces if ffc is not None and group.ribbon_lines == 1 else feature.sideFaces
-    for face_index in range(color_faces.count):
-        face = color_faces.item(face_index)
-        if face is not None:
-            if ffc is not None:
-                if solid_plan is None:
-                    raise RuntimeError("FFC face colors require a solid ribbon plan.")
-                lane = _ffc_trace_land_lane(
-                    _face_world_point(face, transform), solid_plan, ffc, group.diameter_mm
-                )
-                if lane is None:
-                    continue
-            else:
+    if ffc is not None:
+        if solid_plan is None:
+            raise RuntimeError("FFC trace colors require a solid ribbon plan.")
+        apply_ffc_trace_texture(
+            design,
+            feature,
+            solid_plan.sections[0],
+            solid_plan.sections[-1],
+            ffc,
+            line_colors,
+            materials.main_color,
+            group.cable_group_id,
+            transform,
+        )
+    else:
+        color_faces = feature.sideFaces
+        for face_index in range(color_faces.count):
+            face = color_faces.item(face_index)
+            if face is not None:
                 lane = _face_lane(face, frames, transform, group, solid_plan)
-            face.appearance = cable_appearance(design, line_colors[lane])
-            if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
-                raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")
+                face.appearance = cable_appearance(design, line_colors[lane])
+                if face.attributes.add(ATTRIBUTE_GROUP, "ribbon_lane", str(lane)) is None:
+                    raise RuntimeError("Fusion could not retain ribbon face-to-line identity.")
     if center_sketch is not None:
         center_sketch.isLightBulbOn = False
     feature.name = (
-        "FFC contact loft"
+        "FFC one-face contact sweep"
         if ffc is not None
         else "Solid ribbon contact loft"
         if solid_plan is not None
@@ -939,6 +954,15 @@ def build_discrete_ribbon_solid(
             "ribbon_lines": group.ribbon_lines,
             "ribbon_body_type": group.ribbon_body_type.value,
             "ribbon_geometry": group.ribbon_geometry.value,
+            "ribbon_render_mode": "one_face_uv" if ffc is not None else None,
+            "ribbon_line_colors_hex": (
+                [color.hex_rgb for color in line_colors] if ffc is not None else None
+            ),
+            "ribbon_sweep_station_indices": (
+                sweep_station_indices(solid_plan)
+                if ffc is not None and solid_plan is not None
+                else None
+            ),
             "trace_width_mm": group.trace_width_mm,
             "trace_spacing_mm": group.trace_spacing_mm,
             "resolved_trace_width_mm": ffc.trace_width_mm if ffc is not None else None,

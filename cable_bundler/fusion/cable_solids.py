@@ -857,6 +857,10 @@ def refresh_changed_generated_cable_groups(
                 or metadata.get("trace_spacing_mm") != group.trace_spacing_mm
                 or (
                     group.ribbon_geometry is RibbonGeometryType.FFC
+                    and metadata.get("ribbon_render_mode") != "one_face_uv"
+                )
+                or (
+                    group.ribbon_geometry is RibbonGeometryType.FFC
                     and metadata.get("resolved_trace_width_mm")
                     != ffc_dimensions(design, definition, group).trace_width_mm
                 )

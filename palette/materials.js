@@ -439,9 +439,8 @@ function openPropertiesDialog(harness, cableGroup = null) {
     }
     const lineCount = ribbonLines ? Number(ribbonLines.value) : null;
     const isFfc = ribbonGeometry?.value === "ffc";
-    if (ribbonLines && (!Number.isInteger(lineCount) || lineCount < (isFfc ? 2 : 1))) {
-      error.textContent = isFfc
-        ? "FFC requires at least two lines." : "Lines must be a positive whole number.";
+    if (ribbonLines && (!Number.isInteger(lineCount) || lineCount < 1)) {
+      error.textContent = "Lines must be a positive whole number.";
       return;
     }
     const readTraceSize = (input, name) => {

@@ -56,19 +56,19 @@ def test_explicit_trace_values_must_fill_exact_pitch() -> None:
         resolve_ffc_dimensions(1.0, (None, None), 1.1, None)
 
 
-def test_ffc_requires_two_lines_and_solid_body(valid_harness: HarnessDefinition) -> None:
+def test_ffc_allows_one_line_but_requires_solid_body(valid_harness: HarnessDefinition) -> None:
     """
-    The model cannot represent a one-line or Split FFC.
+    A single antenna trace is valid; FFC still has one joined ribbon body.
     """
     original = valid_harness.cable_groups[0]
-    with pytest.raises(ValueError, match="at least two"):
-        replace(
-            original,
-            group_type=CableGroupType.RIBBON,
-            ribbon_geometry=RibbonGeometryType.FFC,
-            ribbon_body_type=RibbonBodyType.SOLID,
-            ribbon_lines=1,
-        )
+    one_line = replace(
+        original,
+        group_type=CableGroupType.RIBBON,
+        ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_lines=1,
+    )
+    assert one_line.ribbon_lines == 1
     with pytest.raises(ValueError, match="Solid"):
         replace(
             original,
@@ -183,6 +183,84 @@ def test_ffc_contact_geometry_measures_first_end_outlines(
     assert dimensions.pitch_mm == pytest.approx(1.0)
     assert dimensions.trace_width_mm == pytest.approx(0.6)
     assert dimensions.spacing_mm == pytest.approx(0.4)
+
+
+@pytest.mark.parametrize(
+    ("width", "spacing", "contact_width", "expected"),
+    [
+        (None, None, 1.0, (1.25, 1.0, 0.25)),
+        (0.6, None, None, (0.75, 0.6, 0.15)),
+        (None, 0.2, 0.6, (0.8, 0.6, 0.2)),
+        (0.6, 0.3, None, (0.9, 0.6, 0.3)),
+    ],
+)
+def test_single_trace_ffc_derives_effective_pitch_without_neighbor(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    width: float | None,
+    spacing: float | None,
+    contact_width: float | None,
+    expected: tuple[float, float, float],
+) -> None:
+    """
+    Use the contact width or explicit dimensions when no second pin defines pitch.
+    """
+    del addin_module
+    module = import_module("cable_bundler.fusion.ffc_dimensions")
+    root = CableEndAttachment(
+        AttachmentTargetKind.SKETCH_POINT,
+        "single-contact",
+        "Contact 1",
+        attachment_id=UUID(int=1701),
+        pin_number="1",
+    )
+    first = replace(valid_harness.connections[0], attachment=root, additional_attachments=())
+    contact = InterfaceContact(UUID(int=1801), root.target_kind, root.entity_token)
+    interface = InterfaceDefinition(
+        UUID(int=1901),
+        "Antenna contact",
+        (InterfaceTarget(InterfaceTargetKind.OCCURRENCE, "interface"),),
+        (contact,),
+    )
+    group = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_geometry=RibbonGeometryType.FFC,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        ribbon_lines=1,
+        trace_width_mm=width,
+        trace_spacing_mm=spacing,
+    )
+    definition = replace(
+        valid_harness,
+        connections=(first, *valid_harness.connections[1:]),
+        cable_groups=(group,),
+        interfaces=(interface,),
+    )
+    monkeypatch.setitem(
+        vars(module),
+        "connection_profile_frames",
+        lambda *_args: (SimpleNamespace(u_direction=Vector3(1.0, 0.0, 0.0)),),
+    )
+    monkeypatch.setitem(
+        vars(module),
+        "connection_attachment_frame",
+        lambda *_args: SimpleNamespace(origin=Vector3(0.0, 0.0, 0.0)),
+    )
+    monkeypatch.setitem(
+        vars(module),
+        "project_interface_contact",
+        lambda *_args: {
+            "loops": [] if contact_width is None else [[[0.0, 0.0, 0.0], [contact_width, 0.0, 0.0]]]
+        },
+    )
+    dimensions = module.ffc_dimensions(object(), definition, group)
+    assert (
+        dimensions.pitch_mm,
+        dimensions.trace_width_mm,
+        dimensions.spacing_mm,
+    ) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("line_count", [1, 3])

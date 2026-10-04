@@ -806,9 +806,59 @@ endpoint tangent control on **both** splines before creating and assigning
 their sweep paths. The experiment does not establish a universal handle
 length or guarantee success on other routes.
 
-The successful bodies still had one interior station with two section wires
-and three edges, so contact-plane seating does **not** clear the remaining
-route/sweep-validity gate. No production generator or saved source design
-was modified. The unsaved scratch remains open. Ignored measurements:
+The successful bodies had one interior station with two section wires and
+three edges. Follow-up `experiment_ffc_section_split.py` located the two
+wires: one spans the intended local station center near
+(73.78, 93.86, 22.04) mm, while the other lies on a separate return leg
+with X bounds 49.63–54.71 mm, at least 19 mm away in X alone. The former
+`section_split` label therefore reports a *global plane crossing*, not
+evidence that the local ribbon section broke into two bodies or lanes. A
+production validity check must identify the section near its planned
+center and evaluate nonlocal crossings separately; it must not reject
+merely because an infinite plane cuts another leg. Other path feasibility
+checks remain necessary. No production generator or saved source design was
+modified. The unsaved scratch remains open. Ignored measurements:
 `artifacts/verification/ffc_contact_plane_gap.json` and
-`artifacts/verification/ffc_end_tangent.json`.
+`artifacts/verification/ffc_end_tangent.json`, plus
+`artifacts/verification/ffc_section_split.json`.
+
+## Production-side FFC sweep handoff experiment
+
+The complete 40-station live plan still failed a constrained one-face sweep
+with `ASM_SWEEP_ILLEGAL_SURFACE`. Its first destination-lead sample moves
+about 1.32 mm *away* from the contact after the final main-route station,
+then the remaining lead samples turn back toward it. Removing only that
+reversing sample made a solid but split its side face. Removing that sample
+and the next sampled lead station retained the final two contact-lead
+stations and produced one solid with three faces, one continuous side face,
+clean sampled local sections, and a full-width destination-cap gap below
+0.002 mm. This is a deterministic conditioning rule for sampled lead
+stations, not permission to discard explicit user controls. The new
+production-side builder in `cable_solid_parts/one_face_ffc.py` reproduced
+that result in unsaved scratch; `experiment_ffc_production_sweep.py` records it.
+
+The first production UV comparison found an apparent 2.58 mm end shift.
+Inspection showed that the offending display-mesh node was at X≈51.89 mm
+on a remote return leg, while the destination contact was near X≈12 mm:
+the test had selected an infinite-plane crossing rather than the contact
+edge. Restricting samples to the local cap envelope reduced the maximum
+measured start/end transverse-U displacement to 0.121 mm on the 19-trace
+route. The UV gate now uses the smaller of 6% of pitch and 25% of spacing
+for mesh-interpolation tolerance; it will reject larger correspondence
+shifts. The product builder generated one three-face textured body with
+persistent metadata in an unsaved scratch and did not modify the saved
+source. Reports: `artifacts/verification/ffc_production_texture.json` and
+`artifacts/verification/ffc_generated_pipeline.json`.
+
+These checks establish the local live-route geometry and UV handoff, not
+the full release lifecycle. Cloud save/reopen texture persistence, material edits,
+preview cleanup, and route variants remain product-level acceptance checks.
+
+Further handoff checks: the generated 19-trace component exported to a local
+Fusion archive and reimported into a new unsaved document with its one
+textured side face and connected image intact. This verifies an archive
+round trip in the same Fusion session, not another-machine portability.
+A separate fresh unsaved 1-trace, 0.2 mm-thick antenna case built one
+three-face body and accepted the same UV renderer. Both test documents were
+left open. Reports: `artifacts/verification/ffc_generated_roundtrip.json`
+and `artifacts/verification/ffc_single_trace_production.json`.

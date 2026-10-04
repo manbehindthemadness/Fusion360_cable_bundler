@@ -41,6 +41,7 @@ class SolidRibbonPlan:
     contact_ids: tuple[tuple[str, ...], tuple[str, ...]]
     attachment_ids: tuple[tuple[str, ...], tuple[str, ...]]
     contact_signature: tuple[tuple[float, ...], ...]
+    contact_centers: tuple[tuple[Vector3, ...], tuple[Vector3, ...]] = ((), ())
 
 
 def _branch_point(route: RoutePreview, fraction: float) -> Vector3:
@@ -144,6 +145,7 @@ def solid_ribbon_plan(
     ends: list[tuple[SolidRibbonSection, ...]] = []
     identities: list[tuple[str, ...]] = []
     attachment_identities: list[tuple[str, ...]] = []
+    contact_centers: list[tuple[Vector3, ...]] = []
     for connection_id, at_start in (
         (leg.start_connection_id, True),
         (leg.end_connection_id, False),
@@ -196,6 +198,7 @@ def solid_ribbon_plan(
         if dot(normal, guide_frame.tangent) < 0.0:
             normal = Vector3(-normal.x, -normal.y, -normal.z)
         routes = tuple(routes_by_attachment[root.attachment_id] for root in ordered)
+        contact_centers.append(tuple(_branch_point(route, 0.0) for route in routes))
         stations: list[SolidRibbonSection] = []
         for fraction in SOLID_RIBBON_LEAD_FRACTIONS:
             raw = tuple(_branch_point(route, fraction) for route in routes)
@@ -243,7 +246,12 @@ def solid_ribbon_plan(
     signatures = [
         tuple(coordinate for point in section.centers for coordinate in (point.x, point.y, point.z))
         + (section.normal.x, section.normal.y, section.normal.z)
-        for section in (sections[0], sections[-1])
+        + tuple(
+            coordinate
+            for point in contact_centers[side]
+            for coordinate in (point.x, point.y, point.z)
+        )
+        for side, section in enumerate((sections[0], sections[-1]))
     ]
     return SolidRibbonPlan(
         sections,
@@ -251,4 +259,5 @@ def solid_ribbon_plan(
         (identities[0], identities[1]),
         (attachment_identities[0], attachment_identities[1]),
         tuple(signatures),
+        (contact_centers[0], contact_centers[1]),
     )
