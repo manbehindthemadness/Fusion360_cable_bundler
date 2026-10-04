@@ -780,3 +780,35 @@ texture scale and offset after attaching the image, keep the shared material
 behavior separate from profile-shape generation, and verify both ends and
 regeneration in the production workflow. Neither the FFC-specific
 `0.9883` scale correction nor these sample lobe widths are universal rules.
+
+## Live FFC contact-plane seating: endpoint-tangent experiment
+
+The trimmed 19-trace live-route one-face sweep initially ended short of the
+exact destination contact plane. Its fitted centerline endpoint already lay
+on that plane; the error was the sweep's end-cap orientation, not a missing
+route endpoint. The cap centroid was 3.19762 mm short, and its broad-width
+bounds ran from about 0.054 mm past the plane to 6.450 mm short. Earlier
+display-only contact copies had also been moved 4 mm outward; those copies
+are not the authoritative contact plane.
+
+`experiment_ffc_end_tangent.py` compared otherwise identical sweeps in a
+new unsaved scratch containing exact contact-face copies. Moving an end
+tangent handle on the fitted centerline and/or bank rail **after** creating
+their Fusion `Path` objects did not change the sweep. Creating fresh paths
+from **both** edited splines did: the end-cap centroid missed the contact
+plane by less than 0.000000001 mm, and its full-width bounds were within
+0.00193 mm of the plane. The cap normal dotted the intended contact normal
+at 0.999997. Handle lengths of 1, 3, and 6 mm produced the same seating.
+Rebuilding only the center path with the original rail failed with
+`ASM_SWEEP_FACES_INTERSECT`; omitting the rail failed with `ASM_SELF_INTER`.
+This supports a specific construction-order rule for this route: finish
+endpoint tangent control on **both** splines before creating and assigning
+their sweep paths. The experiment does not establish a universal handle
+length or guarantee success on other routes.
+
+The successful bodies still had one interior station with two section wires
+and three edges, so contact-plane seating does **not** clear the remaining
+route/sweep-validity gate. No production generator or saved source design
+was modified. The unsaved scratch remains open. Ignored measurements:
+`artifacts/verification/ffc_contact_plane_gap.json` and
+`artifacts/verification/ffc_end_tangent.json`.
