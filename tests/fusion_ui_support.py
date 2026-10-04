@@ -237,6 +237,7 @@ class _PaletteLifecycleModule(Protocol):
     _clear_highlight: Callable[[object], None]
     _clear_solids: Callable[[object, str], int]
     clear_route_previews: Callable[[object], int]
+    hide_route_preview_for_harness: Callable[[object, HarnessDefinition], int]
     hide_route_previews: Callable[[object], int]
     reveal_route_previews: Callable[[object], int]
     clear_refine_spine: Callable[[object], None]

@@ -177,6 +177,7 @@ def test_history_sync_defers_stripes_until_replaced_component_settles(
     )
     monkeypatch.setattr(addin_module, "reconcile_preview_history", reconcile)
     monkeypatch.setattr(addin_module, "restore_cable_group_stripe_graphics", restore)
+    monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", Mock(return_value=()))
     monkeypatch.setattr(addin_module, "_send_palette_state", sent)
     viewport = importlib.import_module("cable_bundler.fusion.ui.viewport")
     monkeypatch.setitem(vars(viewport), "_refresh_active_preview", refreshed)
@@ -511,7 +512,11 @@ def test_reload_restores_stripes_for_each_readable_harness(
     """
     Rebuild session-only stripe graphics when the add-in starts again.
     """
-    application = SimpleNamespace(activeViewport=SimpleNamespace(refresh=Mock()))
+    application = SimpleNamespace(
+        activeProduct=object(), activeViewport=SimpleNamespace(refresh=Mock())
+    )
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
     harness_component = object()
     damaged_component = object()
     gateway = object()
@@ -531,6 +536,7 @@ def test_reload_restores_stripes_for_each_readable_harness(
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: results)
     monkeypatch.setattr(addin_module, "restore_cable_group_stripe_graphics", restore)
+    monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", Mock(return_value=()))
 
     assert addin_module._restore_active_stripe_graphics(application) == 3
 
@@ -538,16 +544,48 @@ def test_reload_restores_stripes_for_each_readable_harness(
     application.activeViewport.refresh.assert_called_once()
 
 
-def test_reload_hides_previews_only_for_finalized_harnesses(
+def test_history_restoration_hides_preview_when_solids_return(
     addin_module: _PaletteLifecycleModule,
     monkeypatch: pytest.MonkeyPatch,
     valid_harness: HarnessDefinition,
 ) -> None:
     """
-    Keep working previews visible when another harness is finalized.
+    Hide a route preview restored alongside generated output by Undo or Redo.
+    """
+    design = object()
+    component = object()
+    application = SimpleNamespace(
+        activeProduct=design, activeViewport=SimpleNamespace(refresh=Mock())
+    )
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda value: value)  # type: ignore[attr-defined]
+    result = SimpleNamespace(definition=valid_harness, component_handle=component)
+    hide = Mock(return_value=1)
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: object())
+    monkeypatch.setattr(addin_module, "load_harnesses", lambda _gateway: (result,))
+    monkeypatch.setattr(addin_module, "restore_cable_group_stripe_graphics", Mock(return_value=0))
+    monkeypatch.setattr(
+        addin_module, "generated_cable_group_occurrences", Mock(return_value=(object(),))
+    )
+    monkeypatch.setattr(addin_module, "hide_route_preview_for_harness", hide)
+
+    assert addin_module._restore_active_stripe_graphics(application) == 0
+
+    hide.assert_called_once_with(design, valid_harness)
+    application.activeViewport.refresh.assert_called_once()
+
+
+def test_reload_hides_previews_for_solid_and_finalized_harnesses(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Keep working previews visible while hiding both generated output modes.
     """
     lifecycle = importlib.import_module("cable_bundler.fusion.ui.lifecycle")
     working = object()
+    solid = object()
     finalized = object()
     working_definition = replace(
         valid_harness,
@@ -556,21 +594,26 @@ def test_reload_hides_previews_only_for_finalized_harnesses(
     )
     results = (
         SimpleNamespace(definition=working_definition, component_handle=working),
+        SimpleNamespace(
+            definition=replace(valid_harness, name="Solid Harness"), component_handle=solid
+        ),
         SimpleNamespace(definition=valid_harness, component_handle=finalized),
         SimpleNamespace(definition=None, component_handle=object()),
     )
     hide = Mock(return_value=1)
     monkeypatch.setitem(
         vars(lifecycle),
-        "has_finalized_cable_group_output",
-        lambda component: component is finalized,
+        "generated_cable_group_occurrences",
+        lambda component: (object(),) if component in (solid, finalized) else (),
     )
     monkeypatch.setitem(vars(lifecycle), "hide_route_preview_for_harness", hide)
     design = object()
 
-    assert lifecycle._hide_loaded_finalized_previews(design, results) == 1
+    assert lifecycle._hide_loaded_generated_previews(design, results) == 2
 
-    hide.assert_called_once_with(design, valid_harness)
+    assert hide.call_count == 2
+    assert hide.call_args_list[0].args == (design, results[1].definition)
+    assert hide.call_args_list[1].args == (design, valid_harness)
 
 
 def test_restored_route_preview_visibility_is_scoped_by_harness(

@@ -34,6 +34,7 @@ from ..cable_solids import (
     generate_cable_group_solids,
     generated_attachment_bodies,
     generated_cable_group_bodies,
+    generated_cable_group_occurrences,
 )
 from ..hover_graphics import (
     clear_hover_widgets,
@@ -49,6 +50,7 @@ from ..refine_graphics import (
     reveal_refine_graphics,
 )
 from ..route_preview import (
+    hide_route_preview_for_harness,
     hide_route_previews,
     highlight_route_members,
     refresh_route_previews,
@@ -77,17 +79,28 @@ def _refresh_active_preview(
     """
     Refresh a harness preview after its edit has been saved.
 
-    Material edits can request a visible preview so their stripe presentation is
-    immediate even when Preview Routes was not already active. Preview failures
-    are notices, not failures of the persisted edit itself.
+    Material edits can request a visible preview before solids exist. Generated
+    output keeps its construction preview hidden so it cannot overlay the solid.
+    Preview failures are notices, not failures of the persisted edit itself.
     """
     design = _require_active_design(application)
-    definition = loads(_create_harness_gateway(application).read_harness_definition(harness_id))
-    if ensure_visible and definition.cable_groups and definition.material_defaults.stripes:
+    gateway = _create_harness_gateway(application)
+    definition = loads(gateway.read_harness_definition(harness_id))
+    has_generated_output = bool(
+        generated_cable_group_occurrences(gateway.harness_component(harness_id))
+    )
+    if (
+        ensure_visible
+        and not has_generated_output
+        and definition.cable_groups
+        and definition.material_defaults.stripes
+    ):
         warnings: tuple[str, ...] = ()
         show_route_previews(design, definition)
     else:
         warnings = refresh_route_previews(design, definition)
+        if has_generated_output:
+            hide_route_preview_for_harness(design, definition)
     for warning in warnings:
         _log_to_fusion(warning)
     return " ".join(warnings)

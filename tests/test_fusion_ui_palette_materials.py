@@ -332,7 +332,11 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
     )
     design = object()
     application = SimpleNamespace(activeProduct=design)
-    gateway = SimpleNamespace(read_harness_definition=lambda _identity: dumps(definition))
+    component = object()
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _identity: dumps(definition),
+        harness_component=lambda _identity: component,
+    )
     fusion_module = sys.modules["adsk.fusion"]
     fusion_module.Design = SimpleNamespace(cast=lambda product: product)  # type: ignore[attr-defined]
     show = Mock(return_value=(object(),))
@@ -340,6 +344,8 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
     monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
     monkeypatch.setattr(addin_module, "show_route_previews", show)
     monkeypatch.setattr(addin_module, "refresh_route_previews", refresh)
+    generated = Mock(return_value=())
+    monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", generated)
 
     assert (
         addin_module._refresh_active_preview(
@@ -352,6 +358,56 @@ def test_material_refresh_shows_striped_preview_when_none_is_active(
 
     show.assert_called_once_with(design, definition)
     refresh.assert_not_called()
+    generated.assert_called_once_with(component)
+
+
+@pytest.mark.parametrize("ensure_visible", (False, True))
+def test_generated_output_edit_keeps_route_preview_hidden(
+    addin_module: _PaletteLifecycleModule,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_harness: HarnessDefinition,
+    ensure_visible: bool,
+) -> None:
+    """
+    Keep route graphics off finished solids after every preview refresh path.
+    """
+    stripe = CableStripe(CableColor("White", 245, 245, 245), 0.2)
+    definition = replace(
+        valid_harness,
+        material_defaults=replace(valid_harness.material_defaults, stripes=(stripe,)),
+    )
+    design = object()
+    component = object()
+    application = SimpleNamespace(activeProduct=design)
+    gateway = SimpleNamespace(
+        read_harness_definition=lambda _identity: dumps(definition),
+        harness_component=lambda _identity: component,
+    )
+    fusion_module = sys.modules["adsk.fusion"]
+    fusion_module.Design = SimpleNamespace(cast=lambda product: product)  # type: ignore[attr-defined]
+    show = Mock()
+    refresh = Mock(return_value=())
+    hide = Mock(return_value=1)
+    generated = Mock(return_value=(object(),))
+    monkeypatch.setattr(addin_module, "_create_harness_gateway", lambda _application: gateway)
+    monkeypatch.setattr(addin_module, "show_route_previews", show)
+    monkeypatch.setattr(addin_module, "refresh_route_previews", refresh)
+    monkeypatch.setattr(addin_module, "hide_route_preview_for_harness", hide)
+    monkeypatch.setattr(addin_module, "generated_cable_group_occurrences", generated)
+
+    assert (
+        addin_module._refresh_active_preview(
+            application,
+            definition.harness_id,
+            ensure_visible=ensure_visible,
+        )
+        == ""
+    )
+
+    generated.assert_called_once_with(component)
+    show.assert_not_called()
+    refresh.assert_called_once_with(design, definition)
+    hide.assert_called_once_with(design, definition)
 
 
 def test_palette_edit_rejects_document_switch(

@@ -18,7 +18,7 @@ import adsk.fusion
 from ...application import HarnessLoadResult, load_harnesses
 from .. import clear_route_previews
 from ..cable_solids import (
-    has_finalized_cable_group_output,
+    generated_cable_group_occurrences,
     restore_cable_group_stripe_graphics,
 )
 from ..harness_gateway import ATTRIBUTE_GROUP, DEFINITION_ATTRIBUTE_NAME
@@ -431,21 +431,25 @@ def _restore_active_stripe_graphics(
     Load active harnesses and restore their transient stripe decorations.
     """
     results = load_harnesses(_create_harness_gateway(application))
-    return _restore_loaded_stripe_graphics(application, results)
+    restored = _restore_loaded_stripe_graphics(application, results)
+    design = adsk.fusion.Design.cast(application.activeProduct)
+    if design is not None and _hide_loaded_generated_previews(design, results):
+        application.activeViewport.refresh()
+    return restored
 
 
-def _hide_loaded_finalized_previews(
+def _hide_loaded_generated_previews(
     design: adsk.fusion.Design,
     results: tuple[HarnessLoadResult, ...],
 ) -> int:
     """
-    Hide restored route graphics only for harnesses with finalized output.
+    Hide restored route graphics for harnesses with solid or finalized output.
     """
     hidden_count = 0
     for result in results:
         if result.definition is None or result.component_handle is None:
             continue
-        if has_finalized_cable_group_output(result.component_handle):
+        if generated_cable_group_occurrences(result.component_handle):
             hidden_count += hide_route_preview_for_harness(design, result.definition)
     return hidden_count
 
@@ -523,7 +527,7 @@ def start(_context: object) -> None:
             _log_document_checkpoint(application, "start:stripes_restored")
             reconcile_active_refines(application)
             _log_document_checkpoint(application, "start:refines_reconciled")
-            if _hide_loaded_finalized_previews(design, results):
+            if _hide_loaded_generated_previews(design, results):
                 application.activeViewport.refresh()
             _log_document_checkpoint(application, "start:previews_hidden")
     except Exception:
