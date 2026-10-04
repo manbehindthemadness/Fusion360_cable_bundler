@@ -646,6 +646,7 @@ def _cable_group_payloads(
                     "ribbonLines": group.ribbon_lines,
                     "ribbonGeometry": group.ribbon_geometry.value,
                     "ribbonBodyType": group.ribbon_body_type.value,
+                    "interfaceBehavior": group.interface_behavior.value,
                     "traceWidthMm": group.trace_width_mm,
                     "traceSpacingMm": group.trace_spacing_mm,
                     "ribbonLineColors": [

@@ -18,6 +18,7 @@ from ..domain import (
     CableGroupType,
     CableMaterialOverrides,
     HarnessDefinition,
+    InterfaceBehavior,
     Metadata,
     PathwayEndpoint,
     RibbonBodyType,
@@ -70,6 +71,7 @@ class _MutableCableGroup:
     ribbon_geometry: RibbonGeometryType
     ribbon_line_colors: tuple[Optional[CableColor], ...]
     ribbon_body_type: RibbonBodyType
+    interface_behavior: InterfaceBehavior
 
 
 def save_cable_editor(
@@ -156,6 +158,7 @@ def save_cable_editor(
             group.ribbon_geometry,
             group.ribbon_line_colors,
             group.ribbon_body_type,
+            group.interface_behavior,
         )
         for group in definition.cable_groups
     ]
@@ -211,6 +214,7 @@ def save_cable_editor(
                     RibbonGeometryType.DISCRETE,
                     (),
                     RibbonBodyType.SPLIT,
+                    InterfaceBehavior.GATED,
                 )
             )
         elif left_index is None:
@@ -239,6 +243,7 @@ def save_cable_editor(
             group.ribbon_geometry,
             group.ribbon_line_colors,
             group.ribbon_body_type,
+            interface_behavior=group.interface_behavior,
         )
         for group in groups
         if len(group.connection_ids) >= 2
@@ -295,6 +300,7 @@ def set_cable_group_properties(
     ribbon_geometry: Optional[RibbonGeometryType] = None,
     ribbon_line_colors: Optional[tuple[Optional[CableColor], ...]] = None,
     ribbon_body_type: Optional[RibbonBodyType] = None,
+    interface_behavior: Optional[InterfaceBehavior] = None,
     trace_width_mm: Optional[float] = None,
     trace_spacing_mm: Optional[float] = None,
     normalize_definition: Callable[[HarnessDefinition], HarnessDefinition] | None = None,
@@ -326,6 +332,8 @@ def set_cable_group_properties(
         raise ValueError("Ribbon geometry type is invalid.")
     if ribbon_body_type is not None and not isinstance(ribbon_body_type, RibbonBodyType):
         raise ValueError("Ribbon body type is invalid.")
+    if interface_behavior is not None and not isinstance(interface_behavior, InterfaceBehavior):
+        raise ValueError("Interface behavior is invalid.")
     for label, value in (("Trace width", trace_width_mm), ("Trace spacing", trace_spacing_mm)):
         if value is not None and (
             isinstance(value, bool)
@@ -344,6 +352,7 @@ def set_cable_group_properties(
             or ribbon_geometry is not None
             or ribbon_line_colors is not None
             or ribbon_body_type is not None
+            or interface_behavior is not None
             or trace_width_mm is not None
             or trace_spacing_mm is not None
         ):
@@ -368,6 +377,9 @@ def set_cable_group_properties(
             body_type = RibbonBodyType.SOLID
         elif group.ribbon_geometry is RibbonGeometryType.FFC and ribbon_body_type is None:
             body_type = RibbonBodyType.SPLIT
+        behavior = group.interface_behavior if interface_behavior is None else interface_behavior
+        if geometry is not RibbonGeometryType.FFC and body_type is not RibbonBodyType.SOLID:
+            behavior = InterfaceBehavior.GATED
         return replace(
             group,
             diameter_mm=diameter_mm,
@@ -376,6 +388,7 @@ def set_cable_group_properties(
             ribbon_geometry=geometry,
             ribbon_line_colors=colors,
             ribbon_body_type=body_type,
+            interface_behavior=behavior,
             trace_width_mm=(group.trace_width_mm if ribbon_geometry is None else trace_width_mm),
             trace_spacing_mm=(
                 group.trace_spacing_mm if ribbon_geometry is None else trace_spacing_mm

@@ -52,6 +52,7 @@ from ...domain import (
     AutoTransitionPreset,
     CableGroupType,
     HarnessDefinition,
+    InterfaceBehavior,
     OpenGuideAlignment,
     PathwayEndpoint,
     RibbonBodyType,
@@ -645,6 +646,12 @@ def _apply_property_edit(
                 ribbon_body_type = RibbonBodyType(ribbon_body_type)
             except (TypeError, ValueError) as error:
                 raise ValueError("Ribbon body type must be Split or Solid.") from error
+        interface_behavior = payload.get("interfaceBehavior")
+        if interface_behavior is not None:
+            try:
+                interface_behavior = InterfaceBehavior(interface_behavior)
+            except (TypeError, ValueError) as error:
+                raise ValueError("Interface behavior must be Gated or Direct.") from error
         trace_width = payload.get("traceWidthMm")
         trace_spacing = payload.get("traceSpacingMm")
         for label, value in (("Trace width", trace_width), ("Trace spacing", trace_spacing)):
@@ -688,6 +695,7 @@ def _apply_property_edit(
             ribbon_lines=ribbon_lines,
             ribbon_geometry=ribbon_geometry,
             ribbon_body_type=ribbon_body_type,
+            interface_behavior=interface_behavior,
             trace_width_mm=trace_width,
             trace_spacing_mm=trace_spacing,
             ribbon_line_colors=ribbon_line_colors,

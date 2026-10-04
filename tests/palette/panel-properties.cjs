@@ -428,6 +428,63 @@ asyncTest('ribbon Body type appears only with Interfaces at both ends', async ()
   assert.equal('ribbonBodyType' in calls[1].payload, false);
 });
 
+asyncTest('Interface Behavior appears for Solid discrete and FFC ribbons', async () => {
+  const { context } = palette();
+  const definition = harness();
+  const group = definition.cableGroups[0];
+  group.groupType = 'ribbon';
+  group.ribbonGeometry = 'discrete';
+  group.ribbonBodyType = 'split';
+  definition.interfaces = [
+    { interfaceId: 'i1', connectedConnectionIds: ['a1'] },
+    { interfaceId: 'i2', connectedConnectionIds: ['b1'] },
+  ];
+  const calls = [];
+  context.send = async (action, payload) => {
+    calls.push({ action, payload });
+    return { ok: true };
+  };
+
+  context.openCableGroupProperties(definition, group);
+  let dialog = context.document.body.querySelector('.cable-group-properties');
+  let label = descendants(dialog, (node) => node.textContent === 'Interface Behavior')[0];
+  const insulation = descendants(dialog, (node) => node.className === 'material-field').find(
+    (field) => descendants(field, (node) => node.textContent === 'Insulation Material').length,
+  );
+  assert.ok(label);
+  assert.equal(label.hidden, true);
+  assert.ok(label.parentElement.children.indexOf(label)
+    < label.parentElement.children.indexOf(insulation));
+  assert.deepEqual(label.querySelector('select').children.map((option) => option.textContent), [
+    'Gated', 'Direct',
+  ]);
+  assert.equal(label.querySelector('select').value, 'gated');
+  const bodyType = descendants(dialog, (node) => node.textContent === 'Body type')[0]
+    .querySelector('select');
+  bodyType.value = 'solid';
+  bodyType.events.change();
+  assert.equal(label.hidden, false);
+  label.querySelector('select').value = 'direct';
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[0].payload.interfaceBehavior, 'direct');
+
+  group.ribbonBodyType = 'split';
+  group.ribbonGeometry = 'ffc';
+  group.interfaceBehavior = 'direct';
+  context.openCableGroupProperties(definition, group);
+  dialog = context.document.body.querySelector('.cable-group-properties');
+  label = descendants(dialog, (node) => node.textContent === 'Interface Behavior')[0];
+  assert.equal(label.hidden, false);
+  assert.equal(label.querySelector('select').value, 'direct');
+  const geometry = descendants(dialog, (node) => node.textContent === 'Geometry Type')[0]
+    .querySelector('select');
+  geometry.value = 'discrete';
+  geometry.events.change();
+  assert.equal(label.hidden, true);
+  await dialog.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(calls[1].payload.interfaceBehavior, 'gated');
+});
+
 asyncTest('FFC properties show flat sizing and reject dimensions outside contact pitch', async () => {
   const { context } = palette();
   const definition = harness();

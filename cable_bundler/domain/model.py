@@ -61,6 +61,15 @@ class RibbonBodyType(str, Enum):
     SOLID = "solid"
 
 
+class InterfaceBehavior(str, Enum):
+    """
+    Record how an eligible ribbon meets its Interfaces.
+    """
+
+    GATED = "gated"
+    DIRECT = "direct"
+
+
 class CableEndShape(str, Enum):
     """
     Identify whether an end's ordered guides are closed profiles or open curves.
@@ -616,6 +625,7 @@ class CableGroupDefinition:
     ribbon_body_type: RibbonBodyType = RibbonBodyType.SPLIT
     trace_width_mm: Optional[float] = None
     trace_spacing_mm: Optional[float] = None
+    interface_behavior: InterfaceBehavior = InterfaceBehavior.GATED
 
     def __post_init__(self) -> None:
         """
@@ -634,6 +644,16 @@ class CableGroupDefinition:
             raise ValueError("Ribbon geometry type is invalid.")
         if not isinstance(self.ribbon_body_type, RibbonBodyType):
             raise ValueError("Ribbon body type is invalid.")
+        if not isinstance(self.interface_behavior, InterfaceBehavior):
+            raise ValueError("Interface behavior is invalid.")
+        if self.interface_behavior is InterfaceBehavior.DIRECT and (
+            self.group_type is not CableGroupType.RIBBON
+            or (
+                self.ribbon_geometry is not RibbonGeometryType.FFC
+                and self.ribbon_body_type is not RibbonBodyType.SOLID
+            )
+        ):
+            raise ValueError("Direct Interface behavior requires FFC or a Solid discrete ribbon.")
         for label, value in (
             ("Trace width", self.trace_width_mm),
             ("Trace spacing", self.trace_spacing_mm),

@@ -46,6 +46,7 @@ from .model import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
+    InterfaceBehavior,
     InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
@@ -351,6 +352,7 @@ def _definition_to_dict(definition: HarnessDefinition) -> dict[str, Any]:
                         "ribbon_lines": group.ribbon_lines,
                         "ribbon_geometry": group.ribbon_geometry.value,
                         "ribbon_body_type": group.ribbon_body_type.value,
+                        "interface_behavior": group.interface_behavior.value,
                         "trace_width_mm": group.trace_width_mm,
                         "trace_spacing_mm": group.trace_spacing_mm,
                         "ribbon_line_colors": [
@@ -968,6 +970,15 @@ def _parse_cable_group(
         ),
         ribbon_geometry=ribbon_geometry,
         ribbon_body_type=ribbon_body_type,
+        interface_behavior=(
+            _require_enum(
+                InterfaceBehavior, value, "interface_behavior", f"{path}.interface_behavior"
+            )
+            if schema_version >= 40
+            and "interface_behavior" in value
+            and group_type is CableGroupType.RIBBON
+            else InterfaceBehavior.GATED
+        ),
         trace_width_mm=(
             _optional_float(value.get("trace_width_mm"), f"{path}.trace_width_mm")
             if schema_version >= 40 and group_type is CableGroupType.RIBBON

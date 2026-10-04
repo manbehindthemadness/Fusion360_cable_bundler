@@ -17,6 +17,7 @@ from cable_bundler.domain import (
     CableEndShape,
     CableEndTarget,
     CableGroupType,
+    InterfaceBehavior,
     InterfaceContact,
     InterfaceDefinition,
     InterfaceTarget,
@@ -473,6 +474,7 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
         ribbon_lines=9,
         ribbon_geometry=RibbonGeometryType.FFC,
         ribbon_body_type=RibbonBodyType.SOLID,
+        interface_behavior=InterfaceBehavior.DIRECT,
         trace_width_mm=0.6,
         trace_spacing_mm=0.4,
     )
@@ -491,6 +493,7 @@ def test_palette_state_exposes_ribbon_properties_only_for_ribbons(
     assert group["ribbonLines"] == 9
     assert group["ribbonGeometry"] == "ffc"
     assert group["ribbonBodyType"] == "solid"
+    assert group["interfaceBehavior"] == "direct"
     assert group["traceWidthMm"] == 0.6
     assert group["traceSpacingMm"] == 0.4
     assert group["ribbonLineColors"] == []

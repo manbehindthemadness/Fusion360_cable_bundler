@@ -24,6 +24,7 @@ from cable_bundler.domain import (
     CableWeldSettings,
     DefinitionParseError,
     HarnessDefinition,
+    InterfaceBehavior,
     JunctionDefinition,
     OpenGuideAlignment,
     PullbackMode,
@@ -138,6 +139,43 @@ def test_ribbon_body_type_round_trip_and_schema_38_migration(
     payload["schema_version"] = 38
     del payload["cable_groups"][0]["ribbon_body_type"]
     assert loads(json.dumps(payload)).cable_groups[0].ribbon_body_type is RibbonBodyType.SPLIT
+
+
+def test_interface_behavior_round_trip_and_existing_record_default(
+    valid_harness: HarnessDefinition,
+) -> None:
+    """
+    Preserve Direct on eligible ribbons and default existing records to Gated.
+    """
+    ribbon = replace(
+        valid_harness.cable_groups[0],
+        group_type=CableGroupType.RIBBON,
+        ribbon_body_type=RibbonBodyType.SOLID,
+        interface_behavior=InterfaceBehavior.DIRECT,
+    )
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    assert payload["cable_groups"][0]["interface_behavior"] == "direct"
+    assert loads(json.dumps(payload)).cable_groups[0] == ribbon
+
+    del payload["cable_groups"][0]["interface_behavior"]
+    assert loads(json.dumps(payload)).cable_groups[0].interface_behavior is InterfaceBehavior.GATED
+
+
+@pytest.mark.parametrize("behavior", ["other", None, 1])
+def test_rejects_invalid_interface_behavior(
+    valid_harness: HarnessDefinition, behavior: object
+) -> None:
+    """
+    Reject unsupported values when an Interface behavior is explicitly saved.
+    """
+    ribbon = replace(valid_harness.cable_groups[0], group_type=CableGroupType.RIBBON)
+    payload = json.loads(dumps(replace(valid_harness, cable_groups=(ribbon,))))
+    payload["cable_groups"][0]["interface_behavior"] = behavior
+
+    with pytest.raises(DefinitionParseError) as error:
+        loads(json.dumps(payload))
+
+    assert error.value.path == "$.cable_groups[0].interface_behavior"
 
 
 @pytest.mark.parametrize("body_type", ["other", None, 1])

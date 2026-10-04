@@ -282,6 +282,8 @@ function openPropertiesDialog(harness, cableGroup = null) {
   let ribbonLines = null;
   let ribbonGeometry = null;
   let ribbonBodyType = null;
+  let interfaceBehavior = null;
+  let interfaceBehaviorLabel = null;
   let diameterLabel = null;
   let diameterCaption = null;
   let bodyTypeLabel = null;
@@ -377,8 +379,29 @@ function openPropertiesDialog(harness, cableGroup = null) {
     if (traceWidthLabel) traceWidthLabel.hidden = !ffc;
     if (traceSpacingLabel) traceSpacingLabel.hidden = !ffc;
     if (conductorDiameter) conductorDiameter.wrapper.hidden = ffc;
+    if (interfaceBehaviorLabel) {
+      interfaceBehaviorLabel.hidden = !ffc && ribbonBodyType?.value !== "solid";
+      if (interfaceBehaviorLabel.hidden) interfaceBehavior.value = "gated";
+    }
   };
   ribbonGeometry?.addEventListener("change", updateRibbonGeometry);
+  ribbonBodyType?.addEventListener("change", updateRibbonGeometry);
+
+  if (cableGroup?.groupType === "ribbon") {
+    interfaceBehaviorLabel = document.createElement("label");
+    interfaceBehavior = document.createElement("select");
+    interfaceBehaviorLabel.textContent = "Interface Behavior";
+    interfaceBehavior.className = "filter";
+    [["gated", "Gated"], ["direct", "Direct"]].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      interfaceBehavior.append(option);
+    });
+    interfaceBehavior.value = cableGroup.interfaceBehavior || "gated";
+    interfaceBehaviorLabel.append(interfaceBehavior);
+    form.append(interfaceBehaviorLabel);
+  }
 
   const addMaterialField = (key, labelText, suggestions = [], multiline = false) => {
     const { wrapper, header, input } = createMaterialTextField(
@@ -515,6 +538,7 @@ function openPropertiesDialog(harness, cableGroup = null) {
             ...(ribbonLines ? {
               ribbonLines: lineCount,
               ribbonGeometry: ribbonGeometry.value,
+              interfaceBehavior: interfaceBehavior.value,
               ...(isFfc ? { ribbonBodyType: "solid" }
                 : ribbonBodyType ? { ribbonBodyType: ribbonBodyType.value } : {}),
               traceWidthMm,

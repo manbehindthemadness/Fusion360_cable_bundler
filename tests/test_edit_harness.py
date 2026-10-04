@@ -41,6 +41,7 @@ from cable_bundler.domain import (
     ControlKind,
     ControlStructure,
     HarnessDefinition,
+    InterfaceBehavior,
     JunctionDefinition,
     OpenGuideAlignment,
     PathwayEndpoint,
@@ -482,6 +483,7 @@ def test_edits_ribbon_properties_without_inheritance(
         ribbon_lines=7,
         ribbon_geometry=RibbonGeometryType.FFC,
         ribbon_body_type=RibbonBodyType.SPLIT,
+        interface_behavior=InterfaceBehavior.DIRECT,
         trace_width_mm=0.6,
         trace_spacing_mm=None,
     )
@@ -490,6 +492,7 @@ def test_edits_ribbon_properties_without_inheritance(
     assert stored.ribbon_lines == 7
     assert stored.ribbon_geometry is RibbonGeometryType.FFC
     assert stored.ribbon_body_type is RibbonBodyType.SOLID
+    assert stored.interface_behavior is InterfaceBehavior.DIRECT
     assert stored.trace_width_mm == 0.6
     assert stored.trace_spacing_mm is None
 
@@ -509,6 +512,7 @@ def test_edits_ribbon_properties_without_inheritance(
     )
     switched = loads(gateway.serialized_definition).cable_groups[0]
     assert switched.ribbon_body_type is RibbonBodyType.SPLIT
+    assert switched.interface_behavior is InterfaceBehavior.GATED
 
 
 def test_ribbon_line_colors_follow_line_count_changes(
@@ -1050,6 +1054,7 @@ def test_cable_editor_preserves_existing_group_properties(
         ribbon_lines=6,
         ribbon_geometry=RibbonGeometryType.FFC,
         ribbon_body_type=RibbonBodyType.SOLID,
+        interface_behavior=InterfaceBehavior.DIRECT,
     )
     definition = replace(
         valid_harness,
@@ -1079,3 +1084,4 @@ def test_cable_editor_preserves_existing_group_properties(
     assert stored.cable_groups[0].ribbon_lines == 6
     assert stored.cable_groups[0].ribbon_geometry is RibbonGeometryType.FFC
     assert stored.cable_groups[0].ribbon_body_type is RibbonBodyType.SOLID
+    assert stored.cable_groups[0].interface_behavior is InterfaceBehavior.DIRECT
