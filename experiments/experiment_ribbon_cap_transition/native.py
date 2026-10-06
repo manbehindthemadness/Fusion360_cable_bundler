@@ -82,6 +82,15 @@ class NativeProcedure(Enum):
     )
 
 
+class NativeGeometryPolicy(Enum):
+    """
+    Distinguish explicit rejected-shape diagnostics from stop-before-build arrays.
+    """
+
+    OBSERVE_REJECTIONS = "observe-known-findings"
+    STOP_ON_KNOWN_FINDINGS = "stop-before-native-on-known-hard-findings"
+
+
 def _write(path: Path, value: dict[str, object]) -> None:
     """
     Checkpoint generated evidence without changing historical run directories.
@@ -242,6 +251,7 @@ def _run_case(
     budget: NativeBudget | None = None,
     sphere_diameter_widths: float = 5.0,
     fixture_authoring: dict[str, object] | None = None,
+    geometry_policy: NativeGeometryPolicy = NativeGeometryPolicy.OBSERVE_REJECTIONS,
 ) -> Path:
     """
     Build at most one complete configuration and leave its native document open.
@@ -281,6 +291,7 @@ def _run_case(
         "case": asdict(case),
         "case_id": case.name,
         "sphere_diameter_widths": sphere_diameter_widths,
+        "geometry_policy": geometry_policy.value,
         "estimated_seconds": estimated_seconds,
         "timing_basis": "Spatial family uncalibrated; preceding planar diagnostics took 16–36 seconds."
         if estimated_seconds is None
@@ -337,6 +348,11 @@ def _run_case(
             if closer_caps
             else "unknown; half-twist diagnostic took 44.303 s, full turn uncalibrated",
         }
+        if fixture_authoring is not None and "parent_case" in fixture_authoring:
+            plan["diagnostic_exception"]["parent_case"] = fixture_authoring["parent_case"]
+            plan["diagnostic_exception"]["endpoint_change"] = fixture_authoring.get(
+                "boundary_note", "Fixed array inputs authored before generation."
+            )
     fits = _fits(case)
     fixed_targets = freeze_targets(
         case, *fits, fixture=ShortConnectionFixture(case, turn_degrees=15)
@@ -452,6 +468,11 @@ def _run_case(
         report["evaluated"] = 1
         harness.connection_turn = end_plan
         _write(directory / "report.json", report)
+        if (
+            geometry_policy is NativeGeometryPolicy.STOP_ON_KNOWN_FINDINGS
+            and report["preflight"]["failures"]
+        ):
+            raise ValueError("Known hard geometry finding; native construction not launched.")
         return shape
 
     def build_main(*args: object, **kwargs: object) -> object:

@@ -1,5 +1,176 @@
 # Cap-transition candidate v2 — five-width development
 
+## Three-family input-certificate-limit array — 2026-10-06
+
+User approved three uniformly tightened family variants, warnings non-blocking,
+24 certificate probes per family, three native builds, zero retries,120 seconds
+per case,2GiB monitored RSS, retain new array/scratch documents. The unchanged
+certificate uses curvature*enclosing reach <=0.8 and depth16. Only centerlines
+scale about their sphere centers;19x1.5mm material,114mm spheres and width
+directions do not shrink. Newly positioned caps/connection targets freeze for
+ALL three before any ribbon solve; no solver rerouting or native-driven tuning.
+`array_limits.py` authors inputs; `array_limit_native.py` registers parents,
+hashes, unknown native predictions, all probes and exact caps/targets upfront.
+Authoring cap10s/family and390s total scheduling including authoring/display.
+
+**3 planned /3 evaluated /3 solved /3 native-attempted /3 completely built /
+0 fully master-rule audited**, denominator3. Overall0 accepted/2 known-rule
+failed/1 unresolved; no invalid controls, skipped or unattempted cases. Three
+development variants from examined families, not holdouts or generalized durability.
+Native predictions unknown for all3; construction success is not compliance.
+
+| Family | Passing scale | Input certificate ratio | Final sampled lane minimum radius | Native / audits / total |
+| --- | ---: | ---: | ---: | --- |
+| U-turn | 0.999999880791 | 0.799999997767 | 6.271mm | 6.877 /27.790 /49.224s |
+| spatial S | 0.628472566605 | 0.799999981129 | 1.958mm | 7.155 /26.084 /47.272s |
+| orthogonal bends | 0.605630874634 | 0.799999995601 | 1.396mm | 7.489 /28.445 /50.132s |
+
+Each rejected/passing scale bracket width is2^-23; finite observed boundary, not
+an exact physical/native minimum or final twisted-lane certificate.72 probes:
+28 passing/44 rejected (U2/22,S14/10,orthogonal12/12),3.631s authoring,0 ribbon
+solves during search. Same algorithm/budget across families. Input certificate
+is necessarily recomputed inside the three solves, separately from authoring.
+S and orthogonal retain `sampled_fitted_end_radius_below_trial_minimum` and
+`sampled_whole_lane_bend_radius` findings: minimum required4.5mm. These rule failures
+are NOT weakened, repaired or kernel failures. Passing the input envelope does
+not certify these final fitted/twisted lanes. U-turn has no hard preflight finding.
+All three retain360deg winding, trunk+19A+19B=39 solid bodies and clean named ending
+audits. Full final-lane curvature/strain/native global clearance remain unmeasured.
+Length goals still warn; no equality/mechanical accuracy claim.
+
+Total case work146.628s; last build checkpoint176.102s includes search and
+between-call overhead. Numerical prediction/preflight167.749/47.127/156.431ms,
+separate from authoring, native and diagnostic audits. Final case RSS
+1087152/1029472/1033664KiB. Display12.652s,RSS1089280KiB; all agreed caps respected,
+in-flight peak/token cost unmeasured. Rigid display copies are presentation only.
+Active `Tube ribbon 4x - certificate-limit 360 array` verified3 components with
+39 solids each; new three scratch documents and previous array remain open.
+Final inventory10 documents (user-controlled inventory), no document closed by
+the runner. Screenshot visually reviewed and F3D archived.
+
+22 focused tests passed, then8 affected tests rerun after test-only IDE adjustment;
+four changed code files Ruff lint/format and IDE diagnostics clean, full diff
+reviewed. Verification skills kept this focused; full QA not run. New authoring/
+runner/tests and optional array display name only; no production/solver changes.
+Evidence `artifacts/verification/ribbon_cap_transition/array_native/3380368dd3974c879d177d16fc4b7818/`:
+plan/report plus display.json,array.png,array.f3d. Scope exhausted; no auto repair.
+
+## Three-family array delivered under diagnostic waiver — 2026-10-06
+
+User explicitly authorized: "ignore the violations and build the solids."
+`array_diagnostic.py` renews ONLY the two unbuilt configurations, one solve/build
+each, 120 seconds each /240 seconds renewal, 2 GiB monitored RSS, zero tuning or
+retries. All frozen cases/caps/targets compare exactly with the stopped batch.
+Completed U-turn reused, original rejection reports and empty scratch preserved.
+Numerical/audit findings remain recorded but are not construction gates; resource,
+source-drift, host-error and incomplete-construction stops remain. No solver or
+production change. The historical stop below describes the original batch only.
+
+Renewal: **2 planned/evaluated/solved/native-attempted/completely built, 0 fully
+master-rule audited**. Across the array: three distinct configurations built,
+not 117 configurations. S retains occupied-sphere rejection (known-rule failed);
+orthogonal specimen has no hard preflight findings (full compliance unresolved).
+Both have trunk+19A+19B=39 solids; named ending audits have no findings. Native
+paired-side length diagnostics are 4.615% and20.000%, warning goals, not equal-length
+claims. Overall array:0 accepted/1 known-rule failed/2 unresolved of3. No skipped
+or unattempted configurations remain; no generalized durability claim.
+
+| Renewed configuration | Native construction | Diagnostic audits | Total case |
+| --- | ---: | ---: | ---: |
+| spatial S 360 | 6.923 s | 27.991 s | 49.395 s |
+| orthogonal bends 360 | 7.537 s | 31.089 s | 53.731 s |
+
+Numerical preflight23.462/29.907 ms; final RSS979008/977904 KiB. Cumulative renewed
+case work103.126 s; last build checkpoint114.543 s includes between-call overhead.
+Rigid display copies took12.456 s, final RSS1014128 KiB, below agreed ceilings.
+In-flight peak memory unmeasured. Presentation adds no solves or validation cases.
+Live read-only inventory confirms active `Tube ribbon 4x - three-family 360 array`,
+three components with39 solid bodies each, all11 documents retained. Screenshot
+visually reviewed, array F3D archived; source geometry was not moved or modified.
+U-turn/S/orthogonal sphere centers rigidly placed at X=-140/0/+140 mm.
+
+14 focused scheduler/policy tests passed; changed runner/tests Ruff lint/format and
+IDE inspections clean, complete diff reviewed. Verification skills kept checks
+focused; full QA and continuous final-skin mechanical certification not run.
+Evidence: `artifacts/verification/ribbon_cap_transition/array_native/9e1ea00daecf4b73b31a03b9a4f0dd76/`
+contains renewal plan/report, display.json, array.png and array.f3d. No further
+builds, retries or refinement authorized by this completed scope.
+
+## Three-family four-width full-turn array — stopped, 2026-10-06
+
+User approved three fixed configurations, one solve/native attempt each, zero
+tuning/retries, 120 seconds per case /360 seconds batch, 2 GiB monitored Fusion
+RSS, retain all documents. Expected diagnostic turnaround 2–3 minutes. Same
+19x1.5 mm material, 114 mm sphere, short reverse-loft plans and explicit360
+quintic winding/bank-rate exception ONLY. Solver and curvature policies unchanged.
+`array_fixtures.py` freezes the repeated certificate-boundary U-turn, an existing
+four-width spatial S with new full-turn B roll, and existing R30 perpendicular
+bends with full-turn B roll and four-width sphere. Two scaffold-only calls author
+transported B widths before caps/connection targets; not extra ribbon solves.
+Every case/cap/target/hash and unknown native prediction registered upfront.
+
+`array_native.py` schedules one case per call and latches failures. A new typed
+`NativeGeometryPolicy.STOP_ON_KNOWN_FINDINGS` prevents native construction after
+hard preflight rejection; historical explicit-rejection diagnostics retain their
+default observe policy. Length goals still warn. Native provenance accepts the
+frozen array parent/boundary notes without changing shapes or algorithms.
+
+**3 planned /2 evaluated /2 solved /1 native-attempted /1 completely built /
+0 fully master-rule audited.** Positive-case disposition: 0 accepted /1 known-rule
+failed /1 evaluated unresolved /1 unattempted, denominator3. No invalid controls.
+One repeated reference plus two new development roll variants, not three unseen
+validation cases or proof of generalized durability. No false native acceptance:
+predictions unknown. Native construction failure rate outside the attempted
+reference is unmeasured; rejection below is NOT a kernel failure.
+
+| Configuration | Numerical / native disposition |
+| --- | --- |
+| sphere4_reversal180_twist360_curve_limit | No hard findings; trunk+19A+19B=39 solids, ONE ribbon; named native audits pass, full compliance unresolved |
+| array4_spatial_s_twist360 | Known occupied-sphere containment rejection; 0 native attempts/solids, all endings unattempted |
+| array4_orthogonal_bends_twist360 | Not evaluated or natively attempted after mandatory stop |
+
+S fixture: full guides56.291 mm and sampled trunk occupied radius56.439 mm fit
+the sphere radius57 mm, but conservative branch-control-hull occupied bound
+58.072 mm exceeds it by1.072 mm. This is a containment-certificate finding, not
+proof of actual native skin protrusion or a Fusion construction failure. Input
+curve certificate0.626706<0.8, sampled minimum lane radius10.714>4.5 mm, winding
+360 degrees retained. No spacing/curvature/cap/end-allocation finding. Length
+warnings: trunk30.048%, complete sampled29.390%, native complete lengths unknown.
+The intentional preflight guard is labeled legacy `unexpected_failure` at shape
+stage, but report overall explicitly `failed_known_geometry_rules` and native
+attempt count0. No retry, target movement, larger sphere or check bypass.
+
+Repeated U-turn: generation pipeline73.747 ms (includes adaptive certificate),
+numerical diagnostics92.415 ms, native construction6.752 s, diagnostic audits
+27.053 s, total47.307 s. Same48.170% trunk /46.833% complete sampled warnings;
+continuous final-lane strain/curvature, native flow/global clearance unmeasured.
+S: generation1.346 ms, numerical diagnostics19.959 ms, native/audits0, total
+2.007 s. Cumulative case work49.314 s; batch timer69.440 s includes between-call
+overhead. Stopped despite unused budget, not exhausted or automatically continued.
+U-turn final RSS1,263,856 KiB (~1.205 GiB), largest between-operation sample
+1,121,168 KiB; S final807,360 KiB. In-flight peak/token cost unmeasured.
+
+All six documents present at launch preserved; user had closed older scratch
+documents before this batch. New complete U-turn active as
+`Tube ribbon array - 1 tight U-turn 360`; empty guarded S scratch retained as
+`Tube ribbon array - 2 spatial S 360`. Inventory confirms39 solid bodies/19A/19B
+versus0 S solids. Third scratch and side-by-side array NOT created. Array display
+code is unexecuted: intended rigid body copies using the documented
+[Autodesk temporary BRep sample](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/TemporaryBRepManager_Sample.htm),
+not extra geometry coverage. No presentation copy capability claimed validated.
+
+25 focused tests passed; five changed code files Ruff lint/format and IDE
+inspections clean; complete diff reviewed. Verification skills kept checks focused
+on authoring/scheduler/budget/policy consumers. Tests include mock hard/native/audit/
+host stops and deterministic scaffold winding, not additional native coverage.
+Full suite and continuous certification not run. Only new experimental fixture/
+runner/display, native guard/provenance and tests; no production or solver changes.
+Evidence batch `artifacts/verification/ribbon_cap_transition/array_native/160505c123a84fe1a4df7fd69eaf68a8/`;
+reference native `c18799ba7be941119d12214ee5fc8845`, guarded S native
+`0c1b65ed6264479eb7be6916128c9aa7` under the same ribbon-cap native artifact root.
+Array delivery remains incomplete. Renewal needs explicit direction on the S
+containment policy/fixture and remaining scope; no automatic local fix or rebuild.
+
 ## Four-width full-turn at the input-certificate boundary — 2026-10-06
 
 User approved up to 24 unchanged curve-certificate checks during fixture authoring,
