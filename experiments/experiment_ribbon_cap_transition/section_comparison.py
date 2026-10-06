@@ -9,7 +9,7 @@ import resource
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
-from time import perf_counter
+from time import perf_counter, process_time
 from uuid import uuid4
 
 from experiments.experiment_production_split_ribbon.sources import PROJECT_ROOT, verify_sources
@@ -25,6 +25,7 @@ from .section_authoring import solve_authored_sections
 from .section_sampling import SectionSamplingRejected, sample_section_planes, section_metrics
 from .solver import solve_candidate
 from .stages import StageRecorder
+from .tube_solver import solve_tube_ribbon
 
 
 class SectionMethod(Enum):
@@ -34,6 +35,7 @@ class SectionMethod(Enum):
 
     INTERSECTION = "local_intersection"
     AUTHORED = "shared_section_authoring_v1"
+    TUBE = "master_tube_cold_cost_v1"
 
 
 def _write(path: Path, value: dict[str, object]) -> None:
@@ -131,7 +133,12 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
         fits = _fits(case)
         turns = freeze_targets(case, *fits, fixture=ShortConnectionFixture(case, turn_degrees=15))
         inputs[case.name] = (fits, turns)
-    family = "authored_sections" if method is SectionMethod.AUTHORED else "sections"
+    families = {
+        SectionMethod.AUTHORED: "authored_sections",
+        SectionMethod.INTERSECTION: "sections",
+        SectionMethod.TUBE: "tube_cost",
+    }
+    family = families[method]
     directory = PROJECT_ROOT / "artifacts/verification/ribbon_cap_transition" / family / uuid4().hex
     directory.mkdir(parents=True, exist_ok=False)
     candidate_order = (cases[5], *cases[8:], *cases[:5], *cases[6:8])
@@ -178,6 +185,18 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
             memory_and_tokens="Host process peak RSS measured using macOS ru_maxrss bytes; conservative additional scheduling stop at 512 MiB. Token cost unavailable. No Fusion calls.",
         )
         plan["limits"]["host_peak_rss_bytes"] = 512 * 1024 * 1024
+    if method is SectionMethod.TUBE:
+        plan.update(
+            question="Does cold master-tube/shared-bank numerical generation cost less than the current lane-equalizing solver?",
+            procedure="One unchanged current solve and one master-tube solve per complete configuration. Fixed exact input curves and all cap/connection targets; no reroute. Both retain the current continuous enclosing-radius certificate and receive identical diagnostics. Candidate uses exact curve nodes and analytic tangents, shortest-rotation transport, one bounded greedy bank pass, nominal lane spacing, zero fold/equalization/wrinkle search.",
+            algorithm=method.value,
+            initialization="No cached shapes, seeds or solutions; 32 nodes, 128 lookup intervals per cubic; one forward bank pass. Imports and fixture setup occur outside generation timing; this is not fresh-process startup timing. All current baselines precede candidates, so order effects remain uncontrolled.",
+            bank_policy="Width-scaled authored roll limit 2*pi/(3*width) radians/mm, with node increments divided by 1.875 for quintic easing peak slope. Borrowed experimental policy, NOT a Fusion-derived safe twist law. Exact endpoint roll fixed; no full-turn fallback or parameter trials.",
+            scope="Finite complete-path diagnostics; exact input centerline certificate only. Continuous conductor curvature, bank interpolation/transport error, actual cap skin flow, clearance and native loft remain unmeasured. Reverse-loft plans remain fixed and unbuilt.",
+            budget_comparability="Different algorithm responsibilities intentionally compared: baseline retains original fold search, candidate omits mechanical length optimization. Time savings do not imply equal output quality, equivalent optimization or native speedup. One timing per procedure/case, no repetition/statistical speed claim.",
+            memory_and_tokens="Host peak RSS measured as macOS ru_maxrss bytes; 512 MiB scheduling ceiling. Token cost unavailable. Zero Fusion calls.",
+        )
+        plan["limits"]["host_peak_rss_bytes"] = 512 * 1024 * 1024
     _write(directory / "plan.json", plan)
     rows = {
         case.name: {
@@ -207,7 +226,7 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
                 stop = "Five-second estimate or 60-second scheduling cap exceeded."
                 break
             if (
-                method is SectionMethod.AUTHORED
+                method in (SectionMethod.AUTHORED, SectionMethod.TUBE)
                 and resource.getrusage(resource.RUSAGE_SELF).ru_maxrss >= 512 * 1024 * 1024
             ):
                 stop = "Host peak RSS reached the conservative 512 MiB scheduling ceiling."
@@ -220,15 +239,20 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
             row[procedure] = result
             fits, turns = inputs[case.name]
             solve_started = perf_counter()
+            solve_cpu_started = process_time()
             report["solve_calls"] += 1
             try:
-                shape = (
-                    solve_authored_sections(case, *fits)
-                    if procedure == "candidate" and method is SectionMethod.AUTHORED
-                    else solve_candidate(case, *fits)
-                )
+                solver = solve_candidate
+                if procedure == "candidate":
+                    if method is SectionMethod.AUTHORED:
+                        solver = solve_authored_sections
+                    elif method is SectionMethod.TUBE:
+                        solver = solve_tube_ribbon
+                shape = solver(case, *fits)
                 result.update(
-                    solve_seconds=perf_counter() - solve_started, source_shape=asdict(shape)
+                    solve_seconds=perf_counter() - solve_started,
+                    generation_cpu_seconds=process_time() - solve_cpu_started,
+                    source_shape=asdict(shape),
                 )
                 if procedure == "candidate" and method is SectionMethod.INTERSECTION:
                     sampled_started = perf_counter()
@@ -240,13 +264,17 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
                         maximum_same_index_displacement_mm=sampling.maximum_same_index_displacement_mm,
                     )
                 inspected = perf_counter()
+                inspected_cpu = process_time()
                 preflight = inspect_candidate(shape, EndPlan(case, turns))
                 metrics = _measure(shape, case.diameter_mm)
+                inspection_seconds = perf_counter() - inspected
+                inspection_cpu_seconds = process_time() - inspected_cpu
                 result.update(metrics)
                 result.update(
                     preflight=preflight,
                     sampled_shape=asdict(shape),
-                    inspection_seconds=perf_counter() - inspected,
+                    inspection_seconds=inspection_seconds,
+                    inspection_cpu_seconds=inspection_cpu_seconds,
                     failures=[*preflight["failures"], *metrics["section_findings"]],
                 )
                 result["status"] = "reject" if result["failures"] else "unresolved"
@@ -255,13 +283,16 @@ def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
                     status="rule_rejected",
                     reason=str(error),
                     elapsed_seconds=perf_counter() - solve_started,
+                    generation_cpu_seconds=process_time() - solve_cpu_started,
                 )
             except (TypeError, ValueError, RuntimeError) as error:
                 result.update(status="harness_error", reason=str(error))
                 stop = f"{case.name}: {procedure} harness error; no retry."
             if procedure == "candidate" and stop is None:
                 comparator = (
-                    geometry_findings if method is SectionMethod.AUTHORED else comparison_findings
+                    comparison_findings
+                    if method is SectionMethod.INTERSECTION
+                    else geometry_findings
                 )
                 findings = comparator(row["baseline"], result)
                 row["new_regressions"] = findings

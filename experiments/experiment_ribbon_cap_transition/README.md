@@ -1,5 +1,504 @@
 # Cap-transition candidate v2 — five-width development
 
+## Four-width full-turn at the input-certificate boundary — 2026-10-06
+
+User approved up to 24 unchanged curve-certificate checks during fixture authoring,
+then ONE selected solve/native attempt, no retries, 120 seconds, 2 GiB monitored
+Fusion RSS and retain-all documents. A conservative 10-second authoring scheduling
+cap was also enforced. Same 114 mm sphere, 19x1.5 mm material, cap directions,
+global quintic 360-degree roll and shared exact cap handoff; only the diagnostic
+bank-rate exception persists. Parent `sphere4_reversal180_twist360_gap40`, selected
+development case `sphere4_reversal180_twist360_curve_limit`. No solver changes,
+rerouting, rule relaxation, production edits or untouched holdouts.
+
+`curve_limit.select_radius()` first checks R20 then bisects its uniform scaling
+family 23 times against the original `certify_curvature()` defaults: ratio 0.8,
+maximum depth 16. Authoring probes: 12 passing /12 rejected, 24 total, 0 ribbon
+solves or native attempts during search, 0.847 s. Every probe remains in the report.
+Selected passing R18.16887617111206, cap gap **36.33775234222412 mm**. Lower rejected
+radius 18.16887378692627, gap 36.33774757385254 mm; bracket width 0.000004768 mm
+in gap. Keep the passing side, not the unobserved mathematical infimum. This is
+the finite-depth certificate boundary for these quarter-cubic semicircles, NOT
+the closest endpoint distance for arbitrary routes or a native material limit.
+Adaptive subdivision explains why scaling the R20 reported ratio alone would
+have stopped too early. Selected caps/targets froze after authoring and before the
+sole solve; source/rule/production hashes verified again in Fusion. Unknown native
+prediction recorded before construction. Search evidence:
+`artifacts/verification/ribbon_cap_transition/curve_limit/8591cac8b216442d80c05e2a8513ff43/report.json`.
+
+**1/1 complete configuration planned, evaluated, solved, natively attempted and
+built; 0/1 fully audited to all master rules.** Positive cases 0 accepted /0 hard
+geometry failures /1 unresolved of one. No invalid controls or skipped native
+cases. Certificate rechecked normally in Fusion: maximum ratio 0.7999999968832509,
+4,016 certified intervals (child computational work, not geometry coverage).
+No detected hard numerical violations; whole-lane sampled minimum radius 6.271 mm
+vs 4.5 mm. Full-guide/branch-hull diagnostics contained; sampled occupied radius
+32.415 mm vs sphere radius 57 mm. Node winding 360.0 degrees, maximum average span
+rate 0.206313 rad/mm (~2.81x original bound), explicitly excepted, not rate compliant.
+
+Trunk +19/19 A +19/19 B reverse-lofts =39 native solids, ONE ribbon. Named section,
+landmark, connection and interference audits passed. Length goals warn: sampled
+trunk spread 48.170%, complete sampled 46.833% (gap40 parent 44.717% /43.514%).
+Native paired seam spread approximately zero does NOT prove complete conductor
+equality. Native complete lengths, continuous final-lane strain/curvature, global
+clearance and native join/connection flow remain unmeasured; no full-rule acceptance.
+
+Native-run shape pipeline 74.437 ms includes input certification; numerical
+validation 93.341 ms. Native trunk 2.579 s + endings 4.038 s =6.617 s construction;
+diagnostic audits 26.999 s, other overhead 12.987 s, native-run total 46.771 s.
+Display/archive 1.676 s is nested in other overhead. Search + native run cumulative
+47.618 s; no budget remains. Near-boundary adaptive certificate work rose from
+20 intervals at R20 to 4,016; these are API/numerical pipeline times, not pure
+kernel CPU or controlled speedup measurements. Maximum sampled between-operation
+RSS 953,248 KiB, final 970,640 KiB (~0.926 GiB); in-flight peak unmeasured.
+Token/cost data unavailable. Both scheduling/resource caps respected as measured.
+
+Retained active document: `Tube ribbon 4x - U-turn 180 + twist 360 - curve limit`.
+Read-only inventory confirms all nine preceding documents retained and 39 solids,
+19 A and 19 B. Native report/image/archive:
+`artifacts/verification/ribbon_cap_transition/native/6bd33481ff074bf78aa0d086d7c3416c/`.
+Experimental authoring module/fixture, native provenance entry and tests only.
+36 focused tests passed; after test-only IDE adjustment, all nine changed tests
+passed again. Four changed code files Ruff lint/format and IDE inspections clean;
+complete code/prose diffs reviewed. Focused verification skills constrained checks
+to affected contracts; unit tests are not native geometry coverage. Full suite and
+continuous/native certification not run. Scope exhausted; no further tightening,
+certificate-depth increase, repair, retries or default bank-limit changes authorized.
+
+## Four-width full-turn, closer caps — 2026-10-06
+
+User approved one fixed-centerline variant: cap-center gap 60 to 40 mm by changing
+the semicircle from R30 to R20. Same 114 mm sphere, 19x1.5 mm material, endpoint
+directions, explicit global quintic 360-degree roll and exact cap handoff. New cap
+positions and reverse-loft targets were frozen before solving. Parent:
+`sphere4_reversal180_twist360`; case: `sphere4_reversal180_twist360_gap40`.
+Bank-rate exception ONLY remains explicit; ordinary bank defaults, spacing and
+macaroni checks unchanged. Unknown native prediction registered with source/input
+hashes. Approved limits: one solve/native attempt, no refinements/retries,
+120 seconds, 2 GiB monitored Fusion RSS, retain every document.
+
+**1/1 planned, evaluated, solved, native-attempted and completely built; 0/1
+fully audited to all master rules.** One development variant, not new family or
+holdout coverage. Positive cases: 0 accepted / 0 hard geometry failures /
+1 unresolved of one; no invalid controls, skipped cases or unsuccessful native
+attempts. Trunk +19/19 A +19/19 B reverse-lofts =39 solids, ONE configuration.
+Named native section, landmark, connection and interference audits passed.
+Continuous final-lane strain/curvature, native join/connection flow, global
+clearance and complete native conductor lengths remain unmeasured.
+
+Node winding 360.0 degrees; maximum average span roll rate 0.187424 rad/mm,
+~2.55x the unchanged 0.073488 experimental bound under the approved exception.
+Enclosing-radius input certificate maximum ratio 0.787605 vs 0.8: little remaining
+margin, not a native cloth certificate. Sampled minimum lane radius 7.072 mm vs
+4.5 mm, sampled occupied radius 34.246 mm vs sphere radius 57 mm, full guides and
+branch hull checks contained; no detected numerical hard violations. Length
+warnings worsened: trunk 44.717%, complete sampled 43.514% (parent 30.267% and
+29.579%). Native paired seams approximately zero spread, NOT complete-length proof.
+
+Shape generation 2.039 ms, numerical validation 20.301 ms, native trunk 2.650 s,
+endings 4.402 s (construction 7.052 s), diagnostic audits 27.515 s, other overhead
+14.762 s, total/cumulative case work 49.350 s. Display/archive 1.854 s is a subset
+of other overhead. API pipeline timings, not pure kernel CPU. Maximum sampled
+between-operation RSS 991,168 KiB; final 1,140,320 KiB (~1.088 GiB), below ceiling;
+in-flight peak and token/cost data unmeasured. Scope exhausted; no further builds.
+
+Active retained document: `Tube ribbon 4x - U-turn 180 + twist 360 - gap 40`;
+all eight prior documents preserved, verified read-only: 39 solids and both sets
+complete. Evidence/image/archive:
+`artifacts/verification/ribbon_cap_transition/native/254d7fbda0614f2aa256ee1e4ee75048/`.
+Changed experimental fixture, dedicated native entry/provenance and unit test;
+no solver or production modifications. 24 focused tests passed; three changed
+code files Ruff lint/format and IDE inspections clean. A new test initially used
+unsupported vector operators; corrected to established vector helpers before any
+native execution. Full suite and continuous-native certification not run. The
+verification skills kept scope focused; unit tests are not extra ribbon coverage.
+Next bounded decision requires user approval; do not automatically tighten again
+or tune this specimen. Construction success does not establish mechanical accuracy
+or generalized solver durability.
+
+## Four-width full-turn diagnostic — 2026-10-06
+
+User approved one fixed U-turn/360-degree twist diagnostic, one solve/native
+attempt, zero tuning/retries, 120 seconds, 2 GiB Fusion RSS, all documents retained.
+Explicit exception: experimental width-scaled bank-rate bound ONLY. The 114 mm
+sphere, 30 mm-radius U-turn cubics, 19x1.5 mm material, nominal spacing, curvature
+checks, exact cap handoff and frozen reverse-loft plans are retained. Parent case:
+`sphere4_reversal180_twist180`; this is a roll variant, not a new geometric family.
+B width returns to +Y for a full turn, so its ordered cap/connection inputs were
+authored accordingly BEFORE generation; no post-result relocation. This is not
+an identical-boundary-condition comparison with the half-twist.
+
+`FullTurnDiagnostic` prescribes one global quintic roll over chord-distance nodes,
+not a tuned bank search. `master_scaffold()` and `solve_tube_ribbon()` accept the
+explicit typed prescription; ordinary callers retain the unchanged bounded-bank
+pass. Enclosing-radius input certification, final-lane diagnostics and all other
+policies remain intact. No auto full-turn fallback. Principal endpoint orientation
+alone would allow zero roll; finite-node accumulated roll is checked before native
+construction, preventing that false outcome. Production code/rules untouched.
+
+**1 planned / 1 evaluated / 1 solve / 1 native attempt / 1 complete build / 0
+fully audited to all master rules.** Geometry positive case: 0 accepted / 0 hard
+geometry failures / 1 unresolved out of one; one explicitly excepted rate finding.
+No invalid controls. Native prediction registered as unknown. Diagnostic development
+case, not holdout/generalized readiness evidence. Approved attempt exhausted.
+
+`sphere4_reversal180_twist360` built the trunk and 19/19 A + 19/19 B reverse-lofts,
+39 solids = ONE complete ribbon. Native section, landmark, connection and
+interference checks reported no findings. Authored node net roll measured 360.0
+degrees. Maximum average span roll rate 0.124949 rad/mm exceeds the original
+0.073488 rad/mm by ~1.70x. This is an acknowledged bank-policy exception, not a
+pass under the original limit or a continuous/native safe-twist certificate.
+
+Sampled minimum whole-lane radius 12.199 mm vs required 4.5 mm; nominal 1.5 mm
+station pitch/order retained. Sampled occupied radius 44.247 mm vs sphere radius
+57 mm; full guides and branch hull diagnostics contained. Native vertex-only
+radius 33.661 mm is NOT skin containment. No sampled hard geometry findings.
+Length goals still WARN: trunk sampled spread 30.267%, complete sampled 29.579%.
+Native paired seam spread approximately zero meets that separate goal, but does
+not establish equal conductor lengths; native complete lengths unmeasured.
+Continuous final-lane curvature/strain, native join/connection skin tangency and
+global clearance remain unmeasured. No full-rule or mechanical acceptance claim.
+
+Generation 1.610 ms, numerical validation 20.115 ms, native trunk pipeline 2.679 s,
+all endings 3.854 s (construction 6.533 s), diagnostic audits 29.345 s, other
+overhead 13.116 s, total 49.015 s. Compared with 180 degrees, both roll-field
+strategy and B boundary roll differ: no controlled native speedup claim. Timers
+include API authoring overhead, not pure kernel CPU. Maximum between-operation
+sample RSS 1,013,744 KiB, final 1,104,080 KiB (~1.053 GiB), below ceiling;
+in-flight peak unmeasured. Token/cost data unavailable. No further scheduling.
+
+Retained active document: `Tube ribbon 4x - U-turn 180 + twist 360 - diagnostic`.
+Every pre-run document, including the successful 180-degree result, retained.
+45 focused tests passed; six changed-code Ruff lint/format and IDE inspections
+passed. Tests cover winding, incompatible targets, bank defaults, unit scaffold,
+existing authoring/cap/sphere/budget consumers; not additional geometry validation.
+Full suite and continuous native certification not run. New experimental policy,
+optional solver/scaffold wiring, fixture/native entry and tests only. Evidence:
+`artifacts/verification/ribbon_cap_transition/native/6d792f0eb9d44b84900b53890a9839d9/`.
+Next bounded review: native construction tolerates this prescribed roll beyond the
+experimental bank limit on ONE fixed specimen; do not loosen the default limit or
+promote the diagnostic without diverse-case evidence and separate approval.
+
+## Four-width reversal/half-twist native result — 2026-10-06
+
+User renewed ONE solve/native attempt after the setup stop below, keeping the
+same fixed fixture/targets, unchanged tube solver, 120-second scheduling cap,
+2 GiB Fusion RSS ceiling and retain-all-documents policy. Only the private harness
+binding changed: `native_policy.py` passes the explicit 4x multiplier to the
+existing sphere auditor. Full-guide containment and the auditor's shared 5x
+default remain intact; wrong size/displaced-guide regressions are tested.
+The source/fixture/rule hashes, fixed cap/connection inputs and unknown native
+prediction were registered before construction. No tuning or post-result repair.
+
+**1 planned / 1 numerically evaluated / 1 solve / 1 native attempt / 1 complete
+build / 0 fully audited to all master rules.** Positive-case acceptance: 0 accepted /
+0 hard failures / 1 unresolved out of one. No invalid controls. The prior setup
+stop and this renewed attempt are the SAME configuration, not two geometry cases.
+Known-violation-free sampled preflight remains unresolved, not predicted acceptance.
+
+`sphere4_reversal180_twist180` constructed the trunk and BOTH reverse-loft sets:
+19/19 A endings and 19/19 B endings, 39 solids representing ONE complete ribbon.
+Native section, landmark, all connection and interference checks reported no
+findings. Native cap handoff was exercised with the same solved frames used by
+the exact frozen-plan guard; no relaxed input equality or target displacement.
+Post-run replay of the 32 authored section observations measured 180.0 degrees
+net roll relative to shortest tangent transport and endpoint tangent dot -1.0,
+confirming the requested half-twist/U-turn at the sampled scaffold. Zero extra
+solves/builds for this replay; it does not certify between-section skin/strain.
+
+Mechanical goals WARN, not geometry rejection: sampled trunk spread 32.610%,
+sampled complete spread 31.813%, native paired-seam spread 32.721%. Complete
+native conductor lengths remain unmeasured. Sampled whole-lane minimum radius
+7.813 mm exceeds the 4.5 mm trial minimum; nominal 1.5 mm station pitch/order
+retained. Sampled occupied radius 44.255 mm vs the 57 mm sphere radius. Native
+vertex-only maximum 33.619 mm is a weaker diagnostic, not a skin-containment
+proof. Continuous conductor curvature/strain, native cap/connection flow and
+global clearance remain unmeasured; no generalized or production acceptance.
+
+Timings: shape generation 1.609 ms; numerical validation 20.271 ms; native trunk
+pipeline 2.924 s; all reverse-lofts 4.385 s (native construction 7.308 s). Diagnostic
+audits 23.604 s, other overhead 13.369 s, total 44.303 s. These are instrumented
+API pipelines, not pure kernel CPU or a native-baseline speed comparison. The
+earlier setup-stop overhead adds 2.209 s, giving 46.512 s cumulative for this
+configuration across the two explicitly authorized sessions. Peak sampled RSS
+1,030,208 KiB (~1006 MiB), final 971,616 KiB (~949 MiB), below 2 GiB. Token/cost
+data unavailable. Approved solve/native attempt exhausted, no automatic continuation.
+
+Active retained document: `Tube ribbon 4x - U-turn 180 + twist 180 - run 2`.
+Previous documents and empty setup-stop scratch were not closed or discarded.
+Only experimental policy binding, its tests and reporting changed this renewal;
+production, solver algorithm, material/spacing rules and fixed geometry untouched.
+11 focused policy/handoff tests passed; three changed-code Ruff lint/format and
+IDE inspections passed. This is code-contract evidence, not additional geometry.
+Full suite and continuous-native certification not run. Evidence/archive/image:
+`artifacts/verification/ribbon_cap_transition/native/f8c8300316c7418ea85902fe3fec4ee3/`.
+Next review: transfer the shared geometry method to distinct bend/twist challenges
+under a newly approved bounded scope, keeping length compensation separate.
+
+## Four-width reversal/half-twist setup stop — 2026-10-06
+
+User explicitly approved ONE 4x-sphere configuration with a 180-degree U-turn
+and 180-degree twist: one solve/native attempt, zero tuning/retries, 120 seconds,
+2 GiB Fusion RSS, all existing/new documents retained. `reversal_case()` freezes
+two tangent-continuous 30 mm-radius quarter-cubic approximants, 19x1.5 mm lanes,
+opposite Y endpoint widths and a 114 mm sphere centered at the origin. No obstacle
+or route search. Fixed short reverse-loft targets and the tube solver remain
+unchanged. `CapFrameHandoff` shares equivalent solved cap objects with native
+ending requests after a 1e-12 component-vector/mm equivalence check; frozen-plan
+equality stays exact. Historical native procedure remains selectable unchanged.
+
+**1 planned / 0 numerically evaluated / 0 solves / 0 native attempts / 0 built /
+0 fully audited.** The only case is unresolved/unattempted geometrically due to
+a harness setup error, not a kernel or solver rejection. No invalid controls.
+`sphere4_reversal180_twist180` stopped at `end_boundary`: the shared legacy
+`audit_end_boundary()` requires FIVE widths. The runner's missing 4x policy adapter
+was a setup mistake, not an intentional partial geometry outcome. Frozen 4x
+inputs were not changed to satisfy that guard. No retries or automatic fixes.
+Native prediction remains unknown; all 38 reverse-lofts unattempted.
+
+Elapsed 2.209 s, all setup/display/archive overhead; solve, build and audit timings
+zero. Final RSS 728,256 KiB (~711 MiB), later inventory 663,360 KiB (~648 MiB),
+well below the ceiling. Token/cost data unavailable. Active retained document
+`Tube ribbon 4x - U-turn 180 + twist 180` is EMPTY. All six documents present at
+pre-run inventory, including the previous spatial result, remain open. No complete
+native outcome, twist behavior, cap-handoff transfer or compliance claim supported.
+
+32 focused tests passed; four changed-code Ruff lint/format and IDE inspections
+passed. Tests cover fixture boundaries, synthetic cap identity/atomic rejection
+across the original plus three collateral inputs, existing budget/scheduler/master
+and end preflight contracts. They do not validate native geometry or the missed
+legacy sphere gate. Production and the tube algorithm were not edited. New code:
+`cap_handoff.py`, reversal fixture/native entry point, focused handoff tests.
+Evidence: `artifacts/verification/ribbon_cap_transition/native/2678215211d2433ca458860d2f4c1529/`.
+Renewal decision required: adapt only the private harness sphere-policy check to
+the approved 4x size, preserving full-guide containment, then launch at most one
+solve/native attempt under the same caps in a distinctly named retained document.
+
+## Native master-tube diagnostic — 2026-10-06
+
+User approved three preselected complete configurations, three solves/native
+pipeline attempts, zero tuning/retries, 120 seconds per case, 360 seconds total,
+2 GiB Fusion main-process RSS. Explicit retention override: leave all new scratch
+documents open, including partial failures; never close existing documents.
+`tube_native.py` freezes all three cases/caps/targets and fingerprints before
+construction. `native.py` selects a typed procedure, retaining historical defaults.
+Native build predictions were unknown, not predicted passes. No production edits.
+
+**3 planned / 1 numerically evaluated / 1 native-pipeline attempted / 0 complete
+builds / 0 fully audited.** Positive cases: 0 accepted / 1 unsuccessful / 2
+unattempted; continuous compliance unresolved. No invalid controls in this batch.
+All examined development configurations, no untouched holdouts or generality claim.
+
+| Configuration | Numerical result | Native result / disposition |
+| --- | --- | --- |
+| spatial_s_twist45_19x1.5 | No detected hard finding; length goals warn | Trunk + all 19 A branches built; B1 stopped by frozen-plan input guard before its native loft |
+| regression_asymmetric_arch | Not evaluated in this batch | Not attempted after stop |
+| regression_twisted_quarter | Not evaluated here; earlier radius/end rejection remains | Explicitly diagnostic selection, not attempted after stop |
+
+The retained document `Tube ribbon 5x - spatial S +45` has 20 verified solid
+bodies: workload of ONE incomplete configuration, not 20 geometry successes.
+All seven preceding documents remain open. Native trunk section and landmark
+audits reported no findings; all A connection/section checks completed. Paired
+seam length spread is 0.8273%, within the 1% goal; complete native conductor
+lengths remain unmeasured. Native vertices lie within the loose sampled sphere
+limit (65.4994 mm vs radius 71.25 mm), not a continuous skin proof. Continuous
+lane curvature/strain, join flow/tangency and global clearance remain unmeasured.
+
+Failure is **not a B-branch kernel rejection**: `EndPlan.__call__` compared the
+construction inputs by exact equality and rejected them. Read-only code/data
+inspection shows the harness constructs endings with its earlier banked frames,
+while preflight freezes against the new shape frames. Replaying the already
+archived cold scaffold (zero new solves/builds) gives identical endpoint tangents
+but B thickness components differing by approximately 1.11e-16 and 1.39e-17.
+A inputs agree. This supports a floating-point frame-source mismatch, not a
+demonstrated macaronic failure. No guard weakening, solver adjustment or retry.
+Next bounded decision: use one authoritative cap frame for planning and native
+ending requests, test identity/ordering/target preservation, then renew native
+coverage with the other structurally distinct challenges retained.
+
+Observed shape solve 1.332 ms; numerical diagnostics 19.580 ms; trunk native
+pipeline 2.968 s; A endings 1.653 s. Diagnostic audit timers total 18.457 s;
+other overhead 8.211 s; total case 31.310 s. Construction timers include profile
+authoring and API overhead, not just kernel CPU; branch audits are timed separately.
+No native baseline comparison or native speedup claim. Peak sampled RSS
+775,536 KiB (~757 MiB), final 780,496 KiB; later inventory 697,200 KiB. Token/cost
+data unavailable. Batch stopped despite unused budget, with no renewal/refinement.
+
+Focused verification: 16 tests for scheduler retention/stop/error boundaries,
+resource limits and master frames; changed-code Ruff lint/format and IDE inspections
+passed. Unit counts are not geometry coverage. Archived scratch and screenshot:
+`artifacts/verification/ribbon_cap_transition/native/4492dd2251244e6683f7c86de8a9fe61/`.
+Frozen batch plan/all dispositions:
+`artifacts/verification/ribbon_cap_transition/tube_native/63f1473c1746480e87ca56c85399c2c1/`.
+
+## Cold master-tube cost comparison — 2026-10-06
+
+User approved eleven fixed configurations, at most 22 solves, zero tuning/native
+builds, 60-second scheduling cap and 512 MiB host ceiling. A five-second estimate
+stop remains stricter than the cap. Question is COMPUTATIONAL COST, not looser
+geometry acceptance. All baseline inputs, cap fits, identities/order and complete
+connection plans were frozen before generation; source/rule/fixture and production
+fingerprints stayed unchanged. No Fusion calls, document changes or production edits.
+
+Candidate `master_frames.py` evaluates exact positions/tangents/curvature on 32
+nodes using a fixed 128-interval-per-cubic chord-length lookup. It minimally rotates
+width between exact tangents and makes one greedy bank pass toward easy-axis bends,
+reserving enough angular distance to reach the fixed end guide. Roll increments
+reserve the 1.875 maximum slope of quintic easing under `2*pi/(3*width)` radians/mm.
+This width-scaled experimental rate is NOT a Fusion-derived safe twist law, and
+easing/transport between nodes remains uncertified. No roll lattice, full-turn
+fallback, lane blend, fold/equalization/wrinkle search or rerouting occurs.
+`tube_solver.py` retains the current continuous enclosing-radius macaroni input
+certificate, authors ordered nominal-pitch lanes, preserves exact cap centers and
+lobe orientations, then measures sampled lengths. First/last spans count as end
+treatment unless exact rigid translated geometry needs no authored correction.
+Frozen reverse-loft endings are inspected by the unchanged diagnostic procedure,
+not built. Final conductor curvature, native skin flow and continuous clearance
+are not certified by the input tube. Mechanical length goals still only warn.
+
+**11 planned / 11 baseline-evaluated / 6 candidate-evaluated / 0 native-attempted /
+0 built / 0 fully audited**. Seventeen solve calls, zero retries/refinements, no
+harness errors. Baseline ten positives: 0 accepted / 4 failed / 6 unresolved.
+Candidate six evaluated positives: 0 accepted / 2 failed / 4 unresolved; four
+positive candidates unattempted. Invalid control correctly rejected in baseline,
+unattempted in candidate. Native failure rate unmeasured. All development cases,
+not untouched holdouts; no native/generalized readiness claim.
+
+| Complete configuration | Baseline generation ms | Candidate generation ms | Candidate numerical disposition |
+| --- | ---: | ---: | --- |
+| sphere5_both_outward | 13.204 | 2.242 | Unresolved; no detected violation |
+| sphere5_both_inward | 16.601 | 7.268 | Unresolved; envelope-growth comparison stop |
+| sphere5_A_out_B_in | 15.265 | Unattempted | Skipped after stop |
+| sphere5_A_in_B_out | 15.291 | Unattempted | Skipped after stop |
+| sphere5_gentle | 11.576 | Unattempted | Skipped after stop |
+| spatial_s_twist45_19x1.5 | 49.938 | 2.538 | Unresolved; no detected violation |
+| spatial_s_twist-90_19x1.5 | 33.912 | Unattempted | Skipped after stop |
+| sphere5_invalid_tight | 0.343 early rejection | Unattempted | Skipped after stop |
+| regression_twisted_quarter | 18.899 | 2.416 | Failed: sampled radius and 23 combined end findings |
+| regression_orthogonal_bends | 40.334 | 2.988 | Failed: sampled whole-lane radius |
+| regression_asymmetric_arch | 14.358 | 2.505 | Unresolved; no detected violation |
+
+Across the SIX MATCHED cases, generation wall time totals **153.333 ->19.956 ms**
+(7.68 times less elapsed time, ~87% reduction), process CPU **153.316 ->19.949 ms**.
+Identical numerical diagnostics total **226.794 ->224.208 ms**, effectively unchanged.
+Matched generation+diagnostics **380.127 ->244.164 ms**, approximately 1.56x faster
+(36% less time), excluding fixture preparation, imports and report serialization.
+The original spatial case alone is **49.938 ->2.538 ms** generation (~19.7x), while
+generation+diagnostics is **87.609 ->39.191 ms** (~2.24x). These are observed single
+timings, not statistically established speedups. No stored geometry/seed/result is
+replayed, but imports are already loaded and baselines precede candidates, leaving
+process warm-up/order effects uncontrolled. Baseline retains its original fold
+search; candidate deliberately does less mechanical optimization. Faster numerical
+generation is not equivalent output quality, native speed or complete build speed.
+
+All six candidates preserve measured 1.5 mm station spacing/order, planar section
+centers and zero cap-center gaps. Spatial +45 minimum sampled radius improves
+4.59750 ->5.81684 mm; its sampled findings clear, but it remains unresolved without
+native/continuous evidence. Trunk length spread rises 6.723% ->7.239%, warning only.
+Twisted/compound collateral cases remain below required 4.5 mm sampled radius
+(4.46914/2.99540 mm), although baseline radii improve and findings reduce. Compound
+length spread worsens 11.291% ->22.965%, separately reported as a mechanical goal.
+
+Stop fired on candidate `sphere5_both_inward`: occupied sampled radius increased
+45.519108 ->45.575802 mm (+0.056694), still inside its 71.25 mm sphere and with no
+detected hard geometry violation. The frozen comparator treats ANY envelope growth
+above 1e-7 as a review regression, so it stopped scheduling the five remaining
+candidates. This is a comparison-policy stop, not a demonstrated containment failure.
+Exact-node versus polyline sampling may affect envelope maxima; no retuning, gate
+loosening or rerun was used to continue. The triggering case and all three collateral
+challenges were reached before that stop. No promotion/native build is authorized.
+
+Batch turnaround **2.317 s**: all generation calls including early rejection 0.250 s,
+all numerical diagnostics 0.603 s, other setup/fingerprinting/serialization overhead
+1.464 s. Native build/audit time absent. Peak host RSS 143,114,240 bytes (~136.5 MiB),
+below 512 MiB; Fusion memory/token cost unmeasured. Scope stopped despite unused
+solve/time budget; no automatic continuation. Evidence supports a numerical cost
+advantage on six cases, with diagnostics now dominating that measured work. Next
+review is practical construction and the envelope-growth stop policy, not another
+length-equalization search or a claim of complete geometry compliance.
+
+Verification: 32 focused master-frame/authoring/sampling tests passed in 0.14 s;
+five changed-code Ruff lint/format and IDE checks passed. Exact derivative nodes,
+multi-curve traversal, cap/spacing authoring, distance/rate constraints and both
+authoring/tube stop schedules covered. Mocked scheduler/authoring checks do not add
+independent geometry coverage. No full suite, native checks or continuous-lane proof.
+Evidence: `artifacts/verification/ribbon_cap_transition/tube_cost/817b8c40dc764c839b1cd929879afe50/`.
+
+## Directional tube/ribbon diagnostic replay — 2026-10-06
+
+User requested evidence of an advantage from an enclosing tube plus oriented x/y
+macaroni calculation, with length measurement/correction deferred. This first
+experiment is deliberately a cheap cached diagnostic, NOT an implementation or
+benchmark of that new solver. Scope: eleven frozen configurations, zero new solves,
+zero bank searches/refinement/native builds; 60-second scheduling cap and 512 MiB
+host peak RSS ceiling. Original cap/connection targets and reverse-loft direction
+inheritance are untouched because no geometry changes. Production and rules stay
+unchanged. No Fusion calls or document changes; native prediction remains unknown.
+
+`directional_replay.py` uses the eleven saved baseline records from the authored-
+section comparison, source report SHA256 recorded in its plan. Ten have existing
+32-node banked scaffolds; the correctly rejected tight control has no samples and
+is retained as unmeasured. It estimates curvature with projected finite tangent
+differences divided by chord distance. On IDENTICAL existing orientations it
+compares circular `hypot(a,b)*|k|` and rectangular `a*|k_width|+b*|k_thickness|`
+support, using `a=(lines+0.2)*diameter/2`, `b=diameter/2` to retain the current
+enclosing lobe dimensions. The rectangle is enclosed by that circle; directional
+support cannot exceed the circular value for an orthonormal frame. Smaller values
+are mathematical screening information, not demonstrated new feasible geometry.
+Current banking already penalizes width-axis bending; this replay does not improve
+the bank solution. A pointwise ideal-bank lower bound is recorded but ignores caps,
+continuity and twist and must not be treated as an attainable bank policy.
+
+**11 planned / 10 cached proxy-evaluated / 0 newly solved / 0 native-attempted /
+0 built / 0 fully audited**. One invalid control unmeasured (no archived frames),
+no harness errors or budget skips. Historical positive-case dispositions remain
+0 accepted / 4 failed / 6 unresolved out of ten; invalid correctly rejected 1/1
+historically, not newly tested. Native failure rate unmeasured; no case is promoted.
+All cases are examined development data, not untouched validation.
+
+| Complete configuration | Circular proxy | Directional proxy | Maximum estimated bank degrees/mm |
+| --- | ---: | ---: | ---: |
+| sphere5_both_outward | 0 | 0 | 0 |
+| sphere5_both_inward | 0.687154 | 0.035741 | 0 |
+| sphere5_A_out_B_in | 0.677628 | 0.035245 | 0 |
+| sphere5_A_in_B_out | 0.677628 | 0.035245 | 0 |
+| sphere5_gentle | 0.880854 | 0.045816 | 0 |
+| spatial_s_twist45_19x1.5 | 0.409619 | 0.189054 | 6.016 |
+| spatial_s_twist-90_19x1.5 | 0.409619 | 0.381056 | 5.172 |
+| sphere5_invalid_tight | Unmeasured | Unmeasured | Unmeasured |
+| regression_twisted_quarter | 0.880854 | 0.426655 | 7.885 |
+| regression_orthogonal_bends | 0.533927 | 0.092865 | 7.570 |
+| regression_asymmetric_arch | 0.641778 | 0.033381 | 0 |
+
+Worst directional proxies are approximately 95% lower on pure easy-bend cases,
+54% lower on spatial +45, 7% lower on spatial -90, 52% lower on twisted quarter
+and 83% lower on compound bends. This supports orientation-sensitive screening,
+not solver performance or construction improvement. The original spatial failure's
+circular AND directional centerline proxies are already below 0.8: the new number
+alone does not repair its cap/spacing/conductor-curvature problems. Recorded bank
+rates are measurements, not certified safe limits; rapid twisting of a straight
+centerline is invisible to BOTH bending formulas, as the focused test demonstrates.
+
+Measurement anomaly retained: gentle and twisted-quarter circular proxies exceed
+0.8 despite their original input curves passing continuous certification. Both
+peaks occur at nodes 8 and 23 on the same quarter-curve geometry. Inspection shows
+`ribbon_frames()` first linearly resamples a route polyline and then estimates
+interior tangents from chords, whereas the certificate uses exact cubic geometry.
+This supports a sampling-artifact explanation, not a proven native defect or false
+certificate. No retuning or recalculation was used to rescue the result. Finite
+frame-derived proxies MUST NOT replace the continuous rule. A follow-up should
+derive tangent/curvature and bank transport from the exact master curve before
+evaluating a new shape-generation procedure, with separately agreed budget.
+
+Turnaround **0.059 s**, including 0.00441 s arithmetic/parsing and approximately
+0.0545 s loading/fingerprinting/report preparation; report final write excluded.
+No search/build/audit time (unattempted). Cached timing is NOT end-to-end solve time
+or measured speedup. Host peak RSS 35,241,984 bytes (~33.6 MiB); Fusion memory and
+token cost unmeasured. Source/code/production fingerprints unchanged. Nine focused
+tests, two changed-file Ruff lint/format checks and IDE inspections passed; no full
+suite or native checks. Rules and production untouched; original report preserved.
+Evidence: `artifacts/verification/ribbon_cap_transition/directional_replay/2f6913130d8743749c407b2b9e435f24/`.
+
 ## Shared section authoring v1 — stopped on curvature, 2026-10-06
 
 Question: can nominal-pitch planar sections eliminate the spatial construction

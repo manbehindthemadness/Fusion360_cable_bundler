@@ -1,5 +1,5 @@
 """
-Run one explicitly selected five-width native diagnostic calibration.
+Run one explicitly selected native diagnostic calibration.
 
 Requires Fusion and an idle command. Changes only the owned preview/calibration
 documents. No retries, target relocation, fallback or production modification.
@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict
+from enum import Enum
 from functools import partial
 from pathlib import Path
 from time import perf_counter
@@ -40,11 +42,23 @@ from experiments.experiment_secure_discrete_ribbon.reporting import matrix_finge
 from experiments.experiment_secure_discrete_ribbon.shape import RibbonEndFit, RibbonShape
 
 from .accuracy import length_goal
-from .fixtures import development_cases, direction_cases
+from .cap_handoff import CapFrameHandoff
+from .fixtures import (
+    certificate_limit_case,
+    close_full_turn_case,
+    development_cases,
+    direction_cases,
+    full_turn_case,
+    reversal_case,
+)
+from .full_turn import FullTurnDiagnostic
+from .master_frames import sampled_roll
 from .native_budget import NativeBudget
+from .native_policy import bind_sphere_policy
 from .planning import ShortConnectionFixture, freeze_targets, inspect_candidate
-from .screen import _fingerprints
+from .screen import _fingerprints, _fits
 from .solver import solve_candidate
+from .tube_solver import solve_tube_ribbon
 
 SCRATCH_NAME = "Ribbon 5x both-inward — native calibration"
 OUTWARD_SCRATCH_NAME = "Ribbon 5x both-outward — native calibration"
@@ -53,6 +67,19 @@ REFLECTED_SCRATCH_NAME = "Ribbon 5x A-in B-out — native calibration"
 SPATIAL_SCRATCH_NAME = "Ribbon 5x spatial S +45 — native diagnostic"
 OWNED_PREVIEW = "Ribbon directions - 4x sphere - layout preview v1"
 DIAGNOSTIC_LINEAR_MM = 0.05
+
+
+class NativeProcedure(Enum):
+    """
+    Select the frozen experimental solver without changing historical entry points.
+    """
+
+    CAP_TRANSITION = "cap-transition-v2"
+    MASTER_TUBE = "master-tube-shared-bank-v1"
+    MASTER_TUBE_SHARED_CAPS = "master-tube-shared-bank-v1; shared-native-cap-handoff-v1"
+    MASTER_TUBE_FULL_TURN = (
+        "master-tube-explicit-quintic-full-turn-diagnostic-v1; shared-native-caps"
+    )
 
 
 def _write(path: Path, value: dict[str, object]) -> None:
@@ -114,19 +141,115 @@ def run_spatial45(_context: object) -> None:
     )
 
 
+def run_reversal(_context: object) -> None:
+    """
+    Attempt the approved four-width reversal/half-twist once and retain all documents.
+
+    The solver is unchanged. Only equivalent solved cap references are handed to
+    native ending requests. No retries, tuning, target movement or guard weakening.
+    """
+    _run_case(
+        reversal_case(),
+        "Tube ribbon 4x - U-turn 180 + twist 180 - run 2",
+        None,
+        estimated_seconds=None,
+        procedure=NativeProcedure.MASTER_TUBE_SHARED_CAPS,
+        sphere_diameter_widths=4.0,
+    )
+
+
+def run_full_turn(_context: object) -> None:
+    """
+    Attempt one approved 360-degree diagnostic on the same fixed four-width U-turn.
+
+    Bounded bank rate is explicitly excepted, not silently loosened or certified.
+    All geometry checks and frozen targets remain authoritative. Retain every
+    document, including a partial failure; no retries or refinement.
+    """
+    _run_case(
+        full_turn_case(),
+        "Tube ribbon 4x - U-turn 180 + twist 360 - diagnostic",
+        None,
+        estimated_seconds=None,
+        procedure=NativeProcedure.MASTER_TUBE_FULL_TURN,
+        sphere_diameter_widths=4.0,
+    )
+
+
+def run_close_full_turn(_context: object) -> None:
+    """
+    Attempt the approved R20 full-turn variant once, retaining every document.
+
+    One solve/native attempt, 120 seconds and 2 GiB monitored RSS; no refinement.
+    Only the previously approved diagnostic bank-rate exception is carried forward.
+    """
+    _run_case(
+        close_full_turn_case(),
+        "Tube ribbon 4x - U-turn 180 + twist 360 - gap 40",
+        None,
+        estimated_seconds=None,
+        procedure=NativeProcedure.MASTER_TUBE_FULL_TURN,
+        sphere_diameter_widths=4.0,
+    )
+
+
+def run_curve_limit(_context: object, selection_report: Path) -> None:
+    """
+    Build one frozen certificate-limit fixture from the registered authoring report.
+
+    Verify search-source provenance before native scheduling; no search is repeated
+    in Fusion. The solver rechecks the selected input certificate normally. Retain
+    every document under the approved one-attempt 120-second/2-GiB limits.
+    """
+    evidence = json.loads(selection_report.read_text(encoding="utf-8"))
+    if not isinstance(evidence, dict) or evidence.get("status") != "selected":
+        raise ValueError("A completed certificate-only selection report is required.")
+    if (
+        evidence.get("source_and_rule_sha256") != _fingerprints()
+        or evidence.get("production_sha256") != verify_sources()
+    ):
+        raise ValueError("Radius search source drift; no native scheduling.")
+    selection = evidence.get("selection")
+    if not isinstance(selection, dict):
+        raise ValueError("Missing radius selection.")
+    radius = selection.get("radius_mm")
+    if isinstance(radius, bool) or not isinstance(radius, (float, int)):
+        raise ValueError("Malformed radius selection.")
+    case = certificate_limit_case(float(radius))
+    _run_case(
+        case,
+        "Tube ribbon 4x - U-turn 180 + twist 360 - curve limit",
+        None,
+        estimated_seconds=None,
+        procedure=NativeProcedure.MASTER_TUBE_FULL_TURN,
+        sphere_diameter_widths=4.0,
+        fixture_authoring={
+            "report_path": str(selection_report),
+            "report_sha256": hashlib.sha256(selection_report.read_bytes()).hexdigest(),
+            "selection": selection,
+            "scope": "Certificate-only authoring probes; one selected complete ribbon, no solver search.",
+        },
+    )
+
+
 def _run_case(
     case: RibbonStressCase,
     scratch_name: str,
-    owned_previous: str,
+    owned_previous: str | None,
     *,
     estimated_seconds: float | None = 36.4,
-) -> None:
+    procedure: NativeProcedure = NativeProcedure.CAP_TRANSITION,
+    budget: NativeBudget | None = None,
+    sphere_diameter_widths: float = 5.0,
+    fixture_authoring: dict[str, object] | None = None,
+) -> Path:
     """
     Build at most one complete configuration and leave its native document open.
 
     Loose 0.05 mm vertex containment is diagnostic only. Strict existing section,
     landmark, interference, connection and paired-side findings remain recorded.
     Continuous flow/strain and complete native conductor lengths are unmeasured.
+    None for owned_previous retains every document. Return the evidence directory.
     """
     app = adsk.core.Application.get()
     if str(app.userInterface.activeCommand) != "SelectCommand":
@@ -136,15 +259,15 @@ def _run_case(
     previous_documents = tuple(
         document
         for document in app.documents
-        if document.name in (owned_previous, owned_previous + " v1")
+        if owned_previous is not None and document.name in (owned_previous, owned_previous + " v1")
     )
-    if len(previous_documents) != 1:
+    if owned_previous is not None and len(previous_documents) != 1:
         raise RuntimeError(
             "The authorized preceding scratch is missing or ambiguous; documents retained."
         )
     directory = PROJECT_ROOT / "artifacts/verification/ribbon_cap_transition/native" / uuid4().hex
     directory.mkdir(parents=True, exist_ok=False)
-    budget = NativeBudget()
+    budget = budget if budget is not None else NativeBudget()
     fingerprints = _fingerprints()
     harness_paths = (
         "experiment_secure_discrete_ribbon/live.py",
@@ -154,9 +277,10 @@ def _run_case(
     )
     plan = {
         "question": f"Can {case.name} construct as a native trunk and all split endings under the same procedure?",
-        "procedure": "cap-transition-v2; fixed centerline, exact caps, 15-degree four-conductor-radius targets; private copied lofts; FRAME planes; no fallback",
+        "procedure": f"{procedure.value}; fixed centerline, exact caps, 15-degree four-conductor-radius targets; private copied lofts; FRAME planes; no fallback",
         "case": asdict(case),
         "case_id": case.name,
+        "sphere_diameter_widths": sphere_diameter_widths,
         "estimated_seconds": estimated_seconds,
         "timing_basis": "Spatial family uncalibrated; preceding planar diagnostics took 16–36 seconds."
         if estimated_seconds is None
@@ -183,9 +307,46 @@ def _run_case(
             "loose_diagnostic_vertex_containment_mm": DIAGNOSTIC_LINEAR_MM,
             "master_rules": "Unchanged; failures retained, never accepted by loose diagnostic checks.",
         },
-        "retention": "Archive/close only the authorized preceding owned scratch; retain new calibration scratch and archive. User documents untouched.",
+        "retention": "Retain every existing and new document; archive new scratch only."
+        if owned_previous is None
+        else "Archive/close only the authorized preceding owned scratch; retain new calibration scratch and archive. User documents untouched.",
         "scope": "One development calibration; no holdout or generality claim. No fixed wall-time guarantee for an in-flight kernel.",
     }
+    if fixture_authoring is not None:
+        plan["fixture_authoring"] = fixture_authoring
+    if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
+        closer_caps = case.name == "sphere4_reversal180_twist360_gap40"
+        at_limit = case.name == "sphere4_reversal180_twist360_curve_limit"
+        plan["diagnostic_exception"] = {
+            "parent_case": "sphere4_reversal180_twist360_gap40"
+            if at_limit
+            else "sphere4_reversal180_twist360"
+            if closer_caps
+            else "sphere4_reversal180_twist180",
+            "requested_roll_degrees": 360,
+            "field": "One global quintic roll over fixed chord-distance coordinates; no bank search.",
+            "exception": "User approved bypass of experimental bank-rate bound only; all other findings retained.",
+            "endpoint_change": "R20 reduced to the frozen certificate-selected radius; directions unchanged, new caps/targets frozen upfront."
+            if at_limit
+            else "Cap gap 60 to 40 mm, semicircle radius 30 to 20 mm; directions unchanged, all new targets frozen upfront."
+            if closer_caps
+            else "B guide returns to +Y for a full turn; ordered cap/connection targets frozen upfront, never moved after results.",
+            "native_prediction": "unknown; gap40 parent took 49.350 s, certificate-limit curve uncalibrated"
+            if at_limit
+            else "unknown; parent full-turn diagnostic took 49.015 s, tighter curve uncalibrated"
+            if closer_caps
+            else "unknown; half-twist diagnostic took 44.303 s, full turn uncalibrated",
+        }
+    fits = _fits(case)
+    fixed_targets = freeze_targets(
+        case, *fits, fixture=ShortConnectionFixture(case, turn_degrees=15)
+    )
+    plan["fixed_caps_and_targets"] = json.loads(
+        json.dumps(
+            {"caps": [asdict(fit) for fit in fits], "targets": asdict(fixed_targets)},
+            default=str,
+        )
+    )
     # Case identity contains UUID/Enums; retain their stable representations.
     plan["case"] = json.loads(json.dumps(plan["case"], default=str))
     _write(directory / "plan.json", plan)
@@ -194,6 +355,7 @@ def _run_case(
         "run_classification": "diagnostic construction run; not production latency or predictive certification",
         "planned": 1,
         "evaluated": 0,
+        "shape_solves": 0,
         "native_attempted": 0,
         "built": 0,
         "fully_audited": 0,
@@ -203,7 +365,8 @@ def _run_case(
     _write(directory / "report.json", report)
     budget.check("document_setup")
     retention_started = perf_counter()
-    archive_and_close(previous_documents[0], directory / "previous-scratch.f3d")
+    if previous_documents:
+        archive_and_close(previous_documents[0], directory / "previous-scratch.f3d")
     budget.timings["previous_scratch_archive_close"] = perf_counter() - retention_started
     budget.check("new_scratch")
     document = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
@@ -214,16 +377,24 @@ def _run_case(
     design.designType = adsk.fusion.DesignTypes.DirectDesignType
     modules = load_sources()
     harness = _harness(modules)
+    bind_sphere_policy(harness, sphere_diameter_widths)
     harness._build_path = modules["builder"]._build_path
     harness.ribbon_frames = partial(
         ribbon_frames,
         endpoint_tangents=(case.route.curves[0].derivative(0), case.route.curves[-1].derivative(1)),
     )
     harness.bank_ribbon_frames = bank_ribbon_frames
+    handoff = None
+    if procedure in (
+        NativeProcedure.MASTER_TUBE_SHARED_CAPS,
+        NativeProcedure.MASTER_TUBE_FULL_TURN,
+    ):
+        handoff = CapFrameHandoff()
+        harness.bank_ribbon_frames = handoff.bank
     observer = SectionObserver(modules["builder"], PlanePolicy.FRAME)
 
     def observe_shape(
-        frames: tuple[RibbonFrame, ...],
+        frames: tuple[RibbonFrame, ...] | list[RibbonFrame],
         line_count: int,
         line_diameter_mm: float,
         *,
@@ -244,7 +415,34 @@ def _run_case(
         turns = freeze_targets(
             case, start_fit, end_fit, fixture=ShortConnectionFixture(case, turn_degrees=15)
         )
-        shape = budget.measure("search_shape", solve_candidate)(case, start_fit, end_fit)
+        solver = (
+            solve_candidate if procedure is NativeProcedure.CAP_TRANSITION else solve_tube_ribbon
+        )
+        if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
+            solver = partial(solve_tube_ribbon, twist=FullTurnDiagnostic())
+        report["frozen_targets"] = json.loads(json.dumps(asdict(turns), default=str))
+        report["shape_solves"] = 1
+        _write(directory / "report.json", report)
+        shape = budget.measure("search_shape", solver)(case, start_fit, end_fit)
+        if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
+            roll = sampled_roll(shape.frames)
+            rate_limit = 2 * math.pi / (3 * case.lines * case.diameter_mm)
+            report["diagnostic_roll"] = {
+                **roll,
+                "original_experimental_rate_limit_radians_per_mm": rate_limit,
+                "average_span_rate_exceeds_original_limit": roll[
+                    "maximum_average_rate_radians_per_mm"
+                ]
+                > rate_limit,
+                "scope": "Finite-node winding/rate measurement, not continuous/native compliance.",
+            }
+            if not math.isclose(roll["net_roll_degrees"], 360, abs_tol=1e-6):
+                raise ValueError("Prescribed full turn was lost; native build not launched.")
+        if handoff is not None:
+            handoff.adopt(shape.frames)
+            report["cap_frame_handoff"] = (
+                "Both native ending requests use the identical solved cap frames; fixed guides/targets unchanged."
+            )
         end_plan = EndPlan(case, turns)
         report["preflight"] = budget.measure("numerical_validation", inspect_candidate)(
             shape, end_plan
@@ -274,10 +472,16 @@ def _run_case(
     harness.build_ribbon_exit_loft = budget.measure(
         "native_endings", harness.build_ribbon_exit_loft, native=True
     )
-    harness.audit_sections = budget.measure("section_audits", harness.audit_sections)
-    harness.audit_lobe_landmarks = budget.measure("landmark_audit", harness.audit_lobe_landmarks)
-    harness._audit_connection = budget.measure("connection_audits", harness._audit_connection)
-    harness.audit_interference = budget.measure("interference_audit", harness.audit_interference)
+    harness.audit_sections = budget.measure("section_audits", harness.audit_sections, native=True)
+    harness.audit_lobe_landmarks = budget.measure(
+        "landmark_audit", harness.audit_lobe_landmarks, native=True
+    )
+    harness._audit_connection = budget.measure(
+        "connection_audits", harness._audit_connection, native=True
+    )
+    harness.audit_interference = budget.measure(
+        "interference_audit", harness.audit_interference, native=True
+    )
     observer.install()
     try:
         report["native_result"] = harness._case(design, case, policy=ExperimentPolicy.OBSERVE)
@@ -287,10 +491,20 @@ def _run_case(
     bodies = tuple(component.bRepBodies)
     trunks = tuple(body for body in bodies if body.name == "Fitted Discrete trunk")
     report["built"] = int(len(bodies) == 1 + 2 * case.lines and len(trunks) == 1)
+    report["native_end_completion"] = {
+        label: {
+            "required": case.lines,
+            "present": sum(
+                any(body.name == f"End {label} pin {lane + 1}" for body in bodies)
+                for lane in range(case.lines)
+            ),
+        }
+        for label in ("A", "B")
+    }
     if trunks:
-        report["native_paired_sides"] = budget.measure("paired_side_audit", audit_rails)(
-            trunks[0], observer.records, case.lines
-        )
+        report["native_paired_sides"] = budget.measure(
+            "paired_side_audit", audit_rails, native=True
+        )(trunks[0], observer.records, case.lines)
     else:
         report["native_paired_sides"] = {"status": "unmeasured", "reason": "No constructed trunk."}
     paired = report["native_paired_sides"]
@@ -384,3 +598,4 @@ def _run_case(
         {"directory": str(directory)},
     )
     app.log(f"Ribbon native calibration report: {directory / 'report.json'}")
+    return directory

@@ -128,3 +128,79 @@ def development_cases() -> tuple[RibbonStressCase, ...]:
         expectation=Expectation.CURVATURE_REJECTION,
     )
     return (*direction_cases(), gentle, *spatial_cases(5.0)[-2:], invalid)
+
+
+def reversal_case() -> RibbonStressCase:
+    """
+    Freeze a 180-degree U-turn and signed half-twist inside a four-width sphere.
+
+    Two tangent-continuous quarter-cubic approximants have radius 30 mm. Opposite
+    Y guide widths impose a 180-degree roll relative to parallel transport in the
+    XZ bend plane. Material, conductor order and short split fixtures are unchanged.
+    This is one new developmental configuration, not an optimized route/holdout.
+    """
+    return replace(
+        _case(
+            "sphere4_reversal180_twist180",
+            _arc(0, 0, 30, -math.pi / 2, math.pi),
+            Vector3(0, 0, 0),
+        ),
+        end_width=Vector3(0, -1, 0),
+        end_boundary=EndBoundary(Vector3(0, 0, 0), 114.0),
+    )
+
+
+def full_turn_case() -> RibbonStressCase:
+    """
+    Freeze the same four-width U-turn with endpoint roll for one explicit full turn.
+
+    Parent: sphere4_reversal180_twist180. The fixed centerline, material and sphere
+    are unchanged. End width returns to +Y; ordered B cap/connection inputs are
+    authored for this roll before results. Winding is a separate prescription,
+    because equal endpoint widths alone do not distinguish zero from 360 degrees.
+    """
+    parent = reversal_case()
+    return replace(
+        _case("sphere4_reversal180_twist360", parent.route.curves, parent.end_boundary.center),
+        end_boundary=parent.end_boundary,
+    )
+
+
+def close_full_turn_case() -> RibbonStressCase:
+    """
+    Freeze 40 mm cap separation by tightening the full-turn semicircle to R20.
+
+    Parent: sphere4_reversal180_twist360. Sphere, material and endpoint directions
+    remain unchanged; new cap/connection positions are authored before the solve.
+    This is a fixed-centerline development variant, not a routing optimization.
+    """
+    parent = full_turn_case()
+    return replace(
+        _case(
+            "sphere4_reversal180_twist360_gap40",
+            _arc(0, 0, 20, -math.pi / 2, math.pi),
+            parent.end_boundary.center,
+        ),
+        end_boundary=parent.end_boundary,
+    )
+
+
+def certificate_limit_case(radius_mm: float) -> RibbonStressCase:
+    """
+    Author the selected full-turn semicircle before freezing all native targets.
+
+    Only positive radii at or below the parent R20 are permitted. Search probes
+    share this development identity; they are not complete-ribbon configurations.
+    Sphere, material, endpoint directions and conductor order remain unchanged.
+    """
+    if not math.isfinite(radius_mm) or not 0 < radius_mm <= 20:
+        raise ValueError("Certificate-limit radius must be finite and in (0, 20].")
+    parent = close_full_turn_case()
+    return replace(
+        _case(
+            "sphere4_reversal180_twist360_curve_limit",
+            _arc(0, 0, radius_mm, -math.pi / 2, math.pi),
+            parent.end_boundary.center,
+        ),
+        end_boundary=parent.end_boundary,
+    )

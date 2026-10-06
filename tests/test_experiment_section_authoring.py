@@ -141,8 +141,11 @@ def test_antiparallel_widths_are_rejected_without_a_fallback() -> None:
         SectionField(frames, 1.5, 3)
 
 
+@pytest.mark.parametrize(
+    "method", (section_comparison.SectionMethod.AUTHORED, section_comparison.SectionMethod.TUBE)
+)
 def test_batch_stops_after_first_regression_and_retains_skips(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, method: section_comparison.SectionMethod
 ) -> None:
     """
     Exercise scheduling with fake shapes; no numerical solve or Fusion call occurs.
@@ -194,9 +197,10 @@ def test_batch_stops_after_first_regression_and_retains_skips(
     monkeypatch.setitem(globals_under_test, "freeze_targets", fake_targets)
     monkeypatch.setitem(globals_under_test, "solve_candidate", fake_solve)
     monkeypatch.setitem(globals_under_test, "solve_authored_sections", fake_solve)
+    monkeypatch.setitem(globals_under_test, "solve_tube_ribbon", fake_solve)
     monkeypatch.setitem(globals_under_test, "inspect_candidate", fake_inspect)
     monkeypatch.setattr(section_comparison, "_measure", fake_measure)
-    directory = section_comparison.run(section_comparison.SectionMethod.AUTHORED)
+    directory = section_comparison.run(method)
     report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     assert report["baseline_evaluated"] == 11 and report["candidate_evaluated"] == 1
     assert report["solve_calls"] == len(calls) == 12
