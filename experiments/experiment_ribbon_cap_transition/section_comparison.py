@@ -5,7 +5,9 @@ Compare one fixed section-plane sampling candidate with all retained baselines.
 from __future__ import annotations
 
 import json
+import resource
 from dataclasses import asdict
+from enum import Enum
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -19,9 +21,19 @@ from experiments.experiment_secure_discrete_ribbon.shape import RibbonShape
 from .planning import ShortConnectionFixture, freeze_targets, inspect_candidate
 from .regression_cases import comparison_cases
 from .screen import _fingerprints, _fits
+from .section_authoring import solve_authored_sections
 from .section_sampling import SectionSamplingRejected, sample_section_planes, section_metrics
 from .solver import solve_candidate
 from .stages import StageRecorder
+
+
+class SectionMethod(Enum):
+    """
+    Select a named experimental procedure without changing historical defaults.
+    """
+
+    INTERSECTION = "local_intersection"
+    AUTHORED = "shared_section_authoring_v1"
 
 
 def _write(path: Path, value: dict[str, object]) -> None:
@@ -46,7 +58,7 @@ def _section_failures(metrics: dict[str, float]) -> list[str]:
     return failures
 
 
-def comparison_findings(baseline: dict[str, object], candidate: dict[str, object]) -> list[str]:
+def geometry_findings(baseline: dict[str, object], candidate: dict[str, object]) -> list[str]:
     """
     Identify new hard findings or lost samples without hiding baseline failures.
 
@@ -71,6 +83,14 @@ def comparison_findings(baseline: dict[str, object], candidate: dict[str, object
             worsened = new < old - 1e-7 if name.startswith("minimum") else new > old + 1e-7
             if worsened:
                 findings.append(f"worsened:{name}")
+    return findings
+
+
+def comparison_findings(baseline: dict[str, object], candidate: dict[str, object]) -> list[str]:
+    """
+    Also require identical source solves for the historical resampling comparison.
+    """
+    findings = geometry_findings(baseline, candidate)
     if baseline.get("source_shape") != candidate.get("source_shape"):
         findings.append("unchanged_source_solve_drift")
     return findings
@@ -92,7 +112,7 @@ def _measure(shape: RibbonShape, diameter_mm: float) -> dict[str, object]:
     }
 
 
-def run() -> Path:
+def run(method: SectionMethod = SectionMethod.INTERSECTION) -> Path:
     """
     Freeze eleven inputs, baseline each once and schedule at most eleven candidates.
 
@@ -111,7 +131,8 @@ def run() -> Path:
         fits = _fits(case)
         turns = freeze_targets(case, *fits, fixture=ShortConnectionFixture(case, turn_degrees=15))
         inputs[case.name] = (fits, turns)
-    directory = PROJECT_ROOT / "artifacts/verification/ribbon_cap_transition/sections" / uuid4().hex
+    family = "authored_sections" if method is SectionMethod.AUTHORED else "sections"
+    directory = PROJECT_ROOT / "artifacts/verification/ribbon_cap_transition" / family / uuid4().hex
     directory.mkdir(parents=True, exist_ok=False)
     candidate_order = (cases[5], *cases[8:], *cases[:5], *cases[6:8])
     plan = {
@@ -144,6 +165,19 @@ def run() -> Path:
         "memory_and_tokens": "Unmeasured; no Fusion calls or host memory ceiling claimed.",
         "native_prediction": "unknown",
     }
+    if method is SectionMethod.AUTHORED:
+        plan.update(
+            question="Can shared planar nominal-pitch sections improve the spatial case without collateral numerical regression?",
+            procedure="Existing cap-transition/fold solve versus deterministic shared banked section authoring, 32 nodes each. Candidate has zero length-equalization search, no lane repair or target movement. Same input node scaffold; candidate quintic origin/unit-width interpolation differs from the continuous input route and Fusion loft.",
+            algorithm=method.value,
+            initialization="Same deterministic certified-input route sampling and banking; no seeds, parameter trials or refinements.",
+            scope="Finite section centers/chords and fixed branch plans. Explicit candidate C2 field has cap derivatives along exact input tangents, but continuous curvature, clearance, containment, interpolation regularity and native skin remain unmeasured. Zero width derivatives at all nodes are a candidate limitation.",
+            budget_comparability="Baseline retains its original bounded fold search; candidate deliberately omits length optimization. These are different strategies, not equal-search-budget performance evidence.",
+            estimated_seconds=5,
+            stops="New hard finding, worsening sampled radius/envelope/spacing, lost samples, harness error, source/production drift, five-second estimate or 60-second cap. No tuning after stop.",
+            memory_and_tokens="Host process peak RSS measured using macOS ru_maxrss bytes; conservative additional scheduling stop at 512 MiB. Token cost unavailable. No Fusion calls.",
+        )
+        plan["limits"]["host_peak_rss_bytes"] = 512 * 1024 * 1024
     _write(directory / "plan.json", plan)
     rows = {
         case.name: {
@@ -172,6 +206,12 @@ def run() -> Path:
             if perf_counter() - started >= 5:
                 stop = "Five-second estimate or 60-second scheduling cap exceeded."
                 break
+            if (
+                method is SectionMethod.AUTHORED
+                and resource.getrusage(resource.RUSAGE_SELF).ru_maxrss >= 512 * 1024 * 1024
+            ):
+                stop = "Host peak RSS reached the conservative 512 MiB scheduling ceiling."
+                break
             if _fingerprints() != sources or verify_sources() != production:
                 stop = "Source/production drift."
                 break
@@ -182,11 +222,15 @@ def run() -> Path:
             solve_started = perf_counter()
             report["solve_calls"] += 1
             try:
-                shape = solve_candidate(case, *fits)
+                shape = (
+                    solve_authored_sections(case, *fits)
+                    if procedure == "candidate" and method is SectionMethod.AUTHORED
+                    else solve_candidate(case, *fits)
+                )
                 result.update(
                     solve_seconds=perf_counter() - solve_started, source_shape=asdict(shape)
                 )
-                if procedure == "candidate":
+                if procedure == "candidate" and method is SectionMethod.INTERSECTION:
                     sampled_started = perf_counter()
                     sampling = sample_section_planes(shape, case.diameter_mm)
                     shape = sampling.shape
@@ -216,7 +260,10 @@ def run() -> Path:
                 result.update(status="harness_error", reason=str(error))
                 stop = f"{case.name}: {procedure} harness error; no retry."
             if procedure == "candidate" and stop is None:
-                findings = comparison_findings(row["baseline"], result)
+                comparator = (
+                    geometry_findings if method is SectionMethod.AUTHORED else comparison_findings
+                )
+                findings = comparator(row["baseline"], result)
                 row["new_regressions"] = findings
                 if findings:
                     stop = f"{case.name}: new numerical regression; scope stopped without tuning."
@@ -240,6 +287,7 @@ def run() -> Path:
         stop_reason=stop or "Eleven-case comparison scope exhausted; no further runs authorized.",
         source_sha256_after=_fingerprints(),
         production_sha256_after=verify_sources(),
+        host_peak_rss_bytes=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
     )
     _write(directory / "report.json", report)
     return directory

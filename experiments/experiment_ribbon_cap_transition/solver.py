@@ -14,7 +14,11 @@ from experiments.experiment_secure_discrete_ribbon.contract import (
     certify_curvature,
     discrete_profile_reach,
 )
-from experiments.experiment_secure_discrete_ribbon.frames import ribbon_frames, ribbon_lane_points
+from experiments.experiment_secure_discrete_ribbon.frames import (
+    RibbonFrame,
+    ribbon_frames,
+    ribbon_lane_points,
+)
 from experiments.experiment_secure_discrete_ribbon.shape import (
     RibbonEndFit,
     RibbonShape,
@@ -62,22 +66,19 @@ class _ObservedTransition:
         return result
 
 
-def solve_candidate(
+def candidate_frames(
     case: RibbonStressCase,
     start_fit: RibbonEndFit,
     end_fit: RibbonEndFit,
     *,
     maximum_sections: int = 32,
     observer: LaneObserver | None = None,
-) -> RibbonShape:
+) -> tuple[RibbonFrame, ...]:
     """
-    Solve a fixed-centerline candidate with exact caps and the original fold budget.
+    Validate the fixed route/caps and bank the unchanged sampled section scaffold.
 
-    Reject an uncertified trunk or a guide incompatible with its prescribed
-    endpoint tangent. No rerouting, target relocation, fallback or rule relaxation
-    occurs. Returned samples still require complete branch and native audits.
-    Optional diagnostic observers receive immutable intermediate lane samples;
-    they do not change search decisions. Observer exceptions propagate.
+    The route certificate applies to the input route, not subsequent deformation
+    or interpolation. Observers record unbanked and banked samples only.
     """
     certify_curvature(case.route, discrete_profile_reach(case.lines, case.diameter_mm))
     tangents = (case.route.curves[0].derivative(0), case.route.curves[-1].derivative(1))
@@ -103,6 +104,27 @@ def solve_candidate(
     frames = bank_ribbon_frames(frames, case.lines, case.diameter_mm)
     if observer is not None:
         observer("banked", ribbon_lane_points(frames, case.lines, case.diameter_mm))
+    return frames
+
+
+def solve_candidate(
+    case: RibbonStressCase,
+    start_fit: RibbonEndFit,
+    end_fit: RibbonEndFit,
+    *,
+    maximum_sections: int = 32,
+    observer: LaneObserver | None = None,
+) -> RibbonShape:
+    """
+    Solve the existing fixed-centerline candidate with its original fold budget.
+
+    Shared frame validation does not change blending, targets or search decisions.
+    Returned samples still require complete branch and native audits.
+    """
+    frames = candidate_frames(
+        case, start_fit, end_fit, maximum_sections=maximum_sections, observer=observer
+    )
+    tangents = (case.route.curves[0].derivative(0), case.route.curves[-1].derivative(1))
     # Constant width perpendicular to every derivative makes lanes rigid translates.
     width = unit(case.start_width)
     translated = (

@@ -1,0 +1,70 @@
+Custom Graphics conversion research — 2026-10-06
+
+Question: can the triangle graphics used for non-finalized cable stripes become
+persistent Fusion mesh bodies, BRep surfaces or smooth NURBS geometry?
+
+Existing production architecture
+------------------------------
+cable_bundler/fusion/cable_solid_parts/stripes.py creates CustomGraphicsMesh
+objects from StripeMeshResult.vertices and triangle_indices. The finalized path
+already sends the same data to MeshBodies.addByTriangleMeshData. Both convert
+millimeter input to Fusion's internal centimeters. No production change is needed
+to establish the mesh-body route.
+
+Documented routes
+-----------------
+CustomGraphicsMesh exposes coordinates and vertexIndexList for readback:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_CustomGraphicsMesh.htm
+Persistent MeshBody can be created with addByTriangleMeshData:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_MeshBodies_addByTriangleMeshData.htm
+MeshConvertFeatures, introduced July 2025, is currently marked PREVIEW:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_MeshConvertFeatures.htm
+Faceted conversion makes individual BRep faces; prismatic conversion merges
+inferred feature groups; organic conversion requires the Design Extension:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_MeshConvertMethodTypes.htm
+An open mesh becomes a surface body; a watertight mesh becomes a solid:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-Mesh/files/MESH-CONVERT-TO-SOLID.htm
+NurbsSurface.create constructs transient geometry from explicit control points,
+degrees, knots and weights. It does not recover a smooth surface from triangles:
+https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/core_NurbsSurface_create.htm
+Inference: smooth stripe reconstruction needs a separate fitting procedure or
+construction from the authoritative route/profile data. Faceted conversion alone
+does not restore lost curvature or analytic surface definitions. Graphics/group/
+component transforms must also be accounted for outside the identity test here.
+
+Frozen isolated probe and first disposition
+------------------------------------------
+Script: experiments/experiment_custom_graphics_conversion.py
+One development case: open-bent-strip-01, six vertices, four triangles, identity
+transforms. Fixed 10 mm length, 1 mm width, 2 mm rise at final station; one bend.
+Prediction: one non-solid BRep with four planar faces, matching area and bounds.
+Budget: one conversion, no search/refinement, 30 s scheduling cap; retain scratch.
+Audits: area 1e-8 cm^2, bounds 1e-8 cm; initial readback guard requires equality.
+No routing solver, complete ribbon, mechanical compliance or holdout coverage.
+
+Fusion 2705.1.25: 1 planned / 1 graphics-evaluated / 0 conversion-attempted /
+0 BRep-built / 0 BRep-audited. Positive case: 0 accepted / 1 readback-guard failure /
+0 unresolved under original procedure. Invalid controls: 0 planned, not measured.
+Conversion outcome and native failure rate unmeasured; it was not attempted.
+Readback changed 0.1 cm to 0.10000000149011612 cm and 0.2 cm to
+0.20000000298023224 cm. Indices stayed exact. Maximum error 2.98023224e-9 cm
+(approximately 0.03 nanometers), consistent with float32 representation.
+meshConvertFeatures exists in this host. No tolerance was silently revised.
+Failure cause: overstrict bit-for-bit guard, not demonstrated mesh/BRep rejection.
+Graphics probe total 1.126 s; search, mesh insertion, conversion and audits absent.
+RSS and token/cost data unmeasured. The procedure stopped before more construction.
+Evidence: artifacts/verification/custom_graphics_conversion/20261006T143000.897704Z.json
+Unsaved owned scratch remains open; previous active document was restored.
+No existing documents, standards, third-party or production files changed.
+
+Next bounded decision requested: one follow-up with readback accepted within
+1e-8 cm, same input, same one-conversion/no-retry budget, 30 s scheduling cap.
+This is a reviewed revision to the failed guard, not an untouched validation case.
+
+Verification limitation
+-----------------------
+Probe executed inside Fusion and complete source diff was reviewed. IDE search,
+inspections and get_python_environment are unavailable in this session. Per the
+python-tools skill's mandatory preflight, no local Python/Ruff commands were run.
+verify-change's referenced .agents/VERIFICATION.md is absent; AGENTS.md supplies
+the fallback verification policy. No production-readiness claim is supported.

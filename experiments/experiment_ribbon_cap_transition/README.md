@@ -1,5 +1,79 @@
 # Cap-transition candidate v2 — five-width development
 
+## Shared section authoring v1 — stopped on curvature, 2026-10-06
+
+Question: can nominal-pitch planar sections eliminate the spatial construction
+representation mismatch without breaking another mechanic? User approved at most
+eleven fixed configurations, 22 solves, 60 seconds, zero tuning/native attempts.
+The run added a conservative five-second estimate stop and 512 MiB host peak-RSS
+scheduling ceiling. All inputs, conductor identities, cap fits and short-connection
+targets were frozen before solving. Source/rule/fixture and production fingerprints
+were unchanged throughout. No Fusion calls or document changes occurred.
+
+Procedure: baseline retains cap-transition-v2 and its original fold search.
+Candidate directly authors ordered lanes from the same 32 banked section nodes
+at nominal pitch, with no individual lane blend, projection or length search.
+`candidate_frames()` shares input validation and unchanged banking; baseline
+blending/search behavior remains unchanged. `SectionField` defines a piecewise
+quintic origin and normalized eased-width interpolant with matching C2 node jets
+and exact cap tangents. Width derivatives vanish at every node, not only caps:
+this deliberate initial simplification is not an optimized orientation field.
+Only node/chord geometry was screened; the field's continuous curvature, speed,
+clearance and containment were not certified. Intermediate sections may be slanted
+relative to the interpolated centerline. Input route nodes remain fixed, but this
+interpolant is neither the original continuous route nor Fusion's loft. Its first/
+last span is the cap-specific derivative treatment; the larger span conservatively
+sets both end supports. Different strategy/search budgets prohibit interpreting
+runtime differences as equal-budget optimizer performance.
+
+**11 planned / 11 baseline-evaluated / 1 candidate-evaluated / 0 native-attempted /
+0 built / 0 fully audited**. Twelve solve calls; no refinements or retries. Baseline
+ten positive cases: 0 accepted / 4 failed / 6 unresolved. Candidate positive cases:
+0 accepted / 1 failed / 0 evaluated-unresolved, with 9 of 10 unattempted after stop.
+The invalid control was correctly rejected in baseline; candidate invalid screening
+was unattempted. Native failure rate unmeasured. All examined cases are development,
+not untouched validation; no collateral or control preservation claim is supported.
+
+| Complete configuration | Baseline numerical outcome | Candidate outcome |
+| --- | --- | --- |
+| sphere5_both_outward | Unresolved; no detected violation | Not attempted: curvature stop |
+| sphere5_both_inward | Unresolved; no detected violation | Not attempted: curvature stop |
+| sphere5_A_out_B_in | Unresolved; no detected violation | Not attempted: curvature stop |
+| sphere5_A_in_B_out | Unresolved; no detected violation | Not attempted: curvature stop |
+| sphere5_gentle | Unresolved; no detected violation | Not attempted: curvature stop |
+| spatial_s_twist45_19x1.5 | End allowance and section compression findings | Failed: new fitted/whole-lane radius findings, two end-allowance findings retained |
+| spatial_s_twist-90_19x1.5 | End allowance and compression findings | Not attempted: curvature stop |
+| sphere5_invalid_tight | Correct input-curvature rejection | Not attempted: curvature stop |
+| regression_twisted_quarter | End allowance, whole-lane radius and compression findings | Not attempted: curvature stop |
+| regression_orthogonal_bends | End allowance, fitted/whole-lane radius and compression findings | Not attempted: curvature stop |
+| regression_asymmetric_arch | Unresolved; no detected violation | Not attempted: curvature stop |
+
+Original spatial +45 case: pitch range becomes 1 within approximately 4.4e-15;
+minimum signed lane order is 1.5 mm. Maximum station-center plane offset reduces
+from 0.834902 mm to 5.4e-15 mm, exact cap center gaps remain zero, and sampled
+occupied radius is unchanged. BUT sampled minimum whole-lane radius falls from
+4.59750 to 4.21148 mm, below the required 4.5 mm; fitted-end radius also worsens
+from 5.03834 to 4.21148 mm. Combined end findings reduce from 38 to two (end B,
+lanes 1/19), but this does not offset new curvature failures. Trunk length spread
+increases from 6.723% to 9.713%, a warning goal. Finite cap chords worsen and are
+recorded separately from the explicit field's endpoint derivatives; neither
+establishes native skin flow. The first candidate triggered the regression stop
+correctly: ten later candidates were skipped, not silently counted as passing.
+
+Total **1.608 s**: solves 0.251 s, numerical inspection 0.446 s, other preparation/
+serialization overhead 0.910 s. Build/audit time absent. Host peak RSS 82,952,192
+bytes (~79.1 MiB), below 512 MiB; Fusion memory unmeasured/unaffected by this run,
+token cost unavailable. Scope stopped at review despite unused numerical budget.
+Do not promote or build this candidate; next decision is whether to authorize a
+spacing-preserving orientation/curvature strategy, not a spacing relaxation.
+
+Verification: 48 focused tests across authoring, sampling, cap transition and
+stage recording passed; after final test-only edits the 12 authoring/scheduling
+tests passed again. Changed-file Ruff lint/format and all four IDE inspections
+passed. No full suite, continuous certificate, native build or post-build audit.
+The scheduler unit test uses inert shapes and does not add geometry coverage.
+Evidence: `artifacts/verification/ribbon_cap_transition/authored_sections/e43b41466f8242db9a715a8718bfd666/`.
+
 ## Section plane intersection comparison 2026-10-06
 
 One host-only candidate intersects each lane polyline with the two source segments
