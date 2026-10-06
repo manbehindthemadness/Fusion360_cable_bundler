@@ -1,0 +1,191 @@
+EXPERIMENT INTEGRITY AND RESOURCE SAFEGUARDS
+Effective 2026-10-05. Read before experimental solver work or reporting.
+
+Purpose and incident
+--------------------
+The user reported a three-day setback and consumption of most of the project's
+usage budget. Repeated refinement of one primary ribbon was presented with more
+generality than the evidence supported. In that fixture, 39 solids were one trunk
+and 38 endings: ONE complete-ribbon case, not 39 independent geometry trials.
+Later numerical screening also changed the search budget, so it could not cleanly
+prove overfitting. The failure was insufficient generalization evidence, misleading
+units/claims, and uncontrolled experimental expenditure. Do not repeat it.
+
+These are mandatory working instructions, not implemented runtime enforcement.
+They do not guarantee correctness by themselves. If a gate cannot be evidenced,
+say so and stop the affected work rather than assuming it passed.
+
+1. Freeze the question and contract before paying for an answer
+-------------------------------------------------------------
+Write a short run plan before execution: hypothesis, algorithm/version, allowed
+solver degrees of freedom, independent case IDs, fixed input targets, rule version,
+expected evidence, budget, and stopping conditions. Distinguish fixture authoring,
+solver decisions and audits. Explicitly state whether the centerline is fixed or
+the solver can reroute; a fixed-centerline deformation test is not a general routing
+test. No post-result target movement, case deletion, tolerance change or local fix.
+
+Read rollback_end_loft_notes.txt for end-loft requirements. Apply master rules to
+the entire trunk/end/connection structure; reverse lofting is only a construction
+method exception. Reconcile historical fixture rules with current requirements
+before a run. Never describe old 4x/5x tests as current 3x-sphere evidence.
+
+2. Independent configurations are the reporting unit
+----------------------------------------------------
+Define one case by its complete boundary conditions and required connection layout.
+Record conductor count/dimensions, endpoint positions/orientations, split targets,
+routing controls/obstacles and constraints. Track parent case IDs for variants.
+Different rolls, wrinkle parameters, random solver seeds, repeated builds, section
+counts, branch lofts and audit stations do not create independent configurations.
+Rigid copies belong to an invariance test, not additional geometric-family coverage.
+Show child-operation counts only as subordinate workload/performance information.
+
+Always lead reports with independent cases planned, numerically evaluated, natively
+attempted, built, and fully audited within the stated scope. Give both numerator
+and denominator. If no native builds occurred, say "0 native attempts; native
+failure rate unmeasured," never imply zero failures means geometric success.
+
+3. Establish breadth before optimizing depth
+-------------------------------------------
+Separate development/tuning cases from locked validation cases before refinement.
+Include straight/gentle controls and materially different bend, spatial, twist,
+entry/exit and split-connection families, plus explicitly labeled invalid controls.
+Choose useful feasible controls, not only fixed paths already rejected by policy.
+Do not claim durability from a matrix consisting mostly of invalid inputs.
+
+Reserve unseen configurations across relevant families. Once an outcome is used to
+choose an algorithm or parameter policy, that case is development evidence; it is
+no longer an untouched holdout. Repeated examination of validation results also
+consumes the holdout. Keep identity/history rather than relabeling tuned cases.
+
+Use the same algorithm, initialization policy, search budget, acceptance rules and
+measurement policy across comparison cases. Historical hand-tuned seeds cannot
+compete silently against cold starts. Report differing budgets as non-comparable.
+Do not enter another single-case refinement batch until diverse-case evidence has
+been reported and the user explicitly chooses that bounded diagnostic detour.
+
+4. Keep four different outcomes separate
+----------------------------------------
+A. Numerical/preflight: no detected violation, known rule rejection, search budget
+   exhausted, or harness error. "Unresolved" is not a predicted pass.
+B. Native construction: not attempted, built, kernel failure, or interrupted.
+C. Post-build audit: passed the named measured checks, failed, incomplete or absent.
+D. Overall case: accepted only within the declared evidence scope, otherwise failed
+   or unresolved. Neither visual appeal nor construction alone establishes compliance.
+
+Retain all cases in the disposition table, including early exits, timeouts, skipped
+builds and missing audits. For positive cases, exhaustion is an unsuccessful solver
+outcome, not a success with an explanation. Expected-invalid controls get a separate
+correct-rejection measure; do not inflate positive-case success with them. Report
+classification accuracy separately from success at producing usable ribbons.
+
+A failed conservative certificate is not proof that all possible geometry is
+invalid. A finite unsuccessful search is not proof of infeasibility. Sampled checks
+are not continuous guarantees. State unresolved clearance, strain, interpolation
+and optimality properties explicitly. Never promise 100% accuracy from finite tests.
+
+5. Test predictions against actual complete geometry
+---------------------------------------------------
+Register a native prediction before building; do not assign predictions afterward.
+Cross-tabulate predicted build outcomes against observed outcomes, with unknowns
+explicit. Separately compare predicted rule compliance against post-build audits.
+A rule-rejected shape can still construct; that is not a kernel prediction error.
+Investigate every false acceptance before claiming greater robustness.
+
+Numerical screening can reduce cost but cannot substitute for native validation.
+Preselect native samples from different families, including accepted, borderline
+and rejected candidates where safe and explicitly diagnostic. Audit trunk, both
+cap junctions, all relevant split endings and connection geometry. If construction
+is blocked by a guard, report "not attempted" rather than "kernel failed."
+Do not omit difficult outcomes from the native validation plan without disclosure.
+
+6. Protect the user's time, usage budget and host memory
+-------------------------------------------------------
+Before an expensive batch, ask the user to approve a concise scope/budget proposal
+unless the current request already specifies those limits. Include maximum
+independent cases, search evaluations/refinement rounds, native attempts, estimated
+wall time, measured memory ceiling and next review point. Set concrete limits before
+execution; "keep going" does not authorize unlimited expansion or repeated tuning.
+
+If timing is unknown, propose one bounded calibration run first. Estimate batch
+cost from it before requesting a larger run. Do not invent API/token prices or
+usage totals. Record actual token/cost data only if available; otherwise mark them
+unavailable and use observable work/time caps, not an asserted usage guarantee.
+Avoid unnecessary agent fan-out, repeated code scans and unchanged verification.
+
+Time search, numerical validation, native trunk, native endings, post-build audits,
+archive/display and overall wall time separately. Label nested timers as subsets.
+Report cost per complete ribbon, not a misleading average per child solid. Cached
+replay excludes search: never describe it as an end-to-end solve time.
+
+Keep one owned experimental scratch at a time; archive/close according to the
+approved retention policy. Never save/discard unrelated user documents. Monitor
+Fusion memory between cases; stop scheduling builds before the agreed ceiling.
+Document closing does not guarantee memory reclamation. The earlier host reached
+about 60 GB and required force-quit: do not wait for another OS intervention.
+
+7. Mandatory stop and review gates
+----------------------------------
+Stop scheduling more work when any approved budget is reached, a false acceptance
+appears, a representative regression occurs, measured runtime exceeds the approved
+estimate/cap, memory approaches its ceiling, or source/fixture hashes differ from
+the plan. Also stop when continuing would require changing targets, rules, budgets,
+audit coverage or replacing holdouts. Preserve available evidence and report the
+specific issue; request direction before broadening the experiment or fixing it.
+
+At each planned review, show independent-case outcomes and cumulative resource use,
+including whether improvement transfers beyond the tuned specimen. A better number
+on the same specimen is not sufficient grounds for another automatic iteration.
+Do not interrupt an in-flight Fusion kernel operation by assuming client termination
+cancels it. A stop gate normally prevents the next launch; escalate host recovery
+separately if the process becomes unresponsive.
+
+8. Provenance, milestones and production boundary
+------------------------------------------------
+Log source/fixture/rule fingerprints, initialization/seed policy, case lineage,
+budgets, exclusions, all outcomes, timing and artifact paths together. Keep generated
+reports under ignored artifacts. Do not silently overwrite a historical failure.
+Honor explicit user retention/deletion instructions; these rules do not require
+backing up discarded work against the user's wishes.
+
+Call a milestone exactly what was achieved: measured checks on named configurations.
+Do not use "durable," "generalized," "fire-proof" or "production-ready" beyond
+the demonstrated scope. Retain known failures and missing coverage in the same report.
+Unit-test counts validate code contracts, not the number of ribbons validated.
+Experimental authority never permits production changes; promotion needs separate
+user approval and evidence from diverse locked validation cases.
+
+9. Required handoff format
+--------------------------
+Question and fixed procedure:
+Independent cases: planned / evaluated / native-attempted / built / audited:
+Positive-case accepted / failed / unresolved counts, with denominator:
+Invalid controls: correctly rejected / missed / unresolved, separately:
+Failure table: case ID, stage, cause/evidence, not-attempted reason:
+Coverage: development vs untouched validation families; changed assumptions:
+Performance: search / build / audit / total, cumulative work, remaining budget:
+Claims supported and claims explicitly not supported:
+Files/production changes; scratch/memory state; proposed next bounded decision:
+
+If evidence is missing, write "unmeasured" or "not attempted." Do not fill gaps
+with optimistic language, aggregate child counts, or conclusions from appearance.
+
+10. User-directed collateral regression protocol — 2026-10-05
+------------------------------------------------------------
+At a stopping point, preserve the triggering complete case and register three
+structurally different complete-ribbon challenges to expose a proposed fix breaking
+OTHER mechanics. These are not three solutions, retries, rigid copies or deliberate
+reproductions of the same failure. Each has distinct fixed geometry/boundary
+conditions and an explicit collateral-mechanics purpose. Retain existing controls.
+
+Freeze all three inputs and establish their pre-fix baselines before evaluating an
+adjustment. Apply one unchanged proposed fix and the same budgets/policies across
+the triggering case, all three challenges and retained controls. Never adjust the
+challenges to rescue the fix. A case already failing in its baseline is diagnostic;
+it cannot establish a newly introduced regression or passing preservation by itself.
+Compare new hard findings, native outcomes, mechanical goal values/warnings and
+resource cost separately; do not hide regression behind aggregate success counts.
+
+New fixtures do not authorize native builds, unlimited search or an automatic fix.
+Obtain bounded resource scope as above. If native baselines are absent, say so;
+numerical preservation alone does not prove construction preservation. These
+examined challenges are development regression cases, not untouched holdouts.

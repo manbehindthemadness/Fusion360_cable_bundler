@@ -1,0 +1,100 @@
+Ribbon experiment restart — retained requirements and findings
+Recorded 2026-10-05 before rollback. These are requirements and diagnostic
+observations, not a claim of a durable solver or generalized certification.
+
+END-LOFT MASTER RULES TO CARRY FORWARD
+
+1. The trunk and split endings are one physical ribbon/connection structure.
+   Apply the same master geometry rules through the fitted cap, reverse-loft
+   branch and connection termination. Endings are not exempt transition zones.
+   Preserve conductor identities, ordering, prescribed terminal locations and
+   orientations. Never relocate targets or add a fallback to obtain a build.
+
+2. Reverse lofting is required for splitting behavior. This is the sole
+   construction-method exception; it grants no exception to curvature, length,
+   spacing, clearance, sphere containment or smooth approach requirements.
+
+3. Author the cap and branch arrival against the same exact geometric tangent
+   and cap plane. A separately sampled legacy frame tangent is not authoritative
+   when it differs from the actual cap normal. Mere cap coincidence is insufficient:
+   inspect flow and curvature on both sides of the junction and at the connection.
+   Matching endpoint tangents alone does not certify the native loft between them.
+
+4. Each end region has a maximum allowance of 6% of the COMPLETE conductor path,
+   including the ribbon and both endings. It is not 6% of the end loft itself,
+   not a required end length, and not a license to impose long fixed-size endings.
+   Where an operation requires a positive dimension, a small positive value must
+   still obey the rules; do not clamp an infeasible geometric solution into a pass.
+   The older checkpoint may retain a trunk-only conservative authoring allowance:
+   distinguish that historical implementation from this retained requirement.
+
+5. Preserve the current 1% length limits for complete conductor paths, trunk
+   lanes and paired native ribbon sides, and the existing spacing/pitch policy
+   (experimental maximum pitch ratio 1.03). Whole-lane sampled bend radius was
+   checked against 3 conductor diameters. The conservative continuous macaroni
+   contract bounds curvature times enclosing profile reach at 0.8, including
+   branch cross-sections. Sampled checks are not continuous proofs.
+
+6. Current experiment boundary: sphere DIAMETER is 3 times nominal cable width.
+   Both full cable-end guides and the occupied structure must remain inside.
+   Wrinkles may use available space only within the master rules. Seek shortest
+   feasible deviation with fixed targets, not arbitrary loops/excursions to pass.
+   Older baseline fixtures use 4x/5x spheres and sometimes unconstrained interiors;
+   do not silently describe their historical outcomes as satisfying today's rules.
+
+7. Freeze and validate complete branch plans before native construction; build
+   those same plans, rather than calculating endings differently during lofting.
+   Experimental diagnostic builds may attempt rejected candidates, but record
+   mathematical rejection and actual native outcome separately. No local fixes,
+   tolerance weakening, missing-audit success, or fallback geometry.
+
+OBSERVATIONS WORTH PRESERVING, NOT PROMOTING TO PROOFS
+
+Audit-10 generalized tests found exact-guide versus sampled-branch tangent
+misalignment of 5.625 degrees on oblique fixtures and 3.299 degrees on S fixtures.
+Earlier finite branch section/rim audits still passed. Those audits therefore
+did not establish smooth rule-compliant cap-to-ending flow.
+
+For the 19-conductor Discrete/Split fixture, 39 native solids means ONE ribbon
+experiment: one trunk plus 38 endings. Child-solid and audit-station counts are
+not counts of independently tested geometric configurations.
+
+The later coupled roll/wrinkle work repeatedly tuned one primary specimen.
+Preserve its artifacts only as regression/diagnostic evidence, not generalized
+solver success. The later nine-case cold-start screen used a different, smaller
+budget and no native builds; it does not conclusively establish overfitting.
+
+ROLLBACK EXECUTED — 2026-10-05
+
+Restored committed tip: 33df7d2 (2026-10-04), "Back to basics, insane stress testing."
+It contains the 27-case family/width harness, six-case spatial matrix and unified
+end preflight, before commits 89df0af and 88e1eeb added the single-specimen work.
+It is a generalized TEST baseline, not a known-good or universally passing solver.
+Those later commits change experiments/tests only, not production source.
+
+User explicitly approved restoration and requested no backup. Reset tracked files
+and branch HEAD from 88e1eeb to 33df7d2; removed the 14 untracked later experiment
+and test files. No backup branch, stash or archive was created. This note remains.
+Existing ignored historical artifacts were not copied or deleted. Standards,
+unrelated nested repositories and Fusion documents were not modified. The live
+Fusion process may still hold previously loaded modules; do not assume a filesystem
+rollback reloads its session. Current-status summary was replaced to remove stale
+single-specimen progress claims. No new geometry success is claimed by this reset.
+
+Future reporting unit: independent complete-ribbon configurations, with a frozen
+procedure and stated budget. Report numerical acceptance, native build outcome,
+post-build rule compliance and timing separately; include every failed/exhausted
+case. Clean/archive owned scratch documents between builds to limit memory growth.
+
+USER-DIRECTED POLICY REVISION — 2026-10-05 (after stage decomposition)
+
+For ongoing ribbon experiments, the 1% trunk, complete-conductor and paired-side
+length limits above are now mechanical accuracy GOALS, not geometry requirements.
+Warn but proceed when a measured length goal is missed; retain measured spreads
+and unknown native metrics separately from aesthetic/native construction outcomes.
+Construction success does not imply mechanical accuracy. Other constraints,
+including curvature/macaroni, spacing/pitch, fixed identities/targets, containment,
+smooth cap approach and combined 6% end allowance remain unchanged. The current
+user-approved developmental sphere diameter remains 5x nominal ribbon width.
+This explicitly supersedes the relevant historical requirements above for current
+experiments, not production or immutable historical result classifications.

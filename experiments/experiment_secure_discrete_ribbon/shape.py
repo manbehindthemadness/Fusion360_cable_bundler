@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Protocol
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 
@@ -52,6 +53,34 @@ class RibbonEndFit:
     edges: tuple[Vector3, ...] = ()
     edge_normals: tuple[Vector3, ...] = ()
     approach_normal: Vector3 | None = None
+
+
+class EndTransitionPolicy(Protocol):
+    """
+    Select an explicit end treatment without changing the historical default.
+    """
+
+    def lead_length_mm(
+        self, historical_lead_mm: float, lanes: tuple[tuple[Vector3, ...], ...]
+    ) -> float:
+        """
+        Return the candidate's physical end-lead support in millimeters.
+        """
+        ...
+
+    def blend(
+        self,
+        lanes: tuple[tuple[Vector3, ...], ...],
+        fit: RibbonEndFit | None,
+        *,
+        at_start: bool,
+        distances_mm: tuple[float, ...],
+        lead_mm: float,
+    ) -> tuple[tuple[Vector3, ...], ...]:
+        """
+        Fit fixed ordered cap centers without treating sampled checks as proof.
+        """
+        ...
 
 
 def _blend_end_fit(
@@ -232,12 +261,15 @@ def solve_ribbon_shape(
     *,
     start_fit: RibbonEndFit | None = None,
     end_fit: RibbonEndFit | None = None,
+    end_transition: EndTransitionPolicy | None = None,
 ) -> RibbonShape:
     """
     Match shorter lines to the longest path using bounded, joined local folds.
 
     The fit is deliberately approximate: it limits displacement and leaves an
     honest measured warning for routes that cannot be equalized plausibly.
+    An explicit end policy changes only end blending and its fold-fade support;
+    omitting the policy preserves the original procedure and search budget.
     """
     if len(frames) < 2 or line_count < 1 or not math.isfinite(line_diameter_mm):
         raise ValueError("A ribbon needs frames, at least one line, and a finite line diameter.")
@@ -257,10 +289,16 @@ def solve_ribbon_shape(
     )
     distances_mm = tuple(distances)
     base_lanes = ribbon_lane_points(frames, line_count, line_diameter_mm)
-    base_lanes = _blend_end_fit(
+    blender = _blend_end_fit
+    if end_transition is not None and (start_fit is not None or end_fit is not None):
+        end_lead_mm = end_transition.lead_length_mm(end_lead_mm, base_lanes)
+        if not math.isfinite(end_lead_mm) or not 0 <= end_lead_mm <= route_length / 2:
+            raise ValueError("Ribbon end policy supplied an invalid physical lead length.")
+        blender = end_transition.blend
+    base_lanes = blender(
         base_lanes, start_fit, at_start=True, distances_mm=distances_mm, lead_mm=end_lead_mm
     )
-    base_lanes = _blend_end_fit(
+    base_lanes = blender(
         base_lanes, end_fit, at_start=False, distances_mm=distances_mm, lead_mm=end_lead_mm
     )
     base_lengths = ribbon_line_lengths(base_lanes)

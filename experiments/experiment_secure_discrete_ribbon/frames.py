@@ -60,11 +60,14 @@ def ribbon_frames(
     end_width: Vector3,
     *,
     maximum_sections: int = 32,
+    endpoint_tangents: tuple[Vector3, Vector3] | None = None,
 ) -> tuple[RibbonFrame, ...]:
     """
     Parallel-transport width and distribute the end-guide bank over route length.
 
     Width directions retain their signs so lane one cannot silently swap ends.
+    Explicit endpoint tangents are used before width transport for candidate
+    comparisons; omission preserves the historical sampled-frame procedure.
     """
     sampled = sample_centerline(route, 0.2)
     if len(sampled) < 2:
@@ -88,6 +91,13 @@ def ribbon_frames(
         positions.append(lerp(sampled[segment], sampled[segment + 1], fraction))
     sampled = tuple(positions)
     tangents = tuple(_tangent(sampled, index) for index in range(len(sampled)))
+    if endpoint_tangents is not None:
+        for direction in endpoint_tangents:
+            if not all(math.isfinite(v) for v in (direction.x, direction.y, direction.z)):
+                raise ValueError("Ribbon endpoint tangents must be finite.")
+            if magnitude(direction) <= 1e-8:
+                raise ValueError("Ribbon endpoint tangents must be nonzero.")
+        tangents = (unit(endpoint_tangents[0]), *tangents[1:-1], unit(endpoint_tangents[1]))
     transported = [_project_width(start_width, tangents[0])]
     for tangent in tangents[1:]:
         transported.append(_project_width(transported[-1], tangent))
