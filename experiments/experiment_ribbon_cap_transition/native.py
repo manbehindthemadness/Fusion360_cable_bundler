@@ -56,6 +56,7 @@ from .master_frames import sampled_roll
 from .native_budget import NativeBudget
 from .native_policy import bind_sphere_policy
 from .planning import ShortConnectionFixture, freeze_targets, inspect_candidate
+from .prescribed_twist import PrescribedTwistDiagnostic
 from .screen import _fingerprints, _fits
 from .solver import solve_candidate
 from .tube_solver import solve_tube_ribbon
@@ -252,6 +253,7 @@ def _run_case(
     sphere_diameter_widths: float = 5.0,
     fixture_authoring: dict[str, object] | None = None,
     geometry_policy: NativeGeometryPolicy = NativeGeometryPolicy.OBSERVE_REJECTIONS,
+    twist_policy: PrescribedTwistDiagnostic | None = None,
 ) -> Path:
     """
     Build at most one complete configuration and leave its native document open.
@@ -261,6 +263,8 @@ def _run_case(
     Continuous flow/strain and complete native conductor lengths are unmeasured.
     None for owned_previous retains every document. Return the evidence directory.
     """
+    if twist_policy is not None and procedure is not NativeProcedure.MASTER_TUBE_SHARED_CAPS:
+        raise ValueError("Prescribed twist requires the shared-cap tube procedure.")
     app = adsk.core.Application.get()
     if str(app.userInterface.activeCommand) != "SelectCommand":
         raise RuntimeError("Finish the active Fusion command before calibration.")
@@ -325,6 +329,12 @@ def _run_case(
     }
     if fixture_authoring is not None:
         plan["fixture_authoring"] = fixture_authoring
+    if twist_policy is not None:
+        plan["diagnostic_exception"] = {
+            "requested_roll_degrees": twist_policy.degrees,
+            "field": "Fixed signed global quintic diagnostic roll; no bank search.",
+            "exception": "User-approved bank-rate diagnostic; all remaining findings recorded.",
+        }
     if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
         closer_caps = case.name == "sphere4_reversal180_twist360_gap40"
         at_limit = case.name == "sphere4_reversal180_twist360_curve_limit"
@@ -436,11 +446,13 @@ def _run_case(
         )
         if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
             solver = partial(solve_tube_ribbon, twist=FullTurnDiagnostic())
+        elif twist_policy is not None:
+            solver = partial(solve_tube_ribbon, twist=twist_policy)
         report["frozen_targets"] = json.loads(json.dumps(asdict(turns), default=str))
         report["shape_solves"] = 1
         _write(directory / "report.json", report)
         shape = budget.measure("search_shape", solver)(case, start_fit, end_fit)
-        if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
+        if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN or twist_policy is not None:
             roll = sampled_roll(shape.frames)
             rate_limit = 2 * math.pi / (3 * case.lines * case.diameter_mm)
             report["diagnostic_roll"] = {
@@ -452,8 +464,9 @@ def _run_case(
                 > rate_limit,
                 "scope": "Finite-node winding/rate measurement, not continuous/native compliance.",
             }
-            if not math.isclose(roll["net_roll_degrees"], 360, abs_tol=1e-6):
-                raise ValueError("Prescribed full turn was lost; native build not launched.")
+            requested = 360 if twist_policy is None else twist_policy.degrees
+            if not math.isclose(roll["net_roll_degrees"], requested, abs_tol=1e-6):
+                raise ValueError("Prescribed diagnostic roll was lost; native build not launched.")
         if handoff is not None:
             handoff.adopt(shape.frames)
             report["cap_frame_handoff"] = (

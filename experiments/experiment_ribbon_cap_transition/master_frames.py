@@ -23,6 +23,7 @@ from experiments.experiment_secure_discrete_ribbon.contract import UnsafeRibbon
 from experiments.experiment_secure_discrete_ribbon.frames import RibbonFrame
 
 from .full_turn import FullTurnDiagnostic
+from .prescribed_twist import PrescribedTwistDiagnostic
 
 LOOKUP_INTERVALS_PER_CURVE = 128
 SECTIONS = 32
@@ -147,7 +148,7 @@ def master_scaffold(
     end_width: Vector3,
     ribbon_width_mm: float,
     *,
-    twist: FullTurnDiagnostic | None = None,
+    twist: FullTurnDiagnostic | PrescribedTwistDiagnostic | None = None,
 ) -> MasterScaffold:
     """
     Evaluate 32 exact curve nodes from a fixed 128-interval-per-curve length table.

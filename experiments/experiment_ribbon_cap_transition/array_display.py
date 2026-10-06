@@ -25,6 +25,27 @@ from .native_budget import NativeBudget
 ARRAY_NAME = "Tube ribbon 4x - three-family 360 array"
 
 
+def copy_bodies(
+    source: tuple[adsk.fusion.BRepBody, ...], target: adsk.fusion.Component, budget: NativeBudget
+) -> None:
+    """
+    Import named rigid body copies, checking resources before each native copy.
+
+    Retain any partial target on failure. Copying is display workload, not a new
+    solve, loft or compliance check, and never modifies source body geometry.
+    """
+    manager = adsk.fusion.TemporaryBRepManager.get()
+    for body in source:
+        budget.check("array_body_copy")
+        temporary = manager.copy(body)
+        if temporary is None:
+            raise RuntimeError("Array body copy failed; partial document retained.")
+        copied = target.bRepBodies.add(temporary)
+        if copied is None or not copied.isSolid:
+            raise RuntimeError("Array body import failed; partial document retained.")
+        copied.name = body.name
+
+
 def create_array(
     document_names: tuple[str, ...],
     centers: tuple[Vector3, ...],
@@ -70,7 +91,6 @@ def create_array(
     if design is None:
         raise RuntimeError("Array design unavailable; document retained.")
     design.designType = adsk.fusion.DesignTypes.DirectDesignType
-    manager = adsk.fusion.TemporaryBRepManager.get()
     rows = []
     for index, (bodies, center, name) in enumerate(zip(sources, centers, document_names)):
         budget.check("array_component")
@@ -82,15 +102,7 @@ def create_array(
         if occurrence is None:
             raise RuntimeError("Array component creation failed; partial document retained.")
         occurrence.component.name = name
-        for body in bodies:
-            budget.check("array_body_copy")
-            temporary = manager.copy(body)
-            if temporary is None:
-                raise RuntimeError("Array body copy failed; partial document retained.")
-            copied = occurrence.component.bRepBodies.add(temporary)
-            if copied is None or not copied.isSolid:
-                raise RuntimeError("Array body import failed; partial document retained.")
-            copied.name = body.name
+        copy_bodies(bodies, occurrence.component, budget)
         rows.append(
             {
                 "source": name,

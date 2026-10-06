@@ -28,6 +28,7 @@ from experiments.experiment_secure_discrete_ribbon.shape import (
 from .ends import cap_direction
 from .full_turn import FullTurnDiagnostic
 from .master_frames import master_scaffold
+from .prescribed_twist import PrescribedTwistDiagnostic
 
 
 def solve_tube_ribbon(
@@ -35,7 +36,7 @@ def solve_tube_ribbon(
     start_fit: RibbonEndFit,
     end_fit: RibbonEndFit,
     *,
-    twist: FullTurnDiagnostic | None = None,
+    twist: FullTurnDiagnostic | PrescribedTwistDiagnostic | None = None,
 ) -> RibbonShape:
     """
     Certify the master curve, author one bounded bank field and measure lane chords.

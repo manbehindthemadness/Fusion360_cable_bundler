@@ -1,5 +1,90 @@
 # Cap-transition candidate v2 — five-width development
 
+## Six-case absolute-faith construction prediction — 2026-10-06
+
+**6 planned /6 evaluated /6 solved /6 native-attempted /5 completely built /
+0 fully master-rule audited**, denominator6. All six inputs pass the unchanged
+0.8/depth16 curve certificate at their selected finite boundary. Registered
+certificate-pass -> native-build hypothesis:5 matched builds,1 false acceptance.
+Overall0 accepted/5 failed known geometry rules/1 unresolved. No invalid controls,
+skipped cases or retries. The failure happened last; the generic stop text says
+remaining cases not attempted, but there are NONE remaining in this batch.
+
+User approved six distinct endpoint/curve families,0,+90,-90,+180,-180,-360deg
+twists;19x1.5mm material and114mm(4x) sphere. Uniform centerline-only compression,
+24 probes/family(144 total),120s/case,2GiB monitored RSS,60s display/cleanup and
+840s total cap. Warnings/findings non-blocking; native/host failures stop with no
+repair. Six scaffold-only calls author transported guide rolls before searches;
+all selected caps/connection targets freeze before any complete-ribbon solve.
+144 probes75passed/69rejected,4.997s total authoring,0 ribbon solves in search.
+Passing scales:0.450845122337,0.454223155975,0.763704419136,0.662864685059,
+0.502778053284,0.454222202301. All ratios just below0.8; brackets2^-23.
+Centerlines fixed during solve, no rerouting or outcome-dependent target changes.
+These are development variants; arch/spatial families have existing lineage, not
+untouched holdouts or proof of generality. Material and sphere never shrink.
+
+| Configuration | Search s | Solve ms | Native build s | Audits s | Total case s | Native result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| shallow /0deg | 1.528 | 46.226 | 6.654 | 9.585 | 30.132 | built39 |
+| quarter /+90deg | 0.857 | 34.648 | 6.495 | 16.299 | 35.872 | built39 |
+| asymmetric arch /-90deg | 0.034 | 1.657 | 6.774 | 15.639 | 35.669 | built39 |
+| planar S /+180deg | 0.332 | 11.175 | 6.880 | 24.610 | 45.164 | built39 |
+| spatial S /-180deg | 0.583 | 14.388 | 6.648 | 21.128 | 41.406 | built39 |
+| skewed return /-360deg | 1.664 | 72.833 | 2.640 failed attempt | 0 absent | 4.951 | kernel failure,0 solids |
+
+Shape solve includes its input certificate/table/roll, excludes authoring search
+and numerical preflight. Native build includes trunk+endings, excludes audits.
+Per-case trunk/endings/preflight/display/archive timings are retained in JSON.
+Total case includes host setup/display/archive, excludes prior authoring search,
+array copy/close and between-call overhead. Cumulative shape181ms,native36.090s
+(including failed attempt),audits87.261s,total case193.194s. Array copy/close/
+finish23.343s; overall batch322.511s includes search and orchestration gaps.
+Limits respected; maximum final case RSS1162160KiB,between-op sample1102304KiB,
+final verified Fusion RSS469664KiB. In-flight peak/token cost unmeasured.
+
+Failure: `faith_skew_return_minus360_certificate_limit`, curve ratio
+0.7999999881034527,3939 certified intervals; guide radius30.863mm fits57mm sphere,
+signed winding-360 retained and shared exact-cap handoff reached. Fusion rejected
+the TRUNK loft: `ASM_LOFT_SURFACE_SELF_INTERSECTS`, then
+`LOFT_TOOLBODY_CREATE_FAIL`.0 solids,all38 endings not reached,post-build audits
+absent. This is actual native rejection, not a preflight guard or missing ending
+misreported as success. Logs inspected; no recovery, multiple-loft workaround,
+solver/certificate weakening or second attempt. Certificate alone is NOT a
+universal native construction guarantee; exact geometric cause beyond the reported
+self-intersection remains undiagnosed. Failed evidence preserved for investigation.
+
+Numerical findings kept separate: shallow exceeds combined6% end allowance on
+both ends; quarter has fitted/whole-lane radius and end allowance findings; arch
+has one end allowance finding; spatial S and skew return have fitted/whole-lane
+radius findings. Planar S has no hard preflight findings, but full compliance is
+unresolved. Five constructed cases retain requested rolls,39 solids/trunk+19A19B
+and clean named ending audits. Length goals warn; continuous final skin curvature,
+strain,cap flow and global native clearance remain unmeasured. No acceptance claim.
+Authored caps and planned targets match frozen matrix exactly; native guide-derived
+target numeric roundoff max1.421e-14,route keys unchanged,not post-result repair.
+
+`faith_native.py` records every stage/decision; `faith_fixtures.py` freezes layouts;
+`PrescribedTwistDiagnostic` uses the existing global quintic prescription with
+declared signed roll,original bank-rate exception,and modular endpoint validation.
+Ordinary banking and historical FullTurnDiagnostic remain unchanged. Shared body
+copy helper preserves prior three-array display behavior. No production changes.
+43 existing affected tests passed,16 new tests rechecked after isolating mocked
+memory/float-normalization assertions;59 unique focused tests passing overall.
+Nine changed code files Ruff lint/format and IDE inspections clean;complete diff
+reviewed. Verification/code-search skills focused checks on shared consumers;
+full QA not run. Unit checks are not extra geometric validation cases.
+
+Final active `Tube ribbon 4x - absolute-faith certificate array`,five fixed-slot
+components195 solids total,39/19A19B each; screenshot visually inspected and F3D
+archived. All six new scratches archived/closed(including empty failed scratch),
+only result experiment array left open alongside all five original user designs.
+Prior experiment documents closed on user's request,archives preserved.
+Evidence `artifacts/verification/ribbon_cap_transition/faith_native/435bedfe25f245cc86db435fc01dddf0/`
+contains plan/report,array.png,array.f3d; native failure
+`artifacts/verification/ribbon_cap_transition/native/85a8e1315e0f47eda63d272232140ef4/`.
+Scope exhausted/stopped; next bounded decision is investigation of this retained
+self-intersection, not automatic tuning or promotion.
+
 ## Three-family input-certificate-limit array — 2026-10-06
 
 User approved three uniformly tightened family variants, warnings non-blocking,
