@@ -1,5 +1,533 @@
 # Cap-transition candidate v2 — five-width development
 
+## Corrected longitudinal roll policy — prepared, not built
+
+**Subsequent rule check: HOLD, not a rule-compliant build candidate.** User
+reasserted no bending along the long/wide section axis. For nonzero centerline
+curvature this requires `curvature dot width =0`;banking must enforce it rather
+than be replaced by an independent roll prescription. Read-only scaffold checks
+on the prepared pair found maximum normalized width-axis curvature0.9954953175
+(90) and0.9954963769(180),violations at30/32 stations each (exploratory relative
+threshold1e-8,not a newly approved tolerance). The reflected policy rotates the
+width into the bend plane. The fixed planar curves cannot accommodate that full
+continuous roll excursion while retaining zero wide-axis bending. Native0/2
+attempted;no new geometry/compliance claim. Roll/frame unit passes below do not
+cover this invariant. Even native-budget approval does not clear this geometry
+gate. Bank and bend geometry must be coordinated,or twist confined to suitable
+zero-curvature regions under a newly frozen plan;no such adjustment implemented.
+
+User clarified and confirmed0 ->180 ->0 roll around the ribbon's long axis while
+following the existing90/180 centerline turns. The previous360-to-everywhere-zero
+pair below is a control,not the requested moving-roll comparison. No lateral
+centerline change or section deformation. `ReflectedTwistDiagnostic` retains the
+same endpoint orientation but creates a smooth bounded excursion using two C2
+quintic halves;requested-360 analogously goes0 ->-180 ->0. It deliberately rejects
+other requests,not a generalized limiter. This is360 total angular travel,not
+retained full winding. Native interpolation can differ from the analytic field.
+
+`turn_pair_native.start_reflected(context)` registers the corrected experiment;
+`run_next` schedules one case at a time. Typed experiment configuration shares
+the existing native procedure without changing the zero-roll entry point. Both
+fixed fixture/cap/target dictionaries must exactly match the archived zero-roll
+plan,whose hash is checked between stages. Separate artifact/display names retain
+the control and all historical evidence. Native provenance now reports the actual
+policy field instead of labeling every prescription a single global quintic.
+
+Prepared2 development boundary layouts; **0 native attempts/0 new solids/0 full
+audits**, native failure rate unmeasured. No geometry success claim. Renewal
+proposal2 attempts/120s per case/300s overall/2GiB,no search/retries,first incomplete
+construction stop awaits user budget approval;no Fusion operation launched here.
+Twenty-seven focused reflected/fixture/old bounded-policy tests pass;changed code
+Ruff lint/format and IDE clean,complete code/diff reviewed. Focused verification
+does not substitute for native evidence;fullQA/host runner/compliance unrun.
+Production and standards untouched. Analytic field <=180,zero cap/reversal first/
+second derivatives;32 sampled frames remain undeformed/perpendicular with identical
+origins/tangents/caps. Inter-station native spacing,flow,strain and curvature unknown.
+
+## Tight90/180 turns with requested360 reduced to0 — 2026-10-06
+
+User approved two complete configurations, no search/retries,120s per case,
+300s overall,2GiB sampledRSS and first incomplete-construction stop. `turn_pair.py`
+uses the existing passing R18.16887617111206mm from
+`curve_limit/8591cac8b216442d80c05e2a8513ff43`: quarter-turn uses the first arc,
+reversal uses both. Same19x1.5mm material,4x/114mm sphere,original32 planar lobe
+sections,exact shared caps and both reverse-loft ending sets. Requested360 twist
+maps0 through the existing shortest-twist rule; there is no full winding or warp.
+Both complete cap/connection layouts freeze before either native attempt.
+`turn_pair_native.run_next(context)` schedules one case at a time, then `finish`
+archives/focuses the rigid display array. Sources/rules/production are fingerprinted.
+
+**2 planned/2 evaluated/2 natively attempted/2 complete ribbons built;2 partial
+diagnostic audits,0 fully audited.** Both input certificate ratios0.799999996883251,
+sampled roll0. Preflight reports no hard findings but remains unresolved; overall
+0 accepted/0 known rule failures/2 unresolved, denominator2. No failed/skipped/
+unattempted construction and no invalid controls. These are two boundary layouts
+in one examined planar-bend family, not distinct broad families or untouched
+validation. Native continuous curvature/strain/flow/clearance and complete conductor
+lengths remain unmeasured. No universal construction or physical limit established.
+
+| Path turn | Requested/actual twist | Solve ms | Native trunk+endings s | Diagnostic audits s | Case total s |
+| --- | --- | --- | --- | --- | --- |
+|90|360/0|37.736|6.720|11.413|32.702|
+|180|360/0|75.415|6.840|14.714|36.758|
+
+Wall81.944s includes separate array display/archive11.674s; original radius-search
+cost is excluded, solver certificate checks included. Audits are not solver cost.
+Maximum recorded RSS1207232KiB; final read-only inspection859520KiB,below2GiB;
+in-flight peak/token cost unmeasured. All scheduling limits held,slots exhausted.
+
+Active/open `Tube ribbon 4x - 90 and180 turns - requested360 bounded0` contains
+two components with39 positive-volume solids each (one trunk+19A+19B). Screenshot
+visually reviewed. New successful scratch documents archived/closed only after
+their rigid display copy. Previous six-case array and five unrelated documents
+remain open. Earlier failure/pilot documents are absent from final inventory;
+this runner did not target or close either. No cloud saves or body deletions.
+Evidence `turn_pair/df07c6c851004737b3ece9c552c61942/` holds frozen plan/report,
+individual report paths and arrayPNG/F3D. Three focused input/certificate/frame
+tests pass; new files Ruff lint/format and IDE clean, complete new code/diff
+reviewed. Focused verification keeps code contracts separate from geometry evidence;
+fullQA and full mechanical audits unrun. No production/standards changes or
+automatic continuation; next step requires user review of the displayed pair.
+
+## Original six-case planar/bounded-twist replay — 2026-10-06
+
+`bounded_twist_native.run_next(context)` replays the original six absolute-faith
+certificate-limit layouts, not the later straight warp pilot. Frozen scale values
+are read from the original plan; all parent/selected geometry, exact caps and
+connection targets must match before scheduling. No new certificate search,
+rerouting, section flex or fallback. Original32 planar lobe sections,19x1.5mm
+material,4x/114mm sphere and both reverse-loft ending sets remain unchanged.
+`shortest_twist` reduces signed total roll modulo360 into [-180,+180], retaining
+half-turn sign and ordered endpoint orientation but not extra physical winding.
+Only the skew-return prescription changes (-360 to0); other five are controls.
+The previous bank-rate diagnostic exception remains explicit, not newly proved.
+
+User approved6 complete configurations/6 solves/6 native attempts,0 retries,
+120s/case,840s overall,2GiB sampledRSS; first incomplete-construction/source/host/
+resource failure stops scheduling. Native prediction was six complete builds.
+**6 planned/6 numerically evaluated/6 natively attempted/6 complete ribbons built;
+6 partial diagnostic audits,0 fully audited.** No failed/skipped/unattempted native
+case and no invalid controls. Overall compliance:0 accepted/5 known rule failures/
+1 unresolved, denominator6. PlanarS has unresolved preflight; other five reject
+known rules (end-region allowance and/or sampled lane/end curvature). Construction
+is not mechanical compliance. Continuous native flow/strain/clearance and complete
+conductor lengths remain unmeasured. These are examined development regressions,
+not untouched validation or proof of a universal180-degree limit.
+
+| Original layout | New roll | Shape solve ms | Native trunk+endings s | Diagnostic audits s |
+| --- | --- | --- | --- | --- |
+|Shallow|0|47.700|6.801|9.830|
+|Quarter|+90|34.724|6.845|16.564|
+|Arch|-90|1.609|6.957|15.900|
+|Planar S|+180|11.124|7.067|24.480|
+|Spatial S|-180|14.692|6.895|21.366|
+|Skew return|-360 reduced to0|72.292|6.993|14.204|
+
+The formerly failing skew-return builds with the same frozen geometry/caps and
+no full winding. This supports this endpoint-equivalent simplification on the
+named fixture, not the claim that every ribbon with<=180 roll will construct.
+Total scheduling wall280.981s, separate array display/archive29.952s; individual
+case total31.043/38.146/37.496/46.363/43.099/35.848s, excluding array display.
+Shape solve excludes historical scale search, and audit cost is not solver cost.
+Maximum recorded caseRSS1252944KiB; post-batch RSS857376KiB; in-flight peak and
+token cost unmeasured. All scheduling limits held; no additional run authorized.
+
+Evidence `bounded_twist/5414e13d29834ad3b356e774ab1f255c/` contains frozen plan,
+per-case reports and arrayPNG/F3D. Live `Tube ribbon 4x - planar bounded twist
+replay` is active/open with6 components,each39 positive-volume solids (one ribbon,
+not39 cases). Newly created successful scratch documents archived/closed after
+rigid display copying; original failure,pilot and five unrelated docs untouched.
+Screenshot inspected. Nineteen focused roll/budget tests pass; changed code Ruff
+lint/format and IDE clean, full new code/diff reviewed. FullQA/native complete
+compliance not run. Verification skills kept code checks separate from geometry
+evidence; production/standards unchanged. Shared array helpers now accept an
+explicit owned array name, with original entry points/default behavior retained.
+
+## Alternate-section half-warp retry — 2026-10-06
+
+User explicitly requested every-other-section construction. One unchanged half-
+warp/+360twist development trunk replay used1,3,5,...31 plus exact terminal32,
+17closed Paths total. Other15 sections are omitted from loft input, not deleted.
+`alternate_warp_native.run(context)` checks parent fingerprints and3150 retained
+interior fit points before one NewBody solid loft. Source/centerline/warp/twist/
+caps unchanged; no rerouting/search/other parity/retry. Native prediction unknown.
+One attempt maximum; preceding user-waived time cutoff and2GiB RSS retained.
+
+**1 existing trunk variant planned/replay-evaluated/native-attempted;0 new solids,
+0 complete ribbons,0 fully audited.** Construction0successful/1failed; numerical
+sample replay valid, actual kernel again `ASM_LOFT_SURFACE_SELF_INTERSECTS` /
+`LOFT_TOOLBODY_CREATE_FAIL`. No other selection was attempted. No invalid controls.
+Preparation3.194s, native1.995s,total5.317s; separate display0.986s/finalRSS582672KiB;
+max prelaunch sampledRSS509888KiB,
+in-flight peak/token cost unmeasured. Replay fit error1.192e-14mm; no post-build
+skin/spacing/strain or omitted-station-fidelity audits. This sampling did not
+resolve the observed failure; it does not prove every sparser arrangement fails
+or establish an intrinsic section-warp limit. One specimen, not family breadth.
+
+Frozen plan/report at `alternate_warp/10a3b7e4e98941d1b0a5714ce5adde61/`, linked to
+the half-warp parent report. Original native geometry/archive retained unchanged;
+owned pilot left open with selected sections visible and omitted sections hidden
+only. Original failure example and unrelated documents remain untouched/open.
+Seven focused selection/replay tests pass; new module/test Ruff lint/format and
+IDE clean, full new code/diff reviewed. Full QA/native compliance not run. Focused
+verification separates reference selection from native validation; production and
+standards unchanged. No further native attempt is scheduled after this failure.
+
+## Section-warp sweep with twist retained — 2026-10-06
+
+User-renewed continuation: "just build them we will deal with performance later"
+explicitly removed the time scheduling cutoff for this fixed batch only. Three
+loft-attempt maximum,2GiB sampled RSS and first-failure stop remain; geometry/rules
+and lack of post-build compliance audits are unchanged. `resume(context)` verifies
+the preceding report and all unchanged implementation/input hashes, retains the
+29 existing zero-warp interior contours after checking6090 fit points against
+frozen math, and finishes sections31/32. `warp_replay.py` resolves their Paths
+without reconstructing native curves. A new report preserves the earlier timeout.
+
+Continuation outcome: **one development trunk family planned/evaluated/attempted;
+three variants planned/two deformation-prepared/two loft-attempted/one solid built /
+zero complete ribbons or fully audited configurations.** Zero warp constructed;
+half warp failed; full warp unattempted because of that first failure. Within
+construction-only scope1successful/1failed/1unattempted, denominator3. Mechanical
+acceptance unresolved for all3; no invalid controls or prediction-accuracy claim
+(all native predictions unknown). No retry, geometric adjustment or fallback.
+
+| Section-warp scale | Peak imposed edge tilt | Preparation s | Native loft s | Outcome |
+| --- | --- | --- | --- | --- |
+|0|0 degrees|11.387 continuation|12.213|one solid,2.140895269cm3|
+|0.5|43.265 degrees|23.804|0.753|ASM_LOFT_SURFACE_SELF_INTERSECTS / LOFT_TOOLBODY_CREATE_FAIL|
+|1|unbuilt|not attempted|not attempted|stopped after half-warp failure|
+
+Both attempted cases retain the same+360quintic twist and spline representation.
+Half warp's maximum sampled point displacement0.547984mm and plane departure
+0.510106mm; sampled center pitch ratios0.999999800..1.000000358. These are section
+authoring measurements, not interpolation/native spacing/strain compliance.
+Adding this warp pattern can induce kernel rejection on the twisted straight
+fixture; no exact maximum angle or monotonic threshold is established. Kernel
+self-intersection may concern generated skin/correspondence, not proof that the
+intended continuous section deformation physically intersects itself. The original
+curved negative-twist cause remains unproven; the fixture is deliberately different.
+
+Continuation total49.196s (case24.436/24.758s); separate display/archive2.841s,
+archive0.635s subset. Prior stopped preparation60.684s/display1.475s remain separate
+historical costs; final focus7.476s, instrumented combined121.673s excluding
+orchestration/template extraction. Final focused RSS721072KiB.
+No search/endings/compliance-audit cost. Final archive RSS1353536KiB, below2GiB;
+in-flight peak/token cost unmeasured. No more native work scheduled; one unused
+loft slot does not waive the first-failure review gate.
+
+Evidence `section_warp/ba8be6ab459645d291fa8da45016575d/`: frozen renewal plan/report,
+parent lineage, presentation/F3D and visually reviewed screenshots. Same live pilot
+remains open with zero-warp solid beside half-warp contours (no half-warp body).
+Prior three solids are unchanged/hidden only for review; original failure example
+and five unrelated documents remain open/untouched. No cloud saves or deletions.
+Fourteen focused replay/context/budget tests passed; changed code Ruff lint/format
+and IDE clean, full new code/diff reviewed. Unchanged math/contour tests retain
+previous passing results. Replay success path verified live, not separately unit
+tested; full QA and complete compliance unrun. Focused verification distinguished
+adapter preservation from native evidence. Production/standards untouched.
+
+User corrected the previous longitudinal-twist diagnostic: test section warp on
+the new straight scaffold while keeping+360-degree quintic twist unchanged.
+`section_warp_trial.py` scales the measured outer-edge normal tilt angles about
+their fixed local azimuths by0/0.5/1. `section_warp_native.py` uses the same
+57mm/32station/19x1.5mm scaffold, three fixed anchor positions, original planar
+terminal caps and shared Hermite flex implementation. Directions are read from
+the original failure's physical guides into a frozen local-coordinate template,
+then transferred to the straight scaffold. They are imposed diagnostic normals,
+not the actual derivatives of that scaffold's edge curves or compliance proof.
+Identical42segment five-fit-point spline interior Paths at every scale provide a
+representation-matched zero-warp control; zero is rebuilt rather than assuming
+the previous40arc/Profile solid proves this adapter. No longitudinal twist search.
+
+Approved3attempts maximum/60s per variant/300s overall/2GiB sampled RSS; stop
+first failure or limit, no retry/tuning. One development family/three variants,
+not independent complete ribbons or collateral-regression challenges. Existing
+pilot row and failure example retained; additional components go in a second row.
+No endings, sphere test, full-rule preflight or post-build mechanical audits.
+
+Result: **1 family planned /direction-input preflight evaluated /0 natively
+attempted /0 new trunks or complete ribbons built /0 fully audited.** Three
+variants planned; zero-warp preparation timed out, half/full unattempted because
+of that stop.0 accepted/1 preparation-exhausted/2 unattempted; all3 native outcomes
+unresolved, native failure rate unmeasured; no invalid controls. Zero-warp contour
+setup reached30/32 section Paths before the scheduling check at section31 found
+60.682s and899040KiB RSS. It never reached a loft.29 interior spline contours
+are retained alongside32 source sketches; section31/32 conversion unattempted.
+Zero-warp sampled displacement1.435e-14mm, plane departure7.105e-15mm, tilt0;
+these are control-authoring diagnostics, not evidence about nonzero warp limits.
+
+Batch60.684s; separate display/archive1.475s (archive0.425s subset), final
+RSS976656KiB. Instrumented cumulative62.160s excludes orchestration/template read.
+No native build/search/endings/audit cost incurred. The preparation
+cost combines original contours, midpoint splits, spline authoring and API Path
+checks; it is not solver-math timing. The time cap stopped further scheduling;
+memory remained below2GiB, in-flight peak/token cost unmeasured. No adapter fix,
+larger budget, discarded case or altered topology was introduced after the stop.
+The warp-limit question remains unanswered. Need user renewal before completing
+the retained control or any nonzero-warp trial; an extended budget is not implicit.
+
+Frozen plan/report/template fingerprints, partial F3D, screenshot and presentation
+at `section_warp/0d37bc048c4d44a3b2b66af7a6dfbe55/`. Existing straight pilot stays
+open; its three prior solids and the original failure example remain unchanged.
+New component explicitly labeled PREPARATION TIMEOUT, NO LOFT. Thirty-four focused
+warp/flex/midpoint/context/budget tests passed; three new files Ruff lint/format and
+IDE clean, complete new code/diff reviewed. Full QA, runner success-path tests and
+native warp validation not run. Focused verification avoids promoting code checks
+to geometric evidence; no production/standards changes or cloud saves/deletions.
+
+## Straight planar twist-only pilot — 2026-10-06
+
+Renewal result: repaired only the guard to `app.userInterface.activeCommand`,
+then ran the unchanged three-variant pilot. **One development family planned /
+authoring evaluated /natively attempted /trunks built;0 complete ribbons and0
+full audits. Three of three variants attempted and built;0 failed/skipped.**
+All outputs are one positive-volume solid each, not surfaces. Native predictions
+were unknown for all three; no prediction-accuracy claim. Construction-only
+outcome3/3 successful, mechanical/complete-rule acceptance unresolved3/3; no
+invalid controls. Endings and independent collateral challenges remain unattempted.
+
+| Twist | Analytic peak deg/mm | Preparation s | Native loft s | Case total s |
+| --- | --- | --- | --- | --- |
+|0|0|4.942|0.205|5.528|
+|180|5.921|6.662|0.855|7.872|
+|360|11.842|9.136|0.906|10.534|
+
+Batch25.154s; separate display/archive1.075s (archive0.254s subset); instrumented
+cumulative26.229s excludes orchestration. No search or compliance-audit work.
+Final presentation RSS820048KiB, below2GiB; sampled run limits respected,
+in-flight peak and token cost unmeasured. All three build slots consumed; no
+further native work scheduled. Source/rule fingerprints stayed frozen during run.
+
+This found no twist-only failure through11.842deg/mm on the straight fixture,
+slightly above the original failed span's sampled11.723deg/mm. It weakens a
+universal scalar-rate-only explanation at that rate; it neither establishes an
+absolute twist limit nor proves the original cause. Sign, centerline curvature,
+bend-plane change, bank orientation, section topology and profile correspondence
+are not all matched to the original skew -360 specimen. Native interpolation,
+spacing, strain and mechanical goals remain unaudited. These inspected cases are
+development diagnostics, not untouched validation or a proposed fix's regression.
+
+Evidence `straight_twist/7787dfd56da247ecabdef5c26337976b/`: frozen plan/report,
+presentation inspection, array F3D and visually reviewed screenshot. New document
+`Straight ribbon - planar twist rate pilot` stays open with0/180/360 left-to-right.
+Original failure example and five unrelated documents remain open and unchanged;
+no cloud saves/deletions. Guard change passes Ruff lint/format and IDE inspection;
+the unchanged nine authoring/budget tests were not redundantly rerun. Full QA and
+post-build compliance not run. Focused verification kept the repair limited to
+the adapter. Production and standards untouched. Next bounded decision: distinguish
+bend/twist interaction from correspondence, rather than assume a rate-only fix.
+
+Approved scope: fixed57mm straight centerline,19 conductors at1.5mm pitch,
+32 original40-arc planar sections, identical quintic roll with0/180/360 degrees.
+Analytic peak rates0/5.921/11.842 degrees/mm. One development route family with
+three variants, not three independent complete ribbons or collateral challenges.
+No flex, rails, endings, sphere test, search, or post-build mechanical audits.
+Three native attempts maximum,60s/case,300s/batch,2GiB sampled RSS; first failure
+stops all subsequent work, no retries/tuning. Existing failure document retained.
+`straight_twist.py` freezes authoring; `straight_twist_native.py` is the pilot.
+
+Initial pre-renewal disposition: one family planned/authoring evaluated; **0 native attempts/0 trunks
+built/0 complete ribbons built/0 fully audited**. All three variants unattempted.
+Idle-command guard incorrectly accessed `Application.activeCommand` and raised
+AttributeError before document creation, budget initialization or geometry work.
+This is a harness failure; native failure rate, limit, memory and original cause
+remain unmeasured/unresolved. Fusion application log confirms39ms execution.
+No retry, repair or new scratch was performed. Evidence is under ignored
+`straight_twist/preflight_20261006T164844/report.json`.
+
+Nine focused authoring/budget tests passed, Ruff lint/format and IDE inspections
+clean; complete new code and tracked diff reviewed. Focused verification does not
+validate the live adapter, and no general construction claim is supported. That
+stop required user renewal, subsequently granted for the result recorded above.
+
+## Flexed solid-prefix closure diagnostic — 2026-10-06
+
+User requested the solid up to the failure point. `flex_prefix_native.py` reuses
+the existing32 closed contour Paths, probing1-2,1-3,... until first failure, with
+at most31 prefix operations/120s/2GiB sampled RSS and zero search/retries. Inputs,
+curve ordering, flex implementation and source hashes stay frozen. Each success
+would replace only the preceding prefix created by this call; historical geometry
+is never deleted. A partial loft ends on a nonplanar interior section, introducing
+an end-closure requirement absent at that station in the full loft.
+
+Result: **1 planned /0 newly numerically evaluated /1 configuration natively
+attempted /0 successful solid prefixes or complete ribbons /0 fully audited**.
+One native operation1-2 produced a surface, not a solid (`isSolid=false`,volume0).
+The solid-validity check stopped the run;1-3..1-32 (30 operations) were unattempted.
+Last successful solid prefix: NONE. Overall0 accepted/1 failed solid-prefix
+construction/0 unresolved within this scope; no invalid controls. Original full-
+loft failure location remains unresolved; this is not evidence it begins at section2.
+Read-only inspection found43 faces/42 free boundary edges; every free-edge endpoint
+matches section02 contour endpoints within5.439e-15mm. This supports an uncapped
+section02 boundary; it is not a complete edge-curve or mechanical compliance audit.
+No explicit patch/stitch, flattened cap, fallback or geometric repair was attempted.
+
+Native prefix0.116s; existing Path setup3.144s; run3.365s; separate display/archive
+1.443s (archive0.174s subset). Instrumented cumulative4.808s excludes orchestration
+and read-only diagnosis. RSS656192KiB after native,796352KiB after presentation;
+limits respected, in-flight peak/token cost unmeasured. Zero shape solves/audits.
+This is one known development configuration, not new family coverage. Endings and
+three collateral challenges were unattempted; no generalized or performance claim.
+
+Evidence `flex_prefix_native/3c2b07d7eb1f4dcbbd109b26a8e1558f/`: frozen plan/report,
+contour coordinates, closure diagnosis, F3D and screenshot. Document remains open,
+with the surface labeled `Flex prefix 1-2 - SURFACE ONLY, not solid`, sections01/02
+and both physical guides visible. Other contours are retained/hidden. The old
+baseline was already absent at preflight; initial guard stopped before any native
+operation, and that removed body was not restored. All five unrelated designs are
+untouched; no cloud save or deletions occurred. The requested partial solid remains
+undelivered. Next user decision: authorize an explicit nonplanar cap/stitch diagnostic
+before continuing solid prefixes; do not assume it fixes the full-loft flow failure.
+Twelve focused budget/context tests pass; new runner Ruff lint/format and IDE clean,
+complete diff reviewed. Successful-prefix cleanup/retention branch was not exercised
+live; full QA and dedicated runner success-path unit coverage were not run. The
+verification skill kept checks focused and reports that residual coverage explicitly.
+
+## Three-anchor nonplanar section prototype — 2026-10-06
+
+`section_flex.py` keeps the center and two outer mid-thickness anchors fixed.
+It projects each width direction perpendicular to its own path tangent, then
+uses piecewise cubic Hermite midlines and smoothstep unit thickness interpolation.
+The mathematical local section plane at each anchor is perpendicular to that
+anchor's tangent; this does not certify geometry between anchors or stations.
+Exact terminal caps use their original contours and authoritative center tangents,
+not fitted edge-guide endpoint derivatives. No centerline, roll or target search.
+
+The user-approved `flex_native.run(context)` reads the two existing physical
+edge splines in the current owned failure document. `flex_contours.py` approximates
+each interior mapped contour with five-point fitted splines per original arc,
+shared contour endpoints and a closed nonplanar `Path`, not a planar `Profile`.
+One full 32-section trunk loft is scheduled, with 120s/2GiB sampled RSS limits,
+no retries/endings and no full mechanical audits. Baseline, source sections and
+physical guides are preserved; evidence remains under ignored `flex_native/`.
+Future anchors/edge curves belong in solver math: creating these extra physical
+vertices and guides in Fusion is **not** the intended implementation requirement.
+This physical prototype exists to clarify the deformation visually. Fitted native
+contours are approximations; fit-point coincidence is not an interpolation audit.
+Sampled center pitch is reported separately, never inferred from construction.
+This single known development case does not replace the required three distinct
+collateral-mechanics configurations; their native baselines remain unattempted.
+
+Initial prototype disposition: **1 planned /0 fully evaluated /0 native loft attempts /
+0 trunks or complete ribbons built /0 fully audited**, denominator1. One unresolved
+development case; no invalid controls. The adapter stopped at first-section setup
+with `InternalValidationError: Utils::getObjectPath(...)`, before creating any
+flexed sketches or reaching `loftFeatures.add`. This is a harness failure, not
+evidence that nonplanar flex cannot construct. Both first-station edge derivatives
+were subsequently read successfully; source curves have no assembly context.
+An assembly-context issue in contour-path setup is a suspected cause, not proven.
+No adapter repair, alternative construction or retry was scheduled after the stop.
+
+Run elapsed0.881s; no search, trunk-build or compliance-audit time incurred. Final
+RSS460240KiB, below the approved2GiB ceiling; in-flight peak/token cost unmeasured.
+Evidence: `flex_native/92df7c841a70466c9a35dbc4b055f34d/`, including frozen plan,
+report and read-only diagnosis. Live document/guides remain open and the sole
+visible baseline volume is unchanged at1.107125050cm3; all five unrelated designs
+remain open. No new archive was needed for an unchanged geometry state.
+Seven new mathematical tests plus eight retained midpoint tests passed; four new
+code files passed Ruff lint/format and IDE inspections. Full QA was not run. The
+verification skill kept checks scoped and separates code-contract evidence from
+native coverage. Next bounded decision: authorize investigation/repair of the
+Fusion contour-path adapter and renew the same one-attempt pilot, without changing
+the mathematical deformation or fixed inputs. That initial call delivered no live flex.
+
+User renewed reference-only adapter repair and the same one-trunk pilot. Adding
+explicit occurrence proxies fixed the first cap Path error. The next harness exit
+at section02 retained42 fitted curves/210 points but returned an open23-curve Path.
+Read-only endpoint traversal found one closed42-curve contour; passing those same
+references in connection order returned a closed42-curve Path. No point movement,
+flattening or tolerance change was needed. `curve_context.py` now resolves proxies
+and orders a single closed chain, rejecting gaps/branches/disconnected loops.
+That intermediate report remains at `flex_native/da408fbec3c942c9950ad3d1f8634f42/`.
+
+Corrected adapter result: **1 planned /1 section-deformation evaluated /1 native
+trunk attempted /0 trunks or complete ribbons built /0 fully audited**, denominator1.
+Overall0 accepted/1 failed native construction/0 unresolved within prototype scope;
+no invalid controls. This is the same known skew-return -360 development case, not
+a new independent configuration. Full master-rule numerical screening was not rerun.
+All32 closed42-curve Paths reached loft input, with both original terminal contours
+unchanged. Retained section02 was reused only after all210 fit points matched the
+fixed math;29 other interior contours were authored,30 total retained. No extra
+solid attempt, route/twist change or fallback. The one solid loft failed with
+`ASM_BAD_UV_SKIN_DIR` / `LOFT_TOOLBODY_CREATE_FAIL`. The adapter limitation is fixed;
+this is now an actual kernel failure, not proof that nonplanar sections are forbidden
+or that every three-anchor interpolation is infeasible. No geometric repair followed.
+
+Named section diagnostics: maximum mapped-point displacement1.022304mm; departure
+from original plane0.748100mm; native fit-point error1.589e-14mm. Sampled conductor
+center pitch ratios0.999999527..1.000000847. These are section/sample measurements,
+not native skin spacing, whole-lane curvature, interpolation accuracy or compliance.
+Endings and all three collateral-mechanics configurations remain unattempted.
+
+Corrected-run preparation (guide reads/math/native contours combined)29.895s,
+native trunk6.206s, total36.799s. Search and post-build compliance audits0/absent;
+math-only solve cost is not separated. Physical diagnostic contour authoring is not
+a future solver timing or demonstrated performance gain. Intermediate harness
+exit1.361s; separate display/archive1.759s (archive0.451s subset); current renewal
+instrumented cumulative39.919s, excluding orchestration/read-only diagnostic time.
+Final native RSS785728KiB; presentation746192KiB, below2GiB. In-flight peak/token
+cost unmeasured. No more construction is scheduled; remaining pilot native attempts0.
+
+Final report/plan/F3D/screenshot/presentation at
+`flex_native/e8cbb5e632244200af529f56efa33637/`. Owned document stays open; unchanged
+baseline volume1.107125050cm3 remains visible with both guides and flex sections
+17/18/19. Other27 flex contours are retained but hidden for readability; all five
+unrelated documents unchanged. No cloud save, deletion, production or standards edits.
+Eight adapter tests plus seven unchanged math tests passed; four changed code files
+passed Ruff lint/format and IDE inspections, complete diff reviewed. Full QA and
+complete geometry compliance not run. The focused verification skill kept checks
+proportionate. Next bounded decision requires user review of the visible flex and
+authorization before further kernel diagnostics or changing the interpolation.
+
+## Explicit outer section midpoint vertices — 2026-10-06
+
+User-directed enhanced-section rule: put an actual contour vertex at both outer
+width extrema, halfway through thickness. `section_midpoints.py` splits the two
+existing circular side caps at their angular midpoints, retaining the outline,
+ordered conductors, spacing and exact terminal geometry. No section warping,
+rails, changed twist field or production changes are implied. The historical
+40-arc 19-lane section becomes 42 arcs; it remains one closed profile.
+
+`midpoint_native.run(context)` is a registered one-case Fusion diagnostic on the
+open `Tube failure - skew return -360 - exact replay` document. It preserves the
+1-17 partial-solid baseline, modifies all 32 input profiles and attempts the full
+trunk once. Budget 120 seconds/2GiB monitored RSS, zero solves/search/retries.
+Kernel errors are recorded without throwing out of the host script transaction;
+archive/presentation errors remain separate. Frozen material, centerline, roll,
+cap positions and target geometry stay unchanged. No endings or post-build
+mechanical audits are scheduled, and no collateral-regression claim is supported.
+Generated plans/reports and native archives go under ignored
+`artifacts/verification/ribbon_cap_transition/midpoint_native/`.
+
+Diagnostic baseline: growing prefixes 1-2 through 1-17 constructed, first failure
+1-18 reported `ASM_BAD_UV_SKIN_DIR`; 1-19..1-32 unattempted. 17 prefix operations
+are not 17 independent ribbons. Cumulative native time 3.881s. A subsequent
+selection error rolled back live prefix bodies; an explicitly approved 1-17
+replay restored the visible baseline in 0.503s. Both historical reports remain
+under `prefix_native/6755a0c107344d0fbd0a5a8fdd9a59d5/` and
+`prefix_native/0e5d813f757e4cb99f2dfb6d55e3291d/`.
+
+Midpoint result: one existing configuration, 32/32 sections enhanced, 64/64
+midpoints each joining two contour arcs; all profiles remain single/42 arcs.
+Maximum error from frozen frame width extrema 1.628e-14mm. Zero new numerical
+solves/evaluations; one native trunk attempt, zero trunks/complete ribbons built,
+zero post-build compliance audits. The full loft still reports
+`ASM_LOFT_SURFACE_SELF_INTERSECTS` / `LOFT_TOOLBODY_CREATE_FAIL`; no retry or fix.
+Topology 2.719s, loft attempt 0.407s, total 4.560s; final RSS845408KiB. Endings
+and three collateral configurations were not attempted; no generalized claim.
+The unchanged 1-17 baseline remains visible with volume1.107125050cm3, alongside
+enhanced section sketches, in the user-saved/renamed
+`Tube failure - skew return -360 - exact replay - Rate of twist failure v1`.
+Archive/screenshot/report/64-vertex verification are retained at
+`midpoint_native/be2ea1afd5074c82bd4979bf04e9bca0/`. No user document was closed
+or cloud-saved by this diagnostic. The initial exact-name guard stopped before
+edits/native attempts; explicit renamed-document targeting then ran once.
+Eight focused helper tests, Ruff lint/format on three code files and IDE
+inspections passed; complete change reviewed. Full QA and collateral native
+regression not run. The verification skill kept checks scoped; unit tests are
+not additional complete-ribbon configurations.
+
 ## Six-case absolute-faith construction prediction — 2026-10-06
 
 **6 planned /6 evaluated /6 solved /6 native-attempted /5 completely built /

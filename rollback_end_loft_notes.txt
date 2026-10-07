@@ -98,3 +98,200 @@ smooth cap approach and combined 6% end allowance remain unchanged. The current
 user-approved developmental sphere diameter remains 5x nominal ribbon width.
 This explicitly supersedes the relevant historical requirements above for current
 experiments, not production or immutable historical result classifications.
+
+USER-DIRECTED SECTION TOPOLOGY RULE — 2026-10-06
+
+Enhanced experimental trunk sections include an explicit contour vertex at each
+outer width extremity, midway through the section thickness. Split each existing
+circular side-cap arc at its angular midpoint; a detached sketch point is not a
+contour vertex. Preserve the original circular outline, width, thickness, conductor
+order/spacing and exact end-cap geometry. Add the same two vertices to terminal
+and interior sections. This is a topology enhancement, not nonplanar warping,
+additional rails, a twist-rate exemption or a production change. Historical
+unmodified results retain their original topology. Construction/compliance and
+collateral regression remain separate; no general fix is established by one build.
+
+USER-DIRECTED THREE-ANCHOR FLEX REVISION — 2026-10-06
+
+The midpoint vertices and two edge fit splines above are physical diagnostic
+guides for the current example only. Future solver work retains these three
+references (center and both outer mid-thickness extrema) mathematically; creating
+extra Fusion vertices or guide splines is not a requirement. This supersedes the
+physical-topology requirement above for future construction, not historical data.
+Keep all three anchor positions fixed. Orient the center locally perpendicular
+to the center-path tangent and each outer anchor perpendicular to its own edge
+curve tangent; flex the intervening profile rather than forcing it planar.
+Exact terminal cap geometry/tangents remain authoritative and unchanged. Native
+interpolation accuracy, pitch, curvature and complete-structure compliance must
+be measured separately; this revision is not a spacing or twist-rate exemption.
+The approved current prototype is one fixed-case trunk attempt, 120 seconds/
+2GiB monitored RSS, no search/retries, with baseline and physical guides retained.
+
+USER-DIRECTED PLANAR/BOUNDED-TWIST EXPERIMENT — 2026-10-06
+
+For the approved six-case original certificate-limit replay only, disable section
+deformation and retain the original planar lobe contours. Reduce prescribed total
+roll modulo360 into [-180,+180], retaining the original sign at half-turn ties.
+Thus +/-360 becomes0 and +270 becomes-90; ordered endpoint orientation is unchanged,
+but extra physical winding is deliberately removed. This is not modulo180, a
+conductor-order swap, or a universal/native twist-rate certificate. Original
+fixed centerlines, caps/tangents, spacing, targets and reverse-loft endings remain.
+The historical4x sphere and existing bank-rate diagnostic exception are explicit.
+This does not revise production or erase the earlier three-anchor flex evidence.
+Approved6 cases/6 solves/6 native attempts,0 retries/search probes,120s per case,
+840s overall/2GiB sampledRSS; stop first incomplete build or resource/source gate.
+
+User renewed this same no-deformation/bounded-twist policy for the90/180 path-turn
+pair, each requesting360 mapped0, at the established passing semicircle radius.
+Approved2 complete configurations/2 solves/2 attempts,0 search/retries,120s/case,
+300s overall/2GiB,first incomplete-construction stop;new side-by-side array retained.
+The90-degree layout uses one quarter-arc and180 uses both;exact caps/targets freeze
+before builds. This is a separate two-case developmental scope,not a blanket
+budget renewal or change to historical full-winding and warp evidence.
+
+USER-CLARIFIED LENGTHWISE ROLL MOTION — 2026-10-06
+
+User clarified that the90/180 path-turn comparison must retain longitudinal roll
+motion rather than erase a requested360 to an everywhere-zero field. Confirmed
+trajectory0 ->180 ->0 about the local center-path tangent. No added lateral
+centerline bend or section deformation. Two quintic halves give zero first/second
+roll derivatives at the caps and reversal. This changes the experimental motion
+policy,not the ordered endpoint orientation or historical result classifications.
+The prior pair is now a zero-roll control,not the requested moving-roll example.
+Analytic roll excursion is bounded; native inter-station skin/strain remains
+unmeasured. Preparing this policy does not authorize another expensive batch:
+the proposed2attempt/120s case/300s batch/2GiB renewal awaits separate approval.
+
+USER-REASSERTED NO LONG-SECTION-AXIS BEND — 2026-10-06
+
+Banking must enforce the no-bend rule on the section's long/wide axis as a hard
+geometric contract,not merely cap net twist or stay within180 degrees. Where
+centerline curvature is nonzero,the width direction must be perpendicular to
+that curvature: curvature dot section_width =0. A prescribed roll field may
+not override this requirement. Guarantee this modeled invariant by construction
+or certify/reject before Fusion;an input tube envelope alone does not enforce it.
+This is not a claim that the complete native Fusion loft is guaranteed to build.
+
+Read-only diagnosis found the prepared reflected0->180->0 field incompatible
+with both fixed planar90/180 curves: maximum normalized width-axis curvature
+0.9954953175/0.9954963769,nonzero at30/32 sampled stations in each. These finite
+samples demonstrate violations,not continuous compliance or native outcomes.
+The27 passing unit checks cover roll/caps/frame geometry,not this missing rule.
+Do not launch that prepared field as a rule-compliant experiment even if its
+native resource budget is renewed. Zero native attempts remain. Coordinating
+bank and bend-plane geometry,or using zero-curvature twist regions,requires a
+new explicit fixed-input plan before construction;no target/curve repair was
+implemented by this diagnostic. Historical reports/geometry remain unchanged.
+
+2026-10-06 sketch-only inspection of the banking-invalid quarter-turn candidate:
+User requested the failing loft in sketch form. One 90-degree trunk with the
+prepared reflected0->180->0 roll was drawn as32 undeformed planar sketches,
+40 arcs/one closed profile each; no loft, solid, cap fit or compliance audit.
+Document: Ribbon diagnostic - 90 turn - reflected roll - sketches only.
+Evidence: artifacts/verification/ribbon_cap_transition/reflected_sketch/
+1fb6f54ee9e94079bab578eaa7078bd2/; math/report preparation0.0071s,
+sketch/display5.7442s. All sketches visible, planes hidden, bodies0. This is
+one represented development trunk, zero complete-ribbon construction coverage.
+Known sampled banking violations remain30/32; no kernel loft failure claimed.
+Two setup failures preceded any section geometry: UUID JSON serialization and
+Fusion rejecting a root-component rename. Both were corrected; the empty owned
+document was reused. No geometry was retried or repaired. Earlier attempt
+directories f375133d283148f78ef534a17c3f0d84 (empty; pre-plan failure) and
+2c19897ab8594e22aa926f528c660c18 (setup error report) remain preserved.
+Focused verification:9 reflected-roll tests, adapter Ruff lint/format and IDE
+inspection passed; viewport image reviewed. Solid feasibility remains untested.
+
+USER-DIRECTED RETIREMENT OF THE 180-DEGREE RULE — 2026-10-07
+
+Scrap the experimental total-roll limiter. Neither modulo360 reduction into
+[-180,+180] nor a forced0->180->0 reflection is an active solver requirement.
+Preserve requested signed longitudinal twist as the intended motion; do not erase
+full winding or reverse it solely to stay within180 degrees. This supersedes the
+bounded-twist and reflected-motion policies above for future experiments only.
+Historical fixtures, diagnostic helpers, reports and Fusion geometry remain
+unchanged; those helpers are historical replay tools, not the current policy.
+No section-deformation change was requested: retain undeformed planar sections.
+The hard no-wide-axis-bend banking invariant, macaroni/curvature limits, spacing,
+fixed targets/identities, cap tangents and reverse-loft ending rules still apply.
+Removing a roll cap does not make arbitrary twist on a fixed curved path valid
+or guarantee a Fusion build. Coordinated banking/bend-plane geometry remains
+unimplemented and requires a frozen bounded experiment before native testing.
+This revision authorizes no new search, build, retry, document deletion or
+production change. No numerical/native/compliance experiment ran for it.
+
+2026-10-07 six-case trunk-sweep replay STOPPED BEFORE CONSTRUCTION.
+User identified the active Tube ribbon 4x - planar bounded twist replay array,
+then approved all six with swept trunks, original full signed twists restored,
+unchanged reverse-loft endings/packed curves/targets,120s/case,840s/batch,2GiB
+RSS,no search/retries,first incomplete-build stop. New experiment-only adapters:
+sweep_replay, trunk_sweep, sweep_native; native.py defaults to historical lofts
+and exposes an explicit TrunkConstruction selection. Sweep uses one original
+profile plus two diagnostic cap sketches; no32-section loft authoring or rails.
+Fusion owns intermediate sweep rotation; numerical quintic frames are references,
+not the native sweep field. Native banking/interpolation remains unmeasured.
+Paired-side loft-station audit is explicitly unmeasured for sweep construction.
+
+Six planned,0 shape solves/complete-case numerical evaluations,0 native sweep
+attempts,0 built,0 fully audited. Case1 setup failed; cases2..6 unattempted.
+Cause: Fusion retained an older PrescribedTwistDiagnostic class without the
+field_description property present on disk. Read-only host diagnosis confirmed
+this stale module. Stop latched; no geometry retry, reload fix or renewal launched.
+Evidence: artifacts/verification/ribbon_cap_transition/sweep_native/
+e7327b5e1419411b9859866a619658a9/. Setup2.209s,including array creation1.572s;
+search/build/audit not attempted,not a geometry or performance outcome.
+Original six-component array retained unchanged; new owned sweep array open but
+empty/active. No case scratch or bodies created. FinalRSS/in-flight peak not
+retained by this early harness error; no production/standards modifications.
+
+Exact six-case frozen provenance passed read-only in Fusion's Python3.14 runtime.
+Local Python3.9 regeneration differed by last-bit floats; exact guard was NOT
+loosened. Four local unit checks use explicitly synthetic runtime-matched plans
+with historical scales;12 related scheduling/roll tests passed. All five changed
+code/test files passed Ruff lint/format and IDE inspections. FullQA, mocked native
+sweep behavior, native construction and complete compliance remain unverified.
+Next step requires user direction: coherent policy/module reload and restart this
+same six-case scope under renewed bounds, preserving this stopped report.
+
+2026-10-07 renewed six-case trunk-sweep replay DELIVERED.
+User approved coherent experiment-module reload/restart under the same limits.
+Reloaded policy/master-frames/tube-solver/native/sweep adapters, verified matching
+policy identity/reporting property and exactly one empty owned array. Reused it
+without deletion. Fresh plan records renewal from the preserved setup failure.
+No local code changes or geometry refinement during this renewal.
+Six independent development configurations planned/evaluated/native-attempted/
+built;0 fully audited. All six contain one positive-volume swept trunk plus
+19A/19B reverse-loft endings,39 child solids each,not234 independent tests.
+Twists0/+90/-90/+180/-180/-360 retained;fixed certificate scales,curves,caps and
+targets validated against original provenance before construction. No searches,
+retries,rails,section flex,total-roll limiter or production/standards changes.
+The former skew-return full-winding failure built with a swept trunk. This is
+native construction evidence,not a no-wide-axis-bend or manufacturability proof.
+
+Individual shape solve milliseconds:47.448/34.826/1.702/11.857/14.910/72.544.
+Trunk authoring seconds:0.289/1.422/2.526/4.698/4.420/2.646;includes two cap
+sketches and the sweep call,not kernel-only time. Reverse-ending seconds:
+2.718/2.360/2.358/2.432/2.400/2.438. Per-case diagnostic totals24.048/24.541/
+25.159/28.061/28.250/27.949s include setup/audits/display/archive. Batch wall
+337.006s includes orchestration;array copy/display/archive29.327s is a subset.
+All120s/case840s/batch2GiB gates held;maximum retained caseRSS942624KiB,
+final933072KiB,in-flight peak and token/cost accounting unmeasured.
+
+Known end allowance/radius findings retained on5/6 numerical candidates;legacy
+overall rows0accepted/5knownfailed/1unresolved. Additional reference banking
+violates the hard width-axis rule on5/6:0/31/31/30/32/31 sampled violations.
+These are quintic reference frames,not measured native sweep banking. Native
+intermediate roll differs/unknown;no compliance acceptance inferred from builds.
+Interior loft-landmark audit reports unavailable onall6 because sweeps have no
+interior section sketches;paired-side correspondence audit explicitly unmeasured.
+Sampled sections/connections/interference ran;continuous native strain,clearance,
+banking,cap flow and complete-conductor mechanical compliance remain unverified.
+
+Active/open: Tube ribbon 4x - trunk sweep replay,6components x39 positive solids,
+viewport image reviewed and F3D archived. Original bounded-loft array and all5
+unrelated documents unchanged. All6 new case scratches archived/closed only after
+successful rigid display copy. No further experiment slots scheduled.
+Evidence: artifacts/verification/ribbon_cap_transition/sweep_native/
+e1070a526e6b4707978d0ff5a9f606ca/;earlier e7327b5e1419411b9859866a619658a9 preserved.
+Prior16 focused tests and adapter Ruff/IDE checks retained,not repeated without
+edits;fullQA unrun. This is a six-case examined development replay,not holdout
+validation,a universal construction guarantee or promotion to production.

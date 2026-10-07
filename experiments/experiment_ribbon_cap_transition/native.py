@@ -52,7 +52,7 @@ from .fixtures import (
     reversal_case,
 )
 from .full_turn import FullTurnDiagnostic
-from .master_frames import sampled_roll
+from .master_frames import master_scaffold, sampled_roll
 from .native_budget import NativeBudget
 from .native_policy import bind_sphere_policy
 from .planning import ShortConnectionFixture, freeze_targets, inspect_candidate
@@ -90,6 +90,15 @@ class NativeGeometryPolicy(Enum):
 
     OBSERVE_REJECTIONS = "observe-known-findings"
     STOP_ON_KNOWN_FINDINGS = "stop-before-native-on-known-hard-findings"
+
+
+class TrunkConstruction(Enum):
+    """
+    Keep historical loft construction while enabling explicit sweep diagnostics.
+    """
+
+    LOFT = "matched-section-loft"
+    SWEEP = "perpendicular-constant-profile-total-twist-sweep"
 
 
 def _write(path: Path, value: dict[str, object]) -> None:
@@ -254,6 +263,7 @@ def _run_case(
     fixture_authoring: dict[str, object] | None = None,
     geometry_policy: NativeGeometryPolicy = NativeGeometryPolicy.OBSERVE_REJECTIONS,
     twist_policy: PrescribedTwistDiagnostic | None = None,
+    trunk_construction: TrunkConstruction = TrunkConstruction.LOFT,
 ) -> Path:
     """
     Build at most one complete configuration and leave its native document open.
@@ -265,6 +275,8 @@ def _run_case(
     """
     if twist_policy is not None and procedure is not NativeProcedure.MASTER_TUBE_SHARED_CAPS:
         raise ValueError("Prescribed twist requires the shared-cap tube procedure.")
+    if trunk_construction is TrunkConstruction.SWEEP and twist_policy is None:
+        raise ValueError("Sweep diagnostics require an explicit signed twist policy.")
     app = adsk.core.Application.get()
     if str(app.userInterface.activeCommand) != "SelectCommand":
         raise RuntimeError("Finish the active Fusion command before calibration.")
@@ -329,10 +341,16 @@ def _run_case(
     }
     if fixture_authoring is not None:
         plan["fixture_authoring"] = fixture_authoring
+    plan["trunk_construction"] = trunk_construction.value
+    if trunk_construction is TrunkConstruction.SWEEP:
+        plan["sweep_interpolation"] = (
+            "Fusion chooses intermediate rotation; numerical quintic frames are a reference, "
+            "not the native sweep field. Two cap sketches; no interior section constraints."
+        )
     if twist_policy is not None:
         plan["diagnostic_exception"] = {
             "requested_roll_degrees": twist_policy.degrees,
-            "field": "Fixed signed global quintic diagnostic roll; no bank search.",
+            "field": twist_policy.field_description,
             "exception": "User-approved bank-rate diagnostic; all remaining findings recorded.",
         }
     if procedure is NativeProcedure.MASTER_TUBE_FULL_TURN:
@@ -467,6 +485,27 @@ def _run_case(
             requested = 360 if twist_policy is None else twist_policy.degrees
             if not math.isclose(roll["net_roll_degrees"], requested, abs_tol=1e-6):
                 raise ValueError("Prescribed diagnostic roll was lost; native build not launched.")
+        if trunk_construction is TrunkConstruction.SWEEP:
+            from cable_bundler.routing.geometry import dot, magnitude
+
+            scaffold = master_scaffold(
+                case.route,
+                case.start_width,
+                case.end_width,
+                case.lines * case.diameter_mm,
+                twist=twist_policy,
+            )
+            ratios = tuple(
+                abs(dot(curvature, frame.width)) / magnitude(curvature)
+                if magnitude(curvature) > 1e-12
+                else 0.0
+                for frame, curvature in zip(scaffold.frames, scaffold.curvature_vectors)
+            )
+            report["reference_banking"] = {
+                "maximum_width_axis_curvature_ratio": max(ratios),
+                "violating_samples": sum(ratio > 1e-8 for ratio in ratios),
+                "scope": "Numerical reference only; native sweep banking unmeasured. Diagnostic findings are not waived compliance.",
+            }
         if handoff is not None:
             handoff.adopt(shape.frames)
             report["cap_frame_handoff"] = (
@@ -490,16 +529,22 @@ def _run_case(
 
     def build_main(*args: object, **kwargs: object) -> object:
         """
-        Count one native attempt only immediately before the actual trunk loft.
+        Count one construction attempt before trunk authoring; never retry it.
         """
         budget.check("native_trunk")
         if _fingerprints() != fingerprints:
             raise RuntimeError("Source drift; native attempt not launched.")
         report["native_attempted"] = 1
         _write(directory / "report.json", report)
-        return budget.measure("native_trunk", modules["builder"]._build_folded_loft)(
-            *args, **kwargs
-        )
+        if trunk_construction is TrunkConstruction.SWEEP:
+            from .trunk_sweep import build_trunk_sweep
+
+            if twist_policy is None:
+                raise ValueError("Missing sweep twist policy.")
+            build = partial(build_trunk_sweep, modules["builder"], twist_policy.degrees)
+        else:
+            build = modules["builder"]._build_folded_loft
+        return budget.measure("native_trunk", build)(*args, **kwargs)
 
     harness.solve_ribbon_shape = observe_shape
     harness._build_folded_loft = build_main
@@ -535,12 +580,17 @@ def _run_case(
         }
         for label in ("A", "B")
     }
-    if trunks:
+    if trunks and trunk_construction is TrunkConstruction.LOFT:
         report["native_paired_sides"] = budget.measure(
             "paired_side_audit", audit_rails, native=True
         )(trunks[0], observer.records, case.lines)
     else:
-        report["native_paired_sides"] = {"status": "unmeasured", "reason": "No constructed trunk."}
+        report["native_paired_sides"] = {
+            "status": "unmeasured",
+            "reason": "Sweep has only cap records, not loft station correspondence."
+            if trunks
+            else "No constructed trunk.",
+        }
     paired = report["native_paired_sides"]
     if not isinstance(paired, dict):
         raise TypeError("Native paired-side evidence must be a mapping.")

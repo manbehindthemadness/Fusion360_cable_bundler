@@ -19,6 +19,13 @@ class PrescribedTwistDiagnostic:
 
     degrees: float
 
+    @property
+    def field_description(self) -> str:
+        """
+        Describe this prescribed field accurately in native provenance.
+        """
+        return "Fixed signed global quintic diagnostic roll; no bank search."
+
     def angles(self, distances_mm: tuple[float, ...], end_angle: float) -> tuple[float, ...]:
         """
         Retain signed winding, rejecting malformed inputs or incompatible end roll.

@@ -33,18 +33,18 @@ def _document(name: str) -> adsk.core.Document:
     return matches[0]
 
 
-def start_array(budget: NativeBudget) -> None:
+def start_array(budget: NativeBudget, *, array_name: str = ARRAY_NAME) -> None:
     """
     Create one unsaved direct-design result while leaving user documents untouched.
     """
     app = adsk.core.Application.get()
     if str(app.userInterface.activeCommand) != "SelectCommand" or any(
-        d.name in (ARRAY_NAME, ARRAY_NAME + " v1") for d in app.documents
+        d.name in (array_name, array_name + " v1") for d in app.documents
     ):
         raise RuntimeError("Array exists or Fusion command active; no retry.")
     budget.check("array_document")
     document = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
-    document.name = ARRAY_NAME
+    document.name = array_name
     design = adsk.fusion.Design.cast(app.activeProduct)
     if design is None:
         raise RuntimeError("Array design unavailable; document retained.")
@@ -52,7 +52,13 @@ def start_array(budget: NativeBudget) -> None:
 
 
 def append_and_close(
-    name: str, center: Vector3, index: int, native_directory: Path, budget: NativeBudget
+    name: str,
+    center: Vector3,
+    index: int,
+    native_directory: Path,
+    budget: NativeBudget,
+    *,
+    array_name: str = ARRAY_NAME,
 ) -> dict[str, object]:
     """
     Copy one complete ribbon into its fixed slot, then close its archived scratch.
@@ -72,7 +78,7 @@ def append_and_close(
     bodies = tuple(source_design.rootComponent.occurrences.item(0).component.bRepBodies)
     if len(bodies) != 39 or not all(body.isSolid for body in bodies):
         raise RuntimeError("Incomplete native ribbon; no display import.")
-    target = _document(ARRAY_NAME)
+    target = _document(array_name)
     if not target.activate():
         raise RuntimeError("Array activation failed; documents retained.")
     design = adsk.fusion.Design.cast(app.activeProduct)
@@ -100,11 +106,11 @@ def append_and_close(
     }
 
 
-def finish_array(directory: Path, budget: NativeBudget) -> None:
+def finish_array(directory: Path, budget: NativeBudget, *, array_name: str = ARRAY_NAME) -> None:
     """
     Fit, photograph and archive the result even when remaining slots were stopped.
     """
-    document = _document(ARRAY_NAME)
+    document = _document(array_name)
     if not document.activate():
         raise RuntimeError("Array activation failed.")
     app = adsk.core.Application.get()
