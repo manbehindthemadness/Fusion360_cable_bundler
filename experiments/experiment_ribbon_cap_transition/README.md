@@ -1,5 +1,116 @@
 # Cap-transition candidate v2 — five-width development
 
+## Endpoint closure — bounded diagnostic completed2026-10-25
+
+The user finds the last two displayed trajectory runs very visually plausible.
+Retain both arrays for comparison. This observation supports preserving the
+coordinated bend/bank approach; it does not establish closure or compliance.
+
+Question: can adjusting the schedule together with forward travel close the
+same fixed endpoint poses without losing the current reference curvature bounds?
+The existing fixed-angle length allocation has separating chord witnesses on
+three spatial cases. Additional travel within that schedule cannot close them.
+
+Proposed algorithm: bounded joint schedule/travel closure, initialized from the
+existing three-turn policy. Use a free banking-plane angle for bank/turn/unbank,
+or a free in-plane factorization-axis angle for the chord-axis policy. Recompute
+the exact ordered-frame factorization and curvature floors at each update;
+the geometry may reroute, while external endpoint poses remain fixed. Distribute
+closure through the motions, without appending an endpoint patch or snapping.
+Numerical failure retains its residual and findings rather than an accepted cable.
+Keep the two analytic controls unchanged. The user approved replacing the original
+strict single-pass rule for this diagnostic only on2026-10-25.
+
+Approved fixed scope: the seven existing development cases from
+`coupled_route.cases()` (crossover, lateral90, straight, broad return, quarter_plus,
+quarter_minus, half_oblique), with their existing inputs, rules and previous
+pre-change outcomes. The three latter cases are the collateral challenges;
+they are already examined development cases, not unseen validation. At most six
+small numerical updates per case, no retries/alternative families/solid attempts;
+10s numerical,30s drawing,60s overall,2GiB sampled Fusion RSS. Freeze the precise
+update law, numerical tolerances and source/input/rule hashes before evaluation.
+Stop for a curvature-bound contradiction, control regression, source/input drift,
+resource/API failure or exhausted scope; no automatic fix or budget increase.
+
+Expected evidence: fixed-position and ordered-frame residuals, reference curvature
+and sphere findings, length-spread warnings, separate solve/audit/draw timers and
+comparison against every retained baseline, including failures. Draw center and
+both outer edges for all evaluated cases, with any remaining endpoint gaps marked.
+No native solids or complete post-build audits are proposed; native failure rate,
+native interpolation, clearance and material compliance remain unmeasured.
+Retain provenance/outcomes in memory and read results in chat; no new report file.
+Implementation frozen before matrix evaluation: `closure_schedule.py` continues
+the original family and chirality with one internal angle. `closure_allocation.py`
+projects onto nonnegative travel above unchanged curvature floors, inspecting up
+to63 algebraic supports per projection. Scalar Gauss-Newton uses central residual
+differences at+/-1e-4rad, a15degree step cap and total angle bounded to
+`pi/2-1e-4`; stop at1e-8mm closure, squared derivative<=1e-20, angle step<=1e-12rad,
+or six updates. At most19 projections/1197 supports per spatial case. Retain the
+final iterate, including worsening, without a best-of fallback or alternate family.
+`closure_native.run()` freezes all provenance in memory, uses cached old baselines
+outside new timing, preserves original solids and draws a new separate array.
+Thirteen synthetic unit checks plus sixteen existing conductor checks pass;
+changed files passed Ruff lint/format and IDE diagnostics and were fully reviewed.
+Those checks and the complete plan above preceded matrix evaluation.
+
+Seven independent cases planned/evaluated/drawn;0/7 native ribbon-solid attempts,
+builds or full post-build audits. Native failure rate unmeasured. Overall0/7
+accepted,5/7 failed connections,2/7 unresolved controls; no invalid controls,
+holdouts, skipped cases or stop-gate failures. All five spatial cases exhausted
+their six updates without closure. The two analytic controls remain unchanged.
+
+| Case | Previous diagnostic gap mm | Final gap mm | Solve ms | Audit ms | Draw ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| banked crossover | 41.658 | 22.092 | 5.527 | 18.309 | 97.313 |
+| lateral90 | 53.010 | 18.541 | 4.538 | 15.039 | 37.869 |
+| straight | 0 | 0 | 0.166 | 6.729 | 26.104 |
+| broad return | <1e-8 | <1e-8 | 0.134 | 6.844 | 22.057 |
+| quarter_plus | 40.627 | 15.157 | 4.483 | 18.454 | 40.678 |
+| quarter_minus | 36.986 | 21.372 | 4.391 | 18.436 | 40.679 |
+| half_oblique | 35.810 | 27.947 | 4.503 | 18.383 | 40.894 |
+
+These are final-iterate gaps, not successful connections or infeasibility proofs.
+Nearest positive travel alone, before any angle update, gives gaps41.628/49.420/
+15.642/21.904/35.810mm for the five spatial cases. Thus most quarter-case gain
+against the old minimum-length diagnostic comes from that projection, with only
+0.484/0.532mm further gain from angle changes. Both quarter update sequences
+oscillate; crossover and half also take worsening steps. No best iterate was
+substituted, no step policy was tuned and no further refinement was launched.
+
+Reference center macaroni ratios remain<=0.8 and analytic conductor-radius lower
+bounds>=4.5mm; sampled minima are13.380/8.433/6.211/6.272/5.480mm for the spatial
+cases. Sampled modeled width-axis curvature<=1.68e-17/mm and spatial curvature
+joins zero. Endpoint tangent/width errors<=4.59e-16. All seven sampled occupied
+sphere checks are inside71.25mm; the prior three sphere findings disappear.
+No new hard findings, and the only spatial finding is the unclosed endpoint.
+These finite reference checks do not certify the displayed cubic splines.
+
+Spatial lane-length spreads6.482/13.668/8.596/8.900/20.677% still warn against
+the1% goal; lateral90 worsens from8.576%,the other four improve. Sampled lane
+radii worsen on four spatial cases while staying above4.5mm. Material strain,
+continuous containment/clearance,native interpolation and complete compliance
+remain unmeasured. No length equalization or construction claim is supported.
+
+Work:30updates,95projections,5985algebraic supports. Total new solve23.742ms,
+audits102.196ms; numerical phase0.286864s includes source/RSS guards and excludes
+cached baseline work. Spatial solves4.391..5.527ms versus0.401..0.528ms previously:
+still small in absolute time, but a material increase rather than unchanged cost.
+Display0.492819s,archive/image0.670976s,overall2.810024s,processCPU3.817863s
+(includes Fusion host work). Maximum sampledRSS1307936KiB,final1307968KiB,
+postflight901984KiB; in-flight peak and token/cost unavailable. All approved
+limits held; seven-case scope is exhausted,with no automatic continuation.
+
+`Bounded endpoint closure - coordinated trajectories` is visible in the same
+owned design:7children,21fixed splines,five gap labels verified. Eight original
+solid identities/names/volumes unchanged; all previous arrays preserved. Only
+one project remains open. Source/input/rule hashes,baselines,iteration histories,
+outcomes and timings remain in `closure_native._state`;F3D/PNG only under
+`artifacts/verification/ribbon_cap_transition/closure_allocation/b89fa9c314d34091ad5dcf1955a3ab45/`.
+Production and historical experiment source unchanged; no new report file.
+Next bounded decision: review the residual/oscillation evidence before choosing
+a revised closure step or richer motion family; neither is authorized by unused
+wall-time headroom. This trial does not establish general endpoint feasibility.
+
 ## Three-turn schedule with conductor bounds — completed 2026-10-25
 
 `banked_schedule.py` chooses one three-turn schedule from fixed frame rotation
