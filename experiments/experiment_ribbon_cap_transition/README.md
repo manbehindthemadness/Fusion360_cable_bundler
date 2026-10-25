@@ -1,5 +1,78 @@
 # Cap-transition candidate v2 — five-width development
 
+## Three-turn schedule with conductor bounds — completed 2026-10-25
+
+`banked_schedule.py` chooses one three-turn schedule from fixed frame rotation
+and displacement: bank/turn/unbank when the net axis has a normal component;
+otherwise a chord-projected orthogonal-axis factorization. Optional straight
+travel lies at four fixed frame poses. No straight twisting or alternate strategy
+after failure. Quarter-bank chirality uses the endpoint normal offset, with a
+deterministic tie; rigid world rotation does not change this selection.
+
+`conductor_allocation.py` adds the continuous reference-lane bound
+`curvature <= A/L+C/L^2`, using tangent-rate and width-acceleration maxima and
+`|L*T+h*W'| >= L`. The length floor enforces this bound at3diameters as well as
+the original0.8 center macaroni contract. Native cubic curves do not inherit the
+reference proof. Straight/circular controls stay exact; fixed targets unchanged.
+
+`conductor_native.run()` compares the same7 development cases with the completed
+radius-only baseline,whose cached solves are excluded from new timing. One
+allocation/case,<=63 algebraic supports,zero geometric search/retries/solids;
+10s numerical/30s drawing/60s overall/2GiB sampled RSS. Stop on a lane-bound
+contradiction, control regression, source/fixture/resource/API failure. Draw all
+center/outer-edge splines and unclosed endpoint gaps; no report files,F3D/PNG only.
+Sixteen new focused checks and ten existing allocation checks pass; Ruff/format/
+IDE clean,new source reviewed. The above plan was frozen before evaluation.
+
+Seven cases planned/evaluated/drawn;0/7 native ribbon-solid attempts/builds/full
+compliance audits. Native failure rate unmeasured. Overall0/7 accepted,5/7 failed,
+2/7 unresolved controls; no invalid controls/holdouts. All five spatial outputs
+remain unclosed diagnostics. Reference conductor radius findings were removed
+on all five; this is not successful endpoint routing or native compliance.
+
+| Case | Diagnostic gap mm | Sampled minimum lane radius mm | Solve ms | Drawing ms |
+| --- | ---: | ---: | ---: | ---: |
+| banked crossover | 41.658 | 10.161 | 0.528 | 65.647 |
+| lateral90 | 53.010 | 10.835 | 0.449 | 37.598 |
+| straight | 0 | Infinite | 0.131 | 25.210 |
+| broad return | <1e-8 | 45 | 0.131 | 20.910 |
+| quarter_plus | 40.627 | 6.259 | 0.508 | 37.449 |
+| quarter_minus | 36.986 | 6.312 | 0.503 | 37.825 |
+| half_oblique | 35.810 | 6.839 | 0.401 | 39.335 |
+
+Analytic reference-lane radius lower bounds are respectively4.5/5.689/Infinite/
+45/4.5/4.5/4.5mm. Independent sampled audits found no contradiction. Modeled
+width-axis curvature remains zero (sampled floating residual<=1.87e-17/mm),
+with zero curvature at spatial joins. Crossover,lateral90,half_oblique still have
+numerical separating chord margins23.770/4.458/6.923mm within their selected
+bank-turn-unbank family. Quarter_plus/minus exhaust63 algebraic bases each;
+feasibility remains unresolved. Total126 basis checks; no alternative schedule
+or geometry retries after failure. Controls preserve exact80mm straight/R45mm return.
+
+Crossover,lateral90,half_oblique still exceed the71.25mm occupied-sphere radius
+(80.600/79.107/72.218mm sampled reach). Both quarter cases are inside the sampled
+bound. Sampled spatial lane-length spreads12.157/8.576/14.767/13.637/24.656% remain
+warnings: four worsen versus the prior9.446%,one improves. Length equalization
+was not attempted and material strain remains unmeasured.
+
+Total solve2.651ms; numerical audits88.464ms (spatial14.828..15.313ms; controls
+6.641/6.761ms). Numerical phase0.246500s includes source/RSS guards and excludes
+cached baseline work; display0.461699s,archive/image0.698796s,overall2.771100s,
+processCPU3.755418s. Maximum sampledRSS1316640KiB,final-run1316672KiB,postflight
+926144KiB; in-flight peak/token/cost unmeasured. All7/63-bases/10s math/30s draw/
+60s overall/2GiB limits held;scope exhausted. No automatic refinement.
+
+Open component: `Conductor-bounded three-turn trajectories`. Seven children,
+21 visible splines,five labelled gaps and viewport image verified. One owned
+project remains open; eight original solids retain identities,names,volumes.
+F3D/PNG only under
+`artifacts/verification/ribbon_cap_transition/conductor_allocation/c45f9abbdffc429b9b74023adfc2d927/`.
+Full source/input/rule fingerprints,cached baseline,outcomes,counters remain in
+`conductor_native._state`;no new report file. Production/historical code unchanged.
+Continuous reference-lane curvature is now bounded; native spline interpolation,
+clearance, material behavior and complete compliance remain unmeasured. Endpoint
+closure still requires a different geometric construction; no subsequent batch ran.
+
 ## Radius-bounded allocation and visible trajectories — completed 2026-10-25
 
 `bounded_travel.py` allocates nonnegative extra travel above the required segment
