@@ -77,3 +77,18 @@ def test_native_profile_metadata_uses_ribbon_construction() -> None:
     assert group.ribbon_lines == 11
     assert group.diameter_mm == 2
     assert group.cable_group_id == ribbon_group(case).cable_group_id
+
+
+def test_curved_certificate_bounds_known_midpoint_curvature() -> None:
+    """
+    Subdivision retains a conservative bound for a nonstraight regular cubic.
+    """
+    points = (
+        Vector3(0, 0, 0),
+        Vector3(0, 0, 100),
+        Vector3(100, 0, 100),
+        Vector3(100, 0, 0),
+    )
+    certificate = certify(points, 1, Vector3(50, 0, 50), 200)
+    assert certificate["certified_intervals"] > 1
+    assert 8 / 300 <= certificate["maximum_ratio"] <= 0.8

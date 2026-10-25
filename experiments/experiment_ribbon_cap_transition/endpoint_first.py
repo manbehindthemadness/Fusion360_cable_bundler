@@ -163,6 +163,11 @@ def certify(
     """
     if not all(math.isfinite(v) and v > 0 for v in (reach, radius)):
         raise ValueError("Certificate dimensions must be positive and finite.")
+    global_velocity = derivative(points)
+    global_acceleration = derivative(global_velocity)
+    straight = (
+        max(magnitude(cross(v, a)) for v in global_velocity for a in global_acceleration) < 1e-10
+    )
     pending = [(points, 0)]
     worst, count = 0.0, 0
     while pending:
@@ -170,24 +175,18 @@ def certify(
         velocity = derivative(piece)
         acceleration = derivative(velocity)
         middle = evaluate(velocity, 0.5)
-        speed = min(dot(v, unit(middle)) for v in velocity) if magnitude(middle) > 1e-12 else 0
+        direction = unit(middle) if magnitude(middle) > 1e-12 else None
+        speed = min(dot(v, direction) for v in velocity) if direction is not None else 0
+        products = tuple(cross(v, a) for v in velocity for a in acceleration)
         ratio = (
-            reach * max(magnitude(cross(v, a)) for v in velocity for a in acceleration) / speed**3
+            reach * max(magnitude(product) for product in products) / speed**3
             if speed > 1e-12
             else math.inf
         )
         inside = max(magnitude(difference(p, center)) for p in piece) + reach <= radius
-        products = tuple(cross(v, a) for v in velocity for a in acceleration)
-        global_velocity = derivative(points)
-        global_acceleration = derivative(global_velocity)
-        straight = (
-            max(magnitude(cross(v, a)) for v in global_velocity for a in global_acceleration)
-            < 1e-10
-        )
         axis = cross(evaluate(velocity, 0.5), evaluate(acceleration, 0.5))
-        regular = straight or (
-            magnitude(axis) > 1e-18 and min(dot(p, unit(axis)) for p in products) > 0
-        )
+        normal = unit(axis) if magnitude(axis) > 1e-18 else None
+        regular = straight or (normal is not None and min(dot(p, normal) for p in products) > 0)
         if ratio <= 0.8 and inside and regular:
             worst = max(worst, ratio)
             count += 1

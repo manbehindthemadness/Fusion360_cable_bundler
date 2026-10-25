@@ -23,6 +23,7 @@ import adsk.fusion
 from experiments.experiment_production_split_ribbon.sources import PROJECT_ROOT, load_sources
 from experiments.experiment_ribbon_diagnosis.storage import archive
 
+from .endpoint_first import EndpointCase
 from .endpoint_lateral import lateral_cases
 from .endpoint_native import NAME, _build, _hashes
 from .endpoint_timing import timing_values
@@ -79,11 +80,29 @@ def start() -> dict[str, object]:
     global _state
     if _state is not None:
         raise RuntimeError("Lateral batch already registered; no retry.")
+    _state = create_batch(lateral_cases(), 4, 4, (16, -64, 0))
+    return _state["plan"]
+
+
+def create_batch(
+    cases: tuple[EndpointCase, ...],
+    retained_count: int,
+    first_slot: int,
+    layout_origin_cm: tuple[float, float, float],
+) -> dict[str, Any]:
+    """
+    Register three frozen poses with an append-only layout and an in-memory plan.
+    """
+    if len(cases) != 3 or retained_count < 0 or first_slot < 0:
+        raise ValueError("A batch requires three cases and a nonnegative retained layout.")
     document, design = _design()
     baseline = _bodies(design)
-    if len(baseline) != 4 or not all(b["solid"] for b in baseline) or resident_kib() >= 2097152:
-        raise RuntimeError("Expected four retained solids below the memory ceiling.")
-    cases = lateral_cases()
+    if (
+        len(baseline) != retained_count
+        or not all(b["solid"] for b in baseline)
+        or resident_kib() >= 2097152
+    ):
+        raise RuntimeError("Retained solid count or memory ceiling differs from the plan.")
     plan = {
         "algorithm": "endpoint-quintic-binormal-v1",
         "hypothesis": "The unchanged single-pass rule can connect lateral-heading endpoint poses.",
@@ -104,7 +123,7 @@ def start() -> dict[str, object]:
         "scope": "Developmental unsplit trunks, not holdouts or complete-ribbon validation. Native internal banking, spacing and strain remain unmeasured.",
         "retention": "User requested end-of-process timing readout, no new report. Plan/outcomes retained only in host memory; combined F3D/PNG exported.",
     }
-    _state = {
+    state = {
         "plan": plan,
         "document": document,
         "builder": load_sources()["builder"],
@@ -120,13 +139,14 @@ def start() -> dict[str, object]:
             }
             for c in cases
         ],
-        "slot_offset": 4,
-        "layout_origin_cm": [16, -64, 0],
+        "cases": cases,
+        "slot_offset": first_slot,
+        "layout_origin_cm": layout_origin_cm,
         "baseline_bodies": baseline,
         "stop_reason": None,
         "finished": False,
     }
-    return plan
+    return state
 
 
 def run_next() -> dict[str, Any]:
@@ -137,6 +157,15 @@ def run_next() -> dict[str, Any]:
     geometry across MCP transactions. Any such outcome latches the scheduling stop.
     """
     state = _state
+    if state is None:
+        raise RuntimeError("No lateral batch.")
+    return run_case(state)
+
+
+def run_case(state: dict[str, Any]) -> dict[str, Any]:
+    """
+    Consume one frozen slot while preserving all failures and unattempted cases.
+    """
     if state is None or state["finished"] or state["stop_reason"]:
         raise RuntimeError("No schedulable lateral batch.")
     index = next((i for i, r in enumerate(state["rows"]) if r["status"] == "not_attempted"), None)
@@ -150,7 +179,7 @@ def run_next() -> dict[str, Any]:
             raise RuntimeError("Source or batch scheduling gate reached.")
         if not state["document"].activate():
             raise RuntimeError("Owned document activation failed.")
-        row.update(_build(lateral_cases()[index], state, index, budget))
+        row.update(_build(state["cases"][index], state, index, budget))
         budget.check("post_case")
     except (RuntimeError, ValueError, TypeError, AttributeError) as error:
         row.update(status="stopped", error=str(error))
@@ -167,6 +196,15 @@ def finish() -> dict[str, object]:
     Verify retained names/volumes and return counters; export F3D/PNG only.
     """
     state = _state
+    if state is None:
+        raise RuntimeError("No lateral batch.")
+    return finish_batch(state)
+
+
+def finish_batch(state: dict[str, Any]) -> dict[str, object]:
+    """
+    Archive a caller-owned batch and return its timing readout without report files.
+    """
     if state is None or state["finished"]:
         raise RuntimeError("No unfinished lateral batch.")
     _document, design = _design()

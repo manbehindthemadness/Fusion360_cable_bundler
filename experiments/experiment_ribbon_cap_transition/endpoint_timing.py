@@ -27,15 +27,19 @@ def _seconds(row: Mapping[str, object], key: str) -> float | None:
 
 def timing_values(row: Mapping[str, object]) -> dict[str, float | None]:
     """
-    Separate solver/preflight from profile-plus-loft construction and audit time.
+    Separate solver/preflight from authoring-plus-native construction and audit time.
 
     Geometry excludes component setup, audits, labeling, archive and display.
     A recorded partial profile/loft duration remains partial when built is false.
     """
-    section, loft = _seconds(row, "section_seconds"), _seconds(row, "loft_seconds")
+    section = _seconds(row, "section_seconds")
+    loft, sweep = _seconds(row, "loft_seconds"), _seconds(row, "sweep_seconds")
+    if loft is not None and sweep is not None:
+        raise ValueError("A timing row cannot mix loft and sweep construction.")
+    native = sweep if sweep is not None else loft
     return {
         "solver_seconds": _seconds(row, "numerical_seconds"),
-        "geometry_seconds": None if section is None else section + (loft or 0),
+        "geometry_seconds": None if section is None else section + (native or 0),
         "audit_seconds": _seconds(row, "audit_seconds"),
     }
 

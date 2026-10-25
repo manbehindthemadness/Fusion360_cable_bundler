@@ -23,9 +23,11 @@ import adsk.core
 import adsk.fusion
 
 from cable_bundler.fusion.ribbon_geometry import RibbonGuidePlane
+from cable_bundler.routing.geometry import Vector3
 from experiments.experiment_production_split_ribbon.sources import PROJECT_ROOT, load_sources
 from experiments.experiment_ribbon_diagnosis.storage import archive
 
+from .endpoint_caps import cap_matches
 from .endpoint_first import EndpointCase, construct, endpoint_cases, ribbon_group
 from .native_budget import NativeBudget, resident_kib
 
@@ -42,6 +44,7 @@ def _hashes() -> dict[str, str]:
         Path(__file__).with_name("endpoint_first.py"),
         Path(__file__).with_name("native_budget.py"),
         Path(__file__).with_name("endpoint_timing.py"),
+        Path(__file__).with_name("endpoint_caps.py"),
     ]
     paths.extend(
         PROJECT_ROOT / name
@@ -236,29 +239,33 @@ def _build(
     for sketch in sketches:
         sketch.isLightBulbOn = False
     audit_started = perf_counter()
-    cap_matches = []
+    cap_match_counts = []
     for endpoint, tangent in ((case.start, case.start_tangent), (case.end, case.end_tangent)):
         matches = 0
         for face in body.faces:
             plane = adsk.core.Plane.cast(face.geometry)
             if plane is not None:
-                normal = plane.normal
-                aligned = abs(normal.x * tangent.x + normal.y * tangent.y + normal.z * tangent.z)
-                offset = abs(
-                    (plane.origin.x - endpoint.x / 10) * tangent.x
-                    + (plane.origin.y - endpoint.y / 10) * tangent.y
-                    + (plane.origin.z - endpoint.z / 10) * tangent.z
-                )
-                if aligned > 1 - 1e-7 and offset < 1e-6:
+                box = face.boundingBox
+                if cap_matches(
+                    endpoint,
+                    tangent,
+                    Vector3(10 * plane.origin.x, 10 * plane.origin.y, 10 * plane.origin.z),
+                    Vector3(plane.normal.x, plane.normal.y, plane.normal.z),
+                    Vector3(
+                        5 * (box.minPoint.x + box.maxPoint.x),
+                        5 * (box.minPoint.y + box.maxPoint.y),
+                        5 * (box.minPoint.z + box.maxPoint.z),
+                    ),
+                ):
                     matches += 1
-        cap_matches.append(matches)
+        cap_match_counts.append(matches)
     row["native_audit"] = {
         "volume_cm3": body.volume,
-        "endpoint_plane_matches": cap_matches,
+        "endpoint_plane_matches": cap_match_counts,
         "complete_compliance": "unmeasured",
     }
     row["audit_seconds"] = perf_counter() - audit_started
-    if cap_matches != [1, 1]:
+    if cap_match_counts != [1, 1]:
         raise RuntimeError("Native endpoint plane audit failed.")
     return {"status": "built_partial_audit"}
 
