@@ -1,5 +1,35 @@
 # Cap-transition candidate v2 — five-width development
 
+## Coupled bend and orientation diagnostic — prepared 2026-10-25
+
+`coupled_motion.py` integrates positive forward travel while rotating the tangent
+and ordered width together. The rotation axis stays in their plane, enforcing
+the modeled no-edgewise-bend invariant. Quintic angle easing gives zero curvature
+and frame rate at joins. This is a kinematic construction, not elastic equilibrium
+or a measured physical corkscrew ratio.
+
+`coupled_route.py` uses one fixed three-rotation orientation factorization and one
+linear solve for three lengths. Singular or nonpositive solutions reject; there
+is no alternate-branch search, target adjustment or refinement. Straight and
+compatible planar circular controls retain their analytic geometry. Positive
+travel alone does not establish radius, spacing, strain or containment compliance.
+
+`coupled_native.run()` is prepared for seven existing development configurations:
+banked crossover, lateral90, straight, broad return, quarter_plus, quarter_minus,
+and half_oblique. It evaluates all old biarc baselines before the new procedure,
+then draws the centerline and both outer edges for constructed candidates. Failed
+position solves receive endpoint guides only. Cubic display curves approximate the
+coupled motion; they do not inherit its analytic banking guarantee. Solid sweeps
+and complete post-build compliance audits are outside this scope.
+
+Proposed limits: seven solves, no search/retry/solid attempts, 10 seconds numerical,
+30 seconds drawing, 60 seconds overall, 2 GiB sampled Fusion RSS. Stop on control
+regression, source/fixture change, resource limit or API/harness failure. Results
+stay in memory for chat readout; only F3D/PNG artifacts are exported. This scope
+awaits user agreement: zero experiment evaluations or native attempts so far.
+Twelve new focused unit checks and six prior biarc checks pass; native behavior
+is untested. Production code and historical experiment policies remain unchanged.
+
 ## Corrected longitudinal roll policy — prepared, not built
 
 **Subsequent rule check: HOLD, not a rule-compliant build candidate.** User
