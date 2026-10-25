@@ -41,6 +41,7 @@ def _hashes() -> dict[str, str]:
         Path(__file__),
         Path(__file__).with_name("endpoint_first.py"),
         Path(__file__).with_name("native_budget.py"),
+        Path(__file__).with_name("endpoint_timing.py"),
     ]
     paths.extend(
         PROJECT_ROOT / name
@@ -178,38 +179,45 @@ def _build(
     row = state["rows"][index]
     started = perf_counter()
     row["evaluated"] = True
-    frames, numerical = construct(case)
+    try:
+        frames, numerical = construct(case)
+    finally:
+        row["numerical_seconds"] = perf_counter() - started
     row["numerical"] = numerical
-    row["numerical_seconds"] = perf_counter() - started
     budget.check("component")
     design = adsk.fusion.Design.cast(adsk.core.Application.get().activeProduct)
     if design is None:
         raise RuntimeError("Owned design unavailable.")
     transform = adsk.core.Matrix3D.create()
-    transform.translation = adsk.core.Vector3D.create(0, index * 16, 0)
+    slot = index + state.get("slot_offset", 0)
+    origin = state.get("layout_origin_cm", (0, 0, 0))
+    transform.translation = adsk.core.Vector3D.create(origin[0], slot * 16 + origin[1], origin[2])
     occurrence = design.rootComponent.occurrences.addNewComponent(transform)
     component = occurrence.component
-    component.name = f"{index + 1} - {case.name}"
+    component.name = f"{slot + 1} - {case.name}"
+    row["component_name"] = component.name
     group = ribbon_group(case)
     loft_input = component.features.loftFeatures.createInput(
         adsk.fusion.FeatureOperations.NewBodyFeatureOperation
     )
     sketches = []
     profile_started = perf_counter()
-    for number, frame in enumerate(frames):
-        budget.check("section")
-        sketch, _plane = state["builder"]._add_section(
-            component,
-            None,
-            frame,
-            group,
-            adsk.core.Matrix3D.create(),
-            guide_plane=RibbonGuidePlane(frame.origin, frame.tangent),
-        )
-        sketch.name = f"{case.name} - section {number + 1:02}"
-        sketches.append(sketch)
-        loft_input.loftSections.add(sketch.profiles.item(0))
-    row["section_seconds"] = perf_counter() - profile_started
+    try:
+        for number, frame in enumerate(frames):
+            budget.check("section")
+            sketch, _plane = state["builder"]._add_section(
+                component,
+                None,
+                frame,
+                group,
+                adsk.core.Matrix3D.create(),
+                guide_plane=RibbonGuidePlane(frame.origin, frame.tangent),
+            )
+            sketch.name = f"{case.name} - section {number + 1:02}"
+            sketches.append(sketch)
+            loft_input.loftSections.add(sketch.profiles.item(0))
+    finally:
+        row["section_seconds"] = perf_counter() - profile_started
     loft_input.isSolid = True
     budget.check("loft")
     row["native_attempted"] = True
