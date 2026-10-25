@@ -1,6 +1,149 @@
 # Cap-transition candidate v2 — five-width development
 
-## Coupled bend and orientation diagnostic — prepared 2026-10-25
+## Radius-bounded allocation and visible trajectories — completed 2026-10-25
+
+`bounded_travel.py` allocates nonnegative extra travel above the required segment
+lengths. A chord-projection separating check precedes at most 63 algebraic supports
+of size 1..3; no geometry is constructed during these finite basis checks. Choose
+minimum total travel among feasible supports. Rank/tolerance exhaustion remains
+unresolved; an explicit separating margin applies only to this fixed motion family.
+
+`radius_allocation.py` retains the chord-guided schedule and derives minimum
+travel from analytic center curvature and the unchanged 0.8 macaroni contract,
+with a fixed conservative 1e-12 relative roundoff guard. It never clips negative
+coefficients or moves targets. A connecting allocation supplies a candidate;
+otherwise an explicitly unclosed trace at the required minimum lengths is kept
+for inspection. This diagnostic is not a fallback completed cable.
+
+`radius_native.run()` uses the same seven frozen development cases and cached
+displacement-guided baseline. One allocation problem/case, up to 63 linear bases,
+no geometric search/retries/solids;10s numerical/30s drawing/60s overall/2GiB
+sampled RSS. Stop on control regression, source/fixture/resource/API failure.
+Draw all seven center trajectories and both edges; mark the actual endpoint gap
+for unclosed diagnostics. Reuse numerical audits and cubic spline drawing without
+changing their limitations. Native spline banking and full ribbon compliance
+remain unmeasured. Only F3D/PNG artifacts; read counters from memory into chat.
+Ten new unit checks plus seven prior chord checks pass; Ruff/format/IDE clean.
+The above plan was frozen before evaluation; no general feasibility claim.
+
+Seven planned/evaluated/drawn, each with center and both outer-edge splines.
+0/7 native ribbon-solid attempts/builds/full compliance audits; native failure
+rate unmeasured. Overall 0/7 accepted,5/7 failed,2/7 unresolved controls. No invalid
+controls or holdouts. All five spatial outputs are **unclosed diagnostics at
+minimum center-radius travel**, not connecting ribbons or alternate accepted paths.
+
+| Case | Allocation evidence | Diagnostic endpoint gap mm | Minimum sampled lane radius mm | Solve ms | Drawing ms |
+| --- | --- | ---: | ---: | ---: | ---: |
+| banked crossover | Separating chord margin 21.027 mm | 40.072 | 0.832 | 0.632 | 108.189 |
+| lateral90 | Separating chord margin 57.442 mm | 99.631 | 6.852 | 0.547 | 54.802 |
+| straight | Original connected control | 0 | Infinite | 0.137 | 24.197 |
+| broad return | Original connected control | <1e-8 | 45 | 0.110 | 19.887 |
+| quarter_plus | 63 bases exhausted; feasibility unresolved | 27.130 | 0.129 | 1.494 | 55.718 |
+| quarter_minus | 63 bases exhausted; feasibility unresolved | 179.282 | 5.257 | 0.605 | 55.638 |
+| half_oblique | Separating chord margin 23.640 mm | 34.213 | 1.656 | 0.528 | 56.832 |
+
+Three separating witnesses have all positive extra-travel chord projections;
+required minimum travel already overshoots along the chord. This diagnoses this
+fixed motion family, not physical endpoint infeasibility. The other two cases
+remain unresolved after finite-precision basis exhaustion. Total basis checks126;
+controls bypass allocation and three cases exit through the separating check.
+
+All five diagnostic centerlines have analytic macaroni ratio0.7999999999992 and
+zero curvature at joins; modeled width-axis curvature is zero by construction
+(sampled floating residual <=1.51e-17/mm). Nevertheless crossover,quarter_plus,
+half_oblique violate the4.5mm sampled lane-radius minimum. Four diagnostics also
+exceed the71.25mm occupied-sphere radius (all except quarter_plus). All five
+have9.4456% sampled lane-length spread, a warning rather than a hard rejection.
+Rapid changes of the width frame affect lane curvature beyond the centerline
+radius bound; these observations do not certify native interpolation or strain.
+
+All solves4.054ms; all numerical audits161.099ms (controls6.514/6.707ms, spatial
+diagnostics29.497..29.771ms). Numerical phase0.306983s includes source/RSS guards
+and excludes cached baseline work; drawing0.602952s, archive/image0.642311s,
+overall2.926402s, processCPU3.817024s. Maximum sampledRSS1085760KiB, final-run
+1085760KiB, postflight853488KiB; in-flight peak and token/cost unmeasured.
+All7/63-bases/10s math/30s display/60s overall/2GiB limits held;scope exhausted.
+No geometric retries, target moves, bound relaxation or further refinement.
+
+Open component: `Radius-bounded trajectories - connected or unclosed` in the
+single owned candidate project. Verified seven children,21 visible fixed splines,
+five labelled endpoint-gap guides, and viewport image. All eight original solids
+retain identities,names,volumes. Only F3D/PNG artifacts under
+`artifacts/verification/ribbon_cap_transition/radius_allocation/3725d7e6d8b4437089f54c7674fe5088/`.
+Full source/input/rule fingerprints,cached baseline,counters and outcomes remain
+in `radius_native._state`; no report file. Production/historical sources unchanged.
+The next construction needs a different bend/roll schedule and lane-curvature
+control; length allocation within this fixed family did not produce a spatial
+connection. No new construction or batch automatically launched.
+
+## Displacement-guided coupled motion — completed 2026-10-25
+
+`chord_coupled.py` selects a chord heading and transported endpoint-width bisector
+as an intermediate frame. Two three-motion orientation legs and one chord-aligned
+straight motion replace the single three-motion schedule. The primitive oblique
+basis is unchanged. Seven lengths follow one unconstrained minimum-deviation
+linear projection around equal nominal chord-length allocations. Nonpositive
+travel or singular systems reject; no clipping, alternate branch or active-set
+search. Compatible analytic planar controls retain the original construction.
+
+`chord_native.run()` uses the same seven fixed development cases and the completed
+in-memory three-motion baseline, verifying original source/input fingerprints.
+Cached baseline solving is excluded from current timers. One new solve per case,
+no search/retry/solids,10s numerical/30s drawing/60s overall/2GiB sampled RSS;
+stop on control regression, source/fixture/resource/API failure. Reuse the original
+numerical audits and center/edge drawing unchanged. Known numerical failures may
+be displayed diagnostically; unconstructed routes get endpoint guides only.
+No new report files; results remain in memory, with F3D/PNG artifacts only.
+Seven new unit checks and twelve existing primitive/route checks pass; Ruff,
+format and IDE checks clean. The above procedure was frozen before evaluation.
+
+Seven planned/evaluated; 0/7 native ribbon-solid attempts/builds/full compliance
+audits. Native failure rate unmeasured. Overall 0/7 accepted, 5/7 failed, 2/7
+unresolved controls; no invalid controls or untouched validation cases. All five
+spatial poses still reject because the unconstrained length projection returns
+nonpositive travel. Lane/envelope audits were skipped on those five cases.
+
+| Case | Negative travel lengths mm | Solve ms | Guide drawing ms |
+| --- | --- | ---: | ---: |
+| banked crossover | -2.650 | 0.395 | 8.974 |
+| lateral90 | -5.979, -18.241 | 0.300 | 8.712 |
+| straight | None; original geometry preserved | 0.119 | 18.336 |
+| broad return | None; original geometry preserved | 0.089 | 18.005 |
+| quarter_plus | -0.554 | 0.291 | 8.456 |
+| quarter_minus | -16.194, -15.711 | 0.313 | 8.159 |
+| half_oblique | -2.550, -0.655, -1.281 | 0.274 | 8.801 |
+
+Straight remains 80 mm and the return radius remains 45 mm. Both retain zero
+modeled width-axis curvature and sampled lane-length spread; the return has
+macaroni ratio 0.320434 and sampled lane radius 45 mm. Their numerical audits
+took 6.584/6.716 ms. Only these two controls have center and both edge splines;
+all five spatial failures show endpoint guides only. No new spatial route exists.
+
+New solves total 1.781 ms. Numerical phase 0.152249 seconds includes memory/source
+guards but excludes cached baseline work; array drawing 0.249336 seconds,
+archive/image 0.696245 seconds, overall 2.451453 seconds, process CPU 3.393508
+seconds. Maximum sampled RSS 840160 KiB, final-run 833264 KiB, postflight 735936
+KiB; in-flight peak and token/cost unmeasured. All limits held. Scope exhausted;
+no negative-length clipping, additional allocations, searches or retries ran.
+
+New component: `Chord-guided coupled motion - three guide diagnostic`. Seven
+children/six visible fixed splines and the viewport image were verified. One
+owned document remains open; all eight original solids retain identities, names
+and volumes. Only F3D/PNG artifacts were written under
+`artifacts/verification/ribbon_cap_transition/chord_coupled/99ff1845c2424bbab2a62cae18e25c22/`.
+Full source/input/rule fingerprints, cached baseline and results are retained in
+`chord_native._state`; no report file. Production and historical sources unchanged.
+
+This does not establish whether the seven-motion basis has any positive allocation:
+an unconstrained minimum-deviation result outside the positive region is not a
+proof that the feasible region is empty. Smaller negative numbers are not geometry
+progress. Before another geometry round, a useful next question is whether forward
+travel and analytic curvature-based minimum segment lengths can be satisfied
+together within the frozen motion family. That constrained allocation is not
+implemented or authorized as an automatic retry here. Native banking, continuous
+lane/clearance/strain/compliance and broader routing feasibility remain unmeasured.
+
+## Coupled bend and orientation diagnostic — completed 2026-10-25
 
 `coupled_motion.py` integrates positive forward travel while rotating the tangent
 and ordered width together. The rotation axis stays in their plane, enforcing
@@ -22,13 +165,53 @@ position solves receive endpoint guides only. Cubic display curves approximate t
 coupled motion; they do not inherit its analytic banking guarantee. Solid sweeps
 and complete post-build compliance audits are outside this scope.
 
-Proposed limits: seven solves, no search/retry/solid attempts, 10 seconds numerical,
+Approved limits: seven solves, no search/retry/solid attempts, 10 seconds numerical,
 30 seconds drawing, 60 seconds overall, 2 GiB sampled Fusion RSS. Stop on control
 regression, source/fixture change, resource limit or API/harness failure. Results
 stay in memory for chat readout; only F3D/PNG artifacts are exported. This scope
-awaits user agreement: zero experiment evaluations or native attempts so far.
-Twelve new focused unit checks and six prior biarc checks pass; native behavior
-is untested. Production code and historical experiment policies remain unchanged.
+completed with seven cases evaluated, zero native ribbon-solid attempts/builds
+and zero full post-build compliance audits. Native failure rate is unmeasured.
+Overall: 0/7 accepted, 5/7 failed, 2/7 unresolved controls; no invalid controls or
+untouched holdouts. All seven old biarc baselines preceded the new solves.
+
+| Case | New numerical outcome | Solve ms | Guide drawing ms |
+| --- | --- | ---: | ---: |
+| banked crossover | Rejected: middle travel -44.309 mm | 0.217 | 28.458 |
+| lateral90 | Rejected: middle travel -88.694 mm | 0.198 | 7.799 |
+| straight | Preserved; compliance unresolved | 0.091 | 27.181 |
+| broad return | Preserved; compliance unresolved | 0.134 | 17.762 |
+| quarter_plus | Rejected: middle travel -298.442 mm | 0.170 | 7.760 |
+| quarter_minus | Rejected: first/middle travel -123.081/-111.197 mm | 0.196 | 8.494 |
+| half_oblique | Rejected: middle travel -50.222 mm | 0.158 | 9.223 |
+
+Five rejected cases have endpoint guides only; their lane/envelope audits were
+not attempted. The two controls have center and both edge splines. Straight
+length remains 80 mm; the return remains radius 45 mm, with analytic macaroni
+ratio 0.320434 and sampled lane radius 45 mm. Both controls have zero modeled
+width-axis curvature and zero sampled lane length spread. These are mathematical
+checks, not native ribbon compliance. Cubic guide interpolation remains approximate.
+
+All solves totaled 1.165 ms; control numerical audits were 6.340/6.590 ms.
+Numerical phase including baselines, RSS and source guards: 0.277486 seconds;
+array drawing 0.335906 seconds; archive/image 0.639861 seconds; overall 2.593273
+seconds. Process CPU 3.476708 seconds includes Fusion host work. Maximum sampled
+RSS 1051680 KiB; postflight 875920 KiB; in-flight peak and token/cost unmeasured.
+All limits held, with no search, retries or automatic refinement. Scope exhausted.
+
+One owned candidate document remains open, with eight original solids unchanged.
+The new component is `Coupled bend and rotation - three guide diagnostic`.
+F3D/PNG evidence: `artifacts/verification/ribbon_cap_transition/coupled_guides/8000ff21fd974830aea81e13ba205b5a/`.
+Source/input/rule fingerprints and full outcomes remain in `coupled_native._state`;
+no report file was generated. The viewport and seven children/six splines were
+verified. Twelve new focused unit checks and six prior biarc checks remain passing;
+unchanged code checks were not repeated. Production and historical policies remain
+unchanged. Full native banking, clearance, strain and compliance remain unmeasured.
+
+The fixed oblique axes enforce coupled motion, but selecting their orientation
+sequence before accounting for endpoint displacement overrestricts routing.
+Negative travel rejects this basis for these five poses; it does not establish
+physical infeasibility. A next construction needs displacement to participate in
+axis selection. No revised construction or further batch was launched.
 
 ## Corrected longitudinal roll policy — prepared, not built
 
