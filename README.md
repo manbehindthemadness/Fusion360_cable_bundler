@@ -6,6 +6,8 @@ and cable-solid generation. Near-term work should preserve that behavior while c
 - keeping the focused automated suite and live Fusion checks aligned with current product behavior;
 - validating the add-in on Windows when a suitable Fusion host becomes available;
 - profiling large harnesses and tightening only demonstrated routing or diagram bottlenecks;
+- developing endpoint-first ribbon routing through combined turn-and-roll cases, followed by
+  native banking, spacing, cap-flow and complete split-ending checks with separate solve/build timing;
 - improving recovery and diagnostics for damaged external Fusion references; and
 - packaging and release documentation once distribution requirements are settled.
 
