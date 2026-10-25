@@ -1,5 +1,158 @@
 # Cap-transition candidate v2 — five-width development
 
+## Developable material reference — trial stopped during audit
+
+`material_strip.py` implements an unstretched finite-width midsurface reference.
+For angular axis `a*T+b*W`, `eta=a/b` gives `W_s=-eta*T_s` and oblique rulings
+`W+eta*T`. Pure twist has no finite compatible ruling in this family. On turns,
+eta is constant; straight spans transition eta linearly. The reference terminal
+eta values are zero, preserving normal terminal width guides and ordered poses.
+
+Material coordinates are essential: `x=s+v*eta(s)` and
+`R(x,v)=r(s)+v*(W(s)+eta(s)*T(s))`. Differentiation gives `R_x=T`, `R_v=W`, so
+the local metric is the unstretched rectangular metric. Merely drawing rulings
+with unshifted longitudinal coordinates would not establish that property.
+Lane-specific span boundaries invert this mapping algebraically. Every analytical
+reference lane has the same freely selected total travel; no length repair is
+performed. Interior constant-material-x cross-sections can curve in3D.
+
+`material_policy.py` prepares the existing seven-motion ordering with finite-width
+regularity `1-half_width*|delta_eta|/L>0`. On turns the nonzero principal surface
+curvature is `k_center*(1+eta^2)`, so predominantly twisting motion has a large
+curvature cost even with a nearly straight center. The policy conservatively
+extends the0.8 enclosing-reach budget to this reference surface curvature and
+retains previous travel floors. Numerical radius/coordinate guards are not
+calibrated material strain thresholds. Thick conductors, finite conductor
+clearance/spacing, global self-intersection, native interpolation, elasticity and
+manufacturability remain unmeasured.
+
+Model references: [ribbon geometry](https://pmc.ncbi.nlm.nih.gov/articles/PMC9371672/)
+and the distinction between developability and isometric material mapping in
+[Fosdick and Fried](https://pmc.ncbi.nlm.nih.gov/articles/PMC5014118/).
+The implementation includes the explicit material-coordinate map above.
+
+Twelve synthetic focused tests cover lane derivatives, metric, terminal identity,
+finite-width singularities, incompatible rulings, near-straight twisting and
+principal-curvature floors. These are code-contract tests, not complete cable
+geometry coverage. The user approved curved interior material cross-sections for
+this experiment on2026-10-25; exact terminal sections remain required. The core
+is integrated into `material_allocation`/`material_native`; production and historical
+solvers remain unchanged. The approved diagnostic retains the same7development
+inputs and cached pre-change baselines,<=6updates per case,zero solids/retries,
+10s numerical/30s drawing/60s overall/2GiB sampledRSS,all center/outer guides drawn.
+Existing stopping and comparison gates remain. The section change supersedes the
+historical undeformed-planar-interior-section rule for this trial only.
+
+Frozen procedure: initialize the same three-turn family at angle0; project travel
+above material-policy floors and perform<=6 scalar Gauss-Newton updates. Reuse
+the prior1e-4rad central derivative,15degree step cap,total angle<90degrees,
+1e-8mm closure and numerical stationarity thresholds;<=19projections and1197
+algebraic supports per spatial case. Final iterates retained,zero retries/fallback
+or target movement. Exact straight/return controls retained. The three collateral
+quarter+/quarter-/half inputs and both triggers remain examined development cases,
+not holdouts; prior closure outcomes are cached pre-change baselines.
+
+`material_guides.audit` checks analytic material-lane and principal curvature,
+finite-width Jacobians and65samples per span on center plus two material edges.
+This is different sphere coverage from the old center-plus-profile-reach check;
+old normal-section lane-length spreads are not recomputed against new geometry.
+Full-width containment,thick conductor spacing/native strain remain unmeasured.
+`material_display` draws32cubic Hermite spans per lane-specific material interval.
+Planned display:all7cases,including unclosed/over-sphere failures. Separate display-only grid
+spacing is derived from output extents to avoid overlaps; local solver inputs do
+not move. F3D/PNG only; hashes,plans,baselines,outcomes,timings remain in memory.
+Source/input/rule hashes frozen before matrix evaluation. Stop on material-bound
+contradiction,control regression,source/resource/API failure;no automatic repair.
+No ribbon solid attempts or full native compliance audits authorized.
+
+Execution:7planned,2shape solves,1completed numerical evaluation,1interrupted
+evaluation,5unattempted.0/7 native ribbon-solid attempts/builds/full audits;
+native failure rate unmeasured. No accepted case:01has known numerical failures,
+02is harness-interrupted and unresolved,03..07remain unattempted. No invalids
+or holdouts;all are examined development inputs. Source/input/rule hashes passed.
+
+| ID | Case | Outcome | Gap mm | Solve ms | Numerical audit ms |
+| --- | --- | --- | ---: | ---: | ---: |
+| 01 | banked crossover | Numerical findings; cached guides displayed | 120.631 | 29.301 | 180.959 |
+| 02 | lateral90 | Sampling harness error; no guides drawn | 184.414 | 24.353 | Incomplete/unmeasured |
+| 03 | straight | Unattempted after stop | Unmeasured | Unmeasured | Unmeasured |
+| 04 | broad return | Unattempted after stop | Unmeasured | Unmeasured | Unmeasured |
+| 05 | quarter_plus | Unattempted after stop | Unmeasured | Unmeasured | Unmeasured |
+| 06 | quarter_minus | Unattempted after stop | Unmeasured | Unmeasured | Unmeasured |
+| 07 | half_oblique | Unattempted after stop | Unmeasured | Unmeasured | Unmeasured |
+
+Stop reason:`Material distance must lie within the strip length.` Fusion uses
+Python3.14,whose sum can differ from incremental floating-point accumulation.
+Saved lateral lower-bound lengths total303.91450087387034mm versus incremental
+303.9145008738704mm,a5.684e-14mm difference. `MaterialStrip.length_mm` uses sum
+while `boundaries` accumulates incrementally;the strict coordinate guard can
+reject the resulting terminal boundary. No tolerance relaxation,source fix or
+solver restart occurred after the gate. The28focused tests (15material/13closure)
+ran under localPython3.9 and missed this runtime difference. Ruff/format/IDE clean;
+all new source fully reviewed. FullQA and complete native compliance unrun.
+
+Case01 principal ratio0.7999999999992,material lane radius>=23.013mm,ordered
+frame errors<=5.2e-16,sampled speed error4.44e-16. Reference common lane travel
+217.507mm is a midsurface isometry property,not measured native equality. Minimum
+material Jacobian~1e-12 is near singular,an additional conditioning concern.
+Its sampled occupied reach152.797mm exceeds71.25mm;gap120.631mm worsens from
+22.092mm,so it remains failed. Case02 gap184.414mm worsens from18.541mm,but
+its audit is incomplete;no physical/native verdict inferred. Both used6updates/
+19projections each,total12updates/38projections/2394supports. Other cases unused.
+
+Stopped-phase solve53.654ms;only01audit completed,180.959ms. Batch elapsed
+2.275169s,CPU0.404204s;failed-audit time and numerical-phase total were not
+separately retained. Maximum sampledRSS431264KiB,final431280KiB. The planned
+array/display/archive was never reached;unused scope is not automatically renewed.
+
+After the user requested visible example numbers,the one completed cached plan
+was displayed as01without another solve/configuration or source repair. Three
+material guide splines,target guides,labelled gap and visible text01 verified.
+This is display of existing stopped-run evidence,not a resumed solver trial.
+Cached guide drawing0.367573s;archive/image0.708309s;display operation3.820660s
+including setup,number,camera and guards. PostflightRSS861872KiB;in-flight peak
+and token/cost unavailable. These timings exclude diagnostic/tool orchestration.
+
+One project remains open,8original solids and all previous arrays retained.
+Visible:`01 - material crossover - cached stopped-trial diagnostic`. F3D/PNG only:
+`artifacts/verification/ribbon_cap_transition/material_strip/stopped_inspection/ee1e850e5e7c44cc9c69a9bbde74e5aa/`.
+Hashes,baseline,rows and display metadata remain in `material_native._state`;
+completed reference plan in `_plans[0]`. No report file or production changes.
+Next bounded decision:consistent material-coordinate accumulation and aFusion3.14
+regression check,then renewed scope. Ruling conditioning and closure remain
+unresolved;no general validity,construction preservation or speed milestone.
+
+## Physical compatibility gap identified after the closure trial
+
+The user identified rotating outer paths around a visually near-straight center
+in the latest output. Read-only inspection of the existing quarter_plus spline
+finds a sampled maximum3D departure of0.725mm from its own endpoint chord;
+quarter_minus is1.301mm. These are sampled deviations, not continuous maxima.
+Saved reference lengths are80.048mm center/87.575mm outer conductor for plus,
+75.143/82.484mm for minus. No new solve, audit batch or geometry was run.
+
+The exact-straight-twist rejection in both the baseline and closure schedules
+only requires `|axis cross tangent| > 1e-10` for nonzero rotations. It does not
+enforce meaningful twist/bend compatibility. The plus first/last rotations have
+roll-axis component0.99518 and bend-axis component0.09802: each44.862degree
+rotation produces only4.397degrees of integrated tangent turning. Minus gives
+0.98683/0.16178 and7.219degrees of tangent turning per44.620degree rotation.
+The defect is latent in the original admissibility rule; closure is free to use
+weakly bending, predominantly twisting motions. This is a physical-model gap,
+not evidence that Fusion omitted the requested reference center curve.
+
+The historical curvature and sphere results below remain results of those named
+checks. Their absence of findings does not establish the missing physical
+compatibility; all spatial connections already remain failed. A twist-vs-bend
+relation and local material compatibility must be modeled before treating these
+outputs as physically plausible cables. In the current perpendicular-width model,
+an offset lane has speed `sqrt(1+h^2*|dW/ds|^2)` when the no-edgewise-bend condition
+holds. Centerline curvature alone therefore does not remove local excess lane
+travel. Developable-strip kinematics or an explicit stretching/shear model needs
+evaluation; an arbitrary nonzero bend or total-length adjustment is insufficient.
+No numerical threshold, new hard-rule implementation or further batch is approved
+or executed by this diagnosis. Preserve the latest failed outputs as evidence.
+
 ## Endpoint closure — bounded diagnostic completed2026-10-25
 
 The user finds the last two displayed trajectory runs very visually plausible.
