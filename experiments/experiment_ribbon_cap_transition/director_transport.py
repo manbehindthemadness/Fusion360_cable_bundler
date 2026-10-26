@@ -25,11 +25,16 @@ def rate(field: DirectorField, state: State, u: float) -> State:
     Return normalized-coordinate rates of position,tangent and material width.
     """
     k, eta, _ = field.sample(u)
+    return motion_rate(state, field.length_mm, k * field.length_mm, eta)
+
+
+def motion_rate(state: State, length: float, bend: float, eta: float) -> State:
+    """
+    Return frame rates for positive center progress and signed tangent turning.
+    """
     tx, ty, tz = state[3:6]
     wx, wy, wz = state[6:9]
     nx, ny, nz = wy * tz - wz * ty, wz * tx - wx * tz, wx * ty - wy * tx
-    length = field.length_mm
-    bend = k * length
     return (
         length * tx,
         length * ty,
@@ -40,6 +45,57 @@ def rate(field: DirectorField, state: State, u: float) -> State:
         -bend * eta * nx,
         -bend * eta * ny,
         -bend * eta * nz,
+    )
+
+
+def material_lane(
+    state: State, derivative: State, offset_mm: float, eta: float, eta_u: float
+) -> tuple[Vector3, Vector3]:
+    """
+    Differentiate a material ruling using the actual dense-output parameter rates.
+    """
+    p = tuple(state[j] + offset_mm * (state[j + 6] + eta * state[j + 3]) for j in range(3))
+    v = tuple(
+        derivative[j]
+        + offset_mm * (derivative[j + 6] + eta * derivative[j + 3] + eta_u * state[j + 3])
+        for j in range(3)
+    )
+    return Vector3(*p), Vector3(*v)
+
+
+def interpolate_pose(
+    states: tuple[State, ...], rates: tuple[State, ...], u: float
+) -> tuple[State, State]:
+    """
+    Evaluate matching integrated states and rates with cubic Hermite dense output.
+    """
+    if not math.isfinite(u) or not 0 <= u <= 1:
+        raise ValueError("Director fraction must lie within[0,1].")
+    steps = len(states) - 1
+    index = min(int(u * steps), steps - 1)
+    t = u * steps - index
+    h = 1 / steps
+    basis = (
+        2 * t**3 - 3 * t * t + 1,
+        (t**3 - 2 * t * t + t) * h,
+        -2 * t**3 + 3 * t * t,
+        (t**3 - t * t) * h,
+    )
+    derivative = (
+        (6 * t * t - 6 * t) / h,
+        3 * t * t - 4 * t + 1,
+        (-6 * t * t + 6 * t) / h,
+        3 * t * t - 2 * t,
+    )
+    rows = (
+        states[index],
+        rates[index],
+        states[index + 1],
+        rates[index + 1],
+    )
+    return (
+        tuple(sum(b * row[j] for b, row in zip(basis, rows)) for j in range(9)),
+        tuple(sum(b * row[j] for b, row in zip(derivative, rows)) for j in range(9)),
     )
 
 
@@ -61,34 +117,7 @@ class DirectorPath:
         """
         Evaluate the interpolated pose and its parameter derivative on[0,1].
         """
-        if not math.isfinite(u) or not 0 <= u <= 1:
-            raise ValueError("Director fraction must lie within[0,1].")
-        steps = len(self.states) - 1
-        index = min(int(u * steps), steps - 1)
-        t = u * steps - index
-        h = 1 / steps
-        basis = (
-            2 * t**3 - 3 * t * t + 1,
-            (t**3 - 2 * t * t + t) * h,
-            -2 * t**3 + 3 * t * t,
-            (t**3 - t * t) * h,
-        )
-        derivative = (
-            (6 * t * t - 6 * t) / h,
-            3 * t * t - 4 * t + 1,
-            (-6 * t * t + 6 * t) / h,
-            3 * t * t - 2 * t,
-        )
-        rows = (
-            self.states[index],
-            self.rates[index],
-            self.states[index + 1],
-            self.rates[index + 1],
-        )
-        return (
-            tuple(sum(b * row[j] for b, row in zip(basis, rows)) for j in range(9)),
-            tuple(sum(b * row[j] for b, row in zip(derivative, rows)) for j in range(9)),
-        )
+        return interpolate_pose(self.states, self.rates, u)
 
     def lane(self, u: float, offset_mm: float) -> tuple[Vector3, Vector3]:
         """
@@ -102,13 +131,7 @@ class DirectorPath:
         state, derivative = self.pose(u)
         _, eta, eta_s = self.field.sample(u)
         eta_u = eta_s * self.field.length_mm
-        p = tuple(state[j] + offset_mm * (state[j + 6] + eta * state[j + 3]) for j in range(3))
-        v = tuple(
-            derivative[j]
-            + offset_mm * (derivative[j + 6] + eta * derivative[j + 3] + eta_u * state[j + 3])
-            for j in range(3)
-        )
-        return Vector3(*p), Vector3(*v)
+        return material_lane(state, derivative, offset_mm, eta, eta_u)
 
 
 def integrate(

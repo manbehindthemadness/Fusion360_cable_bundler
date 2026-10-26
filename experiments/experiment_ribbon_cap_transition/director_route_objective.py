@@ -11,7 +11,7 @@ from enum import Enum
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 
-from .director_transport import DirectorPath
+from .director_path_contracts import FramedPath
 from .endpoint_first import EndpointCase
 
 
@@ -24,21 +24,21 @@ class SearchDomain(Enum):
     FREE = "free-with-fold-penalty"
 
 
-def regular_penalties(case: EndpointCase, path: DirectorPath) -> tuple[float, ...]:
+def regular_penalties(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     """
     Keep the existing regular-chart search entry point and its rejection contract.
     """
     return _penalties(case, path, SearchDomain.REGULAR)
 
 
-def free_penalties(case: EndpointCase, path: DirectorPath) -> tuple[float, ...]:
+def free_penalties(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     """
     Penalize invalid search iterates without certifying or drawing them as ribbons.
     """
     return _penalties(case, path, SearchDomain.FREE)
 
 
-def _penalties(case: EndpointCase, path: DirectorPath, domain: SearchDomain) -> tuple[float, ...]:
+def _penalties(case: EndpointCase, path: FramedPath, domain: SearchDomain) -> tuple[float, ...]:
     """
     Add33station curvature/radius/containment penalties with conservative goals.
 

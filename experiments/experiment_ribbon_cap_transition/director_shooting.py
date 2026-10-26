@@ -17,6 +17,7 @@ from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magn
 
 from .coupled_motion import orientation_angles
 from .director_constrained_step import constrained_step
+from .director_path_contracts import FramedPath
 from .director_rotation_transport import integrate_rotation
 from .director_route_objective import free_penalties, regular_penalties
 from .director_route_seed import corkscrew_seed
@@ -261,7 +262,7 @@ def seed(case: EndpointCase, method: SeedMethod = SeedMethod.OBLIQUE) -> tuple[f
     return bounded(tuple(bend) + (-0.5, 0.0, 0.0, -5 / 6, max(1.5, min(3.0, 200 / distance))))
 
 
-def endpoint_metrics(case: EndpointCase, path: DirectorPath) -> dict[str, float]:
+def endpoint_metrics(case: EndpointCase, path: FramedPath) -> dict[str, float]:
     """
     Measure actual A-edge arrival before companion compatibility or native drawing.
     """
@@ -279,7 +280,7 @@ def endpoint_metrics(case: EndpointCase, path: DirectorPath) -> dict[str, float]
     }
 
 
-def residual(case: EndpointCase, path: DirectorPath) -> tuple[float, ...]:
+def residual(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     """
     Build a dimensionless A-position/material-frame closure residual,not an energy.
 

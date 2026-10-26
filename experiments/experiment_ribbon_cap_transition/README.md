@@ -1,5 +1,156 @@
 # Cap-transition candidate v2 — five-width development
 
+## Compatible-edge chart — completed bounded comparison, 2026-10-26
+
+Implementation: `compatible_strip.py` and `compatible_shooting.py`, using shared
+variable-progress unit-rotation transport. This experimental coordinate chart
+builds positive material progress and existing local curvature limits into each
+field before endpoint scoring. It is neither an elastic equilibrium model nor a
+classification of the physical outside edge of a turn event. Centerline rerouting
+is allowed; endpoints, terminal axes, dimensions and material order remain fixed.
+
+User approved this scope and autonomous continuation for the session: ten examined development
+configurations 03/17/38/07/08/11/12/13/27/28, in that order. The first three retain
+distinct passing collateral baselines; previous live ledgers supply pre-change
+results. Select inputs by their stored display-number mapping and assert identity,
+never by array index. No fresh holdouts or native-baseline claims are supplied.
+Freeze source and full input fingerprints before the first solve in a fresh module
+namespace; preserve historical modules, ledgers, views and geometry.
+
+Same procedure for every case: 46 direct generic/geometry-derived seed screens,
+then at most 254 endpoint/policy evaluations in 18 coarse and 3 fine rounds.
+Ten coordinates describe five bend modes, four ruling modes and carrier budget.
+No stored witness, target movement, endpoint snapping or post-solve shape repair.
+Analytic material Jacobian is greater than 0.1, center curvature times reach less
+than 0.78, and lane radius greater than 3.1 conductor diameters. These are internal
+margins on the active 0/0.8/3D checks; the stronger both-edge full-reach hypothesis
+is not adopted. The existing five-width sphere remains active. Length accuracy
+remains a goal. Contact, equilibrium and complete connection compliance stay open.
+
+Limits: 10 seconds per case including numerical measurement, 120 seconds cumulative
+active numerical work, 2 GiB sampled Fusion RSS, zero native attempts. Review case
+03 calibration before scheduling the remainder; stop on a collateral regression,
+intrinsic-bound violation, source/input drift, harness error or resource limit.
+No automatic refinement, alternate policy or budget renewal. Retain all failed and
+unattempted IDs. Measure solve, independent sampled checks, display and total time
+separately. Use the shared analysis instrument on actual variable-speed paths;
+legacy constant-material-speed audits are inapplicable. Draw completed numbered
+paths in the existing owned scratch; no new report files or production changes.
+
+Calibration solve 03 completed in 0.609054 s, then the auxiliary off-grid audit
+stopped on a harness AttributeError (`Vector3.scaled` is unavailable). Preserve
+`_compatible28` unchanged. Under the user's explicit session autonomy, a fresh
+`_compatible28b` audit uses explicit vector multiplication and the cached 03 path
+and metrics, with no repeat solve. Remaining cases retain the identical solver,
+inputs and limits. Record this harness failure separately from geometry outcomes.
+
+After the ten fixed fits, inspect each frozen A/center/B cubic at both ends and
+midpoint of each segment (no additional fitting). Compare 256/512 transport at
+129 fixed off-grid stations for those three paths; record error without inventing
+a new acceptance tolerance. Bound this numerical follow-up at 30 active seconds,
+2 GiB sampled RSS, zero native attempts; total remains within the 120 s scope.
+Draw the ten numbered frozen results once, with target gaps for failed fits.
+
+Bounded contact follow-up: the five numerical passes 03/17/38/27/28, 129 and 257
+full-width rulings each, using existing `edge_clearance.screen` unchanged. Integrate
+actual variable center progress by composite Simpson for flat material coordinates;
+never use carrier budget as constant material arc length. At most 10 active seconds
+and 2 GiB RSS, no solves/native operations. Retain the existing 2D search horizon
+and 3D local-material exclusion, where D is conductor diameter. This sampled
+diagnostic excludes local pairs and can miss interstation contacts; it cannot
+certify clearance. No mesh all-pairs audit or automatic geometry repair.
+
+Results: 10 planned / 10 numerically evaluated / 0 native attempts / 0 built /
+0 fully audited. Five pass the named numerical checks, five unsuccessful fits;
+none skipped or unattempted. All ten remain unresolved as complete physical/native
+ribbons. No invalid-control classification or new holdout validation was attempted.
+Controls 03/17/38 preserved, and previously unsuccessful coils 27/28 now close.
+This compares procedures, not an isolated ablation: the compatible chart, direct
+seed screening and carrier-length interpretation changed together.
+
+| Case | A-edge target error mm | Solve s | Sampled analysis s | Numerical disposition |
+| --- | ---: | ---: | ---: | --- |
+| 03 spatial reversal | 4.84e-13 | 0.609 | 0.310 | pass; retained control |
+| 17 banked arc | 1.27e-12 | 0.476 | 0.185 | pass; retained control |
+| 38 multiple reversals | 5.34e-9 | 0.499 | 0.183 | pass; retained control |
+| 07 crossover | 1.740 | 0.963 | 0.222 | target/frame miss |
+| 08 lateral turn | 14.726 | 0.914 | 0.219 | target/frame miss; sphere excess 0.262 mm |
+| 11 positive quarter | 27.297 | 0.922 | 0.224 | target/frame miss; sphere excess 1.183 mm |
+| 12 negative quarter | 58.602 | 0.939 | 0.223 | target/frame miss; sphere excess 0.040 mm |
+| 13 oblique half turn | 8.982 | 0.905 | 0.222 | target/frame miss |
+| 27 coil | 3.63e-13 | 0.475 | 0.237 | pass; newly closed |
+| 28 coil | 4.68e-12 | 0.613 | 0.180 | pass; newly closed |
+
+All ten have zero sampled intrinsic red regions. Minimum J across this matrix is
+0.310662, maximum center ratio 0.704169, maximum lane curvature times 3D 0.705579.
+The actual A/center/B cubics also have no sampled curvature violations; their
+target/sphere findings retain the table's five failures. These three guides are
+not an all-conductor/native audit. 256/512 transport differences at 129 off-grid
+stations are 0.0000162–0.0028472 mm; sampled passes are at most 0.0002258 mm.
+The largest measured off-grid derivative/model relative difference is 0.001110.
+These report finite interpolation error, not continuous guarantees.
+
+The 129/257 ruling screens detect no eligible remote contact in the five passes.
+27 has the closest retained eligible witness: endpoint rulings 1.455641 mm apart
+for diameter 0.9 mm. Local exclusions and longitudinal sampling remain limitations;
+no equilibrium, strain, insulation-bond or continuous contact proof is supplied.
+
+Performance: ten fresh fits total 7.315733 s; sampled analysis plus frozen guides
+2.203453 s; independent cubic/grid review 8.337703 s; ruling contact review
+3.654041 s. Diagnostic graphics authoring totals 0.393917 s (0.028–0.062 s/case),
+inside 2.712446 s display/capture work. These are separate stage sums, not native
+build times; end-to-end orchestration wall time and token/cost usage are unmeasured.
+One initial calibration audit failed after its sole solve (0.783214 s work), then
+its cached path was re-audited. A second review setup failed before measurements
+because TracePath has no offset field; the corrected review derives offset from
+permanent trace identity. Both failures are retained; no shape solve was retried.
+Total measured numerical work including the first stopped audit is 21.686277 s.
+Final sampled RSS 625024 KiB; display sample 774384 KiB; in-flight peak unmeasured.
+
+07/08/13 hit the carrier-domain ceiling, while other failures also encounter ruling
+coordinate bounds or stalled fitting steps. This motivates investigating chart
+coverage and initialization; it does not prove these targets infeasible. Do not
+automatically expand the length domain or iteration budget to rescue these rows.
+
+Live evidence is retained in director_route_trials_bank._compatible28 (stopped)
+and _compatible28b (completed), including fixed inputs, 33 source/rule pins,
+shared-core pins, all paths, stages, immutable visual evidence and audit witnesses.
+Final source check found no drift. Request digests were captured after execution;
+they are not pre-run script pins. No new report files were written.
+One idle Untitled scratch retains seven owned roots and the 150 original native
+solids. The newest root shows ten numbered diagnostic sheets, center/edge splines
+and fixed-target gaps; older roots are hidden and preserved. Images reviewed under
+`artifacts/verification/ribbon_cap_transition/compatible28/`: overview, coil pair,
+27 detail and 28 detail. Local verification retained: 77 focused tests, ten Python
+files clean in Ruff lint/format and IDE inspections. No full QA/native testing or
+production/standards changes. The next bounded decision is a chart-coverage
+diagnostic across the same families, with existing passes kept as collateral controls.
+
+User visual review: 13 appears to collide with its target; 12 may need a relaxed
+loop with skew alignment; 11 needs significant rerouting; 08 a tighter loop; 07
+a small adjustment. These are useful route-edit hypotheses, not measured causal
+proofs or per-ID solver policies. Endpoint pose fitting currently has no target-body
+obstacle or arrival-corridor model.
+
+Frozen follow-up: all ten cached compatible28b paths, 257 complete width rulings
+against the fixed end-width segment. Exclude only pairs whose unfolded material
+distance from the intended terminal ruling is <=3 conductor diameters, matching
+the existing local-contact exclusion. Retain closest eligible witness and sampled
+distances below one diameter. This tests a terminal cross-section proxy, not an
+unspecified connector body or continuous approach corridor. Maximum 5 seconds,
+2 GiB sampled RSS, no solve, geometry edit, native attempt or new report file.
+
+Target review completed 10/10 in 3.105241 s, no solves or native attempts. Only 13
+has eligible sampled ruling separation below one diameter: 0.155714 mm for 1.5 mm
+diameter at u=0.23828125; three stations u=0.234375..0.2421875. Its unfolded
+material separation is 238.602 mm, so this is remote from intended arrival rather
+than the excluded local terminal neighborhood. This supports the user's target
+intrusion observation within the terminal-width proxy; connector-body geometry
+and continuous approach clearance remain unmeasured. A frozen witness marker and
+caption were added to the existing 13 view; its original route/evidence is unchanged.
+No target-width intrusion detected in the other nine eligible sampled screens.
+The five failed fitting outcomes and five previous numerical passes are unchanged.
+
 ## Outside-edge investigation — frozen2026-10-26
 
 User redirects work to impossible initial paths and outside-edge macaroni,with
