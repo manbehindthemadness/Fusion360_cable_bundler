@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 from cable_bundler.routing.geometry import difference, magnitude
 
-from .compatible_strip import CompatibleField, CompatiblePath, integrate_compatible
+from .compatible_strip import BendMapping, CompatibleField, CompatiblePath, integrate_compatible
 from .director_route_objective import ObjectiveScope, free_penalties, routing_penalties
 from .director_routing_field import RoutingField
 from .director_seed_bank import candidates
@@ -31,7 +31,12 @@ from .endpoint_first import EndpointCase, controls
 from .shooting_telemetry import Trial, components, coordinate_scales
 
 
-def field_for(case: EndpointCase, values: tuple[float, ...]) -> CompatibleField:
+def field_for(
+    case: EndpointCase,
+    values: tuple[float, ...],
+    *,
+    bend_mapping: BendMapping = BendMapping.GLOBAL_SOFT,
+) -> CompatibleField:
     """
     Interpret bounded raw coordinates with the same dimensions and fixed targets.
     """
@@ -49,7 +54,7 @@ def field_for(case: EndpointCase, values: tuple[float, ...]) -> CompatibleField:
         values[4],
         values[8],
     )
-    return CompatibleField(raw)
+    return CompatibleField(raw, bend_mapping)
 
 
 def solve(
@@ -58,6 +63,7 @@ def solve(
     *,
     stage_observer: Callable[[int, CompatiblePath], None] | None = None,
     objective_scope: ObjectiveScope = ObjectiveScope.LEGACY_SPHERE,
+    bend_mapping: BendMapping = BendMapping.GLOBAL_SOFT,
 ) -> tuple[CompatiblePath, dict[str, Any]]:
     """
     Screen46direct seeds and refine one with18coarse/3fine rounds,max254fit probes.
@@ -73,6 +79,8 @@ def solve(
     """
     if not isinstance(objective_scope, ObjectiveScope):
         raise ValueError("Choose an explicit compatible objective scope.")
+    if not isinstance(bend_mapping, BendMapping):
+        raise ValueError("Choose an explicit compatible bend mapping.")
     controls(case)
     started = perf_counter()
     maximum = maximum_length_ratio(case, BANK_WIDTH)
@@ -96,7 +104,12 @@ def solve(
         Transport exactly the field that will be scored or returned.
         """
         checkpoint()
-        return integrate_compatible(field_for(case, parameters), steps, checkpoint, initial=initial)
+        return integrate_compatible(
+            field_for(case, parameters, bend_mapping=bend_mapping),
+            steps,
+            checkpoint,
+            initial=initial,
+        )
 
     def errors_for(candidate_path: CompatiblePath) -> tuple[float, ...]:
         """
@@ -231,6 +244,7 @@ def solve(
         coordinates=values,
         carrier_budget_mm=path.field.carrier_length_mm,
         objective_scope=objective_scope.value,
+        bend_mapping=bend_mapping.value,
         trials=tuple(trials),
         probes=tuple(probes),
         coordinate_scales=coordinate_scales(values, maximum),

@@ -320,3 +320,14 @@ mixed-coordinate step norms, carrier/chord allowances and endpoint-error scaling
 are search choices, not calibrated physical laws. Curvature/material regularity
 checks and resource ceilings remain distinct. This clarification alone changes no
 cached geometry, solver implementation, search budget or native-build scope.
+
+USER-DIRECTED PRACTICAL POSITIONAL CLOSURE — 2026-10-26
+
+For ongoing experimental routing, positional endpoint residuals up to half the
+ribbon thickness can count as practically connected. Preserve measured A/center/B
+gaps and historical strict numerical classifications. This criterion does not
+authorize moving targets, snapping paths, relaxing bend/contact rules or accepting
+an incorrect terminal frame. Orientation remains separately measured; no new
+angular tolerance is inferred. User explicitly retained the tighter NEAR_LIMIT
+bend mapping after observing bend41's routing failures. No production change or
+new expensive fitting/build batch is authorized by this clarification alone.

@@ -310,6 +310,121 @@ and geometry compliance validation are outside this presentation-only change.
 
 Atomic visual observations — retained as hypotheses, not adopted rules:
 
+Bend-mapping41authorized2026-10-26: maximum8fresh development configurations,
+03/17/38controls then07/08/11/12/13, identical fixed inputs and budgets to sphere38.
+One change: BendMapping.NEAR_LIMIT preserves rawturn exactly through90%of the
+existing internal limit, then uses a C2rational shoulder tending to that limit.
+Global-soft mapping remains available for historical replays. Ruling mapping,
+.78center/3.1Dlane limits,Jregularity,rawdomains,initialization,46seed screens,
+18coarse/3fine rounds and254fit evaluations are unchanged. Sphere remains an
+independent stress measurement. Centerline may reroute; targets/material identities
+do not. No per-case mapping/knee changes or automatic refinements.
+Fresh coherent runtime,source/input pins before solve;10s/case,120s cumulative
+numerical work,2GiB sampledRSS,0native solids,30s bounded display in owned scratch.
+Review each completed case before scheduling the next. Stop on source/input/API/
+resource error, any intrinsic/cubic hard finding,lost control closure,or failed-case
+A-gap worsening by more than one conductor diameter relative to sphere38. Retain
+all unattempted IDs at a stop. Draw completed numbered outcomes and original
+trajectories; solver summaries and individual values visible by default. No new
+report files or production changes.
+
+Bend41completed8/8fresh configurations;4/8numerical endpoint closures (03/17/38
+controls preserved plus12),4/8failed fits (07/08/11/13),0native solid attempts/
+0built/0fully audited. None skipped/unattempted, no holdouts or invalid controls.
+No sampled intrinsic or center/A/Bcubic curvature violation detected. Closure is
+not physical acceptance: contact, elastic equilibrium, complete mechanical/native
+compliance remain unmeasured. Stress sphere5/8pass;07/08/13fail independently.
+
+| Case | Sphere38A-gap mm | Bend41A-gap mm | Actual/minimum centerR mm | Solve s |
+| --- | ---: | ---: | --- | ---: |
+| 03 | 6.82e-9 | 1.90e-9 | 36.336/18.024 | 1.552 |
+| 17 | 1.27e-12 | 1.72e-9 | 18.256/8.274 | .469 |
+| 38 | 5.58e-9 | 2.20e-9 | 27.579/8.274 | .413 |
+| 07 | 40.957 | 12.465 | 18.604/18.024 | .851 |
+| 08 | .100120 | .000041656 | 19.678/18.024 | .823 |
+| 11 | 19.057 | 20.216 | 38.368/18.024 | .871 |
+| 12 | 56.548 | 2.03e-10 | 20.124/18.024 | .547 |
+| 13 | 67.172 | 33.491 | 18.712/18.024 | 1.000 |
+
+07/13now use96.883%/96.324%of the adopted .8center limit, near the unchanged
+.78internal ceiling (97.5%of .8).08uses91.599%. The mapping therefore makes tight
+permitted bends accessible where the fit requests them; it does not force closed
+controls to tighten.08still fails the fixed1e-8endpoint gate, despite its small
+physical gap, and11is slightly worse (1.159mm below the1.5mm registered material
+regression threshold). No tolerance/budget/domain was changed to accept either.
+This is one additional numerical closure, not a general routing or physical fix.
+
+Summed solve6.525574s; sampling/inspection2.973735s; active numerical9.499308s,
+everycase<=2.842s and cumulative within10s/case/120s. Calibration03was1.552s;
+remaining solves.413..1.000s. Prior sphere38timings1.542..4.643s are historical,
+not an isolated overhead benchmark. Graphics9.339844s plus capture4.628476s=
+13.968319s of30s. RSS samples748656/1265408/1128528KiB,peak/physical footprint
+and orchestration wall time unmeasured. Per-case review completed before every
+next launch; no stop latched and no extra refinement scheduled.
+
+Open root `Near-limit bend41 - numbered paths and visible solver values` contains
+8numbered outcomes with visible native Solver details and individual/trial panels;
+physical helper eyes and24original native guides remain separately revealable.
+Display spacing increased only, with unchanged local targets/measurements, to
+avoid simultaneous panel overlap. Prior8roots/150native solids preserved hidden.
+Native guide point checks against frozen cubics max2.842193e-14mm. Images reviewed:
+compatible28/bend41-overview-visible-values.png,bend41-12-values-and-route.png,
+bend41-08-values-and-route.png;overview restored. `_bend41` retains all frozen
+sources/targets, paths, metrics, telemetry, Inspection/Evidence and final checks.
+31affected tests pass, including both mappings' extreme local bounds, zero-bend
+width invariance, actual derivative and grid-convergence checks; Ruff lint/format
+and3changed-code IDE inspections pass. FullQA/native solid validation unrun.
+
+### Routing review42 — keep the tighter mapping
+
+User review retains NEAR_LIMIT for subsequent developmental comparisons. The
+remaining failures concern routing: 12 crosses itself, 13 follows an unsuitable
+trajectory, and 07/11 need a different routing strategy. These observations apply
+to general solver tuning, not per-ID repairs. Historical strict closure results
+above are unchanged; 12 is now explicitly rejected for sampled remote contact.
+
+Frozen cached diagnostic: all eight bend41 configurations, unchanged targets and
+paths/source pins, 129 full-width rulings each, zero fits/retries/native attempts,
+10seconds cumulative analysis and 2GiB sampled RSS. Use the existing edge_clearance
+segment screen, spatial horizon 2thicknesses and exclusion within 3thicknesses in
+unfolded material. Integrate actual center progress by composite Simpson for the
+flat map (S+q*eta,q); carrier length times fraction is not center arc length.
+This is a sampled diagnostic, not continuous clearance or a native solid audit.
+
+All eight completed in 6.379363s, RSS1180928KiB; peak unmeasured. Only 12 showed
+contact: 47 sampled remote ruling pairs closer than thickness. The closest pair,
+u=.109375 and .7578125, is .001897956mm apart for 1.5mm thickness; unfolded segment
+separation is 139.797305mm. It is not a neighboring material segment. The other
+seven had no contact detected by this finite screen; 08's closest retained pair
+was 1.754125mm apart, only .254125mm above nominal thickness, so no continuous
+clearance claim follows. Three controls remain closed with no detected contact;
+07/11/13 remain unresolved routing misses, 12 is rejected, and 08 is position
+connected under the new user criterion below. Zero native attempts/builds/full
+audits; no cases skipped, no new independent configurations or holdouts.
+
+The user accepts endpoint positional residuals up to half ribbon thickness.
+Retain every measured residual and the historical strict numerical gate; do not
+snap, move targets or erase orientation errors. For 08, maximum A/center/B gap is
+.000064225mm against .75mm allowance, with tangent/width vector errors about
+1.21e-6. Its practical positional closure is no longer a routing failure; contact
+and orientation remain separate checks, without a new angular policy inferred.
+
+Existing numbered views now label 12's rejection and highlight the two contact
+brackets; 08 shows its practical positional connection and measured residual.
+All original paths, visible solver values and previous roots remain. Annotation/
+capture work took 1.703399s with RSS554848KiB. Reviewed capture:
+compatible28/routing42-12-contact-witness.png. `_routing42` retains frozen plan,
+source pins, sampled rulings, all rows and shared visible witnesses. No new solver
+code or production changes were made during this review.
+
+Code inspection identifies two distinct deficiencies: the current routing objective
+checks local material/bend limits but no remote contact, and seed selection refines
+only the single lowest endpoint/objective score among 46 seeds. This explains how
+12's collision can survive existing checks; it does not establish why every miss
+occurs. Next bounded investigation should compare contact-aware route selection
+and genuinely different approach families before increasing local iterations.
+Keep tighter mapping, sphere independence, fixed targets and existing bend limits.
+
 Sphere-feedback comparison38, authorized2026-10-26: eight fresh development fits,
 03/17/38controls then07/08/11/12/13failures, fixed compatible28b inputs and cached
 historical baselines. Only routing change is ObjectiveScope.ROUTING, excluding the
@@ -388,6 +503,24 @@ ruling contract and was corrected before live work); Ruff lint/format and six
 changed-code IDE inspections pass. FullQA/native solid validation not run.
 Legacy solve entry retains historical default; future sphere-independent callers
 must explicitly select ObjectiveScope.ROUTING. No production code changed.
+
+User radius observation40: blue actual circles remain substantially larger than
+red permitted-minimum circles. Cached comparison38witnesses confirm center actual/
+minimum radii mm:07=22.237/18.024;08=28.087/18.024;11=41.340/18.024;
+12=23.205/18.024;13=24.156/18.024. These local scalar margins are not proof that
+the complete route can tighten independently while preserving targets/material.
+Boundary floor3D can also be superseded by center/ruling constraints.
+
+Code identifies a relevant shaping mechanism: CompatibleField.carrier maps raw
+turn b to b/hypot(1,b/limit). This reduces every nonzero requested bend, including
+those below the internal limit; it is not identity below a hard cap. At08's peak
+center-curvature witness u.5732421875, rawturn/internal limit=.874272 but effective
+turn/internal limit=.658194. The center rule controls that internal limit there,
+not the lane rule. Its separate .78versus.8margin is only2.5%, insufficient by
+itself to explain the displayed28.087versus18.024radius. This makes the raw-to-
+physical curvature mapping a concrete investigation target alongside step scaling.
+It does not establish that removing soft saturation will close endpoints or remain
+regular. No fit, parameter/rule change or scene mutation ran for this cached read.
 
 User clarification after pass37: the sphere was introduced as an independent
 performance/robustness stress test, not as a direct modifier of the general solver.

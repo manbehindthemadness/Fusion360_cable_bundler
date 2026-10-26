@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
+from enum import Enum
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3
@@ -17,6 +18,39 @@ from cable_bundler.routing.geometry import Vector3
 from .director_motion_transport import DirectorMotion, integrate_motion
 from .director_routing_field import RoutingField
 from .director_transport import INITIAL, State, interpolate_pose, material_lane
+
+
+class BendMapping(Enum):
+    """
+    Distinguish historical global softening from a near-limit-only shoulder.
+    """
+
+    GLOBAL_SOFT = "global-softening"
+    NEAR_LIMIT = "identity-below-90-percent"
+
+
+def map_turn(raw_turn: float, limit: float, mapping: BendMapping) -> float:
+    """
+    Preserve historical mapping or retain requests below90%of the internal limit.
+
+    The near-limit rational shoulder matches value and first two derivatives at
+    the knee. Its asymptote is the unchanged limit; two inward floating-point
+    steps keep rounded saturated values strictly inside it. No geometry repair
+    or increase in the permitted bend occurs.
+    """
+    if not math.isfinite(raw_turn) or not math.isfinite(limit) or limit <= 0:
+        raise ValueError("A finite turn and positive finite limit are required.")
+    if mapping is BendMapping.GLOBAL_SOFT:
+        return raw_turn / math.hypot(1.0, raw_turn / limit)
+    if mapping is not BendMapping.NEAR_LIMIT:
+        raise ValueError("Choose a registered bend mapping.")
+    knee, shoulder = 0.9 * limit, 0.1 * limit
+    if abs(raw_turn) <= knee:
+        return raw_turn
+    excess = (abs(raw_turn) - knee) / shoulder
+    magnitude = knee + shoulder * excess / math.hypot(1.0, excess)
+    inside = math.nextafter(math.nextafter(limit, 0.0), 0.0)
+    return math.copysign(min(magnitude, inside), raw_turn)
 
 
 @dataclass(frozen=True)
@@ -46,6 +80,7 @@ class CompatibleField:
     """
 
     raw: RoutingField
+    bend_mapping: BendMapping = BendMapping.GLOBAL_SOFT
     ruling_scale: float = dataclass_field(init=False)
 
     def __post_init__(self) -> None:
@@ -100,7 +135,7 @@ class CompatibleField:
         reach = math.hypot(half, self.diameter_mm / 2)
         turn_limit = min(0.78 * progress / reach, minimum_lane_progress / (3.1 * self.diameter_mm))
         raw_turn = k_raw * length
-        turn = raw_turn / math.hypot(1.0, raw_turn / turn_limit)
+        turn = map_turn(raw_turn, turn_limit, self.bend_mapping)
         return CarrierSample(progress, turn, eta, eta_u)
 
     def sample(self, u: float) -> tuple[float, float, float]:
