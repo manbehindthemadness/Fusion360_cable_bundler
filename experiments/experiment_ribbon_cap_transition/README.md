@@ -1,5 +1,314 @@
 # Cap-transition candidate v2 — five-width development
 
+## Boundary-first experiments — completed 2026-10-25
+
+The user requested that boundary A reach its assigned target before any companion
+construction, and explicitly authorized further iteration without repeated scope
+questions. The same eight development configurations were retained throughout:
+five spatial cases and three cached analytic controls. Repeated variants and
+warm refinements do not increase independent geometry coverage.
+
+The final reference geometry passes the sampled experimental gates for one of
+the five spatial cases, quarter_minus. The other four remain rejected. Native
+curve sampling also passes for its finer interpolation, candidate **73**.
+This is **zero complete-ribbon acceptances, four failed configurations and four
+unresolved configurations** (the promising spatial case plus three cached
+controls). No cable solids, sweeps, full post-build compliance checks, holdouts
+or generalized-solver validation were attempted.
+
+### Representation and safeguards
+
+- `edge_first.py` assigns boundary endpoints, tangent, width orientation and
+  zero terminal ruling slope first. Degree7 endpoint Hermite data establish
+  arrival before the interior is inspected. Optional degree9/11 elevation and
+  interior-control correction preserve endpoint derivatives through order3.
+- The boundary Frenet frame defines eta=torsion/curvature and material lanes
+  P=e+q(W+eta*T). Their speed multiplier J=1+q*eta_s must remain positive
+  throughout the sampled width. Center and opposite edge follow only after
+  regularity, terminal, curvature and containment checks pass.
+- No independent centerline roll, endpoint repair, target movement or forced
+  geometric seam was introduced. Boundary identity remains A throughout;
+  event/outside-edge handoffs are still unimplemented.
+- `edge_optimization.py` exposes typed STANDARD, EXPANDED and PRECISION
+  development policies. These are bounded warm searches, not the requested
+  eventual single-pass generalized solver. Final limits stayed J>0, center
+  curvature*reach<=0.8, lane radius>=4.5mm and sampled occupied sphere<=71.25mm.
+- Each numerical batch retained10s math/30s drawing/60s overall/2GiB sampledRSS
+  caps; focused native audits retained10s. All solver batches completed within
+  those bounds. No automatic resource-failure retries or new report files.
+  Frozen inputs, source hashes, partial rows and failures remain in Fusion
+  module memory; only F3D and PNG artifacts were written.
+- Historical display defaults remain64Hermite intervals. The reviewed
+  interpolation helper permits16..1024 intervals;512 was explicitly compared
+  without changing solved geometry. Native sampling is separate from reference
+  sampling and does not certify continuous curvature or full ribbon clearance.
+
+### Recorded stages
+
+All prior arrays and unsuccessful outcomes remain in the one scratch document.
+Times below are measured batch times, not development-session elapsed time.
+
+| Array | Attempt and outcome | Numerical s | Drawing s | Overall s |
+|---|---|---:|---:|---:|
+| 17–24 | Five degree7 edges arrive; all five fail material regularity; three controls cached | 1.063 | 1.450 | 3.451 |
+| 25–39 | Three fixed curvature profiles per spatial case; all15 arrive and fail regularity | 1.640 | 2.326 | 5.011 |
+| 40–44 |45 speed/curvature variants arrive; all fail; five selected,40 explicitly undrawn | 4.884 | 0.830 | 6.787 |
+| 45–49 | Degree9 interior refinement; five still fold | 2.365 | 0.918 | 5.052 |
+| 50–54 | Two continuation stages; quarter+/minus become regular but fail curvature; five intermediate rows undrawn | 7.114 | 0.790 | 8.941 |
+| 55–59 | All-lane curvature objective; five remain rejected | 5.487 | 0.947 | 7.502 |
+| 60–64 | Degree11/four free controls; five remain rejected | 9.035 | 0.984 | 11.077 |
+| 65–69 | One denser PRECISION step; quarter_minus reference passes, four rejected | 6.516 | 1.145 | 8.889 |
+| 70–74 | Same final paths at512 intervals;73 native sampled gates pass; other four native audits unattempted after reference rejection | 0 new solves | 0.658 | 2.502 |
+
+The precision stage used73/75screenings at129stations plus257final stations.
+Its unchanged final outcomes are:
+
+| Case / latest number | Reference result | Minimum J | Lane radius mm | Center ratio |
+|---|---|---:|---:|---:|
+| banked crossover /70 | Rejected: center ratio | 0.06845 | 4.57907 | 0.806005 |
+| lateral90 /71 | Rejected: material folding | -3.138999 | not evaluated after gate | not evaluated after gate |
+| quarter_plus /72 | Rejected: lane radius | 0.085412 | 4.494310 | 0.796734 |
+| quarter_minus /73 | Sampled reference gates pass | 0.074675 | 4.508072 | 0.796035 |
+| half_oblique /74 | Rejected: material folding | -1.179213 | not evaluated after gate | not evaluated after gate |
+
+All five boundary arrivals are0mm within displayed numerical precision. Companion
+endpoints for the reference-passing case are also0mm. The other four show A only.
+Quarter_minus remains narrow-margin and warm-tuned; no least-energy or robust
+feasibility conclusion follows.
+
+### Independent reference and native checks
+
+`edge_curve_audit` retained the original candidate68 result:1025reference stations
+gave Jmin0.07466623, radius4.505476mm, center ratio0.79603498 and occupied reach
+70.846941mm. All measured reference limits passed. Its actual64interval Fusion
+B curve failed with radius4.364228mm. The focused audit took2.010913s; this failure
+was preserved rather than hidden behind reference geometry.
+
+`edge_interpolation_native` reused those exact five paths at512intervals.
+`edge_native_checks` evaluated73's three actual Fusion curves at1535parameters
+each:513uniform values plus both sides of511internal knots.
+
+| Native path73 | Minimum radius mm | Occupied reach mm | Endpoint error mm |
+|---|---:|---:|---:|
+| Boundary A | 13.932526 | 69.283870 | 2.22e-15 |
+| Center | 18.114740 | 68.553638 | 0 |
+| Boundary B | 4.510156 | 70.846941 | 4.44e-15 |
+
+Native center ratio0.796010 passes0.8. Audit time0.756262s, draw time for73
+0.225491s. The five512interval displays took0.658s total; batch2.502s, sampled
+RSS596784KiB. The highest sampled RSS across solver batches was774768KiB.
+No full-width/thickness self-clearance, native sweep construction, all19trace
+checks, continuous certificates, physical energy or equal-length real-cable
+validation was performed. Local developability does not require equal lengths
+between the same cross-sections when rulings are oblique.
+
+The final scene has one idle Untitled document,11arrays,74numbered children,
+116fixed splines and0bodies, with73 framed. Historical arrays01–69 are retained.
+The separate inspection archive was saved after labeling/framing; an attempted
+overwrite of the immutable run archive was refused by the storage helper, then
+a distinct filename was used. This did not rerun the solver or curve audit.
+
+Current artifacts, relative to
+`artifacts/verification/ribbon_cap_transition/`:
+
+- `edge_interpolation/6263802e0cc24de594beb05f58d97664/candidates_inspection.f3d`
+  and `inspection_73.png` (current scene); original `candidates.f3d` retained.
+- `edge_precision/e0a7c0b8dc084f6699a5ba6603a47bb2/`
+- `edge_freedom/fbd16b3eb9c147538c4dca91fd440630/`
+- `edge_all_lane/b329be7b430245a9881717197d10e5a5/`
+- `edge_continuation/00f4074f58cf46499ff66814fd602656/`
+- `edge_interior/92a992a3a6eb4fbba71d4abbcf03a7da/`
+- `edge_speed/f400f2505004489ab45ac8234d5e7453/`
+- `edge_shapes/82736eba55494efa8a7c9cc3515798a2/`
+- `edge_first/5ca6283d6fe545e292411730c018616c/`
+
+Reference math has13focused tests; interpolation has8focused tests. Ruff,
+format and IDE checks cover changed experiment code. After the live audit,
+duplicate gate classification was extracted into the shared native-check helper;
+the measurement procedure and retained frozen source fingerprints were preserved.
+Production code is untouched.
+
+## Surface-width floor ablation — completed 2026-10-25
+
+User approved the proposed scope.8/8fixed configurations solved,numerically audited
+and drawn;0skipped/unattempted,0native solid attempts/builds/full compliance audits,
+0accepted/5failed/3unresolved,no retries/source drift/resource stops. Original
+01..08 retained;comparison09..16 added.8configurations represented twice,not16
+independent coverage cases. Controls11/12/16 remain unchanged/closed;five spatial
+cases still fail position,ordered frame and sampled sphere checks. Legacy surface
+limit findings remain recorded on all five;no old-policy compliance inferred.
+
+Baseline->ablation endpoint gaps(mm):01/09 118.172->95.813;02/10 144.546->99.254;
+05/13 335.958->178.963;06/14 345.804->185.439;07/15 878.371->358.372.
+Allfive gaps improve in this matched fixed-budget comparison,but0/5close.
+Tangent/width vector errors remain respectively0.000592/0.000746 on09,
+0.017488/0.012704 on10,0.119518/0.024039 on13,0.153392/0.037144 on14,
+0.488987/0.397245 on15;some frame components regress against baseline.
+Retained center-curvature ratio<=0.8,lane radius>=18.024mm,material speed error
+<=5.56e-16. Spatial Jacobians~1e-12 remain poorly conditioned. Omitted legacy
+principal ratios4.025/2.275/5.257/5.502/6.819 exceed its0.8threshold;this trial
+does not calibrate physical strain or prove that omission is physically valid.
+
+Per-case ms(solve/audit/observer/draw),09..16:
+1073.954/181.301/131.252/477.383;1117.024/164.645/113.304/341.911;
+0.980/23.154/56.058/126.741;0.898/30.611/58.681/120.674;
+1096.761/183.736/78.971/361.776;1108.889/181.178/78.446/375.279;
+1100.942/186.121/80.553/382.885;1.718/84.610/172.357/217.187.
+Each spatial case12rounds,evaluations169/174/173/173/173,total862/905cap.
+Numerical7.795s,drawing2.994s,archive0.191s,total11.789s,CPU10.952s;
+maximum sampledRSS594768KiB,final410528KiB,all approved limits held. No cost/token
+accounting available;these are observed work/resource limits,not a usage guarantee.
+
+Cached straight-travel shares:13 212.756/260.736mm(81.6%),14 215.625/262.622mm
+(82.1%),15 345.600/436.989mm(79.1%). Transition regularity still matters if eta
+changes while bending:merging motions can overlap travel budgets,but does not
+remove the finite-width Jacobian requirement or prove these poses become feasible.
+Next representation work is continuous coupled bend/ruling change,not deleting
+regularity floors. No second comparison/refinement/continuous-ruling solver ran.
+
+Postflight:oneUntitledopen,twoarrays,48continuous fixed splines,labels01..16,
+0bodies,sourcehashes match frozen ablation plan,old numerical state preserved.
+Viewport focused09. F3D/PNGonly,no reportfiles:
+artifacts/verification/ribbon_cap_transition/surface_ablation/95aaafba65184961aff9e9da6ade94b8/.
+Fullnative/strain/thick-clearance/self-intersection/elastic compliance unmeasured.
+Frozen design and verification follow.
+
+material_ablation retains inherited center/conductor floors and the exact same
+flat transition regularity. Only the added principal-surface-curvature times
+whole-ribbon-width floor is omitted. The old surface-curvature metric/finding
+remains measured and reported separately;other findings are never removed.
+Straight-only ruling transitions remain unchanged for this isolated comparison.
+A continuous bend/twist-ratio representation is deferred until this first
+comparison is reviewed;deleting transition floors would invalidate the old map.
+
+target_shooting now accepts one optional typed travel policy consistently for
+seed/probes/trials;default computation,seed,steps,damping and181evaluation cap
+are unchanged. The old baseline source hash is
+1c2a3fc196b7b5edbc0b9ae607436a6d01a666628b1012039417231534f1922a.
+ablation_native preserves the completed cached joint baseline and permits only
+this reviewed injection change;all other inherited source hashes must match.
+No old states reset or baseline solves replayed. Runtime needs coherent reload
+of target_shooting before importing ablation_native;do not reload target_native.
+
+Proposed same8fixed development cases,12updates/181evaluations per spatial case,
+0solids/retries,10s math/30s draw/60s overall/2GiB sampledRSS. Stop on retained
+invariant,control,source,API or resource failure;no local repair/continuation.
+Retain baseline01..08,draw comparison09..16 below it in the same scratch. These
+are8independent configurations represented twice,not16configurations. F3D/PNG
+only,no report files. Source/input/baseline/limits frozen before the first solve.
+Read numerical,draw and audit results separately;legacy surface-limit failures
+remain visible even though excluded from this ablation's acceptance policy.
+
+21focused tests pass(6shooting/policy,15material),Ruff lint/format and IDEclean
+on4affected Python files. Tests cover unchanged default evaluation,consistent
+policy propagation throughout probes/trials,unchanged transition floors,retained
+curvature/regularity and monotone accepted error. Complete code reviewed and
+both native consumers inspected.0newcandidate solves/builds at preflight;the
+subsequent approved comparison is recorded above. FullQA remains unrun.
+Production/standards unchanged;baseline Fusion geometry retained.
+
+## Cached constraint accounting — 2026-10-25
+
+Read-only accounting of the five failed joint-target plans:all35span floors are
+controlled by the new material policy,not the inherited conductor floor. All15
+turn floors are dominated by principal-curvature*enclosing-reach<=0.8;all20flat
+transition floors come from half_width*abs(delta_eta),with the existing1e-12guard.
+This is arithmetic on cached shapes,zero new solves/projections/builds,no scene
+or solver changes;source hashes still match the completed trial.
+
+The enclosing reach14.419518mm imposes principal radius>=18.024398mm,alongside
+the distinct material-lane radius>=4.5mm rule. Applying the old width-envelope
+macaroni budget to the new surface principal curvature was a conservative policy
+extension,not an established necessary physical condition. Do not conflate these
+different radius metrics or treat their ratio as proof of an invalid constraint.
+In07,the main turn's new floor422.790mm dominates inherited49.780mm. Fourflat
+transition floors total322.112mm before turning travel,for77.942mm chord.
+
+Representation fixes three constant-ruling turns separated by four flat linear
+ruling transitions. Therefore bend/twist-ratio changes require straight travel;
+this is an implementation-family restriction,not a universal physical ribbon law.
+Mental event boundaries must not mandate such straight zones. Both this restriction
+and the principal-curvature policy were retained in the joint shooting trial.
+Priority diagnostic design:separate these two assumptions from actual invariants
+before spending more endpoint-search work. No policy removal/ablation has run;
+dominant bounds alone do not prove a revised model will close the fixed targets.
+
+## Joint target closure — completed 2026-10-25, unsuccessful spatial closure
+
+User approved the proposed limits.8/8 configurations solved,numerically audited
+and drawn;0skipped/unattempted,0native solid attempts/builds/full audits,no retries.
+0accepted/5failed/3unresolved. Controls03/04/08 unchanged and close;spatial
+01/02/05/06/07 fail position,ordered frame and sampled sphere checks. All measured
+material invariants pass;Jacobian~1e-12 on spatial cases remains poorly conditioned.
+No stop/resource/source gate triggered. No solver changes or second batch followed.
+
+Previous->new endpoint gaps inmm:01 120.631->118.172;02 184.414->144.546;
+05 129.059->335.958;06 133.153->345.804;07 3044.590->878.371.
+Maximum tangent/width direction errors in degrees are0.785/0.577/6.805/6.321/29.945
+for those same five cases. These are individual axis-direction errors,not full
+relative-frame rotation angles. Earlier baseline had exact frames;new errors are
+a regression. Combined residual histories are nonincreasing,but that does not
+mean position/frame errors independently improve or satisfy hard closure.
+Initialization clips ruling slopes,so its initial error differs from the old seed;
+the new12round numerical budget also differs from the previous6scalar updates.
+This comparison is developmental,not a controlled speed or optimization benchmark.
+
+Per-case ms(solve/audit/observer/draw),01..08:
+987.575/187.594/140.562/390.273;1072.538/180.698/141.740/333.413;
+0.848/24.598/55.057/126.232;0.880/26.710/60.376/112.732;
+1085.672/182.085/116.114/353.187;1100.012/180.033/112.138/364.334;
+1064.935/169.163/119.656/372.198;1.640/87.535/174.803/210.571.
+Each spatial case used12rounds,evaluations169/169/173/173/169,total853/905cap.
+Numerical7.736s,drawing3.032s,archive0.228s,total11.791s,CPU10.790s;
+maxsampledRSS464800KiB,final376032KiB,within agreed limits. Roughly1second per
+spatial solve versus prior25-30ms is an unfavorable cost increase without closure.
+Same measured material audit remains incomplete for native/finite-thickness/full
+width containment,self-intersection,elasticity and complete physical compliance.
+
+Fusion postflight:oneUntitled open,eight numbered children,24continuous fixed
+cubic splines,labels01..08,zero bodies,sourcehashes unchanged. Pitch94.172cm;
+viewport focused01 for inspection. F3D/PNGonly,no reports:
+artifacts/verification/ribbon_cap_transition/joint_target/ebc529d3ac6f4d05a4c6baf310a440c2/.
+This trial does not justify promoting joint shooting or adding iteration budget.
+The three-turn family and near-singular transition floors remain limitations;
+the next design should preserve endpoint frame structurally while deriving
+positional reach from target-aware material motion,rather than trading hard
+boundary conditions in a combined least-squares objective.
+
+Frozen pre-run design and verification follow.
+
+target_shooting jointly varies three signed turn angles,three local ruling slopes
+and seven forward travel surpluses. Axes remain unit(eta*T+W),preserving the
+no-wide-axis-bend construction. Existing material regularity and curvature floors
+are unchanged. Position/chord,tangent and ordered width form one9component
+endpoint residual. Unlike the previous scalar continuation,frame closure is now
+an explicit solve requirement,not guaranteed by the initial factorization.
+Initialization uses the original orientation decomposition with slopes clipped
+to[-4,4];angle bounds[-pi,pi] apply only to these pose fixtures,not a full-winding
+policy. Controls03/04/08 use their exact unchanged analytic branches.
+
+Frozen proposal:eight previous fixed endpoint cases,12damped joint rounds per
+spatial case,13forward derivative probes(1e-5)plus at most2trial steps/round,
+181evaluations per spatial case(905maximum across five),zero solids/retries.
+Step norm<=0.35;only strict combined-error improvement accepted,damping halves
+on acceptance and increases tenfold otherwise. Full/half trials are counted
+within the declared solver,not new independent cases.10s numerical,30s drawing,
+60s overall,2GiB sampledRSS;per-round resource checkpoint. Stop on source,
+invariant,control,API or resource failure without repair/retry. All examined
+development cases retained;no holdouts or invalid controls. Native prediction
+unknown. Not an outside-edge-led event-routing implementation or production change.
+
+target_native requires the empty active scratch and complete cached event baseline,
+freezes inherited/new source hashes and fixed inputs before solving,compares all
+eight outcomes,separates frame/position findings,and draws numbered center/edges.
+Only F3D/PNG artifacts;results/provenance in memory,no report files. Preparation
+tests validate residual composition,material regularity,linear algebra,bounds and
+monotone accepted updates with a mocked residual;they do not measure closure
+performance.19focused tests passed(4shooting,15material);Ruff lint/format and IDE
+diagnostics clean on all3new Python files;complete source/diff reviewed. No native
+adapter execution/full QA or candidate closure validation had run at preflight.
+The subsequently approved live trial is recorded above;full QA remains unrun.
+
 ## Continuous-path conceptual-event diagnostic — completed 2026-10-25
 
 User approved the frozen eight-case scope. All8 configurations were solved,
@@ -35,6 +344,27 @@ fixed cubic splines,labels01..08,zero bodies,source hashes unchanged. Array pitc
 317.997cm is dominated by failed07;left viewport focused on08 for inspection.
 F3D/PNG only at artifacts/verification/ribbon_cap_transition/event_observations/
 f7c05383f962485a9c6c747148ee1be5/;no report files. Results/provenance remain live.
+User subsequently requested scene clearing and closure diagnosis. Deleted only
+the owned event-array occurrence;one empty Untitled remains (0occurrences/root
+sketches/bodies). Cached plans and historical archives retained,0new solves,
+projections or native builds. Source inspection and cached allocations show:
+all five failed final allocations equal all seven lower bounds exactly. At those
+selected schedules,no added nonnegative forward travel improves the projected
+residual. The schedule fixes three turns/four straight slots and adjusts only
+one internal angle;frame closure does not impose position closure. Material
+regularity transitions require L>half_width*abs(delta_eta),and principal-curvature
+floors grow as 1/abs(axis dot width).07ruling slopes are about+11.81/-11.90;
+its total minimum travel3131.959mm versus endpoint chord77.942mm. This exposes
+an unsuitable near-twist motion factorization,not infeasibility of the targets.
+Undamped scalar updates retain worse results and oscillate:05best visited gap
+113.901mm vsfinal129.059mm;06best121.428mm vsfinal133.153mm;07alternates
+0/15degrees. More iterations alone do not address the restricted motion family.
+Inherited normal-section conductor floors remain conservative imported policy;
+their tightness for the new material-coordinate model has not been established.
+No solver repair,policy relaxation or new experiment was made during diagnosis.
+Next design work:couple positional closure to motion-family construction;retain
+physical constraints and fixed targets,with a bounded improvement safeguard.
+
 The following paragraphs record the frozen pre-run design and verification.
 
 The user clarified that turn events and neutral regions are mental descriptions
