@@ -1,5 +1,148 @@
 # Cap-transition candidate v2 — five-width development
 
+## Proposed edge macaroni check — read-only2026-10-26
+
+User suggests limiting outside-edge tightness by the macaroni rule. Current
+checks use center curvature times full-profile reach<=.8,plus lane radius>=3D.
+Reusing that same reach at BOTH native boundary curves would flag6/30prior local
+passes:16(.968714),21(5.019443),22(6.645867),29(.974676),30(1.216481),
+33(.933882). This is a proposed policy extension,not an edge-anchored envelope
+certificate,physical impossibility finding or revision of historical outcomes.
+
+A second diagnostic chooses the local largerJ=1+q*eta_s edge;neutral stations
+check both. This is a longer-material-edge proxy,not a validated semantic label
+for the user's mental outside-turn events. Native1535station checks on30cases
+give maximumcurvature*sameReach.775619998<.8,0exceedances,1.891521s. Thus the
+six both-boundary exceedances occur on shorter-moving portions at these samples.
+In the modeled regular map,k_lane=k_center/J;the largerJedge has lower curvature.
+Outsideidentity must be allowed to switch betweenA/B. Full-width curvature at
+the shorter-moving edge is a separate stronger condition to evaluate explicitly.
+No solver/geometry/acceptance changes or new builds. Evidence retained in live
+director_route_trials_bank._breadth26.edge_macaroni_diagnostic,including the
+longer_edge_proxy_audit. Continuous/nativephysical certification remains absent.
+
+## Breadth comparison — frozen2026-10-26
+
+Completed38/38independent boundary configurations evaluated;30pass local
+numerical/native3curve checks,8fail. Four fresh native attempts/4trunks built/
+4partialaudits,0fullyaudited complete ribbons. Other34configurations have no new
+solid attempt;6ofthose retain their earliergallery trunks. Fullstructure positive
+dispositions0accepted/8failed/30unresolved. No positivecases skipped/unattempted.
+
+| Phase | Evaluated | Named numerical gates pass |
+|---|---:|---:|
+| Existing regression poses |14/14|9/14|
+| Fresh development |12/12|9/12|
+| Reserved validation |12/12|12/12|
+
+New24span six families,7..40conductors,0.6..2mm diameters and arbitrary initial
+orientations.21/24pass;reserved12were evaluated once without adapting the solver.
+18witnessesusebasis terms outside the fit. All24witnesses met named modelchecks
+using256axis/512rotation comparison. These are held-out combinations within
+tested families,not unseen-family or physical-material validation. All12are now
+consumed validation.2known invalid prescribed-field controls correctly rejected
+for folding/radius;separate auditcheck evidence,not positive route successes.
+
+All8failures retained and drawnAonly:
+
+| Number | Case | Finding |
+|---:|---|---|
+|07|Original crossover|Lane radius4.270739mm below4.5mm|
+|08|Original lateral90|Sphere reach72.180065mm above71.25mm|
+|11|Original quarter+|Aarrival error16.139372mm|
+|12|Original quarter-minus|Aarrival error2.434526mm|
+|13|Original half oblique|Aarrival error15.261101mm|
+|20|B06return|Aarrival error0.872878mm|
+|27|B13coil|Aarrival error7.876612mm|
+|28|B14coil|Aarrival error15.166501mm|
+
+No sampled native false acceptance among30local passes. All30screened at129/257
+fullwidth rulings:0eligible contacts detected;8prior-rejected cases explicitly
+skipped.2Dsearchhorizon/3Dflat-local exclusion and longitudinal sampling leave
+clearance gaps. No thick native contact or physical compliance guarantee.
+Invariance copies:12planned,9evaluated/9pass,3explicitly skipped becauseB13base
+failed. Copies are not extra independent configurations or identical-route proof.
+
+Four preselected fresh trunks built without substitutions/retries;52child sweeps,
+104fixedcaps and orderedidentityreadbacks pass. FeaturehealthUnknownforall52
+direct-modefeatures,recordedunavailable. Native predictionsunknown before build.
+
+| Number | Case | Wires x diameter(mm) | Solve(s) | Buildstage(s) | Kernel subset(s) |
+|---:|---|---:|---:|---:|---:|
+|17|B03bankedarc|13x1|0.268239|3.470225|1.970883|
+|26|B12reversal|9x0.9|0.217195|2.314774|1.364619|
+|29|B15coil|17x1.25|0.226003|4.485696|2.636612|
+|38|B24multireversal|13x1|0.209594|3.436043|1.955507|
+
+Cap audit subsets.025838/.008118/.018796/.013001s. Nativecap tolerances1e-5mm/
+1e-7normal remain separate from1e-8nativecurve endpoint gates. Nativecounts9..17
+in thisselection;31/40wirecoverage here is numerical only. Fullnativecontact,
+strain,continuousbanking,bondedinsulation and splitendings remain unmeasured.
+
+Timedwork:fixture5.867714s,main38solve/auditbatches43.595793s,invariance16.114034s,
+contactscreen1.483498s,draw32additionaloutcomes10.101988s,nativecurveaudit38cases
+.833654s,new4trunks13.706738s,identitypostflight.002304s,archive2.348841s;
+total94.054563s excludes code/research/orchestration. New24solve range.196246..
+.667801s,median.233194s. Allboundsheld,no resource/source/harness stops. Final
+sampledRSS1709216KiB below2GiB;inflightpeak/physicalfootprint/tokencost unmeasured.
+No further builds scheduled. Solver/rules/searchcaps unchanged,production untouched.
+
+Read-only length diagnostic after the frozen run:B13witnessL38.88mm/chord6.213225
+=6.257620,above the currentL/chord<=5searchfamily. This excludes that known
+witness,not proof all shorter routes are impossible or solecause of failure.
+B06ratio2.109326 andB14ratio4.769519 are within the bound and still fail. Next
+bounded question:length-range/branch-search restrictions across the retained
+matrix,without confusing search choices with physical laws. No fix implemented.
+
+OneidleUntitled,2arrays,38numbered candidates,150solids(98retained+52new).
+Fresh17/26/29/38framed;all32newdiagnostic paths retained with outcome/timing labels.
+artifacts/verification/ribbon_cap_transition/breadth26/c33102d8b8b3449db41312bb3af6395e/
+containscandidates.f3d,17/26/29/38/comparisonPNGs;comparison/29visually reviewed.
+No newreportfiles. Liveevidence director_route_trials_bank._breadth26 and shared
+_trials/_paths breadth26-pair0..18/breadth26-invariance0..5(skipped pair omitted).
+Never reset live ledgers. Newfixturemodule/tests2focusedcontracts passed;
+changed-scope Rufflint/format/IDEdiagnostics and completecode/docreview pass.
+No solver change or fullQA;fixturetests are not geometry coverage.
+
+Question:does unchanged BANK recover diverse fixed endpoint poses beyond the
+small visual gallery? Freeze38independent configurations:6retainedgallery+8old
+regressionposes+24newwitness targets. New six families(bankarc,return,reversal,
+coil,entry,multireversal) each have2development+2reservedvalidation;7..40wires,
+0.6..2mm diameter,noncanonical initial frames/positions.18/24witnesses contain
+third harmonics absent from the fitting basis. Fields/dimensions/initial poses
+frozen in director_breadth_cases.registered. No fixture path/length/coefficients
+enter solve. Kinematic model reachability only,not measured physical equilibrium.
+Retain2known invalid prescribed-field auditcontrols(folding/radius),separate from
+positive endpoint coverage;they test rejection checks,not endpoint infeasibility.
+Witness256axis/512rotation comparison precedes authoring the serialized targets.
+All witnesses retained even if policy fails;no case replacement or target repair.
+
+Same BANK18+3rounds/254refinement+46seed screens/1e-8actualclosure/259sample
+compatibility;centerline free. No algorithm/rule/searchbudget changes or tuning.
+Main38in19pairs,10s/2GiB each;gallery6first,old8,nextnewdevelopment12,validation12
+last. Stop retainedpassingcontrol regression/source/resource/harness. Existing
+fiveoldfailures retained as diagnostic,not proof of infeasibility. Validation
+evaluated once after development under identical source freeze,no adaptation.
+
+Separately freeze12orientation/scale copies of B01/B09/B13/B21:3rotations,
+scales.5/1/2,translations. These are invariance trials,NOT12newconfigurations.
+Skip a copied baseline if its original fails;record every skip,no replacement.
+Only fixed-target recovery/policy preservation is compared,not identical routes
+for underdetermined endpoints. Six pairs10s/2GiB,unchanged BANKbudgets.
+
+Preselect native B03/B12/B15/B24 before outcomes,one sweep attempt each only if
+numerical and nativecurve gates pass;record skipped selections,never replace.
+Preserve six existing gallery trunks. Add numbered diagnostic paths07–38 for
+the other32cases;Aonly for failednumerical,3paths for passing. Existinggallery
+01–06curves remain and can be audited separately. Native predictionsunknown.
+Draw30s/nativecurveaudit10s/129+257contactscreen10s;up to4trunkbuilds30s each;
+authoring10s/finalpostflight10s/archive15s.600s summed measuredwork/2GiB RSS,
+expected60–150s measuredwork. Stop first incomplete kernel/cap/source/resource
+or sampled falseacceptance. No retries/lofts/reportfiles/production edits.
+Audit ordered identities/solidstatus/bothfixedcaps1e-5mm/1e-7normal;directUnknown
+health unavailable,nothealthy. Fullthickcontact/strain/insulation/endings absent.
+Keep existing5old failures,anynewfailures/skips/unattempted in same disposition.
+
 ## Variation gallery — frozen2026-10-26
 
 Completed6/6numerically evaluated/native attempted/trunks built/partially audited;
