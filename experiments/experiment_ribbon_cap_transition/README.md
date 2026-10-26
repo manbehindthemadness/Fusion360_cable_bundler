@@ -1,5 +1,118 @@
 # Cap-transition candidate v2 — five-width development
 
+## Shared failure-region instrument — frozen renewal2026-10-26
+
+User authorizes controlled failure demonstrations and stresses this is a mutual
+tool. New `failure_regions` retains full sampled series plus every contiguous
+red/amber interval,entry/exit brackets and worst witness. Renderer and agent-facing
+`failure_demonstrations.inspect(number,kind=None,trace=None)` consume those same
+objects. No independent visual-only classifier or silent acceptance flag.
+
+Scope:6forward-authored variants in2parent families plus retained rejected11,
+not7new independent routing successes. B1/B2/B3 vary peak center macaroni
+.55/.79/1.4;F1/F2/F3 vary ruling derivative amplitude so minimum boundaryJ is
+.3/.01/-.2. B3expects center/radius violations,F3expects material fold;B2/F2
+expect amber warnings. Other4expect no red in these named measurements. These
+are instrument controls,not physical feasibility or native predictions. Endpoint
+poses of forward fixtures are frozen authoring outputs before analysis;they are
+not independent targets solved by the routing algorithm. Retained11keeps its
+original fixed targets and must expose Jfold;other findings are allowed/retained.
+
+Renewed bounds:7displays once,10s/display,75s summed setup/case/presentation work,
+2GiB sampledRSS,512analysis intervals,no solve/search/refinement/native attempts.
+Stop first unexpected classification,host/source/input error or scheduling gate;
+retain all skipped/unattempted cases. Known invalid findings are completed
+diagnostics,not harness errors. Previous stopped viewer ledger stays untouched.
+No production/solver/acceptance changes;geometry milestone remains30/38localpasses,
+8failures,0fullyaudited ribbons. No new report files.
+
+Display:diagnostic material sheets,actual reference cubic guide splines,material
+rulings,contiguous colored cells/paths,entry and worst ticks,and a metric-vs-u
+graph with threshold. Sheets can overlap in folded maps and have no thickness;
+they are explicitly not sweep bodies. Red cells include adjacent threshold
+brackets,not exact continuous failure boundaries. Center.8/lane3D/J>0remain
+unchanged;amber margins.08/.1/.1are display aids. NegativeJlane curvature is
+unmeasured,never treated as passed. Analysis is intrinsic reference-field k/J,
+not native/cubic curvature;old cubic analysis remains separate. Contact,strain,
+containment,endings/nativeagreement and continuous crossings remain unmeasured.
+Candidate remedies are investigation directions,not automatic geometry repairs.
+
+Requirements:Fusion/adsk/localMCP,existingownedUntitled3root scratch and retained
+livebreadth ledger. Entry`failure_demonstrations.prepare(breadth,paths)`then
+`draw_next()`once per registered display;`show(number=None,sheet=True,graphs=True)`
+focuses/toggles without recomputation;`restore()`restores original visibility.
+All sources/forwardparameters/fixedinputs/expectedfindings/timings remain in
+`_state`. No toolbar yet. Freeze fingerprints after final code changes,then run.
+
+Completed renewal:7/7registered displays measured/rendered once,none skipped or
+unattempted,no source/classification/resource stop. These are2controlled parent
+families/6variants plus1retained rejected endpoint case,not7independent solver
+successes.0new searches/native attempts/builds/fullyaudited complete ribbons;
+native failure rate unmeasured. B1/F1baseline and B2/F2near-limit controls have
+no red in the named reference checks(4/4),not fullphysical acceptance(0accepted,
+4unresolved). Both deliberately invalid controls correctly flagged2/2:B3center
+macaroni+lane3D,F3materialJ. Retained11alsoflagsJ,center and regular-lane curvature.
+All7predetermined diagnostic expectations observed;no newholdouts/generalization.
+
+| Display | Reference analysis(s) | Mesh/graphics stage(s) | Case total(s) |
+|---|---:|---:|---:|
+|B1|.335953|.403235|.911749|
+|B2|.386474|.415585|.975985|
+|B3|.256387|.309064|.724318|
+|F1|.288727|.278480|.735840|
+|F2|.308970|.189743|.660924|
+|F3|.305022|.252074|.714316|
+|R11|.773317|.577924|1.505617|
+
+These are reference-field analysis/display timings,not solver or native timings.
+Setup/forwardfixtureauthoring.826240s,casework6.228748s,presentation5.449484s,
+presentation correction4.532441s:measuredwork17.036913s,excluding development,
+research,read-only inspection/orchestration. An initial presentation correction
+failed becauseCustomGraphicsText usesformattedText,nottext;Fusionapplicationlog
+confirmedAttributeError and178ms host-reported duration. It changed no geometry
+or analysis;retained in`_state.presentation_failures`,not disguised as a case retry.
+Its exact stagewalltime was not retained,so178ms is not added to measuredwork.
+Maximum retained RSS424112KiB,below2GiB;inflightpeak/physicalfootprint/token cost
+unmeasured.75s scheduling budget not exhausted;allplannedwork is complete.
+
+Concrete shared witnesses:
+
+- B3center red samplesu=.2734375..7265625,entrybracket[.271484375,.2734375],
+  exit[.7265625,.728515625],peak1.4at.5against.8. MaterialJstays1.
+- F3Bedge red samplesu=.158203125..341796875,entry[.15625,.158203125],
+  exit[.341796875,.34375],minimumJ=-.2at.25. Aedge reverses later,at.75.
+  Center curvature iszero:curvature alone cannot diagnose material-map reversal.
+- R11conductor01redJ samplesu=.259765625..541015625,entrybracket
+  [.2578125,.259765625],exit[.541015625,.54296875],minimum-3.123055389at
+  .404296875. The earlierobserved54.2%reversal is theEXIT,not the onset.
+  R11Bedge ismoresevere;thegraph/legendselectthe sameworst trace/region.
+
+These are sampled reference-field witnesses,not exact continuous crossings,
+native/cubic measurements,physical material calibration or a fix. BoundaryIDs
+-1=Aedge,-2=Bedge,0=center;positive IDs are actual conductors. Agent`inspect`
+also returns fullmin/maxstations for clean baselines,unmeasured counts and
+investigation directions. Colored cells include neighboring crossingbrackets;
+compressed/coincident folded regions may occupy little visible space,so read
+path ticks and the graph together. Inmodel nonpositiveJinvalidates the regular
+material map;even zero curvature cannot waive it.
+
+VisualQA corrected neutraltext contrast(cached older helper),red/amber priority
+on coincident sheets and legendalignment with the selected graph. Stored data
+were not rerun;original calibration sourcehashes remain and current presentation
+hashes are separate. New graphics/runner source has those presentation changes;
+any future run must fingerprint it afresh. No solver/targets/policy changes.
+Nine focused tests passed;all5newPythonfiles passed Rufflint/format and IDE
+errors/warnings/weakwarnings inspections. FullQA/native/contact audits unrun.
+
+OneidleownedUntitledscratch nowhas4roots and the original150native solids.
+The new root contains7diagnostic sheet views,0native bodies;earlier2geometry
+roots and stoppedmeshviewer are retained,hidden reversibly. Priorviewer still
+has its11stop and29unattempted disposition. Comparison/F3/R11 PNGs visually
+reviewed under`artifacts/verification/ribbon_cap_transition/failure_regions26/`.
+No new report file,production/standards edit or additional work scheduled.
+Next useful bounded solver question:track J/bend concentration during closure
+improvement,using these shared diagnostics before changing the route search.
+
 ## Sweep analysis instrument — checkpoint and frozen calibration2026-10-26
 
 Geometry work is paused at the unchanged BANK breadth result below:30/38 local
