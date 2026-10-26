@@ -1,5 +1,87 @@
 # Cap-transition candidate v2 — five-width development
 
+## Sweep analysis instrument — checkpoint and frozen calibration2026-10-26
+
+Geometry work is paused at the unchanged BANK breadth result below:30/38 local
+numerical/native-three-curve passes,8 retained failures,0 fully audited complete
+ribbons. Endpoint closure/search branch and length-family limitations remain
+unresolved. The proposed both-boundary full-width macaroni check is not adopted.
+Do not alter the solver, historical outcomes or fixed targets while building the
+analysis instrument. Production is unchanged.
+
+V1 uses actual512interval sweep cubics to display circular conductor tubes, exact
+NURBS guide trajectories, fixed targets and sampled rule witnesses. It is an
+experiment/demonstration instrument,not a physical simulator or native predictor.
+Red denotes existing sampled rule/target findings;amber denotes the proposed
+boundary check. Material rulings carry u and largerJedge proxy labels,not discrete
+geometric turn segments. Neutral/straight transitions remain continuous.
+
+Frozen calibration:cached03(spatial reversal),07(known radius failure),11(known
+closure failure),29(tight coil/proposed edge finding). Four existing independent
+configurations,no new solves,searches,native builds,repairs or holdouts. Each is
+replayed once;15s/case,60s summed case work,2GiB sampledRSS,first harness/source/
+resource stop. Sources and fixed inputs are fingerprinted/retained in live ledger.
+Mesh uses12angular vertices and every cubic boundary;analytical curvature samples
+both knot sides and midpoint. Report midpoint chord deviation,angular sagitta and
+tangent steps explicitly;they are not a continuous surface error bound. Finite
+sampling,contact,elasticity,bonded insulation/endings and native agreement remain
+unmeasured. No compliance acceptance follows from a clean display.
+
+Entry:experiment-only `sweep_analysis_viewer.prepare(breadth_ledger, paths)` then
+`draw_next()` once per registered case. `show(number=None,tubes=True,rulings=False)`
+focuses/toggles without recomputation;`restore_geometry()` restores original root
+visibility. New groups live under one added component in the existing owned
+scratch;earlier geometry is retained. V1 has no toolbar or automatic repairs.
+Timings distinguish cubic reconstruction,mesh generation,sampled analysis,graphics
+submission and combined guide-analysis/display overhead. Cached replay excludes
+search. No new report files;results in `_state`,existing docs updated at completion.
+
+Calibration stopped and retained:4planned,3attempted,2complete mesh displays,
+1geometry-sampling stop,1unattempted.03and07each show19conductor tubes;these are
+two independent configurations,not38cases.0new solves/native attempts/builds/
+fullaudits. No new complete-ribbon acceptance.29not attempted after11stop.
+
+| Number | Cached cubic reconstruction(s) | Mesh(s) | Sampled analysis(s) | Graphics submission(s) | Case total(s) |
+|---:|---:|---:|---:|---:|---:|
+|03|0.972209|0.650476|0.637864|0.312857|4.478713|
+|07|1.080895|0.713110|0.693048|0.333662|4.749058|
+|11|0.150367|incomplete|incomplete|not attempted|0.506566|
+|29|not attempted|not attempted|not attempted|not attempted|not attempted|
+
+03has no sampled red/amber witnesses.07retains Bboundary radius finding at
+u=.0439453125:curvature*3D=1.054543578>1(R4.26725mm);proposed both-boundary
+fullreach maximum3.379113362>.8 remains amber,not a policy adoption. Existing
+conductor-center tube samples themselves have no radius violation in07;the red
+witness is on the outer B guide,trace code-2(A=-1,center=0).
+
+11first conductor's mesh transport encountered almost opposed tangents and
+latched stop before a completed tube. No smoothing/refinement/retry or29launch.
+Read-only inspection:trace01,q=-13.5mm,interval277,u=.541015625..54296875,
+tangentdot=-.999999083574. MaterialJ=-.0700253414,-.0343385871,+.00137932436
+at start/mid/end. This diagnoses a fold/reversal in the rejected model path,
+not a graphics-only roll issue or a native kernel failure. The old closure
+finding remains unchanged. Failed tube substage times are unavailable because
+the exception preceded return;its complete0.506566s case time is retained.
+
+Completed displays have maximum midpoint chord deviations.000235544/.001444207mm,
+angular sagitta.025555630mm and tangent steps.394622/1.123516degrees respectively.
+These are mesh diagnostics,not continuous surface certificates. All calibration
+sources/inputs retained in live `sweep_analysis_viewer._state`;no acceptance flag.
+Casework9.734336s,setup.213907s,presentation2.823790s,sum12.772032s excludes
+editing/research/read-only diagnosis/orchestration. Maximum measured RSS664464KiB
+at presentation;inflightpeak/physicalfootprint/tokencost unmeasured. Budget60s
+was not exhausted;the stop requires review before further calibration work.
+
+One scratch remains open with a third graphics-only root;original two roots and
+150solids retained,hidden reversibly.03/07visible plus11fold/29not-attempted
+status annotations. Screenshot visually reviewed at
+`artifacts/verification/ribbon_cap_transition/sweep_analysis26/comparison.png`.
+Neutral annotation contrast was corrected after screenshot review,presentation
+only;original calibration source hashes retained. Current graphics source has
+this contrast correction and must be fingerprinted in any renewed run. Four
+focused tests,Ruff lint/format and all changed Python IDE inspections passed.
+No fullQA/native-agreement/contact validation;no production/standards changes.
+
 ## Proposed edge macaroni check — read-only2026-10-26
 
 User suggests limiting outside-edge tightness by the macaroni rule. Current
