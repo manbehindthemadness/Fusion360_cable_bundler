@@ -21,6 +21,7 @@ import adsk.core
 import adsk.fusion
 
 from cable_bundler.routing.geometry import Vector3
+from devtools.ribbon_analysis.provenance import source_fingerprints
 
 from .director_route_sweeps import _trace
 from .native_budget import NativeBudget
@@ -78,6 +79,7 @@ def prepare(ledger: dict[str, Any], paths: dict[str, Any]) -> dict[str, Any]:
     )
     _state = {
         "plan": {
+            "analysis_sources": source_fingerprints(),
             "numbers": NUMBERS,
             "case_seconds": 15,
             "sum_seconds": 60,
@@ -145,6 +147,8 @@ def draw_next() -> dict[str, Any]:
             raise RuntimeError("Active owned scratch/idle state changed.")
         if sum(r.get("seconds", 0) for r in state["rows"]) >= 60:
             raise RuntimeError("Viewer summed-work cap reached.")
+        if source_fingerprints() != state["plan"]["analysis_sources"]:
+            raise RuntimeError("Shared analysis source drift.")
         for name, digest in state["plan"]["sources"].items():
             if hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() != digest:
                 raise RuntimeError("Viewer source drift.")

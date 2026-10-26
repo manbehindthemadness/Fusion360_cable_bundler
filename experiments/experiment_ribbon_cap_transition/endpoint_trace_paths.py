@@ -7,9 +7,11 @@ exact prescribed endpoint headings. It is not the historical loft interpolant.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from cable_bundler.routing.geometry import CubicBezier, Vector3, difference, lerp, magnitude, unit
+from devtools.ribbon_analysis.traces import TracePath
+
+# The historical planner intentionally shares the internal conservative certificate.
+# noinspection PyProtectedMember
 from experiments.experiment_secure_discrete_ribbon.contract import (
     UnsafeRibbon,
     _curvature_bound,
@@ -17,18 +19,6 @@ from experiments.experiment_secure_discrete_ribbon.contract import (
 )
 
 from .endpoint_first import EndpointCase, construct
-
-
-@dataclass(frozen=True)
-class TracePath:
-    """
-    Retain one ordered trace's exact cubic chain and equivalent NURBS controls.
-    """
-
-    number: int
-    curves: tuple[CubicBezier, ...]
-    controls: tuple[Vector3, ...]
-    knots: tuple[float, ...]
 
 
 def interpolate_trace(
@@ -100,7 +90,7 @@ def plan_trace_sweeps(case: EndpointCase) -> tuple[tuple[TracePath, ...], dict[s
             raise UnsafeRibbon(
                 "Interpolated trace hull exceeds the fixed sphere; no native attempt."
             )
-        pending = [(c, 0) for c in path.curves]
+        pending: list[tuple[CubicBezier, int]] = [(c, 0) for c in path.curves]
         while pending:
             visited += 1
             if visited > 4096:

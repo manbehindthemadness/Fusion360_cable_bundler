@@ -16,14 +16,14 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from cable_bundler.routing.geometry import CubicBezier, Vector3
+from devtools.ribbon_analysis.provenance import source_fingerprints
+from devtools.ribbon_analysis.traces import TracePath
+from devtools.ribbon_analysis.traces import trace as build_trace
 from experiments.experiment_production_split_ribbon.sources import PROJECT_ROOT
 
 from . import director_route_display, director_route_trials
 from .director_transport import DirectorPath
-from .edge_interpolation import cubic_controls
 from .endpoint_first import EndpointCase
-from .endpoint_trace_paths import TracePath
 from .native_budget import NativeBudget
 from .trace_sweep_native import _author, _check_cap
 
@@ -36,15 +36,7 @@ def _trace(path: DirectorPath, number: int, offset: float) -> TracePath:
     Preserve the solved material lane's position and velocity in512cubic intervals.
     """
 
-    def jet(u: float) -> tuple[Vector3, Vector3]:
-        """
-        Evaluate one immutable conductor offset without fitting or endpoint repair.
-        """
-        return path.lane(u, offset)
-
-    controls, knots = cubic_controls(jet, 512)
-    curves = tuple(CubicBezier(*controls[i : i + 4]) for i in range(0, len(controls) - 1, 3))
-    return TracePath(number, curves, controls, knots)
+    return build_trace(path, number, offset)
 
 
 # noinspection PyProtectedMember
@@ -68,6 +60,7 @@ def run(number: int, case: EndpointCase) -> dict[str, Any]:
         raise RuntimeError("Expected completed frozen route display.")
     if _state is None:
         fingerprints = dict(baseline["plan"]["sources"])
+        fingerprints.update(source_fingerprints())
         for name in ("director_route_sweeps.py", "trace_sweep_native.py", "endpoint_caps.py"):
             file = Path(__file__).with_name(name)
             fingerprints[str(file.relative_to(PROJECT_ROOT))] = hashlib.sha256(

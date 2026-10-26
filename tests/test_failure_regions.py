@@ -5,13 +5,13 @@ Verify measured interval provenance and controlled diagnostic classifications.
 import pytest
 
 from cable_bundler.routing.geometry import Vector3
-from experiments.experiment_ribbon_cap_transition.failure_fixtures import author, specifications
-from experiments.experiment_ribbon_cap_transition.failure_regions import (
+from devtools.ribbon_analysis.regions import (
     Sample,
     Series,
     measure,
     regions,
 )
+from experiments.experiment_ribbon_cap_transition.failure_fixtures import author, specifications
 
 
 @pytest.mark.parametrize(

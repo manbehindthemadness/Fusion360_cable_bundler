@@ -1,0 +1,65 @@
+---
+name: fusion-ribbon-analysis
+description: Inspect and demonstrate ribbon-routing behavior in Fusion with shared numerical evidence, trajectory guides, diagnostic meshes, failure intervals and measurement graphs. Use for solver collaboration and explaining suspicious ribbon shapes; this is not a native sweep builder or physical simulator.
+---
+
+# Fusion Ribbon Analysis
+
+Use this as a shared investigative instrument: the user sees the geometry and
+graphs; the agent reads the **same frozen measurements and interval records**.
+Use it to challenge assumptions, locate where a failure starts and understand
+which solver change may have caused it. Do not merely decorate a pass/fail result.
+
+The maintained implementation is [`devtools/ribbon_analysis`](../../devtools/ribbon_analysis/),
+outside the production add-in and experiments. Resolve this skill directory's
+symlink to find its repository root. The package requires that repository's
+`cable_bundler.routing.geometry`; it is reusable across candidates in this project,
+not a standalone third-party Fusion distribution.
+
+Read [references/api.md](references/api.md) when adapting a candidate or creating
+a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplied
+`adsk` and an explicitly owned development component in the active idle document.
+
+## Working together
+
+- Start from the user's question and an existing candidate when possible. Keep
+  its identities, material ordering, fixed target poses and source provenance.
+  Accept a stable path through the documented protocol; do not reach into a
+  particular experiment's global ledger or infer which scratch belongs to us.
+- Read project safeguards before planning/running solver work. Freeze the question,
+  candidate IDs, rule version, measured scope and resource bounds within existing
+  authorization. Do not expand searches or native batches through this skill.
+- Analyze once, then render and inspect the returned `Evidence`. Its target copy,
+  sampled series, failure regions and guide cubics are immutable. Later solver
+  changes require a newly identified snapshot; never repaint old evidence as new.
+- Show baseline, near-limit and failing variants when they answer the question.
+  Track their parentage; variants are not independent solver coverage. Preserve
+  failures and missing measurements. Distinguish a sampled rule violation from
+  physical impossibility and native construction failure.
+- Inspect entry/exit **brackets**, the full affected interval and worst point.
+  Ask what changed before the visible symptom: a reversal near the end may be the
+  exit from a much longer folded region. Read clean baseline extrema too.
+- Keep labels, plotted trace, highlighted region and reported numbers aligned.
+  Review a viewport capture for contrast and overlapping failure visibility.
+  `CustomGraphicsText.formattedText` is the editable text property. Frozen
+  overlapping material sheets are diagnostic illustrations, not valid solids.
+- Keep solver, analysis, guide construction and graphics timings distinct.
+  Cached analysis excludes search. Use bounded sampling and RSS checks; no mesh
+  all-pairs audit, automatic refinement, repair or repeated builds by default.
+- Preserve earlier views and ledgers. The viewer changes only its own children;
+  hide, save or delete other content only within the user's existing instruction.
+  Source drift stops work; do not silently reload modules holding live evidence.
+- Explain the observed cause and a specific investigation direction. No graph or
+  mesh establishes equilibrium, strain, contact, continuous compliance or Fusion
+  kernel success. Native validation remains separate.
+
+## Maintaining the instrument
+
+Improve it from observed collaboration needs. Keep reusable analysis and graphics
+in `devtools/ribbon_analysis`, fixtures/batches in `experiments/`, and app-owned
+tests in `tests/`. Retain compatibility imports for historical callers while
+moving implementations. Update this skill/API reference when the contract changes.
+Use focused tests, Ruff and IDE checks for affected code, plus proportionate live
+display checks. Preserve historical results and freeze new provenance after a
+refactor; old fingerprints are not transferable evidence. Honor the user's choice
+of output artifacts—do not create a new report file merely because analysis ran.

@@ -7,13 +7,13 @@ from collections import Counter
 import pytest
 
 from cable_bundler.routing.geometry import CubicBezier, Vector3, dot, magnitude
-from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
-from experiments.experiment_ribbon_cap_transition.endpoint_trace_paths import TracePath
-from experiments.experiment_ribbon_cap_transition.sweep_analysis import (
+from devtools.ribbon_analysis.tubes import (
     inspect_trace,
     transport_normal,
     tube_mesh,
 )
+from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
+from experiments.experiment_ribbon_cap_transition.endpoint_trace_paths import TracePath
 from experiments.experiment_secure_discrete_ribbon.contract import split_curve
 
 

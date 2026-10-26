@@ -1,5 +1,65 @@
 # Cap-transition candidate v2 — five-width development
 
+## Analyzer extracted to a reusable skill — 2026-10-26
+
+The maintained workflow is now `skills/fusion-ribbon-analysis/SKILL.md`, installed
+through a discovery link at `~/.codex/skills/fusion-ribbon-analysis`. Reusable
+analysis, interpolation, budgets, meshes and graphics live in
+`devtools/ribbon_analysis/`, not this experiment package or the production add-in.
+The files here with the former analysis names are compatibility imports; matrix
+fixtures and batch runners remain historical experiment adapters. Their new plans
+also pin the shared library. Historical fingerprints/results remain historical;
+do not resume an old frozen batch with refactored sources or replace its ledger.
+
+`api.Candidate` takes an explicit path protocol, fixed targets and provenance.
+`api.analyze` produces an immutable `Evidence` snapshot: sampled series/regions,
+copied targets, frozen cubic guides, content fingerprint and distinct stage times.
+The generic Fusion `Viewer` receives an owned component/document explicitly; it
+does not discover numbered fixtures or assume a scratch name. Both inspection and
+graphics consume the frozen snapshot, with loaded-module source-drift checks.
+No geometry rule, search policy, production lifecycle or previous result changed.
+
+Migration verification plan: affected host tests and IDE/Ruff checks; skill
+metadata validation in an isolated temporary PyYAML environment; then cached F1
+and R11 numerical/graphics smoke checks against their retained interval records.
+Two existing diagnostic inputs only, one replay each, no solver or native builds,
+10s/input,30s summed display work,2GiB sampledRSS;stop first source/resource/
+harness/measurement mismatch. Retain original gallery and restore its visibility
+and camera after checking the new viewer. Zero new independent routing coverage.
+No new report file; existing docs/live evidence and optional viewport image only.
+
+Migration completed:the skill validator passed using temporary PyYAML rather
+than modifying project dependencies. Numerical API imports independently of
+Fusion and experiments.30focused tests covered existing diagnostics/budgets/
+interpolation plus frozen-evidence identity,solver mutation,input validation and
+stale-source detection;6additional affected trace-planner/paired-diagnostic
+consumer tests passed,36focused checks total.
+Rufflint/format and all25changedPythonfile IDE inspections are clean.
+
+Both cached smoke inputs were evaluated/displayed once;2/2retained region lists
+matched exactly(F1:0regions,R11:126red/amberrecords). These are not126cases or
+new independent routing evidence.0solver/native attempts/builds/fullaudits;
+native failure rate unmeasured. No failed/skipped/unattempted smoke input,no
+source/resource/harness stop. F1no named hard finding remains physically
+unresolved;R11retains its known model violations. Production/solver rules unchanged.
+
+| Cached input | Numerical subset(s) | Frozen-guide subset(s) | Complete analysis stage(s) | Graphics(s) | Total input(s) |
+|---|---:|---:|---:|---:|---:|
+|F1|.977507|.181043|1.231611|.138947|1.534038|
+|R11|1.222094|.190992|1.495543|.454554|2.116489|
+
+Complete analysis includes guide freezing/content fingerprints and sampling RSS
+checkpoints;subsets overlap the complete stage and are not summed again. Timing
+is not directly comparable to earlier unchecked reference-only measurement.
+Setup/display/comparison/capture/restore wall6.658805s,below30s;finalRSS446304KiB,
+peak in-flight footprint/token cost unmeasured. All old ledgers and camera/root
+visibility were restored. One additional owned verification root is retained
+hidden,with0native bodies. Source/input snapshots and fullfailure disposition
+live in`devtools.ribbon_analysis.viewer._migration_smoke`;no old run reset.
+Viewport capture visually reviewed at
+`artifacts/verification/ribbon_analysis_skill/migration.png`. No fullQA,newnative
+validation,contact/strain/continuous-compliance claim or new report file.
+
 ## Shared failure-region instrument — frozen renewal2026-10-26
 
 User authorizes controlled failure demonstrations and stresses this is a mutual

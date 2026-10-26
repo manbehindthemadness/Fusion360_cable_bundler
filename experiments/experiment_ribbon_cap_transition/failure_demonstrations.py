@@ -20,6 +20,7 @@ import adsk.core
 import adsk.fusion
 
 from cable_bundler.routing.geometry import Vector3
+from devtools.ribbon_analysis.provenance import source_fingerprints
 
 from . import failure_region_graphics
 from .failure_fixtures import author, specifications
@@ -115,6 +116,7 @@ def prepare(breadth: dict[str, Any], paths: dict[str, Any]) -> dict[str, Any]:
     sources.update(breadth["sources"])
     state: dict[str, Any] = {
         "plan": {
+            "analysis_sources": source_fingerprints(),
             "sources": sources,
             "numbers": [e["number"] for e in entries],
             "seconds_per_display": 10,
@@ -177,6 +179,8 @@ def draw_next() -> dict[str, Any]:
         if state["setup_seconds"] + sum(r.get("seconds", 0) for r in state["rows"]) >= 75:
             raise RuntimeError("75s summed-work scheduling cap.")
         root = Path(__file__).parents[2]
+        if source_fingerprints() != state["plan"]["analysis_sources"]:
+            raise RuntimeError("Shared analysis source drift.")
         for name, digest in state["plan"]["sources"].items():
             if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
                 raise RuntimeError("Demonstration source drift.")
