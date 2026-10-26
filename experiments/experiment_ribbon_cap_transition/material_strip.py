@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude
 
@@ -89,6 +89,7 @@ class MaterialStrip:
 
     spans: tuple[MaterialSpan, ...]
     half_width_mm: float
+    _center_boundaries_mm: tuple[float, ...] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         """
@@ -96,6 +97,19 @@ class MaterialStrip:
         """
         if not self.spans or not math.isfinite(self.half_width_mm) or self.half_width_mm <= 0:
             raise ValueError("A strip needs spans and finite positive half width.")
+        parts: list[float] = []
+        boundaries = [0.0]
+        for span in self.spans:
+            parts.append(span.motion.length)
+            try:
+                boundaries.append(math.fsum(parts))
+            except OverflowError as error:
+                raise ValueError("Material total length is not representable.") from error
+        if any(not math.isfinite(value) for value in boundaries) or any(
+            right <= left for left, right in zip(boundaries, boundaries[1:])
+        ):
+            raise ValueError("Material span lengths do not form finite increasing coordinates.")
+        object.__setattr__(self, "_center_boundaries_mm", tuple(boundaries))
         if self.spans[0].start_slope != 0 or self.spans[-1].end_slope != 0:
             raise ValueError("Fixed normal terminal caps require zero terminal ruling slopes.")
         if any(span.minimum_jacobian(self.half_width_mm) <= 0 for span in self.spans):
@@ -119,7 +133,7 @@ class MaterialStrip:
         """
         Return the common analytical reference length of every material lane.
         """
-        return sum(span.motion.length for span in self.spans)
+        return self._center_boundaries_mm[-1]
 
     def boundaries(self, offset_mm: float) -> tuple[float, ...]:
         """
@@ -127,9 +141,8 @@ class MaterialStrip:
         """
         if not math.isfinite(offset_mm) or abs(offset_mm) > self.half_width_mm:
             raise ValueError("Lane offset must lie within the reference strip width.")
-        result, center_distance = [0.0], 0.0
-        for span in self.spans:
-            center_distance += span.motion.length
+        result = [0.0]
+        for center_distance, span in zip(self._center_boundaries_mm[1:], self.spans):
             result.append(center_distance + offset_mm * span.end_slope)
         return tuple(result)
 

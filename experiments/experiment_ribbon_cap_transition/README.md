@@ -1,5 +1,95 @@
 # Cap-transition candidate v2 — five-width development
 
+## Continuous-path conceptual-event diagnostic — completed 2026-10-25
+
+User approved the frozen eight-case scope. All8 configurations were solved,
+numerically evaluated and drawn;none skipped or unattempted. No stop/retry or
+source drift.0native cable-solid attempts/builds/full compliance audits.
+Outcome:0accepted,5failed,3unresolved. Controls03/04/08 reached their fixed
+endpoints and passed the measured reference checks;unmeasured native compliance
+keeps them unresolved. Spatial01/02/05/06/07 failed endpoint and sampled sphere
+checks;gaps120.631/184.414/129.059/133.153/3044.590mm respectively.
+
+The symmetric S08 has positive then negative signed bending,but equal A/B edge
+curvature throughout;04 broad return is also balanced while bending. Each spatial
+case shows six alternating A/B regions within only three signed bend regions.
+Thus curvature-side handoffs alone neither recover every mental event nor
+uniquely define a turn boundary. N/EQ distinction works as declared;the tiny
+initial N interval on08 is the sampled endpoint/deadband observation,not a finite
+physical straight-run finding. No event-driven routing or mechanics claim.
+
+Per-case milliseconds (solve/audit/observer/draw),01..08:
+25.160/163.931/110.454/499.521;25.618/180.967/143.325/342.820;
+0.559/26.451/50.802/124.447;0.916/28.109/53.998/119.476;
+28.295/178.336/125.444/353.975;30.022/182.171/121.167/368.439;
+26.445/166.823/137.501/374.068;1.639/88.775/170.995/207.053.
+Numerical2.516s,drawing3.098s,archive0.257s,overall6.851s,CPU6.567s;
+maximum sampledRSS552256KiB,final550304KiB,all within agreed limits.
+Sampled material-speed errors<=8.89e-16;spatial minimum Jacobians~1e-12 remain
+poorly conditioned despite positive reference regularity. Controls have Jacobian1.
+Sphere sampling is center plus two material edges65stations/span,not a complete
+full-width containment audit or identical coverage to historical audits.
+
+Fusion postflight:one Untitled project open,eight numbered children,24continuous
+fixed cubic splines,labels01..08,zero bodies,source hashes unchanged. Array pitch
+317.997cm is dominated by failed07;left viewport focused on08 for inspection.
+F3D/PNG only at artifacts/verification/ribbon_cap_transition/event_observations/
+f7c05383f962485a9c6c747148ee1be5/;no report files. Results/provenance remain live.
+The following paragraphs record the frozen pre-run design and verification.
+
+The user clarified that turn events and neutral regions are mental descriptions
+within one continuous ribbon,not separate geometric pieces. New event_labels
+observes completed material paths without modifying them. Two explicit hypotheses
+are compared:relative curvature difference between permanent A/B width edges at
+matched material stations,and signed center bending against T cross W. Neither
+is a measured force,tension or physical least-resistance law. A/B identity never
+changes. Straight requires both negligible center bend and twist;equal edge
+curvature during motion is balanced,not automatically straight.
+
+Proposed8fixed development inputs:all seven previous complete boundary poses plus
+smooth_S_event_control,start(-40,0,-10)mm,end(40,0,10)mm,tangents+X,widths+Y,
+19conductors x1.5mm. The S control uses an exact endpoint-derived symmetric pair
+of quintic-eased signed rotations;zero curvature at reversal. Its mathematical
+integration spans are not inferred conceptual events or separate native objects.
+All three existing collateral poses and both prior controls remain in scope.
+No untouched holdouts or expected-invalid fixtures are claimed.
+
+Procedure:event_cases retains the old bounded material solver for the seven
+existing poses and adds the declared S control branch. event_labels samples257
+stations,with relative curvature deadband0.001,rate deadband1e-8/mm and3sample
+persistence. These are frozen observer heuristics,not geometry tolerance changes
+or calibrated mechanics. Existing local code tests expose the symmetric S
+ambiguity:two signed bend regions coexist with equal width-edge curvature.
+The planned matrix must report that limitation,not silently redefine demand.
+
+Proposed limits:8cases,<=6updates/19projections per spatial case,<=63supports per
+projection,zero native cable-solid attempts,retries or refinement;10s numerical,
+30s drawing,60s overall,2GiB sampledRSS. Stop on material contradiction,control
+regression,source/resource/API failure;no local repair or automatic continuation.
+This is an event-observation test,not an outside-edge-first routing implementation.
+Endpoint closure and native/full compliance remain separate outcomes.
+
+event_native accepts only the empty active scratch,freezes all source/rule/input
+hashes and retains old numerical baselines in memory. Planned output:one numbered
+array,eight examples,three continuous cubic guide splines per example,up to six
+sparse edge-proxy annotations per example. N=straight,EQ=balanced,A/B=greater
+curvature on that material side. Labels and leaders do not split paths. All
+observer regions remain in the readout when visible labels are capped. F3D/PNG
+only;no report file. Time solve,audit,observer,drawing and archive separately.
+
+Required coordinate repair is implemented in material_strip:one cached set of
+math.fsum prefixes now supplies both total length and lane span boundaries.
+No tolerance widening or endpoint snapping. Reject collapsed/overflowing material
+intervals. Local22focused tests (7new event/coordinate,15existing material) pass;
+Ruff/format/IDE clean and complete source reviewed. Read-only consumer search
+covered material_policy,material_allocation,guide/audit consumers and their tests.
+Coherently reloaded material helpers in Fusion,without resetting old trial state;
+the303.91450087387034mm endpoint regression passed under FusionPython3.14.
+Only the reviewed material_strip source change is allowed against the recorded
+stopped baseline;all other inherited hashes still match. The empty Untitled
+scratch was inspected:one document,zero bodies/occurrences/root sketches.
+This was the preflight state before the approved completed run recorded above.
+
 ## Developable material reference — trial stopped during audit
 
 `material_strip.py` implements an unstretched finite-width midsurface reference.
