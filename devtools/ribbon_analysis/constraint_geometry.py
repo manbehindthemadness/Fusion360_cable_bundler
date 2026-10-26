@@ -374,6 +374,8 @@ def layout(evidence: Evidence, overlays: tuple[Overlay, ...]) -> tuple[Overlay, 
     """
     Move labels and abstract solver gauges beside the route without remeasuring it.
 
+    Reserve a separate vertical slot for every title and its note lines, including
+    hidden panels, so revealing several helpers never stacks their descriptions.
     Physical circles, target axes and progress witnesses retain their real positions.
     """
     points = tuple(p for guide in evidence.guides for p in guide.controls)
@@ -381,14 +383,17 @@ def layout(evidence: Evidence, overlays: tuple[Overlay, ...]) -> tuple[Overlay, 
     guides = {guide.number: guide for guide in evidence.guides}
     half = magnitude(difference(guides[-1].controls[0], guides[-2].controls[0])) / 2
     result = []
+    cursor = 0.0
     for overlay in overlays:
+        panel = base.translated(Vector3(0, -1, 0), cursor)
+        cursor += 8 + 3 * len(overlay.notes)
         if overlay.key != "solver_limits":
-            result.append(replace(overlay, anchor=base))
+            result.append(replace(overlay, anchor=panel))
             continue
         strokes = []
         for i in range(0, len(overlay.strokes), 2):
             bar, marker = overlay.strokes[i : i + 2]
-            start = base.translated(Vector3(0, -1, 0), 5 + i / 2 * 3)
+            start = panel.translated(Vector3(0, -1, 0), 5 + i / 2 * 3)
             shift = difference(start, bar.points[0])
             strokes.extend(
                 Stroke(s.role, tuple(p.translated(shift, 1) for p in s.points))
@@ -398,7 +403,7 @@ def layout(evidence: Evidence, overlays: tuple[Overlay, ...]) -> tuple[Overlay, 
             replace(
                 overlay,
                 strokes=tuple(strokes),
-                anchor=base.translated(Vector3(1, 0, 0), 2 * half + 3),
+                anchor=panel.translated(Vector3(1, 0, 0), 2 * half + 3),
             )
         )
     return tuple(result)

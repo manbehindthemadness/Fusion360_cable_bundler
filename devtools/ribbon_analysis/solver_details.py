@@ -46,7 +46,7 @@ def retain_solver_details(
     if overlay.key != "solver_limits":
         raise ValueError("Only solver restrictions belong in the solver-details sketch.")
     snapshot = json.dumps(
-        {"evidence": evidence.fingerprint, "overlay": asdict(overlay)},
+        {"evidence": evidence.fingerprint, "overlay": asdict(overlay), "layout_version": 2},
         sort_keys=True,
         allow_nan=False,
     )
@@ -79,20 +79,23 @@ def retain_solver_details(
                 if line is None:
                     raise RuntimeError("Solver gauge line creation failed.")
                 line.isConstruction = True
-        for i, note in enumerate(overlay.notes):
+        captions = ((overlay.title, 2.0, 2.0),) + tuple(
+            (note, 5.0 + i * 3, 1.7) for i, note in enumerate(overlay.notes)
+        )
+        for note, offset, height in captions:
             checkpoint()
             # Literal text is an expression in Fusion's current Sketch Text API.
             expression = "'" + note.replace("\\", "\\\\").replace("'", "\\'") + "'"
             text_input = sketch.sketchTexts.createInput3(
-                expression, adsk.core.ValueInput.createByReal(0.17)
+                expression, adsk.core.ValueInput.createByReal(height / 10)
             )
             if text_input is None:
                 raise RuntimeError("Solver-detail text input failed.")
-            anchor = overlay.anchor.translated(Vector3(0, -1, 0), 5 + i * 3)
-            low = _point(sketch, anchor.translated(Vector3(0, -1, 0), 1.7))
+            anchor = overlay.anchor.translated(Vector3(0, -1, 0), offset)
+            low = _point(sketch, anchor.translated(Vector3(0, -1, 0), height))
             high = _point(
                 sketch,
-                anchor.translated(Vector3(1, 0, 0), max(20, len(note) * 1.1)).translated(
+                anchor.translated(Vector3(1, 0, 0), max(30, len(note) * height)).translated(
                     Vector3(0, 1, 0), 1
                 ),
             )

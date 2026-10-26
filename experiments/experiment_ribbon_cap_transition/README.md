@@ -283,10 +283,30 @@ Then at most 32 retained views including the two hidden tool verifications, 30
 seconds/2 GiB. Preflight six handles and exact old solver-component parentage;
 stop on unexpected hierarchy/API/resource mismatch. Preserve measurements/source
 records and visibility; remove only the successfully replaced owned solver helper.
-Implementation and 28 affected tests are ready. Fusion rejected the calibration
-request before script execution because a command dialog is open; no native sketch
-or component was changed. Live migration and visual verification are pending the
-user finishing/canceling that active command. No helper deletion has been attempted.
+Initial calibration was rejected before execution while a command dialog was open.
+After Fusion became idle, cached07 calibration created its native solver sketch
+in 0.699163 s. All 32 retained views (30 displayed results plus two hidden tool
+verifications) now have their own direct hidden solver sketch; each old owned
+solver-only component was removed after replacement ownership, text counts,
+metadata and gauge endpoints were verified. Two read-only preflight failures
+exposed unsupported Occurrence parent/token access; neither changed the document.
+The successful migration used native component identities and took 15.149704 s,
+sampled RSS 1070576 KiB, within the 30 s/2 GiB cap.
+
+Constraint descriptions now occupy separate titled vertical slots beside each
+experiment. Slot heights reserve every note line even while hidden; real bend,
+containment, progress and target witnesses stay in their measured locations.
+All six helpers were captured visible together on07. The first capture exposed a
+native solver heading wrap; wider native text boxes corrected it in a separate
+32-view presentation pass capped at 30 s/2 GiB, actual 18.052329 s/1118736 KiB.
+Layout-versioned native snapshots prevent reusing older narrow boxes. Initial and
+corrected captures remain under compatible28. Overview, camera and helper eyes
+are restored after inspection. Shared immutable overlay snapshots and historical
+ledgers remain available in `_labels35`, with coherent labels35 / labels35b source
+epochs. No route fitting, numerical reanalysis, native solids or rule changes.
+29 affected tests pass, with solver-sketch tests repeated after the width change;
+changed-code IDE inspections and shared-package Ruff lint/format pass. Full QA
+and geometry compliance validation are outside this presentation-only change.
 
 ## Outside-edge investigation — frozen2026-10-26
 

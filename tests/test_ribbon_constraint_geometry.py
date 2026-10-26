@@ -11,7 +11,7 @@ import pytest
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from devtools.ribbon_analysis.api import Candidate, Evidence, analyze
-from devtools.ribbon_analysis.constraint_geometry import Restriction, build, circle
+from devtools.ribbon_analysis.constraint_geometry import Restriction, build, circle, layout
 from devtools.ribbon_analysis.contracts import Targets
 
 
@@ -130,3 +130,20 @@ def test_stationary_boundary_is_retained_as_unmeasured_curvature() -> None:
     assert dict(overlay.measurements)["utilization"] is None
     assert dict(overlay.measurements)["stationary_samples"] == 3
     assert "unavailable (stationary)" in overlay.notes[1]
+
+
+def test_simultaneously_visible_descriptions_have_disjoint_stable_slots() -> None:
+    """
+    Reserve space for every note without moving real witnesses or measuring again.
+    """
+    evidence = _evidence()
+    overlays = build(evidence, (Restriction("carrier ratio", 5, 1, 5, "test"),))
+    for upper, lower in zip(overlays, overlays[1:]):
+        last_baseline = upper.anchor.y - 5 - 3 * (len(upper.notes) - 1)
+        next_heading_top = lower.anchor.y
+        assert last_baseline - 2 > next_heading_top
+    assert layout(evidence, overlays) == overlays
+    moved = layout(evidence, tuple(replace(o, anchor=Vector3(999, 999, 999)) for o in overlays))
+    assert moved == overlays
+    assert all(a.strokes == b.strokes for a, b in zip(overlays, moved))
+    assert all(a.measurements == b.measurements for a, b in zip(overlays, moved))

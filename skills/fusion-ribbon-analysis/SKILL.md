@@ -44,6 +44,8 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
   actually prevents closure. Constraint ablation requires a separately bounded run.
   Solver details belong in a hidden sketch directly inside their experiment, not
   a separate solver component; preserve the complete source/measurement snapshot.
+  Reserve separate titled description slots for every helper, even while hidden,
+  and inspect them visible together. Keep real geometry witnesses in place.
 - Show baseline, near-limit and failing variants when they answer the question.
   Track their parentage; variants are not independent solver coverage. Preserve
   failures and missing measurements. Distinguish a sampled rule violation from

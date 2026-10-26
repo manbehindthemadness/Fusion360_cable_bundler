@@ -138,6 +138,11 @@ An empty tuple hides all; None preserves manual visibility. The keys are:
 | `targets` | Fixed terminal width/tangent axes and an explicitly labeled center gap; no connector-body obstacle is invented. |
 | `solver_limits` | Native gauge lines and text in the experiment's Solver details sketch, with caller-declared coordinate/work bounds distinct from physical geometry rules. |
 
+Descriptions occupy separate titled slots beside each route so several helpers
+can be unhidden together. `constraint_geometry.layout` repositions labels and
+abstract solver bars without remeasuring or moving physical witnesses. Native
+solver text boxes reserve enough width for one line per caption.
+
 Red bend circles show minimum radius; blue shows actual radius. Green indicates
 width/target axes. Circles lie in their real bend planes and may appear edge-on
 until the view is rotated. Very large actual circles are omitted but retain their

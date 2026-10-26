@@ -45,6 +45,9 @@ def draw_overlay(component: Any, overlay: Overlay) -> Any:
             if effect is None:
                 raise RuntimeError("Constraint show-through color is unavailable.")
             group.item(group.count - 1).color = effect
+    draw_text(
+        group, overlay.title, overlay.anchor.translated(Vector3(0, -1, 0), 2), (25, 25, 25), 2
+    )
     for i, note in enumerate(overlay.notes):
         draw_text(
             group, note, overlay.anchor.translated(Vector3(0, -1, 0), 5 + i * 3), (40, 40, 40), 1.7
