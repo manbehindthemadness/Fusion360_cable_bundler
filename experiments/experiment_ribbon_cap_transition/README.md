@@ -1,5 +1,518 @@
 # Cap-transition candidate v2 — five-width development
 
+## Variation gallery — frozen2026-10-26
+
+Completed6/6numerically evaluated/native attempted/trunks built/partially audited;
+0failed/skipped/unattempted,0full-structure audits. One retainedcontrol+5new
+development endpoints,not6unseenfamilies. Allwitnesses conformed before solve.
+18native trajectory curves pass fixedendpoint/radius/center/sphere checks;
+98conductor sweeps and196fixedcaps pass,identities readback1..Npercase.
+Native predictionunknown forall6;featurehealthUnknown forall98(directmode),
+recordedunavailable. Completecontact/strain/bondedinsulation/endings unmeasured.
+No clearance screening in this gallery;no universal/generalized acceptance claim.
+
+| No. | Variation | Conductors x diameter(mm) | Solve(s) | Build stage(s) |
+|---:|---|---:|---:|---:|
+|01|Retained coil|19x1.5|0.167916|4.735120|
+|02|Negative bank|13x1.2|0.237661|3.329977|
+|03|Spatial reversal|19x1.5|0.253953|5.129259|
+|04|Mixed entry|15x1.25|0.233811|4.026188|
+|05|Banked return|19x1.5|0.214084|5.234494|
+|06|Narrow coil|13x1.25|0.210635|3.853788|
+
+Build stages exclude solve and initial3path display;include traceplanning,
+profileauthoring,kernel,capaudit and resource checks. Buildtotal26.308826s;
+kernel subsets2.889131/2.025502/3.163588/2.380072/2.867539/2.082290s,
+cap audit subsets.037224/.013783/.022986/.016100/.023174/.013497s.
+Numericalpair batches1.671783s total;fixtureauthoring1.270792s,clearing1.268478s,
+paths/labels2.184117s,nativecurveaudit.388088s,archive/display1.959994s.
+No stops,retries,target/solver changes. FinalRSS1102672KiB;all2GiB gatesheld.
+Timings differ from prior session workload;no controlled speedup claim.
+OneidleUntitled,onegalleryarray,sixchildren,98solids;all6framed,numbered01–06,
+visible3trajectories+on-scene solve/buildtimes. Old13arrays deleted as requested;
+prior artifacts and live numerical ledgers retained. Current evidence in
+director_route_trials_bank._variation26,shared variations26-pair0/1/2ledgers;
+native helper _variation26_build is one-use,do not rerun builtindices.
+F3D/gallery/03/06PNGs under artifacts/verification/ribbon_cap_transition/
+variations26/e240b700ded142b2b2c79a229d9651f4/;gallery and03visually reviewed.
+Onlyexisting experiment README/ignoredsummary updated,no executable repository
+changes or new reports. Documentation review/diffcheck only;no application tests
+rerun for unchanged solver. Standards unchanged(localHEADmatch,untrackedDS_Store).
+
+User requests clearing the owned scratch and seeing variations. Delete only the
+verified13owned arrays in current Untitled;prior F3D remains archived. Preserve
+live numerical ledgers. Six fixed targets:retained D07coil control;negative bank
+(L85,K[-2.2,0,.6,.15],eta[.25,-.25,.2,0],13x1.2);spatial reversal
+(L115,K[0,0,3.6,0],eta[0,0,.45,0],19x1.5);mixed entry
+(L90,K[1.9,-.2,-.4,.25],eta[0,0,.4,.1],15x1.25);banked return
+(L140,K[pi,-pi,.3,0],eta[.3,-.3,.1,0],19x1.5);narrow coil
+(L120,K[2pi,0,0,0],eta[.3,-.3,.1,0],13x1.25).
+New fields author endpoint poses on512rotation steps before solving;witness
+policy results retained separately. Only endpoint poses/dimensions enter BANK.
+Development variations,not untouched validation or measured physical references.
+Full centerline free,unchanged18+3rounds/254refinement+46seed maximum,1e-8closure,
+259samplecompatibility,center.8/radius3D/sphere5x. Numerical3pairs10s/2GiB each;
+draw30s/nativecurves10s,up to6swept trunks30s each,300s summedstage work cap,
+expected90–150s measured work,0retries/newreports/lofts/production edits.
+Nativepredictionunknown. Three nativepaths perpassingcase,Aonly perfailedcase.
+Build all numerically/nativecurve-passing cases with512intervalpertrace sweeps;
+no split endings. Audit solid status/identity/bothfixedcaps(1e-5mm/1e-7normal);
+directUnknownfeaturehealth recordedunavailable. Stop source/resource/harness,
+retainedcoilregression,falseacceptance or first incomplete build. No tuning.
+Number gallery01–06;timings retained percase and drawn after construction.
+
+## Current fixed-target routing result — 2026-10-25
+
+Eighteen distinct fixed boundary configurations were evaluated with the frozen
+BANK strategy: eight original development cases, four previously examined spatial
+inverse controls, and six newly reserved targets evaluated once after development.
+Only endpoint poses and cable dimensions enter the solver. Reference coefficients,
+paths and lengths are not solver inputs. All six new targets had conforming
+reference witnesses within this model; they are now consumed validation cases.
+
+Thirteen of eighteen pass strict endpoint closure and the named sampled numerical
+checks. All thirteen also pass the three-path native interpolation checks. All
+eighteen outcomes are drawn as88–105; the five failed configurations show only
+their arrival edge and fixed targets. An A-only native pass is not a ribbon pass.
+
+| Configuration | Number | Numerical outcome | Solid construction |
+|---|---:|---|---|
+| Banked crossover |88| Radius4.270739mm below4.5mm | Not attempted |
+| Lateral90 |89| Sphere reach72.180065mm above71.25mm | Not attempted |
+| Straight, broad return, S controls |90,91,95|3/3 pass| Not attempted |
+| Quarter plus |92| A-arrival error16.139372mm | Not attempted |
+| Quarter minus |93| A-arrival error2.434526mm | Not attempted |
+| Half oblique |94| A-arrival error15.261101mm | Not attempted |
+| Examined spatial inverse controls |96–99|4/4 pass|97 built |
+| Fresh inverse targets |100–105|6/6 pass|102 and104 built |
+
+Three of eighteen configurations were selected for native solid construction:
+97coil,102reversal and104return. All three trunks contain19ordered circular
+conductor sweeps with both fixed caps checked,57child solids/114caps total.
+These are THREE trunk configurations, not57ribbons. Fifteen configurations have
+no native solid attempt. Native build predictions were unknown for all three;
+no complete ribbon with endings has been built or fully audited in this matrix.
+
+| Number | Cold solve(s) | Trunk stage(s) | Timed kernel subset(s) |
+|---:|---:|---:|---:|
+|97|1.076950|15.906650|10.177240|
+|102|1.019369|15.469528|10.017413|
+|104|1.659245|15.144776|9.437321|
+
+The97trunk total includes the stopped first-conductor calibration plus continuation;
+the existing conductor was verified and reused, never rebuilt. Direct-mode feature
+health is Unknown for all57solids, recorded as unavailable rather than healthy.
+Solid status, identities and both fixed cap checks pass. Cap tolerance1e-5mm/
+1e-7normal is separate from the1e-8native trajectory endpoint check. Timed cap
+checks were0.076–0.095s/candidate;97's reused-cap verification is included in its
+stage total rather than that subset. No shape repair, target movement or retries.
+
+Fresh solve times for100–105:1.069849,1.189344,1.019369,1.020941,1.659245,
+1.041260s. Drawing all18 took5.379707s; native curve checks1.408749s. Full-width
+129/257ruling contact screening of all13accepted routes took2.567760s with no
+contacts detected outside the excluded3Dlocal material neighborhood;2Dhorizon
+and longitudinal sampling remain gaps. Return104native radius4.508446mm has
+only0.008446mm margin. Full native inter-trace contact, strain, bonded insulation,
+continuous banking and split-ending compliance remain unmeasured.
+
+Across all development comparisons, timed numerical trials totaled95.538171s;
+native sweep work46.520954s, excluding code/research/orchestration time. Fixture
+authoring separately had a10.050s harness cap stop and0.990636s renewal. The
+final archive/images took3.529552s. Token/cost accounting is unavailable.
+All earlier failed, interrupted and unattempted trials remain in the live ledger.
+No more batches are scheduled; production and standards are unchanged.
+
+One idle Untitled design remains open:13arrays,105numbered children,57solids;
+104framed, all older arrays retained. Reviewed screenshots and F3D archive:
+artifacts/verification/ribbon_cap_transition/cold_routes/a9bc8a6009ce405f80e0d028f34fcc21/.
+No new report files. Live evidence:director_route_trials._trials/_paths,
+director_route_display._state/_clearance and both sweep-module states. Never
+reload/reset those ledgers. Final shooting docstring correction changes only prose
+after the run; frozen runtime source hashes remain authoritative for its provenance.
+Thirty focused solver/rotation/seed tests pass; changed-scope Ruff/format and IDE
+checks pass. FullQA and calibrated physical-cable validation were not run.
+
+## Frozen fresh inverse validation2026-10-25
+
+Sweepcalibration97stopped1.058490s after first kernelreturnedone solid because
+adapterrequiredHealthy,stateactuallyUnknown5,emptyerror. No102/104attempts.
+Read-onlydiagnosis:DirectDesignType0,bodyvalid/solid,start/endfixedcappass.
+Applicationlog inspected,no kernelerror. Preserveoriginalstoppedledger;postrun
+observation corrects childcount to1returnedsolid,0complete trunks. No shapechange.
+Registeredcontinuationusesnewmodulealias,exactlyoneexisting97solid(no rebuild),
+thenremaining18 andunchanged102/104. Same30s/case/90summed/2GiB;healthUnknown
+onlyallowed fordirectdesign+emptymessage,recordedunavailable,neverhealthy.
+Warnings/errors/otherstates stillstop. Solid/cap/identitychecks unchanged.
+
+Nativepath result:all18drawn;13accepted configurations'39curves pass named
+checks. Fivefailed configurations showAonly;Apassing does not supersede the
+missingcompanion failure. Drawing5.379707s,audit1.408749s,total6.978993s,
+RSS389152KiB. Fullwidth129/257screen13accepted:0detectedcontacts,2.567760s;
+local3Dneighborhood excluded,2Dhorizon,sampling gaps remain. Borderline104
+nativeR4.508446mm vs4.5. No false acceptance found within these namedchecks.
+
+Frozen swept-trunk calibration/transfer:97coil then102reversal then104return,
+sameimmutablepaths/targets. Oneattemptpercase,19circularconductor sweeps each,
+512intervalHermitepaths,pitch1D,0lofts/retries/search/reports. First97calibrates
+before scheduling102/104.30s/case/90summed/2GiBRSS,stopfirst incomplete/health/
+cap/resource/sourceissue. Kernelpredictionunknown forall3. Measure pathplanning,
+profileauthoring,kernel,capaudit separately. Audit solids,featurehealth,identity,
+bothfixedcaps(1e-5mm/1e-7normal);not fullnativecontact/strain/bondedinsulation
+or splitendings.3trunks are subsets of18configurations,not57newindependentcases.
+
+Outcome:6/6freshnumerical passes,allwitnesses conform. BANKoriginal8:3controls
+pass;crossradius4.27074<4.5,lateralsphere72.1801>71.25,quarter+/-andhalf
+closurefail(A16.1394/2.43453/15.2611mm). Knownspatial4/4pass. Total13/18
+numericalaccepted,5failed. No method changes after fresh outcomes.
+Freshsolve seconds1.069849/1.189344/1.019369/1.020941/1.659245/1.041260;
+pairswall2.553108/2.408976/3.056842. Setupfirsthit10.050s cap because erroneous
+RSSsubprocess everycheckpoint;5witnessrows retained,no solver run. Renewedfixture
+authoring usesquartersecondRSS,same10s cap:0.990636s for6,unchangedfixtures.
+
+Frozen nativepaths phase:drawall18cases88-105,original8inorder,known4inorder,
+fresh6inorder. 512Hermiteintervals,3pathsfor13passes,Aonlyfor5failures;
+fixedtargetguides unchanged. Nativepredictionunknown for everyconfiguration.
+Auditactualnativecurves at1535parameters,pathendpoint1e-8/radius3D/center.8/
+sphere5x unchanged. 30sdraw/10saudit/60soverall/2GiBRSS;0solids/retries/reports.
+Stop source/resource/harness;retainpartialoutcomes. No physical/fullribbonclaim.
+
+After BANKknown4/4,all original8 retained for same-method evaluation;no
+adaptation to their outcomes before validation. BANK18coarse/3fine rounds,
+254refinement+46seed screens maximum,unchanged1e-8actualendpoint gates and
+259sample compatibility. Six reserved_fields inputs are now consumed once:
+author512reference endpoints,check256/512witness conformity,then discard witness
+information from solver input. Freeze serialized poses/source hashes before any
+solve. Pairs(0,1),(2,3),(4,5),10s/2GiB each. No extra rounds/retries/deletion,
+targetmovement or new reports;full centerline free. Record any infeasible witness
+separately rather than dropping it. Stop resource/source/harness or retained
+control regression. Geometry/native prediction unknown;0solid attempts in this
+numerical phase. These are model inverse tests,not physical equilibrium evidence.
+
+## Fixed-target director routing — cold baseline prepared2026-10-25
+
+User explicitly requests independent iteration to a defensible level of confidence,
+with broad usage authorization. Continue bounded batches without repeated scope
+questions;preserve every failure and all prior scene arrays. No production edits.
+Confidence requires cold fixed-target closure,independent compatibility/native
+checks and fresh validation,not only forward-transport benchmarks.
+
+Freeze six new target-authoring witnesses in director_routing_cases BEFORE solver
+development evaluation. These remain unexamined until the development policy is
+frozen. Only their endpoint poses/dimensions may enter solve();no reference path,
+coefficients,length or named lookup. Witness conformity must be checked before
+treating their targets as feasible controls. They are inverse tests within the
+model,not measured physical-cable ground truth.
+
+Firstdevelopment baseline:same8existing endpoint poses,one geometry-only cold
+seed percase. Smooth director field has5bending/4ruling/1length coordinates;
+extra cos4pi harmonics extend symmetry while retaining eta0atcaps. Bounds bending
++/-4pi,ruling+/-3,length/chord1..5.12LMrounds64grid+6rounds512grid,10forward
+probes+atmost2trials/round,218evaluationsmax/case(1744batch). Stepnorm1.5;
+onlydecreasing endpointobjective accepted. No cached curves/coordinates passed.
+Fullcenterline can reroute. A-position/frame residual solved first;actual A
+velocity,width andcenter endpoint must meet unchanged1e-8gate before compatibility.
+Then256/512transport comparison and259off-node checks retain prior policies.
+No endpoint snapping,lengthrepair,elasticenergy claim or targetmovement.
+
+10s numerical/2GiB sampledRSS,0native geometry/solids/retries/reportfiles.
+Stop source/resource/harness or retainedcontrol regression. Preallocateall8rows;
+preserve skipped/unattempted. Evidence in director_route_trials._trials;
+future batches use distinct labels,never erase earlier results. Nativeprediction
+unknown,0attempts in this numerical calibration.6focusedtests pass withstrict
+planar closure,monotoneupdates,identity-independentseed,harmonic derivative/bounds.
+Oldtransport/fielddefaults unchanged.
+
+Baseline STOPPED at10.000807s numerical cap,maxRSS603664KiB.5/8completed,
+3unattempted;0native/geometry. Crossover Aposition1.96e-10mm butcentererror
+2.73e-8mm fails strictclosure;frame squarednorm drift creates redundant-endpoint
+residual floor. Lateral/quarter+close butfold(J-4.831/-3.301),also curvature/
+sphere findings. Straight/broadreturn pass namednumericalgates. Quarter-minus,
+halfoblique,Scontrol unattempted. Allpartialstate retained;no baseline replay.
+Final512iterations wasted work below residual plateaus;no budget extension.
+
+Frozen next comparison:cold-rotation-v1,same8targets/seed/bounds/roundcaps.
+Use quaternion RK4with structural unitrotation axes (normalization of rotation
+coordinates perintegrationstep,not target/shape snapping). Stop finalstage when
+actual strict1e-8metrics pass;keep218evaluationcap. Previous axis strategy remains
+available unchanged. No newconstraints,targets,searchfreedom or currentgeometry.
+Newrotation integrator6oracle/comparison tests plus9shooting tests pass. Same
+10s/2GiB limit andregression/source/resource stops,0solids/retries/reports.
+Distinctpreservedtrial label;newsourcefingerprints beforeexecution;validation6
+still reserved/unexamined.
+
+Rotationcomparison STOPPED10.002932s cap,maxRSS429104KiB.5complete+1interrupted
+(quarter-minus)+2unattempted(halfoblique/S). All5completed A/center/framearrival
+gates pass1e-8. Straight/broadreturn compatibilitypass;other3fold andviolate
+curvature/sphere policies. CrossoverJ-7.935,lateral-4.830,quarter+-3.301.
+No solids/geometry;newframe solves numericendpointfloor butnotvalidroute finding.
+Bookkeeping correction:baseline also5complete+1interrupted+2unattempted;old
+runner labeled the interrupted row unattempted. Preserve original row alongside
+explicit correction;newrunner marks attempted andretains eval/grid/time progress.
+
+Frozen regular-aware comparison:same8development targets in2fourcase batches,
+each10s/2GiB,max254eval/case(18coarse64rounds+3final512rounds). Ruling coefficient
+chart scales rawcoefficients byc/hypot(c,B),c=.9L/halfwidth,
+B=2pi*(abs(A)+abs(B)+2abs(C)+2abs(D)),giving continuous J>.1 for thisfieldfamily.
+This is a conservative searchfamily restriction,not a relaxed masterrule or proof
+of infeasibility when missed. Rawparambounds/seed/step unchanged. Coarseobjective
+adds33station existingcurvature/radius/sphere penalties with margins.78/3.1D/.97,
+weight.2;finephase fits onlyendpointpose. Finalstrict1e-8gateand259checks unchanged.
+Sameproposal acrossall8,no specialcasefixes. Unit19tests pass includingextreme
+rawcoefficients verifyingJbound. Source/policy/inputfingerprints before eachpart;
+newlabelspreservebothstoppedtrials.6freshvalidationwitnesses stillunexamined.
+
+Regular-aware completed8/8 across parts6.220110s/8.792927s;3controls pass,
+5spatial failclosure. Aposition errors20.734/44.958/6.585/14.831/18.544mm.
+No source/resource stops,geometry or nativeattempts;maxRSS340288/296128KiB.
+No generalized target-routing confidence follows. Allhistories retained.
+
+Frozen next seed-only comparison:cold-corkscrew-v1-parts0/1,same regular-aware
+chart/objective/18+3rounds/254evalcap/bounds/step/4cases10s/2GiB. Planar seeds
+unchanged. Spatial seeds use K=A*sin2piu,eta=B*sin2piu with AB/2 estimated from
+parallel-transported terminal roll;signfromchord bend,initiallength1.6chord.
+This is an initializer inspired by qualitative physical turns,not equilibrium
+or accumulated winding inference. Fullclosure/compatibilitystill measured.
+Same8development targets,6freshvalidationstillunexamined.22focusedtests pass;
+newsource/input/policyfingerprints freeze beforeexecution. No newreportfiles.
+
+Corkscrew part0completed9.621694s,maxRSS340752KiB:4/4evaluated,straight/broad
+controls pass;cross/lateralfailclosure21.940/56.675mm. Runtime close to10s cap.
+Remaining4cases scheduled as2frozen pairs(4,5)/(6,7),each10s,with unchanged
+254eval/case and allsolver code/inputs/policy. This changes orchestration only,
+not percase search depth;total8cases still once perseed comparison. No retry.
+
+Corkscrew remainingpairs complete8.557992s/5.454538s;5spatialclosure failures,
+3controls pass overall. No nativegeometry. Thisseed didnotimprovepassrate;
+retirethat hypothesis ratherthan adding iterations. All8outcomes preserved.
+Style-onlytupleparentheses removed after completedcomparison;no arithmeticchange.
+
+Frozen diagnostic:FREEpolicy removes conservativeJchart,uses samecorkscrewseed,
+same18+3rounds/254eval/bounds;33station fold/radius/center/sphere searchpenalties.
+Invalidsearchiterates allowedandpenalized;final1e-8closure/positiveJ/retainedpolicies
+unchanged. Compareendpoint recovery on4alreadyexamined forward fixtures with
+knownpassingreference shapes:79bankedturn,81coil,82mixedspatial,84twistingentry.
+Onlyserializedtargetposes/dimensions from their existingfrozenplan enter solve.
+Theseare developmentinversecontrols,not newunseenvalidation or newphysicalfamilies.
+Two2case10s/2GiB batches,0nativegeometry/solids/retries/reports. Stop source/
+resource/harnessfailure. If fewerthan3/4namednumericalpasses,no broadersearch
+launch underthispolicy;investigate model/search conditioning instead. If3/4+
+pass,checkretainedcontrols beforetheolderhardposes/freshvalidation. Sixnew
+validationwitnessfields remain reserved,unexamined.26focusedtests pass including
+free-surrogateversusregular-chartfolding behavior.
+
+FREEknowncontrols completed8.452109s/1.115980s:1/4passesnamednumericalgates
+(82mixed),84closesbutradius2.647896<4.5fails,79/81missclosure28.842/14.109mm.
+No broaderFREEsearch underthedeclaredstoprule. Knownreferences show feasibility
+inside the model;failure here diagnoses search/initialization,not targetinfeasibility.
+
+Frozen BANKcomparison:fixed44genericarc/return/reversalprofiles+2geometry-derived
+seeds,64stepseed screens. For each shape,one bounded scalar projection chooses
+length;rankwithsame endpoint+FREEpolicyobjective. Exactlyone selectedseed gets
+same18+3rounds/254evalrefinement. Seed46screensmax+254refinement=300maxcase,
+reported separately;not newgeometrycoverage or fixturecurve lookup. Same4known
+spatial developmenttargets in2pairs10s/2GiB,0native/solids/reports/retries.
+Planarcontrols retain geometry-onlyseed branch.30focusedtests pass inclscalar
+projectionrecovering a genericnonplanarshape without referencepath input.
+Stopif<3/4gatespass;otherwisecheckcontrols/oldhardtargets beforefreshvalidation.
+Sixreserved validationwitnesses remain untouched. No bankcomparison outcomeyet.
+
+BANKknowncomparison completed4/4strictendpointandnamedcompatibilitypasses.
+Parttimes2.724158/.815929s,maxRSS381424/382176KiB.79/81exactlyrepresentedgeneric
+seedstarts need13refinement evals each;82/84need221/57. Seed46screens counted
+separately,not300solves. Alltargetsposes only,referencefields never enter solve.
+Centerendpointerrors<=3.60e-10mm,Jmin.759/.774/.698/.326,minimumradii22.484/
+19.705/32.572/15.867mm. No nativeattempts/geometry/fullcompliance yet.
+
+Next frozen BANKregression matrix:existing8targets once withsame policy in4pairs
+(2,3),(7,4),(0,1),(5,6),each10s/2GiB. Controls checkedfirst;stop on regression,
+source/resource/harness failure. Same254refinement+46seedsmaximum/case,0native/
+reports/reties. No target/rule/algorithmchange. Ifcontrols pass,the6freshreserved
+targets can beauthor-checked and evaluatedonce underthis samefrozenmethod.
+
+## Material-director breadth matrix — completed 2026-10-25
+
+User requests generalized tests,research,physical references and free iteration.
+The four files in examples/ribbons were visually inspected:the connector return,
+coupled rainbow folds,repeated copper-colored coils,and blue lateral reversal.
+These show qualitative behaviors,not metric ground truth:dimensions,forces,
+material constants,provenance and hidden geometry are unknown. They motivate
+distinct fixture families without supplying fitted target coordinates.
+
+Research:[Dias/Audoly](https://arxiv.org/html/1403.2094v1) supports transporting
+material directors through inflections rather than dividing torsion by curvature.
+[MERCI](https://doi.org/10.1145/3674502) supports compact curvature fields and
+separate constrained equilibrium/contact calculations. Neither establishes our
+cable's constitutive law or runtime. [3M3319](https://www.3m.com/3M/en_US/p/d/b00039650/)
+reports flex life under a specified bend-diameter test;it does not establish our
+4.5mm radius as universal. [Samtec](https://blog.samtec.com/post/best-practices-for-cable-management/)
+illustrates coordinated bend/twist and construction-specific handling limits.
+
+Frozen hypothesis:material-director transport handles neutral runs,signed bending
+reversals and spatial bend/twist without Frenet singularities across distinct
+prescribed fields. This is a forward representation benchmark,NOT a fixed-target
+routing test. Fields prescribe the entire motion;512reference integration authors
+terminal guides before256transport is evaluated. No independent target solver,
+event discovery or length/energy minimization is claimed. Existing8routing cases
+and all failures remain separate and unchanged.
+
+Freeze director_fields/transport/audit/native-v1 before any validation evaluation.
+7development fields:D01straight,D02gentlearc,D03broadreturn,D04planarreversal,
+D05bankedturn,D06spatialreversal,D07coupledcoil.4reserved fields:V01mixedspatial,
+V02opposedbend,V03twistingentry,V04multiplereversals;different poses/fields and
+dimensions,not width-only variants.2separate rejection controls:I01mapfolding
+under the chosen isometry,I02current-radius-policy violation(physical invalidity
+not established). Validation is evaluated once after source freeze;examined
+results become consumed validation,never silently relabeled untouched.
+
+Procedure for every field:fixed RK4grids256/512,no normalization/repair,analytic
+field rates,cubic Hermite dense output;259end/off-node samples measure position
+convergence,frame norm/dot drift,actual interpolated metric and wide-axis bend.
+Benchmark thresholds.005mm/1e-6/1e-5/1e-6permm respectively,not endpoint-routing
+tolerances. Existing center.8,lane3diameters,sphere diameter5nominalwidth policies
+reported separately. Hard mapregularity remains conditional on isometric model.
+
+13prescribed-field fixtures/0route solves,0solids/search/retries/newreports.
+Limits10s totalnumerical(including fixtureauthoring),30s draw,10s nativecurve
+audit,60s overall/2GiB sampledRSS. Stop source/resource/API/harness/numerical
+regression;preserve every partial row and all unavailable outcomes. Draw75..87
+in one new array in the existing scratch;all13centers,A/B only if sampled J>0.
+Native kernel predictions unknown;11positive fixtures receive3curve audits at
+1535parameters each;2rejection controls explicitly skip nativecompliance audit.
+Native endpoints use the preregistered.005mm fixture-convergence tolerance,
+not strict1e-8routing closure. Actual values retained. No full-width self-contact,
+elastic equilibrium,alltrace/native sweeps,split endings or complete cable audit.
+Only F3D/PNG artifacts;frozen fields/sources/targets/results retained in memory.
+13focusedtransporttests pass against independent planar angle
+quadrature,spatial convergence,actual derivative differences and rigid invariance.
+
+Matrix completed:13/13fields evaluated/drawn;all13transport accuracy checks pass.
+Positive11:10pass named reference/native curve policies,80fails sphere reach
+79.439952>71.25mm in both checks. Development6/7pass policies;validation4/4pass
+once without adaptation. The four validation fields are now consumed. Rejection
+controls86/87 detected2/2:86Jmin-1.261947;87radius3mm<4.5mm andcenter4.806506>.8.
+86has center only;87has3diagnostic curves;both nativecompliance audits skipped.
+No complete cables accepted:positive dispositions0accepted/1policyfailed/
+10unresolved,0native solid attempts/builds/full cable audits. Kernelfailure rate
+unmeasured.37new fixed splines are13fixtures,not37complete-ribbon trials.
+
+Numerical0.379544s(includes512reference fixtureauthoring,256transport and259point
+audits),drawing1.004390s,nativecurveaudits0.268272s,archive1.034406s,total2.782947s;
+maxsampledRSS672752KiB,allcapsheld,no source/harness/resource stops. Perpositive
+transport2.272..2.376ms,referenceaudit17.912..40.456ms,drawing54.001..124.538ms,
+native3curveaudit21.810..44.352ms. These are forward transport times,not route
+solve times. Worstpositive convergence1.305497e-6mm,framedrift1.1115e-8,
+metricerror3.5968e-7,widebend1.0445e-8permm. Actual native endpoint deviation
+<=1.305458e-6mm;benchmark.005mm gate is not strict routing closure.
+
+OneidleUntitled,12arrays,87numberedchildren,153fixedsplines,0bodies;75..87new,
+oldarrays/73unaltered. Images81/85viewed;85framed. Sourcefingerprints match.
+artifacts/verification/ribbon_cap_transition/directors/194cb12f193443979096d8cbcac3cb79/
+containscandidates.f3d,paths.png,candidates_inspection.f3d,inspection_81.png,
+inspection_85.png. No new reportfiles;full rows/plans remain live in director_native.
+
+Frozen next postflight:director_clearance_native,all11positive fields at129/257
+fullwidth rulings,including policy-rejected80;2rejection controls explicitly skip.
+Same thickness1diameter/horizon2diameters/flat-local-exclusion3diameters as prior
+edge_clearance;sampling/exclusions leave gaps. Reference material coordinates
+(s+q*eta,q).10s/2GiBsampledRSS,0solves/nativeattempts/geometry/reports/retries;
+stop source/resource/API/harness failure. No newcurve adjustment or policy change.
+Postflight completed:11/11positive fields audited at both129/257rulings,
+2/2rejection controls explicitly skipped;0contact hits among eligible sampled
+pairs.452672pairs enumerated(not geometry coverage),allnear pairs excluded as
+local material or found outside the search horizon. Globalminimum clearance
+unmeasured.0.475796s,maxsampledRSS458128KiB,no source/resource/harness stops.
+No solves/nativebuilds/geometry/reports or local fixes;original80sphere failure
+unchanged. Both audit states/source fingerprints remain preserved in memory.
+
+Final focused verification:18directortransport tests pass. Added arbitrary3D
+rotation and uniform-scale covariance checks after the live run without changing
+transport/fields/native adapters or consuming new geometry cases. These copies
+are invariance tests,not new independent coverage. Ruff lint/format and IDE
+diagnostics clean on6new Python files;complete code/docdiff reviewed. FullQA,
+fixed-target route solves,native sweeps/alltrace clearance,elastic equilibrium
+and calibrated real-material behavior remain unattempted/unmeasured. No production
+or standards changes. The old8routing cases are not included in the new13field
+benchmark acceptance denominator. Historical length,clearance and native gaps
+remain explicit. Benchmark runtime plus clearance3.258743s(excludes development
+time and separate viewport/archive inspection).
+
+## Research-led clearance diagnostic — completed 2026-10-25
+
+The user explicitly requests research when answers are missing and challenges
+the authority of previous solver rules. Distinguish model-dependent geometric
+consequences, empirical cable limits and numerical/implementation choices.
+Do not silently weaken previous classifications or treat incomplete optimization
+as proof of infeasibility. Production and previous evidence remain unchanged.
+
+Frozen next question:does73's locally regular analytical strip approach remote
+material within the modeled1.5mm cable thickness? Same8development configurations,
+four prior-compatible cases(73,controls19/20/24) audited at129and257rulings;
+other four explicitly skipped after prior reference rejection. No new route
+solves,centerline changes,targets,solids,report files or native construction.
+Audit10s/2GiB sampledRSS,stop on source/resource/API/harness failure. Evidence
+and fingerprints in edge_clearance_native._state. Native prediction unattempted.
+
+edge_clearance-v1 compares complete width segments at each sampled longitudinal
+station. It uses exact segment distances after AABB rejection,with a3mm search
+horizon;flags eligible distances below1.5mm. Unfolded coordinates are
+(arc_A+q*eta,q),arc integrated by composite Simpson. Pairs whose unfolded segments
+approach within4.5mm are excluded as local neighbors. This conservative exclusion
+and longitudinal sampling leave gaps:absence of a hit is not full-width continuous
+or thick-conductor clearance. Positive hits retain both station indices/points.
+Completed8case dispositions:4eligible cases each audited on both grids,
+4explicit skips(70/71/72/74);0newsolves/nativeattempts/solids/full compliance
+audits. No remote eligible pair inside the3mm horizon was detected in73or the
+three controls on either grid. Allprior failures and unresolved statuses remain.
+The four skipped cases retain their earlier curvature/folding findings.
+Total0.329624s,maxsampledRSS408080KiB,no stop/source/resource error.
+Per-case audit times129/257stations(ms):19 7.671/61.018;20 6.422/19.301;
+73 26.955/67.039;24 13.430/59.528. Totals include sampling and pair checks;
+164608ruling pairs enumerated across both grids/all4eligible configurations.
+73arc estimates205.456724802/205.456725199mm agree within0.000000398mm.
+On257grid73:32896pairs,26683AABBrejections,2847local-neighbor exclusions;
+remaining spatial distance checks found no eligible pair under3mm. No global
+minimum clearance is reported. Geometry/numbering/73viewport unchanged;
+no new F3D/PNG/report files. This audit is reference-only,not native geometry.
+
+Research sources and implications:
+
+- Dias and Audoly(2015),[Wunderlich,meet Kirchhoff](https://arxiv.org/html/1403.2094v1):
+  a director/material frame avoids artificial Frenet singularities at inflections
+  and straight sections. Developability is an assumed inextensible-ribbon model;
+  generator direction is an internal variable. Our singular-frame rejection is
+  an implementation-family restriction,not a universal physical prohibition.
+- Charrondiere,Neukirch and Bertails-Descoubes(2024),
+  [MERCI](https://www.lmm.jussieu.fr/~neukirch/articles/2024_merci.pdf):
+  curvature-based elements solve constrained equilibrium and contact,including
+  finite-width and quasi-developable energies. Useful guidance for compact
+  representation and physical ranking;their timing is not our solver benchmark.
+- Samtec,[Cable Management](https://suddendocs.samtec.com/notesandwhitepapers/samtec-cable-management-in-high-data-rate-applications.pdf):
+  handling/bend limits depend on cable construction and gauge. It supports
+  bend/twist coordination in its assemblies,not a universal radius for ours.
+- Gore,[IDC ribbon datasheet](https://www.gore.com/sites/default/files/2016-05/IDC_high-flex_ribbon_cable.pdf):
+  reports flex-life test conditions for specific constructions. It does not
+  calibrate our4.5mm radius,macaroni.8,zero wide-axis bend or sphere budget.
+
+Model hierarchy:fixed targets/identities remain the task contract;local isometry
+and J are consequences conditional on the chosen developable map;hard zero
+wide-axis bend and limits.8/4.5mm/71.25mm remain current comparison policies with
+unmeasured material calibration. Frenet guards,degree11family,objective weights,
+search budget and lack of energy ranking are solver choices. Future comparisons
+must revise these explicitly and preserve previous outcomes under their old rules.
+
+Next representation question is a material/director frame with signed bending
+and independently represented ruling direction,so neutral runs/inflections need
+not be numerical singularities. Test against exact planar controls and spatial
+fixtures before another closure search. A physical-energy ranking and the real
+cable's construction/material data remain open;neither literature timing nor
+generic ribbon theory calibrates this cable. No new representation or relaxed
+policy was implemented in this audit.
+
+Verification:13focused clearance tests pass,including interior-segment crossings,
+local-neighbor exclusions and closed-form arc integration. Ruff lint/format and
+IDE diagnostics clean on the3new Python files;complete changes reviewed.
+FullQA/native construction were not run. Production/standards unchanged.
+
 ## Boundary-first experiments — completed 2026-10-25
 
 The user requested that boundary A reach its assigned target before any companion
