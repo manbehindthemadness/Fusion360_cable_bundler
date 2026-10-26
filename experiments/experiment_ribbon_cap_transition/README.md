@@ -308,6 +308,135 @@ epochs. No route fitting, numerical reanalysis, native solids or rule changes.
 changed-code IDE inspections and shared-package Ruff lint/format pass. Full QA
 and geometry compliance validation are outside this presentation-only change.
 
+Atomic visual observations — retained as hypotheses, not adopted rules:
+
+User clarification after pass37: the sphere was introduced as an independent
+performance/robustness stress test, not as a direct modifier of the general solver.
+Future work reports closure/physical checks separately from fixed-sphere occupancy.
+Historical results retain their original classifications; they used sphere feedback.
+In compatible_shooting.errors_for, free_penalties enters both generic seed ranking
+and the coarse/fine residual, hence derivative columns, damped updates and trial
+acceptance. Its sphere term is therefore an algorithmic influence even when small
+or zero at the final iterate. Removing it only from final acceptance would not
+restore the intended separation. Keep actual obstacle constraints explicit.
+
+Combined restriction investigation, without changing values yet:
+
+| Restriction or scale | Current role | Investigation |
+| --- | --- | --- |
+| Sphere5nominal widths,97%search radius | Harness stress envelope currently leaking into fitting | Isolate this feedback first; retain the same sphere as an independent measured stress outcome. |
+| Carrier/chord range1..width-aware maximum (at least5) | Search-domain heuristic | Show chord, width, carrier length and required frame change; short chords may be an inadequate sole reference. Width-aware bound is a turn-envelope heuristic, not a sphere derivation. |
+| Bend coefficients +/-4pi; ruling coefficients +/-3 | Dimensionless search coordinates | Measure actual induced turning/ruling response and which coefficients clamp. Dimensionless does not mean equally permissive across endpoint geometries. |
+| Step norm1.5; probe magnitude1e-5 | Numerical update/probe scales | Expose each coordinate's actual proposed and clamped increment; common raw norms mix bend/ruling coordinates with carrier ratio. Test geometry-scaled sensitivities before changing bounds. |
+| Position residual divided by endpoint chord; unscaled tangent/width vector residuals | Objective normalization | Show physical position error and normalized pose components together; assess changing balance across short/long chords. |
+| Center k*reach .8, lane radius3D; internal .78/3.1D | Geometry-relative policy plus search margins | Preserve physical-model questions and distinguish margins from adopted checks; do not tighten merely to reject08. |
+| J>0; internal J>.1 | Material regularity and numerical margin | Inspect local progress/ruling-gradient coupling, not a generic percentage of the output shape. |
+| Evaluation/time/RSS caps | Resource ceilings | Keep explicit and unchanged; these are not physical restrictions. |
+
+Study both tracks with the same per-trial component/clamping telemetry, but keep
+comparisons attributable: first a sphere-independent objective against the retained
+baseline; then individual scale/bound hypotheses against that new baseline. Use the
+same03/17/38controls and07/08/11/12/13failures with fixed inputs and unchanged work
+budgets. No new fit/native comparison has run or been scheduled for this inspection.
+No production or solver code changed. See the appended sphere-role clarification
+in rollback_end_loft_notes.txt; it supersedes the earlier future-work sphere role.
+
+Approved cached-interaction pass37: inspect03/17/38controls and07/08/11/12/13
+failures using their fixed compatible28b paths, targets and Evidence. Freeze source
+and input fingerprints before execution; no centerline degrees of freedom, solves,
+probes, new integrations, native solids or acceptance changes. Sample257fixed
+stations per route for sphere occupancy, intrinsic center curvature, minimumJ,
+remaining center-target distance and developable-model principal curvature. The
+last is a research diagnostic without an adopted threshold (Dias/Audoly2014eqs15-16),
+not a physical calibration. Reproduce the final retained objective by its existing
+position/tangent/width and33station policy components. Read total-score histories;
+rejected-step/component histories were not retained and cannot be reconstructed.
+Maximum10s cumulative computation/2GiB sampled Fusion RSS, stop first mismatch,
+resource or source error. Render cached profiles within the remaining budget in
+the existing experiment components; leave11readable. Preserve all prior evidence.
+No new report file; research/source interpretation stays separate from measurement.
+
+Pass37 completed8/8cached configurations,0new solves/0native attempts/0built/
+0fully audited. Existing numerical dispositions remain3controls passing and
+5failed fits, all unresolved as complete physical/native ribbons. No skipped
+cases, untouched holdouts or invalid-control classification. Final objective
+components reproduce all eight retained scores within the declared roundoff check.
+
+| Case | Sphere slack mm at257stations | Largest final objective component | Fine rounds with no score change |
+| --- | ---: | --- | ---: |
+| 03 | 15.7421 | total3.70e-28, effectively closed | 0/2 |
+| 17 | 14.2874 | total3.01e-27, effectively closed | 0/2 |
+| 38 | 5.5644 | total2.95e-20, within retained endpoint gates | 0/1 |
+| 07 | 4.3025 | position42.08%; tangent35.36%; width22.56% | 1/3 |
+| 08 | -0.2614 | width52.68%; sphere0.08505% | 1/3 |
+| 11 | -1.1833 | width86.78%; sphere0.01402% | 1/3 |
+| 12 | -0.0397 | position87.83%; sphere0.02679% | 3/3 |
+| 13 | 4.0655 | width60.30%; sphere0% | 2/3 |
+
+No final material/center/lane search penalties occur on these eight, and sphere
+penalty is zero on07/13. Small final penalty share does not prove that containment
+never blocked an earlier step or that it may safely be removed. The97%search
+margin is active at sampled u0.46875..0.6875 on08,0.87890625..1 on11,
+0.765625..1 on12. Actual radius excess starts in brackets0.5859375..0.58984375
+on08,0.9609375..0.96484375 on11,0.95703125..0.9609375 on12;08returns inside
+in0.6484375..0.65234375. These are parameter intervals, not arclength fractions
+or certified continuous boundaries. 12is a stalled final fit, not sphere clipping.
+
+08modeled maximum surface principal curvature corresponds to radius10.236877mm
+at u0.27734375, compared with its earlier minimum sampled boundary radius10.242816.
+This is an additional local witness, not a calibrated physical rejection or proof
+that changing one threshold resolves the suspicious shape. Dias/Audoly's model
+separates kinematic developability from elastic equilibrium and couples ruling
+angle to surface curvature; actual bonded-conductor ribbon behavior remains
+unvalidated. Source: https://arxiv.org/html/1403.2094v1, sections2.5and3.
+
+Each of the eight existing experiment components retains a separately hidden
+`Constraint - Routing interaction profiles` child (11left visible) with five
+plots: occupied sphere/radius, center use, minimumJ, research surface curvature,
+and remaining center-target distance. Plot values are the same immutable Station
+records in `_interaction37`, pinned to the parent Evidence. 11's existing direct
+Solver details sketch is visible and the camera shows its curved spatial route;
+all candidate occurrence visibility was restored. No old geometry was replaced.
+Capture: compatible28/11-routing-interaction37.png, visually reviewed.
+
+Cached computation3.410146s; display0.466880s; capture1.928738s; final source/input
+check0.027570s; total active5.833333s under10s. RSS samples741584/582688KiB,
+in-flight peak unmeasured. No stop latched and no budget renewal scheduled. Two
+focused straight-strip checks pass, Ruff lint/format and both changed-code IDE
+inspections pass; fullQA/native geometry validation unrun. Initial local fixture
+used an unsupported16-step integration grid; corrected to registered64before live
+execution. No live geometry or solver retry occurred.
+
+Next justified instrumentation: record endpoint/policy component scores, actual
+clamped trial step and acceptance for each existing trial evaluation. No additional
+probes are needed. Before choosing a chart/initialization change, determine whether
+stalled arrival is caused by the local trial direction, global mode coupling or
+the available route family. The current pass does not identify a rejected-step
+cause and does not authorize changing thresholds, targets or search budgets.
+
+| Case | User observation | Cached evidence and open question |
+| --- | --- | --- |
+| 08 | Macaroni rules appear too relaxed; study their adequacy. | Center R22.886 mm versus minimum18.024, boundary R10.243 versus4.5, Jmin0.396716. Passing those local checks does not resolve the visual/physical concern. Test which material/bending behavior is missing before changing thresholds. |
+| 07 | Off-center geometry may interfere with material folding. | Sphere is centered at the fixed-target midpoint, not the route envelope. Sampled occupied clearance4.302114 mm; Jmin0.310662. Route placement is asymmetric, but final sphere contact is not detected and causal interference remains untested. |
+| 13 | Sphere interference appears secondary to a target-intersecting route. | Sampled sphere clearance4.064619 mm. Prior terminal-width proxy finds0.155714 mm separation for1.5 mm diameter at u0.23828125. Investigate arrival clearance/path planning; connector-body clearance remains unknown. |
+| 12 | Route appears to hit the sphere and abort despite unused space. | Occupied sphere excess0.039694 mm; complete512-cubic trajectory reaches u1 with nonzero endpoint derivative and59.463709 mm center-target miss. All18coarse/3fine fit rounds ran; the three fine rounds accepted no improvement. This is an unsuccessful completed fit, not measured geometry clipping. Sphere influence and route-family coverage remain open. |
+| 11 | Appears straight, with absent solver data/trajectory. | Latest result retains512 center cubics, all three native guide splines,46 seed screens/246 fit evaluations and an8-text Solver details sketch. That sketch, graph and legend are hidden; path/sheet groups and native originals are visible. Center deviates15.179792 mm from its own endpoint chord. It was routed but failed; why the visible presentation looks straight remains a display/interpretation question. |
+
+Read-only review procedure: inspect only these five immutable compatible28b
+Evidence/guide snapshots, existing fit histories and live helper visibility;
+257 fixed center positions for descriptive bounding-box/chord measurements.
+Five-second cap per inspection, no fitting, new rules, recentering, geometry edit,
+native solid attempt or acceptance reclassification. The first handle inspection
+encountered a dictionary wrapper instead of a graphics entity and made no changes.
+Corrected read0.016347 s; fit-history/visibility follow-up0.004574 s. All five are
+examined development failures; zero new native attempts and no new compliance
+coverage. No scene visibility was changed. The search sphere uses a0.97radius
+margin at33stations with a soft penalty; final containment remains a separate
+hard check. Its code does not terminate or clip a trajectory at the sphere.
+These observations motivate separate tests of local physical-model adequacy,
+space allocation/arrival routing and diagnostic visibility, not per-ID fixes or
+a universal centering/curvature rule.
+
 ## Outside-edge investigation — frozen2026-10-26
 
 User redirects work to impossible initial paths and outside-edge macaroni,with

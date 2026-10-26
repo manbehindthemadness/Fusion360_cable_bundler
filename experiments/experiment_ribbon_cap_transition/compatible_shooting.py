@@ -14,7 +14,7 @@ from typing import Any, Callable
 from cable_bundler.routing.geometry import difference, magnitude
 
 from .compatible_strip import CompatibleField, CompatiblePath, integrate_compatible
-from .director_route_objective import free_penalties
+from .director_route_objective import ObjectiveScope, free_penalties, routing_penalties
 from .director_routing_field import RoutingField
 from .director_seed_bank import candidates
 from .director_shooting import (
@@ -28,6 +28,7 @@ from .director_shooting import (
     seed,
 )
 from .endpoint_first import EndpointCase, controls
+from .shooting_telemetry import Trial, components, coordinate_scales
 
 
 def field_for(case: EndpointCase, values: tuple[float, ...]) -> CompatibleField:
@@ -56,6 +57,7 @@ def solve(
     checkpoint: Callable[[], None],
     *,
     stage_observer: Callable[[int, CompatiblePath], None] | None = None,
+    objective_scope: ObjectiveScope = ObjectiveScope.LEGACY_SPHERE,
 ) -> tuple[CompatiblePath, dict[str, Any]]:
     """
     Screen46direct seeds and refine one with18coarse/3fine rounds,max254fit probes.
@@ -66,6 +68,8 @@ def solve(
     Persistent endpoint/policy objectives decrease under full/half steps,norm<=1.5.
     Strict actual endpoint gates remain1e-8;final geometry audits are independent.
     """
+    if not isinstance(objective_scope, ObjectiveScope):
+        raise ValueError("Choose an explicit compatible objective scope.")
     controls(case)
     started = perf_counter()
     maximum = maximum_length_ratio(case, BANK_WIDTH)
@@ -93,9 +97,14 @@ def solve(
 
     def errors_for(candidate_path: CompatiblePath) -> tuple[float, ...]:
         """
-        Keep containment and existing search margins active at both grids.
+        Apply the same selected objective to seeds, probes and both fitting grids.
         """
-        return residual(case, candidate_path) + free_penalties(case, candidate_path)
+        penalties = (
+            free_penalties(case, candidate_path)
+            if objective_scope is ObjectiveScope.LEGACY_SPHERE
+            else routing_penalties(case, candidate_path)
+        )
+        return residual(case, candidate_path) + penalties
 
     best_values: tuple[float, ...] | None = None
     best = math.inf
@@ -110,7 +119,9 @@ def solve(
         path = integrate_values(coordinates, 64)
         errors = errors_for(path)
         error = sum(v * v for v in errors)
-        rankings.append({"index": index, "score": error, "carrier_ratio": ratio})
+        rankings.append(
+            {"index": index, "score": error, "carrier_ratio": ratio, "components": components(errors, objective_scope)}
+        )
         if error < best:
             best_values, best = coordinates, error
     if best_values is None:
@@ -119,6 +130,8 @@ def solve(
     seed_seconds = perf_counter() - seed_started
     evaluations = 0
     stages = []
+    trials: list[Trial] = []
+    probes: list[dict[str, Any]] = []
 
     def observe(
         parameters: tuple[float, ...], steps: int
@@ -137,7 +150,7 @@ def solve(
         error = sum(v * v for v in errors)
         history = [error]
         damping = 1e-3 if grid == 64 else 1e-8
-        for _ in range(rounds):
+        for round_index in range(rounds):
             if max(abs(v) for v in errors) < tolerance:
                 break
             if (
@@ -156,17 +169,25 @@ def solve(
                 difference_step = probe_values[i] - values[i]
                 column = tuple((a - b) / difference_step for a, b in zip(probe_errors, errors))
                 columns.append(column)
+                probes.append(
+                    {"grid": grid, "round": round_index, "coordinate": i,
+                     "requested_step": probe[i] - values[i], "actual_step": difference_step,
+                     "residual_sensitivity": math.sqrt(sum(v * v for v in column))}
+                )
             delta = damped_step(columns, errors, damping)
             norm = math.sqrt(sum(v * v for v in delta))
             scale = min(1.0, 1.5 / norm) if norm else 1.0
             accepted = False
             for fraction in (1.0, 0.5):
-                proposed = bounded(
-                    tuple(a + fraction * scale * b for a, b in zip(values, delta)),
-                    maximum_ratio=maximum,
-                )
+                requested = tuple(a + fraction * scale * b for a, b in zip(values, delta))
+                proposed = bounded(requested, maximum_ratio=maximum)
                 candidate, observed = observe(proposed, grid)
                 candidate_error = sum(v * v for v in observed)
+                trials.append(
+                    Trial(grid, round_index, fraction, values, requested, proposed,
+                          components(errors, objective_scope), components(observed, objective_scope),
+                          candidate_error < error)
+                )
                 if candidate_error < error:
                     values, path, errors, error = proposed, candidate, observed, candidate_error
                     accepted = True
@@ -188,6 +209,12 @@ def solve(
         stages=stages,
         coordinates=values,
         carrier_budget_mm=path.field.carrier_length_mm,
+        objective_scope=objective_scope.value,
+        trials=tuple(trials),
+        probes=tuple(probes),
+        coordinate_scales=coordinate_scales(values, maximum),
+        reference_scales={"chord_mm": chord, "half_width_mm": half, "profile_reach_mm": reach,
+                          "carrier_mm": path.field.carrier_length_mm, "maximum_carrier_ratio": maximum},
         seconds=perf_counter() - started,
     )
     return path, metrics

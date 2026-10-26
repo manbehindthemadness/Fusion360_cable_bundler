@@ -24,6 +24,15 @@ class SearchDomain(Enum):
     FREE = "free-with-fold-penalty"
 
 
+class ObjectiveScope(Enum):
+    """
+    Keep historical sphere feedback explicit and separate from general routing.
+    """
+
+    LEGACY_SPHERE = "legacy-sphere-feedback"
+    ROUTING = "routing-with-independent-stress-test"
+
+
 def regular_penalties(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     """
     Keep the existing regular-chart search entry point and its rejection contract.
@@ -38,7 +47,19 @@ def free_penalties(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     return _penalties(case, path, SearchDomain.FREE)
 
 
-def _penalties(case: EndpointCase, path: FramedPath, domain: SearchDomain) -> tuple[float, ...]:
+def routing_penalties(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
+    """
+    Measure material and bend margins without reading a harness sphere or pose.
+    """
+    return _penalties(case, path, SearchDomain.FREE, ObjectiveScope.ROUTING)
+
+
+def _penalties(
+    case: EndpointCase,
+    path: FramedPath,
+    domain: SearchDomain,
+    scope: ObjectiveScope = ObjectiveScope.LEGACY_SPHERE,
+) -> tuple[float, ...]:
     """
     Add33station curvature/radius/containment penalties with conservative goals.
 
@@ -54,17 +75,10 @@ def _penalties(case: EndpointCase, path: FramedPath, domain: SearchDomain) -> tu
     penalties = []
     for i in range(33):
         u = i / 32
-        state, _ = path.pose(u)
         k, eta, eta_s = field.sample(u)
         minimum_j = 1 - half * abs(eta_s)
         if minimum_j <= 0 and domain is SearchDomain.REGULAR:
             raise ValueError("Regular director parameterization lost its Jacobian bound.")
-        p, t, w = Vector3(*state[:3]), Vector3(*state[3:6]), Vector3(*state[6:9])
-        extent = max(
-            magnitude(difference(p.translated(w, q).translated(t, q * eta), midpoint))
-            + case.diameter_mm / 2
-            for q in (-half, half)
-        )
         if domain is SearchDomain.FREE:
             penalties.append(0.2 * math.log1p(max(0.0, 0.1 - minimum_j)))
         lane_violation = (
@@ -76,7 +90,15 @@ def _penalties(case: EndpointCase, path: FramedPath, domain: SearchDomain) -> tu
             (
                 0.2 * math.log1p(max(0.0, abs(k) * reach / 0.78 - 1)),
                 0.2 * math.log1p(lane_violation),
-                0.2 * math.log1p(max(0.0, extent / sphere - 1)),
             )
         )
+        if scope is ObjectiveScope.LEGACY_SPHERE:
+            state, _ = path.pose(u)
+            p, t, w = Vector3(*state[:3]), Vector3(*state[3:6]), Vector3(*state[6:9])
+            extent = max(
+                magnitude(difference(p.translated(w, q).translated(t, q * eta), midpoint))
+                + case.diameter_mm / 2
+                for q in (-half, half)
+            )
+            penalties.append(0.2 * math.log1p(max(0.0, extent / sphere - 1)))
     return tuple(penalties)

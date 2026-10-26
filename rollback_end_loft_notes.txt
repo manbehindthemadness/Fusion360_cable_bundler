@@ -295,3 +295,28 @@ e1070a526e6b4707978d0ff5a9f606ca/;earlier e7327b5e1419411b9859866a619658a9 prese
 Prior16 focused tests and adapter Ruff/IDE checks retained,not repeated without
 edits;fullQA unrun. This is a six-case examined development replay,not holdout
 validation,a universal construction guarantee or promotion to production.
+
+USER-CLARIFIED SPHERE STRESS-TEST ROLE — 2026-10-26
+
+The sphere limiter is a performance/robustness stress-test provision, not an
+intrinsic physical ribbon restriction or a direct modifier of the general solver.
+For future experiments, measure fixed-sphere occupancy as a separate stress-test
+outcome. Do not silently use this harness sphere to steer seed ranking, derivatives,
+trial acceptance, physical feasibility or solver-coordinate bounds. A real routing
+obstacle/envelope would require its own explicit input/contract. This clarification
+supersedes the sphere's earlier classification as a master physical constraint for
+future solver work; historical fixtures, classifications and evidence stay intact.
+
+Code inspection found the retained compatible baseline includes a97%radius sphere
+penalty in seed ranking and both fitting grids through free_penalties. Its existing
+results therefore measure a sphere-influenced algorithm. Small final sphere scores
+do not prove that earlier fitting steps were unaffected. No numerical comparison
+has yet isolated that influence. Preserve the baseline and record a future explicit
+comparison before claiming that removing the feedback improves routing.
+
+Investigate sphere feedback alongside individual restriction values and their
+reference scales, while varying one cause at a time. Fixed raw coefficient bounds,
+mixed-coordinate step norms, carrier/chord allowances and endpoint-error scaling
+are search choices, not calibrated physical laws. Curvature/material regularity
+checks and resource ceilings remain distinct. This clarification alone changes no
+cached geometry, solver implementation, search budget or native-build scope.
