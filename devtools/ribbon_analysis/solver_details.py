@@ -1,5 +1,5 @@
 """
-Keep solver metadata and gauges directly inside their experiment as hidden sketches.
+Keep solver metadata and gauges directly inside their experiment as visible sketches.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def retain_solver_details(
     checkpoint: Callable[[], None] = lambda: None,
 ) -> Any:
     """
-    Retain one hidden, individually revealable solver-details sketch in its owner.
+    Retain one initially visible solver-details sketch in its owner.
 
     Keep full measurements/source snapshot as attributes and native gauge lines
     plus readable sketch text. Reuse complete matching sketches without changing
@@ -65,7 +65,7 @@ def retain_solver_details(
     checkpoint()
     sketch = component.sketches.add(component.xYConstructionPlane)
     sketch.name = f"{evidence.identifier} - Solver details"
-    sketch.isLightBulbOn = False
+    sketch.isLightBulbOn = True
     sketch.attributes.add(_GROUP, "fingerprint", digest)
     sketch.attributes.add(_GROUP, "snapshot", snapshot)
     sketch.isComputeDeferred = True

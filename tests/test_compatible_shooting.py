@@ -3,12 +3,15 @@ Verify compatible fitting stays bounded and keeps fixed planar pose controls.
 """
 
 from dataclasses import replace
+from typing import cast
 
 import pytest
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from experiments.experiment_ribbon_cap_transition.compatible_shooting import solve
+from experiments.experiment_ribbon_cap_transition.director_route_objective import ObjectiveScope
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
+from experiments.experiment_ribbon_cap_transition.shooting_telemetry import Trial
 
 
 def _case(z: float) -> EndpointCase:
@@ -42,3 +45,22 @@ def test_identity_does_not_select_solver_geometry() -> None:
     renamed, after = solve(replace(case, name="another-label"), lambda: None)
     assert original.states == renamed.states
     assert before["coordinates"] == after["coordinates"]
+
+
+def test_routing_scope_closes_and_accounts_for_existing_trials() -> None:
+    """
+    Keep work bounds and trial acceptance while observing every scored update.
+    """
+    case = _case(12)
+    _, metrics = solve(case, lambda: None, objective_scope=ObjectiveScope.ROUTING)
+    assert metrics["endpoint_gate_passed"]
+    assert metrics["evaluations"] <= 254 and metrics["seed_screenings"] == 46
+    assert metrics["trials"] and metrics["probes"]
+    for trial in cast(tuple[Trial, ...], metrics["trials"]):
+        assert "sphere" not in trial.before and "sphere" not in trial.after
+        assert trial.accepted == (sum(trial.after.values()) < sum(trial.before.values()))
+        assert trial.clipped == tuple(
+            i for i, (a, b) in enumerate(zip(trial.requested, trial.proposed)) if a != b
+        )
+    stage_starts = len(metrics["stages"])
+    assert metrics["evaluations"] == stage_starts + len(metrics["probes"]) + len(metrics["trials"])

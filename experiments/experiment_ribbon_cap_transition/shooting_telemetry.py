@@ -22,7 +22,9 @@ def components(errors: tuple[float, ...], scope: ObjectiveScope) -> dict[str, fl
         name: sum(v * v for v in errors[start : start + 3])
         for name, start in (("position", 0), ("tangent", 3), ("width", 6))
     }
-    parts.update({name: sum(v * v for v in errors[9 + i :: stride]) for i, name in enumerate(names)})
+    parts.update(
+        {name: sum(v * v for v in errors[9 + i :: stride]) for i, name in enumerate(names)}
+    )
     return parts
 
 
@@ -50,7 +52,9 @@ class Trial:
         return tuple(i for i, (a, b) in enumerate(zip(self.requested, self.proposed)) if a != b)
 
 
-def coordinate_scales(values: tuple[float, ...], maximum_ratio: float) -> tuple[dict[str, float], ...]:
+def coordinate_scales(
+    values: tuple[float, ...], maximum_ratio: float
+) -> tuple[dict[str, float], ...]:
     """
     Show each raw coordinate relative to its own domain, not a physical percentage.
     """

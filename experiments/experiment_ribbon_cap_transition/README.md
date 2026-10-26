@@ -310,6 +310,85 @@ and geometry compliance validation are outside this presentation-only change.
 
 Atomic visual observations — retained as hypotheses, not adopted rules:
 
+Sphere-feedback comparison38, authorized2026-10-26: eight fresh development fits,
+03/17/38controls then07/08/11/12/13failures, fixed compatible28b inputs and cached
+historical baselines. Only routing change is ObjectiveScope.ROUTING, excluding the
+harness sphere from seeds, derivative residuals and trial acceptance at both grids.
+All coefficient domains, initialization formulas,46seed screens,18coarse/3fine
+rounds and maximum254fit evaluations remain unchanged. New component/probe/trial
+telemetry observes those existing evaluations. Centerline rerouting remains allowed.
+Freeze source/input pins before first fit in a coherent new module namespace;
+preserve old modules/evidence. Maximum10s/case,120s cumulative active numerical
+work/2GiB sampled Fusion RSS,0native solids. Calibrate03before scheduling remainder;
+stop on a lost control, intrinsic hard-rule finding, source/input drift or budget/
+harness error. Sphere occupancy is measured separately, not physical rejection.
+No automatic coefficient/step/normalization tuning or search-budget expansion.
+Display the completed numbered paths with shared diagnostic originals, independent
+sphere witnesses and trial-component summaries in the existing owned scratch;
+maximum30s/2GiB display work, no new report file. Retain every failed/unattempted ID.
+
+Comparison38completed8/8fresh development fits;0native solid attempts/0built/
+0fully audited. All3controls preserve the1e-8endpoint gate. All5challenge fits
+remain unsuccessful; no skipped cases, new holdouts or generalized physical success.
+Intrinsic sampled series and sampled center/A/B cubic curvature checks have no
+detected violations. Contact, complete material mechanics and native compliance
+remain unmeasured. Stress-sphere occupancy passes6/8and fails08/13independently.
+
+| Case | Historical A-gap mm | Routing A-gap mm | Solve s | Sphere slack mm |
+| --- | ---: | ---: | ---: | ---: |
+| 03 | 4.84e-13 | 6.82e-9 | 1.542 | 15.742 |
+| 17 | 1.27e-12 | 1.27e-12 | 2.312 | 14.287 |
+| 38 | 5.34e-9 | 5.58e-9 | 1.612 | 5.564 |
+| 07 | 1.740 | 40.957 | 4.517 | 19.015 |
+| 08 | 14.726 | 0.100120 | 4.466 | -34.861 |
+| 11 | 27.297 | 19.057 | 4.639 | 7.214 |
+| 12 | 58.602 | 56.548 | 4.643 | 1.338 |
+| 13 | 8.982 | 67.172 | 4.534 | -9.162 |
+
+Removing feedback substantially improves08and changes seed ranking, but worsens
+07/13; it is not a universal repair. Retained baselines are cached from the prior
+same-budget algorithm, not a contemporaneous rerun. No causal performance-overhead
+claim follows from their different timings. Current solves are slower than the
+historical .475..963s samples; the cause of runtime increase is not isolated.
+No further fitting or parameter changes scheduled after the mixed-outcome review.
+The first execution ran the complete eight-case call before the worsened failed
+cases were reviewed; subsequent passes should return after each case so this
+review can occur before scheduling the next one. All results remain preserved.
+
+Individual-value telemetry:08clips only carrier coordinate9on23/26trials, including
+all4fine full/half trials; carrier/chord remains5. The other four failed cases
+have no clipped trials, yet all6fine trials per case are rejected. In07/12/13,
+every final full/half trial worsens position,tangent andwidth scores together.
+11trades better tangent score for worse position/width. Actual raw step norms are
+1.5and.75for those four failures. No nonzero intrinsic search penalty explains
+those final rejections. This supports investigating normalized step scales, local
+linearization/initialization and route-family coverage before widening every bound;
+it does not establish that a smaller step or larger carrier allowance will solve.
+Probe sensitivity ranges and all requested/proposed coordinates remain recorded;
+domain fractions are search-domain positions, not physical utilization percentages.
+
+New renderer gallery: `Sphere-independent routing38 - eight numbered paths` in the
+same Untitled scratch. Each result retains hidden originalA/center/B native curves,
+the5physical helpers plus solver-details sketch, a hidden Trial steps and individual
+restriction values helper, and hidden gray historical baseline guides. Sphere
+helper explicitly says independent stress test. Red target bridges remain labeled
+unsolved gaps, not cable trajectories. Seven earlier roots are hidden/preserved;
+the original150solids remain unchanged. Images reviewed: compatible28/sphere38-
+overview.png and sphere38-08-trials-and-baseline.png. Overview restored at completion.
+
+Summed solve28.263775s; measurements10.040236s; numerical stages38.304011s versus
+120s cap, every case<=6.145s versus10s. Initial graphics21.550481s plus baseline
+guides/captures5.697555s=27.248036s versus30s display cap. Recorded RSS samples
+728832/652448/316832/431760KiB, in-flight peak/physical footprint unmeasured.
+Orchestration wall time and usage cost unmeasured. Fresh sphere38experiment/core
+namespaces preserve old runtimes. `_sphere38` retains source/input pins, fixed
+scope, all paths/Evidence/Inspection, probes/trials, outcomes, gallery and review
+flag.48affected tests pass (one local fixture initially violated its terminal
+ruling contract and was corrected before live work); Ruff lint/format and six
+changed-code IDE inspections pass. FullQA/native solid validation not run.
+Legacy solve entry retains historical default; future sphere-independent callers
+must explicitly select ObjectiveScope.ROUTING. No production code changed.
+
 User clarification after pass37: the sphere was introduced as an independent
 performance/robustness stress test, not as a direct modifier of the general solver.
 Future work reports closure/physical checks separately from fixed-sphere occupancy.

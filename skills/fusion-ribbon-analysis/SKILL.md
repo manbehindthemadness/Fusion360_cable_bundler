@@ -42,8 +42,12 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
   Supply solver-bound metadata explicitly; never infer it from a relaxed shape.
   Distinguish local margin and reached coordinate bounds from evidence that a rule
   actually prevents closure. Constraint ablation requires a separately bounded run.
-  Solver details belong in a hidden sketch directly inside their experiment, not
+  Solver summaries and individual solver-value panels start visible in every new
+  result. Solver details belong in a sketch directly inside their experiment, not
   a separate solver component; preserve the complete source/measurement snapshot.
+  Keep coordinate-value/trial panels visible by default when an adapter supplies
+  them. Preserve the user's later manual visibility choices when reusing results.
+  Physical constraint helpers and original route sketches still start hidden.
   Reserve separate titled description slots for every helper, even while hidden,
   and inspect them visible together. Keep real geometry witnesses in place.
 - Show baseline, near-limit and failing variants when they answer the question.

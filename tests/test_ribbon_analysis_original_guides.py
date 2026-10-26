@@ -221,12 +221,12 @@ def test_solver_details_belong_to_the_experiment_and_preserve_metadata(
     evidence = _evidence()
     overlay = next(o for o in build(evidence) if o.key == "solver_limits")
     sketch = module.retain_solver_details(component, evidence, overlay)
-    assert len(sketches) == 1 and not sketch.isLightBulbOn
+    assert len(sketches) == 1 and sketch.isLightBulbOn
     assert native_text.call_count == len(overlay.notes) + 1
     assert input_calls.call_args.args[0] == "'" + overlay.notes[-1] + "'"
     snapshot = sketch.attributes.itemByName("RibbonAnalysisSolverDetails", "snapshot").value
     assert evidence.fingerprint in snapshot and "solver_limits" in snapshot
     component.occurrences.addNewComponent.assert_not_called()
-    sketch.isLightBulbOn = True
+    sketch.isLightBulbOn = False
     assert module.retain_solver_details(component, evidence, overlay) is sketch
-    assert len(sketches) == 1 and sketch.isLightBulbOn
+    assert len(sketches) == 1 and not sketch.isLightBulbOn

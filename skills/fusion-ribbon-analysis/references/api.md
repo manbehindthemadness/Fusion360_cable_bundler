@@ -125,7 +125,7 @@ Optional checkpoints passed to `draw_evidence` bound each native guide operation
 explicit True/False toggles all three for the selected results.
 
 Each result also contains five hidden child components named `Constraint - ...`
-and a hidden `Solver details` sketch directly inside the experiment's Sketches
+and an initially visible `Solver details` sketch directly inside the experiment's Sketches
 folder. Unhide a helper with its component/sketch eye, or use `Viewer.show(constraints=...)`.
 An empty tuple hides all; None preserves manual visibility. The keys are:
 
@@ -157,10 +157,13 @@ pair without fitting. Returned `constraint_evidence`, `constraint_fingerprint` a
 `constraint_seconds` retain the same immutable measurements/geometry, digest and
 creation time the agent reads. `Viewer.constraints(id)` exposes these snapshots.
 `solver_details.retain_solver_details` retains the solver panel directly as a
-hidden native sketch; its attributes keep the full frozen overlay/source snapshot.
+visible native sketch; its attributes keep the full frozen overlay/source snapshot.
 It reuses complete matching sketches without changing manual visibility and stops
 on incomplete authoring. Other helper components are unaffected.
 Visibility changes do not rebuild them. No constraint is relaxed by showing it.
+Adapters that supply individual coordinate-value or trial panels also show them
+by default. Reuse preserves manual visibility, including a user's choice to hide
+the solver sketch or value panel after creation.
 Local margin or a coordinate at its bound does not establish causal responsibility
 for a failed solve; that requires a controlled counterfactual experiment.
 

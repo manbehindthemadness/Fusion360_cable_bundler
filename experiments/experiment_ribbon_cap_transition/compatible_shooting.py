@@ -67,6 +67,9 @@ def solve(
     an already integrated path,stored solutions or witness lengths enter ranking.
     Persistent endpoint/policy objectives decrease under full/half steps,norm<=1.5.
     Strict actual endpoint gates remain1e-8;final geometry audits are independent.
+    Legacy sphere feedback is the historical default. Explicit ROUTING scope
+    excludes it from seed ranking, derivatives and both fitting grids. Telemetry
+    records existing evaluations only and does not change search decisions.
     """
     if not isinstance(objective_scope, ObjectiveScope):
         raise ValueError("Choose an explicit compatible objective scope.")
@@ -120,7 +123,12 @@ def solve(
         errors = errors_for(path)
         error = sum(v * v for v in errors)
         rankings.append(
-            {"index": index, "score": error, "carrier_ratio": ratio, "components": components(errors, objective_scope)}
+            {
+                "index": index,
+                "score": error,
+                "carrier_ratio": ratio,
+                "components": components(errors, objective_scope),
+            }
         )
         if error < best:
             best_values, best = coordinates, error
@@ -170,9 +178,14 @@ def solve(
                 column = tuple((a - b) / difference_step for a, b in zip(probe_errors, errors))
                 columns.append(column)
                 probes.append(
-                    {"grid": grid, "round": round_index, "coordinate": i,
-                     "requested_step": probe[i] - values[i], "actual_step": difference_step,
-                     "residual_sensitivity": math.sqrt(sum(v * v for v in column))}
+                    {
+                        "grid": grid,
+                        "round": round_index,
+                        "coordinate": i,
+                        "requested_step": probe[i] - values[i],
+                        "actual_step": difference_step,
+                        "residual_sensitivity": math.sqrt(sum(v * v for v in column)),
+                    }
                 )
             delta = damped_step(columns, errors, damping)
             norm = math.sqrt(sum(v * v for v in delta))
@@ -184,9 +197,17 @@ def solve(
                 candidate, observed = observe(proposed, grid)
                 candidate_error = sum(v * v for v in observed)
                 trials.append(
-                    Trial(grid, round_index, fraction, values, requested, proposed,
-                          components(errors, objective_scope), components(observed, objective_scope),
-                          candidate_error < error)
+                    Trial(
+                        grid,
+                        round_index,
+                        fraction,
+                        values,
+                        requested,
+                        proposed,
+                        components(errors, objective_scope),
+                        components(observed, objective_scope),
+                        candidate_error < error,
+                    )
                 )
                 if candidate_error < error:
                     values, path, errors, error = proposed, candidate, observed, candidate_error
@@ -213,8 +234,13 @@ def solve(
         trials=tuple(trials),
         probes=tuple(probes),
         coordinate_scales=coordinate_scales(values, maximum),
-        reference_scales={"chord_mm": chord, "half_width_mm": half, "profile_reach_mm": reach,
-                          "carrier_mm": path.field.carrier_length_mm, "maximum_carrier_ratio": maximum},
+        reference_scales={
+            "chord_mm": chord,
+            "half_width_mm": half,
+            "profile_reach_mm": reach,
+            "carrier_mm": path.field.carrier_length_mm,
+            "maximum_carrier_ratio": maximum,
+        },
         seconds=perf_counter() - started,
     )
     return path, metrics

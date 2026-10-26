@@ -16,9 +16,10 @@ from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from devtools.ribbon_analysis.api import Evidence
 
 from .director_path_contracts import FramedPath
-from .director_route_objective import free_penalties
+from .director_route_objective import ObjectiveScope, free_penalties, routing_penalties
 from .director_shooting import residual
 from .endpoint_first import EndpointCase
+from .shooting_telemetry import components
 
 
 @dataclass(frozen=True)
@@ -95,21 +96,13 @@ def inspect(
             )
         )
     endpoint = residual(case, path)
-    penalties = free_penalties(case, path)
-    if len(endpoint) != 9 or len(penalties) != 132:
-        raise ValueError("Existing objective contract changed; inspect before continuing.")
-    objective = tuple(
-        (name, sum(value * value for value in values))
-        for name, values in (
-            ("position", endpoint[:3]),
-            ("tangent", endpoint[3:6]),
-            ("width", endpoint[6:9]),
-            ("material", penalties[0::4]),
-            ("center", penalties[1::4]),
-            ("lane", penalties[2::4]),
-            ("sphere", penalties[3::4]),
-        )
+    scope = ObjectiveScope(metrics.get("objective_scope", ObjectiveScope.LEGACY_SPHERE.value))
+    penalties = (
+        free_penalties(case, path)
+        if scope is ObjectiveScope.LEGACY_SPHERE
+        else routing_penalties(case, path)
     )
+    objective = tuple(components(endpoint + penalties, scope).items())
     fine = tuple(float(v) for v in metrics["stages"][-1]["history"])
     if not math.isclose(sum(v for _, v in objective), fine[-1], abs_tol=1e-10, rel_tol=1e-9):
         raise ValueError("Final objective does not reproduce the retained fit score.")

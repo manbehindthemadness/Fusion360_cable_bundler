@@ -65,10 +65,11 @@ def retain_constraints(
     restrictions: tuple[Restriction, ...] = (),
 ) -> dict[str, Any]:
     """
-    Freeze and draw six hidden overlays once without modifying a candidate route.
+    Freeze and draw six overlays once without modifying a candidate route.
 
     Physical helpers use child component eyes; solver details use a sketch directly
-    in the experiment. Both work independently from the sheet and native originals.
+    in the experiment and start visible. Both work independently from the sheet
+    and native originals. Reusing solver details preserves manual visibility.
     Returned blueprints are the agent's copy of displayed facts.
     This is diagnostic graphics, not native solids or constraint ablation.
     """
