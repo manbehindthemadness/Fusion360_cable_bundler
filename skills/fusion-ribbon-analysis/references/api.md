@@ -95,6 +95,9 @@ data = evidence.inspect(kind="material J", trace_number=1)
 view.show(candidate.identifier, sheet=True, graphs=True)
 # Reveal the retained original route sketches independently of the sheet:
 view.show(candidate.identifier, sheet=False, graphs=False, originals=True)
+# Reveal a single constraint component without recomputing the result:
+view.show(candidate.identifier, constraints=("center_bend",))
+constraint_data = view.constraints(candidate.identifier)
 ```
 
 Create/choose `owned_component` under the authorized scratch explicitly. The
@@ -120,6 +123,41 @@ against the frozen cubics. Viewer records retain these alongside graphics timing
 Optional checkpoints passed to `draw_evidence` bound each native guide operation.
 `Viewer.show(..., originals=None)` preserves manual original-sketch visibility;
 explicit True/False toggles all three for the selected results.
+
+Each result also contains five hidden child components named `Constraint - ...`
+and a hidden `Solver details` sketch directly inside the experiment's Sketches
+folder. Unhide a helper with its component/sketch eye, or use `Viewer.show(constraints=...)`.
+An empty tuple hides all; None preserves manual visibility. The keys are:
+
+| Key | Geometry and measured scope |
+| --- | --- |
+| `containment` | Three sphere rings and the worst retained occupied-point witness, including a thickness allowance. |
+| `center_bend` | Minimum radius from the center macaroni limit, actual sampled radius, and projected material-width direction. |
+| `lane_bend` | Minimum 3D radius and actual radius at the worst sampled A/B boundary witness; not an all-conductor audit. |
+| `material_progress` | Normalized forward-advance segments at the worst retained boundary J; unavailable scalar samples stay unmeasured. |
+| `targets` | Fixed terminal width/tangent axes and an explicitly labeled center gap; no connector-body obstacle is invented. |
+| `solver_limits` | Native gauge lines and text in the experiment's Solver details sketch, with caller-declared coordinate/work bounds distinct from physical geometry rules. |
+
+Red bend circles show minimum radius; blue shows actual radius. Green indicates
+width/target axes. Circles lie in their real bend planes and may appear edge-on
+until the view is rotated. Very large actual circles are omitted but retain their
+numerical radius. All circles are 64-chord display glyphs. They draw through the
+diagnostic sheet to remain visible; they are not cable geometry.
+
+`constraint_geometry.Restriction(name, value, lower, upper, source)` captures an
+explicit frozen solver bound. Pass a tuple through `Viewer.add(..., restrictions=)`
+or `draw_evidence(..., restrictions=)`. Omitted metadata is labeled unavailable.
+`constraint_views.retain_constraints` adds overlays to an older Evidence/component
+pair without fitting. Returned `constraint_evidence`, `constraint_fingerprint` and
+`constraint_seconds` retain the same immutable measurements/geometry, digest and
+creation time the agent reads. `Viewer.constraints(id)` exposes these snapshots.
+`solver_details.retain_solver_details` retains the solver panel directly as a
+hidden native sketch; its attributes keep the full frozen overlay/source snapshot.
+It reuses complete matching sketches without changing manual visibility and stops
+on incomplete authoring. Other helper components are unaffected.
+Visibility changes do not rebuild them. No constraint is relaxed by showing it.
+Local margin or a coordinate at its bound does not establish causal responsibility
+for a failed solve; that requires a controlled counterfactual experiment.
 
 The material sheet has no thickness. It can overlap in an invalid map and is
 not a valid conductor sweep. Colored cells include neighboring crossing brackets;

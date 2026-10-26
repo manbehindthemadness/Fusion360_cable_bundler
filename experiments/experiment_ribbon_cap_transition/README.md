@@ -219,9 +219,74 @@ prior visibility/camera restored. Capture: `compatible28/13-original-native-guid
 24 affected tests, shared analysis-package Ruff lint/format, and four changed-file
 IDE inspections pass. Original sketch availability is a tool default, not a special
 case policy. Every result preserves failed endpoints and permanent A/B identities.
-Skill quick validation is unavailable in the project environment because PyYAML is
-not installed; frontmatter and documentation diff were reviewed manually. No new
-dependency was installed for this documentation check. Full QA was not requested.
+Skill quick validation initially lacked PyYAML. User then requested its installation;
+PyYAML 6.0.3 is now a locked development dependency, and the skill validator passes.
+Runtime dependencies remain empty. Full QA was not requested.
+
+Constraint-overlay instrument upgrade: retain six normally hidden child components
+per displayed analysis result: containment sphere, center macaroni radius, boundary
+lane-radius witness, material progress/folding, fixed target frames, and explicitly
+declared solver restrictions. Red radius circles show minimum allowed radius;
+blue shows actual sampled radius when it fits the display (very large circles
+remain numerical). Green width/target axes identify orientation. Glyph circles
+are 64-chord illustrations. The shared immutable overlay data and digest are read
+by the agent and rendered for the user. Local utilization is not a counterfactual
+constraint-ablation result or proof of reachability. No constraints are relaxed.
+
+Frozen live scope: backfill the 30 explicit component/Evidence pairs retained in
+`_original_retention32`; attach cached compatible28b coordinate-bound metadata to
+its ten results only. Other solver metadata remains unavailable. For older results
+without scalar series, material J is explicitly unmeasured. Maximum 30 active
+seconds/2 GiB sampled RSS; no solves or native solids. Retain all existing routes,
+originals, ledgers and visibility. Stop first API/resource/source error. Verify
+one fresh Viewer display from a cached control within 10 seconds and demonstrate
+one constraint at a time on representative cached views; restore overview.
+
+Constraint overlays delivered for 30 retained analysis views: 180 independently
+hidden child components, 23.502562 s initial creation, sampled RSS 715568 KiB.
+Each of the latest ten costs 0.769–0.846 s once; visibility changes reuse the
+snapshot. Initial captures exposed occluded circles and overlapping labels.
+Presentation repair uses the same frozen geometry/measurements, moves labels and
+abstract solver gauges beside routes, and enables show-through colors. It takes
+3.676718 s for all 30 without remeasuring routes. Historical groups/snapshots stay
+preserved hidden. Circles can appear edge-on; candidate07 bend-plane capture
+verifies the actual 3D circles face-on. Sources retained in coherent analysis
+namespaces constraints33 / constraints33b / constraints33c, no historical reload.
+
+Fresh cached-control Viewer smoke passes automatic six-panel creation and independent
+show/hide in 2.961184 s, including 0.590645 s panel creation. Three native originals
+remain automatic. The earlier hidden verification result also receives six panels;
+both verification displays remain hidden. No shape solve, native solid attempt,
+new geometry acceptance, or rule revision. Existing overview visibility restored.
+
+Shared visual/numerical witnesses distinguish local geometry margin from solver
+coordinate bounds. For08: sampled center radius22.886 mm versus minimum18.024;
+boundary radius10.243 versus4.5; minimumJ0.396716; sphere excess0.261696 mm.
+Its carrier ratio5/5 and maximum raw ruling coefficient3/3 are at bounds. 07 and13
+also hit carrier bounds;07/08/11 hit a raw ruling bound. These observations are
+not constraint-ablation evidence and do not prove relaxing a bound will close.
+The tool does not invent energy, contact/connector-body or continuous certificates.
+
+27 affected tests, five Python IDE checks and shared-package Ruff lint/format pass.
+Skill/API references describe helper visibility and exact measurement scope.
+Images under compatible28 retain initial/readable/show-through variants plus
+07-constraint-bend-plane.png; no new report files. Full QA/native sweeps unattempted.
+
+Solver-details organization revision: user requests details inside each experiment,
+without a separate solver component. Replace only `solver_limits` helper components
+with hidden native `Solver details` sketches directly in each candidate component.
+Preserve all frozen measurements/source snapshots and readable annotations; other
+five constraint helpers remain unchanged. Future shared renders use the same layout.
+One cached07 authoring calibration, 10 seconds/2 GiB, no solve or solids; verify
+native lines/texts and ownership before removing any replaced helper component.
+Then at most 32 retained views including the two hidden tool verifications, 30
+seconds/2 GiB. Preflight six handles and exact old solver-component parentage;
+stop on unexpected hierarchy/API/resource mismatch. Preserve measurements/source
+records and visibility; remove only the successfully replaced owned solver helper.
+Implementation and 28 affected tests are ready. Fusion rejected the calibration
+request before script execution because a command dialog is open; no native sketch
+or component was changed. Live migration and visual verification are pending the
+user finishing/canceling that active command. No helper deletion has been attempted.
 
 ## Outside-edge investigation — frozen2026-10-26
 

@@ -15,6 +15,8 @@ import adsk.fusion
 from cable_bundler.routing.geometry import Vector3
 
 from .api import Candidate, Evidence, freeze
+from .constraint_geometry import Restriction
+from .constraint_views import retain_constraints
 from .contracts import RibbonPath as DirectorPath
 from .contracts import TargetPose as EndpointCase
 from .graphics import (
@@ -171,7 +173,11 @@ def _graph(group: Any, row: Series) -> None:
 
 
 def draw_evidence(
-    component: Any, evidence: Evidence, checkpoint: Callable[[], None] = lambda: None
+    component: Any,
+    evidence: Evidence,
+    checkpoint: Callable[[], None] = lambda: None,
+    *,
+    restrictions: tuple[Restriction, ...] = (),
 ) -> dict[str, Any]:
     """
     Render frozen evidence and retain hidden native originals for every result.
@@ -181,6 +187,7 @@ def draw_evidence(
     """
     number, case = evidence.identifier, evidence.targets
     originals = retain_guides(component, evidence, checkpoint)
+    constraints = retain_constraints(component, evidence, checkpoint, restrictions=restrictions)
     series, findings, primary = evidence.series, evidence.regions, evidence.primary
     groups = {
         name: component.customGraphicsGroups.add()
@@ -260,7 +267,7 @@ def draw_evidence(
     )
     draw_text(groups["legend"], explanation, Vector3(0, -45, 0), DARK, 1.2)
     draw_text(groups["legend"], investigation, Vector3(0, -49, 0), DARK, 1.2)
-    return {"groups": groups, **stats, **originals}
+    return {"groups": groups, **stats, **originals, **constraints}
 
 
 def draw(

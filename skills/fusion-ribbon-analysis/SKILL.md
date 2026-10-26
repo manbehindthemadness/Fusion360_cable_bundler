@@ -36,6 +36,14 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
   those frozen cubics, including unsuccessful routes. Keep these originals
   available to unhide in Fusion independently of diagnostic graphics. Never
   substitute target-gap witnesses or repaired geometry for the original paths.
+- Every result also keeps individually hidden `Constraint - ...` geometry helpers.
+  Use these to compare actual versus minimum bend radius, containment, material
+  progress and target frames. Read the same frozen overlay measurements yourself.
+  Supply solver-bound metadata explicitly; never infer it from a relaxed shape.
+  Distinguish local margin and reached coordinate bounds from evidence that a rule
+  actually prevents closure. Constraint ablation requires a separately bounded run.
+  Solver details belong in a hidden sketch directly inside their experiment, not
+  a separate solver component; preserve the complete source/measurement snapshot.
 - Show baseline, near-limit and failing variants when they answer the question.
   Track their parentage; variants are not independent solver coverage. Preserve
   failures and missing measurements. Distinguish a sampled rule violation from

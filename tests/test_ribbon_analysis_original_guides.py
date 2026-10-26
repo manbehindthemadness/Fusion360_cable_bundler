@@ -9,11 +9,13 @@ import sys
 from dataclasses import dataclass
 from types import ModuleType, SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
 from cable_bundler.routing.geometry import CubicBezier, Vector3
 from devtools.ribbon_analysis.api import Candidate, Evidence, analyze
+from devtools.ribbon_analysis.constraint_geometry import build
 from devtools.ribbon_analysis.contracts import Targets
 
 
@@ -186,3 +188,45 @@ def test_partial_native_failure_is_preserved_without_automatic_retry(
     with pytest.raises(RuntimeError, match="Incomplete original"):
         original_module.retain_guides(component, evidence)
     assert len(component.sketches) == 1
+
+
+def test_solver_details_belong_to_the_experiment_and_preserve_metadata(
+    original_module: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Retain native text and gauges without creating another component or losing data.
+    """
+    module = importlib.import_module("devtools.ribbon_analysis.solver_details")
+    monkeypatch.setitem(vars(module), "adsk", original_module.adsk)
+    core = original_module.adsk.core
+    monkeypatch.setitem(vars(core), "ValueInput", SimpleNamespace(createByReal=lambda value: value))
+    monkeypatch.setitem(
+        vars(core), "HorizontalAlignments", SimpleNamespace(LeftHorizontalAlignment=0)
+    )
+    monkeypatch.setitem(vars(core), "VerticalAlignments", SimpleNamespace(TopVerticalAlignment=0))
+    sketches = _Sketches()
+    native_text = Mock()
+    input_calls = Mock(return_value=SimpleNamespace(setAsMultiLine=lambda *_: True))
+
+    def add_sketch(plane: object) -> Any:
+        created_sketch = _Sketches.add(sketches, plane)
+        created_sketch.sketchCurves.sketchLines = SimpleNamespace(
+            addByTwoPoints=lambda *_: SimpleNamespace(isConstruction=False)
+        )
+        created_sketch.sketchTexts = SimpleNamespace(createInput3=input_calls, add=native_text)
+        return created_sketch
+
+    monkeypatch.setattr(sketches, "add", add_sketch)
+    component = SimpleNamespace(sketches=sketches, xYConstructionPlane=object(), occurrences=Mock())
+    evidence = _evidence()
+    overlay = next(o for o in build(evidence) if o.key == "solver_limits")
+    sketch = module.retain_solver_details(component, evidence, overlay)
+    assert len(sketches) == 1 and not sketch.isLightBulbOn
+    assert native_text.call_count == len(overlay.notes)
+    assert input_calls.call_args.args[0] == "'" + overlay.notes[-1] + "'"
+    snapshot = sketch.attributes.itemByName("RibbonAnalysisSolverDetails", "snapshot").value
+    assert evidence.fingerprint in snapshot and "solver_limits" in snapshot
+    component.occurrences.addNewComponent.assert_not_called()
+    sketch.isLightBulbOn = True
+    assert module.retain_solver_details(component, evidence, overlay) is sketch
+    assert len(sketches) == 1 and sketch.isLightBulbOn

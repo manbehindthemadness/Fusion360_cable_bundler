@@ -17,6 +17,7 @@ import adsk.core
 
 from .api import Candidate, Evidence, analyze
 from .budget import NativeBudget
+from .constraint_geometry import Overlay, Restriction
 from .provenance import mark_loaded, source_fingerprints, verify_loaded
 from .region_graphics import draw_evidence
 
@@ -92,7 +93,13 @@ class Viewer:
             raise RuntimeError("Expected the supplied owned document and an idle command.")
         verify_loaded()
 
-    def add(self, candidate: Candidate, transform: Any = None) -> dict[str, object]:
+    def add(
+        self,
+        candidate: Candidate,
+        transform: Any = None,
+        *,
+        restrictions: tuple[Restriction, ...] = (),
+    ) -> dict[str, object]:
         """
         Analyze and display one explicit candidate once,retaining failed stage times.
 
@@ -143,7 +150,10 @@ class Viewer:
                 row["occurrence"] = occurrence
                 occurrence.component.name = f"{candidate.identifier} - ribbon analysis snapshot"
                 rendered = draw_evidence(
-                    occurrence.component, evidence, lambda: budget.check("original guides")
+                    occurrence.component,
+                    evidence,
+                    lambda: budget.check("diagnostic geometry"),
+                    restrictions=restrictions,
                 )
                 row["groups"] = rendered.pop("groups")
                 row.update(rendered)
@@ -184,6 +194,7 @@ class Viewer:
         sheet: bool = True,
         graphs: bool = True,
         originals: bool | None = None,
+        constraints: tuple[str, ...] | None = None,
     ) -> None:
         """
         Focus completed displays and optionally reveal their original native routes.
@@ -192,6 +203,17 @@ class Viewer:
         requested. Newly authored original sketches start hidden independently.
         """
         self._active()
+        if constraints is not None:
+            known = {
+                "containment",
+                "center_bend",
+                "lane_bend",
+                "material_progress",
+                "targets",
+                "solver_limits",
+            }
+            if not set(constraints) <= known:
+                raise ValueError("Unknown constraint overlay key.")
         if identifier is not None and (
             identifier not in self.records or not self.records[identifier]["displayed"]
         ):
@@ -205,7 +227,19 @@ class Viewer:
             if originals is not None:
                 for sketch in row["original_guides"].values():
                     sketch.isLightBulbOn = originals
+            if constraints is not None:
+                for key, occurrence in row["constraint_views"].items():
+                    occurrence.isLightBulbOn = key in constraints
         adsk.core.Application.get().activeViewport.refresh()
+
+    def constraints(self, identifier: str) -> tuple[Overlay, ...]:
+        """
+        Return the exact frozen geometry and values displayed in constraint overlays.
+        """
+        row = self.records.get(identifier)
+        if row is None or "constraint_evidence" not in row:
+            raise ValueError("Unknown or incomplete constraint view.")
+        return row["constraint_evidence"]
 
 
 mark_loaded(__file__)
