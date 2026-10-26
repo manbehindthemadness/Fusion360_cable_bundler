@@ -7,7 +7,7 @@ a conductor sweep nor a physical solid. Reference splines remain unchanged.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.fusion
@@ -28,6 +28,7 @@ from .graphics import (
     draw_trace,
     set_color,
 )
+from .original_guides import retain_guides
 from .provenance import mark_loaded
 from .regions import Region, Series
 
@@ -169,11 +170,17 @@ def _graph(group: Any, row: Series) -> None:
     draw_text(group, "u=0 -------------------------- u=1", Vector3(0, -36, 0), DARK, 1.2)
 
 
-def draw_evidence(component: Any, evidence: Evidence) -> dict[str, Any]:
+def draw_evidence(
+    component: Any, evidence: Evidence, checkpoint: Callable[[], None] = lambda: None
+) -> dict[str, Any]:
     """
-    Render frozen shared evidence without consulting a live solver or experiment.
+    Render frozen evidence and retain hidden native originals for every result.
+
+    Native guide sketches preserve the same cubics and failed endpoints shown in
+    the graphics. Caller checkpoints bound guide creation; no sweeps are built.
     """
     number, case = evidence.identifier, evidence.targets
+    originals = retain_guides(component, evidence, checkpoint)
     series, findings, primary = evidence.series, evidence.regions, evidence.primary
     groups = {
         name: component.customGraphicsGroups.add()
@@ -253,7 +260,7 @@ def draw_evidence(component: Any, evidence: Evidence) -> dict[str, Any]:
     )
     draw_text(groups["legend"], explanation, Vector3(0, -45, 0), DARK, 1.2)
     draw_text(groups["legend"], investigation, Vector3(0, -49, 0), DARK, 1.2)
-    return {"groups": groups, **stats}
+    return {"groups": groups, **stats, **originals}
 
 
 def draw(

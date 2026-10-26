@@ -93,14 +93,33 @@ result = view.add(candidate)  # analyzes once, freezes, then draws
 evidence = view.evidence(candidate.identifier)
 data = evidence.inspect(kind="material J", trace_number=1)
 view.show(candidate.identifier, sheet=True, graphs=True)
+# Reveal the retained original route sketches independently of the sheet:
+view.show(candidate.identifier, sheet=False, graphs=False, originals=True)
 ```
 
 Create/choose `owned_component` under the authorized scratch explicitly. The
 viewer never searches by document name, looks up historical experiment globals,
-hides unrelated roots, runs the solver, or builds native geometry. An optional
+hides unrelated roots, runs the solver, or builds native solids. An optional
 Fusion transform passed to `add` places a candidate without moving its inputs.
 For evidence already analyzed, `region_graphics.draw_evidence(component, evidence)`
 renders without evaluating the original path again; bound this external call.
+Every result automatically retains three separately named native fixed-spline
+sketches under its component: Original A boundary, Original Center trajectory and
+Original B boundary. They start hidden and can be unhidden in Fusion's Sketches
+folder. These reproduce the frozen measured cubics, including failed endpoints;
+closure-gap witnesses never become part of them. They are cubic approximations
+of the solved model, not a claim about native swept conductor geometry.
+
+`original_guides.retain_guides(component, evidence, checkpoint)` adds these to an
+older result without rerunning analysis or redrawing its diagnostics. Provenance
+stamps reuse completed sketches without changing user visibility; partial native
+failures remain and require review. The returned `original_guides` maps permanent
+trace IDs (-1 A, 0 center, -2 B) to sketches. `original_guide_seconds` and
+`original_guide_maximum_error_mm` report authoring time and native point checks
+against the frozen cubics. Viewer records retain these alongside graphics timings.
+Optional checkpoints passed to `draw_evidence` bound each native guide operation.
+`Viewer.show(..., originals=None)` preserves manual original-sketch visibility;
+explicit True/False toggles all three for the selected results.
 
 The material sheet has no thickness. It can overlap in an invalid map and is
 not a valid conductor sweep. Colored cells include neighboring crossing brackets;

@@ -1,7 +1,7 @@
 """
 Display explicit candidates in an owned Fusion component with bounded work.
 
-No numbered fixture lookup,global scratch name,solver run or native construction.
+No numbered fixture lookup, global scratch name, solver run or solid construction.
 This optional boundary imports Fusion;the numerical API does not.
 """
 
@@ -142,7 +142,9 @@ class Viewer:
                 occurrence = self.component.occurrences.addNewComponent(placement)
                 row["occurrence"] = occurrence
                 occurrence.component.name = f"{candidate.identifier} - ribbon analysis snapshot"
-                rendered = draw_evidence(occurrence.component, evidence)
+                rendered = draw_evidence(
+                    occurrence.component, evidence, lambda: budget.check("original guides")
+                )
                 row["groups"] = rendered.pop("groups")
                 row.update(rendered)
             finally:
@@ -176,10 +178,18 @@ class Viewer:
         return row["evidence"]
 
     def show(
-        self, identifier: str | None = None, *, sheet: bool = True, graphs: bool = True
+        self,
+        identifier: str | None = None,
+        *,
+        sheet: bool = True,
+        graphs: bool = True,
+        originals: bool | None = None,
     ) -> None:
         """
-        Focus own completed displays without changing earlier geometry or recomputing.
+        Focus completed displays and optionally reveal their original native routes.
+
+        Leave original-sketch visibility as the user set it unless explicitly
+        requested. Newly authored original sketches start hidden independently.
         """
         self._active()
         if identifier is not None and (
@@ -192,6 +202,9 @@ class Viewer:
             row["occurrence"].isLightBulbOn = identifier is None or identifier == number
             row["groups"]["sheet"].isVisible = sheet
             row["groups"]["graph"].isVisible = graphs
+            if originals is not None:
+                for sketch in row["original_guides"].values():
+                    sketch.isLightBulbOn = originals
         adsk.core.Application.get().activeViewport.refresh()
 
 

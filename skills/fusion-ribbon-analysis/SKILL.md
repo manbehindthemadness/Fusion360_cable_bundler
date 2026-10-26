@@ -32,6 +32,10 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
 - Analyze once, then render and inspect the returned `Evidence`. Its target copy,
   sampled series, failure regions and guide cubics are immutable. Later solver
   changes require a newly identified snapshot; never repaint old evidence as new.
+- Every displayed result retains hidden native A/center/B route sketches from
+  those frozen cubics, including unsuccessful routes. Keep these originals
+  available to unhide in Fusion independently of diagnostic graphics. Never
+  substitute target-gap witnesses or repaired geometry for the original paths.
 - Show baseline, near-limit and failing variants when they answer the question.
   Track their parentage; variants are not independent solver coverage. Preserve
   failures and missing measurements. Distinguish a sampled rule violation from

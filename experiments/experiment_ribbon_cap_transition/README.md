@@ -151,6 +151,78 @@ caption were added to the existing 13 view; its original route/evidence is uncha
 No target-width intrusion detected in the other nine eligible sampled screens.
 The five failed fitting outcomes and five previous numerical passes are unchanged.
 
+Final-segment hypothesis review: user suspects an impossible outside-edge deviation
+introduced to force closure. Inspect all ten retained paths without new fitting:
+both boundary cubics, endpoints and midpoint per segment, compare final 10% of
+parameter domain with full-path curvature peaks, material J, terminal tangent and
+width errors. Also compare each cubic end to its stored solved lane endpoint and
+its fixed target; inspect plotting code for target substitution. Do not equate
+boundary A or the locally faster boundary with a validated outside-event identity.
+Maximum 5 seconds, 2 GiB sampled RSS, no native operations or route edits. The red
+actual-to-target lines must remain identified as error witnesses, not trajectories.
+
+Final-segment review completed 10/10 in 1.026670 s, no new fits/native attempts.
+Every drawn boundary endpoint equals its solved endpoint exactly; the five misses
+remain misses. Plotting preserves sampled lane positions/derivatives and does not
+insert target endpoints. Red actual-to-target lines are residual witnesses; each
+failed view now explicitly labels them "Unsolved gap - not cable".
+
+Tail results do not support one universal late-path defect. 11 A has its global
+peak at u=0.961914, radius 14.142939 mm; its same-full-profile-reach boundary
+diagnostic is 1.019556 (the stronger 0.8 hypothesis is still unadopted). 03 B also
+has a tail peak and diagnostic 0.879780, so that hypothesis alone would alter a
+passing control. 08's two tail radii are 64.718/61.310 mm; 13's 74.284/84.508 mm,
+well gentler than their earlier peaks. 13's measured target intrusion is upstream
+at u=0.238281. Across all tails minimum J is >=0.342621 and the active 3D-radius
+checks show no violation. These are finite modeled checks, not physical proof.
+Investigate how endpoint constraints influence upstream bend distribution and
+arrival clearance; do not infer a target-snap or per-case final-segment patch.
+
+Native inspectable guides: user requests actual route geometry that can be unhidden.
+Author three separate hidden fixed-spline sketches per existing candidate (A, center,
+B), directly from each immutable Evidence guide's cubic NURBS controls/knots. Ten
+retained configurations, 30 guide sketches maximum, no solves, sweeps, solids or
+endpoint bridges. Same component transforms as the diagnostic sheets. Check native
+curve points at 33 fixed parameters against those frozen cubics (1e-7 mm authoring
+tolerance); this checks translation only, not ribbon compliance. Bound authoring
+and verification at 30 seconds/2 GiB sampled RSS; stop first API/resource/source
+error and retain partial sketches. Existing display and earlier geometry preserved.
+
+Analysis-tool original retention is now standard in `region_graphics.draw_evidence`
+and `Viewer.add`, with separate hidden A/center/B native fixed splines and authoring
+timings. `Viewer.show(originals=True/False)` controls them independently; omitted
+visibility leaves manual choices intact. Matching stamped sketches are reused;
+incomplete native work stops rather than being retried. Numerical-only analysis
+continues to import no Fusion API. No solver or production behavior changed.
+
+Backfill scope: 30 existing displayed analysis views across five retained roots
+(3 sweep-analysis, 7 failure demonstrations, 2 migration views, 8 outside-edge,
+10 compatible-edge), at most 60 new sketches plus 30 already retained. Original
+six/breadth galleries already contain native guide sketches and are unchanged.
+Use existing Evidence where retained; older pre-Evidence views freeze guides from
+their cached paths/targets, with this reconstruction provenance stated separately.
+Keep historical modules/ledgers; load a coherent fresh analysis namespace. Maximum
+30 seconds/2 GiB sampled RSS, stop first authoring error; no fits/native solids.
+Then one bounded new Viewer smoke display from a cached path (no solver), maximum
+10 seconds, retained hidden, to verify automatic originals and independent visibility.
+
+Original-retention upgrade verified: all 30 existing analysis views have 90 native
+guide sketches (60 newly authored, 30 reused) in 3.959343 s; maximum sampled native
+translation error 1.464821e-14 mm. One extra cached-control Viewer smoke result
+creates three originals automatically and passes reveal/hide/manual-visibility
+checks, retained under a hidden verification component. Smoke 0.762065 s including
+0.106763 s original-guide authoring. No shape solve, native solid attempt or new
+physical acceptance. Backfill RSS sample 720672 KiB. Historical live modules remain
+unchanged; coherent `devtools.ribbon_analysis.retention32` supplies the new API.
+Candidate13 originals visually checked with all diagnostic graphics hidden, then
+prior visibility/camera restored. Capture: `compatible28/13-original-native-guides.png`.
+24 affected tests, shared analysis-package Ruff lint/format, and four changed-file
+IDE inspections pass. Original sketch availability is a tool default, not a special
+case policy. Every result preserves failed endpoints and permanent A/B identities.
+Skill quick validation is unavailable in the project environment because PyYAML is
+not installed; frontmatter and documentation diff were reviewed manually. No new
+dependency was installed for this documentation check. Full QA was not requested.
+
 ## Outside-edge investigation — frozen2026-10-26
 
 User redirects work to impossible initial paths and outside-edge macaroni,with
