@@ -71,6 +71,15 @@ The proposed full-width bound at both boundary curves remains a separate
 diagnostic, not an adopted rule. Tube checks also retain sampled fixed-target
 errors and the historical five-width sphere policy. Keep metric scopes distinct.
 
+`edge_metrics.boundary_macaroni(path, intervals=512)` optionally returns two frozen
+`proposed edge macaroni` series (`-1` A, `-2` B). Append these and their
+`regions.regions(series)` before `api.freeze` to share extra boundary witnesses.
+The same original profile reach and proposed 0.8 limit are used at both edges;
+this is a stronger diagnostic hypothesis, not an adopted physical law. J<=1e-9
+produces missing curvature. Keep material-J findings visible. Existing primary
+graphs remain center macaroni or material J; label optional edge witnesses and
+their separate scope explicitly.
+
 ## Fusion view
 
 ```python

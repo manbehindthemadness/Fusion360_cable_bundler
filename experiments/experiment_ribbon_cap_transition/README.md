@@ -1,5 +1,245 @@
 # Cap-transition candidate v2 — five-width development
 
+## Outside-edge investigation — frozen2026-10-26
+
+User redirects work to impossible initial paths and outside-edge macaroni,with
+bounded autonomous numerical iteration while away. First question:does the
+larger-Jedge macaroni proxy detect the retained impossible routes,and which
+constraints can the endpoint-only fine fit lose? No rule revision yet.
+Read-only diagnostic:all38retained boundary configurations,513fixed stations,
+same targets/fields,no solve or native construction,60s total/2GiB sampledRSS.
+Measure center,both-edge and larger-Jedge curvature times original profile reach,
+full-width minimumJ,and separately the developable surface principal curvature
+abs(k)*(1+eta**2)/J whereJ>0. Surface curvature is a research diagnostic,not a
+new.8acceptance rule. LargerJis an unvalidated outside-event proxy.
+Preserve old source/results;fingerprint the new script and record original source
+drift explicitly rather than restarting an old batch. Stop harness/source/resource
+failure;retain unattempted IDs. No reports,new solids,target repair or production
+changes. Any solver comparison will freeze a separate bounded plan first.
+
+Cached diagnostic completed38/38in9.221267s,finalRSS600480KiB,0native attempts.
+First harness invocation used wrong budget keyword names and stopped before any
+case;corrected under the user's explicit autonomous-iteration instruction. No
+geometry was retried. Original provenance differs only in the native-budget
+compatibility wrapper after skill extraction;retained paths are cached evidence.
+The outside proxy misses11(.513477)and27(.291058).11has minimumJ=-3.397926;
+27remains regular(minJ=.130117)but opposite-edge ratio1.325399 and7.876612mm
+endpoint miss. A same-reach outside-only check is weaker than the center bound
+because its denominator1+half*abs(eta_s)>=1. It cannot fix either defect alone.
+Surface-principal curvature follows Dias/Audoly2014eqs15–16,
+https://arxiv.org/html/1403.2094v1;reuse of.8with full reach is an unadopted
+conservative hypothesis,not a material law or physical rejection certificate.
+
+Frozen causal comparison:10existing boundary cases03/07/08/11/12/13/17/27/28/38.
+03(spatial reversal),17(banked arc),38(multiple reversals)are the three distinct
+collateral challenges,all pre-fix baselines first. Capture accepted coarse and
+fine fields with a passive observer. Then compare one unchanged BANK_PERSISTENT
+variant:retain the existing soft geometry penalties at both grids. Same ten
+coordinates,seed bank(max46),254fit evaluations,18+3rounds,length/chord[1,5],
+targets and final geometry gates. No outside-edge or principal-curvature policy
+adopted,no hard-feasibility guarantee. Existing BANK behavior remains default.
+20fits maximum across10independent development cases,one baseline/variant each,
+10s/fit,120s summed active work,2GiB sampledRSS;0native attempts. Stop first
+source/resource/harness error or new collateral hard finding/closure regression.
+No retries or further policy variants in this plan. Use an isolated freshly
+loaded shooting module;do not reload live historical modules or erase evidence.
+Expected evidence:phase-specific closure,minimumJ,center/outside/both-edge
+curvature,radius/containment and coarse-objective changes. Source hashes and all
+attempted/unattempted outcomes retained in memory;no new report files.
+
+Comparison harness stopped after8baseline fits/4.182823s,before any variant:
+after14,input storage is phase order rather than display-number order. First6
+baselines match their intended inputs. Requested17actually ran19(B05return),
+requested27actually ran17(B03banked arc). Preserve original ledger and stop;the
+extra19is an unintended baseline,not evidence about17. No geometry failure or
+rule change caused this stop. Under explicit autonomous iteration,renew with
+validated number/name/pose lookup,retain7correct actual baseline snapshots with
+explicit lineage,and run only3missing baselines plus10variants(13fresh fits).
+Cumulative maximum21fresh fits across11actual boundary configurations,including
+the unintended19;10paired intended configurations. Original120s active-work cap
+includes the stopped4.182823s;all per-fit limits unchanged. No repeated baseline
+solve,no native attempts. Both old erroneous labels remain in the stopped ledger.
+
+Persistent comparison completed10/10intended pairs:both methods3/10named sampled
+passes,7/10failed,0full-structure acceptances. All3collateral controls preserved.
+Cases11–13were already folded at coarse completion;endpoint-only finishing
+worsened minimumJ11from-.201518to-3.397926 and28from+.070381to-11.054228.
+Persistent finishing kept coarse values nearly unchanged;it did not solve targets.
+This rules out removing fine-stage penalties as the sole cause. Soft coarse
+penalties also trade geometry against closure,not enforce feasibility.
+
+Second frozen comparison:reuse all10validated BANK baselines,one fresh variant
+each,10fits maximum,no retries. Same persistent objective and search bounds,
+add33soft penalties for abs(k)*originalReach/(.78*minimumJ)>1whenminimumJ>0;
+invalidJcontinues to use existing fold penalties,never interpreted as valid edge
+curvature. This deliberately applies the proposed width-based macaroni proxy to
+BOTH boundaries;it is stronger than the outside-only suggestion and not adopted
+physics. Retain original-rule findings and proposed-edge gate separately.
+Same03/17/38collateral preservation stop,10s/fit,120s cumulative active comparison
+work including prior21fits,2GiB sampledRSS,0native attempts. No changes to targets,
+fit rounds,evaluation counts,seed bank or production. New isolated module and
+explicit objective-wrapper provenance;do not alter completed comparison modules.
+
+Both-edge soft comparison completed10/10:3passes/7failures under original sampled
+checks AND proposed edge gate;0native attempts.03/17/38preserved.12/28lose their
+original fold findings but miss targets12.239041/18.476779mm and still exceed
+proposed both-edge.8(0.942773/0.942722). No repaired complete configuration.
+The penalty is discontinuous acrossJ=0:regular-lane curvature grows without bound
+asJapproaches0from above(k!=0),then becomes a finite surrogate on folded maps.
+Outside proxy can remain mild while opposite rulings cross. Neither extra soft
+penalties nor an endpoint-only correction enforces a valid material mapping.
+
+Third frozen comparison:10same fixed inputs,controls03/17/38first,one cold fit
+each. Same persistent/both-edge objective and254+46evaluation/screening bounds.
+Add an explicit admissibility filter for seed selection and decreasing accepted
+steps;derivative probes may be outside the domain. Existing33station soft margins
+must all be zero;129station full-width minimumJ>=.1and both-edge ratio<=.78.
+Final diagnostics remain513stations and original.8/3D/sphere plus proposed-edge
+gate,all separately reported. No continuous/native/physical guarantee. An empty
+feasible seed bank is bounded initialization failure,not endpoint infeasibility;
+retain every rejected seed. No seed additions,length-range change or retries.
+10fits maximum,10s/fit,120s cumulative active comparison work including previous
+31fits,2GiB sampledRSS,0native attempts. Stop collateral regression,unexpected
+post-filter finding,source/resource/harness failure. Load a fresh coherent package
+namespace for shooting/seed/filter dependencies;old modules and ledgers retained.
+Source/filter/runner fingerprints freeze before first fit. Existing baselines are
+pre-fix evidence;default BANK behavior and production remain unchanged.
+
+Filtered comparison completed10/10:3passes,5valid sampled paths missing targets,
+2bounded initialization failures(27/28,46/46seeds rejected each).0native attempts.
+All3collateral controls preserved. Returned8/8paths have no original513station
+hard finding and meet the proposed.8both-edge gate;this is NOT8routing successes.
+The.78search filter is sampled129stations:513station maxima can slightly exceed
+that search margin(e.g11:.780365),still below the separate.8diagnostic gate.
+Filter overhead observed.022–.104s per case,subset of solve time;no CPU-heavy mesh
+audit. Full closure remains the obstacle. No failed input was relocated.
+
+Fourth frozen comparison:the same10inputs and collateral-first order,one fit each,
+same hard filter/objective/bounds/evaluations. Add only a geometric seed-length
+floor,computed from129normalized stations before endpoint projection:
+L>=half*abs(eta_u)+abs(bend_u)*max(reach/.78,3.1D),andL>=half*abs(eta_u)/.9.
+Use fixed1%seed margin;retain upperL/chord5and explicit bound-exhaustion outcomes.
+No witness coefficients/lengths enter initialization. Maximum10fits,10s/fit,
+120s cumulative active work including41previous fits,2GiB sampledRSS,no native
+attempts. Same stop conditions;new coherent isolated namespace and frozen sources.
+This isolates too-short endpoint-projected initialization from search-domain size.
+
+Seed-floor comparison completed10/10:3passes/7target misses,all10returned paths
+meet original sampled checks and proposed both-edge.8gate.27/28now initialize
+admissibly but miss9.549316/13.432383mm;no new routing success. All3controls kept.
+Many stalled routes sit on the.78search boundary;full/half unconstrained Newton
+steps cannot necessarily move along a constraint boundary. This suggests a
+constrained step,not just increasing penalties,but is not yet a tested cause.
+
+Fifth frozen comparison:10same inputs,controls first,one fit each. Change only
+the length-domain upper bound from5chord to max(5chord,1.01*2pi*(reach/.78+
+.8half)). The second term is a generic full-turn/ruling allowance based on width,
+not a witness length,target movement,required winding or an unlimited loop budget.
+Retain the geometric seed floor,filter,objective,254fit evaluations,46seed screens,
+18+3rounds and diagnostic gates. Maximum10fits,10s/fit,120s cumulative active
+comparison work including51priorfits,2GiB sampledRSS,0native attempts. Stop same
+collateral/source/resource/harness gates;freeze fresh coherent namespace sources.
+The historical BANK and all earlier policies keep their original5chord domain.
+
+Width-domain comparison completed10/10:3passes/7target misses,all10returned paths
+meet named original checks and proposed both-edge.8gate.27miss reduces9.549316
+to5.435394mm;28unchanged13.432383mm. No new complete routing solution. Controls
+03/17/38retained;0native attempts. Length-bound removal alone is insufficient.
+
+Sixth frozen comparison:replay10same inputs once with the equivalent unrectified
+slack filter to establish pre-fix baselines,then10fits with one constrained-step
+adjustment. Same WIDTHpolicy,seed floor,guard,objective,254fit/46seed counts and
+18+3rounds. Raw129station J/radius/edge plus33sphere slacks stay visible inside
+the feasible region;use the same ten derivative probes for their Jacobian.
+A feasible active-set quadratic step has at most32internal iterations and10
+coordinates,with coordinate bounds. Actual nonlinear guard remains authoritative;
+full/half candidate trial schedule and stepnorm1.5unchanged. Retain every QP
+termination/timing,including dependent-set/numerical/iteration stops. No claim of
+global optimum or nonlinear/continuous/native feasibility from the subproblem.
+Research basis:feasible active-set QP,NEOS Guide,
+https://neos-guide.org/guide/algorithms/qp/;this implementation remains experimental.
+20fits maximum across10existing development cases,controls03/17/38first,10s/fit,
+120s cumulative active comparison work including61priorfits,2GiB sampledRSS,
+0native attempts. Stop new collateral failure,post-filter finding,source/harness/
+resource failure. No retry/search-budget growth. Fresh coherent namespaces and
+all direct source/filter/QP/runner fingerprints freeze before first fit.
+
+Matched slack baseline completed10/10with identical path/closure values to the
+previous width-domain run. Constrained-step variant evaluated8/10:3controls pass,
+5target misses,no sampled geometry violation;27/28unattempted. Stopped scheduling
+at117.077237/120s cumulative comparison work,only2.923s remaining versus last
+6.311s fit. No renewal/retry or budget extension.79fresh fits total across10
+intended configurations plus the unintended19baseline;not79independent cases.
+0native attempts/builds/full audits;native failure rate unmeasured. No new closed
+route,0full-structure acceptances. The previous38case milestone remains unchanged.
+
+| Case | Original miss(mm) | Width+filter miss(mm) | Constrained-step miss(mm) |
+|---:|---:|---:|---:|
+|07|<1e-8|19.222347|11.604899|
+|08|<1e-8|57.274448|38.778445|
+|11|16.139372|29.111042|23.024790|
+|12|2.434526|39.282400|16.809408|
+|13|15.261101|15.826562|23.569317|
+|27|7.876612|5.435394|Not attempted:resource review|
+|28|15.166501|13.432383|Not attempted:resource review|
+
+Original07/08close but violate radius/sphere;others remain failed. Raw endpoint
+miss alone therefore cannot rank geometry quality. Latest returned8/8paths have
+no original sampled hard finding and satisfy the unadopted both-edge.8gate.
+Each still needs closure to count as a numerical routing pass. Constrained-step
+subproblems frequently reached32iterations;13also has dependent-working-set stops.
+Retain those statuses,not an assertion that all subproblems converged.
+
+Persistent objective fits.201–.735s;hard filter/floor/width fits roughly.290–.832s
+in their original runs. Matched slack replay1.455–4.194s;QP1.512–6.340s,QP
+subproblem subsets.023–1.366s. Different live timing conditions/measurement workloads
+prevent attributing all timing growth to one function;the QPvariant has not earned
+promotion on speed or closure. Final numerical artifacts remain live ledgers
+`director_route_trials_bank._outer27`and`_outer_comparison27[b-h]`;old stopped
+ledger `_outer_comparison27`preserves the mapping error. No report files written.
+
+Presentation plan:8cached views of4existing configurations(11original/guarded/QP,
+28original/guarded,27original/guarded,03QPcontrol),no searches/native builds. Same
+shared frozen evidence plus opt-in proposed boundary macaroni series;extra red
+edge witnesses are a hypothesis,not an adopted physics violation. Red closure
+segments lead to unchanged green targets. Numbered IDs retain parentage. One
+owned new graphics root,old150solids/ledgers retained,10s/view,80s summed display
+work,2GiB sampledRSS. Stop source/resource/harness mismatch. Source fingerprints
+freeze before display. Optional PNGcaptures only;no report file.
+
+Presentation completed8/8cached views in10.199439s(casework,includes analysis and
+graphics);analysis.519–1.084s,graphics.094–.478s. Initial detail captures3.777851s,
+caption correction/re-captures3.493856s,isometric capture4.143075s are separate
+presentation subsets;setup/first capture/orchestration not fully timed. Lower-limit
+Jcaptions now state minima,not maxima;no measurement/geometry recomputed for that
+correction. Sharedboundary_macaroni extension lives in devtools/ribbon_analysis,
+returns missing curvature forJ<=1e-9,and documents proposed-rule scope in the skill.
+Both humans and agent read the same frozen extra series/regions/selected graph.
+
+One idle Untitleddocument remains open,6owned roots,8new numbered trajectory/sheet
+views visible;earlier roots retained hidden,150native solids unchanged. Old mesh
+viewer stop and all failed/unattempted ledgers retained. Maximum retained RSS
+648944KiB across numerical/display samples;final sampled368864KiB before last
+capture,in-flight peak/physical footprint/token cost unmeasured. Source postflight
+matches. PNGs visually reviewed under
+artifacts/verification/ribbon_cap_transition/outer_edge27/:comparison,
+quarter-detail,coil27-detail,coil28-detail,11c-isometric. No new report files.
+
+Verification:55focused tests across shooting/seed/filter/QP/sharedAPI/boundary
+metrics;Rufflint/format and all10changed Python IDE inspections clean. No fullQA
+or native compliance audit. Changes confined to experimental solver options,
+reusable opt-in analysis,tests and maintained docs;default policies,production and
+standards unchanged. Existing38case breadth outcomes are historical,not rerun or
+upgraded by these narrower development comparisons.
+
+Remaining modeling gap:the fit objective is endpoint residual plus policy
+penalties,not elastic equilibrium or a demonstrated least-resistance principle.
+Hard filtering prevents the named sampled defects but does not select the right
+turn/winding branch,guarantee closure,or establish physical material behavior.
+Next useful decision is constrained-step/branch formulation with preserved controls,
+not more weight/iteration tuning of11. QPcost and bounded subproblem failures need
+resolution before expanding that method. No further numerical batch scheduled.
+
 ## Analyzer extracted to a reusable skill — 2026-10-26
 
 The maintained workflow is now `skills/fusion-ribbon-analysis/SKILL.md`, installed
