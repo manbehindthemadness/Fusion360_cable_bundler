@@ -1,5 +1,101 @@
 # Ribbon route-family discovery — development experiments
 
+## Frozen83 breadth —48 new fixed boundary configurations
+
+User saved the current project and requests a new one for a much larger matrix.
+Keep the saved historical document untouched;close it only if saved/unmodified,
+then create one clean owned direct-design scratch.48independent configurations,
+six groups of eight:planar U,spatial U,lateral turn,offset return,spatial half roll,
+oblique roll. Inputs scale by nominal width and vary count5..32/diameter.75..1.5.
+Boundary-family labels do not prescribe interiors or drive search. No rigid copies,
+case-specific fits or oldG/Htargets. H01..H04 remain solver-unexecuted.
+
+Research revisits Patil's finite-width ribbon planning and LaValle's two-point
+boundary-value formulation. Freeze endpoint inputs BEFORE solving;use unchanged
+generalized neutral/broad policy,NEAR_LIMIT gates,129contact+512intrinsic/cubic
+analysis. No tuning,repairs,retries,sphere feedback or promotion. Numerical cap
+16.052295s/case,800s total;local/Fusion2GiB RSS. A capped/exhausted independent
+case remains unsuccessful and the remaining fixed cases may run;source/API/RSS
+or unexpected hard-analysis findings stop the affected phase for review.
+
+Build every numerically eligible case once with ordered native sweeps,default
+hidden inside its own experiment. Unknown kernel predictions.30s/case,1440s
+aggregate native operations,180s diagnostic display/archive allowance,2500s total
+new compute envelope;1.9GiB scheduling-headroom gate before each Fusion case.
+Timing-goal misses recorded without stopping. Native/cap/resource/source failures
+stop further launches with partial geometry retained. Final disposition includes
+all48,including numerical failures and native unattempted. Count complete ribbons,
+not conductor bodies. Timers separate solve,host checks,trace preparation,actual
+BRep authoring/kernel,caps and diagnostics. Full native compliance remains unknown.
+Expected compute roughly5..10minutes from prior measurements;caps are scheduling
+bounds,not kernel cancellation promises. No old result reuses a new build timing.
+
+83SDK48/48numerically eligible;no timeouts/exhaustion. First host initialization
+guard stopped before mutation because the user had already closed the saved old
+project and opened an empty Untitled. Read-only diagnosis confirmed that state;
+renewed initialization reused only that empty document. Both procedures retained.
+
+84native stopped on B02 after B01built5/5 and B02built1/7:strict fixed-target cap
+check failed.86read-only diagnosis shows the B02body matches its original solved
+path endpoint within8.23e-12mm,normaldot1;the path's target gap.311150283mm is below
+the existing user-approved half-thickness.45mm allowance. This is a strict target
+closure miss,not a sweep/path mismatch. Original stop and partial body retained.
+
+86renewal corrects audit scope uniformly across48:strict native cap agreement to
+the ORIGINAL solved cubic endpoints(1e-5mm/original normal tolerance),separately
+measure native-to-fixed-target gaps against the existing .5diameter positional
+criterion and preserve strict-target cap results. No snapping,target movement,
+route re-fit or physical tolerance change. Reuse B01and B02's existing first body;
+continue B02's six unbuilt traces,then B03..B48 once. Retain all prior timings and
+charge B02's original first-body construction to its final complete-case total.
+No full-case rebuild. Same resource/case/aggregate limits and stop conditions.
+
+87final:48/48planned,numerically evaluated/eligible,native-attempted and built;
+0/48fully audited. No skipped,exhausted or unattempted configurations. All750
+conductor BReps are solid,ordered identities match,all750original-path cap pairs
+pass and all bodies are individually hidden. Strict native fixed-target cap
+checks pass47/48configurations;B02alone uses the existing practical allowance,
+native end gap.311150283mm<.45mm onall7traces. Original84strict-target stop and
+86diagnosis retained. No solver changes,target movement,shape retries or fallback.
+
+| Configurations | Boundary family | Built | Construction seconds per ribbon |
+| --- | --- | --- | --- |
+| B01–B08 | Planar U | 8/8 | 1.829–6.264 |
+| B09–B16 | Spatial U | 8/8 | .812–4.826 |
+| B17–B24 | Lateral turn | 8/8 | .831–5.033 |
+| B25–B32 | Offset return | 8/8 | 1.704–5.411 |
+| B33–B40 | Spatial half roll | 8/8 | .887–5.416 |
+| B41–B48 | Oblique roll | 8/8 | .917–5.508 |
+
+Timing goal6/48pass,42/48fail. ColdSDKplus required host checks2.628–9.594s;
+construction(authoring+kernel).812–6.264s,sum138.334551s. SDKphase235.917890s,
+host84.262358s,native operation209.917993s(includes trace preparation/audits),
+diagnostic authoring90.019339s,final inspection/captures9.356693s. B02's repeated
+host verification and initial first-body operation are charged,not erased. Small
+initialization/preview/diagnosis overhead separate;about630s measured major stages
+within2500s. Highest sampledFusionRSS2013968KiB<2GiB;final803328KiB. In-flight
+peak,RPC/orchestration/token accounting unmeasured. No global speed success claim.
+
+SDK/Fusion state differences<=3.70e-13. Diagnostic sheets,solver panels and center
+splines visible48/48;144original A/center/Bguides,max checked reproduction error
+3.18e-14mm. Constraint helpers/edge guides revealable. Feature health unavailable
+750/750;native continuous clearance/strain/equilibrium and full compliance unknown.
+Sphere stress11/48pass,37/48fail,separate from physical/solver acceptance. Four
+reserved Hcases remain solver-unexecuted. Family names describe boundaries,not
+mandatory interior events or48different geometry families.
+
+Overview and both family captures visually inspected. Same clean Untitled project
+open with only the48new examples;all prior history remains in the user's saved
+closed project and retained disk evidence. MCPstdout began truncating onB09 and
+later returned empty messages;each persisted exact-number result was checked before
+the next launch,without replaying a completed case. Native/source/resource stops
+remain enforced in-host. Artifacts:`artifacts/verification/ribbon_cap_transition/breadth83/`.
+New fixture module and tests:9focused checks pass,Rufflint/format and IDEclean;
+complete new code reviewed. No fullQA or production edits.
+88read-only reuse audit additionally verifies all five B01cap pairs against their
+original solved path(end errors<=2.71e-12mm),2.526339s post-build audit separate
+from solve/construction. Current numerical source pins verified unchanged.
+
 ## Frozen81 native completion — user-directed timing/visibility policy
 
 User requests all eight existing examples have actual native sweep geometry and
