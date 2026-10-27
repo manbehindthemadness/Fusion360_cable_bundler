@@ -99,15 +99,19 @@ def test_chart_transport_respects_arbitrary_initial_pose() -> None:
             )
 
 
-def test_fit_preserves_work_bounds_and_actual_monotone_acceptance() -> None:
+@pytest.mark.parametrize("policy", list(box_fit.StepPolicy))
+def test_fit_preserves_work_bounds_and_actual_monotone_acceptance(
+    policy: box_fit.StepPolicy,
+) -> None:
     """
     Check transported fit evidence rather than echoing a synthetic optimizer result.
     """
     case = _case()
     values = (0.3, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.2)
     seed = Seed(0, values, 1.0, (0.0, 0.0, 0.0))
-    path, metrics = box_fit.refine(case, seed, lambda: None, box_fit.SHORT)
-    assert len(path.states) == 513 and metrics["evaluations"] <= 74
+    work = box_fit.SHORT if policy is box_fit.StepPolicy.HISTORICAL else box_fit.FitWork(5, 1, 104)
+    path, metrics = box_fit.refine(case, seed, lambda: None, work, policy=policy)
+    assert len(path.states) == 513 and metrics["evaluations"] <= work.transports
     assert metrics["qp_steps"] and all(row["iterations"] <= 32 for row in metrics["qp_steps"])
     trials = [row for stage in metrics["stages"] for row in stage["trials"]]
     assert any(row["accepted"] for row in trials)
@@ -197,8 +201,9 @@ def test_fresh_and_reserved_boundaries_are_distinct_valid_ordered_frames() -> No
 
 
 @pytest.mark.parametrize("success_index", [0, 6, 99])
+@pytest.mark.parametrize("policy", list(broad_search.RecoveryPolicy)[1:])
 def test_recovery_preserves_success_and_never_repeats_deep_starts(
-    monkeypatch: pytest.MonkeyPatch, success_index: int
+    monkeypatch: pytest.MonkeyPatch, success_index: int, policy: broad_search.RecoveryPolicy
 ) -> None:
     """
     Exercise the search scheduler independently of numerical convergence variability.
@@ -215,12 +220,18 @@ def test_recovery_preserves_success_and_never_repeats_deep_starts(
         return seeds
 
     def fit(
-        _: EndpointCase, seed: Seed, checkpoint: Callable[[], None], work: box_fit.FitWork
+        _: EndpointCase,
+        seed: Seed,
+        checkpoint: Callable[[], None],
+        work: box_fit.FitWork,
+        *,
+        policy: box_fit.StepPolicy = box_fit.StepPolicy.HISTORICAL,
     ) -> tuple[CompatiblePath, dict[str, Any]]:
         """
         Model a convergence basin reached only by one deep start.
         """
         checkpoint()
+        del policy
         return path, dict(
             coordinates=seed.coordinates,
             score=float(seed.index),
@@ -273,10 +284,11 @@ def test_recovery_preserves_success_and_never_repeats_deep_starts(
         case,
         lambda: None,
         broad_search.SearchLedger(),
-        recovery=broad_search.RecoveryPolicy.FOUR_UNUSED_STARTS,
+        recovery=policy,
     )
     assert recovered.trials[: len(baseline.trials)] == baseline.trials
     assert len(recovered.selected_deep) == len(set(recovered.selected_deep)) <= 8
     assert (recovered.candidate is not None) == (success_index < 8)
+    assert sum(trial.phase == "closure" for trial in recovered.trials) <= 2
     if success_index == 0:
         assert recovered.trials == baseline.trials

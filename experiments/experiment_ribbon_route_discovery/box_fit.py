@@ -5,6 +5,7 @@ Fit fixed endpoints with67's bounded quadratic steps and actual trial scoring.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from time import perf_counter
 from typing import Any, Callable
 
@@ -38,17 +39,30 @@ DEEP = FitWork(36, 6, 506)
 POLISH = FitWork(0, 4, 50)
 
 
+class StepPolicy(Enum):
+    """
+    Select historical steps or bounded backtracking without changing the field.
+    """
+
+    HISTORICAL = "full-or-half"
+    BACKTRACKED = "seven-fractions-carried-damping"
+
+
 def refine(
     case: EndpointCase,
     seed: Seed,
     checkpoint: Callable[[], None],
     work: FitWork,
+    *,
+    policy: StepPolicy = StepPolicy.HISTORICAL,
 ) -> tuple[CompatiblePath, dict[str, Any]]:
     """
     Preserve cold-family fitting arithmetic while solving box bounds inside the QP.
 
     Return unresolved fits unchanged. Every probe/trial counts;actual objective
     decrease controls acceptance. No endpoint snapping or collision exemption.
+    BACKTRACKED retains damping between grids and tries seven dyadic step sizes;
+    callers must budget up to17transports per round plus two grid evaluations.
     """
     if min(work.coarse, work.fine) < 0 or work.transports < 2:
         raise ValueError("Fit work requires nonnegative rounds and two final transports.")
@@ -59,6 +73,10 @@ def refine(
     evaluations = 0
     stages: list[dict[str, Any]] = []
     qps: list[dict[str, Any]] = []
+    carried_damping = 1e-3
+    fractions = (
+        (1.0, 0.5) if policy is StepPolicy.HISTORICAL else tuple(0.5**index for index in range(7))
+    )
 
     def observe(
         parameters: tuple[float, ...], grid: int
@@ -76,7 +94,11 @@ def refine(
     for grid, rounds, tolerance in ((64, work.coarse, 1e-6), (512, work.fine, 1e-12)):
         path, errors = observe(values, grid)
         score = sum(value * value for value in errors)
-        damping = 1e-3 if grid == 64 else 1e-8
+        damping = (
+            (1e-3 if grid == 64 else 1e-8)
+            if policy is StepPolicy.HISTORICAL
+            else max(1e-4, carried_damping)
+        )
         history = [score]
         trials: list[dict[str, Any]] = []
         for _ in range(rounds):
@@ -93,12 +115,19 @@ def refine(
             )
             qps.append(dict(grid=grid, iterations=quadratic.iterations, status=quadratic.status))
             accepted = False
-            for fraction in (1.0, 0.5):
+            for fraction in fractions:
                 _, proposed = trial_coordinates(values, quadratic.values, fraction, maximum)
                 candidate, observed = observe(proposed, grid)
                 after = sum(value * value for value in observed)
                 trials.append(
-                    dict(before=score, after=after, accepted=after < score, proposed=proposed)
+                    dict(
+                        before=score,
+                        after=after,
+                        accepted=after < score,
+                        proposed=proposed,
+                        fraction=fraction,
+                        damping=damping,
+                    )
                 )
                 if after < score:
                     path, errors, score, values = candidate, observed, after, proposed
@@ -106,6 +135,7 @@ def refine(
                     break
             history.append(score)
             damping = max(1e-12, damping / 3) if accepted else damping * 10
+        carried_damping = damping
         stages.append(dict(grid=grid, history=history, trials=trials))
     metrics: dict[str, Any] = endpoint_metrics(case, path)
     metrics.update(
@@ -116,5 +146,6 @@ def refine(
         seconds=perf_counter() - started,
         stages=stages,
         qp_steps=qps,
+        step_policy=policy.value,
     )
     return path, metrics

@@ -1,5 +1,121 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated106 — spatial novelty recovery rejected
+
+Replayed the same64development configurations after Fusion restart:64evaluated
+and displayed,49numerically eligible,49native attempts/built,0fully audited.
+Normal16/16,stress12/16,random21/32. All49successful SDK paths(states and rates)
+exactly match105;no gains or lost successes,no fresh holdout. The15unresolved
+cases remain unbuilt:S011..S014,R003,R004,R008,R011,R012,R015,R017,R019..R021,R032.
+
+The experiment retained102stages and one105backtracked closure attempt,then
+selected up to4previously unrefined cold routes by score-discounted spatial
+novelty,with up to2deep fits and one shared width repair. Final recovery ceiling
+2672transports versus105's2728. Targets,physical rules and construction unchanged.
+Novel starts improved combined endpoint scores for S012,R011,R019 but closed
+none. S011lost its second-closure improvement(gap22.539->34.044mm). All15still
+fail terminal-frame closure. All64frozen snapshots show no intrinsic red regions,
+missing samples or detected sampled contact;that does not resolve endpoint errors.
+Overview and6close-ups reviewed. Spatial difference alone did not supply useful
+closed routes at this budget. Restored105solver/family/test code after preserving
+106source copies and evidence;optional BACKTRACKED_CLOSURE remains available.
+
+Matched per-case SDK sums773.193->844.127s(+9.17%). Full SDK phase844.957s;
+independent Fusion replay/checks98.812s;all64solve+checks943.769s. Display97.711s;
+actual49-case sweep authoring+kernel860.903s;native phase1173.686s(including
+18.224s cap audit). Built-case mean solve+checks/build:normal6.116/9.898s,
+stress10.972/12.942s,random7.909/26.059s. Goal40/49 reflects much slower Fusion
+construction and faster host replay after restart,not a solver improvement.
+RSS probes consumed128.577s of196.523s host+display and157.528s of native phase;
+monitor frequency and safety limits were unchanged. Optimize monitoring separately.
+
+All49solid/original-cap/practical-target checks pass;48strict target cases pass,
+S008retains its historical practical gap. Full native interior banking/strain,
+continuous clearance and mechanical compliance remain unmeasured. All64views and
+15red outlines visible,1199native bodies individually hidden,192original guides
+retained;overview restored in owned Untitled. Maximum retained RSS974864KiB,
+in-flight peak/physical footprint unmeasured;4GiB/3.8GiB gates held.
+
+A216ms setup failure attempted to import an old transient ledger container after
+restart. Fusion logs confirmed failure before geometry creation;recorded renewal
+created a fresh container. No numerical or native retry. Host300s/display320s,
+native90s/case1920s total bounds held.211pins matched before deliberate rollback.
+Live `_generated106` is frozen rejected evidence;do not resume it after rollback.
+Artifacts:`artifacts/verification/ribbon_generated106`(including rollback106.json).
+Production/standards unchanged. Focused verification after rollback:33tests plus
+Ruff lint/format and IDE inspections;full repository QA not run.
+
+Research supports separating feasible route initialization from local refinement:
+[LaValle on shooting and local minima](https://msl.cs.uiuc.edu/planning/node795.html),
+[Patil et al. two-stage ribbon planning](https://people.eecs.berkeley.edu/~pabbeel/papers/2015-TASE-ribbons.pdf).
+Their material models were not adopted. Next investigate target-directed route
+construction and whether the current global parameterization limits closure;
+do not simply enlarge the seed bank or infer infeasibility from these failures.
+
+## Generated105 — bounded closure backtracking recovers S009
+
+Same frozen64Generated90 development inputs:64evaluated/displayed,49numerically
+eligible,49native attempted/built,0fully audited. Normal16/16,stress12/16,
+random21/32. All48Generated102 passing coordinates AND host paths are identical.
+S009is the only new pass. No fresh holdout or universal generalization claim.
+
+`RecoveryPolicy.BACKTRACKED_CLOSURE` preserves the entire102 search first,then
+refines at most two geometrically distinct retained starts. Each gets24coarse/
+12fine rounds,614transports maximum;one existing750transport width repair is
+allowed per closed colliding result. `StepPolicy.BACKTRACKED` tries seven dyadic
+fractions down to1/64 and carries damping between grids. Historical fitting and
+default recovery NONE remain unchanged. No case-ID decisions,cached cold-start
+solutions,target movement,geometry-rule changes or production promotion.
+
+Inspection found10/16old failures accepted no fine-grid correction. A bounded
+warm-start probe covered all16failures plus N001,N006,R013:19examined development
+configurations,71.794s,not additional independent/cold/native coverage. S009closed
+but acquired3sampled contact pairs. The subsequent cold64run recovered it using
+a quarter-sized first accepted correction,then3existing projected width steps.
+All19native S009conductors and strict target caps passed. Its gap changed from
+2.444mm to4.34e-12mm. Center polyline176.544mm(unclosed) ->182.756mm(closed);
+no shortest-path claim. Stress-sphere excess4.607mm remains a separate finding.
+
+The other15remain search-exhausted/native-unattempted:S011..S014,R003,R004,R008,
+R011,R012,R015,R017,R019..R021,R032. User observations are retained with the run;
+visually impossible current routes are not proofs of infeasible boundary inputs.
+S011gap33.948->22.539mm,R00819.211->16.423mm;neither closes. R004barely improves
+combined objective. All64frozen measurements have no intrinsic red regions,
+missing samples or detected sampled contacts;endpoint failures remain failures.
+Overview and6close-ups inspected;15visible red outlines mark unresolved results.
+
+Cold SDK773.961s,independent host checks270.566s,diagnostic display274.208s.
+Actual sweep construction229.754s(authoring+kernel);native phase581.417s includes
+monitoring,planning,visibility and4.581s cap audits. Built-case mean solve+checks/
+construction:normal8.613/2.852s,stress13.057/3.433s,random10.448/6.807s. S009is
+31.549/3.457s. Timing goal3/49;all64solve+checks1044.527s includes failures.
+The recovery adds work;host timing also increased. No speed improvement claimed.
+
+SDK48s/case1900s total;native90s/case1920s total. The original200s host allowance
+stopped during R019 after50completed views. A recorded renewal preserved that
+partial attempt and all views,raising only cumulative host/display allowances to
+300/320s;no solver or native retry. Failed1.316s host work remains in totals.
+4GiB RSS/3.8GiB launch gates held;maximum retained sample3639696KiB,in-flight peak
+unmeasured. The local probe's initial sandbox-blocked memory query is preserved
+separately;approved process access resumed before any completed probe candidate.
+
+All49built cases pass solid/original-cap/practical-target checks;48pass strict
+target caps,S008retains its baseline0.311150mm practical gap. Full continuous
+clearance,native interior banking/strain and complete mechanical compliance remain
+unmeasured. Final owned Untitled gallery OPEN:64visible views/center guides,
+192retained original guides,15failure circles,1199individually hidden sweep bodies.
+Generated102scene cleared only after preserved evidence and the64case comparison.
+211source pins match;fresh analysis namespace avoids reloading old live evidence.
+Evidence:`artifacts/verification/ribbon_generated105`;warm probe:`ribbon_step104`.
+Focused verification:21tests,Ruff lint/format and changed-code IDE checks passed.
+
+Research: [Ceres step control](https://ceres-solver.readthedocs.io/latest/nnls_solving.html)
+supports testing bounded backtracking. [Patil et al., sections V and VIII](https://people.eecs.berkeley.edu/~pabbeel/papers/2015-TASE-ribbons.pdf)
+separate sampled route initialization from local optimization and document
+initialization/topology limitations. Their swept-channel physical model is not
+adopted. Next work should test different route initializations for the persistent
+loop/S failures and profile repeated host memory probes independently of geometry.
+
 ## Generated102 — preserve baseline paths, then explore four unused starts
 
 Same64Generated90 development inputs:64evaluated/displayed,48numerically eligible,

@@ -19,7 +19,7 @@ from . import box_fit, broad_chart, projected_clearance
 from .active_clearance import sample
 from .families import Seed, select
 
-Phase = Literal["short", "deep", "width"]
+Phase = Literal["short", "deep", "width", "closure"]
 
 
 class RecoveryPolicy(Enum):
@@ -29,6 +29,7 @@ class RecoveryPolicy(Enum):
 
     NONE = 0
     FOUR_UNUSED_STARTS = 4
+    BACKTRACKED_CLOSURE = 5
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,8 @@ def solve(
     Independent physical acceptance and native construction are never implied.
     Optional recovery adds at most four unused deep fits and four width repairs
     (5024transports),after historical success opportunities are exhausted.
+    BACKTRACKED_CLOSURE additionally refines up to two distinct retained routes
+    with614transports each and at most one750transport width repair per route.
     """
     if ledger.started is not None:
         raise ValueError("Search ledgers are one-use;preserve prior outcomes.")
@@ -174,7 +177,7 @@ def solve(
         if ledger.chosen is None and recovery is not RecoveryPolicy.NONE:
             unused = tuple(seed for seed in short_seeds if seed.index not in ledger.selected_deep)
             recovery_pending = len(pending)
-            for seed in select(unused, maximum=recovery.value):
+            for seed in select(unused, maximum=4):
                 ledger.stage = f"recovery deep seed{seed.index}"
                 path, metrics = box_fit.refine(case, seed, checkpoint, box_fit.DEEP)
                 metrics["recovery"] = recovery.name
@@ -191,6 +194,38 @@ def solve(
                     )
                     metrics.update(base_metrics=original.metrics, recovery=recovery.name)
                     if retain(_observe(case, original.seed, path, metrics, "width", checkpoint)):
+                        break
+        if ledger.chosen is None and recovery is RecoveryPolicy.BACKTRACKED_CLOSURE:
+            best_by_seed: dict[int, Trial] = {}
+            for trial in sorted(ledger.trials, key=lambda item: (item.rank, item.seed.index)):
+                best_by_seed.setdefault(trial.seed.index, trial)
+            starts = tuple(
+                Seed(
+                    t.seed.index,
+                    t.metrics["coordinates"],
+                    t.rank,
+                    broad_chart.descriptor(case, t.path),
+                )
+                for t in best_by_seed.values()
+            )
+            for seed in select(starts, maximum=2):
+                ledger.stage = f"backtracked closure seed{seed.index}"
+                path, metrics = box_fit.refine(
+                    case,
+                    seed,
+                    checkpoint,
+                    box_fit.FitWork(24, 12, 614),
+                    policy=box_fit.StepPolicy.BACKTRACKED,
+                )
+                metrics["recovery"] = recovery.name
+                trial = _observe(case, seed, path, metrics, "closure", checkpoint)
+                if retain(trial):
+                    break
+                if metrics["strict_endpoint_gate"] and trial.contact["contact_detected"]:
+                    ledger.stage = f"backtracked width seed{seed.index}"
+                    path, measured = projected_clearance.refine(case, seed, metrics, checkpoint)
+                    measured.update(base_metrics=metrics, recovery=recovery.name)
+                    if retain(_observe(case, seed, path, measured, "width", checkpoint)):
                         break
         checkpoint()
         ledger.stage = "awaiting independent analysis" if ledger.chosen is not None else "exhausted"
