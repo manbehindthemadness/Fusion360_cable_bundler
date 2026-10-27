@@ -342,3 +342,13 @@ checks,fixed targets/identities and the2GiB sampledFusionRSS ceiling. Solve plus
 numerical feasibility time must not exceed the candidate's own native construction
 time;graphics and audit overhead do not inflate that benchmark. Production remains
 unchanged. This records authorization,not a claim that a candidate has been solved.
+
+USER-DIRECTED TIMING/VISIBILITY REVISION — 2026-10-27
+
+Solve plus numerical feasibility<=matched native construction is now a recorded
+performance goal,not a reason by itself to stop an authorized native batch. User
+requests completing all current native sweep examples and retaining actual build
+times and failures. Native sweep BRep bodies default hidden individually in each
+experiment's Bodies folder;diagnostic graphics remain visible. Keep physical,
+resource,API,source and construction/cap gates,bounded scope and historical stops.
+No change to fixed inputs,solver geometry or production authorization.

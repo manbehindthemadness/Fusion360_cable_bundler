@@ -37,6 +37,19 @@ from the construction benchmark. No approval is needed to change techniques with
 these conditions;unrelated destructive actions and production promotion remain
 outside this authorization. This exception does not change historical results.
 
+USER-DIRECTED TIMING AND VISIBILITY REVISION — 2026-10-27
+------------------------------------------------------
+For this ribbon investigation,retain solve+feasibility<=matched native construction
+as a measured performance GOAL. A timing-goal failure must be recorded,but does
+not by itself stop an authorized native build batch. User explicitly requests
+building every current example so construction speeds and sweep outcomes are
+measured. Resource/API/source/construction/cap gates and bounded plans still apply.
+Native sweep BRep bodies default hidden individually in each experiment's Bodies
+folder,with diagnostic graphics visible for collaboration. Bodies remain available
+to unhide for inspection. Preserve historical timing failures and prior stop ledgers.
+This supersedes the earlier timing-failure stop for future investigation batches,
+not any physical acceptance criterion or historical classification.
+
 1. Freeze the question and contract before paying for an answer
 -------------------------------------------------------------
 Write a short run plan before execution: hypothesis, algorithm/version, allowed

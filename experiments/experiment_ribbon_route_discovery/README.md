@@ -1,5 +1,46 @@
 # Ribbon route-family discovery — development experiments
 
+## Frozen81 native completion — user-directed timing/visibility policy
+
+User requests all eight existing examples have actual native sweep geometry and
+construction speeds,with timing-goal failures recorded rather than stopping the
+batch. This explicitly revises the prior speed-failure stop for this investigation.
+Native BRep bodies default hidden individually in each experiment's Bodies folder;
+informative diagnostic sheets,solver values and center trajectories remain visible.
+Existing G01/G03 BReps are reused,not rebuilt or retimed. Preserve their historical
+75/77speed stops. Build the remaining G02/G04/G05/G06/G07/G08 exactly once using
+74's source-pinned paths and existing experiment components. No search,repair,
+target movement,lofts or reserved-case evaluation. Unknown kernel predictions.
+
+Research rechecks Autodesk's sweepFeatures.add and BRepBody.isLightBulbOn APIs.
+Keep per-trace authoring/kernel timers,trace preparation,cap checks and visibility
+separate. Construction means actual profile/path authoring plus native sweep-kernel
+time;diagnostic graphics never inflate that benchmark. Record all timing failures
+without stopping;source/API/kernel/cap/resource errors still stop the affected
+batch with partial geometry retained. Six new complete-ribbon attempts maximum,
+30s per case,180s aggregate native operation time,20s display/postflight,2GiB RSS
+with1.9GiB scheduling-headroom gate. One owned Untitled scratch,all earlier views
+and manual visibility preserved except explicit body-hide/sheet-show changes to
+these eight examples. Verify every expected body exists,is solid,has conductor
+identity,and is hidden. Full native compliance remains unmeasured.
+
+81completed all six remaining configurations without native/cap/resource errors.
+New construction seconds(authoring+kernel):G02 6.550113,G04 .907713,G05 4.005143,
+G06 1.596707,G07 5.222776,G08 3.541912. All six miss matched solve/check timing
+goals;failures retained without stopping. Six-case native operation total34.341332s,
+highest sampledRSS1736512KiB. No searches,retries,repairs or new validation targets.
+
+82postflight:8/8planned/evaluated/native-attempted/built,0/8fully audited;no skipped
+configurations remain in this eight-case matrix. All122conductor BReps are solid,
+ordered identity checks pass,all122cap pairs checked,and all bodies individually
+hidden. Feature health unavailable122/122;continuous compliance remains unmeasured.
+Diagnostic sheets and center trajectory splines visible8/8. Updated existing labels
+with actual construction times/timing failures;G01neutral initialized-host result
+and earlier75/77stops retained. Display/postflight2.459317s,finalRSS972912KiB.
+Overview82capture visually inspected;same gallery open,prior views preserved.
+Source-pinned81execution finished BEFORE recording the user-directed timing/default
+visibility revision in the two safeguard files;future runs need fresh source pins.
+
 Reusable entry: `generalized.solve(case, checkpoint, ledger)` accepts fixed
 endpoint frames and dimensions, recognizes neutral forward runs analytically,
 and otherwise uses the deterministic broad search below. Supply a fresh
