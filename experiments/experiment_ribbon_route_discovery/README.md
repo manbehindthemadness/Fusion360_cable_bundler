@@ -1,5 +1,64 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated108/109 — closed-route crossing investigation, not adopted
+
+Five independent examined configurations in each paired comparison,not ten new
+cases:S011,S012 and passing N001/N006/R013 controls. Both policies evaluated5/5;
+3/5controls pass,2/5remain unresolved,0native attempts/builds/fully audited.
+The other13unresolved107inputs were not rerun. No new64-case or holdout claim.
+Cached107 starts are identical across policies;all targets,material rules and
+final129contact/512intrinsic checks remain unchanged. Interior routes are free.
+
+108 applies the existing750-transport projected repair once per case. It preserves
+closure but leaves48S011/71S012collision pairs(from48/72). Inspection of all sampled
+near pairs shows one crossing region per route and almost opposing local witness
+normals(minimum dot-.999528/-.998998). Several accepted steps reduce the selected
+clearance merit without removing the crossing;endpoint projection alone is not
+the limiting acceptance gate. These observations do not prove global infeasibility.
+
+109 tests `coherent_contacts` and `coherent_clearance`:connect near pairs on the
+129grid,propagate a consistent normal sign,retain8distributed support witnesses,
+try both escape signs with3projected steps plus4fine polish rounds each.607maximum
+transports versus108's750. This changes guidance and allocation,not just one
+parameter. Both signs retain closure but leave49/52S011 and72/79S012contact pairs.
+All3controls pass. No new valid route;the helpers remain experimental and are NOT
+wired into broad_search/generalized.105's retained49/64baseline is unchanged.
+The result rejects this bounded policy,not every possible regional escape method.
+
+Five-case cached repair+checks:108=5.734s,109=16.166s. S011=2.058/3.183s;
+S012=1.175/3.367s respectively. Neither includes107's cold initialization or is
+a full-solver/native timing comparison. No new BRep timings;native failure rate
+unmeasured.20s/case100s/phase4GiB gates held. An initial108adapter error(list instead
+of coordinate tuple) stopped before transport in.021s;preserved renewal converts
+the input container without changing values. No numerical retries after renewal.
+
+Fusion retains the64-case gallery and1199individually hidden original sweep bodies.
+Inside S011/S012 are six additive diagnostic variants(three each):107initial,
+108existing repair(default visible),109rejected trial(hidden). Original106groups,
+sketches and constraint children are hidden but retained in those parents. Each
+new variant retains its A/center/Bguides,visible center and solver values,red
+failure outline,actual width-spanning collision witnesses and a hidden local
+separation-direction helper. Both close-ups reviewed;full overview restored.
+Six host replays/checks13.162s;graphics15.278s;display phase29.525s;captures5.286s.
+Largest retained viewRSS1220048KiB;final738784KiB,in-flight peak unmeasured.
+The first display script failed before execution because MCP prepends code before
+future imports;Fusion log confirms99ms/pre-geometry. Renewed procedure removes
+that unnecessary import;original source/plan retained. No view retries afterward.
+
+Artifacts:`artifacts/verification/ribbon_generated108` and `ribbon_generated109`.
+Live `_crossing109` is an additive frozen ledger beside `_generated106`;do not
+reload either. Focused verification14tests,Ruff lint/format and changed-code IDE
+checks pass. Production/standards/default solver unchanged;fullQA not run.
+Full native mechanical compliance,continuous contact and shortest paths unmeasured.
+
+Research: [TrajOpt troubleshooting](https://rll.berkeley.edu/trajopt/doc/sphinx_build/html/tips.html)
+supports testing collision repair after goal-reaching initialization;
+[the original paper](https://www.roboticsproceedings.org/rss09/p31.pdf) explains
+signed support-distance approximations and their limitations. Our sampled patch
+heuristic is not their continuous swept-volume method. The next useful test is
+collision-aware route initialization before closure traps the path in this crossing,
+with the passing controls retained;do not simply extend these failed local fits.
+
 ## Generated107 — backward initialization pilot, not adopted
 
 Tested18 examined development configurations: all15 unresolved105 cases and
