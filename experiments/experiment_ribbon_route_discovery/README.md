@@ -1,5 +1,41 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated107 — backward initialization pilot, not adopted
+
+Tested18 examined development configurations: all15 unresolved105 cases and
+N001(U-turn),N006(twist),R013(random) controls.18 evaluated,3 numerically eligible
+controls,15 unresolved,0 native attempts/builds/fully audited;no fresh holdout.
+This bounded pilot did not run another64-case search or rebuild unchanged solids.
+
+`reverse_initialization` screens110 starts from the destination,deep-fits two
+distinct families,reverses their Fourier coefficients,then polishes from the
+original start. Width order,targets,material rules and chart bounds are unchanged.
+Maximum1222 transports per case;25s/case,450s total,4GiB sampledRSS. No width
+repair in this isolated initializer test. The helper is not wired into the solver;
+105's policy and49/64 prior passing configurations remain the retained baseline.
+
+S011 and S012 each obtain exact pose closure but fail sampled width clearance:
+48 and72 contact pairs;worst separations.026694 and.001698mm versus1.5mm
+thickness. S011 witness spans u=.03125/.8125;S012 spans.1171875/.90625.
+Neither has intrinsic red regions. These are self-intersecting routes,not valid
+solutions or proofs that the fixed boundary problems are impossible. The other13
+unresolved cases still fail closure. Further investigation should address route
+topology/contact-aware initialization,not treat these misses as cap-only errors.
+
+Pilot solve+checks126.407s total;per-case4.394..8.533s(mean7.529s for the
+15 unresolved inputs). These are standalone initializer timings,not full-solver
+or native build comparisons. Final SDK RSS127248KiB;in-flight peak unmeasured.
+All source/time gates held;no retries or unattempted pilot cases. No new Fusion
+geometry;the106 final gallery remains open for inspection. Frozen inputs,
+measurements and procedures:`artifacts/verification/ribbon_generated107`.
+Focused verification:34tests,Ruff lint/format and IDE inspections pass;no fullQA.
+
+Research: [Patil et al.](https://people.eecs.berkeley.edu/~pabbeel/papers/2015-TASE-ribbons.pdf)
+separate route discovery from local fitting;
+[LaValle](https://msl.cs.uiuc.edu/planning/node795.html) describes shooting's
+initialization and collision difficulties. This pilot tests our own simple reverse
+initializer,not their planning algorithms or material models. No production change.
+
 ## Generated106 — spatial novelty recovery rejected
 
 Replayed the same64development configurations after Fusion restart:64evaluated
