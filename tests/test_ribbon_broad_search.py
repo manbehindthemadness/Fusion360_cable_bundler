@@ -6,11 +6,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
-from typing import Callable
+from typing import Any, Callable
 
 import pytest
 
 from cable_bundler.routing.geometry import Vector3, cross, dot, magnitude
+from experiments.experiment_ribbon_cap_transition.compatible_strip import CompatiblePath
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 from experiments.experiment_ribbon_route_discovery import (
     box_fit,
@@ -193,3 +194,89 @@ def test_fresh_and_reserved_boundaries_are_distinct_valid_ordered_frames() -> No
         assert magnitude(case.end_width) == pytest.approx(1)
         assert dot(case.end_tangent, case.end_width) == pytest.approx(0, abs=1e-15)
         assert magnitude(cross(case.end_tangent, case.end_width)) == pytest.approx(1)
+
+
+@pytest.mark.parametrize("success_index", [0, 6, 99])
+def test_recovery_preserves_success_and_never_repeats_deep_starts(
+    monkeypatch: pytest.MonkeyPatch, success_index: int
+) -> None:
+    """
+    Exercise the search scheduler independently of numerical convergence variability.
+    """
+    case = _case()
+    path = broad_chart.integrate(case, (0.0,) * 9 + (1.0,), 64, lambda: None)
+    seeds = tuple(Seed(i, (float(i),) * 10, float(i), (float(i), 0.0, 0.0)) for i in range(12))
+
+    def screen(_: EndpointCase, checkpoint: Callable[[], None]) -> tuple[Seed, ...]:
+        """
+        Supply distinct deterministic starting routes without expensive integration.
+        """
+        checkpoint()
+        return seeds
+
+    def fit(
+        _: EndpointCase, seed: Seed, checkpoint: Callable[[], None], work: box_fit.FitWork
+    ) -> tuple[CompatiblePath, dict[str, Any]]:
+        """
+        Model a convergence basin reached only by one deep start.
+        """
+        checkpoint()
+        return path, dict(
+            coordinates=seed.coordinates,
+            score=float(seed.index),
+            strict_endpoint_gate=False,
+            ready=work == box_fit.DEEP and seed.index == success_index,
+        )
+
+    def observe(
+        _: EndpointCase,
+        seed: Seed,
+        candidate: CompatiblePath,
+        metrics: dict[str, Any],
+        phase: broad_search.Phase,
+        checkpoint: Callable[[], None],
+    ) -> broad_search.Trial:
+        """
+        Isolate scheduling from already-covered pose and clearance calculations.
+        """
+        checkpoint()
+        return broad_search.Trial(
+            seed,
+            phase,
+            candidate,
+            metrics,
+            {"contact_detected": False},
+            float(seed.index),
+            metrics["ready"],
+        )
+
+    def descriptor(_: EndpointCase, candidate: CompatiblePath) -> tuple[float, ...]:
+        """
+        Leave geometric selection to the explicit seed descriptors in this scheduler test.
+        """
+        del candidate
+        return (0.0, 0.0, 0.0)
+
+    def select(selections: tuple[Seed, ...], *, maximum: int) -> tuple[Seed, ...]:
+        """
+        Model a bank of distinct routes in stable score order.
+        """
+        return selections[:maximum]
+
+    monkeypatch.setattr(broad_chart, "screen", screen)
+    monkeypatch.setattr(broad_chart, "descriptor", descriptor)
+    monkeypatch.setattr(box_fit, "refine", fit)
+    monkeypatch.setattr(broad_search, "_observe", observe)
+    monkeypatch.setitem(vars(broad_search), "select", select)
+    baseline = broad_search.solve(case, lambda: None, broad_search.SearchLedger())
+    recovered = broad_search.solve(
+        case,
+        lambda: None,
+        broad_search.SearchLedger(),
+        recovery=broad_search.RecoveryPolicy.FOUR_UNUSED_STARTS,
+    )
+    assert recovered.trials[: len(baseline.trials)] == baseline.trials
+    assert len(recovered.selected_deep) == len(set(recovered.selected_deep)) <= 8
+    assert (recovered.candidate is not None) == (success_index < 8)
+    if success_index == 0:
+        assert recovered.trials == baseline.trials

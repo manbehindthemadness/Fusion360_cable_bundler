@@ -19,6 +19,7 @@ from .constraint_geometry import Restriction
 from .constraint_views import retain_constraints
 from .contracts import RibbonPath as DirectorPath
 from .contracts import TargetPose as EndpointCase
+from .failure_markers import retain_failure_marker
 from .graphics import (
     AMBER,
     BLUE,
@@ -178,13 +179,19 @@ def draw_evidence(
     checkpoint: Callable[[], None] = lambda: None,
     *,
     restrictions: tuple[Restriction, ...] = (),
+    failure_reason: str | None = None,
 ) -> dict[str, Any]:
     """
     Render frozen evidence and retain hidden native originals for every result.
 
     Native guide sketches preserve the same cubics and failed endpoints shown in
     the graphics. Caller checkpoints bound guide creation; no sweeps are built.
+    Explicit unsuccessful outcomes and sampled red violations get failure circles.
     """
+    if failure_reason is not None and (
+        not isinstance(failure_reason, str) or not failure_reason.strip()
+    ):
+        raise ValueError("An explicit failure reason must be nonempty text.")
     number, case = evidence.identifier, evidence.targets
     originals = retain_guides(component, evidence, checkpoint)
     constraints = retain_constraints(component, evidence, checkpoint, restrictions=restrictions)
@@ -267,6 +274,10 @@ def draw_evidence(
     )
     draw_text(groups["legend"], explanation, Vector3(0, -45, 0), DARK, 1.2)
     draw_text(groups["legend"], investigation, Vector3(0, -49, 0), DARK, 1.2)
+    if failure_reason is not None or red:
+        groups["failure"] = retain_failure_marker(
+            component, evidence, failure_reason or "Sampled physical-rule violation"
+        )
     return {"groups": groups, **stats, **originals, **constraints}
 
 

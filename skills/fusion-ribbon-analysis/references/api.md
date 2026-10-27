@@ -186,5 +186,23 @@ restart the old viewer or erase its ledger. Read-only evidence inspection remain
 available after a stop or source edit. Future rendering needs a coherent runtime.
 
 The numerical evidence contains no native-construction/compliance acceptance.
+
+### Failure outlines
+
+`Viewer.add(..., failure_reason="...")` and `draw_evidence` accept an explicit
+failed/unresolved outcome reason. They create a thick red camera-facing circle,
+also created automatically for sampled red regions. Amber warnings alone do not
+trigger it. The `groups["failure"]` handle controls its visibility separately.
+
+For a later native failure or an existing frozen view, call
+`failure_markers.retain_failure_marker(component, evidence, reason)`. It reuses a
+matching complete marker without changing manual visibility; no analysis, solve,
+sketch or BRep is rebuilt. The reason labels the caller's outcome, not a new
+physical classification. Bounds enclose frozen cubic control hulls and target
+widths with padding. The outline encloses orthographic projections; perspective
+views remain illustrative. This is a display marker, not a clearance constraint
+or the smaller bend-radius circles. Preserve source snapshots when adding it to
+an older run and record new display-only provenance.
+
 No contact, equilibrium, strain, bonded insulation, ending, containment or
 continuous-native audit is implied by the sheet view. Report missing coverage.

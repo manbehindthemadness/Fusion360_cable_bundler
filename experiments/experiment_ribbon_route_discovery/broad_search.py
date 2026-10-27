@@ -8,6 +8,7 @@ independent intrinsic/cubic checks before construction and preserve that evidenc
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from time import perf_counter
 from typing import Any, Callable, Literal
 
@@ -19,6 +20,15 @@ from .active_clearance import sample
 from .families import Seed, select
 
 Phase = Literal["short", "deep", "width"]
+
+
+class RecoveryPolicy(Enum):
+    """
+    Bound optional exploration after every historical search stage has exhausted.
+    """
+
+    NONE = 0
+    FOUR_UNUSED_STARTS = 4
 
 
 @dataclass(frozen=True)
@@ -86,14 +96,22 @@ def _observe(
     return Trial(seed, phase, path, metrics, contact, rank, ready)
 
 
-def solve(case: EndpointCase, checkpoint: Callable[[], None], ledger: SearchLedger) -> SearchLedger:
+def solve(
+    case: EndpointCase,
+    checkpoint: Callable[[], None],
+    ledger: SearchLedger,
+    *,
+    recovery: RecoveryPolicy = RecoveryPolicy.NONE,
+) -> SearchLedger:
     """
     Run110cold screens,up to16short/4deep fits,then queued closed-route width repair.
 
-    No case identifier affects search. At most18208fit transports are possible,
+    No case identifier affects search. At most18208historical fit transports are possible,
     subordinate to the caller's elapsed/RSS checkpoint. Preserve every completed
     failed trial;return an exhausted ledger when no pose/contact handoff exists.
     Independent physical acceptance and native construction are never implied.
+    Optional recovery adds at most four unused deep fits and four width repairs
+    (5024transports),after historical success opportunities are exhausted.
     """
     if ledger.started is not None:
         raise ValueError("Search ledgers are one-use;preserve prior outcomes.")
@@ -153,6 +171,27 @@ def solve(case: EndpointCase, checkpoint: Callable[[], None], ledger: SearchLedg
                 metrics["base_metrics"] = original.metrics
                 if retain(_observe(case, original.seed, path, metrics, "width", checkpoint)):
                     break
+        if ledger.chosen is None and recovery is not RecoveryPolicy.NONE:
+            unused = tuple(seed for seed in short_seeds if seed.index not in ledger.selected_deep)
+            recovery_pending = len(pending)
+            for seed in select(unused, maximum=recovery.value):
+                ledger.stage = f"recovery deep seed{seed.index}"
+                path, metrics = box_fit.refine(case, seed, checkpoint, box_fit.DEEP)
+                metrics["recovery"] = recovery.name
+                ledger.selected_deep.append(seed.index)
+                if retain(_observe(case, seed, path, metrics, "deep", checkpoint)):
+                    break
+            if ledger.chosen is None:
+                for original in sorted(
+                    pending[recovery_pending:], key=lambda trial: (trial.rank, trial.seed.index)
+                ):
+                    ledger.stage = f"recovery width seed{original.seed.index}"
+                    path, metrics = projected_clearance.refine(
+                        case, original.seed, original.metrics, checkpoint
+                    )
+                    metrics.update(base_metrics=original.metrics, recovery=recovery.name)
+                    if retain(_observe(case, original.seed, path, metrics, "width", checkpoint)):
+                        break
         checkpoint()
         ledger.stage = "awaiting independent analysis" if ledger.chosen is not None else "exhausted"
         return ledger

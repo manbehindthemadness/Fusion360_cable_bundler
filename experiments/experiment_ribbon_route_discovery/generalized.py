@@ -54,7 +54,11 @@ def neutral_boundary(case: EndpointCase) -> bool:
 
 
 def solve(
-    case: EndpointCase, checkpoint: Callable[[], None], ledger: SearchLedger
+    case: EndpointCase,
+    checkpoint: Callable[[], None],
+    ledger: SearchLedger,
+    *,
+    recovery: broad_search.RecoveryPolicy = broad_search.RecoveryPolicy.NONE,
 ) -> Handoff | None:
     """
     Avoid numerical search only when the neutral chart satisfies strict fixed poses.
@@ -84,7 +88,7 @@ def solve(
             return Handoff(path, metrics, contact, "neutral")
         finally:
             ledger.seconds = perf_counter() - started
-    broad_search.solve(case, checkpoint, ledger)
+    broad_search.solve(case, checkpoint, ledger, recovery=recovery)
     candidate = ledger.candidate
     if candidate is None:
         return None

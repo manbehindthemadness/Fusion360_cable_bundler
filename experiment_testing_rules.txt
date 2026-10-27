@@ -26,6 +26,32 @@ pins,physical gates,no-retry accounting and bounded review requirements remain.
 Generated90 records the checkpoint37 stop and revised procedure provenance before
 resumption;no ceiling change was applied retroactively to its earlier evidence.
 
+USER-DIRECTED ITERATION LOOP — 2026-10-27
+---------------------------------------
+Use the shared case-generator/diagnostic skill for64candidate runs:16normal,
+16stress,32random. Inspect failures after every run and perform deep primary-source
+web research during each failure investigation before choosing the next technique.
+After every solver revision,rerun the diagnostic workflow to measure gains and
+regressions. Replay the same frozen64inputs for controlled revision comparisons;
+use separately identified fresh random batches to assess transfer. Never replace
+failed inputs with easier cases or describe examined inputs as untouched holdouts.
+
+Preserve measurements,source/input fingerprints and useful captures,then clear
+the owned scratch geometry after each inspected run to control memory. The user
+authorizes this cleanup;unrelated documents/geometry remain outside its scope.
+Measure memory again rather than assuming deletion releases it. Preserve failure
+evidence on disk even when its scene geometry is removed.
+
+Solve+checks<=native construction and minimum feasible geometry/travel distance
+are optimization GOALS,not abort rules. Compare actual path lengths and runtime
+on matched cases;do not call a route globally shortest without evidence. Keep
+physical geometry rules,custom diagnostic graphics and BRep sweeps unchanged.
+Revert experimental revisions that undo established progress while retaining
+their results. Isolate revisions so rollback preserves unrelated user work.
+The user authorizes free iteration with ample usage;bounded source-pinned phases,
+the4GiB memory ceiling,physical/API/source gates and truthful coverage accounting
+still apply. No approval check-in is required for each authorized iteration.
+
 USER-DIRECTED AUTONOMOUS CONTINUATION — 2026-10-26
 ------------------------------------------------
 For the current ribbon-routing investigation,the user explicitly authorizes
@@ -235,3 +261,10 @@ New fixtures do not authorize native builds, unlimited search or an automatic fi
 Obtain bounded resource scope as above. If native baselines are absent, say so;
 numerical preservation alone does not prove construction preservation. These
 examined challenges are development regression cases, not untouched holdouts.
+
+USER-DIRECTED FINAL GALLERY RETENTION — 2026-10-27
+------------------------------------------------
+Latest instruction requests leaving diagnostic geometry open for inspection.
+Preserve the final owned gallery,with individually hidden native sweep bodies;
+this supersedes end-of-run cleanup for this delivery. Intermediate owned scratch
+cleanup remains authorized. Keep source/input/outcome evidence and memory guards.

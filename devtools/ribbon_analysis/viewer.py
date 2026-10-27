@@ -99,12 +99,15 @@ class Viewer:
         transform: Any = None,
         *,
         restrictions: tuple[Restriction, ...] = (),
+        failure_reason: str | None = None,
     ) -> dict[str, object]:
         """
         Analyze and display one explicit candidate once,retaining failed stage times.
 
         Expected invalid regions are diagnostic results,not construction failures.
         A failed display or exhausted budget stops scheduling further candidates.
+        Pass failure_reason for unresolved routing or unsuccessful native outcomes;
+        sampled red violations receive an outline automatically.
         """
         self._active()
         if self.stop_reason:
@@ -154,6 +157,7 @@ class Viewer:
                     evidence,
                     lambda: budget.check("diagnostic geometry"),
                     restrictions=restrictions,
+                    failure_reason=failure_reason,
                 )
                 row["groups"] = rendered.pop("groups")
                 row.update(rendered)

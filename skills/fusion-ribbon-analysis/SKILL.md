@@ -83,6 +83,14 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
 
 ## Maintaining the instrument
 
+Mark failed or unresolved candidates with a large red camera-facing outline.
+Pass an explicit `failure_reason` to `Viewer.add` or `draw_evidence` for routing,
+closure or native failures; sampled red violations are outlined automatically.
+Amber warnings alone do not imply failure. For existing frozen views or a later
+native failure, use `failure_markers.retain_failure_marker` with the original
+component and evidence. Preserve geometry and old provenance; record an additive
+display revision when annotating an older gallery. See the API reference.
+
 Improve it from observed collaboration needs. Keep reusable analysis and graphics
 in `devtools/ribbon_analysis`, fixtures/batches in `experiments/`, and app-owned
 tests in `tests/`. Retain compatibility imports for historical callers while

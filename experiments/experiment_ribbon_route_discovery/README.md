@@ -1,5 +1,182 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated102 — preserve baseline paths, then explore four unused starts
+
+Same64Generated90 development inputs:64evaluated/displayed,48numerically eligible,
+48native attempted/built,0fully audited. Normal16/16,stress11/16,random21/32.
+All47baseline successes retain identical coordinates;S015is the sole new pass.
+The optional `RecoveryPolicy.FOUR_UNUSED_STARTS` runs only after the historical
+short/deep/width stages exhaust. Select at most4unused deep starts from the same
+short-fit bank,then repair newly closed colliding routes using unchanged width
+repair. No fixture-ID branches,cached fits,new physical rules or production change.
+Default remains `NONE`;the recovery cost is explicit and experimentally opt-in.
+
+This is increased search work,not an equal-budget optimizer comparison. At most
+5024additional transports;SDK32s/case1500s aggregate,host16.052295s/case200s total,
+display12s/view240s total,native90s/case1920s total,final60s.4GiB sampledRSS,
+3.8GiB launch headroom. No scheduling/source/API/physical gate stopped this run.
+Inputs,210source pins,procedures,all trials and measurements are retained under
+`artifacts/verification/ribbon_generated102`;postflight hashes all matched.
+Controls N001,N006,R013 and all original successes were preserved and rebuilt.
+
+S015(compactG08,19conductors) closes its prior2.301mmgap using recovery deep seed61;
+new sampled maximum gap1.82e-10mm,no sampled contacts. Centerline polyline201.505mm;
+no shortest-path claim. All19native solids/original and strict target caps passed.
+Solve plus checks21.541s,native construction3.599s:timing goal missed. Its stress
+sphere is exceeded by0.607mm;that separate harness outcome does not steer routing.
+No prior successful path was shortened. No fresh random holdout was tested and
+the recovery did not add random-case passes;transfer of the gain remains unproven.
+
+Unresolved/native-unattempted:S009,S011..S014,R003,R004,R008,R011,R012,R015,R017,
+R019..R021,R032. All16best retained paths miss position/frame,with no sampled
+contact,intrinsic red regions or missing samples. Eight improve their ranked
+objective without becoming solutions. Inspected shared interval brackets/extrema
+and6close-ups;near-limit amber bends are not proof that physical rules prevent
+closure. An alternative S009trial gets within0.008mm but has29sampled contacts
+and fails the frame gate;the retained best diagnostic remains the lower-ranked
+noncontacting miss. Failure to find a route is not proof of infeasibility.
+
+SDK648.862s,independent host replay/checks185.573s,display190.331s. Actual native
+construction223.794s(authoring+kernel);whole native phase487.892s includes checks,
+visibility and scheduling. Cap audits4.573s are a subset. Final postflight/captures
+31.968s;frozen evidence inspection5.714s. Built-case mean solve+checks/build:
+normal8.049/2.851s,stress10.340/3.499s,random8.449/6.652s. Timing goal7/48;
+range3.474..21.541s solve+checks and2.003..11.396s construction. Timing varied
+across unchanged controls;do not attribute host variation to the solver revision.
+
+All48passed measured solids/original-path/practical-target caps;47strict target
+cases. S008retains its baseline practical tolerance result. Direct-design feature
+health,continuous clearance,native interior strain/banking,interior scenario-event
+realization and complete mechanical compliance remain unmeasured.
+1180hidden solids,64visible diagnostic sheets/center guides,192original guides;
+maximum guide discrepancy1.14e-13mm. Maximum retained post-caseRSS2804448KiB,
+final captureRSS794096KiB;in-flight peak unmeasured. User explicitly requested final
+retention:Generated102gallery remains OPEN in the owned Untitled document.
+
+17focused tests,Ruff lint/format and IDE inspections pass. No fullQA or production
+promotion. Research supports separating route initialization from local fitting:
+[Patil et al.](https://rll.berkeley.edu/~sachin/papers/Patil-TASE2015-revision.pdf).
+Their swept-channel model differs from our material contract. Further candidates:
+[multiple shooting](https://epubs.siam.org/doi/10.1137/16M1062569) for endpoint
+conditioning,and separately profiling host checkpoints(each currently launches a
+memory-probe subprocess). Neither is implemented or credited with speed gains.
+
+## Generated100 result — gain-ratio revision rejected and reverted
+
+Replayed the same64Generated90 development inputs;64evaluated/displayed,
+46numerically eligible/native attempted/native built,0fully audited. Normal16/16,
+stress9/16,random21/32. Baseline47/64;no gained passes,new regressionS005.
+Unresolved/native-unattempted:S005,S009,S011..S015,R003,R004,R008,R011,R012,
+R015,R017,R019..R021,R032. All remain in the denominator;random feasibility and
+interior recipe-event realization remain unknown. No new holdout was consumed.
+
+S005retains an18.281mmgap despite selecting its formerly successful seed2 for
+deep fitting. Thus selection alone does not explain its regression. S009now closes
+its pose but has7sampled contacts;closest witness u=.09375/.8984375,d=1.371752mm
+for1.5mmdiameter. Width repair reduced its objective but exhausted its fixed work
+with contact remaining. The other17retained failures miss position/frame. All18
+have no sampled intrinsic red regions or missing samples. This is not proof of
+physical infeasibility or continuous compliance. Read the shared frozen evidence
+in inspection100.json;contact witness is also marked in the gallery/capture.
+
+Matched46successful centerline polylines total20727.5685->20092.8502mm(-3.06%);
+16shorter/19longer/11within10ppm. N010476.350->197.471mm is useful evidence for
+preserving alternative route families,not grounds to retain the blanket policy.
+Primary follow-up research:[Patil et al.](https://people.eecs.berkeley.edu/~pabbeel/papers/2015-TASE-ribbons.pdf)
+separate global feasible initialization from local optimization and demonstrate
+initial-route dependence. Their swept-ribbon model is not our physical contract.
+[Ceres](https://ceres-solver.readthedocs.io/latest/nnls_solving.html) describes
+nonmonotonic trust-region alternatives;none was tested here. Next hypothesis:
+preserve successful branches while exploring endpoint/clearance alternatives,
+without loosening material/bend rules or quietly expanding fitting work.
+
+SDK520.849s,independentFusion analysis152.607s,display157.826s,native construction
+895.527s,whole native phase1380.901s,cap audits17.356s(subset),final captures/audit
+46.727s. Built-case solve+checks2.967..11.085s versus construction7.803..55.326s;
+timing goal40/46. Construction slowed materially versus90,including simple controls;
+this goal count is not a solver-speed improvement. System swap10.23GB was observed
+on16GiB hardware;causality remains unproven. Fusion logs/result checks showed no
+kernel error. S006stopped at30.583s before conductor30,with29solids/caps complete.
+Reviewed renewal101used90s/case while retaining1920s aggregate/4GiB RSS/3.8GiB
+headroom. Continued only unattempted conductors;no duplicate builds. Original stop
+and renewed timings remain separate. All46passed measured solid/original-path/
+practical-target caps;45passed strict target caps. Direct-design feature health,
+continuous clearance,native interior strain/banking and full compliance unmeasured.
+
+1142hidden solids,64visible sheets/center guides,192original guides verified;
+maximum guide discrepancy1.14e-13mm. All18failure measurements and6close-ups read.
+R032isometric projection overlaps its solver panel:camera-aware panel placement is
+a recorded viewer refinement,not a geometry finding. Maximum retained post-case
+RSS2459872KiB;in-flight peak unmeasured. Owned scratch cleared after inspection;
+cleanup20.188s,RSS2114768->336896KiB,empty owned document remains open.
+See cleanup98.json for the retained record. No unrelated design was changed.
+
+Generated99was an earlier harness stop:2completed cases,N003interrupted by sandbox
+denial of /bin/ps,61unattempted;its finalRSSprobe also failed.100is an explicit
+fresh64case renewal with the probe authorized,not a silently resumed success.
+All211source pins matched after construction and were archived before rollback.
+Restored box_fit,broad_search,generalized and their test to the clean pre-run HEAD;
+removed the experimental damping module. Preserved candidate source,procedures,
+comparisons,stops and captures under artifacts/verification/ribbon_generated100.
+The47/64baseline remains the current solver. No production/standards changes.
+Candidate11focused tests and Ruff passed;IDE scans clear except box_fit inspection
+timed out without findings. Restored baseline9focused tests passed. Full QA/full
+physical audit not run. No solver code changes remain after rollback.
+
+## Frozen99 gain-ratio damping comparison
+
+Replay all64Generated90 inputs with an explicit optional gain-ratio damping
+policy. Compare actual versus linear-model predicted reduction on the bounded
+trial displacement; retain actual monotone acceptance. Historical policy remains
+the default. No changed targets, seeds, work counts, chart, width repair, physical
+thresholds or production code. Centerline remains free. Research basis:
+[Madsen,Nielsen,Tingleff](https://www2.imm.dtu.dk/pubdb/edoc/imm3215.pdf),
+Algorithm3.16. Test whether better damping improves closure within the same work.
+
+Freeze99source/input hashes and procedure before execution. Same64examined
+development cases and budgets as90:SDK16.052295s/case,1100s total;host analysis
+16.052295s/case,160s total;display12s/view,240s total;native30s/case,1920s total;
+final inspection60s. Sampled RSS4GiB,launch headroom3.8GiB. All failed/exhausted
+inputs remain counted and displayed; native sweeps only for independently eligible
+paths. Keep original guides, visible diagnostics/solver values and hidden solids.
+Compare all47baseline passes, including collateral controls N001,N006,R013,
+new closures, sampled actual centerline lengths and matched timing goals.
+No timing-goal abort. Resource/API/source/new physical findings stop their phase.
+Review regressions before native scheduling; reject changes losing prior progress.
+Preserve rejected source/results, inspect all failure evidence and captures, then
+clear only owned scratch geometry. No untouched validation or full audit claim.
+
+## Iteration98 workflow clarification and failure research
+
+User confirms autonomous64case cycles,post-run failure inspection/deep web research,
+owned scratch cleanup,and regression rollback. Speed and minimum feasible travel
+are measured goals,not abort criteria. Physical rules/custom diagnostics/native
+sweeps stay fixed. The full policy is in experiment_testing_rules.txt.
+
+Generated90remains the47/64numerical/native baseline. Its17exhausted attempts all
+miss terminal position/frame while sampled contact and bend gates pass. Inspection
+of box_fit finds strictly decreasing trial acceptance,a two-fraction trial search,
+and damping adjusted by acceptance alone. This identifies an optimization mechanism
+to investigate;it does not establish the cause of every failed closure.
+Primary research options:
+
+- [Ceres nonlinear least squares](https://ceres-solver.readthedocs.io/latest/nnls_solving.html)
+  describes trust-region updates based on actual versus predicted reduction and
+  optional nonmonotonic steps. A controlled comparison could test the step policy
+  under fixed transport budgets without changing material geometry or tolerances.
+- [Kelly,trajectory optimization](https://epubs.siam.org/doi/full/10.1137/16M1062569)
+  discusses multiple shooting as an alternative to single shooting. It is a larger
+  representation change and would require explicit continuity/physical validation.
+
+Neither option is implemented or credited with improvement here. No new solver
+run occurred during the workflow clarification. Future revisions require the full
+diagnostic comparison and native evidence before any improvement claim.
+
+After checking retained manifests/results/captures,cleared only the owned Generated90
+root(64views/47native configurations). Cleanup16.944s,RSS2216688->624736KiB;document
+remains open. Evidence and cleanup98.json are retained in ribbon_generated90.
+No unrelated design,solver implementation,geometry rule or standards file changed.
+
 ## Frozen90 generated-tool test run —64fixed cases,2026-10-27
 
 User requests a test run of the new diagnostic case generator. Use the already

@@ -361,3 +361,22 @@ now use4GiB sampledFusion/localRSS ceiling and3.8GiB launch headroom,superseding
 earlier2GiB values for future operations only. Preserve historical resource stops,
 bounded plans,time/physical/source gates and no-retry accounting. Generated90's
 renewal37-4g artifact precedes resumption;its earlier measurements stay unchanged.
+
+USER-DIRECTED ITERATION LOOP — 2026-10-27
+
+Current investigation uses64candidate diagnostic-skill runs,followed by failure
+inspection and deep web research. Clear owned scratch geometry after inspecting
+each run,preserving its numerical/provenance/capture evidence. Compare each solver
+revision on fixed inputs and measure generalization on distinct generated batches.
+Revert revisions that lose established progress;retain their failure records.
+Solve time<=native build time and minimum feasible route geometry/distance are
+goals,not abort conditions. Physical geometry rules remain fixed;custom diagnostic
+graphics and native BRep sweeps remain the evaluation/construction workflow.
+The full operational clarification is in experiment_testing_rules.txt;the4GiB
+resource ceiling and physical/source/API safeguards remain in force.
+
+USER-DIRECTED FINAL GALLERY RETENTION — 2026-10-27
+
+Leave this delivery's final diagnostic gallery open for inspection,with native
+sweep bodies individually hidden. This supersedes final cleanup in the iteration
+loop above;other resource,provenance and physical safeguards remain unchanged.
