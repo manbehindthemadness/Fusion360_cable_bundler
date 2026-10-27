@@ -1,5 +1,187 @@
 # Ribbon route-family discovery — development experiments
 
+Reusable entry: `generalized.solve(case, checkpoint, ledger)` accepts fixed
+endpoint frames and dimensions, recognizes neutral forward runs analytically,
+and otherwise uses the deterministic broad search below. Supply a fresh
+`broad_search.SearchLedger` and a time/RSS checkpoint for each invocation. A
+returned handoff still requires independent intrinsic/cubic analysis before
+native construction. Exhaustion and interruption remain explicit outcomes.
+This is experimental routing, not a production or universal physical solver.
+
+## Frozen73 generalization — reusable experiment implementation,2026-10-27
+
+User requests generalizing the successful technique. Research revisits Patil's
+initialization/topology limitations,LaValle's finite sampling limits and TrajOpt's
+multiple goal-reaching starts. First extract67's arithmetic into typed,host-free
+experiment modules for chart/sampling,box fitting,projected clearance and search.
+No production promotion,case-name routing or stored fitted initialization.
+Keep110cold/16short/4deep/queued8projection policy,domain max(existing,6),fixed
+NEAR_LIMIT physical/pose/contact gates and separate stress sphere unchanged.
+Expose a one-use caller-owned ledger so interrupted search keeps partial trials.
+
+Before evaluating fresh targets,freeze eight new boundary configurations and four
+reserved configurations with no solver-derived witness geometry. Record count,
+diameter,positions,tangents and ordered width axes. Run the eight retained inputs
+03/17/38/12/08/07/11/13 as arithmetic regression cases:compare chosen coordinates,
+states/rates,seed/phase decisions and non-timing counters to67/69SDKsnapshots.
+Stop/review any mismatch before native work or new-target evaluation. Unit checks
+cover scale/frame invariants,deterministic sampling,work limits and ledger failure
+retention;they are not complete-ribbon geometry coverage.
+
+After source/input freeze,evaluate the eight fresh targets with the SAME packaged
+policy and independent129contact+512intrinsic/cubic checks. They become examined
+validation evidence;do not tune them then keep calling them untouched. Leave four
+reserved cases unexecuted. Record exhaustion without retries and continue only
+the remaining preplanned independent inputs;resource/API/source errors,new hard
+findings or retained-case regressions stop the affected phase. Per-case16.052295s
+solve+feasibility scheduling cap,2GiBsampledRSS,new600s aggregate compute envelope
+for73onward;previous~512.24s remains a separate historical scope. No silent budget
+growth. The centerline is free;targets,identity/order and dimensions remain fixed.
+
+Provisionally reserve at most3native attempts on fresh01straight/03lateral/
+07half-roll if numerically eligible,30s/case,first incomplete build/source/resource
+or matched-speed failure stops subsequent native launches. Prediction unknown;
+19child bodies never count as19configurations. Use ordered per-trace sweeps only,
+same owned idle scratch,cap checks and unavailable-health reporting. Full native
+clearance/strain/compliance remain separate. Rendering needs its own bounded phase;
+do not erase or replace71's successful views. Preserve fast49 as a separate
+strategy until a common scheduling policy has evidence. No report document added.
+
+73extraction regression completed8/8:chosen coordinates,all states/rates,selected
+starts,trial phase/seed decisions and non-timing fitting counters EXACTLY match
+67/69SDKsnapshots. All8also pass the unchanged sampled feasibility checks. No
+native operations or scene changes.9new focused tests and13related QP/clearance
+tests pass;Rufflint/format and IDEinspections clean. The first test draft omitted
+Vector3.translated's explicit distance argument;that test-only error was corrected
+before source freeze. Fresh8inputs and4reserved inputs are frozen in73plan.json;
+no fresh targets have been used for algorithm decisions at this point.
+
+73fresh matrix completed8/8numerically eligible,0exhausted/failed/unattempted,
+0native attempts and0full audits. Cases span5..32conductors,.75..1.5mm diameter,
+straight/gentle/lateral/skew/return/spatialquarter/half/negative-roll boundaries.
+Cold solve+sampled analysis seconds:G01 .610855;G02 7.485865;G03 6.583702;
+G04 6.495879;G05 7.463064;G06 6.522704;G07 6.702583;G08 10.126786.
+Four reserved inputs remain solver-unexecuted. This is new examined validation
+evidence for an unchanged algorithm,not universal physical/native certification.
+
+## Frozen74 host verification and75native calibration
+
+Research uses Autodesk's current sweepFeatures.add sample and retains the same
+tested per-trace adapter;construction remains distinct from numerical compliance.
+In the current idle owned scratch,create a coherent fresh experiment/core namespace
+without reloading live ledgers. Verify73source/input pins. Independently512transport
+all8fresh coordinate results,then129contact+512intrinsic/cubic checks;record SDK/
+Fusionstate/rate differences.40s host phase/16.052295s percase/2GiB/remaining600s
+scope. New hard finding/API/source/resource drift stops;0search/0sweeps in74.
+Create one owned gallery root in the SAME design for later75geometry;old71views
+remain unchanged.75uses the already reservedG01/G03/G07native slots,in that order,
+only after74qualification.30s scheduling budget/case/2GiB,unknownkernelpredictions,
+fixed caps and direct-mode health recorded. Cold SDKtime plus required hostchecks
+must not exceed authoring+kernel construction;first failure stops further launches.
+No extra sample substitutes or silent retry. A build is not a full compliance audit.
+
+74 independently qualified8/8fresh routes inFusion,1.533276s verification plus
+.722370s coherent namespace setup;max SDKstate difference7.82e-14. G01native75
+built7/7ordered sweeps and checked all7cap pairs,health unavailable7/7. Construction
+.420009s versusSDK+host.745121s(1.467491s charging namespace setup):speedFAIL.
+Native launches stopped;G03/G07unattempted. This is1/8fresh configurations built,
+0full audits,not7ribbons. No numerical or physical acceptance was relaxed.
+
+## Frozen76 renewal — generic neutral boundary solution before broad search
+
+Research: LaValle distinguishes analytically steerable motions from sampling;
+our existing endpoint controls already recognizes collinear equal-frame runs.
+The compatible chart's zero bend/ruling field is an exact neutral run. Add a
+separate reusable generalized entry that first recognizes equal ordered start/end
+frames and forward tangent-aligned displacement(relative1e-12cross-product
+bound),validates input frames,then512transports zero coordinates and independently
+checks strict endpoint/contact. Otherwise delegate to73's UNCHANGED broad solver.
+No case-IDcheck,stored fit,snapping or altered dimensional/physical gate. Keep73's
+entry/pins/results intact;do not rebrand75's original speed failure.
+
+Unit-test rotations/scales/counts,reverse/sideways/rolled exclusions and invalid
+frames;new routing entry retains a caller-owned one-use ledger. Freeze76sources
+before a freshG01cold solve+analysis measurement. Compare coordinates/states/rates
+EXACTLY with73G01before reusing74feasibility/75native construction. A mismatch
+means no transferred proof. Required exact-comparison time counts;initial74host
+namespace setup remains separately retained startup cost,not silently erased.
+No native retry or new native slot in this neutral calibration. Same16.052295s/
+2GiB/remaining600s;record all failures. Other bent/twisted configurations keep73's
+broad policy and performance limitations. Four reserved inputs remain unexecuted.
+
+76neutral calibration:0.326321s cold SDKincluding independent sampled analysis;
+coordinates/states/rates EXACTLY match73G01. Five neutral-contract tests pass.
+Charging the old.134265shost replay again gives.460586s>.420009s construction;
+that conservative comparison is a retained failure. No new geometry was built.
+
+## Frozen77 renewal — exact handoff reuse and remaining native samples
+
+Use76's freshly solved/independently analyzed output. Verify current76source pins,
+fixedG01input,coordinates and ALLSDKstates/rates against74's existing native-authoring
+path. Only exact equality may reuse74feasibility and75geometry. Measure comparison
+time and add it to76's.326321s;do not re-execute or charge duplicate hostanalysis
+for the identical already-verified object. This is an initialized-host handoff
+benchmark;report the.722370sinitial namespace startup separately.75/76cold-start
+and duplicate-replay failures remain. No sampled/physical requirement is dropped;
+different data would require fresh analysis,not this reuse. No fitted cache enters
+neutral routing. Maximum5s comparison/2GiB/remaining600s;0newnative forG01.
+
+If this compute/handoff comparison passes,renew the two unused native samplesG03/
+G07under a NEW77ledger,preserving75's latched stop and unattempted slots. Same
+fixed73broad routes and74host evidence,13/32ordered sweeps,30s/case/2GiB,unknown
+kernel predictions,no retries. First kernel/cap/health/source/resource or matched
+speed failure stops subsequent launches. Native construction/clearance/strain and
+complete compliance remain distinct. Initialized-host and startup timings must
+not be conflated;this does not establish globally fast generalized routing.
+
+77exact handoff verifiedG01data against74native path in.079986s;neutralSDKplus
+comparison.406306s<=.420009s construction on initialized host. Namespace startup
+.722370s remains separate;75/76conservative failures retained. G03native77 built
+13/13ordered sweeps,all13cap pairs checked,health unavailable13/13. Construction
+2.145282s versuscoldSDK+host6.756603s:SPEED FAIL. Native stop latched;G07 remains
+unattempted. Fresh8scope now2/8native attempted/built,0/8fully audited. Twenty
+new conductor bodies represent TWO complete configurations. No further native
+launch is planned;the remaining bottleneck is broad-search scheduling/cost.
+
+## Frozen78 display — eight new boundary results for inspection
+
+Use the shared analysis skill on74's frozen,independently checked paths. No shape
+solve,physical re-analysis or new solid. ArrangeG01..G08in the owned74root within
+the same Untitled design;retain71and all earlier geometry/visibility. ReuseG01's
+7native sweeps andG03's13;other6are diagnostic sheets with native unattempted.
+All8retain original A/center/Bnative splines,visible solver-value panels and hidden
+constraint helpers. Explicitly show center trajectory splines and separate sphere
+stress labels. G01neutral timings must say exact geometry reuse/initialized host;
+G03must show its matched speed failure. Reserve90sdisplay/2GiB/remaining600s with
+source/API/resource stops and partial-view retention,no silent rerender. Capture
+the new overview and native lateral detail;inspect both. Temporarily isolate only
+owned views for captures,then restore manual visibility and leave camera on the
+new set.8fresh cases,not8new successes from copied prior routes or child solids.
+
+78completed8/8views in20.665307s,RSS646960KiB,no source/API/resource errors.
+Overview andG03detail inspected:geometry and value panels visible,but the current
+Fusion environment has a white background and pale outcome captions lack contrast.
+79corrects only owned annotation colors and captures within the unused78display
+allowance(90s total);no redraw,re-analysis,search or native build. Preserve78images,
+all geometry and visibility. Dark text/title colors will be checked in new images.
+
+79completed the annotation-only correction in4.512152s,RSS581264KiB. Corrected
+overview andG03native detail visually inspected: captions now have dark readable
+contrast,all eight numbered outcomes/solver panels remain visible. Combined
+78/79display25.177460s within90s. The same scratch remains open on this gallery;
+earlier views and manual visibility are preserved. No further native launches.
+
+Final scope:8/8retained exact arithmetic regressions;8/8new configurations pass
+sampled numerical checks;2/8new configurations natively built with cap checks;
+0/8fully audited. Native unattempted:G02/G04/G05/G06/G07/G08;G07was stopped by
+G03's speed failure. Four reserved cases remain solver-unexecuted. All eight fresh
+cases fail the separate small-sphere stress measurement;it is not a physical
+solver gate. Native feature health is unavailable for both built configurations.
+27unique focused tests pass;all nine maintained Python files pass Ruff lint,
+format checks and IDE inspections. Production code unchanged. Generalization
+evidence is positive,while broad-search cost and continuous native compliance
+remain unresolved. Provenance and captures: `artifacts/verification/ribbon_cap_transition/generalization73/`.
+
 ## Frozen50 diagnostic — width-skipping observation
 
 User identifies the two red views13 and12.R1 as width-clearance routing failures
