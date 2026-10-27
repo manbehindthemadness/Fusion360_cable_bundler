@@ -15,6 +15,17 @@ These are mandatory working instructions, not implemented runtime enforcement.
 They do not guarantee correctness by themselves. If a gate cannot be evidenced,
 say so and stop the affected work rather than assuming it passed.
 
+USER-DIRECTED MEMORY REVISION — 2026-10-27
+----------------------------------------
+User explicitly instructed "expand the limit to 4gb" during generated90 after
+the2GiB policy's1.9GiB launch-headroom gate blocked further display work. For the
+ongoing ribbon investigation,use4GiB sampledFusion/localRSS ceiling and3.8GiB
+launch headroom. This supersedes2GiB resource values below for future operations;
+retain historical stops and measurements. Per-case/aggregate time limits,source
+pins,physical gates,no-retry accounting and bounded review requirements remain.
+Generated90 records the checkpoint37 stop and revised procedure provenance before
+resumption;no ceiling change was applied retroactively to its earlier evidence.
+
 USER-DIRECTED AUTONOMOUS CONTINUATION — 2026-10-26
 ------------------------------------------------
 For the current ribbon-routing investigation,the user explicitly authorizes

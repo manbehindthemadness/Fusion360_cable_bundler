@@ -1,5 +1,96 @@
 # Ribbon route-family discovery — development experiments
 
+## Frozen90 generated-tool test run —64fixed cases,2026-10-27
+
+User requests a test run of the new diagnostic case generator. Use the already
+frozen64case manifest from generator89,seed20261027,fingerprint1f953459132ccac15d3872f9f9451bf88035959fc2d7f7b17d7c34e6c8181add.
+16normal/16stress/32random;do not regenerate,filter,replace or tune any inputs.
+Known stress is examined development evidence;random feasibility remains unknown.
+H01..H04 remain solver-unexecuted. Interior scenario-event coverage is unmeasured.
+SDKcold unchanged generalized neutral/broad solver,110cold/16short/4deep/queued
+width repair,NEAR_LIMIT and unchanged pose/material/contact/bend gates. Centerline
+free;no sphere feedback,target snapping,repairs,extra seeds or production changes.
+
+Freeze current source/manifest/procedure bytes before numerical work.16.052295s
+per case,1100s SDKphase;timeouts/exhaustion/independent preflight rejections retain
+their completed work and allow remaining independent cases. A preflight rejection
+is not a native prediction or a claim of infeasibility. Source/API/RSS/unexpected
+programming errors stop the affected phase. Preserve best completed trial(or best
+completed screened seed if no trial exists) as explicitly unsuccessful diagnostic
+output;never convert it to a passing handoff. Use candidate_for on frozen targets.
+
+Independently replay/analyze available outputs inFusion with129contact+512physical
+checks,16.052295s/case/160s aggregate host budget. Draw every available path or an
+explicit target-only/no-path disposition. Render before native builds so failures
+are inspectable. Native prediction unknown;attempt each independently eligible
+configuration once,ordered sweeps only,30s/case/1920s aggregate. Strict native caps
+must match ORIGINAL solved cubics;practical target gaps<=.5diameter with strict
+target results separate. Timing goal misses recorded without stopping. Native/cap/
+resource/source errors latch native stop;keep partials and unattempted dispositions.
+
+One owned clean Untitled design(read-only status confirms the old48-case root/
+document already closed and only an unmodified empty new document open). No old
+document deletion/save/archive needed.2GiB sampledFusion/localRSS,1.9GiB scheduling
+headroom. Display240s aggregate/12s per view;final inspection/archive60s;3500s
+new total compute envelope. Estimates uncertain for random cases;roughly10..25min
+compute from prior work,not a promise. Keep solve/host/traceprep/BRep authoring/
+kernel/caps/display timers distinct. Native bodies individually hidden in each
+experiment;diagnostics,solver values,center originals visible. No new prose report;
+artifacts and existing documentation retain every outcome. Do not claim full
+physical/native compliance from these finite checks.
+
+Resource revision at display checkpoint37:the1.9GiB scheduling gate blocked case38
+before any attempt;postcase37RSS2031328KiB,idle review834560KiB. A reviewed unchanged
+continuation was again blocked before case38. User explicitly increased the limit
+to4GiB. Remaining current-run operations now use4194304KiB ceiling/3984588KiB
+launch headroom;all fixed inputs,source pins,per-case/aggregate timing limits and
+no-retry rules remain unchanged. Original stops and renewed procedure provenance
+are retained under artifacts/verification/ribbon_generated90/. This overrides the
+initial2GiB plan for the remaining run;it does not revise historical measurements.
+
+### Generated90 result
+
+64planned/64numerically evaluated/47native attempted/47built/0fully audited.
+
+| Stratum | Inputs | Numerically eligible | Native built | Mean solve+checks, built cases | Mean native construction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Normal | 16 | 16 | 16 | 8.128s | 2.735s |
+| Stress | 16 | 10 | 10 | 8.243s | 3.475s |
+| Random | 32 | 21 | 21 | 7.637s | 6.546s |
+
+17search-exhausted configurations remain unresolved and native-unattempted:
+S009,S011..S015,R003,R004,R008,R011,R012,R015,R017,R019..R021,R032.
+Their retained best attempts all miss positional closure and the terminal frame;
+none detects sampled contact or exceeds the measured center/lane bend limits.
+This is not proof of physical infeasibility. No solve retries,tuning or input changes.
+All47native configurations pass solid/original-cubic-cap/practical-target checks;
+46also pass strict fixed-target caps. S008retains0.311150mm maximum fixed-target
+gap against0.45mm practical allowance.1161child solids are subordinate workload,
+not1161independent configurations. All hidden individually;64diagnostic sheets/
+center guides visible,192original guides retained,max reproduction error1.14e-13mm.
+
+Timing goal passes12/47,misses35/47. Matched native construction1.979..10.507s;
+solve+checks2.422..14.269s. SDK508.773s,host replay/checks141.597s,native construction
+215.970s(native phase370.232s including trace prep/audits/guard overhead),display
+152.731s. Native phase includes authoring/kernel subsets,not graphics. Final
+inspection/captures13.978s plus bounded closeups;orchestration wall time unmeasured.
+No final SDK/host/native stop;initial resource and replay-harness stops retained.
+
+R017diagnostic replay initially rejected a3.55e-15 cross-runtime carrier-bound
+difference. One separately planned supplemental diagnostic replay rehydrated the
+original raw field without clamping;the unsuccessful classification stayed fixed.
+Only unsuccessful diagnostic coordinates within4ULP of host bounds qualify for
+that adapter;passing candidates retain the unchanged chart gate. Four removed
+views(R002..R005)interrupted layout and were restored from the same immutable
+Evidence without solving. All64postflight entries and overview/family/closeup
+captures retained in artifacts/verification/ribbon_generated90/. Same source pins
+and manifest verified after native work,before recording the4GiB policy in docs.
+Continuous clearance,native interior strain/banking,interior event realization and
+full mechanical compliance remain unmeasured. Unknown random feasibility and
+examined stress inputs prevent a universal/generalized-success claim. One owned
+unsaved Untitled project open;production/standards unchanged. Prose-only maintained
+changes use diff review;application/fullQA checks are not rerun for this record.
+
 ## Frozen83 breadth —48 new fixed boundary configurations
 
 User saved the current project and requests a new one for a much larger matrix.

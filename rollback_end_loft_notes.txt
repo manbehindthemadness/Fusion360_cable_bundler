@@ -352,3 +352,12 @@ times and failures. Native sweep BRep bodies default hidden individually in each
 experiment's Bodies folder;diagnostic graphics remain visible. Keep physical,
 resource,API,source and construction/cap gates,bounded scope and historical stops.
 No change to fixed inputs,solver geometry or production authorization.
+
+USER-DIRECTED MEMORY REVISION — 2026-10-27
+
+During generated90,user explicitly instructed "expand the limit to 4gb" after
+the earlier1.9GiB scheduling gate blocked display work. Ongoing ribbon experiments
+now use4GiB sampledFusion/localRSS ceiling and3.8GiB launch headroom,superseding
+earlier2GiB values for future operations only. Preserve historical resource stops,
+bounded plans,time/physical/source gates and no-retry accounting. Generated90's
+renewal37-4g artifact precedes resumption;its earlier measurements stay unchanged.
