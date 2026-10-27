@@ -34,6 +34,20 @@ class Ruling:
     flat_end: Vector3
 
 
+@dataclass(frozen=True)
+class NearPair:
+    """
+    Retain one eligible full-width proximity pair without changing screening policy.
+    """
+
+    first: Ruling
+    second: Ruling
+    distance_mm: float
+    flat_distance_mm: float
+    first_point: Vector3
+    second_point: Vector3
+
+
 def rulings(
     candidate: EdgeCandidate, stations: int, checkpoint: Callable[[], None]
 ) -> tuple[Ruling, ...]:
@@ -82,7 +96,11 @@ def rulings(
 
 
 def screen(
-    samples: tuple[Ruling, ...], thickness_mm: float, checkpoint: Callable[[], None]
+    samples: tuple[Ruling, ...],
+    thickness_mm: float,
+    checkpoint: Callable[[], None],
+    *,
+    pair_observer: Callable[[NearPair], None] | None = None,
 ) -> dict[str, Any]:
     """
     Find full-width ruling pairs closer than thickness outside a local flat zone.
@@ -92,6 +110,8 @@ def screen(
     rejection. These exclusions can miss contacts: report them and never claim
     continuous surface or native-thickness clearance. Retain the closest eligible
     witness inside the search horizon and completed counters,not all pair records.
+    An optional observer receives each eligible pair after the unchanged spatial
+    and material filters. It must not mutate inputs;observer errors propagate.
     """
     if not math.isfinite(thickness_mm) or thickness_mm <= 0:
         raise ValueError("Clearance thickness must be finite and positive.")
@@ -128,6 +148,8 @@ def screen(
                 local_excluded += 1
                 continue
             eligible += 1
+            if pair_observer is not None:
+                pair_observer(NearPair(left, right, distance, material, p, q))
             if distance < thickness_mm:
                 contacts += 1
             if distance < closest:

@@ -9,7 +9,12 @@ import math
 import pytest
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude, unit
-from experiments.experiment_ribbon_cap_transition.edge_clearance import Ruling, rulings, screen
+from experiments.experiment_ribbon_cap_transition.edge_clearance import (
+    NearPair,
+    Ruling,
+    rulings,
+    screen,
+)
 from experiments.experiment_ribbon_cap_transition.edge_first import BoundaryCurve, EdgeCandidate
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
@@ -60,6 +65,23 @@ def test_material_neighbors_are_explicitly_excluded() -> None:
     assert not result["contact_detected"]
     assert result["local_pairs_excluded"] == 1
     assert result["eligible_near_pairs"] == 0
+
+
+def test_pair_observer_preserves_filtering_and_default_screen_results() -> None:
+    """
+    Expose every eligible witness without changing acceptance or local exclusions.
+    """
+    observed: list[NearPair] = []
+    baseline = screen(_pair(0.25, 20), 1.5, _checkpoint)
+    result = screen(_pair(0.25, 20), 1.5, _checkpoint, pair_observer=observed.append)
+    assert {k: v for k, v in result.items() if k != "pair_seconds"} == {
+        k: v for k, v in baseline.items() if k != "pair_seconds"
+    }
+    assert len(observed) == 1 and observed[0].distance_mm == pytest.approx(0.25)
+    observed.clear()
+    screen(_pair(0.25, 2), 1.5, _checkpoint, pair_observer=observed.append)
+    screen(_pair(4, 20), 1.5, _checkpoint, pair_observer=observed.append)
+    assert observed == []
 
 
 @pytest.mark.parametrize("thickness", [0, -1, float("nan"), float("inf")])

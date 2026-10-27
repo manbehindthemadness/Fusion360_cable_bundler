@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from cable_bundler.routing.geometry import difference, magnitude
 
+from .compatible_coordinates import probe_coordinates, seed_coordinates, trial_coordinates
 from .compatible_strip import BendMapping, CompatibleField, CompatiblePath, integrate_compatible
 from .director_route_objective import ObjectiveScope, free_penalties, routing_penalties
 from .director_routing_field import RoutingField
@@ -127,11 +128,8 @@ def solve(
     rankings = []
     seed_started = perf_counter()
     for index, raw in enumerate(candidates() + (seed(case), seed(case, SeedMethod.CORKSCREW))):
-        bend_bound = sum(abs(v) for v in raw[:5])
-        ruling_bound = 2 * math.pi * (abs(raw[5]) + abs(raw[6]) + 2 * abs(raw[7]) + 2 * abs(raw[8]))
-        required_budget = 1.2 * (bend_bound * reach / 0.78 + 2 * half * ruling_bound)
-        ratio = min(maximum, max(1.0, raw[9], required_budget / chord))
-        coordinates = raw[:9] + (ratio,)
+        coordinates = seed_coordinates(case, raw)
+        ratio = coordinates[9]
         path = integrate_values(coordinates, 64)
         errors = errors_for(path)
         error = sum(v * v for v in errors)
@@ -182,10 +180,7 @@ def solve(
                 break
             columns = []
             for i in range(10):
-                limit = 4 * math.pi if i < 5 else 3.0 if i < 9 else maximum
-                probe = list(values)
-                probe[i] += -1e-5 if values[i] >= limit else 1e-5
-                probe_values = bounded(tuple(probe), maximum_ratio=maximum)
+                probe, probe_values = probe_coordinates(values, i, maximum)
                 _, probe_errors = observe(probe_values, grid)
                 difference_step = probe_values[i] - values[i]
                 column = tuple((a - b) / difference_step for a, b in zip(probe_errors, errors))
@@ -201,12 +196,9 @@ def solve(
                     }
                 )
             delta = damped_step(columns, errors, damping)
-            norm = math.sqrt(sum(v * v for v in delta))
-            scale = min(1.0, 1.5 / norm) if norm else 1.0
             accepted = False
             for fraction in (1.0, 0.5):
-                requested = tuple(a + fraction * scale * b for a, b in zip(values, delta))
-                proposed = bounded(requested, maximum_ratio=maximum)
+                requested, proposed = trial_coordinates(values, delta, fraction, maximum)
                 candidate, observed = observe(proposed, grid)
                 candidate_error = sum(v * v for v in observed)
                 trials.append(

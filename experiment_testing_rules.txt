@@ -15,6 +15,28 @@ These are mandatory working instructions, not implemented runtime enforcement.
 They do not guarantee correctness by themselves. If a gate cannot be evidenced,
 say so and stop the affected work rather than assuming it passed.
 
+USER-DIRECTED AUTONOMOUS CONTINUATION — 2026-10-26
+------------------------------------------------
+For the current ribbon-routing investigation,the user explicitly authorizes
+adapting,researching and trying techniques until a solid candidate is found and
+requests continuation without approval check-ins. This supersedes mandatory user
+approval/renewal requests in sections3,6,7and10 for this investigation. Freeze and
+review bounded plans autonomously;report meaningful progress and final evidence.
+After a failed or exhausted run,preserve it,diagnose the cause,and record a new
+source-pinned plan before another attempt. Do not erase failures or silently alter
+an in-flight plan. A review is still required,but does not require user permission.
+
+Retain fixed targets/identities,physical-rule checks,independent-case accounting,
+one owned scratch,provenance and production boundaries. Retain the2GiB sampled
+Fusion RSS ceiling and per-operation scheduling limits. Resource/API/source errors
+stop the affected run;correct and re-plan safely before continuing. Do not schedule
+more native work near the memory ceiling or presume cancellation of an in-flight
+kernel. User-required solve time must not exceed matched native construction time;
+include all cold search and numerical feasibility work,excluding graphics/captures
+from the construction benchmark. No approval is needed to change techniques within
+these conditions;unrelated destructive actions and production promotion remain
+outside this authorization. This exception does not change historical results.
+
 1. Freeze the question and contract before paying for an answer
 -------------------------------------------------------------
 Write a short run plan before execution: hypothesis, algorithm/version, allowed

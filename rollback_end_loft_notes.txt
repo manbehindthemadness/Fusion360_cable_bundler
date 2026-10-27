@@ -331,3 +331,14 @@ an incorrect terminal frame. Orientation remains separately measured; no new
 angular tolerance is inferred. User explicitly retained the tighter NEAR_LIMIT
 bend mapping after observing bend41's routing failures. No production change or
 new expensive fitting/build batch is authorized by this clarification alone.
+
+USER-DIRECTED AUTONOMOUS ROUTING INVESTIGATION — 2026-10-26
+
+User now authorizes adapting,researching and trying techniques until a solid
+candidate is found,without approval check-ins. The explicit exception at the top
+of experiment_testing_rules.txt replaces its per-batch renewal/approval requirement
+for this investigation. Keep bounded source-pinned plans,failed results,physical
+checks,fixed targets/identities and the2GiB sampledFusionRSS ceiling. Solve plus
+numerical feasibility time must not exceed the candidate's own native construction
+time;graphics and audit overhead do not inflate that benchmark. Production remains
+unchanged. This records authorization,not a claim that a candidate has been solved.
