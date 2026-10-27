@@ -1,6 +1,6 @@
 ---
 name: fusion-ribbon-analysis
-description: Inspect and demonstrate ribbon-routing behavior in Fusion with shared numerical evidence, trajectory guides, diagnostic meshes, failure intervals and measurement graphs. Use for solver collaboration and explaining suspicious ribbon shapes; this is not a native sweep builder or physical simulator.
+description: Generate reproducible ribbon-routing test cases and inspect solved paths in Fusion with shared numerical evidence, trajectory guides, diagnostic meshes, failure intervals and measurement graphs. Use for solver generalization tests and explaining suspicious ribbon shapes; this is not a native sweep builder or physical simulator.
 ---
 
 # Fusion Ribbon Analysis
@@ -21,6 +21,16 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
 `adsk` and an explicitly owned development component in the active idle document.
 
 ## Working together
+
+- For new batches,read [case generation](references/case-generation.md). The
+  host-only generator freezes25%mandatory normal solos/combinations,25%known stress
+  inputs/variations and50%independent randomized boundary challenges. Generate
+  before solving,retain the complete JSON/seed/source digest,and never filter or
+  resample based on success. Replay saved inputs;promote a useful failure to the
+  versioned stress inventory only between runs. Finite randomized runs increase
+  confidence,not prove universal generality. Endpoint-only scenario events remain
+  intent until independently measured;unknown feasibility is not a known failure
+  oracle. Keep all solver failures/exhausted/unattempted cases in the denominator.
 
 - Start from the user's question and an existing candidate when possible. Keep
   its identities, material ordering, fixed target poses and source provenance.

@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "reference": "legacy-07",
+      "note": "Historical routing/width-clearance difficulty;not an infeasibility certificate.",
+      "source": "artifacts/verification/ribbon_cap_transition/compatible28/autonomous49-ledger.json",
+      "sha256": "f092e76dca5b36a1a02f85345e75052d5c1561ee07c274c2222845160c0eac19",
+      "targets": {
+        "name": "reference_banked_crossover",
+        "start": {
+          "x": -40,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 0,
+          "y": 50,
+          "z": 15
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "lines": 19,
+        "diameter_mm": 1.5
+      }
+    },
+    {
+      "reference": "legacy-08",
+      "note": "Historical routing/width-clearance difficulty;not an infeasibility certificate.",
+      "source": "artifacts/verification/ribbon_cap_transition/compatible28/autonomous49-ledger.json",
+      "sha256": "f092e76dca5b36a1a02f85345e75052d5c1561ee07c274c2222845160c0eac19",
+      "targets": {
+        "name": "lateral_90",
+        "start": {
+          "x": -40,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 0,
+          "y": 50,
+          "z": 15
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 6.123233995736766e-17,
+          "y": 1.0,
+          "z": 0
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": -1.0,
+          "y": 6.123233995736766e-17,
+          "z": 0
+        },
+        "lines": 19,
+        "diameter_mm": 1.5
+      }
+    },
+    {
+      "reference": "legacy-11",
+      "note": "Historical routing/width-clearance difficulty;not an infeasibility certificate.",
+      "source": "artifacts/verification/ribbon_cap_transition/compatible28/autonomous49-ledger.json",
+      "sha256": "f092e76dca5b36a1a02f85345e75052d5c1561ee07c274c2222845160c0eac19",
+      "targets": {
+        "name": "quarter_plus",
+        "start": {
+          "x": -40,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 40,
+          "y": 12,
+          "z": 8
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "lines": 19,
+        "diameter_mm": 1.5
+      }
+    },
+    {
+      "reference": "legacy-12",
+      "note": "Historical routing/width-clearance difficulty;not an infeasibility certificate.",
+      "source": "artifacts/verification/ribbon_cap_transition/compatible28/autonomous49-ledger.json",
+      "sha256": "f092e76dca5b36a1a02f85345e75052d5c1561ee07c274c2222845160c0eac19",
+      "targets": {
+        "name": "quarter_minus",
+        "start": {
+          "x": -40,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 35,
+          "y": -16,
+          "z": 12
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 0,
+          "y": 0,
+          "z": -1
+        },
+        "lines": 19,
+        "diameter_mm": 1.5
+      }
+    },
+    {
+      "reference": "legacy-13",
+      "note": "Historical routing/width-clearance difficulty;not an infeasibility certificate.",
+      "source": "artifacts/verification/ribbon_cap_transition/compatible28/autonomous49-ledger.json",
+      "sha256": "f092e76dca5b36a1a02f85345e75052d5c1561ee07c274c2222845160c0eac19",
+      "targets": {
+        "name": "half_oblique",
+        "start": {
+          "x": -40,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 35,
+          "y": 15,
+          "z": -15
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 0.9578262852211513,
+          "y": 0.0,
+          "z": 0.2873478855663454
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 0,
+          "y": -1,
+          "z": 0
+        },
+        "lines": 19,
+        "diameter_mm": 1.5
+      }
+    },
+    {
+      "reference": "G07",
+      "note": "Complex spatial ordered-roll boundary;native sweep build observed in prior batch.",
+      "source": "artifacts/verification/ribbon_cap_transition/generalization73/plan.json",
+      "sha256": "12cd6115336c1de72d001b7324b8c9c452f5e873ee81640f319a57df24b7e7bb",
+      "targets": {
+        "name": "G07 wide half roll",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 120,
+          "y": 22,
+          "z": -30
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 0.9455185755993168,
+          "y": 0.0,
+          "z": 0.3255681544571567
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": -3.98705998260268e-17,
+          "y": -1.0,
+          "z": 1.157926297142068e-16
+        },
+        "lines": 32,
+        "diameter_mm": 0.75
+      }
+    },
+    {
+      "reference": "G08",
+      "note": "Complex spatial ordered-roll boundary;native sweep build observed in prior batch.",
+      "source": "artifacts/verification/ribbon_cap_transition/generalization73/plan.json",
+      "sha256": "12cd6115336c1de72d001b7324b8c9c452f5e873ee81640f319a57df24b7e7bb",
+      "targets": {
+        "name": "G08 oblique negative roll",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 70,
+          "y": -30,
+          "z": -18
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": 0.8901313467474784,
+          "y": 0.39631200926429655,
+          "z": -0.224951054343865
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 0.1422936638016482,
+          "y": -0.7106715146022892,
+          "z": -0.6889836801948155
+        },
+        "lines": 19,
+        "diameter_mm": 1.2
+      }
+    },
+    {
+      "reference": "B02",
+      "note": "Strict target closure miss;0.311150283mm native gap within existing0.45mm practical allowance.",
+      "source": "artifacts/verification/ribbon_cap_transition/breadth83/plan.json",
+      "sha256": "1ae380f0296bb5289fd2c22d390f10d41868c875ced3d6d8c5c545192da79146",
+      "targets": {
+        "name": "B02 planar U",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 12.6
+        },
+        "start_tangent": {
+          "x": 1,
+          "y": 0,
+          "z": 0
+        },
+        "end_tangent": {
+          "x": -1.0,
+          "y": 1.2246467991473532e-16,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "end_width": {
+          "x": 1.2246467991473532e-16,
+          "y": 1.0,
+          "z": 1.2246467991473532e-16
+        },
+        "lines": 7,
+        "diameter_mm": 0.9
+      }
+    }
+  ]
+}

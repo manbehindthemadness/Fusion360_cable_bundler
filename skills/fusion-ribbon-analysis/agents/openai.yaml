@@ -1,4 +1,4 @@
 interface:
   display_name: "Fusion Ribbon Analysis"
-  short_description: "Inspect ribbon failures with shared visual evidence"
-  default_prompt: "Use $fusion-ribbon-analysis to inspect this ribbon candidate and explain its failing regions using shared measurements and Fusion graphics."
+  short_description: "Generate ribbon tests and inspect shared visual evidence"
+  default_prompt: "Use $fusion-ribbon-analysis to generate reproducible routing test cases or inspect a solved ribbon using frozen inputs, shared measurements and Fusion graphics."

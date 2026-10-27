@@ -1,5 +1,10 @@
 # Candidate and evidence API
 
+For a new25/25/50test matrix,use the host-only generator described in
+[case generation](case-generation.md). Its `candidate_for` adapter connects a
+solved or partially solved path to an exact frozen boundary case;no-path outcomes
+remain separate dispositions rather than disappearing from coverage.
+
 Import from the repository root, using its configured Python environment for
 host work. In a Fusion MCP script, add the resolved repository root to `sys.path`
 only if it is absent. Never install a PyPI substitute for Fusion's `adsk`.
