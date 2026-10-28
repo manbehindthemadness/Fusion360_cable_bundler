@@ -11,11 +11,16 @@ from ..api import Candidate
 from ..contracts import RibbonPath
 from .codec import fingerprint, read, write
 from .generator import generate
-from .models import Case, Event, Manifest, RandomBounds
+from .installations import FAMILIES, Connector, Installation
+from .models import Case, Event, GenerationMode, Manifest, RandomBounds
 
 __all__ = [
     "Case",
+    "Connector",
     "Event",
+    "FAMILIES",
+    "GenerationMode",
+    "Installation",
     "Manifest",
     "RandomBounds",
     "candidate_for",
@@ -44,5 +49,5 @@ def candidate_for(
     if path.field.lines != case.targets.lines or path.field.diameter_mm != case.targets.diameter_mm:
         raise ValueError("Solved path dimensions differ from frozen targets.")
     digest = fingerprint(manifest)
-    source = f"solver:{solver_source};batch:{digest};generator:{manifest.generator_digest};stratum:{case.stratum};reference:{case.reference};events:intent-only"
+    source = f"solver:{solver_source};batch:{digest};generator:{manifest.generator_digest};mode:{manifest.mode};stratum:{case.stratum};reference:{case.reference};events:intent-only"
     return Candidate(digest[:12] + ":" + case.identifier, path, case.targets, source)

@@ -1,5 +1,5 @@
 """
-Create solver-independent25/25/50batches with fixed controls and free random poses.
+Create solver-independent25/25/50batches with selectable dynamic input strategies.
 """
 
 from __future__ import annotations
@@ -16,7 +16,8 @@ from cable_bundler.routing.geometry import Vector3, cross
 
 from ..contracts import Targets
 from .codec import target_from_data
-from .models import Case, Manifest, RandomBounds
+from .installation_recipes import installation_case
+from .models import Case, GenerationMode, Manifest, RandomBounds
 from .recipes import BASICS, COMBINATIONS, compile_pose
 
 
@@ -112,22 +113,34 @@ def _random_case(seed: int, index: int, bounds: RandomBounds) -> Case:
 
 
 def generate(
-    *, size: int = 64, seed: int | None = None, bounds: RandomBounds | None = None
+    *,
+    size: int = 64,
+    seed: int | None = None,
+    bounds: RandomBounds | None = None,
+    mode: GenerationMode = "random",
 ) -> Manifest:
     """
-    Freeze normal quarter,stress quarter and independent random half before solving.
+    Freeze controls/stress and either arbitrary poses or coupled installations.
 
     First12normal cases always contain eight solos and four compounds;first eight
     stress cases retain exact known inputs. Larger quarters extend these without
     replacing them. Baselines and stress inputs are seed-independent. A missing
     seed obtains64bits of system entropy,which the manifest saves for replay.
+    Random mode retains the original distribution and schema. Installation mode
+    defaults to2..12width chords and generic board/panel families in the final
+    half;explicit bounds override those scale assumptions. Neither mode solves.
     """
     if isinstance(size, bool) or not isinstance(size, int) or not 48 <= size <= 4096 or size % 4:
         raise ValueError("Choose48..4096cases in multiples of4.")
     seed = secrets.randbits(64) if seed is None else seed
     if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2**64:
         raise ValueError("Seed must be an unsigned64-bit integer.")
-    bounds = RandomBounds() if bounds is None else bounds
+    if mode not in ("random", "installation"):
+        raise ValueError("Choose generator mode random or installation.")
+    if bounds is None:
+        bounds = RandomBounds(minimum_chord_widths=2) if mode == "installation" else RandomBounds()
+    if not isinstance(bounds, RandomBounds):
+        raise ValueError("Generation needs frozen RandomBounds.")
     quarter = size // 4
     cases: list[Case] = []
     for index in range(quarter):
@@ -179,10 +192,13 @@ def generate(
                 "Generated compact stress variation;unknown feasibility. Parent:" + parent.note,
             )
         )
-    cases.extend(_random_case(seed, index, bounds) for index in range(1, 2 * quarter + 1))
+    dynamic_case = _random_case if mode == "random" else installation_case
+    cases.extend(dynamic_case(seed, index, bounds) for index in range(1, 2 * quarter + 1))
     directory = Path(__file__).parent
     digest = hashlib.sha256()
     for path in sorted((*directory.glob("*.py"), directory / "stress_inventory.json")):
         digest.update(path.name.encode())
         digest.update(path.read_bytes())
-    return Manifest(1, seed, bounds, tuple(cases), digest.hexdigest())
+    return Manifest(
+        1 if mode == "random" else 2, seed, bounds, tuple(cases), digest.hexdigest(), mode
+    )

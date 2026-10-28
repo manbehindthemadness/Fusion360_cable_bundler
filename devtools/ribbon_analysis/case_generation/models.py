@@ -11,9 +11,11 @@ from types import MappingProxyType
 from typing import Literal, Mapping
 
 from ..contracts import Targets
+from .installations import Installation
 
 Kind = Literal["u", "s", "lateral", "twist"]
 Stratum = Literal["normal", "stress", "random"]
+GenerationMode = Literal["random", "installation"]
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,7 @@ class Case:
     events: tuple[Event, ...]
     reference: str
     note: str
+    installation: Installation | None = None
 
     def __post_init__(self) -> None:
         """
@@ -108,6 +111,10 @@ class Case:
         Targets.capture(self.targets)
         if self.targets.start == self.targets.end:
             raise ValueError("Endpoint challenges need a nonzero chord.")
+        if self.installation is not None:
+            if not isinstance(self.installation, Installation) or self.stratum != "random":
+                raise ValueError("Only the dynamic half can carry installation context.")
+            self.installation.validate_targets(self.targets)
 
 
 @dataclass(frozen=True)
@@ -121,13 +128,22 @@ class Manifest:
     bounds: RandomBounds
     cases: tuple[Case, ...]
     generator_digest: str
+    mode: GenerationMode = "random"
 
     def __post_init__(self) -> None:
         """
         Enforce full inventory coverage and exact quarter allocation before solving.
         """
-        if self.version != 1 or isinstance(self.version, bool) or not isinstance(self.version, int):
+        if (
+            self.version not in (1, 2)
+            or isinstance(self.version, bool)
+            or not isinstance(self.version, int)
+        ):
             raise ValueError("Unsupported case-generator version.")
+        if self.mode not in ("random", "installation") or self.version != (
+            1 if self.mode == "random" else 2
+        ):
+            raise ValueError("Manifest version disagrees with generator mode.")
         if (
             not isinstance(self.bounds, RandomBounds)
             or not isinstance(self.cases, tuple)
@@ -149,6 +165,10 @@ class Manifest:
         strata = ("normal",) * quarter + ("stress",) * quarter + ("random",) * (2 * quarter)
         if tuple(case.stratum for case in self.cases) != strata:
             raise ValueError("Cases must preserve ordered25/25/50strata.")
+        for case in self.cases:
+            expected_context = self.mode == "installation" and case.stratum == "random"
+            if (case.installation is not None) != expected_context:
+                raise ValueError("Installation context disagrees with generator mode/stratum.")
         if len({case.identifier for case in self.cases}) != size:
             raise ValueError("Case identities must be unique.")
         if (

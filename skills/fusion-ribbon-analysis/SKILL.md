@@ -28,7 +28,10 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
   before solving,retain the complete JSON/seed/source digest,and never filter or
   resample based on success. Replay saved inputs;promote a useful failure to the
   versioned stress inventory only between runs. Finite randomized runs increase
-  confidence,not prove universal generality. Endpoint-only scenario events remain
+  confidence,not prove universal generality. Choose the existing arbitrary-pose
+  mode or the parallel connector-installation mode explicitly for a run;both
+  retain normal/stress controls. Installation context is not an enforced keepout
+  model or a known-feasible oracle. Endpoint-only scenario events remain
   intent until independently measured;unknown feasibility is not a known failure
   oracle. Keep all solver failures/exhausted/unattempted cases in the denominator.
 

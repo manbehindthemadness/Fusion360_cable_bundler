@@ -15,6 +15,7 @@ from cable_bundler.routing.geometry import Vector3, difference, dot, magnitude
 from devtools.ribbon_analysis import api, constraint_geometry
 from devtools.ribbon_analysis.case_generation import (
     Event,
+    GenerationMode,
     RandomBounds,
     candidate_for,
     fingerprint,
@@ -128,6 +129,28 @@ def test_manifest_replay_is_exact_and_never_overwrites(tmp_path: Path) -> None:
         read(path)
 
 
+def test_legacy_payload_and_seeded_inputs_keep_their_pre_installation_digest(
+    tmp_path: Path,
+) -> None:
+    """
+    Lock the original v1 encoding and all48input poses against the pre-change digest.
+
+    The source digest is normalized because new source necessarily has a different
+    provenance. The expected content hash was captured before adding mode/context.
+    """
+    manifest = replace(generate(size=48, seed=123), generator_digest="0" * 64)
+    expected = "a76ee179c3711c7b29eba7234463ff89ba468595227bf048575ca821a0fb205a"
+    assert manifest.version == 1 and manifest.mode == "random"
+    assert fingerprint(manifest) == expected
+    path = tmp_path / "legacy.json"
+    write(manifest, path)
+    document = json.loads(path.read_text())
+    assert "mode" not in document
+    assert all("installation" not in case for case in document["cases"])
+    assert read(path) == manifest
+    assert fingerprint(read(path)) == expected
+
+
 @pytest.mark.parametrize(
     "mutation",
     (
@@ -213,21 +236,28 @@ class _Path:
         return Vector3(10 * u, offset_mm, 0), Vector3(10, 0, 0)
 
 
-def test_failed_path_reaches_diagnostics_with_frozen_targets_and_provenance() -> None:
+@pytest.mark.parametrize("mode", ("random", "installation"))
+def test_failed_path_reaches_diagnostics_with_frozen_targets_and_provenance(
+    mode: GenerationMode,
+) -> None:
     """
     Carry a real target miss into shared measurements without success filtering.
     """
-    manifest = generate(seed=12)
-    case = manifest.cases[0]
+    manifest = generate(seed=12, mode=mode)
+    case = manifest.cases[0] if mode == "random" else manifest.cases[-1]
     target = case.targets
     path = _Path(_Field(target.lines, target.diameter_mm, target.lines * target.diameter_mm / 2))
     candidate = candidate_for(manifest, case, path, solver_source="test-source-pin")
     assert candidate.targets == target
     assert fingerprint(manifest) in candidate.source
+    assert f"mode:{mode}" in candidate.source
     evidence = api.analyze(candidate, intervals=16)
     panel = next(item for item in constraint_geometry.build(evidence) if item.key == "targets")
     assert dict(panel.measurements)["center_gap_mm"] > 10
     with pytest.raises(ValueError, match="dimensions"):
         candidate_for(
-            manifest, case, replace(path, field=replace(path.field, lines=1)), solver_source="pin"
+            manifest,
+            case,
+            replace(path, field=replace(path.field, lines=target.lines + 1)),
+            solver_source="pin",
         )
