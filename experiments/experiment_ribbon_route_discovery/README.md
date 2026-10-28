@@ -1,5 +1,54 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated113 — fixed-carrier expansion closes S012 but retains contact
+
+Five examined configurations evaluated: S011/S012 and N001/N006/R013 controls.
+Three controls preserved by replay;zero new eligible routes. Zero native attempts,
+builds or full compliance audits;other59 development cases and holdouts unrun.
+This is a warm diagnostic from112's selected coordinates,not a cold solver test.
+
+`length_expansion` adds0.5/1/2 occupied ribbon widths to the carrier budget within
+the unchanged search ceiling. It holds that coordinate fixed and fits the other
+nine for12coarse/8fine rounds with three step fractions and a three-stall stop.
+Each variant starts independently from112. Already eligible routes are replayed
+without expansion. Unlike112,intermediate optimizer paths may collide;final width,
+intrinsic and endpoint gates remain unchanged. This is global route expansion,
+not literal continuation of a preserved prefix. It changes fitting allocation
+and intermediate acceptance,so it cannot isolate length alone as the cause.
+
+S011's three expanded variants remain clear but miss by34.309/41.937/60.126mm,
+versus28.392mm previously;all fail terminal orientation. Each variant rejects
+every shape update before the stall stop. The selected first expansion lowers
+combined endpoint score1.641->1.598 while worsening positional gap. This is a
+failure of this fitting procedure,not evidence that an expanded route cannot work.
+
+S012's half-width expansion misses by2.309mm with63 sampled contact pairs.
+One-width expansion closes position and strict orientation but has65 contact pairs;
+the ceiling-clamped largest expansion also closes but has55. These are sampled
+pair counts,not independent intersections. The gallery selects the lowest-score
+one-width result,explicitly rejected for contact. No intrinsic red regions occur.
+Thus extra carrier plus refitting can reach this target,but a clear approach still
+needs discovery. The user's literal-prefix-continuation hypothesis remains untested.
+
+Warm fit/replay+checks seconds: S0113.415,S0123.804,N0010.285,N0060.296,R0130.798;
+phase8.620s. Prior112 search is excluded. Three controls perform replay only.
+Limits787transports/case,40s/case,200s phase,4GiB RSS held without retries/stops;
+SDKfinal113824KiB,peak unmeasured. Final contact and512intrinsic checks included.
+No native construction timing exists;solve/build comparison remains unassessed.
+
+The owned112 gallery was replaced with five numbered113 views;center guides and
+solver values are visible,original edge guides retained,and S011/S012 circled red.
+S012 includes occupied-width contact witnesses. Fusion reproduced all five frozen
+closure/contact classifications;overview inspected. Host view phase14.932s includes
+replay/checks and graphics,not BRep construction. Largest retained hostRSS471056KiB.
+
+Three focused tests,Ruff and IDE inspections pass. The helper stays isolated;
+active105 solver,physical rules and historical49/64 result are unchanged. FullQA
+unrun. Evidence,source pins and all variants: `artifacts/verification/ribbon_generated113`.
+The [TrajOpt guidance on initialization and trial-model agreement](https://rll.berkeley.edu/trajopt/doc/sphinx_build/html/tips.html)
+informed the investigation. Next inspect S011's rejected descent steps and S012's
+occupied-width approach before adding search cost or interpreting failure as infeasibility.
+
 ## Generated112 — clear initialization pilot rejected; five views open
 
 Five independent examined configurations evaluated and displayed: N001, N006,
