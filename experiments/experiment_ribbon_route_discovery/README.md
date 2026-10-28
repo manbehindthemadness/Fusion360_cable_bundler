@@ -1,5 +1,71 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated114 — spatial guidance recovers S012 in the examined pilot
+
+Five independent development configurations planned/evaluated/displayed: S011,
+S012,N001,N006,R013. Four numerically eligible,one unresolved;S012 is newly eligible.
+The three controls replay unchanged112 paths and skip rerouting. The other59
+development cases and fresh holdouts are unattempted;this is not a64-case result.
+
+`spatial_approach` tests two opposite start-normal detours from112's clear paths.
+Three width-relative waypoint targets steer an outward route and tangent-aligned
+arrival. A finite rectangle one occupied width long and one width across reserves
+an approach hypothesis;exact segment-to-rectangle distance covers full ribbon
+rulings at17carrier fractions through u=.7. Later stations may enter that space.
+This is soft routing guidance,not an infinite plane barrier or a physical rule.
+Twelve coarse rounds at waypoint weight1,twelve at.15,eight fine at0 let endpoint
+fitting take over while approach penalties remain. Five step fractions reach1/16;
+three stalled rounds stop each stage. All ten original chart coordinates may move.
+Original physical bounds and final contact/intrinsic/terminal gates are unchanged.
+
+S012's positive-side trial closes but has61 sampled contact pairs. Negative-side
+trial closes with maximum gap3.101e-7mm,strict frame pass,zero129-ruling contact
+pairs and no512-intrinsic red regions. Same-parameter center displacement from112
+is38.935mm maximum/17.832mm RMS. The finite approach reservation still has zero
+minimum distance:the successful route does not satisfy every guidance request.
+No ablation isolates the cause among waypoint guidance,carrier initialization,
+smaller step fractions and fitting stages. Do not claim the corridor was cleared
+or continuous/native clearance certified.
+
+S011 now moves24.381/26.523mm maximum for the two sides,but gaps33.370/43.774mm
+still exceed the28.392mm baseline and both terminal frames fail. The gallery shows
+the lower combined-score new variant,not the smallest positional gap;the baseline
+and both trials remain in evidence. Its shown RMS displacement is20.012mm. These
+same-parameter measurements include reparameterization and are not Hausdorff bounds.
+
+Warm solve/replay+checks:S0116.283s,S0127.373s,N0010.310s,N0060.294s,R0130.966s;
+five-case phase15.253s. Prior112 search excluded;control timings are replay only.
+1041transport/case,40s/case,200s phase,4GiB RSS bounds held;no retries or stops.
+SDKfinal110384KiB,peak unmeasured. Frozen sources/inputs/trials under
+`artifacts/verification/ribbon_generated114`.
+
+Owned113 gallery replaced by five numbered114 views;actual trajectories and solver
+values visible,original guides retained. S011 remains circled red. New overlays
+show cyan finite approach,orange requested waypoint route and gray112centerline.
+These are explicitly routing hypotheses,not extra ribbon geometry. Fusion replay
+reproduced all five numerical outcomes;overview inspected. Host view phase15.226s
+includes6.595s replay/checks and6.994s graphics,not native construction.
+
+Separate frozen native phase:4planned/4attempted/4complete configurations,
+0fully audited. S011 not attempted because its target pose is unresolved. S012's
+19,N001's13,N006's13 and R013's61 conductor sweeps all build and pass target-cap
+checks. These106solids represent four configurations,not106independent successes.
+Native authoring+kernel seconds:S0123.257,N0013.645,N0062.331,R0137.761;
+phase23.616s also includes trace planning/cap checks. S012 warm solve7.373s exceeds
+construction3.257s;timing goal fails without abort. Cold full-solver timing remains
+unmeasured. Direct-mode feature health is unavailable;no warning text was reported.
+Native inter-trace clearance,banking,strain and complete compliance remain unmeasured.
+90s/case360s phase4GiB guards held;largest retained nativeRSS901344KiB,final471840KiB.
+All106bodies verified individually hidden in their respective components. Source
+pins pass;S011/S012 closeups inspected and full five-view gallery restored open.
+
+Six focused tests,Ruff lint/format and IDE inspections pass. The helper remains
+experimental;active105solver and its historical49/64result remain unchanged.
+FullQA and fresh generalization unrun. [CHOMP's workspace-guided path refinement](https://www.cs.cmu.edu/~mzucker/icra09-chomp.pdf)
+informed spatial guidance;this implementation is not CHOMP and adds no elastic
+equilibrium model. Next isolate the useful guidance and evaluate controlled
+generalization before integrating it;S011 remains a separate routing failure.
+
 ## Generated113 — fixed-carrier expansion closes S012 but retains contact
 
 Five examined configurations evaluated: S011/S012 and N001/N006/R013 controls.
