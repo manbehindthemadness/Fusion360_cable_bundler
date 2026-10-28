@@ -1,5 +1,117 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated111 — local-control pilot rejected; five-case gallery restored
+
+Five independent examined configurations planned/evaluated/displayed:N001,N006,
+S011,S012,R013. Three controls preserved;two unresolved,zero new eligible routes.
+Zero native attempts/builds/full audits;native failure rate unmeasured. The other
+59development inputs and fresh holdouts were not run. The user's conditional
+64-case expansion was not triggered because this pilot produced no new solution.
+
+`local_chart` adds four compact C2 bend and four ruling basis supports to a frozen
+108path,plus one carrier ratio. These numerical intervals introduce no physical
+hinges or segmentation. Zero overlay replays the original integration exactly.
+An analytic derivative bound preserves J>.1;the existing progress allocator and
+NEAR_LIMIT bend mapping retain center k*reach<.78 and lane radius>3.1D. Oversized
+ruling corrections still normalize the whole field;local independence is limited.
+These are compatible kinematics,not an elastic equilibrium or contact certificate.
+
+`local_clearance` tests at most four projected width rounds and twelve fine pose
+rounds under450transports/case. It uses original contact and endpoint checks;
+final512intrinsic analysis is independent. Cached108initialization is excluded.
+This changes coordinate shape and work allocation,not one isolated parameter.
+S011 rejects both first corrections and retains48contact pairs. S012 accepts one
+half-step and reduces71to67pairs,but still fails. All five retain strict terminal
+frames and negligible positional gaps;no intrinsic red regions are introduced.
+
+Warm fit+checks seconds:N0012.578,N0062.599,S0112.912,S0123.182,R0133.098.
+Five-case phase14.378s;fit-only subtotals2.318/2.326/2.574/2.822/2.302s.
+Evaluations134/134/198/247/134. The controls expose wasted fine polishing:the1e-13
+internal residual target keeps attempting unchanged already-accepted endpoints.
+This cost remains in the ledger;no speedup is claimed. Do not extend or integrate
+this unsuccessful policy. Helpers remain experimental replay evidence only;the
+active105solver and49/64historical successes are unchanged. No native build times
+exist for this pilot,and none are inferred from display or historical kernel work.
+
+After Fusion restart,the verified empty owned Untitled now contains five numbered
+diagnostic meshes,visible center splines and solver values,retained original A/B
+guides and red circles/occupied-width witnesses on S011/S012. No BReps were rebuilt.
+Fresh Fusion replay reproduced all five contact/closure/eligibility outcomes.
+Host replay+checks7.893s,graphics8.044s,five-view phase17.121s excluding final
+capture/number-label follow-up. Largest retained displayRSS344528KiB;SDKfinal112736KiB,
+peak unmeasured.20s/case100s SDK and40s/view200s host bounds held;no retries.
+
+Seven focused tests,Ruff lint/format and IDE inspections pass. Production,physical
+rules and standards unchanged;fullQA unrun. Evidence,source pins,all trials and
+viewport captures:`artifacts/verification/ribbon_generated111`. Research into
+[local curvature elements](https://radar.inria.fr/report/2024/elan/index.html#section-8.3)
+motivated this pilot;it does not reproduce MERCI. The failed corrections are
+consistent with [local-fit limitations](https://rll.berkeley.edu/trajopt/doc/sphinx_build/html/tips.html),
+not proof that another collision-aware initialization or local representation
+cannot solve the boundary cases. Next investigate route initialization before
+closure;do not respond by enlarging this failed patch-repair budget.
+
+## Generated110 — crossing and bend-limit inspection; no solver revision
+
+Five examined configurations planned/replayed:N001,N006,S011,S012,R013. No search,
+native attempts,builds or full compliance audits. Same frozen108 coordinates and
+105 boundary inputs;no new64-case run or holdout. Three controls retain no sampled
+contact;S011/S012 remain unresolved. The other59 configurations were not replayed.
+
+The closest crossing neighborhoods were independently tessellated at8,16and32
+intervals per local patch. Transverse segment/interior-triangle intersections
+occur at all three resolutions for both S011 and S012,even with zero sheet
+thickness. Thus the local mesh evidence supports genuine surface crossings,not
+just an inflated clearance envelope. Counts27/55/109 and26/52/104 are intersecting
+triangle pairs in the same two routes,not independent failures. This is a bounded
+local mesh check;coplanar/boundary contacts and continuous curved/native surfaces
+are not certified. Controls have no contact witness and skip this patch check.
+
+S012 reaches98.86%of its internal turn limit;123/513samples enter the near-limit
+shoulder. Minimum analytic center radius18.6996mm versus the internal18.4866mm
+floor;independent prior geometry measurements give18.6987mm versus the18.0244mm
+acceptance floor. Minimum measured conductor radius4.7373mm versus4.5mm acceptance
+and4.65mm internal floor. S011 reaches99.72%,with179/513shoulder samples. At these
+sampled paths there is little remaining tightening capacity. This does not prove
+that another route under unchanged rules is impossible. In S012 the center bound
+is the tighter turn bound at all513samples;the lane bound wins at23S011samples.
+
+Representation inspection:five global bend coefficients,four global ruling
+coefficients and carrier length control the whole route. The ruling derivative
+bound normalizes the entire field(scale.269775/.223895 for S011/S012),so editing
+one ruling coefficient changes geometry beyond the collision neighborhood.
+These are search/representation properties,not established physical laws. Local
+curve flexibility remains a hypothesis to test,not a demonstrated solution.
+The user's real-ribbon photograph supports the S011 loop family qualitatively;
+exact dimensions,clearance and endpoint-pose equivalence remain unmeasured.
+
+Retirement decision:do not append106novelty,107reverse initialization,108repeated
+repair or109coherent escape to the retained solver or increase their budgets.
+106was already reverted;107/109remain uncalled experimental evidence.108reused
+an existing repair in a diagnostic pilot,not a newly active stage. Removing these
+from future experiment scheduling saves further work,not current solver runtime.
+Keep the original width repair and102/105recoveries:they contributed S009/S015
+and preserve the49/64baseline. No blanket removal of useful recovery machinery.
+
+Research direction:bounded local-support bend/ruling coordinates with continuous
+joins and unchanged material/curvature/endpoint checks,combined with collision-aware
+initialization. [MERCI's authors](https://radar.inria.fr/report/2024/elan/index.html)
+describe local curvature elements and constrained assembly. This motivates testing
+representation locality;it does not establish a drop-in routing solution or speed.
+[Pan et al.](https://arxiv.org/html/1603.04060v1) allow their collision correction
+to leave developable shape space temporarily,so their postprocessor is not adopted
+as a compliant output under our rules. The [IPC study](https://ipc-sim.github.io/rigid-ipc/assets/rigid_ipc_paper_350ppi.pdf)
+motivates primitive-level contact investigation;our mesh check is not its CCD.
+
+Cached replay/inspection seconds:N001.03275,N006.03449,S011.26277,S012.21917,
+R013.03934;phase.62427s,finalRSS48912KiB,peak unmeasured.20s/case100s/phase4GiB
+gates held,no retries. Four synthetic intersection checks,Ruff and IDE pass.
+No solve/native build timing comparison is available in this no-search inspection.
+Source-pinned evidence/procedure:`artifacts/verification/ribbon_generated110`.
+Read-only Fusion verification confirms owned Untitled active/idle,64cases,6retained
+comparison views and1199individually hidden bodies. No geometry/visibility changes.
+Production,active solver,physical rules and standards unchanged. FullQA not run.
+
 ## Generated108/109 — closed-route crossing investigation, not adopted
 
 Five independent examined configurations in each paired comparison,not ten new
