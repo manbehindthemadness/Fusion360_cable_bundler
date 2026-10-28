@@ -1,5 +1,55 @@
 # Ribbon route-family discovery — development experiments
 
+## Generated112 — clear initialization pilot rejected; five views open
+
+Five independent examined configurations evaluated and displayed: N001, N006,
+S011, S012, R013. Three controls pass; both unresolved cases remain unresolved.
+Zero new eligible routes, native attempts, builds or full compliance audits.
+The other 59 development inputs and fresh holdouts were not attempted. The active
+105 solver and its historical 49/64 result remain unchanged.
+
+`clear_initialization` screens the unchanged 110-start bank, replays each start
+with the width-contact audit and selects at most two spatially distinct clear
+starts, preferring opposite signed sides of the start frame. This sign is only
+an initialization heuristic, not a topology certificate or a permanent plane.
+The original ten-coordinate chart then fits endpoints within unchanged physical
+bounds. Improving steps must pass the original contact audit at the candidate
+and three interior parameter interpolants. These finite samples do not establish
+continuous collision freedom. Coarse/fine fitting stops after three stalled
+rounds; already-closed controls avoid the unproductive fine polishing seen in111.
+
+S011 and S012 each have104/110 initially clear starts, yet selected results miss
+by28.392mm and47.376mm respectively and fail the strict terminal frame gate.
+All five final paths have zero sampled contact pairs and no intrinsic red regions.
+S011's selected trial accepts11 updates with zero contact-blocked proposals: its
+failure cannot be attributed solely to the collision filter. S012's selected
+trial accepts2 updates and rejects12 contact-producing proposals. Neither result
+establishes physical impossibility. More search under this policy is not justified.
+
+Cold solve+checks seconds: N0012.780, N0063.115, S0117.119, S0125.166, R0138.138;
+five-case phase26.341s. Limits:1260 transports/case,40s/case,200s/phase,4GiB RSS;
+no retries or limit stops. Final SDK RSS119472KiB; peak unmeasured. Native build
+times are unavailable, so the solve-versus-build target is unassessed here.
+
+Verified owned111 scratch geometry was replaced with five numbered112 diagnostic
+views. Center splines and solver values are visible, original edge guides remain
+available, and failed S011/S012 have large red circles. Fusion replay reproduced
+all five contact, closure and eligibility outcomes. View creation totals12.418s,
+including replay/checks and graphics; this is not BRep construction time. Largest
+retained host RSS426576KiB. The overview was inspected; no native bodies exist.
+
+Four focused tests, Ruff lint/format and IDE inspections pass. The experimental
+helper remains isolated replay evidence, not an active solver cost. Production,
+geometry rules and standards are unchanged; full QA is unrun. Frozen inputs,
+sources, all trial results and viewport capture are retained in
+`artifacts/verification/ribbon_generated112`.
+
+Research: [ribbon planning with feasible initialization followed by optimization](https://people.eecs.berkeley.edu/~pabbeel/papers/2015-TASE-ribbons.pdf)
+motivated the sequencing experiment. Its swept-channel model differs from this
+solver; this pilot does not implement its RRT planner. The next useful question
+is whether the ten global coordinates can represent a clear closed route before
+investing in another search policy; opposite-side seed choice alone did not help.
+
 ## Generated111 — local-control pilot rejected; five-case gallery restored
 
 Five independent examined configurations planned/evaluated/displayed:N001,N006,
