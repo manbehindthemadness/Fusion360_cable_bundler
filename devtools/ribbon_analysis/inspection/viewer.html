@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routing diagnostics</title>
+<style>
+  :root { color-scheme: light; font: 14px system-ui, sans-serif; color: #182c3a; background: #f4f6f8; }
+  body { margin: 18px; }
+  h1 { margin: 0 0 4px; font-size: 23px; }
+  p { line-height: 1.45; }
+  label { display: block; margin-top: 13px; font-weight: 600; }
+  select, button { font: inherit; padding: 7px; border: 1px solid #aab8c3; border-radius: 5px; background: white; color: inherit; }
+  select { width: 100%; margin-top: 5px; }
+  input[type=range] { width: 100%; accent-color: #286c9e; }
+  canvas { width: 100%; height: 340px; background: #fff; border: 1px solid #d0dae1; border-radius: 8px; touch-action: none; }
+  .muted { color: #536775; font-size: 12px; }
+  #status { padding: 10px; background: #e4edf4; border-left: 3px solid #347cae; line-height: 1.45; }
+  #error { color: #a51e28; white-space: pre-wrap; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 9px 0; }
+  .toolbar label { display: inline; margin: 0; font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  td, th { text-align: left; vertical-align: top; border-bottom: 1px solid #d0dae1; padding: 7px 4px; }
+  th { color: #536775; }
+  code { font-size: 11px; overflow-wrap: anywhere; }
+  #frame { font-variant-numeric: tabular-nums; white-space: pre-line; font-size: 12px; }
+  .axes { font-weight: 700; letter-spacing: 1px; }
+</style>
+<h1>Routing diagnostics</h1>
+<div id="case" class="muted">Waiting for the recorded experiment…</div>
+<label for="solver">Solver / reference</label><select id="solver"></select>
+<p id="status">No solver has been selected.</p>
+<label for="proposal">Search history <span id="proposalLabel"></span></label>
+<input id="proposal" type="range" min="-1" max="-1" value="-1" disabled>
+<div class="toolbar"><button id="previous">← Previous</button><button id="next">Next →</button><button id="result">Result</button></div>
+<p id="stage" class="muted"></p>
+<canvas id="canvas" aria-label="Rotatable three dimensional recorded cable geometry"></canvas>
+<div class="toolbar">
+  <label><input id="outlines" type="checkbox" checked> All sections</label>
+  <label><input id="envelope" type="checkbox" checked> Circular envelope</label>
+  <label><input id="axes" type="checkbox" checked> Local XYZ</label>
+  <button id="reset">Reset view</button>
+</div>
+<div class="muted">Drag to orbit · scroll to zoom · section colours repeat in path order</div>
+<label for="section">Section <span id="sectionLabel"></span></label>
+<input id="section" type="range" min="0" max="0" value="0" disabled>
+<p class="axes"><span style="color:#c32a31">X across</span> · <span style="color:#178e3d">Y thickness</span> · <span style="color:#2457d5">+Z forward</span></p>
+<div id="frame"></div>
+<p id="notice" class="muted"></p>
+<table><thead><tr><th>Rule / measurement</th><th>Status and scope</th></tr></thead><tbody id="rules"></tbody></table>
+<p id="source" class="muted"></p>
+<pre id="error"></pre>
+<script>
+"use strict";
+const element = id => document.getElementById(id);
+/** @typedef {{x:number, y:number, z:number}} XYZ */
+/** @typedef {{origin:XYZ, x:XYZ, y:XYZ, z:XYZ}} SectionFrame */
+/** @typedef {{index:number, u:number, frame:SectionFrame, outline:XYZ[], kind:string}} RecordedSection */
+/** @typedef {{number:number, controls:XYZ[]}} Guide */
+/** @typedef {{lines:number, guides:Guide[], sections:RecordedSection[]}} Snapshot */
+/** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
+/** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number}} Method */
+/** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>}} InspectionState */
+/** @type {?InspectionState} */
+let state = null;
+let yaw = -.65, pitch = .35, zoom = 1, pending = false;
+const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
+const xyz = p => [p.x, p.y, p.z];
+const add = (a, b, scale = 1) => a.map((v, i) => v + b[i] * scale);
+const sub = (a, b) => a.map((v, i) => v - b[i]);
+const norm = a => Math.hypot(...a);
+async function request(action, data = {}) {
+  if (pending) return;
+  if (!window.adsk?.fusionSendData) {
+    element("error").textContent = "Open this viewer through DiagnosticViewer.show() in Fusion to replay the archive.";
+    return;
+  }
+  pending = true;
+  try {
+    const raw = await window.adsk.fusionSendData(action, JSON.stringify(data));
+    const response = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (response && response.ok === false) element("error").textContent = response.error;
+  } catch (error) { element("error").textContent = String(error); }
+  finally { pending = false; }
+}
+/** @param {InspectionState} value */
+function receive(value) {
+  state = value;
+  if (state.visibility) for (const id of ["outlines", "envelope", "axes"]) element(id).checked = state.visibility[id];
+  const method = state.solvers.find(m => m.id === state.solver);
+  element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
+  element("solver").replaceChildren(...state.solvers.map(m => {
+    const option = document.createElement("option");
+    option.value = m.id; option.textContent = `${m.label} — ${m.status.replaceAll("_", " ")}`;
+    option.selected = m.id === state.solver; return option;
+  }));
+  element("status").textContent = method.detail;
+  element("proposal").max = method.history_count - 1;
+  element("proposal").value = state.proposal;
+  element("proposal").disabled = method.history_count === 0;
+  element("previous").disabled = state.proposal < 0;
+  element("next").disabled = state.proposal >= method.history_count - 1;
+  element("proposalLabel").textContent = state.proposal < 0 ? `(result · ${method.history_count} stored paths)` : `${state.proposal + 1} / ${method.history_count}`;
+  const info = state.proposal_info;
+  element("stage").textContent = info ? `${info.stage} · score ${info.score === null ? "unmeasured" : info.score.toPrecision(6)} · ${info.accepted === null ? "probe / initial / unscored" : info.accepted ? "objective decreased" : "trial rejected"}` : "Final/reference observations below. Each search proposal remains unaudited.";
+  const sections = state.snapshot?.sections || [];
+  element("section").max = Math.max(0, sections.length - 1);
+  element("section").value = state.section;
+  element("section").disabled = sections.length === 0;
+  const selected = sections[state.section];
+  element("sectionLabel").textContent = selected ? `${selected.index + 1} / ${sections.length} · u=${selected.u.toFixed(5)}` : "— no recorded geometry";
+  element("frame").textContent = selected ? ["Origin (mm)", "X", "Y", "+Z"].map((label, i) => `${label}: ${xyz(selected.frame[["origin", "x", "y", "z"][i]]).map(v => v.toFixed(5)).join(", ")}`).join("\n") : "";
+  element("notice").textContent = state.notice;
+  element("rules").replaceChildren(...method.rules.map(rule => {
+    const row = document.createElement("tr"), name = document.createElement("td"), detail = document.createElement("td");
+    name.textContent = rule.name;
+    detail.textContent = `${rule.status.replaceAll("_", " ")}: ${rule.detail}${rule.value === null ? "" : ` · value ${rule.value.toPrecision(6)}`}${rule.limit === null ? "" : ` · limit ${rule.limit.toPrecision(6)}`}`;
+    row.append(name, detail); return row;
+  }));
+  element("source").textContent = `Source: ${method.source}`;
+  element("error").textContent = "";
+  draw();
+}
+window.fusionJavaScriptHandler = {handle(action, data) {
+  if (action === "state") receive(JSON.parse(data));
+  if (action === "error") element("error").textContent = data;
+  return "OK";
+}};
+function draw() {
+  const canvas = element("canvas"), ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  canvas.width = width * ratio; canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
+  const snapshot = state?.snapshot;
+  if (!snapshot) { ctx.fillStyle = "#536775"; ctx.fillText("No geometry recorded for this method", 20, height / 2); return; }
+  const points = snapshot.guides.find(g => g.number === 0).controls.map(xyz);
+  const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
+  const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
+  const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
+  const scale = Math.min(width, height) * .72 / reach * zoom;
+  function project(point) {
+    const [x, y, z] = sub(point, center);
+    const a = Math.cos(yaw) * x + Math.sin(yaw) * z;
+    const b = -Math.sin(yaw) * x + Math.cos(yaw) * z;
+    return [width / 2 + a * scale, height / 2 - (Math.cos(pitch) * y - Math.sin(pitch) * b) * scale];
+  }
+  function line(vertices, color, weight = 1) {
+    ctx.strokeStyle = color; ctx.lineWidth = weight; ctx.beginPath();
+    vertices.map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.stroke();
+  }
+  for (const guide of snapshot.guides) {
+    if (snapshot.lines === 1 && guide.number !== 0) continue;
+    const controls = guide.controls.map(xyz), vertices = [];
+    for (let i = 0; i < controls.length - 1; i += 3) for (let j = 0; j < 4; j++) {
+      const t = j / 4, s = 1 - t;
+      vertices.push([0, 1, 2].map(k => s ** 3 * controls[i][k] + 3 * s ** 2 * t * controls[i+1][k] + 3 * s * t ** 2 * controls[i+2][k] + t ** 3 * controls[i+3][k]));
+    }
+    vertices.push(controls.at(-1));
+    line(vertices, guide.number === 0 ? "#245887" : "#a79580", guide.number === 0 ? 2 : 1);
+  }
+  const sections = snapshot.sections;
+  if (element("envelope").checked && sections.every(s => s.kind === "circle")) for (let i = 0; i < 32; i += 4) line(sections.map(s => xyz(s.outline[i])), "#bac7d0");
+  if (element("outlines").checked) sections.forEach(s => line(s.outline.map(xyz), colors[s.index % colors.length]));
+  const selected = sections[state.section];
+  line(selected.outline.map(xyz), "#ed23b4", 3);
+  if (element("axes").checked) {
+    const origin = xyz(selected.frame.origin), length = state.diameter_mm * 2.5;
+    ["x", "y", "z"].forEach((axis, i) => {
+      const tip = add(origin, xyz(selected.frame[axis]), length), end = project(tip), begin = project(origin);
+      const color = ["#c32a31", "#178e3d", "#2457d5"][i];
+      line([origin, tip], color, 2.5);
+      const angle = Math.atan2(end[1] - begin[1], end[0] - begin[0]);
+      ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(...end);
+      for (const sign of [-1, 1]) ctx.lineTo(end[0] - 8 * Math.cos(angle + sign * .4), end[1] - 8 * Math.sin(angle + sign * .4));
+      ctx.closePath(); ctx.fill(); ctx.font = "bold 13px system-ui"; ctx.fillText(["X", "Y", "+Z"][i], end[0] + 5, end[1] - 5);
+    });
+  }
+}
+element("solver").onchange = () => request("select", {solver: element("solver").value});
+const selectProposal = index => request("select", {solver: state.solver, proposal: index});
+element("proposal").onchange = () => selectProposal(Number(element("proposal").value));
+element("previous").onclick = () => selectProposal(state.proposal - 1);
+element("next").onclick = () => selectProposal(state.proposal + 1);
+element("result").onclick = () => selectProposal(-1);
+element("section").onchange = () => request("section", {index: Number(element("section").value)});
+for (const id of ["outlines", "axes", "envelope"]) element(id).onchange = () => {
+  draw(); request("visibility", Object.fromEntries(["outlines", "axes", "envelope"].map(key => [key, element(key).checked])));
+};
+element("reset").onclick = () => { yaw = -.65; pitch = .35; zoom = 1; draw(); };
+let drag = null;
+element("canvas").onpointerdown = event => { drag = [event.clientX, event.clientY]; event.target.setPointerCapture(event.pointerId); };
+element("canvas").onpointermove = event => {
+  if (!drag) return;
+  yaw += (event.clientX - drag[0]) / 150; pitch = Math.max(-1.5, Math.min(1.5, pitch + (event.clientY - drag[1]) / 150));
+  drag = [event.clientX, event.clientY]; draw();
+};
+element("canvas").onpointerup = () => { drag = null; };
+element("canvas").onwheel = event => { event.preventDefault(); zoom = Math.max(.25, Math.min(8, zoom * Math.exp(-event.deltaY / 500))); draw(); };
+window.addEventListener("resize", draw);
+window.addEventListener("load", () => request("ready"));
+</script>
+</html>

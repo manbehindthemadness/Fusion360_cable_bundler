@@ -1,5 +1,90 @@
 # Candidate and evidence API
 
+## Recorded search and section inspection
+
+Use `devtools.ribbon_analysis.inspection` for new diagnostic investigations. It
+keeps independent solver dispositions, frozen geometry and append-only search
+history separate from the legacy evidence/acceptance display below. The current
+experiment's inherited macaroni and collision acceptance claims were withdrawn;
+the legacy API remains useful for inspecting its named numerical measurements.
+
+```python
+from pathlib import Path
+from devtools.ribbon_analysis.inspection.fusion_view import DiagnosticViewer
+
+# Supply a component/document explicitly owned by this experiment.
+view = DiagnosticViewer(owned_component, owned_document, Path(manifest_path))
+view.show()
+# Keep `view` alive for the palette's event handlers.
+```
+
+The local palette and Fusion browser represent every registered method, including
+unrun and stopped methods. Historical families are listed with source locations;
+they are not automatically executed. Select a final/reference result or any stored
+search proposal, then move the section slider. Each section has a separate browser
+component. X lies across the section, Y through thickness, and positive Z follows
+the actual positive path derivative; X cross Y equals Z. The frame does not depend
+on a Frenet normal at an inflection. Drag the palette preview to orbit and scroll
+to zoom. Layer controls affect both the palette and the owned Fusion geometry.
+
+For one conductor, the profile is one circle of the declared diameter. For wider
+ribbons, captures contain open material rulings until the actual bonded contour
+is supplied. The viewer creates diagnostic graphics, never individual conductor
+solids. Sampled envelope lines are display approximations, not collision proofs.
+The rule table distinguishes measured, failed, legacy, unmeasured and inapplicable
+observations and never supplies an overall physical PASS. Observations belong to
+the final/reference geometry; individual historical proposals remain unaudited.
+
+```python
+from devtools.ribbon_analysis.inspection.capture import SearchRecorder
+
+recorder = SearchRecorder(history_path, "solver-identity", checkpoint)
+with recorder.recording():
+    result = solver(fixed_targets, checkpoint)
+```
+
+The compatible and unit-rotation transport entry points record every completed
+transport within this explicit context, including finite-difference probes and
+rejected trials. The bounded box fitter also records objective scores, coordinates
+and actual trial decisions. Other solver implementations need an explicit adapter
+calling `transported(path, integration_grid)`; an inventory entry alone does not
+instrument a solver. Recording leaves coordinates and fitting decisions unchanged,
+but its overhead consumes the scheduling budget and is reported as a subset.
+Path/control-point/byte ceilings raise rather than dropping proposals. Every path
+is flushed and fsynced before the next proposal; no record survives all possible
+hardware failures by guarantee. JSON content digests detect geometry tampering,
+not physical validity. Replay seeks a single indexed snapshot without solving.
+
+The first registered development fixture is a 1.5mm single circular conductor in
+a compound S-bend whose heading changes 90 degrees laterally during the S. Its
+analytic peak curvature attains the retained single-conductor limit, radius=3D
+(4.5mm). The authored fixture, measured cubic interpolation and native geometry
+are separate evidence. This does not define the unresolved wide-ribbon radius
+ratio/scalar/flex policy. Future fixtures must explicitly declare the applicable
+radius scalar and target utilization, using 100% utilization by default rather
+than silently choosing loose curves; measure and retain actual utilization.
+
+Run its bounded recording with the configured project SDK:
+
+```text
+uv run python -m experiments.experiment_ribbon_diagnostic_viewer.runner --output artifacts/verification/<unused-directory>
+```
+
+The frozen plan precedes search. `reference.json` survives independently of the
+final `manifest.json`; `.jsonl` files retain completed proposals in explicit order.
+After an interruption, recover without solving or replacing evidence:
+
+```text
+uv run python -m experiments.experiment_ribbon_diagnostic_viewer.runner --recover artifacts/verification/<interrupted-directory>
+```
+
+Recovery writes a uniquely named manifest, preserves any incomplete final JSONL
+line in place, and marks recovered paths as interrupted/unaudited. A malformed
+complete event still rejects. Keep the manifest and its relative history files
+together. An interrupted reference write or failed storage cannot be recovered
+from nonexistent evidence. Native construction and complete compliance remain
+unmeasured until separately attempted and audited.
+
 For a new25/25/50test matrix,use the host-only generator described in
 [case generation](case-generation.md). Its `candidate_for` adapter connects a
 solved or partially solved path to an exact frozen boundary case;no-path outcomes

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Callable
 
+from devtools.ribbon_analysis.inspection.capture import decision, search_stage
 from experiments.experiment_ribbon_cap_transition.compatible_strip import CompatiblePath
 from experiments.experiment_ribbon_cap_transition.director_constrained_step import constrained_step
 from experiments.experiment_ribbon_cap_transition.director_shooting import endpoint_metrics
@@ -64,7 +65,10 @@ def refine(
     qps: list[dict[str, Any]] = []
 
     def observe(
-        trial_values: tuple[float, ...], integration_grid: int
+        trial_values: tuple[float, ...],
+        integration_grid: int,
+        role: str = "initial",
+        reference_score: float | None = None,
     ) -> tuple[CompatiblePath, tuple[float, ...]]:
         """
         Count each required transport before computing endpoint/local-rule errors.
@@ -73,8 +77,16 @@ def refine(
         if evaluations >= work.transports:
             raise RuntimeError("Box fit transport cap.")
         evaluations += 1
-        evaluated = active_chart.integrate(case, trial_values, integration_grid, checkpoint)
-        return evaluated, errors_for(case, evaluated)
+        with search_stage(f"{role};grid={integration_grid}"):
+            evaluated = active_chart.integrate(case, trial_values, integration_grid, checkpoint)
+        observed_errors = errors_for(case, evaluated)
+        score_value = sum(value * value for value in observed_errors)
+        decision(
+            score_value,
+            score_value < reference_score if reference_score is not None else None,
+            trial_values,
+        )
+        return evaluated, observed_errors
 
     for grid, rounds, tolerance in ((64, work.coarse, 1e-6), (512, work.fine, 1e-12)):
         path, errors = observe(values, grid)
@@ -88,7 +100,7 @@ def refine(
             columns = []
             for index in range(dimensions):
                 parameters = active_chart.probe(case, values, index)
-                _, observed = observe(parameters, grid)
+                _, observed = observe(parameters, grid, f"probe coordinate {index}")
                 step = parameters[index] - values[index]
                 columns.append(tuple((a - b) / step for a, b in zip(observed, errors)))
             quadratic = constrained_step(
@@ -98,7 +110,7 @@ def refine(
             accepted = False
             for fraction in (1.0, 0.5):
                 proposed = active_chart.trial(case, values, quadratic.values, fraction)
-                candidate, observed = observe(proposed, grid)
+                candidate, observed = observe(proposed, grid, f"trial fraction {fraction}", score)
                 after = sum(value * value for value in observed)
                 trials.append(
                     dict(before=score, after=after, accepted=after < score, proposed=proposed)

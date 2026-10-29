@@ -22,6 +22,17 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
 
 ## Working together
 
+- For the user-directed diagnostic restart, use the recorded-search/section mode
+  in [the API reference](references/api.md#recorded-search-and-section-inspection).
+  Show current and historical method dispositions explicitly, preserve every
+  transported proposal, and use right-handed local XYZ with +Z along the path.
+  Its solver/section browser hierarchy and scoped rule table replace the legacy
+  helper/panel layout described below. Keep selected original guide sketches
+  hidden and all archived proposals replayable. Maximum-tightness fixtures must
+  declare the applicable radius scalar and utilization; the first is one circular
+  conductor in a compound S-bend turning90degrees laterally. This is a deliberate
+  single-case diagnostic detour, not the generalization matrix below.
+
 - For new batches,read [case generation](references/case-generation.md). The
   host-only generator freezes25%mandatory normal solos/combinations,25%known stress
   inputs/variations and50%independent randomized boundary challenges. Generate

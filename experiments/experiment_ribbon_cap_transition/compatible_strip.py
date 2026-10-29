@@ -14,6 +14,7 @@ from enum import Enum
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3
+from devtools.ribbon_analysis.inspection.capture import transported
 
 from .director_motion_transport import DirectorMotion, integrate_motion
 from .director_routing_field import RoutingField
@@ -191,4 +192,6 @@ def integrate_compatible(
     Transport one fixed compatible field with no search,repair or native construction.
     """
     states, rates = integrate_motion(field.motion, steps, checkpoint, initial=initial)
-    return CompatiblePath(field, states, rates)
+    path = CompatiblePath(field, states, rates)
+    transported(path, steps)
+    return path
