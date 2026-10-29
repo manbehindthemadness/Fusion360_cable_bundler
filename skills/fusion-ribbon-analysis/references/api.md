@@ -52,8 +52,14 @@ plot as Custom Graphics. Panels face the camera; physical radius circles retain
 their real bend planes. Final-result metadata also remains in a hidden native
 Solver details sketch inside the method component. Search proposals use their
 own recorded coefficients; older records without them say unavailable.
-**Constraint witnesses in Fusion** independently shows sampled bend circles and
-the actual-end-to-target segment. Neither visibility toggle relaxes a rule.
+**Constraint shapes (both views)** starts enabled and shows identical sampled
+bend circles and the actual-end-to-target segment in the palette and Fusion.
+The red circle marks minimum allowed radius (maximum bend), and blue marks actual
+radius, tangent at each guide's tightest sampled bend in its real bend plane.
+The green segment joins the recorded endpoint to its fixed target. Very large
+actual circles (over eight reference radii) are explicitly omitted while their
+measurements remain listed; straight guides have no osculating circle. Palette
+framing includes visible shape extents. Neither visibility toggle relaxes a rule.
 
 In the rule table, uncheck **Use in search** and choose **Compare selected solver**.
 This launches two fresh runs with the selected method's archived settings, fixed

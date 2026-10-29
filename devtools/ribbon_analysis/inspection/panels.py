@@ -5,13 +5,15 @@ Freeze solver panels, numerical plots and physical witnesses from recorded geome
 from __future__ import annotations
 
 import hashlib
+import math
 import textwrap
 from dataclasses import dataclass
 from typing import Any
 
-from cable_bundler.routing.geometry import Vector3, dot, magnitude, unit
+from cable_bundler.routing.geometry import Vector3, difference, dot, magnitude, unit
 
 from ..constraint_geometry import Overlay, Stroke, circle
+from ..contracts import Targets
 from ..traces import TracePath
 from .archive import canonical, snapshot_payload
 from .bends import inspect
@@ -182,18 +184,58 @@ def bend_witness(guide: TracePath, minimum: float, title: str) -> Overlay:
             guide.controls[0],
         )
     curvature, point, tangent, normal = best
-    actual, bound = (
-        circle(point, tangent, normal, 1 / curvature),
-        circle(point, tangent, normal, minimum),
-    )
+    actual_radius = 1 / curvature
+    strokes = [circle(point, tangent, normal, minimum)]
+    notes = [
+        f"Actual R={actual_radius:.5g}mm; declared search reference R={minimum:.5g}mm",
+        "Circle glyphs are sampled guides, not a physical certificate.",
+    ]
+    if actual_radius <= 8 * minimum:
+        actual = circle(point, tangent, normal, actual_radius)
+        strokes.append(Stroke("actual", actual.points))
+    else:
+        notes.append("Actual circle exceeds eight reference radii; omitted to preserve path scale.")
     return Overlay(
         "bend_witness",
         title,
-        (("actual_radius_mm", 1 / curvature), ("reference_radius_mm", minimum)),
-        (Stroke("actual", actual.points), bound),
-        (
-            f"Actual R={1 / curvature:.5g}mm; declared search reference R={minimum:.5g}mm",
-            "Circle glyphs are sampled guides, not a physical certificate.",
-        ),
+        (("actual_radius_mm", actual_radius), ("reference_radius_mm", minimum)),
+        tuple(strokes),
+        tuple(notes),
         point,
     )
+
+
+def witnesses(snapshot: PathSnapshot, targets: Targets) -> tuple[Overlay, ...]:
+    """
+    Share path-attached bend circles and the fixed-end gap between both renderers.
+
+    Each bend pair touches its guide's worst sampled point in the actual bend
+    plane. Red marks the historical minimum-radius search reference, blue the
+    measured radius. These references do not implement the missing physical policy.
+    """
+    half = targets.lines * snapshot.diameter_mm / 2 + snapshot.diameter_mm * 0.1
+    reach = math.hypot(half, snapshot.diameter_mm / 2)
+    overlays = [
+        bend_witness(
+            guide,
+            reach / 0.78 if guide.number == 0 else 3.1 * snapshot.diameter_mm,
+            "Macaroni / centre reach reference"
+            if guide.number == 0
+            else f"Macaroni / edge {guide.number} radius reference",
+        )
+        for guide in snapshot.guides
+    ]
+    center = next(guide for guide in snapshot.guides if guide.number == 0)
+    end = center.controls[-1]
+    gap = magnitude(difference(end, targets.end))
+    overlays.append(
+        Overlay(
+            "target_gap",
+            "Fixed end position",
+            (("gap_mm", gap),),
+            (Stroke("target", (end, targets.end)),) if gap > 1e-12 else (),
+            ("Green joins the recorded end to the unchanged target.",),
+            end,
+        )
+    )
+    return tuple(overlays)

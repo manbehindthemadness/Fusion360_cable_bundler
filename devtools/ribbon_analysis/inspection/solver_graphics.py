@@ -12,12 +12,12 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from cable_bundler.routing.geometry import Vector3, difference, magnitude
+from cable_bundler.routing.geometry import Vector3, difference
 
 from ..constraint_geometry import Overlay
 from ..graphics import draw_lines, draw_text, draw_trace
 from ..solver_details import retain_solver_details
-from .panels import bend_witness, build
+from .panels import build, witnesses
 from .session import Session
 
 
@@ -115,37 +115,10 @@ def render(
         _draw(component, chart, scale, screen_anchor=summary.anchor),
         _draw(component, summary, scale, screen_anchor=summary.anchor),
     ]
-    half = session.targets.lines * snapshot.diameter_mm / 2 + snapshot.diameter_mm * 0.1
-    reach = (half**2 + (snapshot.diameter_mm / 2) ** 2) ** 0.5
     helpers = []
-    for guide in snapshot.guides:
+    for overlay in witnesses(snapshot, session.targets):
         checkpoint()
-        minimum = reach / 0.78 if guide.number == 0 else 3.1 * snapshot.diameter_mm
-        helpers.append(
-            _draw(
-                component,
-                bend_witness(
-                    guide,
-                    minimum,
-                    "Centre reach reference"
-                    if guide.number == 0
-                    else f"Edge {guide.number} radius reference",
-                ),
-                scale,
-                captions=False,
-            )
-        )
-    center = next(guide for guide in snapshot.guides if guide.number == 0)
-    gap = component.customGraphicsGroups.add()
-    gap.name = "Constraint witness - fixed end position"
-    if magnitude(difference(center.controls[-1], session.targets.end)) > 1e-12:
-        draw_lines(
-            gap,
-            (center.controls[-1], session.targets.end),
-            (20, 160, 80),
-            "Actual end to fixed target",
-        )
-    helpers.append(gap)
+        helpers.append(_draw(component, overlay, scale, captions=False))
     baseline = session.baseline()
     ghost = None
     if baseline is not None:

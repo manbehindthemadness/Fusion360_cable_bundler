@@ -103,7 +103,7 @@ class DiagnosticViewer:
             "envelope": True,
             "axes": True,
             "solver": True,
-            "constraints": False,
+            "constraints": True,
             "baseline": True,
         }
         self._solver_groups: list[Any] = []

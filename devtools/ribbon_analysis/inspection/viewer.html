@@ -61,10 +61,12 @@
   <label><input id="envelope" type="checkbox" checked> Circular envelope</label>
   <label><input id="axes" type="checkbox" checked> Local XYZ</label>
   <label><input id="solverPanels" type="checkbox" checked> Solver panels in Fusion</label>
-  <label><input id="constraintWitnesses" type="checkbox"> Constraint witnesses in Fusion</label>
+  <label><input id="constraintWitnesses" type="checkbox" checked> Constraint shapes (both views)</label>
   <label><input id="baselineGhost" type="checkbox" checked> Matched baseline in Fusion</label>
   <button id="reset">Reset view</button>
 </div>
+<p class="muted">Bend circles touch each guide's tightest sampled bend: <span style="color:#dc4132">red = minimum allowed radius (maximum bend)</span>; <span style="color:#235aaa">blue = actual radius</span>. Green = endpoint gap. Historical search references; physical macaroni ratio/flex remains unresolved.</p>
+<p id="witnessNotes" class="muted"></p>
 <div class="muted">Drag to orbit · scroll to zoom · section colours repeat in path order</div>
 <label for="section">Section <span id="sectionLabel"></span></label>
 <input id="section" type="range" min="0" max="0" value="0" disabled>
@@ -94,6 +96,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{number:number, controls:XYZ[]}} Guide */
 /** @typedef {{lines:number, guides:Guide[], sections:RecordedSection[]}} Snapshot */
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
+/** @typedef {{title:string,strokes:{role:string,points:XYZ[]}[],notes:string[]}} Witness */
 /** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean,procedure:string,settings:Object<string,(number|string)>,disabled_rules:string[]}} Method */
 /** @typedef {{id:string,name:string,supported:boolean,reason:string}} RuleControl */
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
@@ -105,7 +108,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[]}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
@@ -389,12 +392,15 @@ function draw() {
   canvas.width = width * ratio; canvas.height = height * ratio;
   const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
   const snapshot = state?.snapshot;
+  element("witnessNotes").textContent = "";
   if (!snapshot) {
     ctx.fillStyle = "#536775";
     ctx.fillText(state ? "This method has not produced recorded geometry." : "Waiting for the recorded experiment…", 20, height / 2);
     return;
   }
-  const points = snapshot.guides.find(g => g.number === 0).controls.map(xyz);
+  const witnesses = element("constraintWitnesses").checked ? state.witnesses : [];
+  element("witnessNotes").textContent = witnesses.map(witness => `${witness.title}: ${witness.notes.join(" ")}`).join(" · ");
+  const points = [...snapshot.guides.find(g => g.number === 0).controls.map(xyz), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz)))];
   const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
   const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
@@ -409,6 +415,8 @@ function draw() {
     ctx.strokeStyle = color; ctx.lineWidth = weight; ctx.beginPath();
     vertices.map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.stroke();
   }
+  const witnessColors = {limit:"#dc4132",actual:"#235aaa",target:"#14a050"};
+  for (const witness of witnesses) for (const stroke of witness.strokes) line(stroke.points.map(xyz), witnessColors[stroke.role], 2);
   for (const guide of snapshot.guides) {
     if (snapshot.lines === 1 && guide.number !== 0) continue;
     const controls = guide.controls.map(xyz), vertices = [];
