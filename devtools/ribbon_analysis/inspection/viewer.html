@@ -40,7 +40,7 @@
 <p id="stage" class="muted"></p>
 <canvas id="canvas" aria-label="Rotatable three dimensional recorded cable geometry"></canvas>
 <div class="toolbar">
-  <label><input id="outlines" type="checkbox" checked> All sections</label>
+  <label><input id="outlines" type="checkbox" checked> Section outlines</label>
   <label><input id="envelope" type="checkbox" checked> Circular envelope</label>
   <label><input id="axes" type="checkbox" checked> Local XYZ</label>
   <button id="reset">Reset view</button>
@@ -65,7 +65,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
 /** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean}} Method */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[]}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
@@ -227,7 +227,7 @@ function draw() {
   }
   const sections = snapshot.sections;
   if (element("envelope").checked && sections.every(s => s.kind === "circle")) for (let i = 0; i < 32; i += 4) line(sections.map(s => xyz(s.outline[i])), "#bac7d0");
-  if (element("outlines").checked) sections.forEach(s => line(s.outline.map(xyz), colors[s.index % colors.length]));
+  if (element("outlines").checked) state.visible_sections.forEach((index, i) => line(sections[index].outline.map(xyz), colors[i % colors.length]));
   const selected = sections[state.section];
   line(selected.outline.map(xyz), "#ed23b4", 3);
   if (element("axes").checked) {

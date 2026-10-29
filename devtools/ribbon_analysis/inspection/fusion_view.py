@@ -15,10 +15,13 @@ import adsk.core
 import adsk.fusion
 
 from ..budget import NativeBudget
-from ..graphics import draw_lines, draw_text, draw_trace
+from ..graphics import draw_lines, draw_text, draw_trace, set_color
 from .archive import _integer, _text
+from .display import visible_section_indices
 from .native_guides import retain
 from .session import Session
+
+SECTION_COLORS = ((30, 140, 200), (215, 105, 30), (145, 65, 180), (30, 150, 100))
 
 
 class PaletteIncomingHandler(adsk.core.HTMLEventHandler):
@@ -141,7 +144,6 @@ class DiagnosticViewer:
                 continue
             budget.check("frozen guide")
             draw_trace(paths, trace, (35, 90, 170) if trace.number == 0 else (150, 110, 65))
-        colors = ((30, 140, 200), (215, 105, 30), (145, 65, 180), (30, 150, 100))
         for section in snapshot.sections:
             budget.check("distinct section")
             occurrence = self._scene.component.occurrences.addNewComponent(
@@ -154,7 +156,7 @@ class DiagnosticViewer:
             draw_lines(
                 group,
                 section.outline,
-                colors[section.index % len(colors)],
+                SECTION_COLORS[section.index % len(SECTION_COLORS)],
                 occurrence.component.name,
             )
             self._sections.append(occurrence)
@@ -204,8 +206,12 @@ class DiagnosticViewer:
         """
         Synchronize palette layer controls with this viewer's native graphics only.
         """
-        for occurrence in self._sections:
-            occurrence.isLightBulbOn = self._visibility["outlines"]
+        visible = visible_section_indices(len(self._sections), self.session.section)
+        for index, occurrence in enumerate(self._sections):
+            occurrence.isLightBulbOn = self._visibility["outlines"] and index in visible
+            if index in visible:
+                outline = occurrence.component.customGraphicsGroups.item(0).item(0)
+                set_color(outline, SECTION_COLORS[visible.index(index) % len(SECTION_COLORS)])
         if self._envelope is not None:
             self._envelope.isVisible = self._visibility["envelope"]
         if self._triad is not None:
@@ -263,6 +269,7 @@ class DiagnosticViewer:
         elif action == "section":
             self.session.select_section(_integer(data.get("index")))
             self._draw_frame()
+            self._apply_visibility()
         elif action == "visibility":
             if set(data) != set(self._visibility) or any(
                 not isinstance(value, bool) for value in data.values()
@@ -274,5 +281,8 @@ class DiagnosticViewer:
             raise ValueError("Unknown diagnostic action.")
         state = self.session.state()
         state["visibility"] = self._visibility.copy()
+        state["visible_sections"] = visible_section_indices(
+            len(self._sections), self.session.section
+        )
         self.palette.sendInfoToHTML("state", json.dumps(state, allow_nan=False))
         return state

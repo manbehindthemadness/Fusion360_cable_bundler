@@ -26,6 +26,9 @@ component. X lies across the section, Y through thickness, and positive Z follow
 the actual positive path derivative; X cross Y equals Z. The frame does not depend
 on a Frenet normal at an inflection. Drag the palette preview to orbit and scroll
 to zoom. Layer controls affect both the palette and the owned Fusion geometry.
+The overview shows at most nine section outlines, including both ends and the
+selected section. The slider retains every recorded inspection position; selecting
+an intermediate sample replaces the nearest interior overview outline.
 
 Wait for **Connected to Fusion** before using the selection controls. The palette
 waits for the browser bridge and requires a native acknowledgement; **Reconnect**
