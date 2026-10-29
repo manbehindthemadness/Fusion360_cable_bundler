@@ -26,6 +26,7 @@ from .capture import load_history_path, read_history
 from .geometry import PathSnapshot
 from .measurements import observations
 from .panels import witnesses
+from .thickness import build as build_thickness
 
 STATUSES = ("reference", "recorded", "unresolved", "stopped", "not_run", "invalidated")
 
@@ -172,6 +173,7 @@ class Session:
         self._inspection_snapshot: PathSnapshot | None = None
         self._inspection_rules: list[dict[str, Any]] = []
         self._inspection_witnesses: list[dict[str, Any]] = []
+        self._inspection_thickness: dict[str, Any] | None = None
         self.select(self.solver)
 
     def select(self, solver: str, proposal: int = -1) -> None:
@@ -290,6 +292,7 @@ class Session:
                 self._inspection_witnesses = [
                     asdict(overlay) for overlay in witnesses(frozen, self.targets)
                 ]
+                self._inspection_thickness = asdict(build_thickness(frozen))
                 self._inspection_snapshot = snapshot
             geometry_data = snapshot_payload(frozen)["geometry"]
             bend_data = inspect_bends(frozen, self.section)
@@ -310,5 +313,6 @@ class Session:
             "snapshot": geometry_data,
             "bends": bend_data,
             "witnesses": self._inspection_witnesses if snapshot is not None else [],
+            "thickness": self._inspection_thickness if snapshot is not None else None,
             "notice": "Sampled frozen geometry inspection. Disabled search constraints remain measured. No continuous or overall physical acceptance is inferred.",
         }

@@ -22,6 +22,8 @@ from .native_guides import retain
 from .run_contract import ProcedureRunner
 from .session import Session
 from .solver_graphics import render as render_solver_graphics
+from .thickness import build as build_thickness
+from .thickness_graphics import draw as draw_thickness
 
 SECTION_COLORS = ((30, 140, 200), (215, 105, 30), (145, 65, 180), (30, 150, 100))
 
@@ -201,16 +203,8 @@ class DiagnosticViewer:
                 occurrence.component.name,
             )
             self._sections.append(occurrence)
-        # A wireframe envelope shows diameter without inventing native solids.
-        if all(section.kind == "circle" for section in snapshot.sections):
-            self._envelope = self._scene.component.customGraphicsGroups.add()
-            for index in range(0, 32, 4):
-                draw_lines(
-                    self._envelope,
-                    tuple(section.outline[index] for section in snapshot.sections),
-                    (140, 150, 160),
-                    "Sampled circular envelope",
-                )
+        budget.check("nominal thickness envelope")
+        self._envelope = draw_thickness(self._scene.component, build_thickness(snapshot))
         self._draw_frame()
         budget.check("solver panels")
         self._solver_groups, self._constraint_groups, self._solver_sketch, self._baseline_group = (

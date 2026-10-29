@@ -58,7 +58,7 @@
 <canvas id="canvas" aria-label="Rotatable three dimensional recorded cable geometry"></canvas>
 <div class="toolbar">
   <label><input id="outlines" type="checkbox" checked> Section outlines</label>
-  <label><input id="envelope" type="checkbox" checked> Circular envelope</label>
+  <label><input id="envelope" type="checkbox" checked> Thickness envelope</label>
   <label><input id="axes" type="checkbox" checked> Local XYZ</label>
   <label><input id="solverPanels" type="checkbox" checked> Solver panels in Fusion</label>
   <label><input id="constraintWitnesses" type="checkbox" checked> Constraint shapes (both views)</label>
@@ -67,6 +67,7 @@
 </div>
 <p class="muted">Bend circles touch each guide's tightest sampled bend: <span style="color:#dc4132">red = minimum allowed radius (maximum bend)</span>; <span style="color:#235aaa">blue = actual radius</span>. Green = endpoint gap. Historical search references; physical macaroni ratio/flex remains unresolved.</p>
 <p id="witnessNotes" class="muted"></p>
+<p id="thicknessNotes" class="muted"></p>
 <div class="muted">Drag to orbit · scroll to zoom · section colours repeat in path order</div>
 <label for="section">Section <span id="sectionLabel"></span></label>
 <input id="section" type="range" min="0" max="0" value="0" disabled>
@@ -97,6 +98,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{lines:number, guides:Guide[], sections:RecordedSection[]}} Snapshot */
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
 /** @typedef {{title:string,strokes:{role:string,points:XYZ[]}[],notes:string[]}} Witness */
+/** @typedef {{thickness_mm:number,description:string,opacity:number,vertices:XYZ[],triangles:number[][],outlines:number[][]}} Thickness */
 /** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean,procedure:string,settings:Object<string,(number|string)>,disabled_rules:string[]}} Method */
 /** @typedef {{id:string,name:string,supported:boolean,reason:string}} RuleControl */
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
@@ -108,7 +110,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[]}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
@@ -393,14 +395,17 @@ function draw() {
   const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
   const snapshot = state?.snapshot;
   element("witnessNotes").textContent = "";
+  element("thicknessNotes").textContent = "";
   if (!snapshot) {
     ctx.fillStyle = "#536775";
     ctx.fillText(state ? "This method has not produced recorded geometry." : "Waiting for the recorded experiment…", 20, height / 2);
     return;
   }
   const witnesses = element("constraintWitnesses").checked ? state.witnesses : [];
+  const thickness = element("envelope").checked ? state.thickness : null;
+  if (thickness) element("thicknessNotes").textContent = `Teal thickness envelope: ${thickness.thickness_mm.toFixed(3)} mm, true scale. ${thickness.description} Sampled visualization; no collision or physical compliance audit.`;
   element("witnessNotes").textContent = witnesses.map(witness => `${witness.title}: ${witness.notes.join(" ")}`).join(" · ");
-  const points = [...snapshot.guides.find(g => g.number === 0).controls.map(xyz), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz)))];
+  const points = [...snapshot.guides.find(g => g.number === 0).controls.map(xyz), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz))), ...(thickness ? thickness.vertices.map(xyz) : [])];
   const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
   const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
@@ -415,6 +420,20 @@ function draw() {
     ctx.strokeStyle = color; ctx.lineWidth = weight; ctx.beginPath();
     vertices.map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.stroke();
   }
+  if (thickness) {
+    const vertices = thickness.vertices.map(xyz), screen = vertices.map(project);
+    const depth = point => {
+      const [x, y, z] = sub(point, center);
+      return Math.sin(pitch) * y + Math.cos(pitch) * (-Math.sin(yaw) * x + Math.cos(yaw) * z);
+    };
+    const faces = thickness.triangles.map(indices => ({indices,depth:indices.reduce((total, index) => total + depth(vertices[index]), 0) / 3}));
+    faces.sort((a, b) => b.depth - a.depth);
+    ctx.fillStyle = `rgba(25,145,155,${thickness.opacity})`;
+    for (const {indices} of faces) {
+      ctx.beginPath(); indices.forEach((index, i) => i ? ctx.lineTo(...screen[index]) : ctx.moveTo(...screen[index])); ctx.closePath(); ctx.fill();
+    }
+    for (const indices of thickness.outlines) line(indices.map(index => vertices[index]), "#287d87", 1);
+  }
   const witnessColors = {limit:"#dc4132",actual:"#235aaa",target:"#14a050"};
   for (const witness of witnesses) for (const stroke of witness.strokes) line(stroke.points.map(xyz), witnessColors[stroke.role], 2);
   for (const guide of snapshot.guides) {
@@ -428,7 +447,6 @@ function draw() {
     line(vertices, guide.number === 0 ? "#245887" : "#a79580", guide.number === 0 ? 2 : 1);
   }
   const sections = snapshot.sections;
-  if (element("envelope").checked && sections.every(s => s.kind === "circle")) for (let i = 0; i < 32; i += 4) line(sections.map(s => xyz(s.outline[i])), "#bac7d0");
   if (element("outlines").checked) state.visible_sections.forEach((index, i) => line(sections[index].outline.map(xyz), colors[i % colors.length]));
   const selected = sections[state.section];
   line(selected.outline.map(xyz), "#ed23b4", 3);

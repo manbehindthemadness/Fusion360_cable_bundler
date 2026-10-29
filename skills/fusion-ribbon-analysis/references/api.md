@@ -82,8 +82,17 @@ regularity and unimplemented collision/physical rules have no disable control.
 
 For one conductor, the profile is one circle of the declared diameter. For wider
 ribbons, captures contain open material rulings until the actual bonded contour
-is supplied. The viewer creates diagnostic graphics, never individual conductor
-solids. Sampled envelope lines are display approximations, not collision proofs.
+is supplied. **Thickness envelope** starts enabled in both views and displays one
+translucent teal shell at the recorded diameter, without thickness exaggeration.
+For a single conductor it joins recorded circular sections. For a ribbon it
+extrudes each material ruling by +/-D/2 along its recorded local Y; this rectangular
+nominal envelope is explicitly separate from the unresolved bonded outer contour.
+Both renderers use the same millimetre vertices, triangles, sparse boundary lines
+and opacity. End faces close the display mesh; no native solid or per-conductor
+body is created. The caption reports thickness and profile assumptions. Hide it
+independently to inspect centre/edge paths and bend circles. The shell follows
+the selected result or proposal, including failed paths, without repairing overlap.
+Inter-section triangles are sampled visual interpolation, not collision proofs.
 The rule table distinguishes measured, failed, legacy, unmeasured and inapplicable
 observations and never supplies an overall physical PASS. Observations belong to
 the final/reference geometry; individual historical proposals remain unaudited.
