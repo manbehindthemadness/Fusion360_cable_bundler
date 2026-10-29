@@ -57,14 +57,14 @@ def constrained_step(
     Minimize a damped residual quadratic with linearized nonnegative slacks.
 
     Start from zero displacement and perform at most32active-set iterations in
-    at most10coordinates/1024input inequalities. Bounds enter as inequalities.
+    at most12coordinates/1024input inequalities. Bounds enter as inequalities.
     Numerical/dependent-set termination returns the last feasible prefix with
     explicit status;it never drops a constraint or claims nonlinear feasibility.
     Invalid/nonfinite/infeasible input raises ValueError. No inputs are mutated.
     """
     n = len(columns)
     if (
-        not 1 <= n <= 10
+        not 1 <= n <= 12
         or len(slacks) > 1024
         or len(slack_columns) != n
         or any(len(c) != len(errors) for c in columns)

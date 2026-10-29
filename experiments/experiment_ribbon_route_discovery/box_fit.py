@@ -8,17 +8,13 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Callable
 
-from experiments.experiment_ribbon_cap_transition.compatible_coordinates import (
-    probe_coordinates,
-    trial_coordinates,
-)
 from experiments.experiment_ribbon_cap_transition.compatible_strip import CompatiblePath
 from experiments.experiment_ribbon_cap_transition.director_constrained_step import constrained_step
 from experiments.experiment_ribbon_cap_transition.director_shooting import endpoint_metrics
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
-from .broad_chart import bounds, carrier_maximum, integrate
 from .families import Seed
+from .fit_chart import BroadFitChart, FitChart
 from .solver import errors_for
 
 
@@ -43,25 +39,32 @@ def refine(
     seed: Seed,
     checkpoint: Callable[[], None],
     work: FitWork,
+    *,
+    chart: FitChart | None = None,
 ) -> tuple[CompatiblePath, dict[str, Any]]:
     """
     Preserve cold-family fitting arithmetic while solving box bounds inside the QP.
 
     Return unresolved fits unchanged. Every probe/trial counts;actual objective
-    decrease controls acceptance. No endpoint snapping or collision exemption.
+    decrease controls acceptance. An explicit chart may add bounded coordinates;
+    all probes and trials use that chart within the same transport cap. The default
+    retains the original ten-coordinate arithmetic. No snapping or collision exemption.
     """
     if min(work.coarse, work.fine) < 0 or work.transports < 2:
         raise ValueError("Fit work requires nonnegative rounds and two final transports.")
     started = perf_counter()
     values = seed.coordinates
-    maximum = carrier_maximum(case)
-    lower, upper = bounds(case)
+    active_chart = BroadFitChart() if chart is None else chart
+    lower, upper = active_chart.bounds(case)
+    dimensions = len(lower)
+    if len(values) != dimensions or len(upper) != dimensions:
+        raise ValueError("Seed coordinates must match the selected fit chart.")
     evaluations = 0
     stages: list[dict[str, Any]] = []
     qps: list[dict[str, Any]] = []
 
     def observe(
-        parameters: tuple[float, ...], grid: int
+        trial_values: tuple[float, ...], integration_grid: int
     ) -> tuple[CompatiblePath, tuple[float, ...]]:
         """
         Count each required transport before computing endpoint/local-rule errors.
@@ -70,8 +73,8 @@ def refine(
         if evaluations >= work.transports:
             raise RuntimeError("Box fit transport cap.")
         evaluations += 1
-        path = integrate(case, parameters, grid, checkpoint)
-        return path, errors_for(case, path)
+        evaluated = active_chart.integrate(case, trial_values, integration_grid, checkpoint)
+        return evaluated, errors_for(case, evaluated)
 
     for grid, rounds, tolerance in ((64, work.coarse, 1e-6), (512, work.fine, 1e-12)):
         path, errors = observe(values, grid)
@@ -83,18 +86,18 @@ def refine(
             if max(abs(value) for value in errors) < tolerance:
                 break
             columns = []
-            for index in range(10):
-                _, parameters = probe_coordinates(values, index, maximum)
+            for index in range(dimensions):
+                parameters = active_chart.probe(case, values, index)
                 _, observed = observe(parameters, grid)
                 step = parameters[index] - values[index]
                 columns.append(tuple((a - b) / step for a, b in zip(observed, errors)))
             quadratic = constrained_step(
-                columns, errors, damping, [()] * 10, (), values, lower, upper
+                columns, errors, damping, [()] * dimensions, (), values, lower, upper
             )
             qps.append(dict(grid=grid, iterations=quadratic.iterations, status=quadratic.status))
             accepted = False
             for fraction in (1.0, 0.5):
-                _, proposed = trial_coordinates(values, quadratic.values, fraction, maximum)
+                proposed = active_chart.trial(case, values, quadratic.values, fraction)
                 candidate, observed = observe(proposed, grid)
                 after = sum(value * value for value in observed)
                 trials.append(

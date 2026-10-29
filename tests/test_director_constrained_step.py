@@ -95,3 +95,33 @@ def test_numerical_stop_retains_feasible_prefix_and_explicit_status(
     result = constrained_step([(1.0,)], (-1.0,), 0.1, [()], (), (0,), (-1,), (1,))
     assert result.values == (0.0,)
     assert result.status == "numerical KKT stop"
+
+
+def test_twelve_coordinate_steps_preserve_bounds_and_larger_systems_reject() -> None:
+    """
+    Support two optional terminal controls while retaining an explicit dimension cap.
+    """
+    columns = [tuple(float(i == j) for j in range(12)) for i in range(12)]
+    result = constrained_step(
+        columns,
+        (-2.0,) * 12,
+        0.001,
+        [()] * 12,
+        (),
+        (0.0,) * 12,
+        (-1.0,) * 12,
+        (1.0,) * 12,
+    )
+    assert result.values == pytest.approx((1.0,) * 12)
+    assert result.iterations <= 32
+    with pytest.raises(ValueError):
+        constrained_step(
+            columns + [(0.0,) * 12],
+            (-2.0,) * 12,
+            0.001,
+            [()] * 13,
+            (),
+            (0.0,) * 13,
+            (-1.0,) * 13,
+            (1.0,) * 13,
+        )
