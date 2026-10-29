@@ -21,7 +21,7 @@ from .native_guides import retain
 from .session import Session
 
 
-class _Incoming(adsk.core.HTMLEventHandler):
+class PaletteIncomingHandler(adsk.core.HTMLEventHandler):
     """
     Keep the event handler alive with its owning diagnostic viewer.
     """
@@ -37,14 +37,30 @@ class _Incoming(adsk.core.HTMLEventHandler):
         """
         Return a concrete error; the source archive survives an incomplete new scene.
         """
+        html_args = None
+        self.viewer.received_events += 1
         try:
-            data = json.loads(args.data)
+            html_args = adsk.core.HTMLEventArgs.cast(args)
+            if html_args is None:
+                raise TypeError("Fusion did not provide HTML event arguments.")
+            if html_args.action == "response":
+                return
+            prefix = "ribbon_inspection_"
+            if not html_args.action.startswith(prefix):
+                raise ValueError("Unknown diagnostic palette message.")
+            action = html_args.action[len(prefix) :]
+            data = json.loads(html_args.data)
             if not isinstance(data, dict):
                 raise ValueError("Inspection request must be an object.")
-            self.viewer.dispatch(args.action, data)
-            args.returnData = json.dumps({"ok": True})
+            self.viewer.received_requests += 1
+            self.viewer.last_request = action
+            state = self.viewer.dispatch(action, data)
+            html_args.returnData = json.dumps({"ok": True, "state": state}, allow_nan=False)
+            self.viewer.last_event_error = None
         except (AttributeError, RuntimeError, TypeError, ValueError, OSError) as error:
-            args.returnData = json.dumps({"ok": False, "error": str(error)})
+            self.viewer.last_event_error = str(error)
+            if html_args is not None:
+                html_args.returnData = json.dumps({"ok": False, "error": str(error)})
             self.viewer.palette.sendInfoToHTML("error", str(error))
 
 
@@ -65,7 +81,7 @@ class DiagnosticViewer:
         self.document = document
         self.root = owned_component
         self.palette: Any = None
-        self._handler: _Incoming | None = None
+        self._handler: PaletteIncomingHandler | None = None
         self._scene: Any = None
         self._frame: Any = None
         self._triad: Any = None
@@ -73,6 +89,10 @@ class DiagnosticViewer:
         self._visibility = {"outlines": True, "envelope": True, "axes": True}
         self._methods: dict[str, Any] = {}
         self._sections: list[Any] = []
+        self.received_requests = 0
+        self.received_events = 0
+        self.last_event_error: str | None = None
+        self.last_request: str | None = None
         budget = self._budget()
         for method in self.session.methods:
             budget.check("solver inventory")
@@ -200,8 +220,8 @@ class DiagnosticViewer:
         self.palette = ui.palettes.add(
             identifier,
             "Routing diagnostics",
-            Path(__file__).with_name("viewer.html").as_uri(),
-            True,
+            str(Path(__file__).with_name("viewer.html").resolve()),
+            False,
             True,
             True,
             620,
@@ -210,7 +230,7 @@ class DiagnosticViewer:
         )
         if self.palette is None:
             raise RuntimeError("Fusion did not create the diagnostic palette.")
-        self._handler = _Incoming(self)
+        self._handler = PaletteIncomingHandler(self)
         if not self.palette.incomingFromHTML.add(self._handler):
             self.palette.deleteMe()
             raise RuntimeError("Fusion did not register the diagnostic palette handler.")
@@ -233,7 +253,7 @@ class DiagnosticViewer:
                 occurrence.deleteMe()
         self._methods.clear()
 
-    def dispatch(self, action: str, data: dict[str, Any]) -> None:
+    def dispatch(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply a validated selection and send matching frozen geometry to the palette.
         """
@@ -255,3 +275,4 @@ class DiagnosticViewer:
         state = self.session.state()
         state["visibility"] = self._visibility.copy()
         self.palette.sendInfoToHTML("state", json.dumps(state, allow_nan=False))
+        return state

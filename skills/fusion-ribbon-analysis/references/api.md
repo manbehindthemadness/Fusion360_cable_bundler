@@ -27,6 +27,22 @@ the actual positive path derivative; X cross Y equals Z. The frame does not depe
 on a Frenet normal at an inflection. Drag the palette preview to orbit and scroll
 to zoom. Layer controls affect both the palette and the owned Fusion geometry.
 
+Wait for **Connected to Fusion** before using the selection controls. The palette
+waits for the browser bridge and requires a native acknowledgement; **Reconnect**
+reads the current state after a failed connection. Only this read-only handshake
+may retry an empty initial response; selection/visibility requests are not repeated
+after a timeout. Loading and unrun-method empty states are separate. The HTML is a
+complete document with explicit head/body elements and is loaded as a local file.
+Native messages use the `ribbon_inspection_` namespace and cast SDK HTML arguments;
+SDK `response` notifications do not dispatch another request. See
+[Autodesk's palette communication documentation](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/Palettes_UM.htm).
+Standalone script hosts must remain alive (`adsk.autoTerminate(False)`) and retain
+the viewer/handler; an add-in already supplies the persistent host. For bridge QA,
+`sendInfoToHTML("diagnostic_request", json.dumps({"action": ..., "data": ...}))`
+uses the same JavaScript request function as the controls. Observe native request
+counters and actual scene changes; calling Python `dispatch` directly does not
+verify this bridge. Automated pointer input remains a separate check.
+
 For one conductor, the profile is one circle of the declared diameter. For wider
 ribbons, captures contain open material rulings until the actual bonded contour
 is supplied. The viewer creates diagnostic graphics, never individual conductor

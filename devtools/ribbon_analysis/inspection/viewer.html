@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Routing diagnostics</title>
@@ -25,8 +26,12 @@
   #frame { font-variant-numeric: tabular-nums; white-space: pre-line; font-size: 12px; }
   .axes { font-weight: 700; letter-spacing: 1px; }
 </style>
+</head>
+<body>
 <h1>Routing diagnostics</h1>
 <div id="case" class="muted">Waiting for the recorded experiment…</div>
+<p id="connection" class="muted" role="status">Connecting to Fusion…</p>
+<button id="reconnect">Reconnect</button>
 <label for="solver">Solver / reference</label><select id="solver"></select>
 <p id="status">No solver has been selected.</p>
 <label for="proposal">Search history <span id="proposalLabel"></span></label>
@@ -58,30 +63,81 @@ const element = id => document.getElementById(id);
 /** @typedef {{number:number, controls:XYZ[]}} Guide */
 /** @typedef {{lines:number, guides:Guide[], sections:RecordedSection[]}} Snapshot */
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
-/** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number}} Method */
+/** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean}} Method */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
-let yaw = -.65, pitch = .35, zoom = 1, pending = false;
+let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
 const xyz = p => [p.x, p.y, p.z];
 const add = (a, b, scale = 1) => a.map((v, i) => v + b[i] * scale);
 const sub = (a, b) => a.map((v, i) => v - b[i]);
 const norm = a => Math.hypot(...a);
+function waitForFusionHost() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const check = () => {
+      const host = window["adsk"];
+      if (host && typeof host.fusionSendData === "function") { resolve(host); return; }
+      if (++attempts >= 100) { reject(new Error("Fusion's palette connection did not initialize. Use Reconnect to try connecting again.")); return; }
+      window.setTimeout(check, 100);
+    };
+    check();
+  });
+}
+function controls() {
+  const method = state?.solvers.find(m => m.id === state.solver);
+  const blocked = pending || !connected || !state;
+  element("solver").disabled = blocked;
+  element("proposal").disabled = blocked || !method?.history_count;
+  element("previous").disabled = blocked || state.proposal < 0;
+  element("next").disabled = blocked || state.proposal >= method.history_count - 1;
+  element("result").disabled = blocked || !method.has_result;
+  element("section").disabled = blocked || !state.snapshot;
+  for (const id of ["outlines", "envelope", "axes"]) element(id).disabled = blocked || !state.snapshot;
+  element("reconnect").disabled = pending;
+}
 async function request(action, data = {}) {
   if (pending) return;
-  if (!window.adsk?.fusionSendData) {
-    element("error").textContent = "Open this viewer through DiagnosticViewer.show() in Fusion to replay the archive.";
-    return;
-  }
   pending = true;
+  controls();
+  element("error").textContent = "";
+  element("connection").textContent = "Waiting for Fusion…";
+  let timer;
   try {
-    const raw = await window.adsk.fusionSendData(action, JSON.stringify(data));
+    const host = await waitForFusionHost();
+    const message = "ribbon_inspection_" + action;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => reject(new Error("Fusion has not acknowledged this request. Reconnect to read its current state; the request has not been repeated.")), 35000);
+    });
+    let raw = await Promise.race([host.fusionSendData(message, JSON.stringify(data)), timeout]);
+    // A newly created palette can load before its native handler is registered.
+    // Only the read-only handshake may repeat after an empty acknowledgement.
+    for (let attempt = 0; action === "ready" && raw === "" && attempt < 20; attempt++) {
+      await new Promise(resolve => window.setTimeout(resolve, 100));
+      raw = await Promise.race([host.fusionSendData(message, JSON.stringify(data)), timeout]);
+    }
     const response = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (response && response.ok === false) element("error").textContent = response.error;
-  } catch (error) { element("error").textContent = String(error); }
-  finally { pending = false; }
+    if (!response || typeof response.ok !== "boolean") {
+      connected = false;
+      element("connection").textContent = "Fusion connection unavailable";
+      element("error").textContent = "Fusion returned an invalid diagnostic response. Reconnect to read its state.";
+      return;
+    }
+    connected = true;
+    if (response.state) receive(response.state);
+    if (!response.ok) element("error").textContent = response.error;
+    element("connection").textContent = "Connected to Fusion";
+  } catch (error) {
+    connected = false;
+    element("connection").textContent = "Fusion connection unavailable";
+    element("error").textContent = String(error);
+  } finally {
+    window.clearTimeout(timer);
+    pending = false;
+    controls();
+  }
 }
 /** @param {InspectionState} value */
 function receive(value) {
@@ -120,10 +176,17 @@ function receive(value) {
   element("source").textContent = `Source: ${method.source}`;
   element("error").textContent = "";
   draw();
+  controls();
 }
 window.fusionJavaScriptHandler = {handle(action, data) {
   if (action === "state") receive(JSON.parse(data));
   if (action === "error") element("error").textContent = data;
+  if (action === "diagnostic_request") {
+    const command = JSON.parse(data);
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility"].includes(command.action)) return "Unsupported diagnostic request";
+    if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
+    request(command.action, command.data || {});
+  }
   return "OK";
 }};
 function draw() {
@@ -132,7 +195,11 @@ function draw() {
   canvas.width = width * ratio; canvas.height = height * ratio;
   const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
   const snapshot = state?.snapshot;
-  if (!snapshot) { ctx.fillStyle = "#536775"; ctx.fillText("No geometry recorded for this method", 20, height / 2); return; }
+  if (!snapshot) {
+    ctx.fillStyle = "#536775";
+    ctx.fillText(state ? "This method has not produced recorded geometry." : "Waiting for the recorded experiment…", 20, height / 2);
+    return;
+  }
   const points = snapshot.guides.find(g => g.number === 0).controls.map(xyz);
   const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
@@ -177,6 +244,7 @@ function draw() {
   }
 }
 element("solver").onchange = () => request("select", {solver: element("solver").value});
+element("reconnect").onclick = () => request("ready");
 const selectProposal = index => request("select", {solver: state.solver, proposal: index});
 element("proposal").onchange = () => selectProposal(Number(element("proposal").value));
 element("previous").onclick = () => selectProposal(state.proposal - 1);
@@ -197,6 +265,8 @@ element("canvas").onpointermove = event => {
 element("canvas").onpointerup = () => { drag = null; };
 element("canvas").onwheel = event => { event.preventDefault(); zoom = Math.max(.25, Math.min(8, zoom * Math.exp(-event.deltaY / 500))); draw(); };
 window.addEventListener("resize", draw);
+controls();
 window.addEventListener("load", () => request("ready"));
 </script>
+</body>
 </html>
