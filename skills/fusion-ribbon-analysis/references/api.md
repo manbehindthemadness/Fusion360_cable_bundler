@@ -46,6 +46,34 @@ uses the same JavaScript request function as the controls. Observe native reques
 counters and actual scene changes; calling Python `dispatch` directly does not
 verify this bridge. Automated pointer input remains a separate check.
 
+The **Solver panels in Fusion** layer displays the selected recorded method,
+settings, score, available coefficients, rule measurements and centre/edge bend
+plot as Custom Graphics. Panels face the camera; physical radius circles retain
+their real bend planes. Final-result metadata also remains in a hidden native
+Solver details sketch inside the method component. Search proposals use their
+own recorded coefficients; older records without them say unavailable.
+**Constraint witnesses in Fusion** independently shows sampled bend circles and
+the actual-end-to-target segment. Neither visibility toggle relaxes a rule.
+
+In the rule table, uncheck **Use in search** and choose **Compare selected solver**.
+This launches two fresh runs with the selected method's archived settings, fixed
+inputs, initialization and source pins: a complete-policy baseline followed by
+the selected ablation. Both count against the declared time/capture budget.
+The original result and both new histories remain selectable. The ablation is
+selected on completion; **Matched baseline in Fusion** shows grey baseline-result
+guides, and **View paired baseline** selects its full record. Proposal indices are
+not matched optimization iterations. Independent measurements always use the
+full reference rules, so a disabled search rule can still report a failure.
+
+Supported controls are `end_position`, `end_tangent`, `end_width`, `centre_bend`
+and `lane_bend`. Ordinary refinement, tangent tightening, compatible shooting and
+route discovery support all five; redistribution and combined refinement support
+the three endpoint objectives. Other procedures display these controls as fixed
+until their complete search gates have an ablation adapter. The centre cap is the
+legacy reach reference, not a replacement for the unresolved physical macaroni
+ratio/scalar/flex policy. Start pose, dimensions, identities, structural material
+regularity and unimplemented collision/physical rules have no disable control.
+
 For one conductor, the profile is one circle of the declared diameter. For wider
 ribbons, captures contain open material rulings until the actual bonded contour
 is supplied. The viewer creates diagnostic graphics, never individual conductor

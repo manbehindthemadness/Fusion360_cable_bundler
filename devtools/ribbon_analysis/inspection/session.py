@@ -16,6 +16,7 @@ from .archive import (
     _object,
     _text,
     _vector,
+    canonical,
     parse_snapshot,
     read_document,
     snapshot_payload,
@@ -23,6 +24,7 @@ from .archive import (
 from .bends import inspect as inspect_bends
 from .capture import load_history_path, read_history
 from .geometry import PathSnapshot
+from .measurements import observations
 
 STATUSES = ("reference", "recorded", "unresolved", "stopped", "not_run", "invalidated")
 
@@ -82,10 +84,27 @@ class Session:
                 )
             if identifier in {m["id"] for m in self.methods} or data.get("status") not in STATUSES:
                 raise ValueError("Solver identities must be unique with known dispositions.")
-            observations = data.get("rules")
-            if not isinstance(observations, list):
+            source_rules = data.get("rules")
+            if not isinstance(source_rules, list):
                 raise ValueError("Every solver must explicitly report its rule observations.")
-            rules = tuple(RuleObservation(**_object(rule)) for rule in observations)
+            rules = tuple(RuleObservation(**_object(rule)) for rule in source_rules)
+            disabled = data.get("disabled_rules", [])
+            if (
+                not isinstance(disabled, list)
+                or any(not isinstance(value, str) for value in disabled)
+                or len(set(disabled)) != len(disabled)
+            ):
+                raise ValueError("Recorded disabled rules require unique text identifiers.")
+            comparison = data.get("comparison")
+            if comparison is not None:
+                comparison = _object(comparison)
+                if comparison.get("role") not in ("baseline", "ablation"):
+                    raise ValueError("Unknown recorded comparison role.")
+                for key in ("baseline", "origin"):
+                    _text(comparison.get(key))
+            metrics = _object(data.get("metrics", {}))
+            settings = _object(data.get("settings", {}))
+            canonical({"metrics": metrics, "settings": settings})
             if data.get("snapshot") is not None:
                 snapshot = parse_snapshot(data["snapshot"])
                 if (snapshot.lines, snapshot.diameter_mm) != (
@@ -115,12 +134,42 @@ class Session:
                     "rules": [asdict(rule) for rule in rules],
                     "history_count": history_count,
                     "has_result": identifier in self._snapshots,
+                    "procedure": _text(data["procedure"])
+                    if data.get("procedure") is not None
+                    else identifier.rsplit(":", 1)[-1]
+                    if isinstance(data.get("settings"), dict) and identifier.startswith("run-")
+                    else "",
+                    "settings": settings,
+                    "metrics": {
+                        key: metrics[key]
+                        for key in (
+                            "coordinates",
+                            "evaluations",
+                            "score",
+                            "seed_screenings",
+                            "endpoint_gate_passed",
+                            "strict_endpoint_gate",
+                            "center_endpoint_error_mm",
+                            "edge_position_error_mm",
+                            "edge_tangent_error",
+                            "terminal_width_error",
+                            "procedure_completed",
+                            "work",
+                            "allocation",
+                            "coordinate_scales",
+                        )
+                        if key in metrics
+                    },
+                    "disabled_rules": disabled,
+                    "comparison": comparison,
                 }
             )
         self.solver = self.methods[0]["id"]
         self.proposal = -1
         self.section = 0
         self.snapshot: PathSnapshot | None = None
+        self._inspection_snapshot: PathSnapshot | None = None
+        self._inspection_rules: list[dict[str, Any]] = []
         self.select(self.solver)
 
     def select(self, solver: str, proposal: int = -1) -> None:
@@ -173,12 +222,74 @@ class Session:
             raise ValueError("Section index is outside the selected geometry.")
         self.section = index
 
+    def baseline(self) -> PathSnapshot | None:
+        """
+        Return the recorded matched baseline only for a selected ablation result.
+        """
+        method = next(item for item in self.methods if item["id"] == self.solver)
+        comparison = method["comparison"]
+        if not isinstance(comparison, dict) or comparison.get("role") != "ablation":
+            return None
+        return self._snapshots.get(_text(comparison.get("baseline")))
+
+    def comparison_state(self) -> dict[str, Any] | None:
+        """
+        Compare independent measurements without filtering out disabled constraints.
+        """
+        method = next(item for item in self.methods if item["id"] == self.solver)
+        comparison = method["comparison"]
+        if not isinstance(comparison, dict):
+            return None
+        baseline = next(
+            (item for item in self.methods if item["id"] == comparison.get("baseline")), None
+        )
+        if baseline is None:
+            return dict(
+                comparison,
+                measurements=[],
+                detail="Baseline geometry unavailable after a stopped comparison.",
+            )
+        previous = {rule["name"]: rule for rule in baseline["rules"]}
+        measurements = []
+        for rule in method["rules"]:
+            prior = _object(previous.get(rule["name"], {}))
+            prior_value, current_value = prior.get("value"), rule["value"]
+            if current_value is not None and prior_value is not None:
+                baseline_number, current_number = _number(prior_value), _number(current_value)
+                measurements.append(
+                    {
+                        "name": rule["name"],
+                        "baseline": baseline_number,
+                        "current": current_number,
+                        "delta": current_number - baseline_number,
+                    }
+                )
+        return dict(
+            comparison,
+            measurements=measurements,
+            detail="Fresh runs use identical inputs, settings, initialization and source pins. Measurements retain the full reference rules. Baseline ghost is its recorded result; proposals are not matched iteration pairs.",
+        )
+
     def state(self) -> dict[str, Any]:
         """
         Return finite palette data, including missing outcomes and proposal metadata.
         """
         records = self._histories.get(self.solver, (None, ()))[1]
         proposal = records[self.proposal] if self.proposal >= 0 else None
+        snapshot = self.snapshot
+        geometry_data, bend_data = None, None
+        if isinstance(snapshot, PathSnapshot):
+            frozen: PathSnapshot = snapshot
+            if snapshot is not self._inspection_snapshot:
+                self._inspection_rules = [
+                    asdict(rule)
+                    for rule in observations(frozen, self.targets, 3 * self.targets.diameter_mm)
+                ]
+                self._inspection_snapshot = snapshot
+            geometry_data = snapshot_payload(frozen)["geometry"]
+            bend_data = inspect_bends(frozen, self.section)
+        elif snapshot is not None:
+            raise TypeError("Inspection selection must contain frozen geometry.")
         return {
             "case": self.targets.name,
             "diameter_mm": self.targets.diameter_mm,
@@ -186,12 +297,12 @@ class Session:
             "solver": self.solver,
             "proposal": self.proposal,
             "proposal_info": proposal,
+            "comparison": self.comparison_state(),
+            "rules": self._inspection_rules
+            if snapshot is not None
+            else next(method["rules"] for method in self.methods if method["id"] == self.solver),
             "section": self.section,
-            "snapshot": snapshot_payload(self.snapshot)["geometry"]
-            if self.snapshot is not None
-            else None,
-            "bends": inspect_bends(self.snapshot, self.section)
-            if self.snapshot is not None
-            else None,
-            "notice": "Diagnostic geometry. Search proposals are unaudited. No overall physical acceptance is inferred.",
+            "snapshot": geometry_data,
+            "bends": bend_data,
+            "notice": "Sampled frozen geometry inspection. Disabled search constraints remain measured. No continuous or overall physical acceptance is inferred.",
         }

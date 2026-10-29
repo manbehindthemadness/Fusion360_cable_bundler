@@ -16,6 +16,7 @@ from typing import Callable
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.inspection.capture import transported
 
+from .constraint_policy import ConstraintPolicy, Rule, current
 from .director_motion_transport import DirectorMotion, integrate_motion
 from .director_routing_field import RoutingField
 from .director_transport import INITIAL, State, interpolate_pose, material_lane
@@ -77,17 +78,21 @@ class CompatibleField:
     every u. Turning is bounded so center k*reach<.78 and every lane radius>3.1D.
     No sampled rejection, endpoint snapping or later geometric repair enforces
     these local bounds. The actual transported/interpolated geometry still needs
-    independent numerical/native checks.
+    independent numerical/native checks. An explicit diagnostic policy may remove
+    either named bend cap; material regularity and independent measurements remain.
     """
 
     raw: RoutingField
     bend_mapping: BendMapping = BendMapping.GLOBAL_SOFT
+    constraints: ConstraintPolicy = dataclass_field(default_factory=current)
     ruling_scale: float = dataclass_field(init=False)
 
     def __post_init__(self) -> None:
         """
         Freeze the global ruling normalization before transport or fitting.
         """
+        if not isinstance(self.constraints, ConstraintPolicy):
+            raise ValueError("Compatible fields require an explicit constraint policy.")
         _, b, c, d = self.raw.ruling
         derivative_bound = (
             2 * math.pi * (abs(b) + abs(c) + 2 * abs(d) + 2 * abs(self.raw.extra_ruling))
@@ -134,9 +139,13 @@ class CompatibleField:
         progress = length - redistribution
         minimum_lane_progress = length - 2 * redistribution
         reach = math.hypot(half, self.diameter_mm / 2)
-        turn_limit = min(0.78 * progress / reach, minimum_lane_progress / (3.1 * self.diameter_mm))
+        limits = []
+        if self.constraints.enabled(Rule.CENTRE_BEND):
+            limits.append(0.78 * progress / reach)
+        if self.constraints.enabled(Rule.LANE_BEND):
+            limits.append(minimum_lane_progress / (3.1 * self.diameter_mm))
         raw_turn = k_raw * length
-        turn = map_turn(raw_turn, turn_limit, self.bend_mapping)
+        turn = map_turn(raw_turn, min(limits), self.bend_mapping) if limits else raw_turn
         return CarrierSample(progress, turn, eta, eta_u)
 
     def sample(self, u: float) -> tuple[float, float, float]:

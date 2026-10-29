@@ -28,6 +28,9 @@ def observations(
     targets = Targets.capture(targets)
     center = next(g for g in snapshot.guides if g.number == 0)
     peak = 0.0
+    reach = math.hypot(
+        targets.lines * targets.diameter_mm / 2 + targets.diameter_mm * 0.1, targets.diameter_mm / 2
+    )
     for curve in center.curves:
         for u in (0.0, 1 / 3, 2 / 3, 1.0):
             velocity = curve.derivative(u)
@@ -48,6 +51,19 @@ def observations(
         )
     )
     circle = snapshot.lines == 1
+    guide_peak = 0.0
+    for guide in snapshot.guides:
+        for curve in guide.curves:
+            for u in (0.0, 1 / 3, 2 / 3, 1.0):
+                velocity = curve.derivative(u)
+                speed = magnitude(velocity)
+                if speed < 1e-12:
+                    raise ValueError("Frozen guide contains a stationary sampled tangent.")
+                curvature = magnitude(cross(velocity, curve.second_derivative(u))) / speed**3
+                guide_peak = max(guide_peak, curvature * 3.1 * targets.diameter_mm)
+    width_angle = math.degrees(
+        math.acos(max(-1.0, min(1.0, dot(snapshot.sections[-1].frame.x, targets.end_width))))
+    )
     return (
         RuleObservation(
             "Cross-section and thickness",
@@ -69,7 +85,7 @@ def observations(
         ),
         RuleObservation(
             "Fixed endpoint position",
-            "measured",
+            "failed" if gap > targets.diameter_mm / 2 else "measured",
             "Largest start/end centre gap in mm; targets stay fixed.",
             gap,
             targets.diameter_mm / 2,
@@ -79,6 +95,26 @@ def observations(
             "measured",
             "Largest endpoint tangent deviation in degrees; no new angular allowance.",
             angle,
+        ),
+        RuleObservation(
+            "Terminal width frame",
+            "measured",
+            "Actual terminal projected width deviation in degrees; the prescribed target remains fixed.",
+            width_angle,
+        ),
+        RuleObservation(
+            "Legacy centre reach cap",
+            "failed" if peak * reach / minimum_radius_mm / 0.78 > 1 else "legacy",
+            "Sampled centre curvature times the compatible chart's declared padded reach /0.78. Historical conservative search rule, not the unresolved physical radius-ratio policy.",
+            peak * reach / minimum_radius_mm / 0.78,
+            1.0,
+        ),
+        RuleObservation(
+            "Material-guide bend cap",
+            "failed" if guide_peak > 1 else "legacy",
+            "Sampled frozen centre/edge curvature times3.1D, matching the compatible chart's historical lane search limit. Independent of whether that search constraint was disabled.",
+            guide_peak,
+            1.0,
         ),
         RuleObservation(
             "Local XYZ",

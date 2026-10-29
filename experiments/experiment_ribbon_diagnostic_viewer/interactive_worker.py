@@ -26,9 +26,10 @@ from devtools.ribbon_analysis.inspection.capture import CaptureLimits, SearchRec
 from devtools.ribbon_analysis.inspection.geometry import freeze_path
 from devtools.ribbon_analysis.inspection.measurements import observations
 from devtools.ribbon_analysis.inspection.session import Session
+from experiments.experiment_ribbon_cap_transition.constraint_policy import parse, scope
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
-from . import adapters, procedures
+from . import ablation, adapters, procedures
 
 
 class SchedulingStop(RuntimeError):
@@ -90,6 +91,7 @@ def run(directory: Path) -> Path:
     plan = json.loads((directory / "plan.json").read_text(encoding="utf-8"))
     session = Session(directory / "input.json")
     requested = procedures.selections(plan["procedures"])
+    work = ablation.workloads(requested, plan.get("comparison"))
     targets = session.targets
     case = EndpointCase(
         targets.name,
@@ -107,12 +109,24 @@ def run(directory: Path) -> Path:
     started = perf_counter()
     stopped: str | None = None
     maximum_rss = 0
-    for index, selection in enumerate(requested):
+    for index, selection in enumerate(work):
         identifier, settings = selection["id"], selection["settings"]
-        name = f"{plan['run_id']}:{identifier}"
+        role = selection["role"]
+        suffix = "" if role == "normal" else ":" + role
+        name = f"{plan['run_id']}:{identifier}{suffix}"
+        disabled = selection["disabled_rules"]
         item: dict[str, Any] = {
             "id": name,
-            "label": f"{labels[identifier].label} · {plan['run_id'][-8:]}",
+            "label": f"{labels[identifier].label}{' / ' + role if suffix else ''} · {plan['run_id'][-8:]}",
+            "procedure": identifier,
+            "disabled_rules": disabled,
+            "comparison": {
+                "role": role,
+                "baseline": f"{plan['run_id']}:{identifier}:baseline",
+                "origin": plan["comparison"]["origin"],
+            }
+            if suffix
+            else None,
             "source": str(directory / "plan.json") + " / " + identifier,
             "status": "not_run",
             "detail": "Not scheduled after a latched stop.",
@@ -171,7 +185,7 @@ def run(directory: Path) -> Path:
                         "status": "running",
                         "procedure": procedure,
                         "completed": ordinal,
-                        "total": len(requested),
+                        "total": len(work),
                         "elapsed_seconds": now - started,
                     },
                 )
@@ -180,7 +194,7 @@ def run(directory: Path) -> Path:
             checkpoint()
             if budget.resident_kib() >= int(3.8 * 1024 * 1024):
                 raise SchedulingStop("3.8GiB worker launch headroom.")
-            history = directory / f"{identifier}.jsonl"
+            history = directory / f"{identifier}{'-' + role if suffix else ''}.jsonl"
             active_recorder = SearchRecorder(
                 history,
                 identifier,
@@ -191,7 +205,8 @@ def run(directory: Path) -> Path:
             )
             recorder = active_recorder
             item["history"] = history.name
-            path, metrics = _search(identifier, case, settings, active_recorder, checkpoint)
+            with scope(parse(disabled)):
+                path, metrics = _search(identifier, case, settings, active_recorder, checkpoint)
             canonical(metrics)
             if procedures.source_pins() != plan["sources"]:
                 raise SchedulingStop("Source fingerprints changed during the procedure.")
@@ -203,6 +218,12 @@ def run(directory: Path) -> Path:
                 else f"Search excerpt: first {active_recorder.count} complete transports. Procedure unfinished; last path may be a seed, probe or rejected trial.",
                 metrics=metrics,
             )
+            if disabled:
+                item["detail"] += (
+                    " Disabled in search: "
+                    + ", ".join(disabled)
+                    + ". Measurements still use the full reference rules."
+                )
             if path is not None:
                 snapshot = freeze_path(name, path, intervals=512, sections=33)
                 item["snapshot"] = snapshot_payload(snapshot)
@@ -212,6 +233,12 @@ def run(directory: Path) -> Path:
                 ]
             elif active_recorder.last is not None:
                 item["snapshot"] = snapshot_payload(active_recorder.last)
+                item["rules"] = [
+                    asdict(rule)
+                    for rule in observations(
+                        active_recorder.last, targets, plan["minimum_radius_mm"]
+                    )
+                ]
             checkpoint()
         except Exception as error:
             # Preserve unexpected implementation errors as stopped evidence, never a pass.
@@ -254,7 +281,7 @@ def run(directory: Path) -> Path:
         {
             "status": "stopped" if stopped else "completed",
             "detail": stopped or "Results recorded; physical acceptance unresolved.",
-            "total": len(requested),
+            "total": len(work),
             "elapsed_seconds": perf_counter() - started,
         },
     )

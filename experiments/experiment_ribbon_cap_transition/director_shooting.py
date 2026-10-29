@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 
+from .constraint_policy import Rule, for_field
 from .coupled_motion import orientation_angles
 from .director_constrained_step import constrained_step
 from .director_path_contracts import FramedPath
@@ -294,7 +295,7 @@ def residual(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
     distance = magnitude(difference(case.end, case.start))
     tangent = difference(Vector3(*state[3:6]), case.end_tangent)
     width = difference(Vector3(*state[6:9]), case.end_width)
-    return (
+    values = (
         delta.x / distance,
         delta.y / distance,
         delta.z / distance,
@@ -305,6 +306,9 @@ def residual(case: EndpointCase, path: FramedPath) -> tuple[float, ...]:
         width.y,
         width.z,
     )
+    constraints = for_field(path.field)
+    rules = (Rule.END_POSITION,) * 3 + (Rule.END_TANGENT,) * 3 + (Rule.END_WIDTH,) * 3
+    return tuple(value if constraints.enabled(rule) else 0.0 for value, rule in zip(values, rules))
 
 
 def solve(

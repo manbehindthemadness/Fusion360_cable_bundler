@@ -21,7 +21,7 @@ from devtools.ribbon_analysis.inspection.archive import (
 )
 from devtools.ribbon_analysis.inspection.values import integer_value, json_object
 
-from . import examples, procedures
+from . import ablation, examples, procedures
 from .procedures import ROOT
 
 
@@ -66,9 +66,13 @@ class ProcedureController:
         """
         if self._process is not None:
             raise ValueError("A numerical job is already awaiting completion.")
-        if set(request) != {"procedures"}:
-            raise ValueError("Run requests require procedure selections only.")
+        if set(request) not in ({"procedures"}, {"procedures", "comparison"}):
+            raise ValueError("Run requests require selections and an optional explicit comparison.")
         selected = procedures.selections(request["procedures"])
+        comparison = json_object(request["comparison"]) if "comparison" in request else None
+        work = ablation.workloads(selected, comparison)
+        if sum(item["settings"]["seconds"] for item in work) > 120:
+            raise ValueError("Baseline plus ablation exceed the 120-second run budget.")
         targets = Targets.capture(targets)
         if targets.lines not in (1, 3):
             raise ValueError("Interactive examples support one or three conductors.")
@@ -98,6 +102,7 @@ class ProcedureController:
             "run_id": run_id,
             "targets": targets_payload(targets),
             "procedures": selected,
+            "comparison": comparison,
             "sources": procedures.source_pins(),
             "minimum_radius_mm": 3 * targets.diameter_mm,
             "limits": {
@@ -140,13 +145,13 @@ class ProcedureController:
             }
             raise
         self._job, self._started = job, perf_counter()
-        self._seconds = sum(item["settings"]["seconds"] for item in selected)
+        self._seconds = sum(item["settings"]["seconds"] for item in work)
         self._cancelled = None
         self._status = {
             "status": "running",
             "detail": "Numerical worker started; search recording is included in the time limits.",
             "directory": str(job),
-            "total": len(selected),
+            "total": len(work),
         }
 
     def cancel(self) -> None:
@@ -226,6 +231,10 @@ class ProcedureController:
             "examples": examples.EXAMPLES,
             "example": self._example,
             "demonstration": procedures.demonstration(),
+            "ablation_controls": {
+                entry.identifier: ablation.controls(entry.identifier)
+                for entry in procedures.CATALOG
+            },
             **self._status,
         }
 

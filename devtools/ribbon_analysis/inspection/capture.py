@@ -228,7 +228,20 @@ def read_history(path: Path, *, allow_interrupted_tail: bool = False) -> tuple[d
                     raise ValueError("Search decision score must be finite.")
                 if event.get("accepted") is not None and not isinstance(event["accepted"], bool):
                     raise ValueError("Search acceptance must be boolean or unknown.")
-                records[-1].update(score=score, accepted=event.get("accepted"))
+                coordinates = event.get("coordinates")
+                if coordinates is not None and (
+                    not isinstance(coordinates, list)
+                    or any(
+                        isinstance(value, bool)
+                        or not isinstance(value, (float, int))
+                        or not math.isfinite(value)
+                        for value in coordinates
+                    )
+                ):
+                    raise ValueError("Search decision coordinates must be finite numbers.")
+                records[-1].update(
+                    score=score, accepted=event.get("accepted"), coordinates=coordinates
+                )
     return tuple(records)
 
 

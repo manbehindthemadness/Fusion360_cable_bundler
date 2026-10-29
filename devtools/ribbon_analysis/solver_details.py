@@ -7,18 +7,37 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 
 # noinspection PyUnresolvedReferences
 import adsk.core
 
 from cable_bundler.routing.geometry import Vector3
 
-from .api import Evidence
 from .constraint_geometry import Overlay
 from .provenance import mark_loaded
 
 _GROUP = "RibbonAnalysisSolverDetails"
+
+
+class DetailSource(Protocol):
+    """
+    Identify frozen detail metadata without requiring an intrinsic ribbon model.
+    """
+
+    @property
+    def identifier(self) -> str:
+        """
+        Identify the selected frozen geometry and numerical disposition.
+        """
+        ...
+
+    @property
+    def fingerprint(self) -> str:
+        """
+        Address the exact displayed source/settings/measurement snapshot.
+        """
+        ...
 
 
 def _point(sketch: Any, point: Vector3) -> Any:
@@ -32,9 +51,11 @@ def _point(sketch: Any, point: Vector3) -> Any:
 
 def retain_solver_details(
     component: Any,
-    evidence: Evidence,
+    evidence: DetailSource,
     overlay: Overlay,
     checkpoint: Callable[[], None] = lambda: None,
+    *,
+    text_scale: float = 1.0,
 ) -> Any:
     """
     Retain one initially visible solver-details sketch in its owner.
@@ -45,8 +66,17 @@ def retain_solver_details(
     """
     if overlay.key != "solver_limits":
         raise ValueError("Only solver restrictions belong in the solver-details sketch.")
+    if not 0 < text_scale <= 1:
+        raise ValueError("Solver detail text scale must be within (0,1].")
+    payload: dict[str, Any] = {
+        "evidence": evidence.fingerprint,
+        "overlay": asdict(overlay),
+        "layout_version": 2,
+    }
+    if text_scale != 1:
+        payload["text_scale"] = text_scale
     snapshot = json.dumps(
-        {"evidence": evidence.fingerprint, "overlay": asdict(overlay), "layout_version": 2},
+        payload,
         sort_keys=True,
         allow_nan=False,
     )
@@ -84,6 +114,7 @@ def retain_solver_details(
         )
         for note, offset, height in captions:
             checkpoint()
+            offset, height = offset * text_scale, height * text_scale
             # Literal text is an expression in Fusion's current Sketch Text API.
             expression = "'" + note.replace("\\", "\\\\").replace("'", "\\'") + "'"
             text_input = sketch.sketchTexts.createInput3(

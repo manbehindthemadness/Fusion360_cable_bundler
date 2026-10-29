@@ -11,6 +11,7 @@ from enum import Enum
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 
+from .constraint_policy import Rule, for_field
 from .director_path_contracts import FramedPath
 from .endpoint_first import EndpointCase
 
@@ -68,6 +69,7 @@ def _penalties(
     analytical for eachstation;this function neither clips geometry nor certifies it.
     """
     field = path.field
+    constraints = for_field(field)
     half = field.half_width_mm
     reach = math.hypot(half, case.diameter_mm / 2)
     midpoint = case.start.translated(difference(case.end, case.start), 0.5)
@@ -88,8 +90,10 @@ def _penalties(
         )
         penalties.extend(
             (
-                0.2 * math.log1p(max(0.0, abs(k) * reach / 0.78 - 1)),
-                0.2 * math.log1p(lane_violation),
+                0.2 * math.log1p(max(0.0, abs(k) * reach / 0.78 - 1))
+                if constraints.enabled(Rule.CENTRE_BEND)
+                else 0.0,
+                0.2 * math.log1p(lane_violation) if constraints.enabled(Rule.LANE_BEND) else 0.0,
             )
         )
         if scope is ObjectiveScope.LEGACY_SPHERE:

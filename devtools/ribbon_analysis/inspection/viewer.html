@@ -46,7 +46,7 @@
   <div id="procedureForms"></div>
   <button id="demoProcedures">Load nine-procedure demonstration settings</button>
   <p id="runBudget" class="muted"></p>
-  <div class="toolbar"><button id="runProcedures">Run selected</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
+  <div class="toolbar"><button id="runProcedures">Run selected (all rules)</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
   <p id="runStatus" role="status" class="muted"></p>
 </details>
 <label for="solver">Recorded result / reference</label><select id="solver"></select>
@@ -60,6 +60,9 @@
   <label><input id="outlines" type="checkbox" checked> Section outlines</label>
   <label><input id="envelope" type="checkbox" checked> Circular envelope</label>
   <label><input id="axes" type="checkbox" checked> Local XYZ</label>
+  <label><input id="solverPanels" type="checkbox" checked> Solver panels in Fusion</label>
+  <label><input id="constraintWitnesses" type="checkbox"> Constraint witnesses in Fusion</label>
+  <label><input id="baselineGhost" type="checkbox" checked> Matched baseline in Fusion</label>
   <button id="reset">Reset view</button>
 </div>
 <div class="muted">Drag to orbit · scroll to zoom · section colours repeat in path order</div>
@@ -75,7 +78,11 @@
   <canvas id="bendChart" style="height:160px" aria-label="Centre and edge curvature along the selected recorded path"></canvas>
   <p class="muted">Blue: centre · orange: edge A · purple: edge B · dashed: 3D guide-radius reference. The marker follows the selected section.</p>
 </details>
-<table><thead><tr><th>Rule / measurement</th><th>Status and scope</th></tr></thead><tbody id="rules"></tbody></table>
+<p class="muted">Use the checkboxes to define a new baseline/disabled comparison using the selected solver's recorded settings. Independent measurements stay active. Start pose, dimensions and structural or unimplemented rules have no toggle.</p>
+<table><thead><tr><th>Rule / measurement</th><th>Status and scope</th><th>Use in search</th></tr></thead><tbody id="rules"></tbody></table>
+<div class="toolbar"><button id="compareRules" disabled>Compare selected solver</button><button id="enableRules">Enable all rules</button><button id="pairedBaseline" disabled>View paired baseline</button></div>
+<p id="comparisonScope" class="muted"></p>
+<p id="comparisonResult" class="muted"></p>
 <p id="source" class="muted"></p>
 <pre id="error"></pre>
 <script>
@@ -87,20 +94,25 @@ const element = id => document.getElementById(id);
 /** @typedef {{number:number, controls:XYZ[]}} Guide */
 /** @typedef {{lines:number, guides:Guide[], sections:RecordedSection[]}} Snapshot */
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
-/** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean}} Method */
+/** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean,procedure:string,settings:Object<string,(number|string)>,disabled_rules:string[]}} Method */
+/** @typedef {{id:string,name:string,supported:boolean,reason:string}} RuleControl */
+/** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{key:string, label:string, default:(number|string), minimum:number, maximum:number, choices:string[], integer:boolean}} ProcedureSetting */
 /** @typedef {{identifier:string, label:string, detail:string, unavailable:string, settings:ProcedureSetting[]}} Procedure */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,demonstration:ProcedureSelection[], status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,demonstration:ProcedureSelection[],ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
 /** @typedef {{enabled:boolean, settings:Object<string,(number|string)>}} ProcedureDraft */
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
 let playing = false;
+const disabledRules = new Set();
+let ruleDraftSource = "";
+const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost"};
 /** @type {Object<string,ProcedureDraft>} */
 const procedureDrafts = {};
 let procedureCatalog = "";
@@ -132,9 +144,23 @@ function controls() {
   element("play").disabled = !method?.history_count || (!playing && blocked);
   element("play").textContent = playing ? "Pause search" : "Play search";
   element("section").disabled = blocked || !state.snapshot;
-  for (const id of ["outlines", "envelope", "axes"]) element(id).disabled = blocked || !state.snapshot;
+  for (const id of Object.values(layers)) element(id).disabled = blocked || !state.snapshot;
+  element("baselineGhost").disabled = blocked || !state.snapshot || state.comparison?.role !== "ablation";
   element("reconnect").disabled = pending;
   procedureControls();
+  comparisonControls();
+}
+function comparisonControls() {
+  const method = state?.solvers.find(entry => entry.id === state.solver);
+  const capabilities = state?.execution?.ablation_controls[method?.procedure] || [];
+  const available = new Set(capabilities.filter(entry => entry.supported).map(entry => entry.id));
+  const running = ["running", "cancelling"].includes(state?.execution?.status);
+  const blocked = pending || !connected || running;
+  element("compareRules").disabled = blocked || !method || !Object.keys(method.settings).length || !disabledRules.size || [...disabledRules].some(id => !available.has(id));
+  element("enableRules").disabled = blocked;
+  element("pairedBaseline").disabled = blocked || !state?.comparison || !state.solvers.some(entry => entry.id === state.comparison.baseline);
+  for (const field of element("rules").querySelectorAll("input")) field.disabled = blocked || field.dataset.supported !== "true";
+  element("comparisonScope").textContent = method && Object.keys(method.settings).length ? `Two fresh runs · up to ${2 * Number(method.settings.seconds)} seconds including capture · identical recorded settings · ${disabledRules.size} disabled rule(s). Start pose and independent measurements stay fixed.` : "Select a recorded numerical procedure to compare its constraints.";
 }
 function selectedProcedures() {
   return Object.entries(procedureDrafts).filter(([, entry]) => entry.enabled).map(([id, entry]) => ({id, settings: {...entry.settings}}));
@@ -258,7 +284,7 @@ function receive(value) {
   }
   state = value;
   renderExecution(state.execution);
-  if (state.visibility) for (const id of ["outlines", "envelope", "axes"]) element(id).checked = state.visibility[id];
+  if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
   element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
   element("solver").replaceChildren(...state.solvers.map(m => {
@@ -283,12 +309,26 @@ function receive(value) {
   element("sectionLabel").textContent = selected ? `${selected.index + 1} / ${sections.length} · u=${selected.u.toFixed(5)}` : "— no recorded geometry";
   element("frame").textContent = selected ? ["Origin (mm)", "X", "Y", "+Z"].map((label, i) => `${label}: ${xyz(selected.frame[["origin", "x", "y", "z"][i]]).map(v => v.toFixed(5)).join(", ")}`).join("\n") : "";
   element("notice").textContent = state.notice;
-  element("rules").replaceChildren(...method.rules.map(rule => {
-    const row = document.createElement("tr"), name = document.createElement("td"), detail = document.createElement("td");
+  if (ruleDraftSource !== state.solver) {
+    ruleDraftSource = state.solver; disabledRules.clear();
+    for (const id of method.disabled_rules) disabledRules.add(id);
+  }
+  const capabilities = state.execution?.ablation_controls[method.procedure] || [];
+  const visibleRules = [...state.rules];
+  for (const capability of capabilities) if (!visibleRules.some(rule => rule.name === capability.name)) visibleRules.push({name:capability.name,status:"unmeasured",detail:capability.reason,value:null,limit:null});
+  element("rules").replaceChildren(...visibleRules.map(rule => {
+    const row = document.createElement("tr"), name = document.createElement("td"), detail = document.createElement("td"), toggle = document.createElement("td");
     name.textContent = rule.name;
     detail.textContent = `${rule.status.replaceAll("_", " ")}: ${rule.detail}${rule.value === null ? "" : ` · value ${rule.value.toPrecision(6)}`}${rule.limit === null ? "" : ` · limit ${rule.limit.toPrecision(6)}`}`;
-    row.append(name, detail); return row;
+    const capability = capabilities.find(entry => entry.name === rule.name);
+    if (capability) {
+      const field = document.createElement("input"); field.type = "checkbox"; field.checked = !disabledRules.has(capability.id); field.dataset.supported = String(capability.supported); field.title = capability.reason;
+      field.onchange = () => { if (field.checked) disabledRules.delete(capability.id); else disabledRules.add(capability.id); comparisonControls(); };
+      toggle.append(field, document.createTextNode(capability.supported ? " Use" : " Fixed"));
+    } else toggle.textContent = "Measurement / fixed model";
+    row.append(name, detail, toggle); return row;
   }));
+  element("comparisonResult").textContent = state.comparison ? `${state.comparison.detail} ${state.comparison.measurements.map(row => `${row.name}: ${row.baseline.toPrecision(5)} → ${row.current.toPrecision(5)} (Δ ${row.delta.toPrecision(5)})`).join(" · ")}` : "";
   element("source").textContent = `Source: ${method.source}`;
   element("error").textContent = "";
   draw();
@@ -305,7 +345,7 @@ window.fusionJavaScriptHandler = {handle(action, data) {
   }
   if (action === "diagnostic_request") {
     const command = JSON.parse(data);
-    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example"].includes(command.action)) return "Unsupported diagnostic request";
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare"].includes(command.action)) return "Unsupported diagnostic request";
     if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
     request(command.action, command.data || {});
   }
@@ -412,6 +452,9 @@ element("runProcedures").onclick = () => {
   request("run", {procedures: selectedProcedures()});
 };
 element("cancelRun").onclick = () => request("cancel");
+element("compareRules").onclick = () => { setPlayback(false); request("compare", {disabled_rules:[...disabledRules].sort()}); };
+element("enableRules").onclick = () => { disabledRules.clear(); for (const field of element("rules").querySelectorAll("input")) field.checked = true; comparisonControls(); };
+element("pairedBaseline").onclick = () => request("select", {solver:state.comparison.baseline});
 element("viewRun").onclick = () => request("select", {solver: state.execution.result_ids[0]});
 const selectProposal = index => request("select", {solver: state.solver, proposal: index});
 element("proposal").onchange = () => selectProposal(Number(element("proposal").value));
@@ -420,8 +463,8 @@ element("next").onclick = () => selectProposal(state.proposal + 1);
 element("result").onclick = () => selectProposal(-1);
 element("play").onclick = () => setPlayback(!playing);
 element("section").onchange = () => request("section", {index: Number(element("section").value)});
-for (const id of ["outlines", "axes", "envelope"]) element(id).onchange = () => {
-  draw(); request("visibility", Object.fromEntries(["outlines", "axes", "envelope"].map(key => [key, element(key).checked])));
+for (const id of Object.values(layers)) element(id).onchange = () => {
+  draw(); request("visibility", Object.fromEntries(Object.entries(layers).map(([key, id]) => [key, element(id).checked])));
 };
 element("reset").onclick = () => { yaw = -.65; pitch = .35; zoom = 1; draw(); };
 let drag = null;

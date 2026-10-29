@@ -21,6 +21,7 @@ from .display import visible_section_indices
 from .native_guides import retain
 from .run_contract import ProcedureRunner
 from .session import Session
+from .solver_graphics import render as render_solver_graphics
 
 SECTION_COLORS = ((30, 140, 200), (215, 105, 30), (145, 65, 180), (30, 150, 100))
 
@@ -97,7 +98,21 @@ class DiagnosticViewer:
         self._frame: Any = None
         self._triad: Any = None
         self._envelope: Any = None
-        self._visibility = {"outlines": True, "envelope": True, "axes": True}
+        self._visibility = {
+            "outlines": True,
+            "envelope": True,
+            "axes": True,
+            "solver": True,
+            "constraints": False,
+            "baseline": True,
+        }
+        self._solver_groups: list[Any] = []
+        self._constraint_groups: list[Any] = []
+        self._solver_sketch: Any = None
+        self._baseline_group: Any = None
+        self._details_visibility: dict[tuple[str, str], bool] = {}
+        self._solver_sketch_key = (str(self.session.manifest), self.session.solver)
+        self._follow_comparison = False
         self._methods: dict[str, Any] = {}
         self._sessions: dict[Path, tuple[Session, dict[str, Any]]] = {
             manifest.resolve(): (self.session, self._methods)
@@ -137,6 +152,11 @@ class DiagnosticViewer:
         budget.check("replay launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Diagnostic replay lacks 3.8GiB launch headroom.")
+        if self._solver_sketch is not None and self._solver_sketch.isValid:
+            self._details_visibility[self._solver_sketch_key] = self._solver_sketch.isLightBulbOn
+            self._solver_sketch.isLightBulbOn = False
+        self._solver_sketch = None
+        self._solver_groups, self._constraint_groups, self._baseline_group = [], [], None
         if self._scene is not None and self._scene.isValid:
             self._scene.deleteMe()
         self._scene, self._frame, self._triad, self._envelope, self._sections = (
@@ -192,6 +212,20 @@ class DiagnosticViewer:
                     "Sampled circular envelope",
                 )
         self._draw_frame()
+        budget.check("solver panels")
+        self._solver_groups, self._constraint_groups, self._solver_sketch, self._baseline_group = (
+            render_solver_graphics(
+                self._scene.component,
+                component,
+                self.session,
+                lambda: budget.check("solver detail/witness"),
+            )
+        )
+        self._solver_sketch_key = (str(self.session.manifest), self.session.solver)
+        if self._solver_sketch is not None:
+            self._solver_sketch.isLightBulbOn = self._details_visibility.get(
+                self._solver_sketch_key, self._solver_sketch.isLightBulbOn
+            )
         self._apply_visibility()
 
     def _draw_frame(self) -> None:
@@ -228,6 +262,12 @@ class DiagnosticViewer:
         Synchronize palette layer controls with this viewer's native graphics only.
         """
         visible = visible_section_indices(len(self._sections), self.session.section)
+        for group in self._solver_groups:
+            group.isVisible = self._visibility["solver"]
+        for group in self._constraint_groups:
+            group.isVisible = self._visibility["constraints"]
+        if self._baseline_group is not None:
+            self._baseline_group.isVisible = self._visibility["baseline"]
         for index, occurrence in enumerate(self._sections):
             occurrence.isLightBulbOn = self._visibility["outlines"] and index in visible
             if index in visible:
@@ -310,6 +350,29 @@ class DiagnosticViewer:
         """
         if action == "example":
             self._open_example(_text(data.get("id")))
+        elif action == "compare":
+            if self.runner is None or set(data) != {"disabled_rules"}:
+                raise ValueError(
+                    "Comparison requires explicit disabled rules and a configured worker."
+                )
+            method = next(
+                item for item in self.session.methods if item["id"] == self.session.solver
+            )
+            if not method["settings"] or not method["procedure"]:
+                raise ValueError("Choose a recorded numerical procedure with archived settings.")
+            if len(self.session.methods) + 2 > 64:
+                raise ValueError("The comparison would exceed 64 recorded entries.")
+            self.runner.start(
+                {
+                    "procedures": [{"id": method["procedure"], "settings": method["settings"]}],
+                    "comparison": {
+                        "origin": method["id"],
+                        "disabled_rules": data["disabled_rules"],
+                    },
+                },
+                self.session.targets,
+            )
+            self._follow_comparison = True
         elif action in ("run", "poll", "cancel"):
             if self.runner is None:
                 raise ValueError("Numerical procedure execution is not configured for this replay.")
@@ -330,6 +393,10 @@ class DiagnosticViewer:
                     if method["id"] in added:
                         budget.check("new numerical result")
                         self._register_method(method)
+                if self._follow_comparison:
+                    self.session.select(added[-1])
+                    self._draw()
+                    self._follow_comparison = False
         elif action == "select":
             self.session.select(_text(data.get("solver")), _integer(data.get("proposal", -1)))
             self._draw()
@@ -341,7 +408,7 @@ class DiagnosticViewer:
             if set(data) != set(self._visibility) or any(
                 not isinstance(value, bool) for value in data.values()
             ):
-                raise ValueError("Diagnostic visibility needs three explicit boolean layers.")
+                raise ValueError("Diagnostic visibility needs every explicit boolean layer.")
             self._visibility.update(data)
             self._apply_visibility()
         elif action != "ready":
