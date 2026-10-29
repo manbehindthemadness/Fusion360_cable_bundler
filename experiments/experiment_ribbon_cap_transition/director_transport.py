@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, dot
+from devtools.ribbon_analysis.inspection.capture import transported
 
 from .director_fields import DirectorField
 
@@ -175,4 +176,6 @@ def integrate(
         )
         rates.append(a)
     rates.append(rate(field, states[-1], 1))
-    return DirectorPath(field, tuple(states), tuple(rates))
+    path = DirectorPath(field, tuple(states), tuple(rates))
+    transported(path, steps)
+    return path

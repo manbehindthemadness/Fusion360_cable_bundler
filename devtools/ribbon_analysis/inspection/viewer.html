@@ -25,6 +25,13 @@
   code { font-size: 11px; overflow-wrap: anywhere; }
   #frame { font-variant-numeric: tabular-nums; white-space: pre-line; font-size: 12px; }
   .axes { font-weight: 700; letter-spacing: 1px; }
+  details { margin: 12px 0; padding: 9px; border: 1px solid #ccd7df; border-radius: 6px; }
+  summary { cursor: pointer; font-weight: 600; }
+  #procedureForms > div { padding: 7px 0; border-bottom: 1px solid #d0dae1; }
+  #procedureForms label { margin-top: 5px; }
+  #procedureForms input[type=number] { width: 110px; margin: 5px 10px; padding: 5px; }
+  #procedureForms select { margin-bottom: 8px; }
+  button:disabled { opacity: .5; }
 </style>
 </head>
 <body>
@@ -32,11 +39,21 @@
 <div id="case" class="muted">Waiting for the recorded experiment…</div>
 <p id="connection" class="muted" role="status">Connecting to Fusion…</p>
 <button id="reconnect">Reconnect</button>
-<label for="solver">Solver / reference</label><select id="solver"></select>
+<div id="examplePanel" hidden><label for="example">Diagnostic example</label><select id="example"></select></div>
+<details id="procedurePanel" hidden>
+  <summary>Run solver procedures</summary>
+  <p class="muted">Select optional numerical procedures and their settings. Each run keeps the current endpoint inputs and records new results. A scheduling limit or error stops the batch. Physical acceptance remains unresolved.</p>
+  <div id="procedureForms"></div>
+  <button id="demoProcedures">Load nine-procedure demonstration settings</button>
+  <p id="runBudget" class="muted"></p>
+  <div class="toolbar"><button id="runProcedures">Run selected</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
+  <p id="runStatus" role="status" class="muted"></p>
+</details>
+<label for="solver">Recorded result / reference</label><select id="solver"></select>
 <p id="status">No solver has been selected.</p>
 <label for="proposal">Search history <span id="proposalLabel"></span></label>
 <input id="proposal" type="range" min="-1" max="-1" value="-1" disabled>
-<div class="toolbar"><button id="previous">← Previous</button><button id="next">Next →</button><button id="result">Result</button></div>
+<div class="toolbar"><button id="previous">← Previous</button><button id="next">Next →</button><button id="result">Result</button><button id="play">Play search</button></div>
 <p id="stage" class="muted"></p>
 <canvas id="canvas" aria-label="Rotatable three dimensional recorded cable geometry"></canvas>
 <div class="toolbar">
@@ -51,6 +68,13 @@
 <p class="axes"><span style="color:#c32a31">X across</span> · <span style="color:#178e3d">Y thickness</span> · <span style="color:#2457d5">+Z forward</span></p>
 <div id="frame"></div>
 <p id="notice" class="muted"></p>
+<details id="bendPanel" open>
+  <summary>Macaroni / centre and edge bending</summary>
+  <p id="bendScope" class="muted"></p>
+  <p id="bendValues"></p>
+  <canvas id="bendChart" style="height:160px" aria-label="Centre and edge curvature along the selected recorded path"></canvas>
+  <p class="muted">Blue: centre · orange: edge A · purple: edge B · dashed: 3D guide-radius reference. The marker follows the selected section.</p>
+</details>
 <table><thead><tr><th>Rule / measurement</th><th>Status and scope</th></tr></thead><tbody id="rules"></tbody></table>
 <p id="source" class="muted"></p>
 <pre id="error"></pre>
@@ -65,10 +89,21 @@ const element = id => document.getElementById(id);
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
 /** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean}} Method */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[]}} InspectionState */
+/** @typedef {{key:string, label:string, default:(number|string), minimum:number, maximum:number, choices:string[], integer:boolean}} ProcedureSetting */
+/** @typedef {{identifier:string, label:string, detail:string, unavailable:string, settings:ProcedureSetting[]}} Procedure */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,demonstration:ProcedureSelection[], status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
+/** @typedef {{enabled:boolean, settings:Object<string,(number|string)>}} ProcedureDraft */
+/** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
+/** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
+/** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string}} BendInspection */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
+let playing = false;
+/** @type {Object<string,ProcedureDraft>} */
+const procedureDrafts = {};
+let procedureCatalog = "";
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
 const xyz = p => [p.x, p.y, p.z];
 const add = (a, b, scale = 1) => a.map((v, i) => v + b[i] * scale);
@@ -94,16 +129,90 @@ function controls() {
   element("previous").disabled = blocked || state.proposal < 0;
   element("next").disabled = blocked || state.proposal >= method.history_count - 1;
   element("result").disabled = blocked || !method.has_result;
+  element("play").disabled = !method?.history_count || (!playing && blocked);
+  element("play").textContent = playing ? "Pause search" : "Play search";
   element("section").disabled = blocked || !state.snapshot;
   for (const id of ["outlines", "envelope", "axes"]) element(id).disabled = blocked || !state.snapshot;
   element("reconnect").disabled = pending;
+  procedureControls();
+}
+function selectedProcedures() {
+  return Object.entries(procedureDrafts).filter(([, entry]) => entry.enabled).map(([id, entry]) => ({id, settings: {...entry.settings}}));
+}
+/** @param {Procedure} procedure @returns {ProcedureDraft} */
+function newProcedureDraft(procedure) {
+  /** @type {Object<string,(number|string)>} */
+  const settings = {};
+  for (const setting of procedure.settings) settings[setting.key] = setting.default;
+  return {enabled: false, settings};
+}
+function procedureControls() {
+  const selected = selectedProcedures();
+  const seconds = selected.reduce((total, entry) => total + Number(entry.settings.seconds), 0);
+  const running = ["running", "cancelling"].includes(state?.execution?.status);
+  element("runBudget").textContent = `${selected.length} selected · up to ${seconds.toFixed(1)} seconds including capture · 4 GiB worker ceiling · 64 MiB recording per procedure / 256 MiB per run`;
+  element("runProcedures").disabled = pending || !connected || running || !selected.length || !Number.isFinite(seconds) || seconds > 120;
+  element("cancelRun").disabled = pending || !running;
+  element("example").disabled = pending || running || !connected;
+  element("demoProcedures").disabled = pending || running || !connected;
+  element("viewRun").disabled = pending || !state?.execution?.result_ids?.length;
+  for (const field of element("procedureForms").querySelectorAll("input, select")) field.disabled = running || pending || field.dataset.unavailable === "true";
+}
+/** @param {?Execution} execution */
+function renderExecution(execution) {
+  element("procedurePanel").hidden = !execution;
+  element("examplePanel").hidden = !execution;
+  if (!execution) return;
+  element("example").replaceChildren(...[
+    {id: "", label: "Current recorded archive"}, ...execution.examples
+  ].map(example => {
+    const option = document.createElement("option");
+    option.value = example.id; option.textContent = example.label;
+    option.selected = example.id === execution.example; return option;
+  }));
+  const signature = JSON.stringify(execution.catalog);
+  if (signature !== procedureCatalog) {
+    procedureCatalog = signature;
+    element("procedureForms").replaceChildren(...execution.catalog.map(procedure => {
+      const card = document.createElement("div"); card.dataset.procedure = procedure.identifier;
+      const label = document.createElement("label"), enabled = document.createElement("input");
+      enabled.type = "checkbox"; enabled.dataset.unavailable = String(Boolean(procedure.unavailable));
+      const draft = procedureDrafts[procedure.identifier] || newProcedureDraft(procedure);
+      procedureDrafts[procedure.identifier] = draft;
+      enabled.checked = draft.enabled;
+      enabled.onchange = () => { draft.enabled = enabled.checked; procedureControls(); };
+      label.append(enabled, document.createTextNode(" " + procedure.label)); card.append(label);
+      const detail = document.createElement("p"); detail.className = "muted";
+      detail.textContent = procedure.unavailable || procedure.detail; card.append(detail);
+      if (procedure.settings.length) {
+        const settings = document.createElement("details"), title = document.createElement("summary");
+        title.textContent = "Settings"; settings.append(title);
+        for (const specification of procedure.settings) {
+          const settingLabel = document.createElement("label"); settingLabel.textContent = specification.label;
+          const field = specification.choices.length ? document.createElement("select") : document.createElement("input");
+          if (field instanceof HTMLSelectElement) {
+            for (const value of specification.choices) { const option = document.createElement("option"); option.value = option.textContent = value; field.append(option); }
+          } else {
+            field.type = "number"; field.min = String(specification.minimum); field.max = String(specification.maximum); field.step = specification.integer ? "1" : "0.1";
+          }
+          field.value = String(draft.settings[specification.key]);
+          field.onchange = () => { draft.settings[specification.key] = specification.choices.length ? field.value : Number(field.value); procedureControls(); };
+          settingLabel.append(field); settings.append(settingLabel);
+        }
+        card.append(settings);
+      }
+      return card;
+    }));
+  }
+  element("runStatus").textContent = `${execution.status}: ${execution.detail || ""}${execution.procedure ? ` · ${execution.procedure}` : ""}${execution.completed === undefined ? "" : ` · ${execution.completed}/${execution.total} attempted`}${execution.elapsed_seconds === undefined ? "" : ` · ${execution.elapsed_seconds.toFixed(1)} s`}`;
+  procedureControls();
 }
 async function request(action, data = {}) {
   if (pending) return;
   pending = true;
   controls();
   element("error").textContent = "";
-  element("connection").textContent = "Waiting for Fusion…";
+  if (action !== "poll") element("connection").textContent = "Waiting for Fusion…";
   let timer;
   try {
     const host = await waitForFusionHost();
@@ -128,8 +237,10 @@ async function request(action, data = {}) {
     connected = true;
     if (response.state) receive(response.state);
     if (!response.ok) element("error").textContent = response.error;
+    if (!response.ok) playing = false;
     element("connection").textContent = "Connected to Fusion";
   } catch (error) {
+    playing = false;
     connected = false;
     element("connection").textContent = "Fusion connection unavailable";
     element("error").textContent = String(error);
@@ -141,7 +252,12 @@ async function request(action, data = {}) {
 }
 /** @param {InspectionState} value */
 function receive(value) {
+  if (value.execution_update) {
+    if (state) state.execution = value.execution;
+    renderExecution(value.execution); controls(); return;
+  }
   state = value;
+  renderExecution(state.execution);
   if (state.visibility) for (const id of ["outlines", "envelope", "axes"]) element(id).checked = state.visibility[id];
   const method = state.solvers.find(m => m.id === state.solver);
   element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
@@ -176,19 +292,57 @@ function receive(value) {
   element("source").textContent = `Source: ${method.source}`;
   element("error").textContent = "";
   draw();
+  drawBends();
   controls();
 }
 window.fusionJavaScriptHandler = {handle(action, data) {
   if (action === "state") receive(JSON.parse(data));
   if (action === "error") element("error").textContent = data;
+  if (action === "diagnostic_playback") {
+    const enabled = JSON.parse(data);
+    if (typeof enabled !== "boolean") return "Invalid playback state";
+    setPlayback(enabled);
+  }
   if (action === "diagnostic_request") {
     const command = JSON.parse(data);
-    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility"].includes(command.action)) return "Unsupported diagnostic request";
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example"].includes(command.action)) return "Unsupported diagnostic request";
     if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
     request(command.action, command.data || {});
   }
   return "OK";
 }};
+function setPlayback(enabled) {
+  playing = enabled;
+  const method = state?.solvers.find(entry => entry.id === state.solver);
+  if (playing && method?.history_count && state.proposal >= method.history_count - 1) selectProposal(0);
+  controls();
+}
+function drawBends() {
+  const bend = state?.bends;
+  element("bendPanel").hidden = !bend;
+  if (!bend) return;
+  const sample = bend.selected;
+  const value = radius => radius === null ? "straight / undefined" : `${radius.toFixed(3)} mm`;
+  element("bendScope").textContent = bend.scope;
+  element("bendValues").textContent = `u=${sample.u.toFixed(4)} · centre R ${value(sample.radii_mm.centre)}` + (bend.has_edges ? ` · edge A R ${value(sample.radii_mm.edge_a)} · edge B R ${value(sample.radii_mm.edge_b)} · measured centre / tighter edge ${sample.centre_edge_ratio === null ? "undefined" : sample.centre_edge_ratio.toFixed(3)}` : "") + ` · 3D reference ${bend.reference_radius_mm.toFixed(3)} mm`;
+  const canvas = element("bendChart"), ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  canvas.width = Math.max(1, width * ratio); canvas.height = Math.max(1, height * ratio);
+  const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio);
+  const series = bend.has_edges ? ["centre", "edge_a", "edge_b"] : ["centre"];
+  const maximum = Math.max(1.2, ...bend.samples.flatMap(point => series.map(key => point.utilization[key])));
+  const x = u => 32 + u * (width - 44), y = v => height - 22 - v / maximum * (height - 40);
+  ctx.strokeStyle = "#87949e"; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(x(0), y(1)); ctx.lineTo(x(1), y(1)); ctx.stroke(); ctx.setLineDash([]);
+  series.forEach((key, index) => {
+    ctx.strokeStyle = colors[index]; ctx.lineWidth = 1.6; ctx.beginPath();
+    bend.samples.forEach((point, ordinal) => { if (ordinal) ctx.lineTo(x(point.u), y(point.utilization[key])); else ctx.moveTo(x(point.u), y(point.utilization[key])); });
+    ctx.stroke();
+  });
+  ctx.strokeStyle = "#e3218b"; ctx.beginPath(); ctx.moveTo(x(sample.u), 10); ctx.lineTo(x(sample.u), height - 22); ctx.stroke();
+  ctx.fillStyle = "#536775"; ctx.font = "11px system-ui";
+  ctx.fillText("k × 3D", 2, 11); ctx.fillText("1", 10, y(1) + 4); ctx.fillText("0", x(0), height - 5); ctx.fillText("u=1", x(1) - 18, height - 5);
+}
 function draw() {
   const canvas = element("canvas"), ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth, height = canvas.clientHeight;
@@ -243,13 +397,28 @@ function draw() {
     });
   }
 }
-element("solver").onchange = () => request("select", {solver: element("solver").value});
+element("solver").onchange = () => { playing = false; request("select", {solver: element("solver").value}); };
+element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
+element("demoProcedures").onclick = () => {
+  for (const draft of Object.values(procedureDrafts)) draft.enabled = false;
+  for (const selection of state.execution.demonstration) procedureDrafts[selection.id] = {enabled:true,settings:{...selection.settings}};
+  procedureCatalog = ""; renderExecution(state.execution); controls();
+};
 element("reconnect").onclick = () => request("ready");
+element("runProcedures").onclick = () => {
+  for (const card of element("procedureForms").children) {
+    if (procedureDrafts[card.dataset.procedure].enabled && [...card.querySelectorAll("input, select")].some(field => !field.reportValidity())) return;
+  }
+  request("run", {procedures: selectedProcedures()});
+};
+element("cancelRun").onclick = () => request("cancel");
+element("viewRun").onclick = () => request("select", {solver: state.execution.result_ids[0]});
 const selectProposal = index => request("select", {solver: state.solver, proposal: index});
 element("proposal").onchange = () => selectProposal(Number(element("proposal").value));
 element("previous").onclick = () => selectProposal(state.proposal - 1);
 element("next").onclick = () => selectProposal(state.proposal + 1);
 element("result").onclick = () => selectProposal(-1);
+element("play").onclick = () => setPlayback(!playing);
 element("section").onchange = () => request("section", {index: Number(element("section").value)});
 for (const id of ["outlines", "axes", "envelope"]) element(id).onchange = () => {
   draw(); request("visibility", Object.fromEntries(["outlines", "axes", "envelope"].map(key => [key, element(key).checked])));
@@ -264,9 +433,18 @@ element("canvas").onpointermove = event => {
 };
 element("canvas").onpointerup = () => { drag = null; };
 element("canvas").onwheel = event => { event.preventDefault(); zoom = Math.max(.25, Math.min(8, zoom * Math.exp(-event.deltaY / 500))); draw(); };
-window.addEventListener("resize", draw);
+window.addEventListener("resize", () => { draw(); drawBends(); });
+element("bendPanel").ontoggle = drawBends;
 controls();
 window.addEventListener("load", () => request("ready"));
+window.setInterval(() => { if (!pending && ["running", "cancelling"].includes(state?.execution?.status)) request("poll"); }, 800);
+window.setInterval(() => {
+  if (!playing || pending || !connected || !state) return;
+  const method = state.solvers.find(entry => entry.id === state.solver);
+  if (!method?.history_count) { playing = false; controls(); return; }
+  if (state.proposal >= method.history_count - 1) { playing = false; controls(); return; }
+  selectProposal(state.proposal + 1);
+}, 800);
 </script>
 </body>
 </html>

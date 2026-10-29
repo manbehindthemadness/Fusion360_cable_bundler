@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -17,35 +16,11 @@ from cable_bundler.routing.geometry import CubicBezier, Vector3
 from ..contracts import TargetPose, Targets
 from ..traces import TracePath
 from .geometry import LocalFrame, PathSnapshot, Section
+from .values import finite_number as _number
+from .values import integer_value as _integer
+from .values import json_object as _object
 
 SCHEMA = "ribbon-inspection-v1"
-
-
-def _object(value: Any) -> dict[str, Any]:
-    """
-    Require an object at every structured JSON boundary.
-    """
-    if not isinstance(value, dict):
-        raise ValueError("Expected an inspection JSON object.")
-    return value
-
-
-def _number(value: Any) -> float:
-    """
-    Reject boolean, null and nonfinite values before geometric conversion.
-    """
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        raise ValueError("Inspection numbers must be finite.")
-    return float(value)
-
-
-def _integer(value: Any) -> int:
-    """
-    Require an actual integer rather than silently truncating a corrupted archive.
-    """
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError("Inspection counts must be integers.")
-    return value
 
 
 def _text(value: Any) -> str:

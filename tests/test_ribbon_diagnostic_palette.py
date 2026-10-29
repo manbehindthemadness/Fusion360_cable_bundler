@@ -7,11 +7,15 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
+
+from devtools.ribbon_analysis.inspection.session import Session
+from experiments.experiment_ribbon_diagnostic_viewer import examples
 
 
 @pytest.fixture
@@ -95,3 +99,31 @@ def test_native_html_response_notification_does_not_start_an_event_loop(
     viewer.dispatch.assert_not_called()
     viewer.palette.sendInfoToHTML.assert_not_called()
     assert viewer.received_requests == 0
+
+
+def test_switching_examples_retains_each_session_and_its_selected_section(
+    palette_module: Any, tmp_path: Path
+) -> None:
+    """
+    Preserve per-example history/selection while hiding the previous native inventory.
+    """
+    single = examples.create(tmp_path / "single", "single", lambda: None)
+    ribbon = examples.create(tmp_path / "ribbon", "ribbon", lambda: None)
+    viewer: Any = object.__new__(palette_module.DiagnosticViewer)
+    viewer.session = Session(single)
+    viewer.session.select_section(16)
+    original = viewer.session
+    old_occurrence = SimpleNamespace(isValid=True, isLightBulbOn=True)
+    viewer._methods = {"reference": old_occurrence}
+    viewer._sessions = {single.resolve(): (original, viewer._methods)}
+    viewer.runner = Mock()
+    viewer.runner.open_example.side_effect = [ribbon, single]
+    viewer._register_method = Mock(
+        side_effect=lambda item: viewer._methods.update({item["id"]: Mock()})
+    )
+    viewer._draw = Mock()
+    viewer._open_example("ribbon")
+    assert viewer.session.targets.lines == 3 and not old_occurrence.isLightBulbOn
+    viewer._open_example("single")
+    assert viewer.session is original and viewer.session.section == 16
+    assert len(viewer._sessions) == 2

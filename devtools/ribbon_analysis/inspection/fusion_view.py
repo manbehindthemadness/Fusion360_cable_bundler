@@ -19,6 +19,7 @@ from ..graphics import draw_lines, draw_text, draw_trace, set_color
 from .archive import _integer, _text
 from .display import visible_section_indices
 from .native_guides import retain
+from .run_contract import ProcedureRunner
 from .session import Session
 
 SECTION_COLORS = ((30, 140, 200), (215, 105, 30), (145, 65, 180), (30, 150, 100))
@@ -76,13 +77,20 @@ class DiagnosticViewer:
     The palette reads indexed frozen history; replay does not invoke the solver.
     """
 
-    def __init__(self, owned_component: Any, document: Any, manifest: Path) -> None:
+    def __init__(
+        self,
+        owned_component: Any,
+        document: Any,
+        manifest: Path,
+        runner: ProcedureRunner | None = None,
+    ) -> None:
         """
         Validate an archive before creating components within the supplied owned root.
         """
         self.session = Session(manifest)
         self.document = document
         self.root = owned_component
+        self.runner = runner
         self.palette: Any = None
         self._handler: PaletteIncomingHandler | None = None
         self._scene: Any = None
@@ -91,6 +99,9 @@ class DiagnosticViewer:
         self._envelope: Any = None
         self._visibility = {"outlines": True, "envelope": True, "axes": True}
         self._methods: dict[str, Any] = {}
+        self._sessions: dict[Path, tuple[Session, dict[str, Any]]] = {
+            manifest.resolve(): (self.session, self._methods)
+        }
         self._sections: list[Any] = []
         self.received_requests = 0
         self.received_events = 0
@@ -99,11 +110,17 @@ class DiagnosticViewer:
         budget = self._budget()
         for method in self.session.methods:
             budget.check("solver inventory")
-            occurrence = self.root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
-            occurrence.component.name = f"{method['label']} [{method['status']}]"
-            occurrence.isLightBulbOn = False
-            self._methods[method["id"]] = occurrence
+            self._register_method(method)
         self._draw()
+
+    def _register_method(self, method: dict[str, Any]) -> None:
+        """
+        Retain one named method disposition in this viewer's owned browser hierarchy.
+        """
+        occurrence = self.root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+        occurrence.component.name = f"{method['label']} [{method['status']}]"
+        occurrence.isLightBulbOn = False
+        self._methods[method["id"]] = occurrence
 
     @staticmethod
     def _budget() -> NativeBudget:
@@ -120,7 +137,7 @@ class DiagnosticViewer:
         budget.check("replay launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Diagnostic replay lacks 3.8GiB launch headroom.")
-        if self._scene is not None:
+        if self._scene is not None and self._scene.isValid:
             self._scene.deleteMe()
         self._scene, self._frame, self._triad, self._envelope, self._sections = (
             None,
@@ -129,7 +146,11 @@ class DiagnosticViewer:
             None,
             [],
         )
-        for identifier, occurrence in self._methods.items():
+        for identifier, occurrence in tuple(self._methods.items()):
+            if not occurrence.isValid:
+                method = next(item for item in self.session.methods if item["id"] == identifier)
+                self._register_method(method)
+                occurrence = self._methods[identifier]
             occurrence.isLightBulbOn = identifier == self.session.solver
         snapshot = self.session.snapshot
         if snapshot is None:
@@ -178,10 +199,10 @@ class DiagnosticViewer:
         Move a right-handed XYZ triad to the selected recorded section.
         """
         self._budget().check("section frame")
-        if self._frame is not None:
+        if self._frame is not None and self._frame.isValid:
             self._frame.deleteMe()
             self._frame = None
-        if self._triad is not None:
+        if self._triad is not None and self._triad.isValid:
             self._triad.deleteMe()
             self._triad = None
         snapshot = self.session.snapshot
@@ -250,20 +271,66 @@ class DiagnosticViewer:
         """
         Release only this viewer's recreatable scenes and palette; keep its archive.
         """
+        if self.runner is not None:
+            self.runner.cancel()
         if self.palette is not None and self.palette.isValid:
             self.palette.deleteMe()
         self.palette = None
         self._handler = None
+        for _, inventory in self._sessions.values():
+            for occurrence in inventory.values():
+                if occurrence.isValid:
+                    occurrence.deleteMe()
+        self._methods.clear()
+        self._sessions.clear()
+
+    def _open_example(self, identifier: str) -> None:
+        """
+        Switch authored inputs while retaining each example's session and run history.
+        """
+        if self.runner is None:
+            raise ValueError("Diagnostic examples are not configured.")
+        manifest = self.runner.open_example(identifier).resolve()
+        incoming = self._sessions.get(manifest)
+        if incoming is None:
+            incoming = (Session(manifest), {})
         for occurrence in self._methods.values():
             if occurrence.isValid:
-                occurrence.deleteMe()
-        self._methods.clear()
+                occurrence.isLightBulbOn = False
+        self.session, self._methods = incoming
+        self._sessions[manifest] = incoming
+        for method in self.session.methods:
+            if method["id"] not in self._methods:
+                self._register_method(method)
+        self._draw()
 
     def dispatch(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply a validated selection and send matching frozen geometry to the palette.
         """
-        if action == "select":
+        if action == "example":
+            self._open_example(_text(data.get("id")))
+        elif action in ("run", "poll", "cancel"):
+            if self.runner is None:
+                raise ValueError("Numerical procedure execution is not configured for this replay.")
+            if action == "run":
+                choices = data.get("procedures")
+                if not isinstance(choices, list) or len(self.session.methods) + len(choices) > 64:
+                    raise ValueError("Run selection would exceed this session's 64 method entries.")
+                self.runner.start(data, self.session.targets)
+            elif action == "cancel":
+                self.runner.cancel()
+            else:
+                manifest = self.runner.poll()
+                if manifest is None:
+                    return {"execution_update": True, "execution": self.runner.state()}
+                added = self.session.import_results(manifest)
+                budget = self._budget()
+                for method in self.session.methods:
+                    if method["id"] in added:
+                        budget.check("new numerical result")
+                        self._register_method(method)
+        elif action == "select":
             self.session.select(_text(data.get("solver")), _integer(data.get("proposal", -1)))
             self._draw()
         elif action == "section":
@@ -284,5 +351,6 @@ class DiagnosticViewer:
         state["visible_sections"] = visible_section_indices(
             len(self._sections), self.session.section
         )
+        state["execution"] = self.runner.state() if self.runner is not None else None
         self.palette.sendInfoToHTML("state", json.dumps(state, allow_nan=False))
         return state

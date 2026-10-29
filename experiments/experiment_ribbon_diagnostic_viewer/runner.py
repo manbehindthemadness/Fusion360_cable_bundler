@@ -9,7 +9,6 @@ Fusion is needed only to replay the resulting manifest through DiagnosticViewer.
 from __future__ import annotations
 
 import argparse
-import hashlib
 from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
@@ -41,8 +40,8 @@ from experiments.experiment_ribbon_tangent_tightening.field import TangentTighte
 from experiments.experiment_ribbon_tangent_tightening.refinement import tighten
 
 from .fixture import SpatialSBend
+from .procedures import source_pins
 
-ROOT = Path(__file__).resolve().parents[2]
 INVENTORY = (
     (
         "generalized",
@@ -111,31 +110,6 @@ class SchedulingStop(RuntimeError):
     """
     Distinguish recorded resource stops from numerical or harness failures.
     """
-
-
-def source_pins() -> dict[str, str]:
-    """
-    Freeze relevant numerical, geometry, replay and input sources before execution.
-    """
-    files = {ROOT / source for _, _, source in INVENTORY}
-    files.add(ROOT / "cable_bundler/routing/geometry.py")
-    for package in (
-        "devtools/ribbon_analysis",
-        "experiments/experiment_ribbon_diagnostic_viewer",
-        "experiments/experiment_ribbon_cap_transition",
-        "experiments/experiment_ribbon_route_discovery",
-        "experiments/experiment_ribbon_bend_redistribution",
-        "experiments/experiment_ribbon_tangent_tightening",
-    ):
-        files.update((ROOT / package).rglob("*.py"))
-    files.add(ROOT / "devtools/ribbon_analysis/inspection/viewer.html")
-    files.update(
-        ROOT / name for name in ("experiment_testing_rules.txt", "rollback_end_loft_notes.txt")
-    )
-    return {
-        str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in sorted(files)
-    }
 
 
 def run(output: Path) -> Path:

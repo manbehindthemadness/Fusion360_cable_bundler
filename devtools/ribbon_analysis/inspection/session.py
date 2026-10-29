@@ -20,6 +20,7 @@ from .archive import (
     read_document,
     snapshot_payload,
 )
+from .bends import inspect as inspect_bends
 from .capture import load_history_path, read_history
 from .geometry import PathSnapshot
 
@@ -143,6 +144,22 @@ class Session:
                 raise ValueError("Search dimensions disagree with the frozen case.")
         self.solver, self.proposal, self.section, self.snapshot = solver, proposal, 0, snapshot
 
+    def import_results(self, manifest: Path) -> tuple[str, ...]:
+        """
+        Append immutable results for the same fixed targets without replacing history.
+        """
+        incoming = Session(manifest)
+        if incoming.targets != self.targets:
+            raise ValueError("Run results do not match this session's fixed endpoint inputs.")
+        identifiers = tuple(method["id"] for method in incoming.methods)
+        existing = {method["id"] for method in self.methods}
+        if existing.intersection(identifiers) or len(self.methods) + len(identifiers) > 64:
+            raise ValueError("Run results would duplicate identities or exceed 64 method entries.")
+        self.methods.extend(incoming.methods)
+        self._snapshots.update(incoming._snapshots)
+        self._histories.update(incoming._histories)
+        return identifiers
+
     def select_section(self, index: int) -> None:
         """
         Move the same local XYZ basis to a distinct ordered recorded section.
@@ -171,6 +188,9 @@ class Session:
             "proposal_info": proposal,
             "section": self.section,
             "snapshot": snapshot_payload(self.snapshot)["geometry"]
+            if self.snapshot is not None
+            else None,
+            "bends": inspect_bends(self.snapshot, self.section)
             if self.snapshot is not None
             else None,
             "notice": "Diagnostic geometry. Search proposals are unaudited. No overall physical acceptance is inferred.",
