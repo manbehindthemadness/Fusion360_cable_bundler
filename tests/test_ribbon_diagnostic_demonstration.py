@@ -1,5 +1,5 @@
 """
-Verify fixed-width examples, explicit search excerpts and current-path bend evidence.
+Verify authored references and current-path evidence after discovery retirement.
 """
 
 from __future__ import annotations
@@ -7,21 +7,15 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any, Callable
 
 import pytest
 
-from devtools.ribbon_analysis.contracts import RibbonPath, Targets
-from devtools.ribbon_analysis.inspection.archive import write_document
+from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.inspection.bends import inspect, radius
-from devtools.ribbon_analysis.inspection.capture import read_history
 from devtools.ribbon_analysis.inspection.geometry import freeze_path
 from devtools.ribbon_analysis.inspection.session import Session
-from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
-from experiments.experiment_ribbon_cap_transition.shooting_telemetry import Trial
-from experiments.experiment_ribbon_diagnostic_viewer import adapters, examples, interactive_worker
-from experiments.experiment_ribbon_diagnostic_viewer.procedures import demonstration, selections
-from experiments.experiment_ribbon_route_discovery import broad_chart
+from experiments.experiment_ribbon_diagnostic_viewer import adapters, examples, runner
+from experiments.experiment_ribbon_diagnostic_viewer.procedures import demonstration
 
 
 def test_ribbon_reference_attains_material_guide_limit_without_map_folding() -> None:
@@ -63,7 +57,7 @@ def test_bend_evidence_follows_selected_section_and_exposes_both_actual_edges() 
     json.dumps(data, allow_nan=False)
 
 
-def test_examples_keep_separate_inputs_and_all_nine_demo_selections_are_bounded(
+def test_examples_keep_separate_inputs_without_scheduling_discovery(
     tmp_path: Path,
 ) -> None:
     """
@@ -75,80 +69,38 @@ def test_examples_keep_separate_inputs_and_all_nine_demo_selections_are_bounded(
     assert single.targets != ribbon.targets
     assert ribbon.snapshot is not None
     assert all(section.kind == "material_ruling" for section in ribbon.snapshot.sections)
-    configured = demonstration()
-    assert len(configured) == 9
-    assert all(
-        0 < method["settings"]["excerpt"] < method["settings"]["paths"] for method in configured
-    )
-    assert sum(method["settings"]["seconds"] for method in configured) == 72
-    with pytest.raises(ValueError, match="before the hard"):
-        selections([{"id": "ordinary", "settings": {"excerpt": 16, "paths": 16}}])
+    assert demonstration() == []
 
 
-def test_declared_excerpts_continue_other_methods_without_claiming_completed_solves(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.parametrize("identifier", ("compatible", "ordinary", "director", "broad", "discovery"))
+def test_direct_adapter_cannot_bypass_removed_discovery(identifier: str) -> None:
     """
-    A planned search prefix ends normally; resource errors remain covered separately.
+    Refuse direct adapter calls before checkpoint, seed or transport work.
     """
-    reference = examples.create(tmp_path / "reference", "single", lambda: None)
-    (tmp_path / "input.json").write_bytes(reference.read_bytes())
-    write_document(
-        tmp_path / "plan.json",
-        {
-            "run_id": "demo",
-            "procedures": selections(
-                [
-                    {"id": identifier, "settings": {"excerpt": 2, "paths": 16}}
-                    for identifier in ("ordinary", "tightening")
-                ]
-            ),
-            "sources": {"test": "fixed"},
-            "minimum_radius_mm": 4.5,
-        },
-    )
-    monkeypatch.setattr(interactive_worker.procedures, "source_pins", lambda: {"test": "fixed"})
-    monkeypatch.setattr(interactive_worker.budget, "resident_kib", lambda: 10000)
-    calls: list[str] = []
+    _, case = examples.ribbon(lambda: None)
 
-    def execute(
-        identifier: str,
-        case: EndpointCase,
-        settings: dict[str, Any],
-        checkpoint: Callable[[], None],
-    ) -> tuple[RibbonPath, dict[str, Any]]:
+    def forbidden() -> None:
         """
-        Produce real transports; the excerpt must end before a fictional final return.
+        Expose any attempted numerical work after retirement.
         """
-        assert settings["excerpt"] == 2
-        calls.append(identifier)
-        for _ in range(5):
-            broad_chart.integrate(case, (0.0,) * 9 + (1.2,), 64, checkpoint)
-        raise AssertionError("An excerpt must not finish the procedure.")
+        raise AssertionError("No discovery work is allowed")
 
-    monkeypatch.setattr(interactive_worker.adapters, "execute", execute)
-    result = json.loads(interactive_worker.run(tmp_path).read_text())
-    assert calls == ["ordinary", "tightening"]
-    assert result["stopped"] is None
-    assert all(method["status"] == "recorded" for method in result["solvers"])
-    assert all(not method["metrics"]["procedure_completed"] for method in result["solvers"])
-    assert all(len(read_history(tmp_path / f"{name}.jsonl")) == 2 for name in calls)
-    assert all(method["has_result"] for method in Session(tmp_path / "manifest.json").methods)
+    with pytest.raises(ValueError, match="have been removed"):
+        adapters.execute(identifier, case, {"path_rules": "historical"}, forbidden)
 
 
-def test_completed_compatible_trials_preserve_decisions_in_finite_json(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reference_runner_authors_only_and_preserves_historical_inventory(tmp_path: Path) -> None:
     """
-    Preserve actual dataclass trial telemetry when a procedure finishes before its excerpt.
+    The former batch entry point can author a reference but cannot run a search.
     """
-    path, case = examples.ribbon(lambda: None)
-    trial = Trial(64, 0, 0.5, (1.0,), (2.0,), (1.5,), {"position": 2.0}, {"position": 3.0}, False)
-    monkeypatch.setattr(
-        adapters.compatible_shooting, "solve", lambda *args, **kwargs: (path, {"trials": (trial,)})
-    )
-    settings = selections([{"id": "compatible", "settings": {}}])[0]["settings"]
-    result, metrics = adapters.execute("compatible", case, settings, lambda: None)
-    assert result is path
-    saved = json.loads(json.dumps(metrics, allow_nan=False))["trials"][0]
-    assert not saved["accepted"] and saved["proposed"] == [1.5]
+    manifest = runner.run(tmp_path / "reference")
+    data = json.loads(manifest.read_text())
+    assert data["search_evaluations"] == 0
+    assert data["independent_cases"]["numerically_evaluated"] == 0
+    assert data["independent_cases"]["native_attempted"] == 0
+    assert data["discovery_available"] is False
+    assert all(item["status"] == "not_run" for item in data["solvers"][1:])
+    assert not list(manifest.parent.glob("*.jsonl"))
+    session = Session(manifest)
+    assert session.snapshot is not None
+    assert len(session.methods) == 13

@@ -1,5 +1,5 @@
 """
-Verify opt-in settings, isolated worker ownership and immutable result import.
+Verify discovery retirement and immutable historical result import.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from experiments.experiment_ribbon_cap_transition.director_transport import inte
 from experiments.experiment_ribbon_diagnostic_viewer import controller, interactive_worker
 from experiments.experiment_ribbon_diagnostic_viewer.fixture import SpatialSBend
 from experiments.experiment_ribbon_diagnostic_viewer.procedures import ROOT, selections
-from experiments.experiment_ribbon_route_discovery import broad_chart
 
 
 def _input(directory: Path) -> Path:
@@ -58,48 +57,37 @@ def _input(directory: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    "settings",
-    ({"seconds": True}, {"seconds": float("nan")}, {"coarse": 1.5}, {"fine": -1}, {"bogus": 1}),
+    "identifier",
+    (
+        "generalized",
+        "ordinary",
+        "redistribution",
+        "tightening",
+        "combined",
+        "compatible",
+        "director",
+        "discovery",
+        "broad",
+    ),
 )
-def test_settings_reject_invalid_values_before_execution(settings: dict[str, Any]) -> None:
+def test_retired_discovery_rejects_even_explicit_historical_settings(identifier: str) -> None:
     """
-    Keep malformed control values out of archived run plans and numerical calls.
+    Neither a stale palette nor historical mode can restore removed discovery methods.
     """
-    with pytest.raises(ValueError):
-        selections([{"id": "ordinary", "settings": settings}])
+    for settings in ({}, {"path_rules": "historical", "bend_model": "legacy"}):
+        with pytest.raises(ValueError, match="have been removed"):
+            selections([{"id": identifier, "settings": settings}])
 
 
-def test_selection_defaults_are_real_and_unavailable_inputs_are_explicit() -> None:
+def test_inventory_has_no_executable_search_settings() -> None:
     """
-    Expose genuine procedure parameters and enforce per-click aggregate budgets.
+    Preserve recognizable historical method identities without offering new runs.
     """
-    configured = selections(
-        [{"id": "tightening", "settings": {"start_window": "0", "end_window": "0.125"}}]
+    assert len(controller.procedures.catalog()) == 12
+    assert all(
+        item["unavailable"] and not item["settings"] for item in controller.procedures.catalog()
     )
-    assert configured[0]["settings"] == {
-        "seconds": 8.0,
-        "paths": 512,
-        "excerpt": 0,
-        "bend_model": "pinch percent",
-        "path_rules": "macaroni + no lateral bending",
-        "pinch_percent": 99.6,
-        "coarse": 8,
-        "fine": 3,
-        "transports": 158,
-        "start_window": "0",
-        "end_window": "0.125",
-    }
-    with pytest.raises(ValueError, match="Requires"):
-        selections([{"id": "tube", "settings": {}}])
-    with pytest.raises(ValueError, match="same procedure"):
-        selections([{"id": "ordinary", "settings": {}}] * 2)
-    with pytest.raises(ValueError, match="120-second"):
-        selections(
-            [
-                {"id": identifier, "settings": {"seconds": 30}}
-                for identifier in ("ordinary", "generalized", "broad", "director", "compatible")
-            ]
-        )
+    assert controller.procedures.demonstration() == []
 
 
 def test_legacy_axis_transport_records_actual_completed_geometry(tmp_path: Path) -> None:
@@ -116,105 +104,44 @@ def test_legacy_axis_transport_records_actual_completed_geometry(tmp_path: Path)
     assert center.curves[0].start == path.lane(0, 0)[0]
 
 
-def test_controller_is_opt_in_and_owns_only_one_sdk_child(
+def test_controller_rejects_stale_launch_without_creating_work(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    Validate before spawning, retain a plan, and cancel only the owned worker.
+    Refuse old run and comparison requests before spawning or changing evidence.
     """
-    process = Mock()
-    process.poll.return_value = None
-    process.returncode = -15
-    launch = Mock(return_value=process)
+    launch = Mock(side_effect=AssertionError("No discovery subprocess may launch"))
     monkeypatch.setattr(controller.subprocess, "Popen", launch)
-    monkeypatch.setattr(controller.budget, "resident_kib", lambda: 10000)
-    monkeypatch.setattr(controller.procedures, "source_pins", lambda: {"test": "fixed"})
-    runner = controller.ProcedureController(ROOT / ".venv/bin/python", tmp_path)
-    launch.assert_not_called()
-    runner.state()
-    launch.assert_not_called()
+    output = tmp_path / "runs"
+    runner = controller.ProcedureController(ROOT / ".venv/bin/python", output)
     targets = Session(_input(tmp_path)).targets
-    with pytest.raises(ValueError):
-        runner.start({"procedures": [{"id": "tube", "settings": {}}]}, targets)
+    request: dict[str, Any] = {"procedures": [{"id": "ordinary", "settings": {"coarse": 10}}]}
+    for payload in (
+        request,
+        dict(request, comparison={"origin": "old", "disabled_rules": ["lane_bend"]}),
+    ):
+        with pytest.raises(ValueError, match="have been removed"):
+            runner.start(payload, targets)
     launch.assert_not_called()
-    runner.start({"procedures": [{"id": "ordinary", "settings": {}}]}, targets)
-    job = Path(runner.state()["directory"])
-    plan = (job / "plan.json").read_bytes()
-    assert json.loads(plan)["procedures"][0]["settings"]["transports"] == 158
-    command = launch.call_args.args[0]
-    assert command[:3] == [
-        str(ROOT / ".venv/bin/python"),
-        "-m",
-        "experiments.experiment_ribbon_diagnostic_viewer.interactive_worker",
-    ]
-    assert "PYTHONHOME" not in launch.call_args.kwargs["env"]
-    with pytest.raises(ValueError, match="already"):
-        runner.start({"procedures": [{"id": "ordinary", "settings": {}}]}, targets)
-    assert launch.call_count == 1
-    (job / "progress.json").write_text('{"status":"completed"}')
+    assert not output.exists()
+    assert runner.state()["discovery_available"] is False
+    assert runner.state()["ablation_controls"] == {}
     assert runner.poll() is None
-    assert runner.state()["status"] == "running"
     runner.cancel()
-    assert (job / "cancel").is_file()
-    assert runner.state()["status"] == "cancelling"
-    process.poll.return_value = -15
-    assert runner.poll() is None
-    assert runner.state()["status"] == "stopped"
-    assert (job / "plan.json").read_bytes() == plan
 
 
-@pytest.mark.parametrize("stop", (False, True))
-def test_worker_preserves_paths_and_all_procedure_dispositions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stop: bool
-) -> None:
+def test_stale_worker_plan_is_preserved_without_loading_inputs(tmp_path: Path) -> None:
     """
-    Archive interrupted transports and skip later methods after a latched error.
+    Reject an already frozen old job without touching its plan or archived paths.
     """
-    _input(tmp_path)
-    requested = selections(
-        [{"id": "ordinary", "settings": {}}, {"id": "tightening", "settings": {}}]
-    )
-    write_document(
-        tmp_path / "plan.json",
-        {
-            "run_id": "run-test",
-            "procedures": requested,
-            "sources": {"test": "fixed"},
-            "minimum_radius_mm": 4.5,
-        },
-    )
-    monkeypatch.setattr(interactive_worker.procedures, "source_pins", lambda: {"test": "fixed"})
-    monkeypatch.setattr(interactive_worker.budget, "resident_kib", lambda: 10000)
-    calls: list[str] = []
-
-    def execute(
-        identifier: str, case: Any, settings: dict[str, Any], checkpoint: Any
-    ) -> tuple[Any, dict[str, Any]]:
-        """
-        Exercise the real transport recorder without nonlinear optimization work.
-        """
-        assert settings["paths"] == 512
-        calls.append(identifier)
-        path = broad_chart.integrate(case, (0.0,) * 9 + (1.2,), 64, checkpoint)
-        if stop:
-            raise interactive_worker.SchedulingStop("Test checkpoint stop")
-        return path, {"score": 1.0}
-
-    monkeypatch.setattr(interactive_worker.adapters, "execute", execute)
-    result_path = interactive_worker.run(tmp_path)
-    result = json.loads(result_path.read_text())
-    assert result["native_solid_attempts"] == 0
-    assert result["independent_configurations"] == 1
-    assert len(result["solvers"]) == 2
-    assert len(read_history(tmp_path / "ordinary.jsonl")) == 1
-    assert len(Session(result_path).methods) == 2
-    if stop:
-        assert calls == ["ordinary"]
-        assert [method["status"] for method in result["solvers"]] == ["stopped", "not_run"]
-        assert result["solvers"][0]["snapshot"] is not None
-    else:
-        assert calls == ["ordinary", "tightening"]
-        assert all(method["status"] == "unresolved" for method in result["solvers"])
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps({"procedures": [{"id": "generalized", "settings": {}}]}))
+    history = tmp_path / "generalized.jsonl"
+    history.write_text("retained historical evidence\n")
+    original = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
+    with pytest.raises(ValueError, match="have been removed"):
+        interactive_worker.run(tmp_path)
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == original
 
 
 def test_import_appends_results_without_changing_fixed_inputs_or_selection(tmp_path: Path) -> None:

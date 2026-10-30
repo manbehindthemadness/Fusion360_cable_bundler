@@ -252,3 +252,16 @@ This revision applies only to experimental pathing. It does not change profiles,
 conductor ordering/identity, sweep/native builders, or authorize production edits
 or a new native build batch. Retain independent measurements and missing-acceptance
 labels; a result under the reduced rules is not full physical certification.
+
+USER-DIRECTED DISCOVERY RETIREMENT — 2026-10-30
+---------------------------------------------
+Remove path search and all seed-based discovery from active diagnostic execution,
+including endpoint-seeded local refinement, shooting and family/contact methods.
+Retain frozen histories and recovery; reject stale run/worker requests rather than
+falling back to a historical search. The batch diagnostic runner authors a reference
+only. No replacement endpoint solver is implemented or claimed by this removal.
+Macaroni/pinch, structural no lateral bending, fixed inputs, sweep-profile creation
+and geometry construction remain unchanged. Gym layout randomness authors test
+inputs, not routes, and is retained. Historical source and evidence remain available
+for interpretation; do not run them as the current solver. No new numerical search,
+native attempt or physical validation is authorized merely by removing discovery.

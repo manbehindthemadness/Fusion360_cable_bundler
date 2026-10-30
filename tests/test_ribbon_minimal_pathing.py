@@ -53,41 +53,13 @@ def test_fresh_controls_use_two_rules_and_historical_configuration_stays_explici
     """
     Default new runs consistently while preserving the historical API and scope isolation.
     """
-    choices = procedures.demonstration()
-    assert len(choices) == 9
-    assert all(item["settings"]["path_rules"] == PathRules.MACARONI.value for item in choices)
-    assert all(configured([], item["settings"]) == MINIMAL for item in choices)
+    assert procedures.demonstration() == []
     assert configured([], {}) == FULL
     with scope(MINIMAL):
         assert current() is MINIMAL
     assert current() == FULL
-    historical = procedures.selections([{"id": "ordinary", "settings": {"bend_model": "legacy"}}])
-    assert historical[0]["settings"]["path_rules"] == "historical"
-
-
-@pytest.mark.parametrize(
-    "procedure,settings",
-    (
-        ("ordinary", {"bend_model": "legacy"}),
-        ("compatible", {"objective": "legacy sphere feedback"}),
-        ("discovery", {"variant": "plane guided"}),
-        ("discovery", {"variant": "distance guided"}),
-    ),
-)
-def test_auxiliary_rules_cannot_be_hidden_in_a_minimal_request(
-    procedure: str, settings: dict[str, Any]
-) -> None:
-    """
-    Reject incompatible named options before a worker can execute extra constraints.
-    """
-    with pytest.raises(ValueError):
-        procedures.selections(
-            [{"id": procedure, "settings": dict(settings, path_rules=PathRules.MACARONI.value)}]
-        )
-    explicit = procedures.selections(
-        [{"id": procedure, "settings": dict(settings, path_rules="historical")}]
-    )
-    assert explicit[0]["settings"]["path_rules"] == "historical"
+    with pytest.raises(ValueError, match="have been removed"):
+        procedures.selections([{"id": "ordinary", "settings": {"path_rules": "historical"}}])
 
 
 def test_material_reserve_and_sphere_are_absent_from_minimal_objectives() -> None:

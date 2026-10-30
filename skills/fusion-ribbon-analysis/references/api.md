@@ -71,25 +71,11 @@ actual circles (over eight reference radii) are explicitly omitted while their
 measurements remain listed; straight guides have no osculating circle. Palette
 framing includes visible shape extents. Neither visibility toggle relaxes a rule.
 
-In the rule table, uncheck **Use in search** and choose **Compare selected solver**.
-This launches two fresh runs with the selected method's archived settings, fixed
-inputs, initialization and source pins: a complete-policy baseline followed by
-the selected ablation. Both count against the declared time/capture budget.
-The original result and both new histories remain selectable. The ablation is
-selected on completion; **Matched baseline in Fusion** shows grey baseline-result
-guides, and **View paired baseline** selects its full record. Proposal indices are
-not matched optimization iterations. Independent measurements always use the
-full reference rules, so a disabled search rule can still report a failure.
-
-Supported controls are `end_position`, `end_tangent`, `end_width`, `centre_bend`
-and `lane_bend`. Ordinary refinement, tangent tightening, compatible shooting and
-route discovery support all five; redistribution and combined refinement support
-the three endpoint objectives. Other procedures display these controls as fixed
-until their complete search gates have an ablation adapter. Percentage mode has
-one coupled bend constraint under `lane_bend`; the legacy `centre_bend` toggle is
-absent and explicit attempts to disable it reject. Start pose, dimensions,
-identities, structural material regularity and global collision rules have no
-disable control.
+Historical baseline/ablation comparisons remain selectable. **Matched baseline in
+Fusion** shows grey baseline-result guides, and **View paired baseline** selects
+its full record. Recorded disabled rules and independent measurements retain their
+original meaning. New rule comparisons are unavailable after the user-directed
+retirement of path search and all seed-based discovery on 2026-10-30.
 
 For one conductor, the profile is one circle of the declared diameter. For wider
 ribbons, captures contain open material rulings until the actual bonded contour
@@ -128,55 +114,30 @@ is flushed and fsynced before the next proposal; no record survives all possible
 hardware failures by guarantee. JSON content digests detect geometry tampering,
 not physical validity. Replay seeks a single indexed snapshot without solving.
 
-Optional numerical execution is supplied by the development controller, keeping
-the reusable viewer independent of solver implementations:
+The development controller now supplies example and gym selection only. Its old
+launch API rejects every retired method before creating a directory, plan or SDK
+subprocess. The direct adapter and standalone worker also reject stale requests;
+explicit historical settings do not re-enable discovery. The batch runner authors
+its fixed reference only, with zero search evaluations and all historical methods
+marked unattempted. Recovery and JSONL replay remain available.
 
 ```python
 from experiments.experiment_ribbon_diagnostic_viewer.controller import ProcedureController
 
-# Use the project-local SDK returned by the IDE's Python environment inspection.
 runner = ProcedureController(Path(project_python_executable), Path(owned_run_directory))
 view = DiagnosticViewer(owned_component, owned_document, Path(manifest_path), runner=runner)
 view.show()
 ```
 
-Expand **Run solver procedures**, select procedures, open their **Settings**, then
-choose **Run selected**. Nothing runs on opening the viewer. Nine endpoint-compatible
-procedures expose their genuine settings: generalized/broad search, ordinary
-refinement, redistribution, terminal tightening, combined refinement, compatible
-shooting, director shooting and family/contact-guided search. Fixed seed banks and
-unexposed policies remain fixed. Independent refinements start from the same
-endpoint-derived seed, not an interrupted path masquerading as a fitted solution.
-Archived cap-transition/tube procedures need additional route/cap inputs; joint
-target shooting lacks a lossless material-span capture adapter. Their disabled
-controls explain these requirements rather than substituting invented geometry.
-
-Compatible-chart procedures expose **Bend rule** (`pinch percent` or `legacy`)
-and **Maximum pinch utilization (%)**. New settings default to 99.6%, strictly
-below 100%; the inherited director-shooting comparison remains explicitly legacy.
-Archived settings without a rule version replay as legacy. The percentage rule
-is enforced in the chart, fitting penalties, seed allocation and redistribution,
-and independently measured from the recorded cubics. It replaces both old radius
-constants rather than merely scaling their circles. See the geometric derivation
-and audit scope in [pinch.md](pinch.md).
-
-Each click freezes sources, targets, settings and limits before launching one
-project-SDK subprocess. Runs currently support one or three conductors. Per-procedure
-limits are 0.1–30 seconds, 16–4096 stored paths and 64MiB capture; aggregate limits
-are 120 seconds and 256MiB capture, with 4GiB sampled process RSS and a 3.8GiB launch
-threshold. Capture consumes the time budget. Any resource/source/error stop skips
-remaining selected procedures; there is no automatic retry or budget expansion.
-**Stop run** requests a cooperative checkpoint stop. Polling also watches the owned
-SDK process and may terminate that process after a missed stop; it never cancels a
-Fusion kernel. Hard exits can leave partial histories without an importable final
-manifest; all files and logs remain in the unique run directory.
-
-Completed manifests append results/history to the current session without changing
-the selected view or original evidence. **View result** selects the first recorded
-result from that run. A completed numerical job is not a physical PASS; inherited
-legacy objectives remain labeled, and no native solid is constructed. The older
-axis-transport director policies now record completed transports as well as the
-compatible and unit-rotation policies. Closing the viewer requests a worker stop.
+**Historical methods** lists the retired procedures without run/settings controls.
+Generalized/broad search, ordinary refinement, redistribution, terminal tightening,
+combined refinement, compatible shooting, director shooting and family/contact-guided
+search all depended on seeds and are removed from active diagnostic execution.
+Historical source modules remain for interpreting old evidence and their shared
+geometry implementations; they are not a fallback for the current solver.
+No replacement endpoint solver is implemented yet. Macaroni/pinch and structural
+no-lateral-bending geometry remain available, and sweep-profile creation, conductor
+identity/order and native geometry construction are unchanged. See [pinch.md](pinch.md).
 
 The **Diagnostic example** selector keeps the original single-conductor S/lateral90
 alongside a three-conductor spatial reversal. Each example retains its own session,
@@ -188,17 +149,6 @@ The ribbon uses actual director-field material guides and open rulings, with no
 invented bonded contour or individual conductor solids. Its analytic worst
 material-guide radius is3D at100% utilization and material progress stays positive;
 this does not establish full-thickness clearance or the missing radius/flex policy.
-
-**Load nine-procedure demonstration settings** selects all nine supported procedures
-without executing them; **Run selected** then records their action on the active
-example. Cold procedures retain a declared prefix of128complete transports, reaching
-beyond seed screening. Four local refinement strategies use one coarse round, no
-fine iterations, the mandatory final-grid evaluation and a32path excerpt ceiling.
-All retain8seconds/method and existing hard recording/resource caps (72seconds
-aggregate scheduling). Planned excerpt completion records an unfinished procedure
-and its last transport, which can be a probe or rejected trial; it is not a fitted
-result or a resource stop. Actual source/resource/API errors still stop the batch.
-Set **Search excerpt paths** to0 for a complete procedure under the selected limits.
 
 **Play search / Pause search** advances recorded paths through the same acknowledged
 selection handler as the slider; it does not run numerical search. The **Macaroni /

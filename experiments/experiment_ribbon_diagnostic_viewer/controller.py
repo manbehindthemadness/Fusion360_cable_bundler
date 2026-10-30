@@ -1,11 +1,10 @@
 """
-Own one opt-in project-SDK worker while keeping Fusion responsive for replay.
+Manage authored inputs and archived results after retirement of path discovery.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from time import perf_counter
@@ -14,26 +13,21 @@ from uuid import uuid4
 
 from devtools.ribbon_analysis import budget
 from devtools.ribbon_analysis.contracts import Targets
-from devtools.ribbon_analysis.gym.handoff import identity, validate
-from devtools.ribbon_analysis.inspection.archive import (
-    SCHEMA,
-    targets_payload,
-    write_document,
-)
+from devtools.ribbon_analysis.gym.handoff import identity
 from devtools.ribbon_analysis.inspection.session import Session
 from devtools.ribbon_analysis.inspection.values import integer_value, json_object
 
-from . import ablation, examples, procedures
+from . import examples, procedures
 from .procedures import ROOT
 
 
 class ProcedureController:
     """
-    Freeze settings before launch; isolate numerical modules from the live Fusion host.
+    Retain replay and input authoring while refusing new path-search launches.
 
-    Cancellation and watchdog signals affect this controller's own SDK subprocess
-    only. Workers perform no Fusion calls or native construction. Histories, plans
-    and failed jobs are retained in unique directories, never used as implicit retries.
+    Cancellation and collection remain for an owned worker started before retirement
+    in a live Fusion session. New launches reject. Retained plans and histories are
+    never used as implicit retries.
     """
 
     def __init__(
@@ -60,107 +54,21 @@ class ProcedureController:
         self._example = next(iter(self._examples), "")
         self._status: dict[str, Any] = {
             "status": "idle",
-            "detail": "Choose procedures and settings, then Run selected. No solver runs automatically.",
+            "detail": procedures.DISCOVERY_REMOVED,
         }
 
     def start(
         self, request: dict[str, Any], targets: Targets, *, gym: dict[str, Any] | None = None
     ) -> None:
         """
-        Validate every option and archive a fixed one-case plan before starting work.
+        Reject retired procedures before creating a plan, directory or subprocess.
         """
+        del targets, gym
         if self._process is not None:
             raise ValueError("A numerical job is already awaiting completion.")
         if set(request) not in ({"procedures"}, {"procedures", "comparison"}):
             raise ValueError("Run requests require selections and an optional explicit comparison.")
-        selected = procedures.selections(request["procedures"])
-        comparison = json_object(request["comparison"]) if "comparison" in request else None
-        work = ablation.workloads(selected, comparison)
-        if sum(item["settings"]["seconds"] for item in work) > 120:
-            raise ValueError("Baseline plus ablation exceed the 120-second run budget.")
-        targets = Targets.capture(targets)
-        gym = validate(gym, targets)
-        if budget.resident_kib() >= int(3.8 * 1024 * 1024):
-            raise RuntimeError("Fusion lacks 3.8GiB launch headroom for a numerical job.")
-        run_id = "run-" + uuid4().hex
-        self.directory.mkdir(parents=True, exist_ok=True)
-        job = self.directory / run_id
-        job.mkdir()
-        input_document = {
-            "schema": SCHEMA,
-            "targets": targets_payload(targets),
-            "solvers": [
-                {
-                    "id": "input",
-                    "label": "Frozen endpoint inputs",
-                    "source": "Active diagnostic session",
-                    "status": "not_run",
-                    "detail": "Boundary inputs only; no solution supplied.",
-                    "rules": [],
-                }
-            ],
-        }
-        if gym is not None:
-            input_document["gym"] = gym
-        write_document(job / "input.json", input_document)
-        plan = {
-            "schema": "ribbon-procedure-run-v1",
-            "run_id": run_id,
-            "targets": targets_payload(targets),
-            "gym_id": identity(gym) if gym is not None else None,
-            "procedures": selected,
-            "pathing_scope": "Per-procedure path_rules are frozen in settings. Two-rule runs enforce macaroni/pinch and structural no lateral bending; endpoints remain fitting targets. No self-contact, clearance, sphere, gym, length-balance or extra-loop gates. Numerical search/resource bounds are not physical acceptance rules.",
-            "comparison": comparison,
-            "sources": procedures.source_pins(),
-            "minimum_radius_mm": 3 * targets.diameter_mm,
-            "limits": {
-                "aggregate_seconds": 120,
-                "rss_kib": 4 * 1024 * 1024,
-                "capture_bytes_per_method": 64 * 1024 * 1024,
-                "aggregate_capture_bytes": 256 * 1024 * 1024,
-                "native_solid_attempts": 0,
-                "retries": 0,
-            },
-            "scope": "One existing development configuration, optional numerical comparisons from fixed endpoint inputs. Local legacy checks do not certify full-thickness collision or physical acceptance.",
-        }
-        write_document(job / "plan.json", plan)
-        environment = dict(os.environ)
-        for key in ("PYTHONHOME", "PYTHONPATH"):
-            environment.pop(key, None)
-        log = (job / "worker.log").open("x", encoding="utf-8")
-        self._log = log
-        try:
-            self._process = subprocess.Popen(
-                [
-                    str(self.python),
-                    "-m",
-                    "experiments.experiment_ribbon_diagnostic_viewer.interactive_worker",
-                    str(job),
-                ],
-                cwd=ROOT,
-                env=environment,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-        except OSError:
-            log.close()
-            self._log = None
-            self._status = {
-                "status": "stopped",
-                "detail": "Worker launch failed; frozen plan retained.",
-                "directory": str(job),
-            }
-            raise
-        self._job, self._started = job, perf_counter()
-        self._seconds = sum(item["settings"]["seconds"] for item in work)
-        self._cancelled = None
-        self._status = {
-            "status": "running",
-            "detail": "Numerical worker started; search recording is included in the time limits.",
-            "directory": str(job),
-            "total": len(work),
-        }
+        procedures.selections(request["procedures"])
 
     def cancel(self) -> None:
         """
@@ -232,7 +140,7 @@ class ProcedureController:
 
     def state(self) -> dict[str, Any]:
         """
-        Describe implemented settings and current progress without executing a solver.
+        Describe unavailable discovery and retained input/replay capabilities.
         """
         return {
             "catalog": procedures.catalog(),
@@ -241,11 +149,8 @@ class ProcedureController:
                 *({"id": key, "label": label} for key, label in self._layout_labels.items()),
             ],
             "example": self._example,
-            "demonstration": procedures.demonstration(),
-            "ablation_controls": {
-                entry.identifier: ablation.controls(entry.identifier)
-                for entry in procedures.CATALOG
-            },
+            "discovery_available": False,
+            "ablation_controls": {},
             **self._status,
         }
 
@@ -293,6 +198,6 @@ class ProcedureController:
         self._example = identifier
         self._status = {
             "status": "idle",
-            "detail": "Example selected; choose a solver or load the nine-procedure demonstration.",
+            "detail": "Example selected. " + procedures.DISCOVERY_REMOVED,
         }
         return self._examples[identifier]

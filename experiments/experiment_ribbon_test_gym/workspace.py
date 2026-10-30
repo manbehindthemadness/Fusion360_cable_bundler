@@ -21,7 +21,7 @@ class Workspace:
 
     The caller retains this owner and supplies an existing diagnostic viewer and
     sibling occurrences owned exclusively by these viewers. No numerical job starts
-    during layout generation or handoff; Run selected remains explicit.
+    during layout generation or handoff; endpoint discovery is currently unavailable.
     """
 
     def __init__(
@@ -49,7 +49,7 @@ class Workspace:
             directory / "workspace-plan.json",
             {
                 "sources": source_pins(),
-                "scope": "Optional endpoint-only gym handoff and frozen visual context. No route fixture or new physical rules. Numerical runs require Run selected and their own frozen worker plans.",
+                "scope": "Optional endpoint-only gym handoff and frozen visual context. No route fixture or new physical rules. Path search and seed-based discovery are retired; archived results remain viewable.",
                 "seconds_per_edit": 10,
                 "rss_kib": 4194304,
                 "launch_rss_kib": 3984588,

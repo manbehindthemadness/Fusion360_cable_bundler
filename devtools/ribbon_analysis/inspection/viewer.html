@@ -44,12 +44,9 @@
 <p id="gymScope" class="muted" hidden>Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <p id="pathRules" class="muted"></p>
 <details id="procedurePanel" hidden>
-  <summary>Run solver procedures</summary>
-  <p class="muted">Select optional numerical procedures and their settings. Each run keeps the current endpoint inputs and records new results. A scheduling limit or error stops the batch. Physical acceptance remains unresolved.</p>
+  <summary>Historical methods</summary>
+  <p class="muted">Path search and seed-based discovery have been removed. Recorded paths remain available below. A replacement endpoint solver has not been implemented.</p>
   <div id="procedureForms"></div>
-  <button id="demoProcedures">Load nine-procedure demonstration settings</button>
-  <p id="runBudget" class="muted"></p>
-  <div class="toolbar"><button id="runProcedures">Run selected</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
   <p id="runStatus" role="status" class="muted"></p>
 </details>
 <label for="solver">Recorded result / reference</label><select id="solver"></select>
@@ -85,9 +82,9 @@
   <canvas id="bendChart" style="height:160px" aria-label="Centre and edge curvature along the selected recorded path"></canvas>
   <p id="bendChartLegend" class="muted"></p>
 </details>
-<p class="muted">Use the checkboxes to define a new baseline/disabled comparison using the selected solver's recorded settings. Independent measurements stay active. Start pose, dimensions and structural or unimplemented rules have no toggle.</p>
-<table><thead><tr><th>Rule / measurement</th><th>Status and scope</th><th>Use in search</th></tr></thead><tbody id="rules"></tbody></table>
-<div class="toolbar"><button id="compareRules" disabled>Compare selected solver</button><button id="enableRules">Enable all rules</button><button id="pairedBaseline" disabled>View paired baseline</button></div>
+<p class="muted">Measurements and recorded rule settings remain available. New solver runs and rule comparisons are unavailable while endpoint discovery is being replaced.</p>
+<table><thead><tr><th>Rule / measurement</th><th>Status and scope</th><th>Recorded rule scope</th></tr></thead><tbody id="rules"></tbody></table>
+<div class="toolbar"><button id="pairedBaseline" disabled>View paired baseline</button></div>
 <p id="comparisonScope" class="muted"></p>
 <p id="comparisonResult" class="muted"></p>
 <p id="source" class="muted"></p>
@@ -108,11 +105,8 @@ const element = id => document.getElementById(id);
 /** @typedef {{id:string,name:string,supported:boolean,reason:string}} RuleControl */
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
-/** @typedef {{key:string, label:string, default:(number|string), minimum:number, maximum:number, choices:string[], integer:boolean}} ProcedureSetting */
-/** @typedef {{identifier:string, label:string, detail:string, unavailable:string, settings:ProcedureSetting[]}} Procedure */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,demonstration:ProcedureSelection[],ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
-/** @typedef {{enabled:boolean, settings:Object<string,(number|string)>}} ProcedureDraft */
-/** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
+/** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean,path_rules:string}} InspectionState */
@@ -120,11 +114,7 @@ const element = id => document.getElementById(id);
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
 let playing = false;
-const disabledRules = new Set();
-let ruleDraftSource = "";
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
-/** @type {Object<string,ProcedureDraft>} */
-const procedureDrafts = {};
 let procedureCatalog = "";
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
 const xyz = p => [p.x, p.y, p.z];
@@ -159,42 +149,13 @@ function controls() {
   element("openGym").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   element("baselineGhost").disabled = blocked || !state.snapshot || state.comparison?.role !== "ablation";
   element("reconnect").disabled = pending;
-  procedureControls();
+  element("example").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   comparisonControls();
 }
 function comparisonControls() {
-  const method = state?.solvers.find(entry => entry.id === state.solver);
-  const capabilities = (state?.execution?.ablation_controls[method?.procedure] || []).filter(entry => method?.settings.bend_model !== "pinch percent" || entry.id !== "centre_bend");
-  const available = new Set(capabilities.filter(entry => entry.supported).map(entry => entry.id));
-  const running = ["running", "cancelling"].includes(state?.execution?.status);
-  const blocked = pending || !connected || running;
-  element("compareRules").disabled = blocked || !method || !Object.keys(method.settings).length || !disabledRules.size || [...disabledRules].some(id => !available.has(id));
-  element("enableRules").disabled = blocked;
+  const blocked = pending || !connected || ["running", "cancelling"].includes(state?.execution?.status);
   element("pairedBaseline").disabled = blocked || !state?.comparison || !state.solvers.some(entry => entry.id === state.comparison.baseline);
-  for (const field of element("rules").querySelectorAll("input")) field.disabled = blocked || field.dataset.supported !== "true";
-  element("comparisonScope").textContent = method && Object.keys(method.settings).length ? `Two fresh runs · up to ${2 * Number(method.settings.seconds)} seconds including capture · identical recorded settings · ${disabledRules.size} disabled rule(s). Start pose and independent measurements stay fixed.` : "Select a recorded numerical procedure to compare its constraints.";
-}
-function selectedProcedures() {
-  return Object.entries(procedureDrafts).filter(([, entry]) => entry.enabled).map(([id, entry]) => ({id, settings: {...entry.settings}}));
-}
-/** @param {Procedure} procedure @returns {ProcedureDraft} */
-function newProcedureDraft(procedure) {
-  /** @type {Object<string,(number|string)>} */
-  const settings = {};
-  for (const setting of procedure.settings) settings[setting.key] = setting.default;
-  return {enabled: false, settings};
-}
-function procedureControls() {
-  const selected = selectedProcedures();
-  const seconds = selected.reduce((total, entry) => total + Number(entry.settings.seconds), 0);
-  const running = ["running", "cancelling"].includes(state?.execution?.status);
-  element("runBudget").textContent = `${selected.length} selected · up to ${seconds.toFixed(1)} seconds including capture · 4 GiB worker ceiling · 64 MiB recording per procedure / 256 MiB per run`;
-  element("runProcedures").disabled = pending || !connected || running || !selected.length || !Number.isFinite(seconds) || seconds > 120;
-  element("cancelRun").disabled = pending || !running;
-  element("example").disabled = pending || running || !connected;
-  element("demoProcedures").disabled = pending || running || !connected;
-  element("viewRun").disabled = pending || !state?.execution?.result_ids?.length;
-  for (const field of element("procedureForms").querySelectorAll("input, select")) field.disabled = running || pending || field.dataset.unavailable === "true";
+  element("comparisonScope").textContent = "Archived comparisons remain viewable. New comparisons require a replacement endpoint solver.";
 }
 /** @param {?Execution} execution */
 function renderExecution(execution) {
@@ -212,38 +173,15 @@ function renderExecution(execution) {
   if (signature !== procedureCatalog) {
     procedureCatalog = signature;
     element("procedureForms").replaceChildren(...execution.catalog.map(procedure => {
-      const card = document.createElement("div"); card.dataset.procedure = procedure.identifier;
-      const label = document.createElement("label"), enabled = document.createElement("input");
-      enabled.type = "checkbox"; enabled.dataset.unavailable = String(Boolean(procedure.unavailable));
-      const draft = procedureDrafts[procedure.identifier] || newProcedureDraft(procedure);
-      procedureDrafts[procedure.identifier] = draft;
-      enabled.checked = draft.enabled;
-      enabled.onchange = () => { draft.enabled = enabled.checked; procedureControls(); };
-      label.append(enabled, document.createTextNode(" " + procedure.label)); card.append(label);
-      const detail = document.createElement("p"); detail.className = "muted";
-      detail.textContent = procedure.unavailable || procedure.detail; card.append(detail);
-      if (procedure.settings.length) {
-        const settings = document.createElement("details"), title = document.createElement("summary");
-        title.textContent = "Settings"; settings.append(title);
-        for (const specification of procedure.settings) {
-          const settingLabel = document.createElement("label"); settingLabel.textContent = specification.label;
-          const field = specification.choices.length ? document.createElement("select") : document.createElement("input");
-          if (field instanceof HTMLSelectElement) {
-            for (const value of specification.choices) { const option = document.createElement("option"); option.value = option.textContent = value; field.append(option); }
-          } else {
-            field.type = "number"; field.min = String(specification.minimum); field.max = String(specification.maximum); field.step = specification.integer ? "1" : "0.1";
-          }
-          field.value = String(draft.settings[specification.key]);
-          field.onchange = () => { draft.settings[specification.key] = specification.choices.length ? field.value : Number(field.value); procedureControls(); };
-          settingLabel.append(field); settings.append(settingLabel);
-        }
-        card.append(settings);
-      }
-      return card;
+      const card = document.createElement("div"), label = document.createElement("strong"), detail = document.createElement("p");
+      label.textContent = procedure.label;
+      detail.className = "muted"; detail.textContent = procedure.detail + " " + procedure.unavailable;
+      card.append(label, detail); return card;
     }));
   }
+
   element("runStatus").textContent = `${execution.status}: ${execution.detail || ""}${execution.procedure ? ` · ${execution.procedure}` : ""}${execution.completed === undefined ? "" : ` · ${execution.completed}/${execution.total} attempted`}${execution.elapsed_seconds === undefined ? "" : ` · ${execution.elapsed_seconds.toFixed(1)} s`}`;
-  procedureControls();
+
 }
 async function request(action, data = {}) {
   if (pending) return;
@@ -302,7 +240,7 @@ function receive(value) {
   if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
   const minimal = state.path_rules === "macaroni + no lateral bending";
-  element("pathRules").textContent = minimal ? "Active path rules: macaroni pinch and structural no lateral bending. Connection targets stay fixed. Other measurements are observations; self-contact, clearance, sphere, gym, length-balance and extra-loop rules do not steer or reject this run. Numerical search bounds and resource limits still apply." : "Historical recorded pathing policy. New runs default to macaroni + no lateral bending; older results retain their recorded scope.";
+  element("pathRules").textContent = minimal ? "Recorded path rules: macaroni pinch and structural no lateral bending. Connection targets stay fixed. Other measurements are observations; self-contact, clearance, sphere, gym, length-balance and extra-loop rules do not steer or reject this recorded run. New endpoint discovery is currently unavailable." : "Historical recorded pathing policy. New endpoint discovery is currently unavailable; recorded results retain their original scope.";
   element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
   element("solver").replaceChildren(...state.solvers.map(m => {
     const option = document.createElement("option");
@@ -326,23 +264,12 @@ function receive(value) {
   element("sectionLabel").textContent = selected ? `${selected.index + 1} / ${sections.length} · u=${selected.u.toFixed(5)}` : "— no recorded geometry";
   element("frame").textContent = selected ? ["Origin (mm)", "X", "Y", "+Z"].map((label, i) => `${label}: ${xyz(selected.frame[["origin", "x", "y", "z"][i]]).map(v => v.toFixed(5)).join(", ")}`).join("\n") : "";
   element("notice").textContent = state.notice;
-  if (ruleDraftSource !== state.solver) {
-    ruleDraftSource = state.solver; disabledRules.clear();
-    for (const id of method.disabled_rules) disabledRules.add(id);
-  }
-  const capabilities = (state.execution?.ablation_controls[method.procedure] || []).filter(entry => method.settings.bend_model !== "pinch percent" || entry.id !== "centre_bend");
   const visibleRules = [...state.rules];
-  for (const capability of capabilities) if (!visibleRules.some(rule => rule.name === capability.name)) visibleRules.push({name:capability.name,status:"unmeasured",detail:capability.reason,value:null,limit:null});
   element("rules").replaceChildren(...visibleRules.map(rule => {
     const row = document.createElement("tr"), name = document.createElement("td"), detail = document.createElement("td"), toggle = document.createElement("td");
     name.textContent = rule.name;
     detail.textContent = `${rule.status.replaceAll("_", " ")}: ${rule.detail}${rule.value === null ? "" : ` · value ${rule.value.toPrecision(6)}`}${rule.limit === null ? "" : ` · limit ${rule.limit.toPrecision(6)}`}`;
-    const capability = capabilities.find(entry => entry.name === rule.name);
-    if (capability) {
-      const field = document.createElement("input"); field.type = "checkbox"; field.checked = !disabledRules.has(capability.id); field.dataset.supported = String(capability.supported); field.title = capability.reason;
-      field.onchange = () => { if (field.checked) disabledRules.delete(capability.id); else disabledRules.add(capability.id); comparisonControls(); };
-      toggle.append(field, document.createTextNode(capability.supported ? " Use" : " Fixed"));
-    } else toggle.textContent = minimal ? (rule.name === "No wide-axis bending" ? "Structural path rule" : "Observation only") : "Measurement / fixed model";
+    toggle.textContent = minimal ? (rule.name === "No wide-axis bending" ? "Structural path rule" : "Observation only") : "Measurement / fixed model";
     row.append(name, detail, toggle); return row;
   }));
   element("comparisonResult").textContent = state.comparison ? `${state.comparison.detail} ${state.comparison.measurements.map(row => `${row.name}: ${row.baseline.toPrecision(5)} → ${row.current.toPrecision(5)} (Δ ${row.delta.toPrecision(5)})`).join(" · ")}` : "";
@@ -498,23 +425,8 @@ function draw() {
 element("solver").onchange = () => { playing = false; request("select", {solver: element("solver").value}); };
 element("openGym").onclick = () => { setPlayback(false); request("gym"); };
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
-element("demoProcedures").onclick = () => {
-  for (const draft of Object.values(procedureDrafts)) draft.enabled = false;
-  for (const selection of state.execution.demonstration) procedureDrafts[selection.id] = {enabled:true,settings:{...selection.settings}};
-  procedureCatalog = ""; renderExecution(state.execution); controls();
-};
 element("reconnect").onclick = () => request("ready");
-element("runProcedures").onclick = () => {
-  for (const card of element("procedureForms").children) {
-    if (procedureDrafts[card.dataset.procedure].enabled && [...card.querySelectorAll("input, select")].some(field => !field.reportValidity())) return;
-  }
-  request("run", {procedures: selectedProcedures()});
-};
-element("cancelRun").onclick = () => request("cancel");
-element("compareRules").onclick = () => { setPlayback(false); request("compare", {disabled_rules:[...disabledRules].sort()}); };
-element("enableRules").onclick = () => { disabledRules.clear(); for (const field of element("rules").querySelectorAll("input")) field.checked = true; comparisonControls(); };
 element("pairedBaseline").onclick = () => request("select", {solver:state.comparison.baseline});
-element("viewRun").onclick = () => request("select", {solver: state.execution.result_ids[0]});
 const selectProposal = index => request("select", {solver: state.solver, proposal: index});
 element("proposal").onchange = () => selectProposal(Number(element("proposal").value));
 element("previous").onclick = () => selectProposal(state.proposal - 1);

@@ -5,14 +5,14 @@ Verify effective rule ablations, immutable field policies and matched archived e
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 
-from devtools.ribbon_analysis.contracts import RibbonPath
 from devtools.ribbon_analysis.inspection.archive import snapshot_payload, write_document
-from devtools.ribbon_analysis.inspection.capture import read_history
+from devtools.ribbon_analysis.inspection.capture import SearchRecorder, read_history
 from devtools.ribbon_analysis.inspection.geometry import freeze_path
 from devtools.ribbon_analysis.inspection.measurements import observations
 from devtools.ribbon_analysis.inspection.panels import build
@@ -35,9 +35,7 @@ from experiments.experiment_ribbon_cap_transition.director_shooting import (
     endpoint_metrics,
     residual,
 )
-from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
-from experiments.experiment_ribbon_diagnostic_viewer import ablation, examples, interactive_worker
-from experiments.experiment_ribbon_diagnostic_viewer.procedures import selections
+from experiments.experiment_ribbon_diagnostic_viewer import ablation, examples
 from experiments.experiment_ribbon_route_discovery import broad_chart
 
 
@@ -130,9 +128,7 @@ def test_workloads_pair_the_same_settings_and_refuse_partial_adapters() -> None:
     """
     Restrict ablations to fully implemented search paths and retain a fresh baseline.
     """
-    selected = selections(
-        [{"id": "compatible", "settings": {"excerpt": 16, "bend_model": "legacy"}}]
-    )
+    selected = [{"id": "compatible", "settings": {"excerpt": 16, "bend_model": "legacy"}}]
     work = ablation.workloads(
         selected, {"origin": "old:compatible", "disabled_rules": ["centre_bend", "lane_bend"]}
     )
@@ -146,49 +142,44 @@ def test_workloads_pair_the_same_settings_and_refuse_partial_adapters() -> None:
     assert ablation.validate("redistribution", ["end_position"]).disabled
 
 
-def test_worker_archives_matched_scopes_and_panels_preserve_proposal_provenance(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_archived_matched_scopes_and_panels_preserve_proposal_provenance(tmp_path: Path) -> None:
     """
-    Keep both runs, full measurements, matching settings and original evidence immutable.
+    Replay historical paired records without invoking the retired worker or discovery.
     """
     reference = examples.create(tmp_path / "reference", "ribbon", lambda: None)
-    (tmp_path / "input.json").write_bytes(reference.read_bytes())
-    requested = selections([{"id": "ordinary", "settings": {"excerpt": 0, "bend_model": "legacy"}}])
-    write_document(
-        tmp_path / "plan.json",
-        {
-            "run_id": "pair",
-            "procedures": requested,
-            "comparison": {"origin": "original", "disabled_rules": ["end_position"]},
-            "sources": {"fixed": "test"},
-            "minimum_radius_mm": 4.5,
-        },
-    )
-    monkeypatch.setattr(interactive_worker.procedures, "source_pins", lambda: {"fixed": "test"})
-    monkeypatch.setattr(interactive_worker.budget, "resident_kib", lambda: 10000)
-    policies: list[ConstraintPolicy] = []
-
-    def execute(
-        identifier: str,
-        case: EndpointCase,
-        settings: dict[str, Any],
-        checkpoint: Callable[[], None],
-    ) -> tuple[RibbonPath, dict[str, Any]]:
-        """
-        Observe scoped policies through a real unchanged transported start.
-        """
-        assert identifier == "ordinary" and settings == requested[0]["settings"]
-        policies.append(current())
-        path = broad_chart.integrate(case, (0.0,) * 9 + (1.2,), 64, checkpoint)
-        return path, {"coordinates": (9.0,) * 10, "score": 7.0}
-
-    monkeypatch.setattr(interactive_worker.adapters, "execute", execute)
-    result = interactive_worker.run(tmp_path)
-    data = json.loads(result.read_text())
-    assert data["stopped"] is None and len(data["solvers"]) == 2
-    assert policies == [FULL, parse(["end_position"])] and current() == FULL
+    data = json.loads(reference.read_text())
+    _, case = examples.ribbon(lambda: None)
+    methods = []
+    for role, disabled in (("baseline", []), ("ablation", ["end_position"])):
+        identifier = f"pair:ordinary:{role}"
+        recorder = SearchRecorder(tmp_path / f"{role}.jsonl", "ordinary", lambda: None)
+        with scope(parse(disabled)), recorder.recording():
+            path = broad_chart.integrate(case, (0.0,) * 9 + (1.2,), 64, lambda: None)
+        snapshot = freeze_path(identifier, path, intervals=64)
+        methods.append(
+            {
+                "id": identifier,
+                "label": role,
+                "source": "Frozen historical comparison",
+                "detail": "Recorded transport; no physical acceptance.",
+                "status": "unresolved",
+                "procedure": "ordinary",
+                "disabled_rules": disabled,
+                "settings": {"bend_model": "legacy", "seconds": 8},
+                "comparison": {
+                    "role": role,
+                    "baseline": "pair:ordinary:baseline",
+                    "origin": "original",
+                },
+                "history": f"{role}.jsonl",
+                "snapshot": snapshot_payload(snapshot),
+                "rules": [asdict(rule) for rule in observations(snapshot, case, 4.5)],
+                "metrics": {"coordinates": (9.0,) * 10, "score": 7.0},
+            }
+        )
+    data["solvers"] = methods
+    result = tmp_path / "historical.json"
+    write_document(result, data)
     session = Session(result)
     session.select("pair:ordinary:ablation")
     assert session.baseline() is not None

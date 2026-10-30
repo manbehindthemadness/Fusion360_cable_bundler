@@ -1,5 +1,5 @@
 """
-Declare real procedure settings and validate bounded, opt-in run selections.
+Retain the historical procedure inventory without offering seed-based discovery.
 """
 
 from __future__ import annotations
@@ -9,280 +9,96 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from devtools.ribbon_analysis.inspection.values import finite_number, integer_value, json_object
-from devtools.ribbon_analysis.pathing import PathRules
+from devtools.ribbon_analysis.inspection.values import json_object
 
 ROOT = Path(__file__).resolve().parents[2]
-
-
-@dataclass(frozen=True)
-class Setting:
-    """
-    Describe one implemented numeric or enumerated procedure parameter.
-    """
-
-    key: str
-    label: str
-    default: float | int | str
-    minimum: float = 0
-    maximum: float = 0
-    choices: tuple[str, ...] = ()
-    integer: bool = False
-
-    def validate(self, value: Any) -> float | int | str:
-        """
-        Reject unknown choices, booleans, nonfinite values and out-of-budget inputs.
-        """
-        if self.choices:
-            if not isinstance(value, str) or value not in self.choices:
-                raise ValueError(f"Choose a registered value for {self.label}.")
-            return value
-        number = integer_value(value) if self.integer else finite_number(value)
-        if not self.minimum <= number <= self.maximum:
-            raise ValueError(f"{self.label} must be within {self.minimum:g}..{self.maximum:g}.")
-        return number
+DISCOVERY_REMOVED = (
+    "Path search and seed-based discovery have been removed. "
+    "Recorded results remain viewable; a replacement endpoint solver is not implemented."
+)
 
 
 @dataclass(frozen=True)
 class Procedure:
     """
-    Describe a callable procedure or an explicit unmet fixture requirement.
+    Identify historical methods without retaining executable search settings.
     """
 
     identifier: str
     label: str
     detail: str
-    settings: tuple[Setting, ...] = ()
-    unavailable: str = ""
+    unavailable: str
+    settings: tuple[dict[str, Any], ...] = ()
 
 
-LIMITS = (
-    Setting("seconds", "Time limit (seconds)", 8.0, 0.1, 30),
-    Setting("paths", "Maximum recorded paths", 512, 16, 4096, integer=True),
-    Setting("excerpt", "Search excerpt paths (0 = complete procedure)", 0, 0, 128, integer=True),
-)
-FIT = (
-    Setting("coarse", "Coarse fitting rounds", 10, 0, 36, integer=True),
-    Setting("fine", "Fine fitting rounds", 3, 0, 6, integer=True),
-    Setting("transports", "Fit transport limit", 158, 2, 512, integer=True),
-)
-WINDOWS = (
-    Setting(
-        "start_window",
-        "Start tightening window",
-        "0.25",
-        choices=("0", "0.0625", "0.125", "0.1875", "0.25"),
-    ),
-    Setting(
-        "end_window",
-        "End tightening window",
-        "0.25",
-        choices=("0", "0.0625", "0.125", "0.1875", "0.25"),
-    ),
-)
-TIGHT_FIT = (Setting("coarse", "Coarse fitting rounds", 8, 0, 36, integer=True),) + FIT[1:]
-BENDING = (
-    Setting(
-        "path_rules",
-        "Pathing rules",
-        PathRules.MACARONI.value,
-        choices=tuple(rule.value for rule in PathRules),
-    ),
-    Setting("bend_model", "Bend rule", "pinch percent", choices=("pinch percent", "legacy")),
-    Setting("pinch_percent", "Maximum pinch utilization (%)", 99.6, 1, 99.99),
-)
-CATALOG = (
-    Procedure(
-        "generalized",
-        "Generalized cold search",
-        "110-seed broad policy, up to 16 short / 4 deep families; two-rule mode omits contact ranking and repair. Exact neutral dispatch retained.",
-        LIMITS + BENDING,
-    ),
-    Procedure(
-        "ordinary",
-        "Ordinary refinement",
-        "Bounded endpoint fitting from a deterministic endpoint-derived seed. No previous fitted result is assumed.",
-        LIMITS + BENDING + FIT,
-    ),
-    Procedure(
-        "redistribution",
-        "Bend redistribution",
-        "One existing signed-turn allocation proposal followed by bounded fitting. Allocation thresholds remain fixed.",
-        LIMITS + BENDING + FIT,
-    ),
-    Procedure(
-        "tightening",
-        "Terminal tangent tightening",
-        "Independent optional start/end bending windows followed by bounded fitting.",
-        LIMITS + BENDING + TIGHT_FIT + WINDOWS,
-    ),
-    Procedure(
-        "combined",
-        "Redistribution + terminal tightening",
-        "One allocation proposal and terminal windows share the selected fitting budget.",
-        LIMITS + BENDING + TIGHT_FIT + WINDOWS,
-    ),
-    Procedure(
-        "compatible",
-        "Compatible shooting",
-        "Fixed 46-seed / 18 coarse / 3 fine policy. Select its actual objective and bend mapping; inherited physics remains under investigation.",
-        LIMITS
-        + BENDING
-        + (
-            Setting(
-                "objective", "Objective", "routing", choices=("routing", "legacy sphere feedback")
-            ),
-            Setting(
-                "mapping", "Bend mapping", "near limit", choices=("near limit", "global softening")
-            ),
-        ),
-    ),
-    Procedure(
-        "director",
-        "Director shooting",
-        "Registered transport and iteration policies; two-rule mode fits endpoints with macaroni penalties at both grids.",
-        LIMITS
-        + BENDING
-        + (
-            Setting(
-                "policy",
-                "Registered shooting policy",
-                "BANK_WIDTH",
-                choices=(
-                    "BASELINE",
-                    "ROTATION",
-                    "REGULAR",
-                    "CORKSCREW",
-                    "FREE",
-                    "BANK",
-                    "BANK_PERSISTENT",
-                    "BANK_WIDTH",
-                ),
-            ),
-        ),
-    ),
-    Procedure(
-        "discovery",
-        "Family/contact-guided search",
-        "Fit selected distinct families. Contact-guided variants require historical rules; two-rule mode uses short/full endpoint fitting.",
-        LIMITS
-        + BENDING
-        + (
-            Setting(
-                "variant",
-                "Family refinement",
-                "short",
-                choices=("short", "full", "plane guided", "distance guided"),
-            ),
-            Setting("families", "Maximum families", 3, 1, 3, integer=True),
-        ),
-    ),
-    Procedure(
-        "broad",
-        "Broad cold search",
-        "Run the generalized solver's broad delegate directly with its unchanged fixed policy.",
-        LIMITS + BENDING,
-    ),
+CATALOG = tuple(
+    Procedure(identifier, label, detail, DISCOVERY_REMOVED)
+    for identifier, label, detail in (
+        ("generalized", "Generalized cold search", "Retired broad seed-bank discovery."),
+        ("ordinary", "Ordinary refinement", "Retired endpoint-seed fitting."),
+        ("redistribution", "Bend redistribution", "Retired seeded allocation and fitting."),
+        ("tightening", "Terminal tangent tightening", "Retired seeded window fitting."),
+        ("combined", "Redistribution + terminal tightening", "Retired seeded combined fitting."),
+        ("compatible", "Compatible shooting", "Retired 46-seed shooting search."),
+        ("director", "Director shooting", "Retired seeded director-policy search."),
+        ("discovery", "Family/contact-guided search", "Retired seed-family discovery."),
+        ("broad", "Broad cold search", "Retired 110-seed broad search."),
+    )
+) + (
     Procedure(
         "quintic",
         "Archived cap-transition solver",
-        "The archived inventory entry points to the cap-transition constructor.",
-        unavailable="Requires a prescribed master route and explicit start/end cap fits; this fixture contains endpoint poses only.",
+        "Prescribed-route constructor.",
+        "Requires a prescribed master route and explicit start/end cap fits; this fixture contains endpoint poses only.",
     ),
     Procedure(
         "target-shooting",
         "Archived joint target shooting",
-        "Piecewise material-span solver.",
-        unavailable="Its material-span plan has no registered lossless replay/capture adapter yet. It remains available in source, rather than being represented by invented director fields.",
+        "Historical material-span solver.",
+        "No registered replay/capture adapter; unavailable for endpoint discovery.",
     ),
     Procedure(
         "tube",
         "Prescribed-twist tube",
-        "Master-tube and cap construction procedure.",
-        unavailable="Requires a prescribed master route, cap fits and twist specification; those inputs are absent from this endpoint-only fixture.",
+        "Prescribed-route construction procedure.",
+        "Requires a prescribed master route, cap fits and twist specification; those inputs are absent from this endpoint-only fixture.",
     ),
 )
 
 
 def catalog() -> list[dict[str, Any]]:
     """
-    Return a JSON-ready control specification without importing any numerical solver.
+    Describe archived methods without importing numerical search implementations.
     """
     return [asdict(procedure) for procedure in CATALOG]
 
 
 def selections(value: Any) -> list[dict[str, Any]]:
     """
-    Normalize selected procedures and enforce a 120-second aggregate scheduling cap.
+    Reject new discovery requests, including requests saved by an older palette.
     """
-    if not isinstance(value, list) or not 1 <= len(value) <= 9:
-        raise ValueError("Select one to nine supported procedures.")
+    if not isinstance(value, list) or not value:
+        raise ValueError(DISCOVERY_REMOVED)
     known = {procedure.identifier: procedure for procedure in CATALOG}
-    chosen: list[dict[str, Any]] = []
-    for item in value:
-        source = json_object(item)
-        if set(source) != {"id", "settings"}:
-            raise ValueError("Procedure selections require id and settings only.")
-        identifier = source["id"]
-        if not isinstance(identifier, str) or identifier not in known:
-            raise ValueError("Unknown solver procedure.")
-        procedure = known[identifier]
-        if procedure.unavailable:
-            raise ValueError(procedure.unavailable)
-        if identifier in {entry["id"] for entry in chosen}:
-            raise ValueError("Do not schedule the same procedure twice in one run.")
-        settings = json_object(source["settings"])
-        if set(settings) - {setting.key for setting in procedure.settings}:
-            raise ValueError("Unknown procedure setting.")
-        normalized = {
-            setting.key: setting.validate(settings.get(setting.key, setting.default))
-            for setting in procedure.settings
-        }
-        if "path_rules" not in settings and settings.get("bend_model") == "legacy":
-            normalized["path_rules"] = PathRules.HISTORICAL.value
-        if normalized["path_rules"] == PathRules.MACARONI.value:
-            if normalized["bend_model"] != "pinch percent":
-                raise ValueError("Two-rule pathing requires macaroni pinch-percent bending.")
-            if identifier == "compatible" and normalized["objective"] != "routing":
-                raise ValueError("Sphere-feedback objectives require historical pathing rules.")
-            if identifier == "discovery" and normalized["variant"] in (
-                "plane guided",
-                "distance guided",
-            ):
-                raise ValueError(
-                    "Contact-guided variants require historical pathing rules; use short or full fitting."
-                )
-        if integer_value(normalized["excerpt"]) >= integer_value(normalized["paths"]):
-            raise ValueError("An excerpt must finish before the hard recording cap.")
-        chosen.append({"id": identifier, "settings": normalized})
-    if sum(entry["settings"]["seconds"] for entry in chosen) > 120:
-        raise ValueError("Selected time limits exceed the 120-second run budget.")
-    return chosen
+    source = json_object(value[0])
+    if set(source) != {"id", "settings"}:
+        raise ValueError("Procedure selections require id and settings only.")
+    identifier = source["id"]
+    if not isinstance(identifier, str) or identifier not in known:
+        raise ValueError("Unknown solver procedure.")
+    raise ValueError(known[identifier].unavailable)
 
 
 def demonstration() -> list[dict[str, Any]]:
     """
-    Register nine finite search excerpts without changing any physical constraint.
-
-    Heavy cold searches retain their first128transports, including fitting after
-    seed screening. Local strategies use one coarse fitting round and no fine
-    iterations; their final512-grid evaluation remains. Resource errors still
-    stop the batch. Excerpt completion is planned incomplete evidence, not a fit.
+    Return no executable selections for clients retaining the old demonstration API.
     """
-    requests = []
-    for procedure in CATALOG:
-        if procedure.unavailable:
-            continue
-        settings: dict[str, Any] = {"excerpt": 128}
-        if procedure.identifier in ("ordinary", "redistribution", "tightening", "combined"):
-            settings.update(coarse=1, fine=0, transports=16, excerpt=32)
-        requests.append({"id": procedure.identifier, "settings": settings})
-    return selections(requests)
+    return []
 
 
 def source_pins() -> dict[str, str]:
     """
-    Freeze executable routing, worker, viewer and safeguard sources for a fresh job.
+    Freeze diagnostic, historical solver and safeguard sources for authored references.
     """
     files = {ROOT / "cable_bundler/routing/geometry.py"}
     for package in (

@@ -4,25 +4,20 @@ The user-directed Rubik gym starts from its environment and two connection faces
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
 
-New diagnostic solver runs default to **macaroni + no lateral bending** pathing.
-The existing pinch percentage controls macaroni; the motion representation keeps
-the no-lateral-bending rule. Connection positions and frames remain fitting goals.
-Self-contact/clearance, sphere or gym boundaries, length balance and extra-loop
-rules do not affect ranking, repair or acceptance in this scope. Positive material
-progress remains intrinsic to macaroni geometry; its extra historical reserve is
-removed. Other displayed measurements are observations, not active pathing rules.
-The sweep profile, conductor ordering and geometry construction remain unchanged.
-Finite coefficient, iteration and resource bounds are numerical search controls.
-No failure at those bounds is an impossibility certificate. Old archives retain
-their historical scope; explicit historical mode remains available for replay and
-comparisons. Sphere-feedback objectives and contact-guided discovery require that
-historical mode and are rejected before worker launch in the reduced mode.
+Path search and all seed-based discovery were removed from active diagnostics on
+2026-10-30, including the endpoint-seeded local refinements and shooting methods.
+The diagnostic palette retains historical results, search playback, measurements,
+macaroni shapes, thickness and local frames. New endpoint solving and fresh rule
+comparisons are unavailable until a replacement geometric procedure is implemented.
+The macaroni/pinch calculation, structural no lateral bending, sweep profiles,
+conductor identity/order and geometry construction remain unchanged. Old evidence
+keeps its recorded scope; historical mode cannot re-enable retired execution.
 
-The gym can also be linked to the diagnostic solver palette. Choose **Create/edit
-gym layout** in diagnostics, author the endpoints, then choose **Open in solver
-diagnostics** in the gym. Select optional procedures/settings and press **Run
-selected**. Use **View result**, the recorded-result selector and search playback
-to inspect the transported paths. Handoff does not run a solver automatically.
+Choose **Create/edit gym layout** in diagnostics, author the endpoints, then choose
+**Open in solver diagnostics** in the gym. The frozen layout opens without a route.
+Existing archived paths remain viewable through the recorded-result selector and
+search playback. The gym's randomized layout seed remains an input-generation
+control, independent of the retired route-discovery seeds.
 
 Each handoff freezes the complete layout, including seed, percentage dimensions,
 selected zones/faces, roll, exact target frames and drawing coordinates. The
@@ -96,8 +91,7 @@ same development design; `diagnostic_occurrence.component` must be the viewer's
 root, and the viewer must have a `ProcedureController`. Connect while no worker is
 active. Switching to another example or sending a new gym case is refused until
 an active numerical job has stopped and been collected. The workspace archives a
-source-pinned plan; each later Run selected freezes its own bounded plan, exact
-inputs and gym identity. Worker results retain the context, and imports reject
+source-pinned layout plan. Archived results retain the context, and imports reject
 missing or mismatched layouts. Pure helpers in `gym.handoff` provide write-once
 input manifests and validated replay without importing Fusion.
 
@@ -116,5 +110,5 @@ full/half trials missed descent available at a much smaller scale. The local
 derivative direction was checked independently. Gym bend-cap ablation reproduced
 all fourteen paths exactly. These are five existing-case diagnostic observations,
 with no solver fix, physical-rule change, new full solve or native validation.
-Prioritize honest phase/probe display, explicit family-refinement budgets and
-coordinate-aware step control before interpreting repeated frames as route diversity.
+These findings describe the retired search procedures; no new discovery algorithm
+is implied by retaining their records.
