@@ -2,6 +2,10 @@
 
 ## Recorded search and section inspection
 
+For the user-directed endpoint-only environment preview, see the
+[Rubik test gym](gym.md). It deliberately contains no preselected cable route,
+solver invocation or newly imposed physical rule.
+
 Use `devtools.ribbon_analysis.inspection` for new diagnostic investigations. It
 keeps independent solver dispositions, frozen geometry and append-only search
 history separate from the legacy evidence/acceptance display below. The current
