@@ -13,10 +13,10 @@ from typing import Any
 from cable_bundler.routing.geometry import Vector3, cross
 
 from ..contracts import Targets
+from .primitives import PHI, Box, Dodecahedron
 
 ZONES = tuple(zone for zone in product((-1, 0, 1), repeat=3) if zone != (0, 0, 0))
-FACES = ("+X", "-X", "+Y", "-Y", "+Z", "-Z")
-AXES = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
+FACES = tuple(f"Face {number + 1:02}" for number in range(12))
 
 
 def _integer(value: Any, minimum: int, maximum: int) -> int:
@@ -40,7 +40,8 @@ class Config:
     seed: int = 20261030
     lines: int = 3
     diameter_mm: float = 1.5
-    void_widths: float = 3.0
+    void_percent: float = 300.0
+    zone_percent: float = 300.0
 
     def __post_init__(self) -> None:
         """
@@ -48,18 +49,18 @@ class Config:
         """
         _integer(self.seed, 0, 2**32 - 1)
         _integer(self.lines, 1, 128)
-        for value in (self.diameter_mm, self.void_widths):
+        for value in (self.diameter_mm, self.void_percent, self.zone_percent):
             if (
                 isinstance(value, bool)
                 or not isinstance(value, (int, float))
                 or not math.isfinite(value)
             ):
                 raise ValueError("Dimensions must be finite numbers.")
-        if self.diameter_mm <= 0 or self.void_widths < 3:
+        if self.diameter_mm <= 0 or self.void_percent < 300 or self.zone_percent <= 0:
             raise ValueError(
-                "Diameter must be positive; central void side must be at least3widths."
+                "Diameter and zone depth must be positive; central void side must be at least300% of width."
             )
-        if not math.isfinite(self.side_mm * 3):
+        if not math.isfinite(self.extent_mm):
             raise ValueError("Preview dimensions overflow.")
 
     @property
@@ -72,37 +73,23 @@ class Config:
     @property
     def side_mm(self) -> float:
         """
-        Return the central cube side and each surrounding zone's side.
+        Return the central void side in millimeters.
         """
-        return self.width_mm * self.void_widths
+        return self.width_mm * (self.void_percent / 100)
 
-
-@dataclass(frozen=True)
-class Box:
-    """
-    Represent an axis-aligned virtual goal solid, with no native BRep dependency.
-    """
-
-    center: Vector3
-    size: tuple[float, float, float]
-
-    def face(self, index: int) -> tuple[Vector3, Vector3, Vector3, tuple[Vector3, ...]]:
+    @property
+    def zone_mm(self) -> float:
         """
-        Return face center, outward normal, ordered across axis and four corners.
+        Return outer zone depth as a percentage of nominal ribbon width.
         """
-        _integer(index, 0, 5)
-        axis, sign = index // 2, 1 if index % 2 == 0 else -1
-        normal = Vector3(0, 0, 0).translated(AXES[axis], sign)
-        across = AXES[(axis + 1) % 3]
-        up = cross(normal, across)
-        origin = self.center.translated(normal, self.size[axis] / 2)
-        corners = tuple(
-            origin.translated(across, a * self.size[(axis + 1) % 3] / 2).translated(
-                up, b * self.size[(axis + 2) % 3] / 2
-            )
-            for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))
-        )
-        return origin, normal, across, corners
+        return self.width_mm * (self.zone_percent / 100)
+
+    @property
+    def extent_mm(self) -> float:
+        """
+        Return the complete gym side, including both outer zone layers.
+        """
+        return self.side_mm + 2 * self.zone_mm
 
 
 @dataclass(frozen=True)
@@ -120,7 +107,7 @@ class Goal:
         Validate stable zone/face identifiers and quarter-turn in-face orientation.
         """
         _integer(self.zone, 0, 25)
-        _integer(self.face, 0, 5)
+        _integer(self.face, 0, 11)
         _integer(self.roll, 0, 3)
 
 
@@ -145,28 +132,49 @@ class Scene:
         if self.a.zone == self.b.zone:
             raise ValueError("Select two different goal zones.")
 
-    def box(self, zone: int) -> Box:
+    def zone_box(self, zone: int) -> Box:
         """
-        Sample one solid wholly inside its zone with a seed independent of selections.
+        Return a cell with configurable outer depth and central-band dimensions.
         """
         _integer(zone, 0, 25)
-        rng = random.Random(f"ribbon-gym-preview-v1:{self.config.seed}:{zone}")
-        side = self.config.side_mm
-        extents = tuple(side * rng.uniform(0.4, 0.75) for _ in range(3))
-        size = (extents[0], extents[1], extents[2])
+        side, depth = self.config.side_mm, self.config.zone_mm
+        indices = ZONES[zone]
+        return Box(
+            Vector3(*(coordinate * (side + depth) / 2 for coordinate in indices)),
+            (
+                depth if indices[0] else side,
+                depth if indices[1] else side,
+                depth if indices[2] else side,
+            ),
+        )
+
+    def solid(self, zone: int) -> Dodecahedron:
+        """
+        Seat a regular solid against every inward cell boundary nearest the void.
+
+        Nonzero zone axes touch their inner barrier with zero AABB gap. Free
+        tangential coordinates retain seeded variation. Edge/corner cells snug
+        against two/three inward planes without entering the central void.
+        """
+        bounds = self.zone_box(zone)
+        rng = random.Random(f"ribbon-gym-dodecahedron-v2:{self.config.seed}:{zone}")
+        scale = min(bounds.size) * rng.uniform(0.65, 0.85) / (2 * PHI)
+        reach = scale * PHI
         center = Vector3(
             *(
-                coordinate * side + rng.uniform(-(side - extent) / 2, (side - extent) / 2)
-                for coordinate, extent in zip(ZONES[zone], size)
+                coordinate * (self.config.side_mm / 2 + reach)
+                if coordinate
+                else rng.uniform(-self.config.side_mm / 2 + reach, self.config.side_mm / 2 - reach)
+                for coordinate in ZONES[zone]
             )
         )
-        return Box(center, size)
+        return Dodecahedron(center, scale)
 
     def pose(self, goal: Goal) -> tuple[Vector3, Vector3, Vector3]:
         """
         Derive the attachment center, outward departure and ordered width from its face.
         """
-        origin, normal, across, _ = self.box(goal.zone).face(goal.face)
+        origin, normal, across, _ = self.solid(goal.zone).face(goal.face)
         up = cross(normal, across)
         widths = (
             across,
@@ -212,15 +220,20 @@ class Scene:
         from .strokes import drawing
 
         return {
-            "schema": "ribbon-gym-preview-v1",
+            "schema": "ribbon-gym-preview-v2",
             "config": asdict(self.config),
             "width_mm": self.config.width_mm,
             "side_mm": self.config.side_mm,
+            "zone_mm": self.config.zone_mm,
+            "extent_mm": self.config.extent_mm,
             "a": asdict(self.a),
             "b": asdict(self.b),
             "zones": [",".join(map(str, zone)) for zone in ZONES],
             "faces": FACES,
-            "solids": [asdict(self.box(goal.zone)) for goal in (self.a, self.b)],
+            "solids": [
+                {"kind": "regular_dodecahedron", **asdict(self.solid(goal.zone))}
+                for goal in (self.a, self.b)
+            ],
             "targets": asdict(self.targets),
             "drawing": drawing(self),
             "scope": "Endpoint layout only. No cable path, solver run or physical feasibility judgement. Routing boundary and planar gym are deferred.",
@@ -236,6 +249,6 @@ def generate(config: Config | None = None) -> Scene:
     a, b = rng.sample(range(26), 2)
     return Scene(
         config,
-        Goal(a, rng.randrange(6), rng.randrange(4)),
-        Goal(b, rng.randrange(6), rng.randrange(4)),
+        Goal(a, rng.randrange(12), rng.randrange(4)),
+        Goal(b, rng.randrange(12), rng.randrange(4)),
     )

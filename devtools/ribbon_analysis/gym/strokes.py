@@ -10,7 +10,8 @@ from typing import Any
 
 from cable_bundler.routing.geometry import Vector3, cross
 
-from .scene import AXES, ZONES, Box, Scene
+from .primitives import AXES, Box
+from .scene import Scene
 
 
 def drawing(scene: Scene) -> dict[str, Any]:
@@ -45,10 +46,11 @@ def drawing(scene: Scene) -> dict[str, Any]:
 
     side = scene.config.side_mm
     box(Box(Vector3(0, 0, 0), (side, side, side)), "void", 0.035)
-    box(Box(Vector3(0, 0, 0), (3 * side,) * 3), "grid", 0)
+    half = scene.config.extent_mm / 2
+    box(Box(Vector3(0, 0, 0), (2 * half,) * 3), "grid", 0)
     for axis in range(3):
         for sign in (-1, 1):
-            origin = Vector3(0, 0, 0).translated(AXES[axis], sign * 1.5 * side)
+            origin = Vector3(0, 0, 0).translated(AXES[axis], sign * half)
             for fixed, moving in (
                 ((axis + 1) % 3, (axis + 2) % 3),
                 ((axis + 2) % 3, (axis + 1) % 3),
@@ -57,20 +59,25 @@ def drawing(scene: Scene) -> dict[str, Any]:
                     center = origin.translated(AXES[fixed], offset * side)
                     line(
                         (
-                            center.translated(AXES[moving], -1.5 * side),
-                            center.translated(AXES[moving], 1.5 * side),
+                            center.translated(AXES[moving], -half),
+                            center.translated(AXES[moving], half),
                         ),
                         "grid",
                     )
     for target_role, goal in (("a", scene.a), ("b", scene.b)):
-        zone = ZONES[goal.zone]
-        box(
-            Box(Vector3(*(coordinate * side for coordinate in zone)), (side,) * 3),
-            target_role + "-zone",
-            0,
-        )
-        solid = scene.box(goal.zone)
-        box(solid, target_role, 0.18)
+        box(scene.zone_box(goal.zone), target_role + "-zone", 0)
+        solid = scene.solid(goal.zone)
+        for face_index in range(12):
+            pentagon = solid.face(face_index)[3]
+            line(pentagon + (pentagon[0],), target_role)
+            surfaces.append(
+                {
+                    "points": [asdict(point) for point in pentagon],
+                    "role": target_role,
+                    "opacity": 0.18,
+                    "face": face_index,
+                }
+            )
         target_corners = solid.face(goal.face)[3]
         surfaces.append(
             {

@@ -28,7 +28,7 @@ def launch(component: Any, directory: Path, config: Config | None = None) -> Any
     write_document(
         directory.parent / (directory.name + "-plan.json"),
         {
-            "scope": "Visual endpoint gym only: empty central cube >=3nominal cable widths,26outer zones,two virtual axis-aligned goal boxes and selectable faces. No path-first fixture, solver, routing rule or planar gym.",
+            "scope": "Visual endpoint gym only: empty central cube >=3nominal cable widths,26outer zones,two regular dodecahedra snug against inward zone barriers,void side and zone depth configured as percentages of nominal ribbon width and selectable faces. No path-first fixture, solver, routing rule or planar gym.",
             "sources": source_pins(),
             "seconds_per_edit": 10,
             "rss_kib": 4194304,

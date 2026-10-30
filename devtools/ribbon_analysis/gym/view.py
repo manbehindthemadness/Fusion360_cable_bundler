@@ -107,7 +107,12 @@ class GymView:
             drawing = scene.payload()["drawing"]
             for item in drawing["surfaces"]:
                 points = tuple(Vector3(**point) for point in item["points"])
-                mesh = group.addMesh(coordinates(points), [0, 1, 2, 0, 2, 3], [], [])
+                triangles = [
+                    vertex
+                    for index in range(1, len(points) - 1)
+                    for vertex in (0, index, index + 1)
+                ]
+                mesh = group.addMesh(coordinates(points), triangles, [], [])
                 mesh.cullMode = adsk.fusion.CustomGraphicsCullModes.CustomGraphicsCullNone
                 set_color(mesh, COLORS[item["role"]])
                 if not mesh.setOpacity(item["opacity"], True):
@@ -135,8 +140,8 @@ class GymView:
         """
         candidate = self.scene
         if action == "generate":
-            if set(data) != {"seed", "lines", "diameter_mm", "void_widths"}:
-                raise ValueError("Supply all four layout dimensions and seed.")
+            if set(data) != {"seed", "lines", "diameter_mm", "void_percent", "zone_percent"}:
+                raise ValueError("Supply the seed, cable dimensions, and void/zone percentages.")
             candidate = generate(Config(**data))
         elif action == "select":
             if set(data) != {"role", "zone", "face", "roll"}:
