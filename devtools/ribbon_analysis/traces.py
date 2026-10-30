@@ -4,6 +4,7 @@ Prepare bounded continuous cubic display approximations without changing routes.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable
 
@@ -49,6 +50,19 @@ class TracePath:
     curves: tuple[CubicBezier, ...]
     controls: tuple[Vector3, ...]
     knots: tuple[float, ...]
+
+
+def evaluate_jet(guide: TracePath, u: float) -> tuple[Vector3, Vector3, Vector3]:
+    """
+    Evaluate frozen position and first/second local cubic derivatives at path fraction u.
+    """
+    if not math.isfinite(u) or not 0 <= u <= 1:
+        raise ValueError("Frozen guide fraction must lie within [0,1].")
+    segment, fraction = divmod(u * len(guide.curves), 1.0)
+    curve = guide.curves[int(segment) if u < 1 else -1]
+    if u == 1:
+        fraction = 1.0
+    return curve.point(fraction), curve.derivative(fraction), curve.second_derivative(fraction)
 
 
 def trace(path: RibbonPath, number: int, offset: float) -> TracePath:

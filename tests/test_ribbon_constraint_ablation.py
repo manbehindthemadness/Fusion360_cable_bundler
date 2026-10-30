@@ -130,7 +130,9 @@ def test_workloads_pair_the_same_settings_and_refuse_partial_adapters() -> None:
     """
     Restrict ablations to fully implemented search paths and retain a fresh baseline.
     """
-    selected = selections([{"id": "compatible", "settings": {"excerpt": 16}}])
+    selected = selections(
+        [{"id": "compatible", "settings": {"excerpt": 16, "bend_model": "legacy"}}]
+    )
     work = ablation.workloads(
         selected, {"origin": "old:compatible", "disabled_rules": ["centre_bend", "lane_bend"]}
     )
@@ -153,7 +155,7 @@ def test_worker_archives_matched_scopes_and_panels_preserve_proposal_provenance(
     """
     reference = examples.create(tmp_path / "reference", "ribbon", lambda: None)
     (tmp_path / "input.json").write_bytes(reference.read_bytes())
-    requested = selections([{"id": "ordinary", "settings": {"excerpt": 0}}])
+    requested = selections([{"id": "ordinary", "settings": {"excerpt": 0, "bend_model": "legacy"}}])
     write_document(
         tmp_path / "plan.json",
         {

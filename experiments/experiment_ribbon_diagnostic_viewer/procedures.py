@@ -80,42 +80,47 @@ WINDOWS = (
     ),
 )
 TIGHT_FIT = (Setting("coarse", "Coarse fitting rounds", 8, 0, 36, integer=True),) + FIT[1:]
+BENDING = (
+    Setting("bend_model", "Bend rule", "pinch percent", choices=("pinch percent", "legacy")),
+    Setting("pinch_percent", "Maximum pinch utilization (%)", 99.6, 1, 99.99),
+)
 CATALOG = (
     Procedure(
         "generalized",
         "Generalized cold search",
         "Fixed 110-seed broad policy, up to 16 short / 4 deep families and queued width repair; exact neutral dispatch retained.",
-        LIMITS,
+        LIMITS + BENDING,
     ),
     Procedure(
         "ordinary",
         "Ordinary refinement",
         "Bounded endpoint fitting from a deterministic endpoint-derived seed. No previous fitted result is assumed.",
-        LIMITS + FIT,
+        LIMITS + BENDING + FIT,
     ),
     Procedure(
         "redistribution",
         "Bend redistribution",
         "One existing signed-turn allocation proposal followed by bounded fitting. Allocation thresholds remain fixed.",
-        LIMITS + FIT,
+        LIMITS + BENDING + FIT,
     ),
     Procedure(
         "tightening",
         "Terminal tangent tightening",
         "Independent optional start/end bending windows followed by bounded fitting.",
-        LIMITS + TIGHT_FIT + WINDOWS,
+        LIMITS + BENDING + TIGHT_FIT + WINDOWS,
     ),
     Procedure(
         "combined",
         "Redistribution + terminal tightening",
         "One allocation proposal and terminal windows share the selected fitting budget.",
-        LIMITS + TIGHT_FIT + WINDOWS,
+        LIMITS + BENDING + TIGHT_FIT + WINDOWS,
     ),
     Procedure(
         "compatible",
         "Compatible shooting",
         "Fixed 46-seed / 18 coarse / 3 fine policy. Select its actual objective and bend mapping; inherited physics remains under investigation.",
         LIMITS
+        + BENDING
         + (
             Setting(
                 "objective", "Objective", "routing", choices=("routing", "legacy sphere feedback")
@@ -153,6 +158,7 @@ CATALOG = (
         "Family/contact-guided search",
         "Screen the existing seed bank and fit the selected number of distinct families. Contact guidance is sampled, not a clearance certificate.",
         LIMITS
+        + BENDING
         + (
             Setting(
                 "variant",
@@ -167,7 +173,7 @@ CATALOG = (
         "broad",
         "Broad cold search",
         "Run the generalized solver's broad delegate directly with its unchanged fixed policy.",
-        LIMITS,
+        LIMITS + BENDING,
     ),
     Procedure(
         "quintic",

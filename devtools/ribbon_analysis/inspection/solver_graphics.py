@@ -115,10 +115,7 @@ def render(
         _draw(component, chart, scale, screen_anchor=summary.anchor),
         _draw(component, summary, scale, screen_anchor=summary.anchor),
     ]
-    helpers = []
-    for overlay in witnesses(snapshot, session.targets):
-        checkpoint()
-        helpers.append(_draw(component, overlay, scale, captions=False))
+    helpers = render_witnesses(component, session, checkpoint)
     baseline = session.baseline()
     ghost = None
     if baseline is not None:
@@ -127,3 +124,25 @@ def render(
         for guide in baseline.guides:
             draw_trace(ghost, guide, (155, 160, 165))
     return panels, helpers, sketch, ghost
+
+
+def render_witnesses(component: Any, session: Session, checkpoint: Callable[[], None]) -> list[Any]:
+    """
+    Render selected-station pinch witnesses or explicitly historical worst-point glyphs.
+    """
+    snapshot = session.snapshot
+    if snapshot is None:
+        return []
+    state = session.state()
+    overlays = witnesses(
+        snapshot,
+        session.targets,
+        pinch_percent=state["bend_policy"]["pinch_percent"],
+        section=session.section,
+    )
+    groups = []
+    scale = min(1.0, max(0.2, snapshot.diameter_mm / 4))
+    for overlay in overlays:
+        checkpoint()
+        groups.append(_draw(component, overlay, scale, captions=False))
+    return groups

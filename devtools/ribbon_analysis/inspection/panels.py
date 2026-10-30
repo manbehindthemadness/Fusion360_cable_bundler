@@ -16,7 +16,6 @@ from ..constraint_geometry import Overlay, Stroke, circle
 from ..contracts import Targets
 from ..traces import TracePath
 from .archive import canonical, snapshot_payload
-from .bends import inspect
 from .geometry import PathSnapshot
 
 
@@ -112,7 +111,7 @@ def build(state: dict[str, Any], snapshot: PathSnapshot) -> tuple[PanelSource, O
         _notes(notes),
         anchor,
     )
-    bends = inspect(snapshot, state["section"])
+    bends = state["bends"]
     plot_origin = anchor.translated(Vector3(1, 0, 0), 28 * diameter)
     width, height = 24 * diameter, 10 * diameter
     maximum = max(
@@ -145,12 +144,16 @@ def build(state: dict[str, Any], snapshot: PathSnapshot) -> tuple[PanelSource, O
         )
     chart = Overlay(
         "curvature_plot",
-        "Current recorded path: curvature x 3D",
+        "Current recorded path: pinch / configured limit"
+        if bends.get("bend_model") == "pinch percent"
+        else "Current recorded path: curvature x 3D",
         (),
         tuple(strokes),
         (
-            "Blue centre / orange A / purple B / red 3D reference",
-            "Sampled frozen cubics; allowable wide-ribbon radius ratio/flex unresolved.",
+            "Blue centre / orange A / purple B / red configured pinch limit"
+            if bends.get("bend_model") == "pinch percent"
+            else "Blue centre / orange A / purple B / red 3D reference",
+            bends["scope"],
         ),
         plot_origin.translated(Vector3(0, -1, 0), 2 * diameter),
     )
@@ -205,7 +208,13 @@ def bend_witness(guide: TracePath, minimum: float, title: str) -> Overlay:
     )
 
 
-def witnesses(snapshot: PathSnapshot, targets: Targets) -> tuple[Overlay, ...]:
+def witnesses(
+    snapshot: PathSnapshot,
+    targets: Targets,
+    *,
+    pinch_percent: float | None = None,
+    section: int = 0,
+) -> tuple[Overlay, ...]:
     """
     Share path-attached bend circles and the fixed-end gap between both renderers.
 
@@ -215,16 +224,20 @@ def witnesses(snapshot: PathSnapshot, targets: Targets) -> tuple[Overlay, ...]:
     """
     half = targets.lines * snapshot.diameter_mm / 2 + snapshot.diameter_mm * 0.1
     reach = math.hypot(half, snapshot.diameter_mm / 2)
-    overlays = [
-        bend_witness(
-            guide,
-            reach / 0.78 if guide.number == 0 else 3.1 * snapshot.diameter_mm,
-            "Macaroni / centre reach reference"
-            if guide.number == 0
-            else f"Macaroni / edge {guide.number} radius reference",
-        )
-        for guide in snapshot.guides
-    ]
+    overlays = (
+        _pinch_witnesses(snapshot, section, pinch_percent)
+        if pinch_percent is not None
+        else [
+            bend_witness(
+                guide,
+                reach / 0.78 if guide.number == 0 else 3.1 * snapshot.diameter_mm,
+                "Macaroni / centre reach reference"
+                if guide.number == 0
+                else f"Macaroni / edge {guide.number} radius reference",
+            )
+            for guide in snapshot.guides
+        ]
+    )
     center = next(guide for guide in snapshot.guides if guide.number == 0)
     end = center.controls[-1]
     gap = magnitude(difference(end, targets.end))
@@ -239,3 +252,50 @@ def witnesses(snapshot: PathSnapshot, targets: Targets) -> tuple[Overlay, ...]:
         )
     )
     return tuple(overlays)
+
+
+def _pinch_witnesses(snapshot: PathSnapshot, section: int, percent: float) -> list[Overlay]:
+    """
+    Draw coupled limits and actual radii at the same selected material station.
+    """
+    from ..traces import evaluate_jet
+    from .pinch_geometry import sample
+
+    u = snapshot.sections[section].u
+    observed = sample(snapshot, u, percent)
+    overlays = []
+    for guide in snapshot.guides:
+        label = {0: "centre", -1: "edge_a", -2: "edge_b"}[guide.number]
+        minimum = observed["reference_radii_mm"][label]
+        actual = observed["radii_mm"][label]
+        point, velocity, acceleration = evaluate_jet(guide, u)
+        tangent = unit(velocity)
+        normal = acceleration.translated(tangent, -dot(acceleration, tangent))
+        if magnitude(normal) < 1e-12:
+            normal = snapshot.sections[section].frame.y
+        normal = unit(normal)
+        strokes = [circle(point, tangent, normal, minimum)]
+        if actual is not None and actual <= 8 * minimum:
+            strokes.append(Stroke("actual", circle(point, tangent, normal, actual).points))
+        overlays.append(
+            Overlay(
+                "bend_witness",
+                f"Pinch / {label} / u={u:.5f}",
+                (
+                    ("actual_radius_mm", actual),
+                    ("reference_radius_mm", minimum),
+                    ("allowed_percent", percent),
+                    ("u", u),
+                ),
+                tuple(strokes),
+                (
+                    f"Red minimum bend diameter {2 * minimum:.5g}mm; permitted pinch {percent:g}%. Actual radius {actual if actual is not None else 'straight'}mm.",
+                    "Same material station; coupled whole-width nominal thickness limit. Blue circles over eight reference radii are omitted.",
+                    "Radius order violation in recorded interpolation."
+                    if observed["ordered"] is False
+                    else "No same-station radius-order violation detected here.",
+                ),
+                point,
+            )
+        )
+    return overlays

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 
+from .constraint_policy import ConstraintPolicy, current
 from .director_fields import DirectorField
 
 
@@ -23,6 +25,7 @@ class RoutingField(DirectorField):
 
     extra_bending: float = 0.0
     extra_ruling: float = 0.0
+    constraints: ConstraintPolicy = dataclass_field(default_factory=current, init=False)
 
     def __post_init__(self) -> None:
         """

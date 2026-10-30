@@ -26,7 +26,7 @@ from devtools.ribbon_analysis.inspection.capture import CaptureLimits, SearchRec
 from devtools.ribbon_analysis.inspection.geometry import freeze_path
 from devtools.ribbon_analysis.inspection.measurements import observations
 from devtools.ribbon_analysis.inspection.session import Session
-from experiments.experiment_ribbon_cap_transition.constraint_policy import parse, scope
+from experiments.experiment_ribbon_cap_transition.constraint_policy import configured, scope
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
 from . import ablation, adapters, procedures
@@ -205,7 +205,7 @@ def run(directory: Path) -> Path:
             )
             recorder = active_recorder
             item["history"] = history.name
-            with scope(parse(disabled)):
+            with scope(configured(disabled, settings)):
                 path, metrics = _search(identifier, case, settings, active_recorder, checkpoint)
             canonical(metrics)
             if procedures.source_pins() != plan["sources"]:
@@ -229,14 +229,26 @@ def run(directory: Path) -> Path:
                 item["snapshot"] = snapshot_payload(snapshot)
                 item["rules"] = [
                     asdict(rule)
-                    for rule in observations(snapshot, targets, plan["minimum_radius_mm"])
+                    for rule in observations(
+                        snapshot,
+                        targets,
+                        plan["minimum_radius_mm"],
+                        pinch_percent=settings["pinch_percent"]
+                        if settings.get("bend_model") == "pinch percent"
+                        else None,
+                    )
                 ]
             elif active_recorder.last is not None:
                 item["snapshot"] = snapshot_payload(active_recorder.last)
                 item["rules"] = [
                     asdict(rule)
                     for rule in observations(
-                        active_recorder.last, targets, plan["minimum_radius_mm"]
+                        active_recorder.last,
+                        targets,
+                        plan["minimum_radius_mm"],
+                        pinch_percent=settings["pinch_percent"]
+                        if settings.get("bend_model") == "pinch percent"
+                        else None,
                     )
                 ]
             checkpoint()

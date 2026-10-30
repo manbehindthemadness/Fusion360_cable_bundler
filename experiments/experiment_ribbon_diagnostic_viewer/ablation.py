@@ -81,6 +81,11 @@ def workloads(
         raise ValueError("Comparison origin must identify the selected recorded method.")
     item = selections[0]
     policy = validate(item["id"], comparison["disabled_rules"])
+    if (
+        item["settings"].get("bend_model") == "pinch percent"
+        and Rule.CENTRE_BEND in policy.disabled
+    ):
+        raise ValueError("Pinch bending has one coupled material-guide constraint.")
     disabled = sorted(rule.value for rule in policy.disabled)
     return [
         dict(item, role="baseline", disabled_rules=[]),

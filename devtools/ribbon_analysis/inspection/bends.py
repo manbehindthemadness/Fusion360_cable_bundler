@@ -9,7 +9,7 @@ from typing import Any
 
 from cable_bundler.routing.geometry import cross, magnitude
 
-from ..traces import TracePath
+from ..traces import TracePath, evaluate_jet
 from .geometry import PathSnapshot
 
 
@@ -22,15 +22,11 @@ def radius(trace: TracePath, u: float) -> float | None:
     """
     if not math.isfinite(u) or not 0 <= u <= 1:
         raise ValueError("Bend sample fraction must lie within [0,1].")
-    count = len(trace.curves)
-    index = min(count - 1, int(u * count))
-    fraction = u * count - index
-    curve = trace.curves[index]
-    velocity = curve.derivative(fraction)
+    _, velocity, acceleration = evaluate_jet(trace, u)
     speed = magnitude(velocity)
     if speed < 1e-12:
         return None
-    curvature = magnitude(cross(velocity, curve.second_derivative(fraction))) / speed**3
+    curvature = magnitude(cross(velocity, acceleration)) / speed**3
     return 1 / curvature if curvature > 1e-12 else None
 
 

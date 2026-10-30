@@ -5,8 +5,10 @@
 Use `devtools.ribbon_analysis.inspection` for new diagnostic investigations. It
 keeps independent solver dispositions, frozen geometry and append-only search
 history separate from the legacy evidence/acceptance display below. The current
-experiment's inherited macaroni and collision acceptance claims were withdrawn;
-the legacy API remains useful for inspecting its named numerical measurements.
+experiment's inherited macaroni and collision acceptance claims were withdrawn.
+New compatible-chart runs use the [percentage pinch rule](pinch.md), initially
+99.6%. This controls positive local thickness clearance; global collision and
+complete physical acceptance remain separate. Legacy records keep their old rule.
 
 ```python
 from pathlib import Path
@@ -54,8 +56,12 @@ Solver details sketch inside the method component. Search proposals use their
 own recorded coefficients; older records without them say unavailable.
 **Constraint shapes (both views)** starts enabled and shows identical sampled
 bend circles and the actual-end-to-target segment in the palette and Fusion.
-The red circle marks minimum allowed radius (maximum bend), and blue marks actual
-radius, tangent at each guide's tightest sampled bend in its real bend plane.
+For percentage-policy records, red circles show minimum bend diameters and blue
+circles show actual curvature, all at the selected corresponding material station
+in their real bend planes. The centre reference lies between the two edges under
+the compatible geometry. The section slider moves all three pairs together.
+Legacy records explicitly retain their historical unrelated red limits and
+independently located worst-point blue circles; they are not relabelled as pinch.
 The green segment joins the recorded endpoint to its fixed target. Very large
 actual circles (over eight reference radii) are explicitly omitted while their
 measurements remain listed; straight guides have no osculating circle. Palette
@@ -75,10 +81,11 @@ Supported controls are `end_position`, `end_tangent`, `end_width`, `centre_bend`
 and `lane_bend`. Ordinary refinement, tangent tightening, compatible shooting and
 route discovery support all five; redistribution and combined refinement support
 the three endpoint objectives. Other procedures display these controls as fixed
-until their complete search gates have an ablation adapter. The centre cap is the
-legacy reach reference, not a replacement for the unresolved physical macaroni
-ratio/scalar/flex policy. Start pose, dimensions, identities, structural material
-regularity and unimplemented collision/physical rules have no disable control.
+until their complete search gates have an ablation adapter. Percentage mode has
+one coupled bend constraint under `lane_bend`; the legacy `centre_bend` toggle is
+absent and explicit attempts to disable it reject. Start pose, dimensions,
+identities, structural material regularity and global collision rules have no
+disable control.
 
 For one conductor, the profile is one circle of the declared diameter. For wider
 ribbons, captures contain open material rulings until the actual bonded contour
@@ -139,6 +146,15 @@ endpoint-derived seed, not an interrupted path masquerading as a fitted solution
 Archived cap-transition/tube procedures need additional route/cap inputs; joint
 target shooting lacks a lossless material-span capture adapter. Their disabled
 controls explain these requirements rather than substituting invented geometry.
+
+Compatible-chart procedures expose **Bend rule** (`pinch percent` or `legacy`)
+and **Maximum pinch utilization (%)**. New settings default to 99.6%, strictly
+below 100%; the inherited director-shooting comparison remains explicitly legacy.
+Archived settings without a rule version replay as legacy. The percentage rule
+is enforced in the chart, fitting penalties, seed allocation and redistribution,
+and independently measured from the recorded cubics. It replaces both old radius
+constants rather than merely scaling their circles. See the geometric derivation
+and audit scope in [pinch.md](pinch.md).
 
 Each click freezes sources, targets, settings and limits before launching one
 project-SDK subprocess. Runs currently support one or three conductors. Per-procedure

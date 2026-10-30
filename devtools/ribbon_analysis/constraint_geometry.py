@@ -15,6 +15,7 @@ from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magn
 from .api import Evidence
 from .provenance import mark_loaded
 from .traces import TracePath
+from .traces import evaluate_jet as _jet
 
 
 @dataclass(frozen=True)
@@ -76,16 +77,6 @@ def circle(point: Vector3, tangent: Vector3, normal: Vector3, radius: float) -> 
             for i in range(65)
         ),
     )
-
-
-def _jet(guide: TracePath, u: float) -> tuple[Vector3, Vector3, Vector3]:
-    """
-    Evaluate one frozen cubic using its own local derivatives.
-    """
-    index = min(int(u * len(guide.curves)), len(guide.curves) - 1)
-    curve = guide.curves[index]
-    t = u * len(guide.curves) - index
-    return curve.point(t), curve.derivative(t), curve.second_derivative(t)
 
 
 def _bend(guide: TracePath, minimum: float, key: str, title: str) -> Overlay:

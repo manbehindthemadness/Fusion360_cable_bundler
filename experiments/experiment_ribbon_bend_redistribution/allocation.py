@@ -81,15 +81,10 @@ def propose(field: CompatibleField, coordinates: tuple[float, ...]) -> Allocatio
         raise ValueError("Ruling coordinates disagree with the observed field.")
     fractions = tuple(i / 32 for i in range(33))
     samples = tuple(field.carrier(u) for u in fractions)
-    reach = math.hypot(field.half_width_mm, field.diameter_mm / 2)
-    limits = tuple(
-        min(
-            0.78 * value.progress_mm / reach,
-            (field.carrier_length_mm - 2 * field.half_width_mm * abs(value.eta_u))
-            / (3.1 * field.diameter_mm),
-        )
-        for value in samples
-    )
+    observed_limits = tuple(field.turn_limit(value) for value in samples)
+    if any(value is None for value in observed_limits):
+        return None
+    limits = tuple(value for value in observed_limits if value is not None)
     turns = tuple(value.turn for value in samples)
     utilization = tuple(abs(turn) / limit for turn, limit in zip(turns, limits))
     peak = max(range(33), key=lambda i: utilization[i])

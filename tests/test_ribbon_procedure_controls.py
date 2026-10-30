@@ -80,6 +80,8 @@ def test_selection_defaults_are_real_and_unavailable_inputs_are_explicit() -> No
         "seconds": 8.0,
         "paths": 512,
         "excerpt": 0,
+        "bend_model": "pinch percent",
+        "pinch_percent": 99.6,
         "coarse": 8,
         "fine": 3,
         "transports": 158,

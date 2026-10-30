@@ -14,8 +14,9 @@ from time import perf_counter
 from typing import Any, Callable
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
+from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
-from .constraint_policy import Rule, for_field
+from .constraint_policy import Rule, current, for_field
 from .coupled_motion import orientation_angles
 from .director_constrained_step import constrained_step
 from .director_path_contracts import FramedPath
@@ -119,6 +120,10 @@ def maximum_length_ratio(case: EndpointCase, policy: ShootingPolicy) -> float:
     if not math.isfinite(chord) or chord <= 0:
         raise ValueError("Width-aware length bounds require a positive finite chord.")
     half = case.lines * case.diameter_mm / 2 + case.diameter_mm * 0.1
+    constraints = current()
+    if constraints.bend_model is BendModel.PINCH:
+        radius = case.diameter_mm / 2 / PinchLimit(constraints.pinch_percent).fraction
+        return max(5.0, 1.01 * 2 * math.pi * (radius + 0.8 * half) / chord)
     reach = math.hypot(half, case.diameter_mm / 2)
     return max(5.0, 1.01 * 2 * math.pi * (reach / 0.78 + 0.8 * half) / chord)
 

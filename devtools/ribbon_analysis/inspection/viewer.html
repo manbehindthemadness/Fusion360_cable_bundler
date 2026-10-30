@@ -65,7 +65,7 @@
   <label><input id="baselineGhost" type="checkbox" checked> Matched baseline in Fusion</label>
   <button id="reset">Reset view</button>
 </div>
-<p class="muted">Bend circles touch each guide's tightest sampled bend: <span style="color:#dc4132">red = minimum allowed radius (maximum bend)</span>; <span style="color:#235aaa">blue = actual radius</span>. Green = endpoint gap. Historical search references; physical macaroni ratio/flex remains unresolved.</p>
+<p id="bendLegend" class="muted"></p>
 <p id="witnessNotes" class="muted"></p>
 <p id="thicknessNotes" class="muted"></p>
 <div class="muted">Drag to orbit · scroll to zoom · section colours repeat in path order</div>
@@ -79,7 +79,7 @@
   <p id="bendScope" class="muted"></p>
   <p id="bendValues"></p>
   <canvas id="bendChart" style="height:160px" aria-label="Centre and edge curvature along the selected recorded path"></canvas>
-  <p class="muted">Blue: centre · orange: edge A · purple: edge B · dashed: 3D guide-radius reference. The marker follows the selected section.</p>
+  <p id="bendChartLegend" class="muted"></p>
 </details>
 <p class="muted">Use the checkboxes to define a new baseline/disabled comparison using the selected solver's recorded settings. Independent measurements stay active. Start pose, dimensions and structural or unimplemented rules have no toggle.</p>
 <table><thead><tr><th>Rule / measurement</th><th>Status and scope</th><th>Use in search</th></tr></thead><tbody id="rules"></tbody></table>
@@ -109,7 +109,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{enabled:boolean, settings:Object<string,(number|string)>}} ProcedureDraft */
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
-/** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string}} BendInspection */
+/** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
@@ -157,7 +157,7 @@ function controls() {
 }
 function comparisonControls() {
   const method = state?.solvers.find(entry => entry.id === state.solver);
-  const capabilities = state?.execution?.ablation_controls[method?.procedure] || [];
+  const capabilities = (state?.execution?.ablation_controls[method?.procedure] || []).filter(entry => method?.settings.bend_model !== "pinch percent" || entry.id !== "centre_bend");
   const available = new Set(capabilities.filter(entry => entry.supported).map(entry => entry.id));
   const running = ["running", "cancelling"].includes(state?.execution?.status);
   const blocked = pending || !connected || running;
@@ -318,7 +318,7 @@ function receive(value) {
     ruleDraftSource = state.solver; disabledRules.clear();
     for (const id of method.disabled_rules) disabledRules.add(id);
   }
-  const capabilities = state.execution?.ablation_controls[method.procedure] || [];
+  const capabilities = (state.execution?.ablation_controls[method.procedure] || []).filter(entry => method.settings.bend_model !== "pinch percent" || entry.id !== "centre_bend");
   const visibleRules = [...state.rules];
   for (const capability of capabilities) if (!visibleRules.some(rule => rule.name === capability.name)) visibleRules.push({name:capability.name,status:"unmeasured",detail:capability.reason,value:null,limit:null});
   element("rules").replaceChildren(...visibleRules.map(rule => {
@@ -365,11 +365,15 @@ function setPlayback(enabled) {
 function drawBends() {
   const bend = state?.bends;
   element("bendPanel").hidden = !bend;
+  element("bendLegend").textContent = "";
   if (!bend) return;
   const sample = bend.selected;
+  const pinch = bend.bend_model === "pinch percent";
+  element("bendChartLegend").textContent = `Blue: centre · orange: edge A · purple: edge B · reference: ${pinch ? "configured pinch percentage" : "LEGACY 3D radius"}. The marker follows the selected section.`;
+  element("bendLegend").textContent = pinch ? `Red circles: minimum bend diameters for the coupled ${bend.allowed_percent}% pinch limit. Blue: actual radii at the same selected material station. 100% pinch means zero inside radius. Green: endpoint gap.` : "LEGACY reference: red circles show unrelated historical limits; blue circles use independent worst points. These are not the corrected pinch constraint.";
   const value = radius => radius === null ? "straight / undefined" : `${radius.toFixed(3)} mm`;
   element("bendScope").textContent = bend.scope;
-  element("bendValues").textContent = `u=${sample.u.toFixed(4)} · centre R ${value(sample.radii_mm.centre)}` + (bend.has_edges ? ` · edge A R ${value(sample.radii_mm.edge_a)} · edge B R ${value(sample.radii_mm.edge_b)} · measured centre / tighter edge ${sample.centre_edge_ratio === null ? "undefined" : sample.centre_edge_ratio.toFixed(3)}` : "") + ` · 3D reference ${bend.reference_radius_mm.toFixed(3)} mm`;
+  element("bendValues").textContent = `u=${sample.u.toFixed(4)} · centre R ${value(sample.radii_mm.centre)}` + (bend.has_edges ? ` · edge A R ${value(sample.radii_mm.edge_a)} · edge B R ${value(sample.radii_mm.edge_b)}` : "") + (pinch ? ` · limit ${bend.allowed_percent}% · peak ${bend.maximum_percent.toFixed(4)}% · order findings ${bend.order_failures}` : ` · LEGACY 3D reference ${bend.reference_radius_mm.toFixed(3)} mm`);
   const canvas = element("bendChart"), ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth, height = canvas.clientHeight;
   canvas.width = Math.max(1, width * ratio); canvas.height = Math.max(1, height * ratio);
@@ -386,7 +390,7 @@ function drawBends() {
   });
   ctx.strokeStyle = "#e3218b"; ctx.beginPath(); ctx.moveTo(x(sample.u), 10); ctx.lineTo(x(sample.u), height - 22); ctx.stroke();
   ctx.fillStyle = "#536775"; ctx.font = "11px system-ui";
-  ctx.fillText("k × 3D", 2, 11); ctx.fillText("1", 10, y(1) + 4); ctx.fillText("0", x(0), height - 5); ctx.fillText("u=1", x(1) - 18, height - 5);
+  ctx.fillText(pinch ? "pinch / limit" : "k × 3D", 2, 11); ctx.fillText("1", 10, y(1) + 4); ctx.fillText("0", x(0), height - 5); ctx.fillText("u=1", x(1) - 18, height - 5);
 }
 function draw() {
   const canvas = element("canvas"), ratio = window.devicePixelRatio || 1;

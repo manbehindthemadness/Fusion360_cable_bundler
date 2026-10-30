@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterator
 
+from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
+
 
 class Rule(Enum):
     """
@@ -33,6 +35,8 @@ class ConstraintPolicy:
     """
 
     disabled: frozenset[Rule] = frozenset()
+    bend_model: BendModel = BendModel.LEGACY
+    pinch_percent: float = 99.6
 
     def __post_init__(self) -> None:
         """
@@ -42,6 +46,9 @@ class ConstraintPolicy:
             not isinstance(rule, Rule) for rule in self.disabled
         ):
             raise ValueError("Use an immutable set of registered constraint rules.")
+        if not isinstance(self.bend_model, BendModel):
+            raise ValueError("Choose a versioned bend model.")
+        PinchLimit(self.pinch_percent)
 
     def enabled(self, rule: Rule) -> bool:
         """
@@ -83,6 +90,19 @@ def parse(value: Any) -> ConstraintPolicy:
         return ConstraintPolicy(frozenset(Rule(item) for item in value))
     except ValueError as error:
         raise ValueError("Unknown or unimplemented constraint toggle.") from error
+
+
+def configured(disabled: Any, settings: dict[str, Any]) -> ConstraintPolicy:
+    """
+    Freeze an explicit worker policy; absent version metadata remains historical.
+    """
+    policy = parse(disabled)
+    model = BendModel(settings.get("bend_model", BendModel.LEGACY.value))
+    if model is BendModel.PINCH and Rule.CENTRE_BEND in policy.disabled:
+        raise ValueError(
+            "The pinch model has one coupled material-guide limit, not a separate centre cap."
+        )
+    return ConstraintPolicy(policy.disabled, model, settings.get("pinch_percent", 99.6))
 
 
 @contextmanager

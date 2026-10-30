@@ -10,6 +10,7 @@ import math
 from enum import Enum
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
+from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
 from .constraint_policy import Rule, for_field
 from .director_path_contracts import FramedPath
@@ -81,17 +82,37 @@ def _penalties(
         minimum_j = 1 - half * abs(eta_s)
         if minimum_j <= 0 and domain is SearchDomain.REGULAR:
             raise ValueError("Regular director parameterization lost its Jacobian bound.")
+        pinch = constraints.bend_model is BendModel.PINCH
+        circular = pinch and case.lines == 1
         if domain is SearchDomain.FREE:
-            penalties.append(0.2 * math.log1p(max(0.0, 0.1 - minimum_j)))
-        lane_violation = (
-            max(0.0, abs(k) * 3.1 * case.diameter_mm / minimum_j - 1)
-            if minimum_j > 0
-            else 1 + abs(minimum_j)
-        )
+            penalties.append(0.0 if circular else 0.2 * math.log1p(max(0.0, 0.1 - minimum_j)))
+        if pinch:
+            factor = 1.0 if circular else 1 + eta * eta
+            denominator = 1.0 if circular else minimum_j
+            lane_violation = (
+                max(
+                    0.0,
+                    abs(k)
+                    * case.diameter_mm
+                    / 2
+                    * factor
+                    / denominator
+                    / PinchLimit(constraints.pinch_percent).fraction
+                    - 1,
+                )
+                if denominator > 0
+                else 1 + abs(denominator)
+            )
+        else:
+            lane_violation = (
+                max(0.0, abs(k) * 3.1 * case.diameter_mm / minimum_j - 1)
+                if minimum_j > 0
+                else 1 + abs(minimum_j)
+            )
         penalties.extend(
             (
                 0.2 * math.log1p(max(0.0, abs(k) * reach / 0.78 - 1))
-                if constraints.enabled(Rule.CENTRE_BEND)
+                if not pinch and constraints.enabled(Rule.CENTRE_BEND)
                 else 0.0,
                 0.2 * math.log1p(lane_violation) if constraints.enabled(Rule.LANE_BEND) else 0.0,
             )

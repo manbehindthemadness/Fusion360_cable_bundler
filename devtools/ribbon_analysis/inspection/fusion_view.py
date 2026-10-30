@@ -22,6 +22,7 @@ from .native_guides import retain
 from .run_contract import ProcedureRunner
 from .session import Session
 from .solver_graphics import render as render_solver_graphics
+from .solver_graphics import render_witnesses
 from .thickness import build as build_thickness
 from .thickness_graphics import draw as draw_thickness
 
@@ -250,6 +251,14 @@ class DiagnosticViewer:
             draw_lines(self._triad, (section.frame.origin, tip), rgb, f"Local {label}")
             draw_text(self._triad, label, tip, rgb, snapshot.diameter_mm * 0.35)
         self._triad.isVisible = self._visibility["axes"]
+        if self._constraint_groups:
+            for group in self._constraint_groups:
+                group.deleteMe()
+            self._constraint_groups = render_witnesses(
+                self._scene.component,
+                self.session,
+                lambda: self._budget().check("section witnesses"),
+            )
 
     def _apply_visibility(self) -> None:
         """

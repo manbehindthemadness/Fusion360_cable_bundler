@@ -26,6 +26,8 @@ from .capture import load_history_path, read_history
 from .geometry import PathSnapshot
 from .measurements import observations
 from .panels import witnesses
+from .pinch_geometry import inspect as inspect_pinch
+from .pinch_geometry import sample as sample_pinch
 from .thickness import build as build_thickness
 
 STATUSES = ("reference", "recorded", "unresolved", "stopped", "not_run", "invalidated")
@@ -106,6 +108,19 @@ class Session:
                     _text(comparison.get(key))
             metrics = _object(data.get("metrics", {}))
             settings = _object(data.get("settings", {}))
+            if settings and data.get("procedure", identifier.rsplit(":", 1)[-1]) in (
+                "ordinary",
+                "redistribution",
+                "tightening",
+                "combined",
+                "compatible",
+                "discovery",
+                "broad",
+                "generalized",
+            ):
+                settings = dict(settings)
+                settings.setdefault("bend_model", "legacy")
+                settings.setdefault("pinch_percent", 99.6)
             canonical({"metrics": metrics, "settings": settings})
             if data.get("snapshot") is not None:
                 snapshot = parse_snapshot(data["snapshot"])
@@ -174,6 +189,7 @@ class Session:
         self._inspection_rules: list[dict[str, Any]] = []
         self._inspection_witnesses: list[dict[str, Any]] = []
         self._inspection_thickness: dict[str, Any] | None = None
+        self._inspection_pinch: dict[str, Any] | None = None
         self.select(self.solver)
 
     def select(self, solver: str, proposal: int = -1) -> None:
@@ -281,25 +297,59 @@ class Session:
         records = self._histories.get(self.solver, (None, ()))[1]
         proposal = records[self.proposal] if self.proposal >= 0 else None
         snapshot = self.snapshot
+        method = next(item for item in self.methods if item["id"] == self.solver)
+        percent = (
+            _number(method["settings"].get("pinch_percent", 99.6))
+            if method["settings"].get("bend_model") == "pinch percent"
+            else None
+        )
         geometry_data, bend_data = None, None
         if isinstance(snapshot, PathSnapshot):
             frozen: PathSnapshot = snapshot
             if snapshot is not self._inspection_snapshot:
+                self._inspection_pinch = (
+                    inspect_pinch(frozen, self.section, percent) if percent is not None else None
+                )
                 self._inspection_rules = [
                     asdict(rule)
-                    for rule in observations(frozen, self.targets, 3 * self.targets.diameter_mm)
+                    for rule in observations(
+                        frozen,
+                        self.targets,
+                        3 * self.targets.diameter_mm,
+                        pinch_percent=percent,
+                        pinch_data=self._inspection_pinch,
+                    )
                 ]
                 self._inspection_witnesses = [
-                    asdict(overlay) for overlay in witnesses(frozen, self.targets)
+                    asdict(overlay)
+                    for overlay in witnesses(
+                        frozen, self.targets, pinch_percent=percent, section=self.section
+                    )
                 ]
                 self._inspection_thickness = asdict(build_thickness(frozen))
                 self._inspection_snapshot = snapshot
             geometry_data = snapshot_payload(frozen)["geometry"]
-            bend_data = inspect_bends(frozen, self.section)
+            if percent is not None and self._inspection_pinch is not None:
+                bend_data = dict(
+                    self._inspection_pinch,
+                    selected=sample_pinch(frozen, frozen.sections[self.section].u, percent),
+                )
+                self._inspection_witnesses = [
+                    asdict(overlay)
+                    for overlay in witnesses(
+                        frozen, self.targets, pinch_percent=percent, section=self.section
+                    )
+                ]
+            else:
+                bend_data = inspect_bends(frozen, self.section)
         elif snapshot is not None:
             raise TypeError("Inspection selection must contain frozen geometry.")
         return {
             "case": self.targets.name,
+            "bend_policy": {
+                "model": "pinch percent" if percent is not None else "legacy",
+                "pinch_percent": percent,
+            },
             "diameter_mm": self.targets.diameter_mm,
             "solvers": self.methods,
             "solver": self.solver,

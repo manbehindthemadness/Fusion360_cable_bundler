@@ -15,6 +15,7 @@ from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.inspection.capture import transported
+from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
 from .constraint_policy import ConstraintPolicy, Rule, current
 from .director_motion_transport import DirectorMotion, integrate_motion
@@ -93,6 +94,9 @@ class CompatibleField:
         """
         if not isinstance(self.constraints, ConstraintPolicy):
             raise ValueError("Compatible fields require an explicit constraint policy.")
+        if self.constraints.bend_model is BendModel.PINCH and self.lines == 1:
+            object.__setattr__(self, "ruling_scale", 1.0)
+            return
         _, b, c, d = self.raw.ruling
         derivative_bound = (
             2 * math.pi * (abs(b) + abs(c) + 2 * abs(d) + 2 * abs(self.raw.extra_ruling))
@@ -135,18 +139,40 @@ class CompatibleField:
         k_raw, eta_raw, gradient_raw = self.raw.sample(u)
         length, half = self.carrier_length_mm, self.half_width_mm
         eta, eta_u = eta_raw * self.ruling_scale, gradient_raw * length * self.ruling_scale
-        redistribution = half * abs(eta_u)
+        redistribution = (
+            0.0
+            if self.constraints.bend_model is BendModel.PINCH and self.lines == 1
+            else half * abs(eta_u)
+        )
         progress = length - redistribution
-        minimum_lane_progress = length - 2 * redistribution
-        reach = math.hypot(half, self.diameter_mm / 2)
+        value = CarrierSample(progress, k_raw * length, eta, eta_u)
+        limit = self.turn_limit(value)
+        turn = map_turn(value.turn, limit, self.bend_mapping) if limit is not None else value.turn
+        return CarrierSample(progress, turn, eta, eta_u)
+
+    def turn_limit(self, value: CarrierSample) -> float | None:
+        """
+        Share the same versioned geometric bound with transport and redistribution.
+        """
+        if self.constraints.bend_model is BendModel.PINCH:
+            if not self.constraints.enabled(Rule.LANE_BEND):
+                return None
+            minimum_progress = (
+                value.progress_mm
+                if self.lines == 1
+                else self.carrier_length_mm - 2 * self.half_width_mm * abs(value.eta_u)
+            )
+            return PinchLimit(self.constraints.pinch_percent).turn_bound(
+                minimum_progress, value.eta, self.diameter_mm, self.lines
+            )
+        minimum_lane_progress = self.carrier_length_mm - 2 * self.half_width_mm * abs(value.eta_u)
+        reach = math.hypot(self.half_width_mm, self.diameter_mm / 2)
         limits = []
         if self.constraints.enabled(Rule.CENTRE_BEND):
-            limits.append(0.78 * progress / reach)
+            limits.append(0.78 * value.progress_mm / reach)
         if self.constraints.enabled(Rule.LANE_BEND):
             limits.append(minimum_lane_progress / (3.1 * self.diameter_mm))
-        raw_turn = k_raw * length
-        turn = map_turn(raw_turn, min(limits), self.bend_mapping) if limits else raw_turn
-        return CarrierSample(progress, turn, eta, eta_u)
+        return min(limits) if limits else None
 
     def sample(self, u: float) -> tuple[float, float, float]:
         """

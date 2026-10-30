@@ -5,6 +5,7 @@ Expose scoped geometry measurements without reviving withdrawn physical acceptan
 from __future__ import annotations
 
 import math
+from typing import Any
 
 from cable_bundler.routing.geometry import cross, difference, dot, magnitude, unit
 
@@ -14,7 +15,12 @@ from .geometry import PathSnapshot
 
 
 def observations(
-    snapshot: PathSnapshot, targets: TargetPose, minimum_radius_mm: float
+    snapshot: PathSnapshot,
+    targets: TargetPose,
+    minimum_radius_mm: float,
+    *,
+    pinch_percent: float | None = None,
+    pinch_data: dict[str, Any] | None = None,
 ) -> tuple[RuleObservation, ...]:
     """
     Sample frozen cubics and keep missing continuous/native rules explicitly visible.
@@ -64,7 +70,7 @@ def observations(
     width_angle = math.degrees(
         math.acos(max(-1.0, min(1.0, dot(snapshot.sections[-1].frame.x, targets.end_width))))
     )
-    return (
+    rules = (
         RuleObservation(
             "Cross-section and thickness",
             "measured",
@@ -180,5 +186,37 @@ def observations(
             "Native construction / audit",
             "unmeasured",
             "0 native solid attempts. Diagnostic curves and section envelopes are not a physical audit.",
+        ),
+    )
+    if pinch_percent is None:
+        return rules
+    from .pinch_geometry import inspect
+
+    observed = pinch_data if pinch_data is not None else inspect(snapshot, 0, pinch_percent)
+    retained = tuple(
+        rule
+        for rule in rules
+        if rule.name
+        not in (
+            "Displayed centre bend / declared tightness",
+            "Legacy centre reach cap",
+            "Material-guide bend cap",
+            "Macaroni ratio and flex",
+        )
+    )
+    return retained + (
+        RuleObservation(
+            "Material-guide bend cap",
+            "failed" if observed["maximum_percent"] > pinch_percent else "measured",
+            "Local thickness pinch in percent: 100% reaches zero inside radius. Independent frozen-cubic circular/ruled-surface audit; not a global contact certificate.",
+            observed["maximum_percent"],
+            pinch_percent,
+        ),
+        RuleObservation(
+            "Same-station radius order",
+            "failed" if observed["order_failures"] else "measured",
+            "Count of sampled A/centre/B radius triplets whose centre falls outside the edge range; interpolation discrepancies remain failures.",
+            float(observed["order_failures"]),
+            0.0,
         ),
     )
