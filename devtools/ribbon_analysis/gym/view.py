@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -14,21 +14,10 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from cable_bundler.routing.geometry import Vector3
-
 from ..budget import NativeBudget
-from ..graphics import coordinates, draw_lines, set_color
 from ..inspection.archive import write_document
+from .graphics import draw
 from .scene import Config, Goal, Scene, generate
-
-COLORS = {
-    "grid": (100, 120, 145),
-    "void": (25, 185, 170),
-    "a": (75, 155, 255),
-    "b": (255, 165, 65),
-    "a-zone": (55, 100, 150),
-    "b-zone": (155, 100, 45),
-}
 
 
 class Incoming(adsk.core.HTMLEventHandler):
@@ -71,13 +60,20 @@ class GymView:
     Retain reproducible layouts; render virtual solids without constructing cable bodies.
     """
 
-    def __init__(self, component: Any, directory: Path, scene: Scene | None = None) -> None:
+    def __init__(
+        self,
+        component: Any,
+        directory: Path,
+        scene: Scene | None = None,
+        open_diagnostics: Callable[[Scene], None] | None = None,
+    ) -> None:
         """
         Require an owned component and write-once archive directory before display.
         """
         directory.mkdir(parents=True, exist_ok=False)
         self.component, self.directory = component, directory
         self.scene = scene or generate()
+        self.open_diagnostics = open_diagnostics
         self.revision = 0
         self.received_requests = 0
         self.last_error: str | None = None
@@ -101,34 +97,9 @@ class GymView:
         budget.check("gym drawing launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Gym drawing lacks launch headroom.")
-        group = self.component.customGraphicsGroups.add()
-        group.name = "Empty center / selected zones / virtual goal faces"
-        try:
-            drawing = scene.payload()["drawing"]
-            for item in drawing["surfaces"]:
-                points = tuple(Vector3(**point) for point in item["points"])
-                triangles = [
-                    vertex
-                    for index in range(1, len(points) - 1)
-                    for vertex in (0, index, index + 1)
-                ]
-                mesh = group.addMesh(coordinates(points), triangles, [], [])
-                mesh.cullMode = adsk.fusion.CustomGraphicsCullModes.CustomGraphicsCullNone
-                set_color(mesh, COLORS[item["role"]])
-                if not mesh.setOpacity(item["opacity"], True):
-                    raise RuntimeError("Fusion could not set goal transparency.")
-            budget.check("gym surfaces")
-            for item in drawing["strokes"]:
-                draw_lines(
-                    group,
-                    tuple(Vector3(**point) for point in item["points"]),
-                    COLORS[item["role"]],
-                    item["role"],
-                )
-            budget.check("gym completed drawing")
-        except (RuntimeError, ValueError, TypeError, AttributeError):
-            group.deleteMe()
-            raise
+        group = draw(
+            self.component, scene.payload()["drawing"], lambda: budget.check("gym drawing")
+        )
         if self.group is not None and self.group.isValid:
             self.group.deleteMe()
         self.group = group
@@ -149,6 +120,10 @@ class GymView:
             candidate = self.scene.choose(
                 data["role"], Goal(data["zone"], data["face"], data["roll"])
             )
+        elif action == "diagnostics":
+            if data or self.open_diagnostics is None:
+                raise ValueError("A linked diagnostic viewer is required.")
+            self.open_diagnostics(self.scene)
         elif action != "ready":
             raise ValueError("Unknown gym action.")
         if candidate != self.scene:
@@ -156,17 +131,23 @@ class GymView:
             self._record(candidate)
             self._draw(candidate)
             self.scene = candidate
-        state = self.scene.payload()
+        state = self.state()
         if self.palette is not None:
             self.palette.sendInfoToHTML("gym_state", json.dumps(state, allow_nan=False))
         return state
+
+    def state(self) -> dict[str, Any]:
+        """
+        Expose layout data and the optional handoff capability without editing the scene.
+        """
+        return dict(self.scene.payload(), diagnostics_available=self.open_diagnostics is not None)
 
     def show(self) -> None:
         """
         Open an interactive local palette with matching native and canvas geometry.
         """
         template = Path(__file__).with_name("viewer.html").read_text(encoding="utf-8")
-        initial = json.dumps(self.scene.payload(), allow_nan=False).replace("<", "\\u003c")
+        initial = json.dumps(self.state(), allow_nan=False).replace("<", "\\u003c")
         html = self.directory / "viewer.html"
         html.write_text(template.replace("__INITIAL_GYM__", initial), encoding="utf-8")
         ui = adsk.core.Application.get().userInterface

@@ -266,6 +266,7 @@ def source_pins() -> dict[str, str]:
     for package in (
         "devtools/ribbon_analysis",
         "experiments/experiment_ribbon_diagnostic_viewer",
+        "experiments/experiment_ribbon_test_gym",
         "experiments/experiment_ribbon_cap_transition",
         "experiments/experiment_ribbon_route_discovery",
         "experiments/experiment_ribbon_bend_redistribution",
@@ -276,6 +277,7 @@ def source_pins() -> dict[str, str]:
         ROOT / name
         for name in (
             "devtools/ribbon_analysis/inspection/viewer.html",
+            "devtools/ribbon_analysis/gym/viewer.html",
             "experiment_testing_rules.txt",
             "rollback_end_loft_notes.txt",
         )

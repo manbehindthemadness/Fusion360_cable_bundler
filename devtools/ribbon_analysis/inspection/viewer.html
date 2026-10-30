@@ -39,7 +39,9 @@
 <div id="case" class="muted">Waiting for the recorded experiment…</div>
 <p id="connection" class="muted" role="status">Connecting to Fusion…</p>
 <button id="reconnect">Reconnect</button>
-<div id="examplePanel" hidden><label for="example">Diagnostic example</label><select id="example"></select></div>
+<div id="examplePanel" hidden><label for="example">Example / frozen gym layout</label><select id="example"></select></div>
+<button id="openGym" hidden>Create/edit gym layout</button>
+<p id="gymScope" class="muted" hidden>Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <details id="procedurePanel" hidden>
   <summary>Run solver procedures</summary>
   <p class="muted">Select optional numerical procedures and their settings. Each run keeps the current endpoint inputs and records new results. A scheduling limit or error stops the batch. Physical acceptance remains unresolved.</p>
@@ -63,6 +65,7 @@
   <label><input id="solverPanels" type="checkbox" checked> Solver panels in Fusion</label>
   <label><input id="constraintWitnesses" type="checkbox" checked> Constraint shapes (both views)</label>
   <label><input id="baselineGhost" type="checkbox" checked> Matched baseline in Fusion</label>
+  <label id="gymLayer" hidden><input id="gymLayout" type="checkbox" checked> Gym layout (both views)</label>
   <button id="reset">Reset view</button>
 </div>
 <p id="bendLegend" class="muted"></p>
@@ -99,6 +102,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{name:string, status:string, detail:string, value:?number, limit:?number}} Rule */
 /** @typedef {{title:string,strokes:{role:string,points:XYZ[]}[],notes:string[]}} Witness */
 /** @typedef {{thickness_mm:number,description:string,opacity:number,vertices:XYZ[],triangles:number[][],outlines:number[][]}} Thickness */
+/** @typedef {{drawing:{strokes:{points:XYZ[],role:string}[],surfaces:{points:XYZ[],role:string,opacity:number}[]}}} Gym */
 /** @typedef {{id:string, label:string, detail:string, source:string, status:string, rules:Rule[], history_count:number, has_result:boolean,procedure:string,settings:Object<string,(number|string)>,disabled_rules:string[]}} Method */
 /** @typedef {{id:string,name:string,supported:boolean,reason:string}} RuleControl */
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
@@ -110,14 +114,14 @@ const element = id => document.getElementById(id);
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
 let playing = false;
 const disabledRules = new Set();
 let ruleDraftSource = "";
-const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost"};
+const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 /** @type {Object<string,ProcedureDraft>} */
 const procedureDrafts = {};
 let procedureCatalog = "";
@@ -150,6 +154,8 @@ function controls() {
   element("play").textContent = playing ? "Pause search" : "Play search";
   element("section").disabled = blocked || !state.snapshot;
   for (const id of Object.values(layers)) element(id).disabled = blocked || !state.snapshot;
+  element("gymLayout").disabled = blocked || !state.gym;
+  element("openGym").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   element("baselineGhost").disabled = blocked || !state.snapshot || state.comparison?.role !== "ablation";
   element("reconnect").disabled = pending;
   procedureControls();
@@ -288,6 +294,9 @@ function receive(value) {
     renderExecution(value.execution); controls(); return;
   }
   state = value;
+  element("openGym").hidden = !state.gym_available;
+  element("gymScope").hidden = !state.gym;
+  element("gymLayer").hidden = !state.gym;
   renderExecution(state.execution);
   if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
@@ -350,7 +359,7 @@ window.fusionJavaScriptHandler = {handle(action, data) {
   }
   if (action === "diagnostic_request") {
     const command = JSON.parse(data);
-    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare"].includes(command.action)) return "Unsupported diagnostic request";
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare", "gym"].includes(command.action)) return "Unsupported diagnostic request";
     if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
     request(command.action, command.data || {});
   }
@@ -398,9 +407,10 @@ function draw() {
   canvas.width = width * ratio; canvas.height = height * ratio;
   const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
   const snapshot = state?.snapshot;
+  const gym = element("gymLayout").checked ? state?.gym : null;
   element("witnessNotes").textContent = "";
   element("thicknessNotes").textContent = "";
-  if (!snapshot) {
+  if (!snapshot && !gym) {
     ctx.fillStyle = "#536775";
     ctx.fillText(state ? "This method has not produced recorded geometry." : "Waiting for the recorded experiment…", 20, height / 2);
     return;
@@ -409,7 +419,7 @@ function draw() {
   const thickness = element("envelope").checked ? state.thickness : null;
   if (thickness) element("thicknessNotes").textContent = `Teal thickness envelope: ${thickness.thickness_mm.toFixed(3)} mm, true scale. ${thickness.description} Sampled visualization; no collision or physical compliance audit.`;
   element("witnessNotes").textContent = witnesses.map(witness => `${witness.title}: ${witness.notes.join(" ")}`).join(" · ");
-  const points = [...snapshot.guides.find(g => g.number === 0).controls.map(xyz), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz))), ...(thickness ? thickness.vertices.map(xyz) : [])];
+  const points = [...(snapshot ? snapshot.guides.find(g => g.number === 0).controls.map(xyz) : []), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz))), ...(thickness ? thickness.vertices.map(xyz) : []), ...(gym ? gym.drawing.strokes.flatMap(stroke => stroke.points.map(xyz)) : [])];
   const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
   const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
@@ -424,6 +434,21 @@ function draw() {
     ctx.strokeStyle = color; ctx.lineWidth = weight; ctx.beginPath();
     vertices.map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.stroke();
   }
+  if (gym) {
+    const gymColors = {grid:"#8494a4",void:"#19a798",a:"#4b9bff",b:"#f5a541","a-zone":"#597e9f","b-zone":"#a68451"};
+    const depth = point => {
+      const [x, y, z] = sub(xyz(point), center);
+      return Math.sin(pitch) * y + Math.cos(pitch) * (-Math.sin(yaw) * x + Math.cos(yaw) * z);
+    };
+    const surfaces = [...gym.drawing.surfaces].sort((a, b) => b.points.reduce((sum, p) => sum + depth(p), 0) / b.points.length - a.points.reduce((sum, p) => sum + depth(p), 0) / a.points.length);
+    for (const surface of surfaces) {
+      ctx.fillStyle = gymColors[surface.role]; ctx.globalAlpha = surface.opacity;
+      ctx.beginPath(); surface.points.map(xyz).map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (const stroke of gym.drawing.strokes) line(stroke.points.map(xyz), gymColors[stroke.role], stroke.role === "grid" ? .5 : 1);
+  }
+  if (!snapshot) return;
   if (thickness) {
     const vertices = thickness.vertices.map(xyz), screen = vertices.map(project);
     const depth = point => {
@@ -468,6 +493,7 @@ function draw() {
   }
 }
 element("solver").onchange = () => { playing = false; request("select", {solver: element("solver").value}); };
+element("openGym").onclick = () => { setPlayback(false); request("gym"); };
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
 element("demoProcedures").onclick = () => {
   for (const draft of Object.values(procedureDrafts)) draft.enabled = false;

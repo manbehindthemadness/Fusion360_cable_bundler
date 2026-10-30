@@ -14,11 +14,13 @@ from uuid import uuid4
 
 from devtools.ribbon_analysis import budget
 from devtools.ribbon_analysis.contracts import Targets
+from devtools.ribbon_analysis.gym.handoff import identity, validate
 from devtools.ribbon_analysis.inspection.archive import (
     SCHEMA,
     targets_payload,
     write_document,
 )
+from devtools.ribbon_analysis.inspection.session import Session
 from devtools.ribbon_analysis.inspection.values import integer_value, json_object
 
 from . import ablation, examples, procedures
@@ -54,13 +56,16 @@ class ProcedureController:
         self._seconds = 0.0
         self._cancelled: float | None = None
         self._examples = dict(references or {})
+        self._layout_labels: dict[str, str] = {}
         self._example = next(iter(self._examples), "")
         self._status: dict[str, Any] = {
             "status": "idle",
             "detail": "Choose procedures and settings, then Run selected. No solver runs automatically.",
         }
 
-    def start(self, request: dict[str, Any], targets: Targets) -> None:
+    def start(
+        self, request: dict[str, Any], targets: Targets, *, gym: dict[str, Any] | None = None
+    ) -> None:
         """
         Validate every option and archive a fixed one-case plan before starting work.
         """
@@ -74,8 +79,7 @@ class ProcedureController:
         if sum(item["settings"]["seconds"] for item in work) > 120:
             raise ValueError("Baseline plus ablation exceed the 120-second run budget.")
         targets = Targets.capture(targets)
-        if targets.lines not in (1, 3):
-            raise ValueError("Interactive examples support one or three conductors.")
+        gym = validate(gym, targets)
         if budget.resident_kib() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Fusion lacks 3.8GiB launch headroom for a numerical job.")
         run_id = "run-" + uuid4().hex
@@ -96,11 +100,14 @@ class ProcedureController:
                 }
             ],
         }
+        if gym is not None:
+            input_document["gym"] = gym
         write_document(job / "input.json", input_document)
         plan = {
             "schema": "ribbon-procedure-run-v1",
             "run_id": run_id,
             "targets": targets_payload(targets),
+            "gym_id": identity(gym) if gym is not None else None,
             "procedures": selected,
             "comparison": comparison,
             "sources": procedures.source_pins(),
@@ -228,7 +235,10 @@ class ProcedureController:
         """
         return {
             "catalog": procedures.catalog(),
-            "examples": examples.EXAMPLES,
+            "examples": [
+                *examples.EXAMPLES,
+                *({"id": key, "label": label} for key, label in self._layout_labels.items()),
+            ],
             "example": self._example,
             "demonstration": procedures.demonstration(),
             "ablation_controls": {
@@ -237,6 +247,20 @@ class ProcedureController:
             },
             **self._status,
         }
+
+    def register_layout(self, manifest: Path, label: str) -> str:
+        """
+        Add an immutable endpoint-only case without authoring or running a route.
+        """
+        if self._process is not None:
+            raise ValueError("Stop and collect the active job before sending a gym layout.")
+        session = Session(manifest)
+        if session.gym is None or any(method["has_result"] for method in session.methods):
+            raise ValueError("Send a frozen gym input layout without a solver result.")
+        identifier = identity(session.gym)
+        self._examples[identifier] = manifest.resolve()
+        self._layout_labels[identifier] = label
+        return identifier
 
     def open_example(self, identifier: str) -> Path:
         """

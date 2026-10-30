@@ -21,7 +21,15 @@ class ProcedureRunner(Protocol):
         """
         ...
 
-    def start(self, request: dict[str, Any], targets: Targets) -> None:
+    def register_layout(self, manifest: Path, label: str) -> str:
+        """
+        Register frozen endpoint inputs as a selectable case, refusing active jobs.
+        """
+        ...
+
+    def start(
+        self, request: dict[str, Any], targets: Targets, *, gym: dict[str, Any] | None = None
+    ) -> None:
         """
         Validate selections, freeze a plan and start an explicitly requested job.
         """

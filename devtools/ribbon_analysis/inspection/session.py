@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ..contracts import Targets
+from ..gym.handoff import validate as validate_gym
 from .archive import (
     RuleObservation,
     _integer,
@@ -69,6 +70,7 @@ class Session:
                 _number(target.get("diameter_mm")),
             )
         )
+        self.gym = validate_gym(document.get("gym"), self.targets)
         methods = document.get("solvers")
         if not isinstance(methods, list) or not 1 <= len(methods) <= 64:
             raise ValueError("Inspection needs an explicit bounded solver inventory.")
@@ -220,6 +222,8 @@ class Session:
         incoming = Session(manifest)
         if incoming.targets != self.targets:
             raise ValueError("Run results do not match this session's fixed endpoint inputs.")
+        if canonical(incoming.gym) != canonical(self.gym):
+            raise ValueError("Run results do not match this session's frozen gym layout.")
         identifiers = tuple(method["id"] for method in incoming.methods)
         existing = {method["id"] for method in self.methods}
         if existing.intersection(identifiers) or len(self.methods) + len(identifiers) > 64:
@@ -346,6 +350,7 @@ class Session:
             raise TypeError("Inspection selection must contain frozen geometry.")
         return {
             "case": self.targets.name,
+            "gym": self.gym,
             "bend_policy": {
                 "model": "pinch percent" if percent is not None else "legacy",
                 "pinch_percent": percent,

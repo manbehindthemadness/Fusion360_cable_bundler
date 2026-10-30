@@ -1,8 +1,24 @@
-# Endpoint gym preview
+# Endpoint gym and solver diagnostics
 
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
+
+The gym can also be linked to the diagnostic solver palette. Choose **Create/edit
+gym layout** in diagnostics, author the endpoints, then choose **Open in solver
+diagnostics** in the gym. Select optional procedures/settings and press **Run
+selected**. Use **View result**, the recorded-result selector and search playback
+to inspect the transported paths. Handoff does not run a solver automatically.
+
+Each handoff freezes the complete layout, including seed, percentage dimensions,
+selected zones/faces, roll, exact target frames and drawing coordinates. The
+**Example / frozen gym layout** selector retains the original examples and every
+distinct layout. Returning to an unchanged draft reopens its existing session and
+history; editing a face, orientation or dimension creates a separate case. Old
+results never follow later draft edits. **Gym layout (both views)** toggles the
+same geometry in Fusion and the diagnostic canvas, including before any solver
+has produced a path. This is visual context: no new collision, containment or
+other physical rule is introduced, and routing boundaries remain undecided.
 
 `devtools.ribbon_analysis.gym.generate(Config(...))` produces a seeded, immutable
 layout. The central empty cube has side `void_percent / 100 * lines * diameter_mm`,
@@ -48,6 +64,28 @@ face in the canvas. Drag to orbit and scroll to zoom. The palette and native vie
 consume identical millimeter geometry. Input changes archive new write-once
 `layout-####.json` records before replacing the owned graphics. An input failure
 does not silently resize the void or move the other goal.
+
+To connect an existing diagnostic viewer without replacing its sessions:
+
+```python
+from experiments.experiment_ribbon_test_gym.workspace import Workspace
+
+workspace = Workspace(
+    diagnostics, diagnostic_occurrence, gym_occurrence,
+    Path(unique_ignored_run_directory),
+)
+workspace.open_gym()
+```
+
+Keep `workspace` alive. Both occurrences must be explicitly owned siblings in the
+same development design; `diagnostic_occurrence.component` must be the viewer's
+root, and the viewer must have a `ProcedureController`. Connect while no worker is
+active. Switching to another example or sending a new gym case is refused until
+an active numerical job has stopped and been collected. The workspace archives a
+source-pinned plan; each later Run selected freezes its own bounded plan, exact
+inputs and gym identity. Worker results retain the context, and imports reject
+missing or mismatched layouts. Pure helpers in `gym.handoff` provide write-once
+input manifests and validated replay without importing Fusion.
 
 Per edit: 10 seconds, 4 GiB sampled Fusion RSS, 3.8 GiB launch headroom. No native
 cable attempts or automatic numerical experiments. The outer grid is visual

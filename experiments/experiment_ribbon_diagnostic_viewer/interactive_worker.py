@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from devtools.ribbon_analysis import budget
 from devtools.ribbon_analysis.contracts import RibbonPath
+from devtools.ribbon_analysis.gym.handoff import identity
 from devtools.ribbon_analysis.inspection.archive import (
     SCHEMA,
     RuleObservation,
@@ -90,6 +91,8 @@ def run(directory: Path) -> Path:
     """
     plan = json.loads((directory / "plan.json").read_text(encoding="utf-8"))
     session = Session(directory / "input.json")
+    if plan.get("gym_id") != (identity(session.gym) if session.gym is not None else None):
+        raise ValueError("Worker inputs disagree with the planned gym identity.")
     requested = procedures.selections(plan["procedures"])
     work = ablation.workloads(requested, plan.get("comparison"))
     targets = session.targets
@@ -286,6 +289,8 @@ def run(directory: Path) -> Path:
         "native_solid_attempts": 0,
         "independent_configurations": 1,
     }
+    if session.gym is not None:
+        result["gym"] = session.gym
     destination = directory / "manifest.json"
     write_document(destination, result)
     _progress(

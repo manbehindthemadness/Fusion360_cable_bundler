@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -16,6 +16,8 @@ import adsk.fusion
 
 from ..budget import NativeBudget
 from ..graphics import draw_lines, draw_text, draw_trace, set_color
+from ..gym.graphics import draw as draw_gym
+from ..gym.handoff import identity as gym_identity
 from .archive import _integer, _text
 from .display import visible_section_indices
 from .native_guides import retain
@@ -101,6 +103,9 @@ class DiagnosticViewer:
         self._frame: Any = None
         self._triad: Any = None
         self._envelope: Any = None
+        self._gym_group: Any = None
+        self._gym_id: str | None = None
+        self.on_gym: Callable[[], None] | None = None
         self._visibility = {
             "outlines": True,
             "envelope": True,
@@ -108,6 +113,7 @@ class DiagnosticViewer:
             "solver": True,
             "constraints": True,
             "baseline": True,
+            "gym": True,
         }
         self._solver_groups: list[Any] = []
         self._constraint_groups: list[Any] = []
@@ -176,7 +182,19 @@ class DiagnosticViewer:
                 occurrence = self._methods[identifier]
             occurrence.isLightBulbOn = identifier == self.session.solver
         snapshot = self.session.snapshot
+        gym = self.session.gym
+        identifier = gym_identity(gym) if gym is not None else None
+        if identifier != self._gym_id:
+            group = (
+                draw_gym(self.root, gym["drawing"], lambda: budget.check("gym context"))
+                if gym is not None
+                else None
+            )
+            if self._gym_group is not None and self._gym_group.isValid:
+                self._gym_group.deleteMe()
+            self._gym_group, self._gym_id = group, identifier
         if snapshot is None:
+            self._apply_visibility()
             return
         component = self._methods[self.session.solver].component
         self._scene = component.occurrences.addNewComponent(adsk.core.Matrix3D.create())
@@ -265,6 +283,8 @@ class DiagnosticViewer:
         Synchronize palette layer controls with this viewer's native graphics only.
         """
         visible = visible_section_indices(len(self._sections), self.session.section)
+        if self._gym_group is not None:
+            self._gym_group.isVisible = self._visibility["gym"]
         for group in self._solver_groups:
             group.isVisible = self._visibility["solver"]
         for group in self._constraint_groups:
@@ -320,12 +340,44 @@ class DiagnosticViewer:
             self.palette.deleteMe()
         self.palette = None
         self._handler = None
+        if self._gym_group is not None and self._gym_group.isValid:
+            self._gym_group.deleteMe()
+        self._gym_group, self._gym_id = None, None
         for _, inventory in self._sessions.values():
             for occurrence in inventory.values():
                 if occurrence.isValid:
                     occurrence.deleteMe()
         self._methods.clear()
         self._sessions.clear()
+
+    def enable_gym(self, callback: Callable[[], None]) -> None:
+        """
+        Attach a retained gym workspace, including when upgrading an existing viewer.
+        """
+        self.on_gym = callback
+        self._gym_group = None
+        self._gym_id = None
+        self._visibility["gym"] = True
+
+    def open_layout(self, manifest: Path, label: str) -> None:
+        """
+        Register and select frozen gym inputs while preserving existing case sessions.
+        """
+        if self.runner is None:
+            raise ValueError("A numerical controller is required to send a gym layout.")
+        identifier = self.runner.register_layout(manifest, label)
+        self.dispatch("example", {"id": identifier})
+
+    def _start(self, request: dict[str, Any]) -> None:
+        """
+        Send exact endpoint inputs and optional frozen surroundings to the worker.
+        """
+        if self.runner is None:
+            raise ValueError("Numerical procedure execution is not configured for this replay.")
+        if self.session.gym is None:
+            self.runner.start(request, self.session.targets)
+        else:
+            self.runner.start(request, self.session.targets, gym=self.session.gym)
 
     def _open_example(self, identifier: str) -> None:
         """
@@ -351,7 +403,16 @@ class DiagnosticViewer:
         """
         Apply a validated selection and send matching frozen geometry to the palette.
         """
-        if action == "example":
+        if action == "gym":
+            if data or self.on_gym is None:
+                raise ValueError("A linked gym workspace is required.")
+            if self.runner is not None and self.runner.state()["status"] in (
+                "running",
+                "cancelling",
+            ):
+                raise ValueError("Stop and collect the active job before editing a gym layout.")
+            self.on_gym()
+        elif action == "example":
             self._open_example(_text(data.get("id")))
         elif action == "compare":
             if self.runner is None or set(data) != {"disabled_rules"}:
@@ -365,7 +426,7 @@ class DiagnosticViewer:
                 raise ValueError("Choose a recorded numerical procedure with archived settings.")
             if len(self.session.methods) + 2 > 64:
                 raise ValueError("The comparison would exceed 64 recorded entries.")
-            self.runner.start(
+            self._start(
                 {
                     "procedures": [{"id": method["procedure"], "settings": method["settings"]}],
                     "comparison": {
@@ -373,7 +434,6 @@ class DiagnosticViewer:
                         "disabled_rules": data["disabled_rules"],
                     },
                 },
-                self.session.targets,
             )
             self._follow_comparison = True
         elif action in ("run", "poll", "cancel"):
@@ -383,7 +443,7 @@ class DiagnosticViewer:
                 choices = data.get("procedures")
                 if not isinstance(choices, list) or len(self.session.methods) + len(choices) > 64:
                     raise ValueError("Run selection would exceed this session's 64 method entries.")
-                self.runner.start(data, self.session.targets)
+                self._start(data)
             elif action == "cancel":
                 self.runner.cancel()
             else:
@@ -417,6 +477,7 @@ class DiagnosticViewer:
         elif action != "ready":
             raise ValueError("Unknown diagnostic action.")
         state = self.session.state()
+        state["gym_available"] = self.on_gym is not None
         state["visibility"] = self._visibility.copy()
         state["visible_sections"] = visible_section_indices(
             len(self._sections), self.session.section
