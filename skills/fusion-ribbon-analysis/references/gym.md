@@ -91,3 +91,16 @@ Per edit: 10 seconds, 4 GiB sampled Fusion RSS, 3.8 GiB launch headroom. No nati
 cable attempts or automatic numerical experiments. The outer grid is visual
 context; whether routing is confined to the central void/approaches or uses the
 surrounding space remains undecided. Rendering is not a feasibility judgment.
+
+Search diagnosis (`artifacts/verification/ribbon_search134` through `136`) separates
+recorded transports from actual exploration. Gym playback contained ten tiny
+derivative probes and only one trial; the unchanged broad bank still supplied
+sixteen distinct families. The demonstration's128-path excerpt spends110paths
+screening before fitting. Compatible shooting refines one seed and does not switch
+families after failure. In archived V07, fine-grid damping reset enlarged steps;
+full/half trials missed descent available at a much smaller scale. The local
+derivative direction was checked independently. Gym bend-cap ablation reproduced
+all fourteen paths exactly. These are five existing-case diagnostic observations,
+with no solver fix, physical-rule change, new full solve or native validation.
+Prioritize honest phase/probe display, explicit family-refinement budgets and
+coordinate-aware step control before interpreting repeated frames as route diversity.
