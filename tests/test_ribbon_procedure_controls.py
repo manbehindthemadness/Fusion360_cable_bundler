@@ -81,6 +81,7 @@ def test_selection_defaults_are_real_and_unavailable_inputs_are_explicit() -> No
         "paths": 512,
         "excerpt": 0,
         "bend_model": "pinch percent",
+        "path_rules": "macaroni + no lateral bending",
         "pinch_percent": 99.6,
         "coarse": 8,
         "fine": 3,

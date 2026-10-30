@@ -122,6 +122,7 @@ def run(directory: Path) -> Path:
             "id": name,
             "label": f"{labels[identifier].label}{' / ' + role if suffix else ''} · {plan['run_id'][-8:]}",
             "procedure": identifier,
+            "path_rules": settings.get("path_rules", "historical"),
             "disabled_rules": disabled,
             "comparison": {
                 "role": role,

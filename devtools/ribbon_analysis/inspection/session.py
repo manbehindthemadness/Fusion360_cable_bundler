@@ -110,6 +110,9 @@ class Session:
                     _text(comparison.get(key))
             metrics = _object(data.get("metrics", {}))
             settings = _object(data.get("settings", {}))
+            if settings:
+                settings = dict(settings)
+                settings.setdefault("path_rules", "historical")
             if settings and data.get("procedure", identifier.rsplit(":", 1)[-1]) in (
                 "ordinary",
                 "redistribution",
@@ -119,6 +122,7 @@ class Session:
                 "discovery",
                 "broad",
                 "generalized",
+                "director",
             ):
                 settings = dict(settings)
                 settings.setdefault("bend_model", "legacy")
@@ -351,6 +355,7 @@ class Session:
         return {
             "case": self.targets.name,
             "gym": self.gym,
+            "path_rules": method["settings"].get("path_rules", "historical"),
             "bend_policy": {
                 "model": "pinch percent" if percent is not None else "legacy",
                 "pinch_percent": percent,

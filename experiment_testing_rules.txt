@@ -235,3 +235,20 @@ New fixtures do not authorize native builds, unlimited search or an automatic fi
 Obtain bounded resource scope as above. If native baselines are absent, say so;
 numerical preservation alone does not prove construction preservation. These
 examined challenges are development regression cases, not untouched holdouts.
+
+USER-DIRECTED PATHING RESET — 2026-10-30
+--------------------------------------
+For new diagnostic pathing runs, the user explicitly requests only the functioning
+macaroni/pinch rule and no lateral bending. Fixed connection poses remain the
+routing targets. Other observations must not steer, rank, repair or reject paths:
+no self-contact/clearance, sphere/gym boundary, length-balance or extra-loop rules.
+Remove the auxiliary material-map search reserve; positive material progress is
+intrinsic to the existing macaroni calculation, not an additional margin target.
+Finite representation/search bounds and time/RSS limits remain numerical controls,
+not physical impossibility certificates. Freeze the explicit pathing scope in each
+run; older archives and historical policies retain their original interpretation.
+The user specifically preserves sweep-profile creation and geometry construction.
+This revision applies only to experimental pathing. It does not change profiles,
+conductor ordering/identity, sweep/native builders, or authorize production edits
+or a new native build batch. Retain independent measurements and missing-acceptance
+labels; a result under the reduced rules is not full physical certification.

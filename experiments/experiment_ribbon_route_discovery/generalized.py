@@ -14,12 +14,14 @@ from typing import Any, Callable, Literal
 from cable_bundler.routing.geometry import cross, difference, dot, magnitude
 from devtools.ribbon_analysis.contracts import Targets
 from experiments.experiment_ribbon_cap_transition.compatible_strip import CompatiblePath
+from experiments.experiment_ribbon_cap_transition.constraint_policy import PathRules
 from experiments.experiment_ribbon_cap_transition.director_shooting import endpoint_metrics
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
 from . import broad_chart, broad_search
 from .active_clearance import sample
 from .broad_search import SearchLedger
+from .pathing_status import endpoint_status
 
 
 @dataclass(frozen=True)
@@ -76,8 +78,16 @@ def solve(
             metrics: dict[str, Any] = endpoint_metrics(case, path)
             strict = max(metrics.values()) <= 1e-8
             metrics.update(strict_endpoint_gate=strict, coordinates=coordinates, evaluations=1)
-            contact = sample(case, path, checkpoint).contacts
-            if not strict or contact["contact_detected"] or not contact["strict_frame_gate"]:
+            contact = (
+                endpoint_status(case, path)
+                if path.field.constraints.path_rules is PathRules.MACARONI
+                else sample(case, path, checkpoint).contacts
+            )
+            if (
+                not strict
+                or contact.get("contact_detected", False)
+                or not contact["strict_frame_gate"]
+            ):
                 raise RuntimeError("Neutral boundary transport failed its measured gates.")
             checkpoint()
             ledger.stage = "neutral awaiting independent analysis"

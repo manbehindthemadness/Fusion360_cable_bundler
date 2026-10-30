@@ -12,7 +12,7 @@ from enum import Enum
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
-from .constraint_policy import Rule, for_field
+from .constraint_policy import PathRules, Rule, for_field
 from .director_path_contracts import FramedPath
 from .endpoint_first import EndpointCase
 
@@ -63,14 +63,15 @@ def _penalties(
     scope: ObjectiveScope = ObjectiveScope.LEGACY_SPHERE,
 ) -> tuple[float, ...]:
     """
-    Add33station curvature/radius/containment penalties with conservative goals.
+    Apply the selected pathing policy at33stations without modifying geometry.
 
-    Hard final limits remain.8,3diameters and5width sphere. Searching for.78,
-    3.1diameters and.97sphere leaves sampling margin. Full-width minimum J is
-    analytical for eachstation;this function neither clips geometry nor certifies it.
+    Historical policy retains its original material reserve and optional sphere
+    feedback. Two-rule policy keeps only macaroni/pinch penalties. Full-width
+    minimum J is analytical per station; sampling does not certify a whole solid.
     """
     field = path.field
     constraints = for_field(field)
+    minimal = constraints.path_rules is PathRules.MACARONI
     half = field.half_width_mm
     reach = math.hypot(half, case.diameter_mm / 2)
     midpoint = case.start.translated(difference(case.end, case.start), 0.5)
@@ -85,7 +86,9 @@ def _penalties(
         pinch = constraints.bend_model is BendModel.PINCH
         circular = pinch and case.lines == 1
         if domain is SearchDomain.FREE:
-            penalties.append(0.0 if circular else 0.2 * math.log1p(max(0.0, 0.1 - minimum_j)))
+            penalties.append(
+                0.0 if circular or minimal else 0.2 * math.log1p(max(0.0, 0.1 - minimum_j))
+            )
         if pinch:
             factor = 1.0 if circular else 1 + eta * eta
             denominator = 1.0 if circular else minimum_j
@@ -117,7 +120,7 @@ def _penalties(
                 0.2 * math.log1p(lane_violation) if constraints.enabled(Rule.LANE_BEND) else 0.0,
             )
         )
-        if scope is ObjectiveScope.LEGACY_SPHERE:
+        if scope is ObjectiveScope.LEGACY_SPHERE and not minimal:
             state, _ = path.pose(u)
             p, t, w = Vector3(*state[:3]), Vector3(*state[3:6]), Vector3(*state[6:9])
             extent = max(

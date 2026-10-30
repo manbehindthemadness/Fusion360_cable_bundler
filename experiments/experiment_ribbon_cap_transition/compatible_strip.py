@@ -17,7 +17,7 @@ from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.inspection.capture import transported
 from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
-from .constraint_policy import ConstraintPolicy, Rule, current
+from .constraint_policy import ConstraintPolicy, PathRules, Rule, current
 from .director_motion_transport import DirectorMotion, integrate_motion
 from .director_routing_field import RoutingField
 from .director_transport import INITIAL, State, interpolate_pose, material_lane
@@ -75,8 +75,10 @@ class CompatibleField:
 
     L=raw.length_mm is a carrier budget, not material center length. With h the
     halfwidth and g=eta_u, the center advances c=L-h*abs(g); a lane advances c+q*g.
-    Analytic Fourier derivative bounds scale g to keep minimum material J>.1 for
-    every u. Turning is bounded so center k*reach<.78 and every lane radius>3.1D.
+    Analytic Fourier derivative bounds scale g to preserve positive material
+    progress at every u. Historical scope retains its additional reserve; the
+    two-rule scope uses only strict positivity and the configured pinch bound.
+    Historical turning bounds use center k*reach<.78 and lane radius>3.1D.
     No sampled rejection, endpoint snapping or later geometric repair enforces
     these local bounds. The actual transported/interpolated geometry still needs
     independent numerical/native checks. An explicit diagnostic policy may remove
@@ -90,7 +92,7 @@ class CompatibleField:
 
     def __post_init__(self) -> None:
         """
-        Freeze the global ruling normalization before transport or fitting.
+        Freeze the selected scope's ruling normalization before transport or fitting.
         """
         if not isinstance(self.constraints, ConstraintPolicy):
             raise ValueError("Compatible fields require an explicit constraint policy.")
@@ -101,7 +103,11 @@ class CompatibleField:
         derivative_bound = (
             2 * math.pi * (abs(b) + abs(c) + 2 * abs(d) + 2 * abs(self.raw.extra_ruling))
         )
-        allowed = 0.9 * self.carrier_length_mm / (1.9 * self.half_width_mm)
+        allowed = (
+            math.nextafter(self.carrier_length_mm / (2 * self.half_width_mm), 0.0)
+            if self.constraints.path_rules is PathRules.MACARONI
+            else 0.9 * self.carrier_length_mm / (1.9 * self.half_width_mm)
+        )
         object.__setattr__(self, "ruling_scale", allowed / math.hypot(allowed, derivative_bound))
 
     @property

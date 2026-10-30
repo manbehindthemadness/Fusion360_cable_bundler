@@ -12,11 +12,13 @@ from time import perf_counter
 from typing import Any, Callable, Literal
 
 from experiments.experiment_ribbon_cap_transition.compatible_strip import CompatiblePath
+from experiments.experiment_ribbon_cap_transition.constraint_policy import PathRules
 from experiments.experiment_ribbon_cap_transition.endpoint_first import EndpointCase
 
 from . import box_fit, broad_chart, projected_clearance
 from .active_clearance import sample
 from .families import Seed, select
+from .pathing_status import endpoint_status
 
 Phase = Literal["short", "deep", "width"]
 
@@ -73,8 +75,19 @@ def _observe(
     checkpoint: Callable[[], None],
 ) -> Trial:
     """
-    Measure current occupied width without reusing a previous path's witnesses.
+    Rank by the frozen scope, omitting contact measurements in two-rule pathing.
     """
+    if path.field.constraints.path_rules is PathRules.MACARONI:
+        contact = endpoint_status(case, path)
+        return Trial(
+            seed,
+            phase,
+            path,
+            metrics,
+            contact,
+            metrics["score"],
+            contact["position_connected"] and contact["strict_frame_gate"],
+        )
     snapshot = sample(case, path, checkpoint)
     contact = snapshot.contacts
     ready = (
@@ -90,6 +103,7 @@ def solve(case: EndpointCase, checkpoint: Callable[[], None], ledger: SearchLedg
     """
     Run110cold screens,up to16short/4deep fits,then queued closed-route width repair.
 
+    Two-rule scope uses connection goals only, with no contact rank or repair.
     No case identifier affects search. At most18208fit transports are possible,
     subordinate to the caller's elapsed/RSS checkpoint. Preserve every completed
     failed trial;return an exhausted ledger when no pose/contact handoff exists.
@@ -109,6 +123,7 @@ def solve(case: EndpointCase, checkpoint: Callable[[], None], ledger: SearchLedg
         if (
             trial.phase != "width"
             and trial.metrics["strict_endpoint_gate"]
+            and trial.contact.get("contact_enforced", True)
             and trial.contact["contact_detected"]
         ):
             pending.append(trial)

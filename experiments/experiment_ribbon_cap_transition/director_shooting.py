@@ -16,12 +16,12 @@ from typing import Any, Callable
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
-from .constraint_policy import Rule, current, for_field
+from .constraint_policy import PathRules, Rule, current, for_field
 from .coupled_motion import orientation_angles
 from .director_constrained_step import constrained_step
 from .director_path_contracts import FramedPath
 from .director_rotation_transport import integrate_rotation
-from .director_route_objective import free_penalties, regular_penalties
+from .director_route_objective import free_penalties, regular_penalties, routing_penalties
 from .director_route_seed import corkscrew_seed
 from .director_routing_field import RoutingField
 from .director_seed_bank import NoAdmissibleSeed, ranked_seed
@@ -178,7 +178,7 @@ def field_for(
         raise ValueError("Shooting coordinates lie outside the frozen search bounds.")
     distance = magnitude(difference(case.end, case.start))
     ruling_scale = 1.0
-    if policy.transport is TransportMethod.REGULAR:
+    if policy.transport is TransportMethod.REGULAR and current().path_rules is PathRules.HISTORICAL:
         half = case.lines * case.diameter_mm / 2 + case.diameter_mm * 0.1
         bound = (
             2
@@ -380,7 +380,10 @@ def solve(
             """
             Compare generic seeds with the identical coarse endpoint/policy objective.
             """
-            return residual(case, candidate_path) + free_penalties(case, candidate_path)
+            penalties = (
+                routing_penalties if current().path_rules is PathRules.MACARONI else free_penalties
+            )
+            return residual(case, candidate_path) + penalties(case, candidate_path)
 
         values, seed_metrics = ranked_seed(
             case,
@@ -426,9 +429,11 @@ def solve(
         )
         errors = residual(case, observed_path)
         geometric_stage = grid == 64 or policy.geometry_scope is GeometryScope.ALL_STAGES
-        if geometric_stage and policy.transport is TransportMethod.REGULAR:
+        if current().path_rules is PathRules.MACARONI:
+            errors += routing_penalties(case, observed_path)
+        elif geometric_stage and policy.transport is TransportMethod.REGULAR:
             errors += regular_penalties(case, observed_path)
-        if geometric_stage and policy.transport is TransportMethod.FREE:
+        elif geometric_stage and policy.transport is TransportMethod.FREE:
             errors += free_penalties(case, observed_path)
         return observed_path, errors
 

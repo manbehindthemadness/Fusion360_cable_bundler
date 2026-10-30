@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from devtools.ribbon_analysis.inspection.values import finite_number, integer_value, json_object
+from devtools.ribbon_analysis.pathing import PathRules
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -81,6 +82,12 @@ WINDOWS = (
 )
 TIGHT_FIT = (Setting("coarse", "Coarse fitting rounds", 8, 0, 36, integer=True),) + FIT[1:]
 BENDING = (
+    Setting(
+        "path_rules",
+        "Pathing rules",
+        PathRules.MACARONI.value,
+        choices=tuple(rule.value for rule in PathRules),
+    ),
     Setting("bend_model", "Bend rule", "pinch percent", choices=("pinch percent", "legacy")),
     Setting("pinch_percent", "Maximum pinch utilization (%)", 99.6, 1, 99.99),
 )
@@ -88,7 +95,7 @@ CATALOG = (
     Procedure(
         "generalized",
         "Generalized cold search",
-        "Fixed 110-seed broad policy, up to 16 short / 4 deep families and queued width repair; exact neutral dispatch retained.",
+        "110-seed broad policy, up to 16 short / 4 deep families; two-rule mode omits contact ranking and repair. Exact neutral dispatch retained.",
         LIMITS + BENDING,
     ),
     Procedure(
@@ -133,8 +140,9 @@ CATALOG = (
     Procedure(
         "director",
         "Director shooting",
-        "Registered historical policies retain their fixed iteration counts and legacy objectives; these are diagnostic comparisons.",
+        "Registered transport and iteration policies; two-rule mode fits endpoints with macaroni penalties at both grids.",
         LIMITS
+        + BENDING
         + (
             Setting(
                 "policy",
@@ -156,7 +164,7 @@ CATALOG = (
     Procedure(
         "discovery",
         "Family/contact-guided search",
-        "Screen the existing seed bank and fit the selected number of distinct families. Contact guidance is sampled, not a clearance certificate.",
+        "Fit selected distinct families. Contact-guided variants require historical rules; two-rule mode uses short/full endpoint fitting.",
         LIMITS
         + BENDING
         + (
@@ -230,6 +238,20 @@ def selections(value: Any) -> list[dict[str, Any]]:
             setting.key: setting.validate(settings.get(setting.key, setting.default))
             for setting in procedure.settings
         }
+        if "path_rules" not in settings and settings.get("bend_model") == "legacy":
+            normalized["path_rules"] = PathRules.HISTORICAL.value
+        if normalized["path_rules"] == PathRules.MACARONI.value:
+            if normalized["bend_model"] != "pinch percent":
+                raise ValueError("Two-rule pathing requires macaroni pinch-percent bending.")
+            if identifier == "compatible" and normalized["objective"] != "routing":
+                raise ValueError("Sphere-feedback objectives require historical pathing rules.")
+            if identifier == "discovery" and normalized["variant"] in (
+                "plane guided",
+                "distance guided",
+            ):
+                raise ValueError(
+                    "Contact-guided variants require historical pathing rules; use short or full fitting."
+                )
         if integer_value(normalized["excerpt"]) >= integer_value(normalized["paths"]):
             raise ValueError("An excerpt must finish before the hard recording cap.")
         chosen.append({"id": identifier, "settings": normalized})

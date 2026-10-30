@@ -42,13 +42,14 @@
 <div id="examplePanel" hidden><label for="example">Example / frozen gym layout</label><select id="example"></select></div>
 <button id="openGym" hidden>Create/edit gym layout</button>
 <p id="gymScope" class="muted" hidden>Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
+<p id="pathRules" class="muted"></p>
 <details id="procedurePanel" hidden>
   <summary>Run solver procedures</summary>
   <p class="muted">Select optional numerical procedures and their settings. Each run keeps the current endpoint inputs and records new results. A scheduling limit or error stops the batch. Physical acceptance remains unresolved.</p>
   <div id="procedureForms"></div>
   <button id="demoProcedures">Load nine-procedure demonstration settings</button>
   <p id="runBudget" class="muted"></p>
-  <div class="toolbar"><button id="runProcedures">Run selected (all rules)</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
+  <div class="toolbar"><button id="runProcedures">Run selected</button><button id="cancelRun" disabled>Stop run</button><button id="viewRun" disabled>View result</button></div>
   <p id="runStatus" role="status" class="muted"></p>
 </details>
 <label for="solver">Recorded result / reference</label><select id="solver"></select>
@@ -114,7 +115,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{id:string,settings:Object<string,(number|string)>}} ProcedureSelection */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean,path_rules:string}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
@@ -300,6 +301,8 @@ function receive(value) {
   renderExecution(state.execution);
   if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
+  const minimal = state.path_rules === "macaroni + no lateral bending";
+  element("pathRules").textContent = minimal ? "Active path rules: macaroni pinch and structural no lateral bending. Connection targets stay fixed. Other measurements are observations; self-contact, clearance, sphere, gym, length-balance and extra-loop rules do not steer or reject this run. Numerical search bounds and resource limits still apply." : "Historical recorded pathing policy. New runs default to macaroni + no lateral bending; older results retain their recorded scope.";
   element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
   element("solver").replaceChildren(...state.solvers.map(m => {
     const option = document.createElement("option");
@@ -339,7 +342,7 @@ function receive(value) {
       const field = document.createElement("input"); field.type = "checkbox"; field.checked = !disabledRules.has(capability.id); field.dataset.supported = String(capability.supported); field.title = capability.reason;
       field.onchange = () => { if (field.checked) disabledRules.delete(capability.id); else disabledRules.add(capability.id); comparisonControls(); };
       toggle.append(field, document.createTextNode(capability.supported ? " Use" : " Fixed"));
-    } else toggle.textContent = "Measurement / fixed model";
+    } else toggle.textContent = minimal ? (rule.name === "No wide-axis bending" ? "Structural path rule" : "Observation only") : "Measurement / fixed model";
     row.append(name, detail, toggle); return row;
   }));
   element("comparisonResult").textContent = state.comparison ? `${state.comparison.detail} ${state.comparison.measurements.map(row => `${row.name}: ${row.baseline.toPrecision(5)} → ${row.current.toPrecision(5)} (Δ ${row.delta.toPrecision(5)})`).join(" · ")}` : "";

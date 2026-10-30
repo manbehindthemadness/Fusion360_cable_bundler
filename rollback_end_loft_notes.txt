@@ -361,3 +361,16 @@ now use4GiB sampledFusion/localRSS ceiling and3.8GiB launch headroom,superseding
 earlier2GiB values for future operations only. Preserve historical resource stops,
 bounded plans,time/physical/source gates and no-retry accounting. Generated90's
 renewal37-4g artifact precedes resumption;its earlier measurements stay unchanged.
+
+USER-DIRECTED PATHING RESET — 2026-10-30
+
+For new diagnostic path solving, use only macaroni/pinch and structural no lateral
+bending, with unchanged endpoint targets. Other historical pathing constraints are
+excluded from objectives, ranking and acceptance under this explicit reduced scope.
+Retain strict positive material progress intrinsic to macaroni geometry while
+removing the extra material-map search reserve. Historical source/route records
+retain their original policy; finite search failure remains unresolved.
+User explicitly preserves sweep-profile creation and geometry construction: this
+is a pathing-solver modification only. Existing native profile/sweep/ending builders
+and conductor identity/order are unchanged. No production or native-build promotion,
+physical acceptance claim or automatic new native batch follows from this reset.

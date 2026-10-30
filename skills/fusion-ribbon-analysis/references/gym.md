@@ -4,6 +4,20 @@ The user-directed Rubik gym starts from its environment and two connection faces
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
 
+New diagnostic solver runs default to **macaroni + no lateral bending** pathing.
+The existing pinch percentage controls macaroni; the motion representation keeps
+the no-lateral-bending rule. Connection positions and frames remain fitting goals.
+Self-contact/clearance, sphere or gym boundaries, length balance and extra-loop
+rules do not affect ranking, repair or acceptance in this scope. Positive material
+progress remains intrinsic to macaroni geometry; its extra historical reserve is
+removed. Other displayed measurements are observations, not active pathing rules.
+The sweep profile, conductor ordering and geometry construction remain unchanged.
+Finite coefficient, iteration and resource bounds are numerical search controls.
+No failure at those bounds is an impossibility certificate. Old archives retain
+their historical scope; explicit historical mode remains available for replay and
+comparisons. Sphere-feedback objectives and contact-guided discovery require that
+historical mode and are rejected before worker launch in the reduced mode.
+
 The gym can also be linked to the diagnostic solver palette. Choose **Create/edit
 gym layout** in diagnostics, author the endpoints, then choose **Open in solver
 diagnostics** in the gym. Select optional procedures/settings and press **Run

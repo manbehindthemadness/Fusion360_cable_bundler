@@ -109,6 +109,7 @@ class ProcedureController:
             "targets": targets_payload(targets),
             "gym_id": identity(gym) if gym is not None else None,
             "procedures": selected,
+            "pathing_scope": "Per-procedure path_rules are frozen in settings. Two-rule runs enforce macaroni/pinch and structural no lateral bending; endpoints remain fitting targets. No self-contact, clearance, sphere, gym, length-balance or extra-loop gates. Numerical search/resource bounds are not physical acceptance rules.",
             "comparison": comparison,
             "sources": procedures.source_pins(),
             "minimum_radius_mm": 3 * targets.diameter_mm,

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterator
 
+from devtools.ribbon_analysis.pathing import PathRules
 from devtools.ribbon_analysis.pinch import BendModel, PinchLimit
 
 
@@ -28,15 +29,18 @@ class Rule(Enum):
 @dataclass(frozen=True)
 class ConstraintPolicy:
     """
-    Retain disabled experimental constraints on each constructed field permanently.
+    Retain the versioned pathing scope and disabled rules on each field permanently.
 
-    Inputs, start pose, material regularity, identities and independent measurements
-    remain intact. An ablated route can fail physical checks and is never certified.
+    Inputs, start pose, identities and independent measurements remain intact.
+    The two-rule scope excludes auxiliary objectives and contact gates; positive
+    material progress remains intrinsic to its local macaroni construction.
+    An ablated route can fail physical checks and is never certified.
     """
 
     disabled: frozenset[Rule] = frozenset()
     bend_model: BendModel = BendModel.LEGACY
     pinch_percent: float = 99.6
+    path_rules: PathRules = PathRules.HISTORICAL
 
     def __post_init__(self) -> None:
         """
@@ -48,6 +52,10 @@ class ConstraintPolicy:
             raise ValueError("Use an immutable set of registered constraint rules.")
         if not isinstance(self.bend_model, BendModel):
             raise ValueError("Choose a versioned bend model.")
+        if not isinstance(self.path_rules, PathRules):
+            raise ValueError("Choose a versioned pathing rule set.")
+        if self.path_rules is PathRules.MACARONI and self.bend_model is not BendModel.PINCH:
+            raise ValueError("Two-rule pathing requires the macaroni pinch-percent model.")
         PinchLimit(self.pinch_percent)
 
     def enabled(self, rule: Rule) -> bool:
@@ -102,7 +110,12 @@ def configured(disabled: Any, settings: dict[str, Any]) -> ConstraintPolicy:
         raise ValueError(
             "The pinch model has one coupled material-guide limit, not a separate centre cap."
         )
-    return ConstraintPolicy(policy.disabled, model, settings.get("pinch_percent", 99.6))
+    return ConstraintPolicy(
+        policy.disabled,
+        model,
+        settings.get("pinch_percent", 99.6),
+        PathRules(settings.get("path_rules", PathRules.HISTORICAL.value)),
+    )
 
 
 @contextmanager
