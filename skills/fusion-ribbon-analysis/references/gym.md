@@ -87,6 +87,14 @@ Gym-created inputs still require numerical and native validation separately.
 the material fold route has not been transferred to or validated by the existing
 rigid-profile native sweep builder.
 
+The subsequent explicit user-requested189sweep builds one solid from that frozen
+center guide and unchanged joined profile in41.690s. Its end cap centre/plane/area
+match, but its profile roll differs66.627degrees: construction succeeds, terminal
+orientation compliance fails, interior material/contact rules remain unaudited.
+189is visible with the target end contour;187is retained hidden.188's setup-only
+failure is also retained; only one kernel sweep was attempted. See
+[native sweep evidence](pinch.md#first-native-sweep-of-the-retained-close-endpoint-case).
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.

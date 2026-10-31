@@ -493,6 +493,48 @@ unmeasured and fullQA unrun. This is not a universal collision guarantee, shorte
 route proof or production promotion. Original profile/native builders are unchanged.
 No additional batch is scheduled. Artifacts:ribbon_fold185..187.
 
+## First native sweep of the retained close-endpoint case
+
+The user explicitly requested one sweep of187.189uses the same frozen186case9
+center guide (2011control points) and the unchanged production
+`ribbon_builder._add_section` joined contour: one conductor,1.5mm thickness,
+1.8mm overall width, four arcs, area2.1527217276mm2. Both target profiles remain
+exact references. The construction is a standard perpendicular sweep with zero
+added twist; no guide rail, loft, rerouting, profile thinning or fallback. A rigid
+perpendicular sweep does not enforce the diagnostic fold's material map.
+
+One independent retained development configuration: existing numerical evidence
+reused,0new solves;1native attempt/1positive-volume solid/0fully audited. Kernel
+prediction was unknown. The native call takes41.689881s; setup0.272604s, limited
+cap audit0.006098s, host total42.936867s. Volume60.975277mm3. Feature health reports
+Unknown (enum5), with no error/warning message; valid solid status is separately
+observed and must not be called a healthy-feature certificate.
+
+Both native cap centres match their target within5.56e-16mm, planar normals align
+exactly and areas agree. However, end profile roll differs66.626703degrees modulo
+180; corresponding target-to-native cap vertex-set error is0.759223mm. Start
+vertex error<=1.25e-16mm. Thus native construction succeeds but terminal orientation
+compliance fails1/1; interior material lengths, banking/no-lateral bend, pinch and
+full-volume contact remain unaudited. This is not a faithful native reproduction
+or acceptance of the diagnostic ribbon, nor evidence of route infeasibility.
+
+188is retained as a setup-only failure before any sweep call: an omitted RIBBON
+group type rejected the one-line profile settings. Application logs were inspected;
+189corrects that setup under a new frozen plan with identical geometry and limits.
+188has0native attempts and is not a second independent case or kernel failure.
+No native retry occurs. Highest recorded Fusion RSS across setup/build/inspection
+is526864KiB; in-flight kernel peak is unmeasured. Limits120s/4GiB with3.8GiB launch
+headroom were frozen before execution. Plans, source fingerprints, events and both
+outcomes remain in artifacts/verification/ribbon_sweep188..189.
+
+189's single native body starts hidden, then is revealed for inspection with the
+exact target end sketch and a roll-mismatch caption.187and188are hidden intact;
+four historical sessions/snapshots/selection remain unchanged. Inspection0.851s,
+RSS522448KiB; viewport reviewed. No production, profile or solver source changed.
+Scoped harness Ruff passes; IDE semantic checks pass, with duplicate-code advisories
+between frozen188/189archive copies retained. Application tests/fullQA were not run
+for this one-off native operation. No further native attempt is scheduled.
+
 ## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It
