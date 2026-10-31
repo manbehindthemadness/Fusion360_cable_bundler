@@ -15,6 +15,7 @@ import adsk.core
 import adsk.fusion
 
 from ..budget import NativeBudget
+from ..end_profiles import retain_end_profiles
 from ..inspection.archive import write_document
 from .graphics import draw
 from .scene import Config, Goal, Scene, generate
@@ -79,6 +80,8 @@ class GymView:
         self.last_error: str | None = None
         self.palette: Any = None
         self.group: Any = None
+        self._profiles: Any = None
+        self._pending_profiles: Any = None
         self.handler: Incoming | None = None
         self._record(self.scene)
         self._draw(self.scene)
@@ -97,9 +100,23 @@ class GymView:
         budget.check("gym drawing launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Gym drawing lacks launch headroom.")
+        if self._pending_profiles is not None:
+            raise RuntimeError("Incomplete gym end profiles require review before redrawing.")
         group = draw(
             self.component, scene.payload()["drawing"], lambda: budget.check("gym drawing")
         )
+        self._pending_profiles = self.component.occurrences.addNewComponent(
+            adsk.core.Matrix3D.create()
+        )
+        self._pending_profiles.component.name = "Sweep profiles - current gym targets"
+        retain_end_profiles(
+            self._pending_profiles.component,
+            scene.targets,
+            lambda: budget.check("gym end profiles"),
+        )
+        if self._profiles is not None and self._profiles.isValid:
+            self._profiles.deleteMe()
+        self._profiles, self._pending_profiles = self._pending_profiles, None
         if self.group is not None and self.group.isValid:
             self.group.deleteMe()
         self.group = group

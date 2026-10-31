@@ -323,6 +323,23 @@ Optional checkpoints passed to `draw_evidence` bound each native guide operation
 `Viewer.show(..., originals=None)` preserves manual original-sketch visibility;
 explicit True/False toggles all three for the selected results.
 
+New gym drafts and diagnostic method components retain two native closed sketches:
+`Sweep profile - Start cap` and `Sweep profile - End cap`. They use the unchanged
+joined-profile builder at the fixed target positions, tangents and width frames.
+Unhide a profile and the original center guide to use them as manual sweep inputs.
+Each cap is one joined region, including multi-conductor layouts. Profiles are
+initially hidden; reuse preserves manual visibility. Failed routes retain their
+actual guides and their separate fixed target profiles, without closure repairs.
+The profiles alone do not establish a sweep result or physical compliance.
+
+Custom layout displays should call
+`end_profiles.retain_end_profiles(owned_component, targets, checkpoint)` explicitly.
+It returns `{"start": sketch, "end": sketch}`; repeated calls reuse a complete
+matching pair. Different targets require a separate owned layout component;
+incomplete, missing or duplicated native inputs stop for review. Gym drafts replace
+their owned profile component when inputs change; diagnostic caps remain outside
+the disposable proposal scene. No solid is created automatically.
+
 Each result also contains five hidden child components named `Constraint - ...`
 and an initially visible `Solver details` sketch directly inside the experiment's Sketches
 folder. Unhide a helper with its component/sketch eye, or use `Viewer.show(constraints=...)`.

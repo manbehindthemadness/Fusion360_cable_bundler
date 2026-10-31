@@ -15,6 +15,7 @@ import adsk.core
 import adsk.fusion
 
 from ..budget import NativeBudget
+from ..end_profiles import retain_end_profiles
 from ..graphics import draw_lines, draw_text, draw_trace, set_color
 from ..gym.graphics import draw as draw_gym
 from ..gym.handoff import identity as gym_identity
@@ -182,6 +183,8 @@ class DiagnosticViewer:
                 occurrence = self._methods[identifier]
             occurrence.isLightBulbOn = identifier == self.session.solver
         snapshot = self.session.snapshot
+        component = self._methods[self.session.solver].component
+        retain_end_profiles(component, self.session.targets, lambda: budget.check("end profiles"))
         gym = self.session.gym
         identifier = gym_identity(gym) if gym is not None else None
         if identifier != self._gym_id:
@@ -196,7 +199,6 @@ class DiagnosticViewer:
         if snapshot is None:
             self._apply_visibility()
             return
-        component = self._methods[self.session.solver].component
         self._scene = component.occurrences.addNewComponent(adsk.core.Matrix3D.create())
         self._scene.component.name = f"Recorded geometry / proposal {self.session.proposal}"
         retain(self._scene.component, snapshot, lambda: budget.check("original frozen guide"))

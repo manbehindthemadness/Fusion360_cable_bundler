@@ -100,7 +100,10 @@ def source_pins() -> dict[str, str]:
     """
     Freeze diagnostic, historical solver and safeguard sources for authored references.
     """
-    files = {ROOT / "cable_bundler/routing/geometry.py"}
+    files = {
+        ROOT / "cable_bundler/routing/geometry.py",
+        ROOT / "cable_bundler/fusion/cable_solid_parts/ribbon_builder.py",
+    }
     for package in (
         "devtools/ribbon_analysis",
         "experiments/experiment_ribbon_diagnostic_viewer",

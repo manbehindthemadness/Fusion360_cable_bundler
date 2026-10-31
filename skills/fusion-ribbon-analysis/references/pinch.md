@@ -513,10 +513,14 @@ observed and must not be called a healthy-feature certificate.
 Both native cap centres match their target within5.56e-16mm, planar normals align
 exactly and areas agree. However, end profile roll differs66.626703degrees modulo
 180; corresponding target-to-native cap vertex-set error is0.759223mm. Start
-vertex error<=1.25e-16mm. Thus native construction succeeds but terminal orientation
-compliance fails1/1; interior material lengths, banking/no-lateral bend, pinch and
-full-volume contact remain unaudited. This is not a faithful native reproduction
-or acceptance of the diagnostic ribbon, nor evidence of route infeasibility.
+vertex error<=1.25e-16mm. The initial report classified this as a terminal
+orientation failure. The user subsequently clarified that roll is not a failure
+for this single/round-conductor example. Retain the measured difference as
+informational for this specimen; do not extend this exception to multi-conductor
+ribbons or silently alter the existing joined profile. Native construction
+succeeds; interior material lengths, banking/no-lateral bend, pinch and full-volume
+contact remain unaudited. No complete physical acceptance or route infeasibility
+follows from this build.
 
 188is retained as a setup-only failure before any sweep call: an omitted RIBBON
 group type rejected the one-line profile settings. Application logs were inspected;
@@ -534,6 +538,33 @@ RSS522448KiB; viewport reviewed. No production, profile or solver source changed
 Scoped harness Ruff passes; IDE semantic checks pass, with duplicate-code advisories
 between frozen188/189archive copies retained. Application tests/fullQA were not run
 for this one-off native operation. No further native attempt is scheduled.
+
+190records the user's classification correction without changing189's frozen
+measurements or rebuilding. The existing component/caption now reads single
+conductor built, with roll informational and interior audit incomplete. Viewport
+reviewed; geometry unchanged. The user also requested freezing every other
+editable document: all10saved editable designs were changed to Read-Only through
+Fusion's personal-use document manager. UI count and API editableFileCount both
+confirm0saved editable files; current unsaved Untitled remains open/editable with
+the sweep visible. No saved design was deleted or overwritten. The open Macaroni
+demo is read-only; its geometry is unchanged. Evidence:
+artifacts/verification/ribbon_sweep190/clarification-and-freeze.json.
+
+191implements the user's standing request to leave native cap profiles available
+for manual sweeps. Shared `end_profiles.retain_end_profiles` delegates to the
+unchanged joined-profile builder. New gym/diagnostic instances retain a hidden
+Start/End pair, preserve manual visibility on reuse and refuse incomplete or
+changed-input reuse. Custom displays call the same helper. Current187N1now has
+both sketches;189's existing inputs use the same `Sweep profile - ... cap` names.
+One existing layout supplemented, two new sketches,0new solves/sweeps/bodies.
+Both have one closed region, area2.1527217276mm2, centroid gap<=1.11e-17mm and exact
+normal alignment; repeated retention creates no duplicates and preserves visibility.
+Native operation0.581s, sampledRSS400752KiB; all saved files remain read-only.
+61distinct focused tests pass after correcting one mock-only import failure;
+scoped Ruff lint/format and five changed-file IDE inspections pass. Existing live
+viewer instances were not reloaded; their new defaults apply on fresh creation.
+No fullQA/native cable compliance audit or production-builder change. Evidence:
+artifacts/verification/ribbon_profiles191/.
 
 ## Historical percentage policy
 

@@ -69,6 +69,15 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
   those frozen cubics, including unsuccessful routes. Keep these originals
   available to unhide in Fusion independently of diagnostic graphics. Never
   substitute target-gap witnesses or repaired geometry for the original paths.
+- Every new gym, diagnostic or custom layout also retains native closed sketches
+  named `Sweep profile - Start cap` and `Sweep profile - End cap`, using
+  `end_profiles.retain_end_profiles(owned_layout_component, targets, checkpoint)`.
+  Delegate to the unchanged joined-profile builder: one closed contour per cap,
+  never separate per-conductor bodies or a sampled display outline. Profiles start
+  hidden and remain available beside the original guides for manual sweeps; reuse
+  preserves the user's visibility. Keep them at the fixed target planes even when
+  a route misses its target. Retain incomplete work for review, without automatic
+  retries. This profile preparation does not launch a native sweep or solver.
 - Every result also keeps individually hidden `Constraint - ...` geometry helpers.
   Use these to compare actual versus minimum bend radius, containment, material
   progress and target frames. Read the same frozen overlay measurements yourself.

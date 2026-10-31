@@ -89,13 +89,19 @@ rigid-profile native sweep builder.
 
 The subsequent explicit user-requested189sweep builds one solid from that frozen
 center guide and unchanged joined profile in41.690s. Its end cap centre/plane/area
-match, but its profile roll differs66.627degrees: construction succeeds, terminal
-orientation compliance fails, interior material/contact rules remain unaudited.
+match, but its profile roll differs66.627degrees. The user's subsequent190
+clarification treats roll as informational for this single/round conductor, not a
+failure. Construction succeeds; interior material/contact rules remain unaudited.
 189is visible with the target end contour;187is retained hidden.188's setup-only
 failure is also retained; only one kernel sweep was attempted. See
 [native sweep evidence](pinch.md#first-native-sweep-of-the-retained-close-endpoint-case).
 
 The user-directed Rubik gym starts from its environment and two connection faces.
+New gym views retain `Sweep profile - Start cap` and `Sweep profile - End cap`
+inside `Sweep profiles - current gym targets`. These are hidden native joined
+profiles from the existing builder; input edits replace only that owned profile
+component. Diagnostic methods retain the same pair outside their proposal scene,
+including layouts without a solved path. Manual visibility survives reuse.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
 
