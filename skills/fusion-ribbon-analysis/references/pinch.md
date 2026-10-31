@@ -166,8 +166,12 @@ records AST equality to its frozen source. No further solver run is implied.
 
 ## Endpoint construction from material folds
 
-`experiments.experiment_ribbon_fold_route.solver.connect` now connects both ordered target
-poses using the calibrated material map. It is host-only Python3.9+ code, with no
+This subsection records the166..168construction. The displacement-derived steering
+and outward returns below supersede its fixed steering angles for new candidates.
+
+`experiments.experiment_ribbon_fold_route.solver.construct_candidate` connects both ordered
+target poses using the calibrated material map, before the mandatory contact gate
+in `connect` described below. It is host-only Python3.9+ code, with no
 Fusion dependency, no route seeds, no optimizer and no retired discovery calls.
 The old diagnostic execution catalog remains retired; this experiment has its own
 entry point. Production, original profile creation and native builders are intact.
@@ -179,8 +183,8 @@ signed straight distances then close the residual position in the departure fram
 Width/height steering folds return that frame before the arrival folds are applied.
 Negative displacement uses two rounded transverse half-turns around a forward run,
 never negative material progression. Zero residual axes omit their steering pieces.
-This is a sufficient construction with at most13folds, not a minimum-fold or
-shortest-route method. It does not determine physical impossibility on failure.
+This gives algebraic cap closure with at most13folds, not a minimum-fold or
+shortest-route method. It does not establish self-clearance or physical impossibility.
 
 `FoldRoute` composes the same material map through rigidly placed, flat-ended
 pieces. One cumulative material coordinate drives all lanes. Each piece preserves
@@ -227,6 +231,142 @@ pass, including rigid-frame covariance, Euler poles, backward displacement and t
 near-parallel regression. G1 joins are explicit. Contact, containment, equilibrium,
 native interpolation and complete physical validity remain unmeasured. The9/11fold
 spatial results are conservative; no additional compactness refinement is scheduled.
+
+## Mandatory thick-volume self-contact gate
+
+The user adds self-intersection prevention after view167. Public `solver.connect`
+now returns a route only when `inspect_contact` reports `separated`; both
+`penetration` and `unresolved` raise `SelfContactError`, retaining the rejected
+route, report and completed trial history. `construct_candidate` is explicitly
+unchecked diagnostic geometry. Existing tests of local algebra use that entry point
+without implying global contact acceptance. Gym geometry remains outside avoidance.
+
+`contact_bounds` encloses the thick material map analytically, subdividing material
+boxes rather than testing display triangles or only three guide lines. The full
+width includes the original side-cap extension. A rectangular +/-D/2 envelope
+contains the actual joined-lobe contour. Envelope separation is conservative;
+overlap alone is not penetration. `contact_inverse` confirms penetration only when
+one world point has two strictly interior preimages in the actual joined contour,
+with forward reconstruction agreeing within the declared numerical guard. Profile
+arcs match the preserved builder; native profile creation is unchanged.
+
+A single regular plane-cylinder-plane piece is injective for |angle|<=pi and R>h.
+Adjacent pieces may share their terminal material cap. The checker excludes only
+cap neighborhoods proved to occupy opposite half-spaces, using nonnegative
+longitudinal projection within90degrees of each flat cap. Entire adjacent pieces
+are never ignored. All other piece pairs require separated projected envelopes.
+The20,000-node/depth36 budget returns unresolved on exhaustion. The floating bounds,
+outward arithmetic and guards are numerical evidence, not an exact-arithmetic proof,
+native-solid validation or complete physical simulation. Conservative profile
+envelopes can leave actual clearance unresolved.
+
+169 audits the same five frozen168piece sequences without rerouting. Final171
+repeats that fixed audit after adding forward reconstruction to inverse witnesses.
+No new independent configurations or untouched holdouts were added.
+
+| Input | Final contact disposition | Checked pair nodes | Final time, ms |
+| --- | --- | --- | --- |
+| Gym | Penetration |755|236.243|
+| Straight | Separated |0|8.339|
+| Planar quarter | Separated |3|8.397|
+| Spatial roll | Unresolved at depth limit |3209|702.936|
+| N1 S/lateral90 | Unresolved at node limit |20000|3279.507|
+
+All5evaluated,0unattempted. Final171takes4.240s,RSS18496KiB. The gym witness is
+world(12.1893206692,-2.7546893824,17.2243763510)mm, occupied by original pieces4and6
+(one-based). Their local(u,q,b) coordinates are(0.5,0,0)and
+(0.5009559488,-1.2955267819,-0.0477076385). Prior local material/pinch/cap checks
+are retained; those checks alone never established contact clearance.
+
+170tests a bounded geometric repair: extend every fold's flat leads by the same
+runway and recompute algebraic closure. Up to3corrections at width+thickness support
+increments give14dependent candidates across the same5configurations. Before/after
+records preserve all attempted geometry, including failures. Straight/planar clear
+unchanged. All3spatial cases remain blocked; each corrected spatial candidate
+penetrates. Final corrected gym length685.262mm, spatial491.867mm, N1S340.664mm.
+This repair fails and is opt-in only; default `maximum_corrections=0` rejects
+immediately. It does not prove another route impossible, and no extra budget or
+automatic follow-up is scheduled. Fixed targets, equal local material increments,
+true99.6%pinch and no lateral bending are preserved throughout these changes.
+
+View171shows the original58.110068mm gym as rejected, with both penetrating pieces
+red and the occupied witness located. It retains the same frozen meshes/guides;
+167is hidden intact. Four historical sessions, snapshot identities and selection
+remain unchanged. Display0.953s,RSS766848KiB;viewport reviewed. All169..171records,
+plans, source ZIPs and170failed trial ledgers remain under ignored verification
+artifacts.0native cable attempts/builds/post-build compliance audits; native failure
+rate unmeasured. No collision-free gym result, generalized success or complete
+physical-validity claim.51focused tests, scoped Ruff and7changed-code IDE inspections
+pass; fullQA remains unrun.
+
+## Outward fold construction instead of inward cancellation
+
+The user correctly distinguishes detecting a collision from constructing a route
+that avoids it. The original steering overshoots small transverse displacements:
+two45degree diagonal half-turns have a finite lateral offset before any straight
+run. Subtracting that offset can make the signed run negative, adding two more
+half-turns that fold the route back into its own occupied region. Merely flipping
+one arbitrary sign or increasing every runway does not fix the coupled sequence.
+
+`experiment_ribbon_fold_route.steering` now derives the crease angle from the
+required displacement. With total contour width W, radius R, extra runway r and
+positive bank a, the pair's lateral offset is
+`2W*sin(a)^2 + 4r*sin(a)*cos(a) + 2*pi*R*sin(a)`.
+It increases on0..45degrees. At default r=0, a quadratic in sin(a) gives the angle
+directly; explicit nonzero runway uses52bounded bisections of this monotone scalar
+equation. This calculates one dimension, not a bank of route guesses. Larger
+displacements keep45degree creases and a nonnegative intervening run. Height
+steering similarly inverts `2R*(1-cos(theta)) + 2r*sin(theta)` below90degrees,
+then uses a nonnegative height run for larger offsets.
+
+The diagonal pair bends away from the subsequent height move. Its second fold
+uses the opposite local angle, continuing outward in world space into another
+layer rather than returning into the first occupied layer. Its exact signed4R
+normal offset enters height closure. Whole-module analytic width/thickness bounds
+determine the positive advance between modules and the arrival folds. The separator
+uses the existing2(R-h)inner-radius clearance. That advance is subtracted from the
+initial forward displacement; it is not arbitrary global runway growth. A genuinely
+negative remaining forward displacement may still require a reversal and can still
+fail the mandatory contact gate. This construction is not a universal routing proof.
+
+177runs the same five examined inputs with one candidate each and no runway repair:
+
+| Input | Previous contact | New contact | Length, mm | Folds |
+| --- | --- | --- | --- | --- |
+| Gym | Penetration | Separated |50.114071|7|
+| Straight | Separated | Separated |60|0|
+| Planar quarter | Separated | Separated |39.676804|1|
+| Spatial roll | Unresolved | Separated |68.005317|7|
+| N1 S/lateral90 | Unresolved | Penetration, rejected |40.041258|9|
+
+Gym improves from58.110068mm/9folds while retaining the exact targets and99.6%pinch.
+Final178geometry is byte-for-byte equal in serialized piece values to177. Its
+independent position-derivative, thickness-determinant, metric, cap and G1 audits
+complete on all5. Max cap gap9.57e-15mm, metric error4.45e-16, determinant discrepancy
+3.36e-9. Gym construction1.121ms, contact210.134ms, local audit193.528ms. Four routes
+clear the measured local/contact scope; N1has a demonstrated penetration and remains
+blocked. No claim of physical impossibility, optimality or unseen-case success.
+
+Failed intermediate policies172..176remain source-pinned: reversal sign alone,
+paired sign changes, displacement angles alone, opposite occupied half-space alone,
+and module spacing without an outward return all fail to clear the gym. The same
+five inputs were retained throughout.172..178total35dependent constructions across
+5independent configurations,19.112s numerical case time, excluding tests/graphics.
+178retains a last-case harness stop after its completed contact check: comparing a
+dataclass tuple witness with JSON list values falsely reported outcome drift.
+180reconciles the already captured reports under unchanged source/geometry hashes;
+all5reports exactly match177after JSON serialization, with N1still rejected. That
+reconciliation takes0.052s and performs0new solves/audits; the stopped178record remains.
+
+179shows all5frozen final routes, gym initially visible, with15hidden original
+material guides and8hidden constraint helpers. The failed N1component highlights
+penetrating pieces red.167and171remain hidden intact;4historical sessions, snapshots
+and selection are unchanged. Guide sample error<=7.63e-10mm, native guide-point
+translation error<=2.14e-14mm. Preparation3.600s, display8.666s,RSS286640KiB;
+viewport reviewed.61focused tests, scoped package Ruff lint/format and4changed-file
+IDE inspections pass.0native cable attempts/builds/post-build audits; native failure
+rate unmeasured and fullQA unrun. Profiles, native builders and production unchanged.
+No further routing batch is scheduled. Artifacts:ribbon_fold172..180.
 
 ## Historical percentage policy
 

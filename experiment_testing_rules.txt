@@ -328,3 +328,16 @@ separate;161/162curvature certificates do not establish this new requirement.
 Preserve fixed targets, identity/order, profile creation and native builders.
 An authored rounded-fold reference is not an endpoint solution or authorization
 to replace a rigid-profile sweep with a different native construction.
+
+USER-DIRECTED SELF-INTERSECTION PREVENTION — 2026-10-31
+----------------------------------------------------
+Prevent self-intersection in new fold routes, including full joined-profile
+width and thickness, while retaining the fixed ordered caps, equal material
+increments,99.6%pinch and no lateral bending. This supersedes the earlier exclusion
+of self-contact from pathing acceptance. Gym geometry remains outside avoidance.
+Do not accept absence of guide-line crossings or a missed sampled collision as
+volume clearance. Demonstrated penetration rejects; unresolved contact must stay
+unresolved. Adjacent pieces may share their material cap, but may not be ignored
+wholesale. Keep previous167paths and their earlier limited acceptance scope.
+Contact-driven changes may extend common material distance; no profile/native
+builder change, retired seed-bank discovery or native cable batch is authorized.

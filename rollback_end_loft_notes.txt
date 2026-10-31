@@ -433,3 +433,12 @@ Rigid perpendicular-section rotation can satisfy local volume regularity while
 lengthening both edges. Keep its curvature certificates as historical limited
 evidence, not equal-length ribbon acceptance. Profile/native builders stay intact;
 a material-isometric fold reference alone is not a new endpoint or native solver.
+
+USER-DIRECTED SELF-INTERSECTION PREVENTION — 2026-10-31
+
+Add thick joined-ribbon self-intersection rejection to new fold routing. Retain
+fixed ordered targets, material compatibility and current macaroni/no-lateral
+rules. This supersedes only the former exclusion of self-contact. Gym/obstacles
+remain excluded. Shared material caps are legitimate topology; adjacent piece
+interiors are not exempt. Unresolved volume contact cannot pass. Profiles/native
+builders remain unchanged and no native cable batch follows from this request.

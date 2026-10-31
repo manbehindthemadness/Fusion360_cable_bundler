@@ -17,7 +17,7 @@ from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from devtools.ribbon_analysis.material_lengths import measure_lengths
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
-from experiments.experiment_ribbon_fold_route.solver import connect
+from experiments.experiment_ribbon_fold_route.solver import construct_candidate as connect
 
 
 def _case(payload: dict[str, Any]) -> Targets:

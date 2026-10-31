@@ -1,8 +1,8 @@
 """
-Construct a bounded fold route algebraically from both fixed endpoint poses.
+Construct fold routes from fixed poses and reject unresolved thick-volume contact.
 
-This direct sufficient construction does not search route guesses or establish
-minimum length, minimum fold count, collision freedom or native sweep success.
+Direct steering avoids lateral/height overshoot and separates fold modules.
+No route guesses, shortest-path proof or native sweep success is implied.
 """
 
 from __future__ import annotations
@@ -15,21 +15,22 @@ from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from devtools.ribbon_analysis.pinch import PinchLimit
 
+from .contact_solve import ContactTrial, resolve_contact
+from .contact_solve import SelfContactError as SelfContactError
 from .geometry import ZERO, FoldRoute, PlacedPiece, Pose, Straight, extend, pose_error, relative
+from .steering import fold as _fold
+from .steering import signed_distance as _signed_distance
+from .steering import translation
+
+__all__ = ["SelfContactError", "connect", "construct_candidate"]
 
 Piece = Union[Straight, CylindricalFold]
 DEFAULT_LIMIT = PinchLimit()
 
 
-def _fold(radius: float, width: float, angle: float, bank: float) -> CylindricalFold:
-    """
-    Use just enough flat material for both terminal profiles to clear the crease.
-    """
-    lead = width / 2 * abs(math.tan(bank))
-    return CylindricalFold(radius, angle, bank, width, lead, lead)
-
-
-def _orientation(start: Pose, end: Pose, radius: float, width: float) -> tuple[Piece, ...]:
+def _orientation(
+    start: Pose, end: Pose, radius: float, width: float, runway: float
+) -> tuple[Piece, ...]:
     """
     Decompose the relative frame into rotations about two orthogonal diagonal creases.
 
@@ -42,7 +43,7 @@ def _orientation(start: Pose, end: Pose, radius: float, width: float) -> tuple[P
         angle = math.atan2(
             dot(end.tangent, cross(start.tangent, start.width)), dot(end.tangent, start.tangent)
         )
-        return () if abs(angle) < 1e-12 else (_fold(radius, width, angle, 0.0),)
+        return () if abs(angle) < 1e-12 else (_fold(radius, width, angle, 0.0, runway),)
     root = math.sqrt(0.5)
     axes = (Vector3(root, root, 0), Vector3(-root, root, 0), Vector3(0, 0, 1))
     columns = tuple(
@@ -67,29 +68,15 @@ def _orientation(start: Pose, end: Pose, radius: float, width: float) -> tuple[P
         first = math.atan2(matrix[1][0], -matrix[2][0])
         last = math.atan2(matrix[0][1], matrix[0][2])
     return tuple(
-        _fold(radius, width, -angle, bank)
+        _fold(radius, width, -angle, bank, runway)
         for angle, bank in ((first, -math.pi / 4), (middle, math.pi / 4), (last, -math.pi / 4))
         if abs(angle) >= 1e-12
     )
 
 
-def _signed_distance(distance: float, radius: float, width: float) -> tuple[Piece, ...]:
-    """
-    Advance a signed displacement without ever reversing material progression.
-
-    Negative displacement uses two rounded transverse half-turns around a forward
-    straight run. Their offsets cancel and their orientation returns to identity.
-    This adds physical path length, not a negative-speed or stretched guide.
-    """
-    if abs(distance) < 1e-12:
-        return ()
-    if distance > 0:
-        return (Straight(distance),)
-    half_turn = _fold(radius, width, math.pi, 0.0)
-    return half_turn, Straight(-distance), half_turn
-
-
-def _simple(start: Pose, end: Pose, radius: float, width: float) -> tuple[Piece, ...] | None:
+def _simple(
+    start: Pose, end: Pose, radius: float, width: float, runway: float
+) -> tuple[Piece, ...] | None:
     """
     Solve straight or one-plane turns directly before using spatial steering.
     """
@@ -102,11 +89,11 @@ def _simple(start: Pose, end: Pose, radius: float, width: float) -> tuple[Piece,
     if abs(angle) < 1e-12:
         lateral = delta.translated(start.tangent, -dot(delta, start.tangent))
         if magnitude(lateral) < 1e-10:
-            return _signed_distance(dot(delta, start.tangent), radius, width)
+            return _signed_distance(dot(delta, start.tangent), radius, width, runway)
         return None
     if abs(math.sin(angle)) < 1e-10:
         return None
-    fold = _fold(radius, width, angle, 0.0)
+    fold = _fold(radius, width, angle, 0.0, runway)
     offset = difference(extend(start, (fold,)).origin, start.origin)
     residual = difference(delta, offset)
     b = dot(residual, cross(start.tangent, start.width)) / math.sin(angle)
@@ -120,14 +107,15 @@ def _simple(start: Pose, end: Pose, radius: float, width: float) -> tuple[Piece,
     )
 
 
-def connect(
+def construct_candidate(
     source: TargetPose,
     limit: PinchLimit = DEFAULT_LIMIT,
     *,
+    runway_mm: float = 0.0,
     checkpoint: Callable[[], None] | None = None,
 ) -> FoldRoute:
     """
-    Connect fixed ordered poses by isometric folds and algebraic displacement closure.
+    Construct a locally compatible candidate requiring a separate contact check.
 
     Straight distances are solved after subtracting finite-fold offsets. Spatial
     steering returns to the departure frame before the arrival orientation is
@@ -136,6 +124,8 @@ def connect(
     numerical cap residuals must remain below1e-7, without moving targets.
     """
     targets = Targets.capture(source)
+    if not math.isfinite(runway_mm) or runway_mm < 0 or isinstance(runway_mm, bool):
+        raise ValueError("Runway must be a finite nonnegative material distance.")
     if magnitude(difference(targets.start, targets.end)) <= 1e-8:
         raise ValueError("Coincident endpoints need a separately specified loop construction.")
     if checkpoint is not None:
@@ -144,39 +134,17 @@ def connect(
     width = 2 * (targets.lines * targets.diameter_mm / 2 + targets.diameter_mm * 0.1)
     start = Pose(targets.start, targets.start_tangent, targets.start_width)
     end = Pose(targets.end, targets.end_tangent, targets.end_width)
-    simple = _simple(start, end, radius, width)
+    simple = _simple(start, end, radius, width, runway_mm)
     if simple is not None:
         geometries = simple
     else:
-        orientation = _orientation(start, end, radius, width)
+        orientation = _orientation(start, end, radius, width, runway_mm)
         oriented = extend(start, orientation)
         residual = relative(start, difference(end.origin, oriented.origin))
-        width_sign = math.copysign(1.0, residual.y)
-        height_sign = math.copysign(1.0, residual.z)
-        width_turn = _fold(radius, width, math.pi, -width_sign * math.pi / 4)
-        height_turn = _fold(radius, width, height_sign * math.pi / 2, 0.0)
-        height_return = _fold(radius, width, -height_sign * math.pi / 2, 0.0)
-        width_active, height_active = abs(residual.y) > 1e-10, abs(residual.z) > 1e-10
-        identity = Pose(ZERO, Vector3(1, 0, 0), Vector3(0, 1, 0))
-        width_offset = extend(identity, (width_turn, width_turn)).origin if width_active else ZERO
-        height_offset = (
-            extend(identity, (height_turn, height_return)).origin if height_active else ZERO
+        geometries = (
+            translation(residual, radius, width, runway_mm, targets.diameter_mm / 2, orientation)
+            + orientation
         )
-        travel = difference(difference(residual, width_offset), height_offset)
-        sequence = list(_signed_distance(travel.x, radius, width))
-        if width_active:
-            sequence.extend(
-                (width_turn, *_signed_distance(width_sign * travel.y, radius, width), width_turn)
-            )
-        if height_active:
-            sequence.extend(
-                (
-                    height_turn,
-                    *_signed_distance(height_sign * travel.z, radius, width),
-                    height_return,
-                )
-            )
-        geometries = tuple(sequence) + orientation
     pose = start
     pieces = []
     for index, geometry in enumerate(geometries):
@@ -190,3 +158,41 @@ def connect(
     if not pieces or max(gap, frame_gap) > 1e-7:
         raise ValueError(f"Algebraic construction failed cap closure: {gap=}, {frame_gap=}.")
     return FoldRoute(targets, tuple(pieces), radius)
+
+
+def connect(
+    source: TargetPose,
+    limit: PinchLimit = DEFAULT_LIMIT,
+    *,
+    maximum_contact_pairs: int = 20000,
+    maximum_contact_depth: int = 36,
+    maximum_corrections: int = 0,
+    checkpoint: Callable[[], None] | None = None,
+    record: Callable[[ContactTrial], None] | None = None,
+) -> FoldRoute:
+    """
+    Return a connected route only after the full thick-profile contact gate clears.
+
+    Penetration and unresolved checks raise SelfContactError with the original
+    candidate/evidence retained. This is not proof that another route cannot fit.
+    Runway repair is opt-in: its bounded development trial did not clear the
+    spatial cases, so default execution rejects immediately without growing them.
+    """
+    targets = Targets.capture(source)
+
+    def build(runway: float) -> FoldRoute:
+        """
+        Recompute closure after a common material runway change.
+        """
+        return construct_candidate(targets, limit, runway_mm=runway, checkpoint=checkpoint)
+
+    step = targets.diameter_mm * (targets.lines + 1.2)
+    return resolve_contact(
+        build,
+        step,
+        maximum_corrections=maximum_corrections,
+        maximum_pairs=maximum_contact_pairs,
+        maximum_depth=maximum_contact_depth,
+        checkpoint=checkpoint,
+        record=record,
+    )

@@ -38,6 +38,25 @@ no native cable construction or global physical acceptance follows. The procedur
 uses pose decomposition and algebraic displacement closure, with no route seeds
 or retired discovery execution. Its fold count is conservative, not minimal.
 
+The subsequent self-contact gate changes acceptance:169/171check those same five
+frozen routes against the full joined-profile width/thickness. Straight and planar
+controls separate; gym has a demonstrated interior penetration; spatial roll and
+N1Sremain unresolved and are blocked. View171shows the unchanged gym rejected,
+with pieces4and6red and the actual occupied witness located. View167and its local
+checks remain historical evidence. A bounded170uniform-runway repair fails all
+three spatial cases;all trials remain,repair is disabled by default. No collision-free
+gym route or impossibility is established. See
+[the contact gate and its limits](pinch.md#mandatory-thick-volume-self-contact-gate).
+
+The user's subsequent correction addresses construction itself:179shows the gym
+with outward fold returns and displacement-derived steering angles,50.114071mm
+and7folds. The same fixed gym now clears local material/pinch/cap checks and thick
+envelope separation, as do straight/planar/spatial controls. N1Sstill penetrates and
+is rejected:4/5clear within the measured scope, not a general physical guarantee.
+All intermediate failures and the178tuple/list comparison stop remain;180reconciles
+captured evidence without rerouting. See
+[outward construction and complete accounting](pinch.md#outward-fold-construction-instead-of-inward-cancellation).
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
