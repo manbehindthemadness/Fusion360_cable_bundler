@@ -66,6 +66,16 @@ and179is retained hidden. Exact algebraic branches, intermediate regressions and
 the final10mode variants over5inputs remain recorded. See
 [continuous-angle construction and limits](pinch.md#optional-continuous-angle-construction).
 
+187shows the subsequent close-endpoint correction: mirror a backward departure away
+from the opposite cap and order height steering before lateral steering when needed
+to keep that run clear.186clears all five examined configurations in both modes,
+including N1 at28.333775mm/8folds in continuous mode.185's partial correction fails
+continuous N1 and remains recorded;184's amber failure is retained hidden. The N1
+targets came from160's authored circular S/lateral90 calibration, not the gym;
+their centres are2.82mm apart. Its inherited “known-feasible” label was too strong
+for the current ribbon model. No native cable validation or universal feasibility
+claim follows. See [departure direction and provenance](pinch.md#close-endpoint-departure-direction).
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.

@@ -3,10 +3,11 @@ Check continuous-angle factorization, exact dimensional closure and opt-in isola
 """
 
 import math
+from dataclasses import replace
 
 import pytest
 
-from cable_bundler.routing.geometry import Vector3
+from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_fold_route.geometry import ZERO, Pose, extend, pose_error
 from experiments.experiment_ribbon_fold_route.lateral import halfturn_pair, lateral_pair
@@ -18,7 +19,7 @@ from experiments.experiment_ribbon_fold_route.solver import (
     connect,
     construct_candidate,
 )
-from tests.test_fold_route import CASES
+from tests.test_fold_route import CASES, _check
 
 START = Pose(ZERO, Vector3(1, 0, 0), Vector3(0, 1, 0))
 
@@ -90,8 +91,10 @@ def test_continuous_mode_is_optional_and_retains_the_contact_gate() -> None:
     assert len(events) == 2 and events[-1].report is not None
     assert events[-1].report.status == "separated"
     assert sum(isinstance(p.geometry, CylindricalFold) for p in candidate.pieces) == 6
+    close_targets = connect(CASES[4], strategy=FoldStrategy.CONTINUOUS)
+    _check(close_targets)
     with pytest.raises(SelfContactError) as error:
-        connect(CASES[4], strategy=FoldStrategy.CONTINUOUS)
+        connect(CASES[4], strategy=FoldStrategy.CONTINUOUS, maximum_contact_pairs=1)
     assert error.value.report is not None
     assert error.value.report.status == "unresolved"
 
@@ -117,3 +120,34 @@ def test_every_recorded_algebraic_branch_closes_the_original_targets() -> None:
         assert max(pose_error(extend(start, pieces), target)) < 1e-8
         assert length == pytest.approx(sum(p.material_length_mm for p in pieces))
     assert candidate.material_length_mm == min(length for _, length in records)
+
+
+def test_outward_close_cap_construction_is_world_frame_independent() -> None:
+    """
+    Preserve the corrected close-endpoint route under a rigid rotation/translation.
+    """
+    case = CASES[4]
+
+    def rotate(vector: Vector3) -> Vector3:
+        """
+        Cyclically permute world axes through a proper rotation.
+        """
+        return Vector3(vector.z, vector.x, vector.y)
+
+    shift = Vector3(12, 7, -4)
+    moved = replace(
+        case,
+        start=rotate(case.start).translated(shift, 1),
+        end=rotate(case.end).translated(shift, 1),
+        start_tangent=rotate(case.start_tangent),
+        end_tangent=rotate(case.end_tangent),
+        start_width=rotate(case.start_width),
+        end_width=rotate(case.end_width),
+    )
+    original = connect(case, strategy=FoldStrategy.CONTINUOUS)
+    transformed = connect(moved, strategy=FoldStrategy.CONTINUOUS)
+    assert transformed.material_length_mm == pytest.approx(original.material_length_mm)
+    for u in (0.0, 0.1, 0.4, 0.8, 1.0):
+        for q in (-original.half_width_mm, 0.0, original.half_width_mm):
+            expected = rotate(original.lane(u, q)[0]).translated(shift, 1)
+            assert magnitude(difference(transformed.lane(u, q)[0], expected)) < 1e-8

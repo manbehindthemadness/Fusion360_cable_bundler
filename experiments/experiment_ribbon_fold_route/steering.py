@@ -17,20 +17,29 @@ from .primitives import fold as fold
 
 
 def signed_distance(
-    distance: float, radius: float, width: float, runway: float
+    distance: float,
+    radius: float,
+    width: float,
+    runway: float,
+    *,
+    arrival_height: float = 0.0,
 ) -> tuple[Piece, ...]:
     """
     Use positive material travel for a signed forward-axis displacement.
 
     A negative displacement still requires two half-turns, whose offsets cancel.
     This is reserved for actual negative forward residual, never for correcting
-    overshot lateral or height steering folds.
+    overshot lateral or height steering folds. Choose the mirrored pair that
+    bows away from the opposite cap along the departure normal. Both mirrors
+    have the same final pose and material length; coplanar caps retain the old
+    direction. This local choice does not replace the full contact gate.
     """
     if abs(distance) < 1e-12:
         return ()
     if distance > 0:
         return (Straight(distance),)
-    half_turn = fold(radius, width, -math.pi, 0.0, runway)
+    angle = -math.copysign(math.pi, arrival_height) if abs(arrival_height) > 1e-10 else -math.pi
+    half_turn = fold(radius, width, angle, 0.0, runway)
     return half_turn, Straight(-distance), half_turn
 
 
@@ -47,6 +56,33 @@ def _extent(pose: Pose, pieces: tuple[Piece, ...], width: float, half_thickness:
         spans.append(projection(piece, cell, Vector3(1, 0, 0)))
         pose = piece.end_pose()
     return Span(min(span.low for span in spans), max(span.high for span in spans))
+
+
+def _assemble(
+    modules: list[tuple[Piece, ...]],
+    following: tuple[Piece, ...],
+    radius: float,
+    width: float,
+    half_thickness: float,
+) -> tuple[Piece, ...]:
+    """
+    Separate the chosen frame-returning module order along the departure tangent.
+    """
+    pose = Pose(ZERO, Vector3(1, 0, 0), Vector3(0, 1, 0))
+    sequence: list[Piece] = []
+    for index, module in enumerate(modules):
+        bounds = _extent(pose, module, width, half_thickness)
+        sequence.extend(module)
+        pose = extend(pose, module)
+        next_module = modules[index + 1] if index + 1 < len(modules) else following
+        if next_module:
+            next_bounds = _extent(pose, next_module, width, half_thickness)
+            gap = bounds.high - next_bounds.low + 2 * (radius - half_thickness)
+            if gap > 1e-12:
+                advance = Straight(gap)
+                sequence.append(advance)
+                pose = extend(pose, (advance,))
+    return tuple(sequence)
 
 
 def translation(
@@ -72,6 +108,9 @@ def translation(
     Subtract their actual combined forward offset once. The following arrival
     module participates in spacing but is appended separately by the caller.
     All pieces retain the same material map; global contact is checked separately.
+    When backward departure is needed and the target normal signs agree, perform
+    height steering before lateral steering. This keeps those steering modules
+    opposite the mirrored departure run instead of crossing back through it.
     """
     modules: list[tuple[Piece, ...]] = []
     width_height = 0.0
@@ -102,20 +141,14 @@ def translation(
             )
         )
     identity = Pose(ZERO, Vector3(1, 0, 0), Vector3(0, 1, 0))
-    sequence: list[Piece] = []
-    pose = identity
-    for index, module in enumerate(modules):
-        bounds = _extent(pose, module, width, half_thickness)
-        sequence.extend(module)
-        pose = extend(pose, module)
-        next_module = modules[index + 1] if index + 1 < len(modules) else following
-        if next_module:
-            next_bounds = _extent(pose, next_module, width, half_thickness)
-            gap = bounds.high - next_bounds.low + 2 * (radius - half_thickness)
-            if gap > 1e-12:
-                advance = Straight(gap)
-                sequence.append(advance)
-                pose = extend(pose, (advance,))
-    offset = extend(identity, tuple(sequence)).origin
+    sequence = _assemble(modules, following, radius, width, half_thickness)
+    offset = extend(identity, sequence).origin
     remaining = difference(residual, offset)
-    return signed_distance(remaining.x, radius, width, runway) + tuple(sequence)
+    arrival_height = residual.z + extend(identity, following).origin.z
+    if len(modules) == 2 and remaining.x < -1e-12 and arrival_height * residual.z > 0:
+        sequence = _assemble(list(reversed(modules)), following, radius, width, half_thickness)
+        remaining = difference(residual, extend(identity, sequence).origin)
+    return (
+        signed_distance(remaining.x, radius, width, runway, arrival_height=arrival_height)
+        + sequence
+    )

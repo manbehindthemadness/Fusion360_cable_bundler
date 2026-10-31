@@ -444,6 +444,55 @@ cable attempts/builds/post-build audits; native failure rate unmeasured,fullQA u
 Original profiles, native builders and production remain unchanged. No further
 routing batch or automatic promotion is scheduled.
 
+## Close-endpoint departure direction
+
+The N1 S/lateral90 control originated in160's authored single-conductor circular
+calibration, `experiment_ribbon_profile_basics.geometry.compound_s`. Three quarter
+arcs place the end at `(3R,2R,R)`, with `R=0.75/0.996*(1+1e-9)`mm: endpoint centres
+are2.82mm apart.161retained those poses, later frozen in
+`tests/fixtures/ribbon_fold_targets.json`; the original authored path is not supplied
+to this solver. This is not a gym-generated layout. The legacy fixture name
+“known-feasible” overstates its evidence under the current ribbon rules: circular
+profile calibration did not establish the equal-material frame and contact checks.
+187therefore displays “N1 S/lateral90 - close calibration endpoints” while retaining
+the original fixture identity and coordinates in its evidence.
+
+`steering.signed_distance` now mirrors a backward departure's half-turn pair away
+from the opposite cap's coordinate along the departure normal. The actual cap
+offset includes the following orientation pieces. Mirroring preserves the pair's
+total length and final pose. When backward closure and matching normal signs would
+bring the later height run through that departure, height steering precedes lateral
+steering. Existing full-profile support spacing and the final mandatory contact
+gate remain. This changes construction direction/order, not targets, thickness,
+99.6%pinch, material metric, contact budgets or a route-seed bank.
+
+185retains the unsuccessful mirror-only correction: OUTWARD5/5clear, CONTINUOUS4/5;
+N1's backward straight and height straight penetrate (zero-based pieces1and7).
+Its failed unit expectation and witness remain recorded.186then evaluates the same
+5development configurations in both modes,10dependent variants: all complete local
+material/cap/G1/pinch/no-lateral audits and the thick-volume separation gate;
+0unattempted. Both modes clear5/5within this numerical scope. N1 is40.041258mm/9folds
+in OUTWARD and28.333775mm/8folds in CONTINUOUS (previously27.473537mm, blocked).
+Other four lengths remain unchanged. N1 continuous construct/branch record4.727ms,
+contact275.333ms, local audit209.109ms; complete case501.908ms.186total3.948s,
+sampledRSS19360KiB.185and186together examine20mode variants of the same5inputs,
+not20independent layouts. Frozen sources, plans, all branches and failures remain.
+
+187renders the five continuous results without new solves; N1 is initially visible,
+its first three pieces green to identify the outward departure.184's amber failure
+is retained hidden. Fifteen hidden original material guides, eight helpers and all
+four historical sessions/snapshots/selection remain. Guide sample error<=7.58e-10mm;
+native guide-point translation error<=2.14e-14mm. Preparation3.422s/display8.710s,
+RSS630432KiB; viewport reviewed.187's source attributes point to186continuous
+cases5..9;184's historical attributes erroneously pointed to baseline cases0..4,
+although its displayed geometry and measurements were the continuous results.
+
+87focused tests, scoped Ruff lint/format and all three changed-file IDE inspections
+pass. No native cable attempts/builds/post-build audits; native failure rate remains
+unmeasured and fullQA unrun. This is not a universal collision guarantee, shortest
+route proof or production promotion. Original profile/native builders are unchanged.
+No additional batch is scheduled. Artifacts:ribbon_fold185..187.
+
 ## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It
