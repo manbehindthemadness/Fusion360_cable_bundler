@@ -1,0 +1,239 @@
+RIBBON GEOMETRY INVESTIGATION — HARDWARE-UPGRADE HANDOFF
+Paused at the user's request, 2026-10-31. Read this before resuming work.
+
+FIRST: PRESERVE THE CHECKPOINT
+==============================
+Repository checkpoint: 8ac8e8a0a82882546df54ecfeb98a9264db90e02
+Commit: "Verified that our geometry matches the planner."
+The working tree was clean before this handoff was added. No new commit, push,
+reset, solver change or production promotion was performed for the handoff.
+
+Portable recovery archive (relative to repository root):
+  artifacts/handoff/2026-10-31-hardware-upgrade/
+    ribbon-hardware-upgrade-recovery-2026-10-31.zip
+Its SHA-256 and verification result are beside it. The ZIP contains this handoff,
+AGENTS.md, summary.txt, all existing artifacts outside the ZIP/output-verification
+files, the current native Fusion snapshot, and offline Git bundles for the source
+checkpoint and standards. It preserves ignored experiment history as well as the
+latest evidence. This is a project recovery package, not a whole-machine backup;
+it excludes reference/, unrelated nested repositories, IDE/user configuration,
+credentials, installed Fusion, and virtual environments.
+
+COPY THE ZIP AND ITS SHA256 FILE TO STORAGE THAT SURVIVES THE HARDWARE UPGRADE.
+They are local files on this machine; creating them is not an off-machine backup.
+The ZIP contains the handoff even if this new text file is not committed later.
+
+CURRENT PRIORITY AND USER CONTRACT
+==================================
+Reliable geometry takes priority over reliable solver rules at this stage.
+Resolve faithful plan-to-solid construction before further solver-rule tuning.
+The user confirmed that the displayed result now matches the planner and then
+requested this pause. Do not continue experiments until the user resumes work.
+
+The planned material geometry is authoritative: left, center and right paths,
+ordered sides/conductor identities, thickness/profile, target poses and frames.
+All three longitudinal material paths have equal length under one shared free
+length. Bank/fold operations must maintain local material compatibility.
+Use one joined ribbon body, never independent conductor bodies that conceal
+self-collision. Preserve the original joined circular profile and cap sketches.
+Retain functioning macaroni/pinch, no lateral bending and thick self-intersection
+prevention. Tightest left/right macaroni utilization governs; equality is special.
+Do not substitute whole-profile regularity for the three-path checks.
+
+Development audits establish fidelity; routine output must follow the supplied
+trajectory without corrective post-processing, relabeling, relaxed bend limits or
+moved targets. A construction mismatch is a builder defect. No seed-based/path
+search discovery is to be revived. Gym randomness authors endpoints, not routes.
+Gym solids are not routing obstacles. Do not reinstate the retired 180-degree
+roll cap or sphere feedback as an intrinsic routing rule.
+
+WHAT IS IMPLEMENTED
+====================
+Experimental direct material-surface construction, outside production:
+  experiments/experiment_ribbon_fold_route/material_profile.py
+    Clockwise rational circular joined profile, with split outer-tip cap arcs.
+  experiments/experiment_ribbon_fold_route/material_surfaces.py
+    Frozen material map -> exact planar leads and bounded-error fold NURBS.
+  experiments/experiment_ribbon_fold_route/material_native.py
+    Shared topology and caps -> one BRepBodyDefinition; full healing disabled.
+  tests/test_material_surfaces.py
+    Independent material-evaluator comparison, contour/order and scale coverage.
+
+Pipeline: material_profile(lines, diameter_mm), then material_patches(pieces,
+profile), then define_material_body(pieces, patches, checkpoint). One explicit
+definition.createBody() constructs the complete joined ribbon. This replaces the
+free center-driven sweep for this experiment; it is not a changed production
+SweepFeature builder or a new solver. Fold phase uses cubic Hermite interpolation
+and the cross-profile uses exact rational circles. Current positional bound is
+4.231e-9 mm; it is not a continuous native curvature/contact certificate.
+Fusion can still simplify surfaces to analytic geometry with healing disabled.
+
+ONE VERIFIED DEVELOPMENT CONFIGURATION
+=======================================
+Frozen input/material plan: artifacts/verification/ribbon_sweep202/case-4.json
+Gym provenance: the gym_input field in that file and ribbon_sweep202/inputs/.
+One endpoint arrangement, three conductors, D/thickness 1.5 mm, nominal width
+4.5 mm, actual joined width 4.8 mm. Common fold radius 1.8056859154944132 mm;
+material length 101.83489863235906 mm; eight folds. No fresh endpoint solve.
+
+211: one retained positive solid, volume 620.2038302606406 mm3. Construction
+definition 0.616 s; kernel 0.745 s; diagnostic run 2.160 s. These are cached-plan
+replay timings, not end-to-end solver timings. One case; two kernel attempts
+produced solids, but the first transaction rolled back after a recorder failure.
+
+212: all 7,000 corresponding native surface points over 200 surface faces pass
+the 1e-6 mm position threshold; maximum measured residual 3.270e-9 mm.
+213: all 390 ordered seam-chain checks pass. Maximum sampled guide residuals:
+  Left:   1.5681817053683809e-9 mm
+  Center: 2.123775755338785e-9 mm
+  Right:  1.7826564489604166e-9 mm
+Maximum sampled tangent error 6.720e-8 degrees. Both cap centers, ordered widths
+and outward normals pass; arrival ordered-width error 2.249e-14 degrees.
+These are numerical geometric residuals, not physical manufacturing tolerances.
+
+Named fidelity checks pass on ONE gym layout. Full physical acceptance remains
+unresolved (0 fully accepted physical cables). Different-layout native baselines,
+collateral/holdout validation and a new native thickness/count matrix are absent.
+46 numerical unit checks cover 1/3/6 conductors, D=.75/1.5/3 mm, both fold senses
+and banks; these are not 46 independently constructed ribbon configurations.
+Focused pytest, scoped Ruff lint/format and IDE inspections passed. Full QA was
+not requested/run. Recorded RSS peak 698400 KiB; in-flight peak and run209's final
+RSS are unavailable. No invalid-control batch was run for this constructor.
+
+RETAINED FAILURES — DO NOT ERASE OR MISINTERPRET
+===============================================
+203 ordinary center-driven sweep follows its center but ordered edges miss by
+4.799915125 mm; arrival ordered width is reversed by 179.318544571 degrees.
+The earlier 0.681455-degree result compared an axis modulo180 and hid the reversal.
+204..206 establish position and native side-face identity;207 corrects the caption.
+The material fold's equal-s transverse sections are curved, not rigid perpendicular
+profiles. A center-only native sweep therefore does not reproduce this material map.
+199..203 rigid-sweep radius ratios are historical construction studies, NOT validated
+material-plan minimum radii. Do not use them to relax or inflate material rules.
+
+208: incomplete rational/open NURBS property flag; stopped before body attempt.
+209: transient solid built; duplicate exclusive result-file write escaped the
+recorder, so Fusion rolled back the document transaction. No209body remains.
+210: audit stopped because209body was absent; no measured geometry.
+211: identical geometry and corrected recorder, retained solid successfully.
+212: position checks passed; 48 exact-one-edge topology assertions failed because
+Fusion subdivided seam edges. Preserve this failed instrument result.
+213: connected, nonbranching seam chains with both prescribed endpoints pass;
+there was no body repair or side reassignment. Eight collapsed tip-lead seams
+are explicitly represented by shared vertices, not fabricated finite edges.
+214: displays a direct native BRep copy and original guides.215 moves its caption.
+
+Evidence: artifacts/verification/ribbon_material208 through ribbon_material215;
+also ribbon_sweep202/203 and ribbon_trajectory204 through207. All are in the ZIP.
+Executed source copies accompany archive-only IDE annotations/import sorting.
+The later material_profile change corrects reflected left-cap labels only;
+211/material_profile.executed.py.txt retains the original exact source hash.
+211/rules.executed.txt retains the pre-priority rules. Source pins208..213 were
+verified against retained executed copies. Do not overwrite historical outputs.
+
+FUSION SNAPSHOT AND RESTART
+===========================
+Local native snapshot:
+  artifacts/handoff/2026-10-31-hardware-upgrade/diagnostic-design.f3d
+Export size: 154763729 bytes. SHA-256:
+  500dabf88a6e34d607d6b499bfa031a79b18b34f39b1920c7d6d282dfe02b31c
+Export succeeded in 6.672 s; native geometry was unchanged. No design was closed,
+cloud-saved, deleted or unfrozen by the handoff. The live owned scratch was Untitled.
+All54internal archive entries passed CRC checks using Fusion's Python3.14 runtime.
+F3D uses Zstandard compression (ZIP method93); the older system unzip/Python3.9
+cannot validate those internal entries. That tooling limitation is not corruption.
+The outer recovery ZIP uses standard stored/deflated entries and its verifier
+works with the project Python3.9 environment.
+
+Find component:
+  211 - Direct material geometry - measured trajectory fidelity
+It contains ONE native body:
+  One joined ribbon - prescribed material surfaces
+and the following native sketches:
+  Sweep profile - Start cap
+  Sweep profile - End cap
+  Original material guide Left / Center / Right
+Native body is individually hidden; the live viewport uses transparent native-body
+Custom Graphics plus orange/blue/purple original guides.203failure remains hidden
+and intact. Custom Graphics/palettes/Python globals may not survive F3D reopening.
+After opening the snapshot, unhide this211body and desired native guide sketches
+to inspect it. Do not interpret a blank Custom Graphics view as missing geometry.
+
+Pre-export body revision: 9dfa68ed-a135-495e-9200-be28ff345db4. Revision IDs may
+change on import; validate provenance/geometry before establishing a new guard.
+Never merely remove a revision/source guard to get a script to run.
+The old live viewer was sys.modules['ribbon_diagnostics123'].viewer. That and
+other session modules are NOT a restart API and must not be assumed to exist.
+Historical host scripts depend on that viewer, old absolute paths and append-only
+output locations. Do not blindly rerun208..215 or reload live evidence modules.
+
+RESTORE AFTER THE UPGRADE
+==========================
+1. Verify the ZIP against its adjacent SHA256 file, then extract it to a recovery
+   directory. MANIFEST.json records SHA-256 and size for every archived payload.
+   verify_recovery.py (beside the ZIP) can verify the archive again using stdlib.
+2. Prefer the existing repository at commit8ac8e8a. If it must be reconstructed,
+   create a NEW checkout from source-8ac8e8a.bundle; it contains complete history
+   with a HEAD ref. For example, in an empty new repository:
+     git init <new-checkout>
+     git -C <new-checkout> fetch <absolute-path-to-source-bundle> HEAD
+     git -C <new-checkout> switch -c hardware-upgrade-resume FETCH_HEAD
+   Do not reset or overwrite an existing checkout with newer/unrelated work.
+3. Restore artifacts/ and the loose handoff/context files at repository-relative
+   paths. AGENTS.md and summary.txt are ignored by Git and are included separately.
+   The source Git bundle does NOT itself contain ignored evidence or this new
+   uncommitted handoff file; the outer ZIP supplies them.
+4. Restore standards/ using standards-3a54679.bundle if needed. Required local
+   revision: 3a54679f10e2b9102fa5103def346174b83b1c3b. It had only untracked
+   .DS_Store; no dirty standards content was applied. Follow standards/UPDATE.md
+   if revision/state differs. Recreate the managed verify-change skill link only
+   according to AGENTS/standards instructions; do not modify standards casually.
+5. Read AGENTS.md, experiment_testing_rules.txt and rollback_end_loft_notes.txt
+   completely, then summary.txt and the trajectory-fidelity reference. Use the
+   repository's fusion-ribbon-analysis skill; reinstall its local link if needed.
+6. Re-establish the local PyCharm SDK. Prior SDK was project .venv Python3.9.6,
+   package manager uv. Resolve it anew with get_python_environment before EVERY
+   Python toolchain invocation. Use project-local .venv/uv; Fusion supplies adsk,
+   never install a PyPI substitute. Absolute old /Users/Kev0 paths may change.
+7. Open the F3D snapshot in Fusion. The optional local MCP endpoint was
+   http://127.0.0.1:27182/mcp; re-establish the server and explicit owned/idle
+   document guard before live execution. Do not reconfigure unrelated integrations.
+8. After environment changes, rerun focused tests/test_material_surfaces.py and
+   scoped lint/format/IDE checks. Re-measure native correspondence under a NEW
+   pinned audit plan if the Fusion version/import changes geometry or identity.
+   Do not launch full/repository-wide QA unless specifically requested.
+
+NEXT WORK, AFTER THE USER RESUMES
+==================================
+Keep geometry fidelity first. Preserve this passing development specimen and its
+ordinary-sweep failure comparator. Register structurally different GYM-created
+layouts before outcome-based selection; establish baseline/collateral evidence
+and fixed scopes before broader construction comparisons. Use unchanged material
+plans, counts/thickness variation and both fold senses; no tuned route substitutes.
+Maximum allowable tightness remains the intended future test policy. The current
+R1.805686 specimen is a fidelity calibration, not a new material bend limit.
+
+Apply the SAME direct constructor and measured correspondence policy, including
+ordered identities, full profile/thickness, all three paths, cap frames and seam
+topology. Report failures, skipped/unattempted cases and resource costs separately.
+Once native fidelity is established over different layouts, return to robust
+three-path macaroni/no-lateral/contact rules using geometry that actually matches
+the plan. Production integration still needs separate approval and evidence.
+
+Operational safeguards: one explicitly owned scratch; 4GiB sampled RSS ceiling,
+3.8GiB launch headroom; frozen per-case/aggregate time and attempt budgets; stop
+and preserve failures on source/API/resource/native mismatches. Do not cancel an
+in-flight kernel. Existing autonomous-investigation authorization removes routine
+approval check-ins, not bounded plans, provenance or production boundaries.
+Only gym-generated layouts are eligible, plus the explicitly retained N1
+S/lateral90 close-endpoint calibration case. Exclude other old authored layouts.
+Maintain the user's available end-cap-profile sketches on every new layout.
+
+Useful maintained references:
+  skills/fusion-ribbon-analysis/references/trajectory-fidelity.md
+  skills/fusion-ribbon-analysis/references/api.md
+  skills/fusion-ribbon-analysis/references/gym.md
+  skills/fusion-ribbon-analysis/references/sweep-limits.md (historical limitations)
+
+This handoff records a paused investigation, not generalized reliability,
+production readiness, physical certification or permission to resume during the break.
