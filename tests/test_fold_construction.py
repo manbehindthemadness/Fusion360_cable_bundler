@@ -58,3 +58,22 @@ def test_ambiguous_construction_policy_is_rejected() -> None:
     """
     with pytest.raises(ValueError, match="ConstructionPolicy"):
         construct_candidate(CASES[0], construction="rigid_perpendicular")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("value", [True, -1.0, 0.0, math.inf, math.nan])
+def test_radius_measurement_rejects_invalid_distances(value: float) -> None:
+    """
+    Keep scalar boundary studies from creating singular or malformed folds.
+    """
+    with pytest.raises(ValueError, match="Minimum radius"):
+        construct_candidate(CASES[0], minimum_radius_mm=value)
+
+
+def test_explicit_radius_keeps_the_material_rule_and_exact_cap_closure() -> None:
+    """
+    Allow a dimensional boundary measurement without weakening physical pinch.
+    """
+    route = construct_candidate(CASES[0], minimum_radius_mm=1.5)
+    assert route.radius_mm == 1.5
+    _check(route)
+    assert construct_candidate(CASES[0], minimum_radius_mm=0.1) == construct_candidate(CASES[0])

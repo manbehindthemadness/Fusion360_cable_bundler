@@ -90,6 +90,7 @@ def construct_candidate(
     record_candidate: Callable[[tuple[Piece, ...], float], None] | None = None,
     strategy: FoldStrategy = FoldStrategy.OUTWARD,
     construction: ConstructionPolicy = ConstructionPolicy.MATERIAL_FOLD,
+    minimum_radius_mm: float | None = None,
 ) -> FoldRoute:
     """
     Construct a locally compatible candidate requiring a separate contact check.
@@ -106,9 +107,20 @@ def construct_candidate(
     RIGID_PERPENDICULAR additionally bounds local rigid-sweep collapse for spatial
     folds, independently of material pinch. Tight planar solutions stay unchanged.
     It does not make rigid sweep geometry identical to the material-fold surface.
+    minimum_radius_mm raises the construction radius without changing the pinch
+    rule; it supports explicit scalar boundary measurements, not route seeds.
     """
     targets = Targets.capture(source)
     spatial_radius = spatial_fold_radius(targets, limit, construction)
+    if minimum_radius_mm is not None:
+        if (
+            isinstance(minimum_radius_mm, bool)
+            or not isinstance(minimum_radius_mm, (int, float))
+            or not math.isfinite(minimum_radius_mm)
+            or minimum_radius_mm <= 0
+        ):
+            raise ValueError("Minimum radius must be a finite positive distance.")
+        spatial_radius = max(spatial_radius, minimum_radius_mm)
     if not isinstance(strategy, FoldStrategy):
         raise ValueError("Use an explicit FoldStrategy.")
     if not math.isfinite(runway_mm) or runway_mm < 0 or isinstance(runway_mm, bool):
@@ -118,6 +130,8 @@ def construct_candidate(
     if checkpoint is not None:
         checkpoint()
     radius = targets.diameter_mm / 2 / limit.fraction * (1 + 1e-9)
+    if minimum_radius_mm is not None:
+        radius = max(radius, minimum_radius_mm)
     width = 2 * (targets.lines * targets.diameter_mm / 2 + targets.diameter_mm * 0.1)
     start = Pose(targets.start, targets.start_tangent, targets.start_width)
     end = Pose(targets.end, targets.end_tangent, targets.end_width)
@@ -188,6 +202,7 @@ def connect(
     record: Callable[[ContactTrial], None] | None = None,
     strategy: FoldStrategy = FoldStrategy.OUTWARD,
     construction: ConstructionPolicy = ConstructionPolicy.MATERIAL_FOLD,
+    minimum_radius_mm: float | None = None,
 ) -> FoldRoute:
     """
     Return a connected route only after the full thick-profile contact gate clears.
@@ -211,6 +226,7 @@ def connect(
             checkpoint=checkpoint,
             strategy=strategy,
             construction=construction,
+            minimum_radius_mm=minimum_radius_mm,
         )
 
     step = targets.diameter_mm * (targets.lines + 1.2)

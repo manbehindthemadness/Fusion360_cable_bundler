@@ -130,6 +130,21 @@ compliance remains unaudited. The new solid is visible, original cap sketches an
 three guides retained, prior views hidden intact. This is one development input,
 zero fully accepted physical cables. See [policy and limitations](pinch.md#rigid-sweep-construction-policy-trial).
 
+199..203replace that conservative measurement with actual transported contour
+support for one shared-radius boundary study.202regenerates the same gym selections
+at1/3/6conductors x.75/1.5/3mm thickness,all frozen before solving. Ratios scale
+consistently with thickness but vary with count.203builds3selected variants and
+shows the triple atR1.805686mm/101.834899mm,with original caps/guides retained.
+Native roll still differs0.681455deg and interior compliance remains incomplete.
+200's below-boundary native build is retained as a modeled-J rejection, not a
+pass; its above probe was unattempted. See [limits, scaling and stops](sweep-limits.md).
+
+204..206subsequently verify that203's center follows its guide but the ordered
+edge trajectories differ by up to4.799915mm, with a179.318545degree arrival reversal.
+Native face topology corroborates side identity. Resolve [material-plan fidelity](trajectory-fidelity.md)
+before using the earlier rigid-sweep ratios as planning limits; current checks
+are development/regression verification, not routine per-sweep post-processing.
+
 The gym itself does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
 

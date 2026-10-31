@@ -31,6 +31,34 @@ rewrite old outcomes. A gym layout is not itself a feasibility certificate and
 gym geometry remains outside routing avoidance. No new solve/native build batch
 or profile/construction change is implied by this scope revision.
 
+USER-CLARIFIED MATERIAL PLAN / OUTPUT CONTRACT — 2026-10-31
+---------------------------------------------------------
+Output geometry must reproduce the planned material geometry directly, including
+left/center/right trajectories, ordered side/conductor identity, profile and frames.
+The tightest left/right macaroni utilization governs unless all three are equal;
+centerline/whole-profile regularity is not a substitute for that requirement.
+Verify native trajectory fidelity before treating planned rules as native compliance.
+Current fidelity checks are development/functionality and regression verification,
+not an instruction to audit or post-process every sweep. Do not compensate for a
+construction mismatch by changing material bend limits, moving targets, relabeling
+sides or repairing the output. Resolve plan-to-solid translation first. Preserve
+the204..206failure and historical199..203rigid-sweep ratios with their limited scope;
+they are not validated material-plan bend minima. No builder correction or new
+native batch is implied merely by recording this contract.
+
+USER-DIRECTED GEOMETRY-FIRST PRIORITY — 2026-10-31
+------------------------------------------------
+Reliable output geometry takes priority over further solver-rule tuning. The user
+explicitly directs resolving plan-to-solid translation at this stage. This now
+authorizes experimental construction changes needed to reproduce the fixed material
+plan, superseding the earlier path-only preservation of the construction method
+for this investigation. Preserve the original joined profile, ordered identities,
+targets and existing rules. Do not reroute or relax limits to accommodate a builder.
+Keep development audits separate from runtime construction; no corrective output
+post-processing is intended. Source-pinned bounded runs, retained failures, gym-only
+scope and the production boundary remain in force. A passing specimen is not a
+general reliability claim; establish fidelity across different gym layouts next.
+
 USER-DIRECTED MEMORY REVISION — 2026-10-27
 ----------------------------------------
 User explicitly instructed "expand the limit to 4gb" during generated90 after

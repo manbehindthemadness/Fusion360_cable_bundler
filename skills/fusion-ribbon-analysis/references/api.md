@@ -419,3 +419,32 @@ ordinary rigid sweep equal to the isometric material fold. No new rule tolerance
 native builder/profile change, seed discovery or production promotion follows.
 The first one-case native trial and its remaining roll failure are recorded in
 [construction evidence](pinch.md#rigid-sweep-construction-policy-trial).
+
+For measured local limits, `sweep_transport.inspect_sweep` uses actual circular
+profile support and exact helix parallel transport instead of the enclosing disk.
+`sweep_profile.joined_profile_arcs` supplies the unchanged contour analytically.
+An explicit `minimum_radius_mm` on `connect`/`construct_candidate` supports a
+dimensional boundary study without weakening the material rule. Report the local
+J boundary, construction margin and native outcome separately; kernel build alone
+can accept a modeled negative-J probe. See [actual limits and ratio tests](sweep-limits.md).
+
+The user subsequently clarifies that native output must reproduce the material
+plan directly; current fidelity checks are development/regression verification,
+not routine per-sweep repair or post-processing.204..206find a centerline match
+but large ordered edge errors and a179.318545degree arrival reversal, hidden by
+the old modulo180axis measurement. Verify actual three-path correspondence and
+retain identity before applying planned macaroni results to a native solid. Do
+not tune material rules to compensate for a different construction representation.
+See [trajectory fidelity and retained evidence](trajectory-fidelity.md).
+
+Geometry fidelity is now the immediate investigation priority. For experimental
+direct construction, `material_profile.material_profile(lines, diameter_mm)` returns
+the unchanged joined circular contour in clockwise material order, with the side
+caps split at their outer tips. `material_surfaces.material_patches(pieces, profile)`
+translates a frozen material plan into surface controls with positional bounds.
+The Fusion-only `material_native.define_material_body(pieces, patches, checkpoint)`
+returns a closed BRep definition and face provenance; one explicit `createBody()`
+constructs the whole ribbon. No production builder or diagnostic discovery method
+is switched by importing these helpers.211..213verify one complete gym specimen's
+sampled surfaces, three ordered guides, cap frames and seam chains. Different gym
+layouts and complete physical compliance remain unmeasured.
