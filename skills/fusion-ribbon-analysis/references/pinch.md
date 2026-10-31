@@ -368,6 +368,82 @@ IDE inspections pass.0native cable attempts/builds/post-build audits; native fai
 rate unmeasured and fullQA unrun. Profiles, native builders and production unchanged.
 No further routing batch is scheduled. Artifacts:ribbon_fold172..180.
 
+## Optional continuous-angle construction
+
+The next user-directed trial generalizes the remaining construction choices.
+`solver.connect(..., strategy=FoldStrategy.CONTINUOUS)` selects it explicitly;
+`FoldStrategy.OUTWARD` remains the default measured179construction. This is a
+comparison mode, not a replacement justified by shorter paths or broader success.
+Both modes retain the same exact target poses, joined material profile,99.6%pinch,
+local equal-length metric and mandatory contact gate. No retired discovery runs.
+
+`orientation.orient` factors the endpoint quaternion into two material-plane
+rotations with equal/opposite crease banks. A quadratic supplies exact algebraic
+roots; complete analytic closure determines their material cost before any contact
+check. These are rotation-equation solutions, not a predefined bank of route seeds.
+`construct_candidate` accepts `record_candidate` to retain every completed ordered
+primitive sequence and its cost. The comparison runner flushes/fsyncs each branch
+before evaluating the next. A singular longitudinal roll uses three smaller
+derived bends; a pure normal rotation uses its derived two-half-turn factorization.
+General rotations no longer require +/-45degree crease directions. Single-fold
+unit controls include63degree creases, within the primitive's existing regularity.
+
+`lateral.dimensions` also derives the S-pair's bend angle. For s=sin(bank), bend
+angle t, contour width W, radius R and explicit extra runway r, zero-middle-run
+lateral displacement is
+`(W*s*s + 2r*s*sqrt(1-s*s))*(1-cos(t)) + 2R*s*(t-sin(t))`.
+The pi-boundary stationary bank solves the strictly increasing cubic
+`2*pi*R*s^3 + 2*(W+distance)*s^2 - distance = 0`.
+If that implies a negative middle run, bounded scalar inversions follow the
+zero-run family to its material-length stationary bracket. Every inversion is
+capped at52bisections; there is no random initialization or contact retry. This
+is a local dimension choice within one S-fold family, not proof of a globally
+shortest route. Height steering's90degree solution remains the local stationary
+choice for sufficiently large offsets;180degree lateral bends can likewise remain
+boundary solutions. These angles can arise naturally without limiting the primitive
+to an angle grid. Actual height offset is measured from the composed pair and
+enters subsequent closure; the old hardcoded4R assumption is baseline-only.
+
+Final183evaluates10mode variants across the same5independent development inputs:
+
+| Input | OUTWARD/default | CONTINUOUS | Contact disposition |
+| --- | --- | --- | --- |
+| Gym |50.114071mm /7folds|62.196139mm /6folds|Both separated|
+| Straight |60mm /0|60mm /0|Both separated|
+| Planar quarter |39.676804mm /1|39.676804mm /1|Both separated|
+| Spatial roll |68.005317mm /7|77.108416mm /7|Both separated|
+| N1 S/lateral90 |40.041258mm /9|27.473537mm /8|Default penetration; continuous unresolved, both blocked|
+
+All10variants evaluated,0unattempted; default lengths and contact dispositions
+match178. Each mode clears4/5within the named numerical scope. The generalized gym
+and spatial cases are longer, so the original default is preserved. Generalized
+gym construct+branch recording2.966ms, contact182.400ms, local audit188.957ms;
+case wall383.991ms. Its arrival bends are-124.855/+145.349degrees, with crease banks
+-41.578/+41.578degrees; its derived lateral pair selects180degree boundary bends
+at31.048degree banks. No shortest-path or generalized physical-validity claim.
+
+181is retained as an unsuccessful intermediate comparison:3/5clear, spatial/N1
+unresolved and gym59.195mm. Initial unit checks correctly flag compactness
+regressions when continuous geometry was temporarily the default.182clears4/5
+after the smaller roll factorization and lateral equations, but gym62.196mm remains
+longer. It is therefore kept opt-in rather than weakening the baseline regression.
+181..183total20selected mode variants over5inputs,8.362s numerical phase time;
+extra exact algebraic roots are subordinate workload, not independent coverage.
+Maximum numerical sampledRSS24448KiB. All source plans, ZIPs, branches and failures
+remain under ignored artifacts/verification/ribbon_fold181..184.
+
+184renders the5continuous variants, with actual bend/crease angles and default
+length comparisons.179is hidden intact for comparison. N1is amber/unresolved,
+not labeled demonstrated penetration. Fifteen hidden original material guides and
+eight hidden constraint helpers remain, plus4historical sessions with unchanged
+snapshots/selection. Guide sample error<=7.58e-10mm, native guide-point translation
+error<=2.14e-14mm. Preparation3.273s/display7.762s,RSS618096KiB;viewport reviewed.
+84distinct focused tests pass;50affected tests rerun after final shadow-name fixes.
+Scoped package Ruff lint/format and6changed-file IDE inspections are clean.0native
+cable attempts/builds/post-build audits; native failure rate unmeasured,fullQA unrun.
+Original profiles, native builders and production remain unchanged. No further
+routing batch or automatic promotion is scheduled.
+
 ## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It

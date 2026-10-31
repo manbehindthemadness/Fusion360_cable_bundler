@@ -8,70 +8,37 @@ No route guesses, shortest-path proof or native sweep success is implied.
 from __future__ import annotations
 
 import math
-from typing import Callable, Union
+from enum import Enum
+from typing import Callable
 
-from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude
+from cable_bundler.routing.geometry import cross, difference, dot, magnitude
 from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from devtools.ribbon_analysis.pinch import PinchLimit
 
 from .contact_solve import ContactTrial, resolve_contact
 from .contact_solve import SelfContactError as SelfContactError
-from .geometry import ZERO, FoldRoute, PlacedPiece, Pose, Straight, extend, pose_error, relative
+from .geometry import FoldRoute, PlacedPiece, Pose, Straight, extend, pose_error, relative
+from .lateral import halfturn_pair, lateral_pair
+from .orientation import orient as _orientation
+from .orientation import orthogonal
+from .primitives import Piece
 from .steering import fold as _fold
 from .steering import signed_distance as _signed_distance
 from .steering import translation
 
-__all__ = ["SelfContactError", "connect", "construct_candidate"]
+__all__ = ["FoldStrategy", "SelfContactError", "connect", "construct_candidate"]
 
-Piece = Union[Straight, CylindricalFold]
 DEFAULT_LIMIT = PinchLimit()
 
 
-def _orientation(
-    start: Pose, end: Pose, radius: float, width: float, runway: float
-) -> tuple[Piece, ...]:
+class FoldStrategy(Enum):
     """
-    Decompose the relative frame into rotations about two orthogonal diagonal creases.
-
-    Proper A-B-A Euler angles use A=(T+W)/sqrt(2), B=(-T+W)/sqrt(2).
-    These fixed45degree creases avoid singular longitudinal folds. A common
-    width direction instead uses one transverse fold. All angles come from the
-    requested poses; no route initialization, coefficient fitting or retry occurs.
+    Keep the measured outward construction alongside the continuous-angle trial.
     """
-    if magnitude(difference(start.width, end.width)) < 1e-10:
-        angle = math.atan2(
-            dot(end.tangent, cross(start.tangent, start.width)), dot(end.tangent, start.tangent)
-        )
-        return () if abs(angle) < 1e-12 else (_fold(radius, width, angle, 0.0, runway),)
-    root = math.sqrt(0.5)
-    axes = (Vector3(root, root, 0), Vector3(-root, root, 0), Vector3(0, 0, 1))
-    columns = tuple(
-        relative(start, axis) for axis in (end.tangent, end.width, cross(end.tangent, end.width))
-    )
 
-    def rotate(vector: Vector3) -> Vector3:
-        """
-        Apply the requested relative orientation in departure-frame coordinates.
-        """
-        return (
-            ZERO.translated(columns[0], vector.x)
-            .translated(columns[1], vector.y)
-            .translated(columns[2], vector.z)
-        )
-
-    matrix = tuple(tuple(dot(a, rotate(b)) for b in axes) for a in axes)
-    middle = math.acos(max(-1.0, min(1.0, matrix[0][0])))
-    if abs(math.sin(middle)) < 1e-10:
-        first, last = math.atan2(matrix[2][1], matrix[1][1]), 0.0
-    else:
-        first = math.atan2(matrix[1][0], -matrix[2][0])
-        last = math.atan2(matrix[0][1], matrix[0][2])
-    return tuple(
-        _fold(radius, width, -angle, bank, runway)
-        for angle, bank in ((first, -math.pi / 4), (middle, math.pi / 4), (last, -math.pi / 4))
-        if abs(angle) >= 1e-12
-    )
+    OUTWARD = "outward"
+    CONTINUOUS = "continuous"
 
 
 def _simple(
@@ -113,6 +80,8 @@ def construct_candidate(
     *,
     runway_mm: float = 0.0,
     checkpoint: Callable[[], None] | None = None,
+    record_candidate: Callable[[tuple[Piece, ...], float], None] | None = None,
+    strategy: FoldStrategy = FoldStrategy.OUTWARD,
 ) -> FoldRoute:
     """
     Construct a locally compatible candidate requiring a separate contact check.
@@ -122,8 +91,14 @@ def construct_candidate(
     applied. All pieces preserve material length and the same profile coordinates.
     A declared1e-9relative radius inset avoids a floating boundary classification;
     numerical cap residuals must remain below1e-7, without moving targets.
+    OUTWARD preserves the measured baseline; CONTINUOUS is an optional angle
+    generalization whose longer paths have not replaced it. record_candidate
+    retains every complete primitive sequence considered by the exact quadratic
+    factorization before selecting material cost; it does not certify contact.
     """
     targets = Targets.capture(source)
+    if not isinstance(strategy, FoldStrategy):
+        raise ValueError("Use an explicit FoldStrategy.")
     if not math.isfinite(runway_mm) or runway_mm < 0 or isinstance(runway_mm, bool):
         raise ValueError("Runway must be a finite nonnegative material distance.")
     if magnitude(difference(targets.start, targets.end)) <= 1e-8:
@@ -138,13 +113,42 @@ def construct_candidate(
     if simple is not None:
         geometries = simple
     else:
-        orientation = _orientation(start, end, radius, width, runway_mm)
-        oriented = extend(start, orientation)
-        residual = relative(start, difference(end.origin, oriented.origin))
-        geometries = (
-            translation(residual, radius, width, runway_mm, targets.diameter_mm / 2, orientation)
-            + orientation
-        )
+
+        def sequence(factors: tuple[CylindricalFold, ...]) -> tuple[Piece, ...]:
+            """
+            Close this exact rotation factorization's positional displacement.
+            """
+            oriented = extend(start, factors)
+            residual = relative(start, difference(end.origin, oriented.origin))
+            builder = halfturn_pair if strategy is FoldStrategy.OUTWARD else lateral_pair
+            return (
+                translation(
+                    residual,
+                    radius,
+                    width,
+                    runway_mm,
+                    targets.diameter_mm / 2,
+                    factors,
+                    lateral_builder=builder,
+                )
+                + factors
+            )
+
+        def material_cost(factors: tuple[CylindricalFold, ...]) -> float:
+            """
+            Compare exact algebraic roots by complete closed material distance.
+            """
+            branch_geometries = sequence(factors)
+            value = math.fsum(g.material_length_mm for g in branch_geometries)
+            if record_candidate is not None:
+                record_candidate(branch_geometries, value)
+            return value
+
+        if strategy is FoldStrategy.OUTWARD:
+            orientation = orthogonal(start, end, radius, width, runway_mm)
+        else:
+            orientation = _orientation(start, end, radius, width, runway_mm, material_cost)
+        geometries = sequence(orientation)
     pose = start
     pieces = []
     for index, geometry in enumerate(geometries):
@@ -169,6 +173,7 @@ def connect(
     maximum_corrections: int = 0,
     checkpoint: Callable[[], None] | None = None,
     record: Callable[[ContactTrial], None] | None = None,
+    strategy: FoldStrategy = FoldStrategy.OUTWARD,
 ) -> FoldRoute:
     """
     Return a connected route only after the full thick-profile contact gate clears.
@@ -184,7 +189,9 @@ def connect(
         """
         Recompute closure after a common material runway change.
         """
-        return construct_candidate(targets, limit, runway_mm=runway, checkpoint=checkpoint)
+        return construct_candidate(
+            targets, limit, runway_mm=runway, checkpoint=checkpoint, strategy=strategy
+        )
 
     step = targets.diameter_mm * (targets.lines + 1.2)
     return resolve_contact(

@@ -5,23 +5,15 @@ Derive finite-fold translations without canceling an overshoot by folding backwa
 from __future__ import annotations
 
 import math
-from typing import Union
+from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, difference
-from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
 from .contact_bounds import Cell, Span, projection
 from .geometry import ZERO, PlacedPiece, Pose, Straight, extend
-
-Piece = Union[Straight, CylindricalFold]
-
-
-def fold(radius: float, width: float, angle: float, bank: float, runway: float) -> CylindricalFold:
-    """
-    Retain flat terminal material profiles and the explicitly requested extra runway.
-    """
-    lead = width / 2 * abs(math.tan(bank)) + runway
-    return CylindricalFold(radius, angle, bank, width, lead, lead)
+from .lateral import halfturn_pair
+from .primitives import Piece
+from .primitives import fold as fold
 
 
 def signed_distance(
@@ -40,37 +32,6 @@ def signed_distance(
         return (Straight(distance),)
     half_turn = fold(radius, width, -math.pi, 0.0, runway)
     return half_turn, Straight(-distance), half_turn
-
-
-def _lateral_offset(bank: float, radius: float, width: float, runway: float) -> float:
-    """
-    Return the positive lateral offset of a diagonal half-turn pair.
-    """
-    s, c = math.sin(bank), math.cos(bank)
-    return 2 * width * s * s + 4 * runway * s * c + 2 * math.pi * radius * s
-
-
-def _bank(distance: float, radius: float, width: float, runway: float) -> float:
-    """
-    Invert the strictly increasing finite-fold offset on zero through45degrees.
-
-    With no added runway a quadratic in sin(bank) gives the angle directly.
-    Extra runway uses52bounded bisections of the same monotone scalar equation;
-    these locate an algebraic fold dimension, not alternative route guesses.
-    """
-    if runway == 0:
-        sine = distance / (
-            math.pi * radius + math.sqrt((math.pi * radius) ** 2 + 2 * width * distance)
-        )
-        return math.asin(sine)
-    low, high = 0.0, math.pi / 4
-    for _ in range(52):
-        middle = (low + high) / 2
-        if _lateral_offset(middle, radius, width, runway) < distance:
-            low = middle
-        else:
-            high = middle
-    return (low + high) / 2
 
 
 def _extent(pose: Pose, pieces: tuple[Piece, ...], width: float, half_thickness: float) -> Span:
@@ -95,14 +56,18 @@ def translation(
     runway: float,
     half_thickness: float,
     following: tuple[Piece, ...],
+    *,
+    lateral_builder: Callable[
+        [float, float, float, float, float], tuple[Piece, ...]
+    ] = halfturn_pair,
 ) -> tuple[Piece, ...]:
     """
     Close a displacement with frame-returning folds and nonnegative steering runs.
 
-    Small lateral moves reduce the diagonal crease angle; small height moves
-    reduce the transverse turn. Larger moves use at most45/90degree steering
-    and a forward run. The second diagonal fold continues into a separate normal
-    layer; its4R height offset is included in subsequent height closure. Complete
+    The lateral builder selects the half-turn baseline or continuously sized
+    S-folds; height steering minimizes local material within its two-bend family.
+    The second diagonal fold continues into a separate normal layer; its actual
+    height offset is included in subsequent height closure. Complete
     module envelopes set forward spacing, using the existing2(R-h)inner clearance.
     Subtract their actual combined forward offset once. The following arrival
     module participates in spacing but is appended separately by the caller.
@@ -110,17 +75,12 @@ def translation(
     """
     modules: list[tuple[Piece, ...]] = []
     width_height = 0.0
-    lateral = abs(residual.y)
-    if lateral > 1e-10:
-        maximum = _lateral_offset(math.pi / 4, radius, width, runway)
-        bank = _bank(lateral, radius, width, runway) if lateral < maximum else math.pi / 4
-        # Keep this folded layer opposite the subsequent height move.
-        direction = -math.copysign(math.pi, residual.z)
-        turn = fold(radius, width, direction, -math.copysign(bank, residual.y), runway)
-        middle = (Straight(lateral - maximum),) if lateral > maximum else ()
-        returning = fold(radius, width, -direction, -math.copysign(bank, residual.y), runway)
-        modules.append((turn, *middle, returning))
-        width_height = math.copysign(4 * radius, direction)
+    lateral_distance = abs(residual.y)
+    if lateral_distance > 1e-10:
+        module = lateral_builder(residual.y, residual.z, radius, width, runway)
+        modules.append(module)
+        identity = Pose(ZERO, Vector3(1, 0, 0), Vector3(0, 1, 0))
+        width_height = extend(identity, module).origin.z
     height_target = residual.z - width_height
     height = abs(height_target)
     if height > 1e-10:

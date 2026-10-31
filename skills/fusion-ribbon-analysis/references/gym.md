@@ -57,6 +57,15 @@ All intermediate failures and the178tuple/list comparison stop remain;180reconci
 captured evidence without rerouting. See
 [outward construction and complete accounting](pinch.md#outward-fold-construction-instead-of-inward-cancellation).
 
+184adds an optional continuous-angle comparison, selected in the experimental API
+with `FoldStrategy.CONTINUOUS`. Its gym uses6folds and62.196139mm versus the default
+7folds/50.114071mm. Derived arrival bends124.855/145.349degrees and crease banks
+41.578degrees demonstrate non-grid orientation. Both modes clear the same4/5inputs;
+continuous N1remains unresolved/blocked. The shorter OUTWARD mode stays the default,
+and179is retained hidden. Exact algebraic branches, intermediate regressions and
+the final10mode variants over5inputs remain recorded. See
+[continuous-angle construction and limits](pinch.md#optional-continuous-angle-construction).
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
