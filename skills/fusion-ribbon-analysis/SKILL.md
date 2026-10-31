@@ -22,6 +22,15 @@ a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplie
 
 ## Working together
 
+- Current geometry scope (user-directed2026-10-31): use only endpoint-gym-created
+  layouts for future geometry experiments, plus the explicitly retained N1
+  S/lateral90 close-endpoint case displayed in187. Exclude all other historical
+  non-gym layouts from new batches and current coverage. This overrides the
+  historical first-fixture and normal/stress inventory prescriptions below.
+  Keep historical evidence and analytical unit tests; source future breadth and
+  collateral geometry from the gym. Freeze input provenance before solving,
+  without outcome-based filtering. Gym creation does not certify feasibility.
+
 - For the user-directed diagnostic restart, use the recorded-search/section mode
   in [the API reference](references/api.md#recorded-search-and-section-inspection).
   Show current and historical method dispositions explicitly, preserve every

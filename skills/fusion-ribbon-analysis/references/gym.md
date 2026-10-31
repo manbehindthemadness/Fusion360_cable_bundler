@@ -76,6 +76,17 @@ their centres are2.82mm apart. Its inherited “known-feasible” label was too 
 for the current ribbon model. No native cable validation or universal feasibility
 claim follows. See [departure direction and provenance](pinch.md#close-endpoint-departure-direction).
 
+From the user's2026-10-31scope revision, future geometry batches use only layouts
+created in this gym, with the single explicit non-gym exception of the N1
+S/lateral90 close-endpoint case shown in187. Other historical authored controls
+are excluded from new geometry batches/current coverage; their prior records
+remain historical. Future breadth and collateral geometry must come from the gym,
+with provenance frozen before solving. Existing analytical unit tests remain.
+Gym-created inputs still require numerical and native validation separately.
+187is a thickness mesh and native guide display, with0native cable attempts;
+the material fold route has not been transferred to or validated by the existing
+rigid-profile native sweep builder.
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.

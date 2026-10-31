@@ -15,6 +15,22 @@ These are mandatory working instructions, not implemented runtime enforcement.
 They do not guarantee correctness by themselves. If a gate cannot be evidenced,
 say so and stop the affected work rather than assuming it passed.
 
+USER-DIRECTED GYM-ONLY GEOMETRY SCOPE — 2026-10-31
+----------------------------------------------
+Future ribbon geometry experiments use layouts created in the endpoint gym.
+Exclude previously authored non-gym layouts from new geometry batches and current
+coverage claims. The sole retained non-gym exception is the N1 S/lateral90
+close-endpoint calibration case shown corrected in187 (original fixture identity
+"known-feasible N1 S lateral90 endpoints"). Its feasibility is still measured,
+not assumed from that legacy name. Keep its fixed poses and provenance.
+This supersedes earlier instructions to replay non-gym normal/stress/collateral
+geometry inventories. Obtain future breadth and collateral cases from gym-created
+layouts; freeze their provenance before solving, without filtering by outcome.
+Preserve historical evidence and existing analytical unit tests; do not delete or
+rewrite old outcomes. A gym layout is not itself a feasibility certificate and
+gym geometry remains outside routing avoidance. No new solve/native build batch
+or profile/construction change is implied by this scope revision.
+
 USER-DIRECTED MEMORY REVISION — 2026-10-27
 ----------------------------------------
 User explicitly instructed "expand the limit to 4gb" during generated90 after
