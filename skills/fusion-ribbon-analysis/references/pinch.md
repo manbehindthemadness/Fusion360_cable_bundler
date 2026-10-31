@@ -164,6 +164,70 @@ Focused QA:44distinct tests pass; scoped Ruff/IDE checks clean. After163/164,
 one compatibility comprehension was line-wrapped by Ruff only; final provenance
 records AST equality to its frozen source. No further solver run is implied.
 
+## Endpoint construction from material folds
+
+`experiments.experiment_ribbon_fold_route.solver.connect` now connects both ordered target
+poses using the calibrated material map. It is host-only Python3.9+ code, with no
+Fusion dependency, no route seeds, no optimizer and no retired discovery calls.
+The old diagnostic execution catalog remains retired; this experiment has its own
+entry point. Production, original profile creation and native builders are intact.
+
+Straight and feasible one-plane turns receive direct straight/bend/straight
+closure. Other orientations use a proper A-B-A Euler decomposition about two
+orthogonal45degree material creases. The finite-fold offsets are evaluated first;
+signed straight distances then close the residual position in the departure frame.
+Width/height steering folds return that frame before the arrival folds are applied.
+Negative displacement uses two rounded transverse half-turns around a forward run,
+never negative material progression. Zero residual axes omit their steering pieces.
+This is a sufficient construction with at most13folds, not a minimum-fold or
+shortest-route method. It does not determine physical impossibility on failure.
+
+`FoldRoute` composes the same material map through rigidly placed, flat-ended
+pieces. One cumulative material coordinate drives all lanes. Each piece preserves
+`|X_s|=|X_q|=1, X_s dot X_q=0`; joins retain matching position/tangent/across
+directions. True fold radius is `(D/2)/p*(1+1e-9)`, preserving the declared numerical
+inset. Thus local thickness pinch stays below99.6% without independently stretching
+guides. Tiny-angle planar closure uses a signed-sine equation; parameter derivatives
+scale by total/exact-piece length to avoid cancellation at very short pieces.
+
+Runs166/168 evaluate the same five examined development inputs, not holdouts.
+Final168:5planned/5evaluated/5clear the named local checks/0failed/0unresolved;
+0native cable attempts/builds/post-build audits, native failure rate unmeasured.
+
+| Input | Common material length, mm | Folds | Construction, ms | Audit, ms |
+| --- | --- | --- | --- | --- |
+| Gym |58.110068|9|0.447|208.245|
+| Straight |60|0|0.057|157.000|
+| Planar quarter |39.676804|1|0.116|161.886|
+| Spatial roll |80.869455|11|0.419|209.265|
+| N1 S/lateral90 control |40.030343|11|0.437|215.534|
+
+All cap-profile errors<=6.16e-15mm; local material metric error<=5.56e-16.
+Independent position derivatives and thickness-offset determinants were checked;
+maximum determinant discrepancy3.50e-9. Full168time1.013s,RSS18832KiB; no search.
+165is retained as an audit-harness stop: one gym route was constructed but a
+finite-difference probe crossed a zero-lead piece boundary. No result accepted;
+four remaining inputs unattempted.166corrected probe placement under unchanged
+geometry/budgets and completed in0.973s.168rechecks final numeric fixes; all five
+serialized piece sequences are exactly identical to166, validating display transfer.
+Cumulative165/166/168numerical work2.166s, excluding display and local unit tests.
+
+View167 retains all five case components, gym initially visible, and individual
+piece mesh groups. It shows the unchanged joined material contour,1.5mm thickness,
+three guides, cap XYZframes, fold-radius circles and frozen solver values. Fifteen
+original approximate guides and eight constraint helpers remain individually hidden.
+Nonuniform guide cubics split at every lane's actual fold entry/exit and use a
+maximum0.025rad angular step; sampled position discrepancy<=7.63e-10mm. These
+rendering approximations are not curvature proofs. Native point translation error
+<=2.14e-14mm. Preparation5.071s/display10.720s,FusionRSS297376KiB; viewport reviewed,
+four earlier sessions/snapshots/selection and164references preserved.
+
+Scoped QA:37distinct tests, Ruff lint/format and five changed-file IDE inspections
+pass, including rigid-frame covariance, Euler poles, backward displacement and the
+near-parallel regression. G1 joins are explicit. Contact, containment, equilibrium,
+native interpolation and complete physical validity remain unmeasured. The9/11fold
+spatial results are conservative; no additional compactness refinement is scheduled.
+
 ## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It

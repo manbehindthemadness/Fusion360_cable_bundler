@@ -1,0 +1,177 @@
+[
+  {
+    "diameter_mm": 1.5,
+    "end": {
+      "x": 15.566152014003867,
+      "y": 14.152416300119217,
+      "z": 11.864943863944259
+    },
+    "end_tangent": {
+      "x": -0.85065080835204,
+      "y": -0.5257311121191335,
+      "z": 0.0
+    },
+    "end_width": {
+      "x": -0.42532540417602027,
+      "y": 0.6881909602355867,
+      "z": -0.587785252292473
+    },
+    "lines": 3,
+    "name": "Rubik gym preview",
+    "start": {
+      "x": 11.147517077621664,
+      "y": -7.965443827033006,
+      "z": 13.114146501177316
+    },
+    "start_tangent": {
+      "x": 0.0,
+      "y": 0.8506508083520399,
+      "z": 0.5257311121191336
+    },
+    "start_width": {
+      "x": 0.8090169943749475,
+      "y": -0.3090169943749474,
+      "z": 0.5
+    }
+  },
+  {
+    "diameter_mm": 1.5,
+    "end": {
+      "x": 60,
+      "y": 0,
+      "z": 0
+    },
+    "end_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "end_width": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "lines": 3,
+    "name": "straight collateral",
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "start_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "start_width": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    }
+  },
+  {
+    "diameter_mm": 1.5,
+    "end": {
+      "x": 20,
+      "y": 20,
+      "z": 0
+    },
+    "end_tangent": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "end_width": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "lines": 3,
+    "name": "planar quarter collateral",
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "start_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "start_width": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  {
+    "diameter_mm": 1.5,
+    "end": {
+      "x": 45,
+      "y": 12,
+      "z": 8
+    },
+    "end_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "end_width": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "lines": 3,
+    "name": "spatial roll collateral",
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "start_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "start_width": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    }
+  },
+  {
+    "diameter_mm": 1.5,
+    "end": {
+      "x": 2.2590361468373494,
+      "y": 1.5060240978915664,
+      "z": 0.7530120489457832
+    },
+    "end_tangent": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "end_width": {
+      "x": 0,
+      "y": -1,
+      "z": 0
+    },
+    "lines": 1,
+    "name": "known-feasible N1 S lateral90 endpoints",
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "start_tangent": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "start_width": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  }
+]

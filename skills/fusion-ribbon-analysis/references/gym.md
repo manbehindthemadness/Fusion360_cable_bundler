@@ -30,6 +30,14 @@ material contour dimensions. These calibrate the new representation, not a gym
 endpoint solution. Details and limits are in
 [pinch.md](pinch.md#equal-material-lengths-and-banked-fold-calibration).
 
+The subsequent endpoint fold construction is now recorded in
+[pinch.md](pinch.md#endpoint-construction-from-material-folds). View167connects the
+same fixed gym targets with three58.110068mm material paths and9rounded folds.
+All5examined inputs clear the named local material/pinch/cap checks in168;
+no native cable construction or global physical acceptance follows. The procedure
+uses pose decomposition and algebraic displacement closure, with no route seeds
+or retired discovery execution. Its fold count is conservative, not minimal.
+
 The user-directed Rubik gym starts from its environment and two connection faces.
 It does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
