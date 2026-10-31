@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
 
-from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
+from cable_bundler.routing.geometry import Vector3, cross, difference, magnitude, unit
+from devtools.ribbon_analysis.bernstein import septic_cap_controls
+from devtools.ribbon_analysis.edge_frames import ruling_kinematics
 
 from .coupled_motion import ZERO
 from .endpoint_first import EndpointCase, controls, derivative, evaluate
@@ -99,14 +101,7 @@ def _end_controls(
     """
     Convert endpoint derivatives into the first four degree-seven controls.
     """
-    return (
-        point,
-        point.translated(velocity, 1 / 7),
-        point.translated(velocity, 2 / 7).translated(acceleration, 1 / 42),
-        point.translated(velocity, 3 / 7)
-        .translated(acceleration, 1 / 14)
-        .translated(jerk, 1 / 210),
-    )
+    return septic_cap_controls(point, velocity, acceleration, jerk)
 
 
 def boundary(
@@ -165,20 +160,16 @@ def frame(curve: BoundaryCurve, u: float) -> BoundaryFrame:
     through a singular Frenet point. These are numerical guards,not strain limits.
     """
     position, velocity, acceleration, jerk, snap = curve.jet(u)
-    speed = magnitude(velocity)
-    product = cross(velocity, acceleration)
-    norm = magnitude(product)
-    if speed <= 1e-10 or norm <= 1e-10:
-        raise ValueError("Boundary has singular speed or bend frame.")
-    tangent, width = unit(velocity), unit(product)
-    numerator = dot(product, jerk)
-    slope = numerator * speed**3 / norm**3
-    speed_rate = dot(velocity, acceleration) / speed
-    norm_rate = dot(product, cross(velocity, jerk)) / norm
-    slope_rate = dot(product, snap) * speed**3 / norm**3 + slope * (
-        3 * speed_rate / speed - 3 * norm_rate / norm
+    observed = ruling_kinematics(velocity, acceleration, jerk, snap)
+    return BoundaryFrame(
+        position,
+        observed.tangent,
+        observed.width,
+        observed.eta,
+        observed.eta_u,
+        observed.speed,
+        observed.curvature,
     )
-    return BoundaryFrame(position, tangent, width, slope, slope_rate, speed, norm / speed**3)
 
 
 def edge_gate(

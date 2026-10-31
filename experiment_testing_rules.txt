@@ -265,3 +265,66 @@ and geometry construction remain unchanged. Gym layout randomness authors test
 inputs, not routes, and is retained. Historical source and evidence remain available
 for interpretation; do not run them as the current solver. No new numerical search,
 native attempt or physical validation is authorized merely by removing discovery.
+
+USER-DIRECTED PAIRED EDGE DEVIATION — 2026-10-30
+---------------------------------------------
+The user now requests an opposing edge, with adjustments governed by whichever
+edge reaches the macaroni limit. This authorizes a bounded diagnostic deformation
+of the supplied line with both ordered target poses fixed, not revival of seed
+banks or retired discovery methods. Derive both edges from one material frame;
+an independently fitted second spline is not evidence of a valid ribbon.
+Retain the99.6%pinch and no-lateral-bending scope. Nonpositive material progress,
+singular frames and dense-grid violations stay failed/unresolved even when all
+four endpoint positions match. Numerical deficit reduction is not a completed fit.
+No profile, sweep, native cable body, containment or contact-rule change follows.
+
+USER-DIRECTED FOLD REVERSAL / FREE GROWTH — 2026-10-30
+----------------------------------------------------
+Reset the paired-edge experiment to the original139diagnostic edge. Normalize
+changes across the primary and opposing edges together; allow primary material
+distance to grow to accommodate the opposing edge's fold-reversal requirements.
+There is no path-length constraint or penalty in this scope. Fix target positions,
+tangents, width directions, material identity and existing sweep/profile geometry.
+Recompute the opposing edge and material progress after every geometric change;
+changing parameter speed alone is not geometric growth. Preserve failed143and prior
+runs. A new bounded, source-pinned attempt still separates sampled local compliance,
+native construction and full physical acceptance. No seed bank, contact/containment
+rule or new native cable batch is implied.
+
+USER-DIRECTED COMPACTNESS CORRECTION — 2026-10-30
+-----------------------------------------------
+The user rejects the excessive globally enlarged loop and requests a smaller
+result. Shorter material distance may now guide experimental local deformation;
+there is still no hard path-length cap. Both guides must deform together through
+one material map, retaining ordered target poses and the unchanged99.6%pinch rule.
+Preserve failed/stopped runs and reject measured narrow peaks missed by uniform
+sampling. Compactness, local numerical compliance and full physical acceptance
+remain separate. No retired seed bank, production or native cable batch follows.
+
+USER-DIRECTED BASELINE REJECTION / RESTART — 2026-10-31
+-----------------------------------------------------
+The user rejects the current macaroni application and current155geometry as a
+foundation. Stop refining this route. Treat prior paired-edge numerical acceptance
+as consistency with an unvalidated model, not validation of the intended physical
+rule. Preserve historical source/results and unrelated working-tree changes.
+Re-establish the macaroni rule from the user's geometric example, actual profile
+dimensions and direct inner/outer bend measurements before restarting routing.
+Do not silently replace the rule with another assumption or declare a corrected
+baseline from tests that repeat the same formula. No production/profile/native
+builder change, new seed bank or native cable batch is authorized by this reset.
+
+USER-CLARIFIED EQUAL MATERIAL LENGTHS — 2026-10-31
+-----------------------------------------------
+Left, center and right are corresponding material paths in one physical ribbon.
+They must have equal material lengths; a single common length may still grow.
+Banking/fold reversals must preserve that compatibility rather than lengthening
+the edges by rotating rigid perpendicular sections. Check corresponding local
+material increments, not only totals that could conceal compensating distortions.
+This supersedes the exclusion of length balance for these three paths in the
+pathing reset. Do not convert equality to the historical1%mechanical goal or an
+unannounced physical tolerance. Numerical quadrature differences are uncertainty
+observations, not proof or slack. Keep curvature and material-length evidence
+separate;161/162curvature certificates do not establish this new requirement.
+Preserve fixed targets, identity/order, profile creation and native builders.
+An authored rounded-fold reference is not an endpoint solution or authorization
+to replace a rigid-profile sweep with a different native construction.

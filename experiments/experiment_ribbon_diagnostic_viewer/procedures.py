@@ -104,6 +104,9 @@ def source_pins() -> dict[str, str]:
     for package in (
         "devtools/ribbon_analysis",
         "experiments/experiment_ribbon_diagnostic_viewer",
+        "experiments/experiment_ribbon_edge_pair",
+        "experiments/experiment_ribbon_profile_basics",
+        "experiments/experiment_ribbon_normal_route",
         "experiments/experiment_ribbon_test_gym",
         "experiments/experiment_ribbon_cap_transition",
         "experiments/experiment_ribbon_route_discovery",

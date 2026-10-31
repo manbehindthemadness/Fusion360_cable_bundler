@@ -1,4 +1,170 @@
-# Percentage-based local thickness pinch
+# Normal-profile restart and historical sheet pinch
+
+## Restarted reference — 2026-10-31
+
+The user rejected the paired-edge model after view155. The percentage itself
+remains99.6%; the geometry to which it is applied must match the preserved profile.
+Read-only inspection158 confirms the user's demo contains a torus of major radius
+25.0000003725mm and minor radius24.9000003748mm, plus a nominal25mm sketch arc.
+This is the intended R25/h24.9 example below, with native numerical roundoff.
+
+The rejected strip map explicitly allows curved material cross-sections
+(`material_strip.py`). The retained experimental native sweep uses a perpendicular
+constant profile (`trunk_sweep.py`). These are different geometry assumptions.
+The historical sheet's ruling-slope multiplier is not automatically a constraint
+on that preserved normal-profile sweep. Nor can its sheet-coordinate progress
+be treated as progress of a different profile mapping.
+
+`devtools.ribbon_analysis.normal_profile.inspect_normal_profile` is a new isolated
+local reference for the preserved geometry. It does not replace historical
+policies or restart any retired route solver. For
+`Y(s,a,b)=r(s)+a*W(s)+b*H(s)`, unit orthogonal profile axes normal to the actual
+center tangent, and no width-direction curvature, the normalized volume
+determinant is `1-b*kappa_H`. Profile-frame rotation contributes only transverse
+terms, which cancel from this determinant. The thickness condition is therefore
+`h*|kappa_H| <= p`, with `R_min=h/p` and `R_inside=R-h`. Inputs with lateral bend
+or an invalid normal frame reject instead of silently using this restricted rule.
+The circular-tube coordinate factor also appears in the [tube-coordinate
+derivation](https://link.springer.com/article/10.1186/s40687-016-0053-1), section2.2;
+the constant-profile extension here is our explicit geometric derivation/check.
+
+Run159 freezes six authored reference configurations before measurement. Direct
+finite differences of world-space swept-profile points agree within3.86e-10 in
+normalized determinant. Four positive controls meet the local check, one
+negative-inside control is rejected, and the exact demo-boundary reference is
+retained separately: its raw floating result can exceed99.6%by roundoff. The
+near-limit positive fixtures use a declared1e-9relative radius inset, not a new
+physical safety margin or relaxed acceptance tolerance. No endpoint solving or
+complete-ribbon/native validation occurred.
+
+For one1.5mm conductor, minimum center radius is0.7530120482mm and the inside
+radius is0.0030120482mm at99.6%. View160 shows that near-limit bend, a rejected
+R0.74mm bend, and one authored compound S with a90degree lateral turn. Its three
+G1 pieces count as one reference configuration. This does not establish smooth
+curvature joins, global self-contact, strain, noncircular ribbon compatibility or
+Fusion's intermediate frame field. Native profiles/builders remain unchanged;
+at that stage the local check did not implement endpoint routing.
+
+## Endpoint normal-profile prototype
+
+`experiments/experiment_ribbon_normal_route/solver.py` now constructs a centerline
+from the fixed endpoint poses alone. Its prescribed septic cap jets are
+`v=D*T`, `a=D*(W cross T)`, `j=-D*T`, with endpoint chord D. A zero-jet endpoint
+bridge C supplies the scalar family `Q=C+s*(P-C)`. Bounded doubling/halving and
+bisection retain a certified member near an observed family boundary. This is
+one chosen polynomial family, not a seed bank or universal feasibility solver.
+Neither monotonic feasibility nor globally shortest length is proved. The
+retired discovery procedures remain disabled; this prototype has its own entry.
+
+The ordered guides are `r +/- half_width*W`, with perpendicular fixed sections.
+The width is the regular Frenet binormal, or an exactly detected constant planar
+width through inflections. No historical `W+eta*T` material-sheet offset is used.
+The preserved joined-profile guide extent is `N*D/2+0.1D`; its additional0.1D is
+the native profile's side-cap extension, not a routing clearance reserve.
+
+`polynomial_certificate.certify_curvature` uses rational Bernstein arithmetic
+on the exact stored float controls. For `G=|r'|²`, `A=|r' cross r''|²`, it proves
+`G>0` and `(p/h)²*G³-A>=0` over the entire interval. A nonplanar Frenet frame
+also requires `A>0`. Subdivision exhaustion is unresolved. This closes the
+between-sample curvature gap for this ideal polynomial and restricted profile
+model; it does not certify a cubic edge drawing or native sweep frame.
+
+Run161 freezes five examined development inputs: the original gym, three prior
+collateral cases and one known-feasible N1 S/lateral90 endpoint control. All5
+produce certified members;0failed/0unresolved. Total solve plus checks6.147s,
+maximum sampled local RSS21264KiB. Gym39.448mm/1.555s, straight60mm/0.131s,
+planar28.499mm/1.398s, spatial roll47.274mm/1.495s, N1control20.057mm/1.567s.
+The N1 route still has an excessive loop: this exposes a family limitation and
+is not evidence that such length is necessary. No untouched validation cases.
+
+Run162 recertifies these same frozen controls after QA-only math sharing and
+strict subdivision-node scheduling; no new solve. Its refined peak witnesses
+are99.599993/0/99.599969/99.599932/99.599998percent, separately from the interval
+certificates. View162 retains all five components, with only gym initially
+visible, plus15hidden original guides. The center guide is exact degree7;
+the two offset guides are approximate512-cubic drawings. Their sampled position
+errors range up to0.01923mm (gym0.000696mm); they have no curvature certificate.
+The illustrated joined lobe section follows unmodified `ribbon_builder._add_section`
+dimensions. Profile creation, native builders and production are unchanged.
+Preparation3.051s, display6.895s, Fusion RSS155200KiB, guide translation error
+1.44e-14mm; four old sessions/snapshots/selection retained. Screenshot review was
+unavailable because computer use returned `cgWindowNotFound`; API display and
+guide translation checks succeeded. Zero native cable attempts/builds/post-build
+audits; native failure rate unmeasured. Strain, contact, native interpolation,
+global feasibility, minimum length and complete physical validity remain unproved.
+
+## Equal material lengths and banked fold calibration
+
+The user now explicitly requires left, center and right to have equal material
+lengths, with common total length still free. Apply this locally to corresponding
+material increments, not merely equal final totals. This supersedes the earlier
+exclusion of three-path length balance. Existing1%mechanical goals are not a
+tolerance for this requirement. The distinction between a developable surface
+and an isometric material mapping is also explained in
+[Chen and Fried, 2016](https://royalsocietypublishing.org/doi/10.1098/rspa.2016.0459).
+The tests below use explicit world-coordinate maps and derivatives.
+
+For the former rigid normal-profile map, no lateral bending gives
+`r' dot W'=0`, so `|(r+qW)'|²=|r'|²+q²|W'|²`. Rotating W therefore lengthens
+both edges relative to the center. `normal_route.compatibility.planar_controls`
+tests the exact stored-float control polygon's coplanarity. For a certified
+regular Frenet frame, this is equivalent to constant W and equal material steps.
+`solve` now returns `length_incompatible` for the nonplanar member even when its
+curvature certificate succeeds. This rejects that representation; it does not
+declare the endpoint layout impossible or implement a replacement fold router.
+
+`material_lengths.measure_lengths` integrates all three actual path speeds and
+reports local speed spread. Nested Simpson-grid differences are convergence
+observations, not certified error bounds or physical slack. Run163 audits the
+same5frozen161curves, with no new solves:2compatible/3incompatible/0unresolved
+within this named rigid-profile test. All five old curvature certificates remain.
+
+| Examined input | Left / center / right length, mm | Material compatibility |
+| --- | --- | --- |
+| Gym |45.142933 /39.448105 /45.142933|Fails|
+| Straight |60 /60 /60|Passes|
+| Planar quarter |28.499018 /28.499018 /28.499018|Passes|
+| Spatial roll |59.382930 /47.273620 /59.382930|Fails|
+| N1 S/lateral90 control |22.372155 /20.057342 /22.372155|Fails|
+
+The spatial and N1 quadrature differences are0.000107mm and0.0000114mm;
+do not present the printed digits as rigorous integration bounds. The gym
+difference is1.10e-10mm. Exact geometric incompatibility is separate from sampling.
+
+`isometric_fold.CylindricalFold` authors a finite-radius plane-cylinder-plane
+reference. Rotate flat material coordinates to
+`xi=s*cos(a)+q*sin(a), eta=-s*sin(a)+q*cos(a)`, then wrap xi around a cylinder.
+This preserves `|X_s|=|X_q|=1, X_s dot X_q=0` throughout each piece. Bend entry
+and exit are staggered across width. Transverse material lines curve through the
+fold, while the two terminal profiles remain flat and unchanged in material
+coordinates. This is a physical banking/folding reference, not another rigid
+normal-section twist, seed bank or endpoint-discovery family.
+
+The true thickness-offset determinant is `1-b/R` (with signed fold orientation),
+where R is the cylinder/fold radius. Centerline curvature alone is `cos²(a)/R`
+and can miss an excessive fold.163's three positive fold references pass; the
+R0.74mm negative-inside variant is correctly rejected, despite its center-only
+pinch being50.676%. The positive radius uses the declared1e-9relative numerical
+inset at99.6%. Material metric error<=2.23e-16; independent world-space thickness
+determinants agree<=3.01e-10. These four authored variants calibrate one fold
+family, not four independently solved endpoint layouts. Full163audit3.796s,
+localRSS21312KiB;0new solves/native attempts/builds/post-build audits.
+
+View164 shows the diagonal90 and180references, with common lengths7.972772mm
+and9.645544mm respectively. It reuses the preserved3-conductor joined contour
+in material coordinates and shows actual1.5mm thickness. Preparation1.008s,
+display3.610s,FusionRSS535360KiB. Six original approximate guides remain hidden;
+sampled guide-position error<=0.00000358mm, native translation error<=7.11e-15mm.
+Labels/camera were adjusted after screenshot review; final viewport reviewed.
+162is renamed curvature-only and hidden; all4old sessions/snapshots retained.
+Original profile creation and native builders remain unchanged. The rigid-profile
+sweep does not yet reproduce these material folds. G1 joins, contact, equilibrium,
+native interpolation and arbitrary-target fold construction remain unvalidated.
+Focused QA:44distinct tests pass; scoped Ruff/IDE checks clean. After163/164,
+one compatibility comprehension was line-wrapped by Ruff only; final provenance
+records AST equality to its frozen source. No further solver run is implied.
+
+## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It
 replaces the historical `reach / 0.78` and `3.1D` radius restrictions for new
@@ -13,9 +179,9 @@ The demo has `R = 25 mm`, `h = 24.9 mm`: utilization is 99.6% and inside radius
 is 0.1 mm, or 0.4% of R. The configured default is 99.6%; it is adjustable and
 does not represent a material/strain rating. Exactly 100% is singular and rejects.
 
-## A ribbon is one coupled surface
+## Historical developable-sheet assumption
 
-The current compatible chart uses perpendicular unit directors T and W, normal
+The archived compatible chart uses perpendicular unit directors T and W, normal
 `N = W × T`, centre progress `c`, tangent turn `b`, ruling slope `eta`, and its
 parameter derivative `g`. Its nominal thickness envelope is:
 

@@ -14,6 +14,7 @@ from time import perf_counter
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
+from devtools.ribbon_analysis.bernstein import elevate_controls
 
 from .edge_first import BoundaryCurve, EdgeCandidate, construct, frame
 from .endpoint_first import EndpointCase
@@ -53,19 +54,7 @@ def elevate(curve: BoundaryCurve, free_controls: int = 2) -> BoundaryCurve:
     target = 8 + free_controls
     if free_controls not in (2, 4) or len(points) > target:
         raise ValueError("Interior policy cannot lower degree or use unsupported freedom.")
-    while len(points) < target:
-        degree = len(points) - 1
-        points = (
-            (points[0],)
-            + tuple(
-                points[index].translated(
-                    difference(points[index - 1], points[index]), index / (degree + 1)
-                )
-                for index in range(1, degree + 1)
-            )
-            + (points[-1],)
-        )
-    return BoundaryCurve(points)
+    return BoundaryCurve(elevate_controls(points, target - 1))
 
 
 def deform(seed: BoundaryCurve, values: tuple[float, ...], scale: float) -> BoundaryCurve:

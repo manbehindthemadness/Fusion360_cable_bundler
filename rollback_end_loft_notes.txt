@@ -385,3 +385,51 @@ Macaroni/pinch, structural no lateral bending, fixed target inputs, sweep-profil
 creation, conductor ordering/identity and geometry construction remain unchanged.
 Gym generation seeds describe endpoint layouts, not route guesses, and are retained.
 This is removal of discovery, not implementation or validation of a new solver.
+
+USER-DIRECTED PAIRED EDGE DEVIATION — 2026-10-30
+
+Derive the opposing guide through the same material frame and use both edges'
+pinch deficits to govern bounded deviations of the current diagnostic line.
+Both target positions, tangents, widths and material side identities remain fixed.
+This is an experimental local-deformation prototype with no seed bank; it is not
+a proven geometric construction or feasibility solver. A matching endpoint pair
+can still fold or exceed macaroni internally. Keep failures and missing continuous
+and native audits explicit. Sweep profiles and geometry construction remain unchanged.
+
+USER-DIRECTED FOLD REVERSAL / FREE GROWTH — 2026-10-30
+
+Reset to the original139edge and grow the primary path as needed while normalizing
+both edge changes through one material frame. No path-length constraint or penalty.
+Keep both ordered target poses, width and thickness fixed. Growth must change real
+geometry/material distance, with B recomputed and J remeasured; a parameter-speed
+change or independent offset correction is insufficient. Historical failed pairs
+remain intact, and sampled/native/physical outcomes stay separate.
+
+USER-DIRECTED COMPACTNESS CORRECTION — 2026-10-30
+
+Reduce the excessive global-growth loop by normalizing local changes across both
+guides. Shorter material distance is an experimental preference, not a hard length
+bound or a reason to relax macaroni/fold checks. Keep failed/stopped outcomes and
+uniform-sampling misses visible. Profiles, targets and native construction remain
+unchanged; compact routing is not established by a shorter sampled-valid specimen.
+
+USER-DIRECTED BASELINE REJECTION / RESTART — 2026-10-31
+
+The user rejects the current macaroni application and155result and requests a
+fresh start. Do not build on paired-edge growth/shortening/contraction acceptance.
+Their independent numerical evaluations share the assumed material-map model and
+do not independently establish the user's geometric rule. Preserve evidence and
+unrelated work. Re-derive and check the constraint against the user's Macaroni demo
+and actual thickness/width/inner/outer geometry before further route generation.
+The precise error and a corrected baseline are not yet established.
+
+USER-CLARIFIED EQUAL MATERIAL LENGTHS — 2026-10-31
+
+The three longitudinal material paths (left, center, right) must have equal
+length, with a shared free total length. Banking and folding must preserve their
+local material compatibility. This supersedes the earlier exclusion of three-path
+length balance; it is not reinstatement of a1%goal or permission for hidden strain.
+Rigid perpendicular-section rotation can satisfy local volume regularity while
+lengthening both edges. Keep its curvature certificates as historical limited
+evidence, not equal-length ribbon acceptance. Profile/native builders stay intact;
+a material-isometric fold reference alone is not a new endpoint or native solver.
