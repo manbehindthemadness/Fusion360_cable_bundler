@@ -16,6 +16,7 @@ from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from devtools.ribbon_analysis.pinch import PinchLimit
 
+from .construction import ConstructionPolicy, spatial_fold_radius
 from .contact_solve import ContactTrial, resolve_contact
 from .contact_solve import SelfContactError as SelfContactError
 from .geometry import FoldRoute, PlacedPiece, Pose, Straight, extend, pose_error, relative
@@ -27,7 +28,13 @@ from .steering import fold as _fold
 from .steering import signed_distance as _signed_distance
 from .steering import translation
 
-__all__ = ["FoldStrategy", "SelfContactError", "connect", "construct_candidate"]
+__all__ = [
+    "ConstructionPolicy",
+    "FoldStrategy",
+    "SelfContactError",
+    "connect",
+    "construct_candidate",
+]
 
 DEFAULT_LIMIT = PinchLimit()
 
@@ -82,6 +89,7 @@ def construct_candidate(
     checkpoint: Callable[[], None] | None = None,
     record_candidate: Callable[[tuple[Piece, ...], float], None] | None = None,
     strategy: FoldStrategy = FoldStrategy.OUTWARD,
+    construction: ConstructionPolicy = ConstructionPolicy.MATERIAL_FOLD,
 ) -> FoldRoute:
     """
     Construct a locally compatible candidate requiring a separate contact check.
@@ -95,8 +103,12 @@ def construct_candidate(
     generalization whose longer paths have not replaced it. record_candidate
     retains every complete primitive sequence considered by the exact quadratic
     factorization before selecting material cost; it does not certify contact.
+    RIGID_PERPENDICULAR additionally bounds local rigid-sweep collapse for spatial
+    folds, independently of material pinch. Tight planar solutions stay unchanged.
+    It does not make rigid sweep geometry identical to the material-fold surface.
     """
     targets = Targets.capture(source)
+    spatial_radius = spatial_fold_radius(targets, limit, construction)
     if not isinstance(strategy, FoldStrategy):
         raise ValueError("Use an explicit FoldStrategy.")
     if not math.isfinite(runway_mm) or runway_mm < 0 or isinstance(runway_mm, bool):
@@ -113,6 +125,7 @@ def construct_candidate(
     if simple is not None:
         geometries = simple
     else:
+        radius = spatial_radius
 
         def sequence(factors: tuple[CylindricalFold, ...]) -> tuple[Piece, ...]:
             """
@@ -174,6 +187,7 @@ def connect(
     checkpoint: Callable[[], None] | None = None,
     record: Callable[[ContactTrial], None] | None = None,
     strategy: FoldStrategy = FoldStrategy.OUTWARD,
+    construction: ConstructionPolicy = ConstructionPolicy.MATERIAL_FOLD,
 ) -> FoldRoute:
     """
     Return a connected route only after the full thick-profile contact gate clears.
@@ -182,6 +196,7 @@ def connect(
     candidate/evidence retained. This is not proof that another route cannot fit.
     Runway repair is opt-in: its bounded development trial did not clear the
     spatial cases, so default execution rejects immediately without growing them.
+    The explicit construction policy is applied to every candidate before contact.
     """
     targets = Targets.capture(source)
 
@@ -190,7 +205,12 @@ def connect(
         Recompute closure after a common material runway change.
         """
         return construct_candidate(
-            targets, limit, runway_mm=runway, checkpoint=checkpoint, strategy=strategy
+            targets,
+            limit,
+            runway_mm=runway,
+            checkpoint=checkpoint,
+            strategy=strategy,
+            construction=construction,
         )
 
     step = targets.diameter_mm * (targets.lines + 1.2)

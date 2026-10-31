@@ -399,3 +399,23 @@ available after a stop or source edit. Future rendering needs a coherent runtime
 The numerical evidence contains no native-construction/compliance acceptance.
 No contact, equilibrium, strain, bonded insulation, ending, containment or
 continuous-native audit is implied by the sheet view. Report missing coverage.
+
+### Experimental fold construction policy
+
+`experiment_ribbon_fold_route.solver.connect` and `construct_candidate` accept
+`construction=ConstructionPolicy.RIGID_PERPENDICULAR` for an explicitly declared
+ordinary-sweep trial. `MATERIAL_FOLD` remains the existing reference default.
+This setting is independent of `FoldStrategy` and the material macaroni limit.
+For spatial routing it encloses the unchanged joined profile's bounding rectangle
+in a disk and requires cylinder radius `rho / utilization * (1 + 1e-9)`.
+Since center curvature is at most `1/R`, any rigid transported orientation then
+has local Jacobian at least `1-rho/R`. Straight and aligned planar solutions retain
+their original tight radius. The disk bound is sufficient and conservative;
+it does not find the smallest buildable radius or certify native interpolation.
+
+Retain material compatibility/contact checks and separately measure native outcome,
+terminal roll, banking and material lengths. A larger radius does not make an
+ordinary rigid sweep equal to the isometric material fold. No new rule tolerance,
+native builder/profile change, seed discovery or production promotion follows.
+The first one-case native trial and its remaining roll failure are recorded in
+[construction evidence](pinch.md#rigid-sweep-construction-policy-trial).

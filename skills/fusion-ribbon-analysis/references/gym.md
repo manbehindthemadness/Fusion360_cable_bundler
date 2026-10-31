@@ -102,7 +102,35 @@ inside `Sweep profiles - current gym targets`. These are hidden native joined
 profiles from the existing builder; input edits replace only that owned profile
 component. Diagnostic methods retain the same pair outside their proposal scene,
 including layouts without a solved path. Manual visibility survives reuse.
-It does not author a reference cable, supply a witness route, run a solver or add
+192selects the retained187three-conductor gym result (186case5),62.196139mm/6folds,
+with thickness, three original guides and two closed target profile sketches.
+189single-conductor sweep is hidden intact. Only this gym case is displayed;
+the caption no longer aggregates excluded historical controls. No new solves or
+native cable attempts; its numerical contact check remains clear, native cable
+compliance untested. Setup0.874s, sampledRSS545376KiB; viewport reviewed. Evidence:
+artifacts/verification/ribbon_triple192/.
+
+193..196 subsequently localize that triple layout's manual sweep failure using
+the selected End cap and identical reversed center guide. Ten dependent partial
+sweeps of this one configuration yield2partial solids/8native rejections,0complete
+ribbons/physical audits,0new solves. Last pass2.714541mm, first fail2.732833mm from
+End: the first diagonal bend, Fold11. Rigid perpendicular profile transport rolls
+the width into the inside until its reach exceeds the1.345674mm centerline radius;
+the cap-matched local model predicts collapse inside the observed0.018292mm bracket.
+The material fold's curved transverse sections differ from this rigid sweep.
+Last passing body and red rigid/blue material section comparison remain visible;
+189is hidden intact. No solver, profile or production construction change. See
+[partial sweep evidence and limits](pinch.md#triple-gym-native-sweep-failure-localization).
+
+198reruns that same gym input with the new explicit rigid-perpendicular construction
+envelope. The conservative spatial radius bound produces132.577433mm/8folds,
+with material/contact checks clear. One native attempt builds one joined solid in
+3.820058s; arrival profile roll still differs0.681455deg and native interior material
+compliance remains unaudited. The new solid is visible, original cap sketches and
+three guides retained, prior views hidden intact. This is one development input,
+zero fully accepted physical cables. See [policy and limitations](pinch.md#rigid-sweep-construction-policy-trial).
+
+The gym itself does not author a reference cable, supply a witness route, run a solver or add
 physical validity rules. The planar second gym is deferred.
 
 Path search and all seed-based discovery were removed from active diagnostics on

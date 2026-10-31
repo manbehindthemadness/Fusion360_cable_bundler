@@ -566,6 +566,127 @@ viewer instances were not reloaded; their new defaults apply on fresh creation.
 No fullQA/native cable compliance audit or production-builder change. Evidence:
 artifacts/verification/ribbon_profiles191/.
 
+## Triple gym native sweep failure localization
+
+193..196 investigate the user's failed manual sweep of187's three-conductor gym
+layout (186case5,62.196139mm/6folds,D1.5mm,joined contour width4.8mm). Selection
+capture confirms `Sweep profile - End cap` and the original approximate cubic
+center guide; the Fusion application log reports self-intersection. With the
+manual command cancelled, partial sweeps use the identical joined profile and
+exactly reversed guide, perpendicular orientation, zero added twist/taper. Only
+the native distance fraction changes; targets, profile builder and route stay fixed.
+
+All ten native prefix outcomes, in execution order (distance from End in mm):
+
+| Phase | Distance | Outcome |
+| --- | ---: | --- |
+|193|2.129187272|Built solid|
+|193|6.812015822|ASM_SELF_INTER|
+|193|4.470601547|ASM_SELF_INTER|
+|193|3.299894409|ASM_SELF_INTER|
+|193|2.714540841|Built solid|
+|193|3.007217625|ASM_SELF_INTER|
+|194|2.860879233|ASM_SELF_INTER|
+|194|2.787710037|ASM_SWEEP_ILLEGAL_SURFACE|
+|195|2.751125439|ASM_SWEEP_ILLEGAL_SURFACE|
+|195|2.732833140|ASM_SWEEP_ILLEGAL_SURFACE|
+
+194stops on the newly encountered illegal-surface code, leaving two planned cuts
+unattempted. After application-log review,195freezes a renewal accepting only the
+two recorded geometric rejection codes and completes those two cuts. Other errors
+still stop. The observed transition is2.714540841..2.732833140mm, width0.018292299mm.
+It is in Fold11, the first diagonal bend from End, after a2.129187272mm flat lead:
+0.585354..0.603646mm into the curved portion, at33.3173..34.3585degrees of turn.
+This is an observed bracket, not an exact kernel threshold or continuous proof.
+
+196compares actual native profile arcs with rigid perpendicular transport of the
+frozen centerline. At the last pass, predicted cap vertices agree with the native
+cap within2.943e-7mm;512/1024transport steps change minimum Jacobian by4.398e-7.
+The centerline curvature radius is1.345674mm. As the rigid profile rolls relative
+to the material fold by22.1108..22.8017degrees, its reach toward the inside grows
+from1.339418to1.357690mm. The minimum rigid-sweep Jacobian changes from+0.004649to
+-0.008929; predicted local collapse occurs at2.720799mm, inside the native bracket.
+This corroborates local surface collapse as the cause. The diagnostic material
+fold has curved transverse sections and staggered bend entry across its width;
+an ordinary rigid-profile sweep represents different geometry. Numerical material
+clearance does not certify that sweep. This is not a complete native interior
+strain/contact audit, a new routing constraint or proof that no valid cable exists.
+
+One existing configuration examined:0new solves,10dependent partial attempts,
+2partial solids built,8kernel rejections,0complete ribbons built/fully audited.
+193allows8calls/300s,194allows4/60s,195allows2/60s; actual calls6/2/2. There are no
+retries or geometry repairs. Native calls total0.347146s, host phases1.607482s;
+local analysis0.271814s is separate. Native sampled RSS peaks501216KiB; in-flight
+peak is unmeasured. All phases retain4GiB ceiling/3.8GiB launch headroom.
+
+The last passing partial body remains visible in `193 - End-first partial sweeps
+- triple gym failure`.196adds red predicted rigid and blue original material-fold
+sections at the first failing cut, a leader and bracket caption; viewport reviewed.
+The red section is diagnostic geometry, not a failed BRep body. Overlay0.212817s,
+sampledRSS410752KiB,0additional native attempts. Source pins, plans, every outcome,
+stops and analysis remain under artifacts/verification/ribbon_sweep193..196.
+Solver/profile/production construction code is unchanged. Scoped artifact Ruff
+lint/format and IDE inspections pass; application tests/fullQA were not run.
+No further sweep batch or solver change is scheduled.
+
+## Rigid sweep construction policy trial
+
+The user's next instruction explicitly requests accounting for the observed sweep
+limitation in the solver and rerunning geometry creation. `construction.py` adds
+an explicit `ConstructionPolicy.RIGID_PERPENDICULAR`, independent of material pinch
+and `FoldStrategy`. Existing `MATERIAL_FOLD` reference behavior remains the default;
+the198rerun explicitly selects the new policy with CONTINUOUS. No production,
+native builder, joined profile or endpoint change occurs.
+
+For spatial folds, rho is the circumradius of the profile's unchanged bounding
+rectangle: half-width `(lines+.2)D/2`, half-height `D/2`. Choosing cylinder radius
+`rho/p*(1+1e-9)` ensures local rigid Jacobian `J >= 1-rho/R > 1-p` regardless of
+transported roll, because center curvature is `cos(bank)^2/R <= 1/R`.
+This sufficient bound is conservative, not a new physical macaroni requirement
+or the smallest native radius. Straight/aligned planar constructions stay tight.
+It cannot certify rigid-sweep native material lengths, banking, cap roll or global
+clearance. The equal-length material map and its mandatory contact gate remain.
+
+197stops before any candidate/native call because sandboxing blocks `/bin/ps` RSS
+sampling; its plan/failure remain.198renews the identical one-case scope with host
+permission for memory sampling. One fixed186case5gym input planned/evaluated,
+one selected candidate, one complete native attempt, one joined solid built,
+zero fully audited/accepted physical ribbons. No new holdout coverage, route seed
+bank, runway corrections, alternative native construction or geometry retries.
+
+The material route changes from62.196139mm/6folds to132.577433mm/8folds. Cylinder
+radius2.524556mm, profile disk2.514458mm; material pinch29.708189%, analytic rigid
+J lower bound0.004000001. Frozen cubic samples give0.003976265 minimum bound and
+2.541e-9mm maximum sampled guide error. Material metric error4.44e-16,
+no-lateral error1.034e-16/mm, fixed-cap error1.244e-14mm/frame4.84e-16;
+three material lengths agree locally and globally. Material contact separates
+after144envelope checks. Native rigid-volume global clearance remains unaudited.
+
+The one end-first perpendicular sweep builds811.942902mm3 in3.820058s using the
+unchanged joined contour and zero added twist/taper. Both cap centers/planes match
+within1.040e-14mm/roundoff; areas6.090287688mm2. Arrival axis roll differs0.681455deg
+modulo180 and cap vertex-set error is0.027290497mm. No angular tolerance is inferred:
+construction succeeds but terminal profile correspondence fails. Interior native
+equal material lengths/no-wide-axis bending/pinch are unmeasured, so do not accept
+this as a fully compliant cable. Direct-design feature health is Unknown(5), with
+no message; positive-volume solid and cap checks are separate observations.
+
+Cold construction+contact0.074091s; complete numerical work0.269196s (within the
+3.820058s native timing goal). Local preparation phase2.520737s includes numerical
+work; native display/setup/build/cap phase8.239384s includes the kernel. Native
+sampled RSS peaks607936KiB; in-flight peak unmeasured. Limits15s numerical/45s
+preparation,20kcontact nodes/depth36,1native attempt120s/240shost,4GiB/3.8GiB
+launch headroom held. No second sweep or tuning batch is scheduled.
+
+198's solid/three material guides and hidden Start/End profiles remain available;
+the material reference meshes are hidden individually.187/193/189are retained
+hidden. Solver caption reports the roll failure and incomplete native compliance;
+viewport reviewed. Plans, geometry, every outcome and executed changed-source
+copies remain under artifacts/verification/ribbon_sweep197..198. Solver imports
+were reordered only after execution to resolve Ruff; the executed source copy
+preserves the original byte fingerprint.55focused tests pass, scoped Ruff and
+changed-file IDE inspections pass; fullQA and generalized native coverage unrun.
+
 ## Historical percentage policy
 
 This is the geometric rule clarified with the user's **Macaroni demo v1**. It
