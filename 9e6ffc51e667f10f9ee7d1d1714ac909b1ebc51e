@@ -1,0 +1,15 @@
+{
+    "version": "0.1.0",
+    "id": "7eba365c-693c-48b9-98a3-c54e7a7fa265",
+    "timestamp": "2026-11-01T20:02:16.772139Z",
+    "vcs": {
+        "type": "git",
+        "revision": "9e6ffc51e667f10f9ee7d1d1714ac909b1ebc51e",
+        "origin": "github",
+        "repository": "git@github.com:manbehindthemadness/Fusion360_cable_bundler.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": []
+}
