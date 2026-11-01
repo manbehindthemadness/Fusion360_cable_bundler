@@ -9,7 +9,7 @@ import math
 from cable_bundler.routing.geometry import Vector3
 
 
-def _projection(
+def affine_projection(
     rows: list[list[float]], right: list[float], reference: list[float]
 ) -> list[float] | None:
     """
@@ -58,7 +58,7 @@ def close_lengths(
     for mask in range(1 << len(reference)):
         active = [i for i in range(len(reference)) if mask & (1 << i)]
         rows = [[getattr(directions[i], axis) for i in active] for axis in "xyz"]
-        values = _projection(
+        values = affine_projection(
             rows, [getattr(displacement, axis) for axis in "xyz"], [reference[i] for i in active]
         )
         if values is None or min(values, default=0) < -1e-9:

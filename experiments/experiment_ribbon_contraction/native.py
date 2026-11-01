@@ -158,7 +158,13 @@ def build(run_path: str, case_id: str) -> None:
         result["audit"] = row["audit"]
         started = time.perf_counter()
         audit = runpy.run_path(
-            str(root_path / "artifacts/verification/ribbon_fidelity221/fidelity_audit221.py")
+            str(
+                root_path
+                / plan.get(
+                    "fidelity_audit",
+                    "artifacts/verification/ribbon_fidelity221/fidelity_audit221.py",
+                )
+            )
         )["audit"]
         audit(stored, row, budget, occurrence)
         result["audit_seconds"] = time.perf_counter() - started

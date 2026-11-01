@@ -57,14 +57,14 @@ def show_case(run_path: str, case_id: str) -> None:
     evidence = DisplaySource(case_id, plan["sources"][entry["contracted"]])
     overlay = Overlay(
         "solver_limits",
-        "Algebraic bend simplification",
+        plan.get("review_title", "Algebraic bend simplification"),
         (("folds_removed", row["baseline_folds"] - row["final_folds"]),),
         (),
         (
             f"Bends {row['baseline_folds']} -> {row['final_folds']}; faces {native['original_face_count']} -> {native['face_count']}",
             f"Length {row['baseline_length_mm']:.3f} -> {row['final_length_mm']:.3f} mm",
-            f"Bend rewrite and closure {row['reduction_seconds']:.4f}s; native generation {native['generation_seconds']:.3f}s",
-            "Exact crease rule exhausted; no global minimum claim",
+            f"{plan.get('pass_label', 'Bend rewrite and closure')} {row['reduction_seconds']:.4f}s; native generation {native['generation_seconds']:.3f}s",
+            plan.get("method_note", "Exact crease rule exhausted; no global minimum claim"),
         ),
         Vector3(route.targets.start.x, route.targets.start.y + 10, 0),
     )
