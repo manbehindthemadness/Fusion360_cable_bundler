@@ -56,7 +56,19 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--input-directory", type=Path)
+    parser.add_argument("--input-suffix", default="reduced")
     args = parser.parse_args()
+    cases = CASES
+    if args.input_directory is not None:
+        directory = args.input_directory.resolve()
+        directory.relative_to(ROOT / "artifacts/verification")
+        if args.input_suffix not in {"reduced", "joint"}:
+            raise ValueError("Unsupported frozen material-route suffix")
+        cases = tuple(
+            (name, str((directory / f"{name}-{args.input_suffix}.json").relative_to(ROOT)))
+            for name, _ in CASES
+        )
     run = args.output.resolve()
     run.relative_to(ROOT / "artifacts/verification")
     run.mkdir(parents=True, exist_ok=False)
@@ -71,16 +83,16 @@ def main() -> None:
         ROOT / "cable_bundler/routing/geometry.py",
         ROOT / "experiment_testing_rules.txt",
         ROOT / "rollback_end_loft_notes.txt",
-        *(ROOT / path for _, path in CASES),
+        *(ROOT / path for _, path in cases),
     }
     hashes = {
         str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths
     }
     plan = {
-        "question": "Can a first-pass joint affine allocation replace unnecessary straight travel with larger radii while preserving material length and full target poses?",
+        "question": "Can one joint radius/travel allocation soften the recorded input folds while preserving material length and full target poses?",
         "method": "v1: fixed fold angles/banks/leads; nonnegative explicit straight lengths and radius growth above each original radius. Lexicographic LP minimizes straight travel, then total material length, under three positional equations and original total-length budget. Enumerate supports0..4, then test full allocation or seven dyadic fractions if contact is unaccepted.",
-        "cases": list(CASES),
-        "coverage": "Four examined gym-created development configurations from263, not the265angle-relaxed outputs. No holdout, no specimen-specific settings and no global physical optimum claim.",
+        "cases": list(cases),
+        "coverage": "Four examined gym-created development configurations from the recorded input paths. No holdout, no specimen-specific settings and no global physical optimum claim.",
         "fixed": "Both ordered caps, conductor identities/profile, equal local material increments,99.6%pinch,no lateral bending. No radius may tighten below its existing value; angles and crease directions unchanged. Explicit straight controls remain straight.",
         "limits": {
             "case_seconds": 120,
@@ -107,11 +119,11 @@ def main() -> None:
     output: dict[str, Any] = {
         "status": "running",
         "cases": [],
-        "unattempted": [name for name, _ in CASES],
+        "unattempted": [name for name, _ in cases],
         "native_attempts": 0,
     }
     try:
-        for name, relative in CASES:
+        for name, relative in cases:
             started = time.monotonic()
 
             def checkpoint(case_started: float = started) -> None:

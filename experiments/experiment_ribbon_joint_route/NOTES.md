@@ -229,3 +229,81 @@ Commands use the configured project SDK through `uv run --python <SDK>`:
 
 Frozen run directories refuse reuse.286remains stopped, and289depends on its
 unchanged existing Gym1body. Archived source snapshots preserve every prior policy.
+
+## Restoring the second pass — 2026-11-01
+
+The user requested restoring the second pass to relax/normalize the remaining
+kinks after viewing285/289. Two bounded comparisons used exactly the same four
+frozen285routes, without rerunning the first pass or changing target poses.
+These are four repeated development configurations, not eight independent cases.
+
+292runs the existing radius/straight allocation once per case. It preserves
+angles, banks and leads, grows radii only, and requires nonincreasing material
+length. All four return `no_straight_reduction`: 418 linear supports,122feasible
+projections, zero contact proposals and zero changed outputs. The finite allocation
+does not demonstrate global inability to soften the routes.
+
+295then restores the existing bounded angle-relaxation pass followed by one radius
+allocation. Angle relaxation permits straight redistribution and signed angle
+changes, with fixed banks/radii/leads; accepted steps must decrease both explicit
+straight travel and total material length. Limits: eight iterations, six proposals
+per iteration, six Newton corrections/four halvings per proposal,0.2radian step.
+The subsequent radius pass has at most2517supports/eight contact fractions and
+retains its angle-relaxed input as the radius floor. Both stages share120s/case,
+600s/phase,4GiB local RSS and unchanged20000contact-pair/depth36 limits. Each phase
+pins sources, input plans and safeguards before execution and preserves all results.
+
+| Case | Angle-pass disposition | Radius-pass disposition | Final length mm | Folds | Combined pass s |
+| --- | --- | --- | ---: | ---: | ---: |
+| calibration | Six proposals without joint length gain | No straight reduction |60.833732|6|.044061|
+| gym-1 | No projected straight descent | No straight reduction |11.870847|4|.004007|
+| gym-2 | No projected straight descent | No straight reduction |35.807024|4|.003840|
+| gym-3 | No projected straight descent | No straight reduction |154.190348|4|.003074|
+
+Each phase:4/4planned/evaluated,0/4improved,4/4prior plans retained, no skipped or
+unattempted numerical cases. All four final numerical contact checks are separated;
+maximum ordered-cap residual5.550e-14and sampled material residual6.019e-16.
+Zero native attempts, zero new builds, zero new native audits and zero complete
+physical audits in this follow-up. Existing289native evidence remains historical,
+not newly repeated. No Fusion calls, visibility changes, documents or appearances.
+
+292elapsed1.240786s, allocation pass total .008468s;295elapsed1.340160s, combined
+pass total .054983s. Full elapsed includes baseline/final contact and reporting;
+pass timers are subsets. Maximum local peak RSS18,268,160/18,595,840bytes. No
+matched new native generation benchmark exists. No token/cost estimate is available.
+
+The restored contraction objectives found no acceptable move on these compact
+routes. They are not direct curvature-smoothing objectives, and both retain
+crease directions. This result does not mean the visible kinks are unavoidable or
+that a broader joint angle/bank/radius relaxation has been tested. No new smoothing
+algorithm, loosened length criterion, extra folds or production integration was
+introduced. The user's visual smoothing goal remains unmet; the previous good
+geometry is preserved. Native replay was skipped because no geometry changed.
+
+The radius and angle experiment runners now accept the recorded joint input
+directory; the angle runner optionally chains one radius normalization pass.
+Legacy defaults remain263inputs with their original algorithms. The final straight
+measurement is taken from actual output pieces after both stages. A later lint
+correction binds the per-case radius ledger explicitly; archived292/295sources
+remain the exact executed versions. No source change was applied during a phase.
+Unused native/display wiring was removed because there are no changed bodies.
+
+Focused verification:26radius/joint/trim tests plus6angle-relaxation tests passed,
+32total. Ruff lint/format and IDE inspections passed for the two changed runners;
+complete code diff reviewed. Full QA, new native fidelity and broader smoothing
+coverage are unattempted. No additional experiment is scheduled.
+
+```text
+-m experiments.experiment_ribbon_radius_allocation.runner --input-directory artifacts/verification/ribbon_joint285 --input-suffix joint --output artifacts/verification/ribbon_finish292
+-m experiments.experiment_ribbon_fold_relaxation.runner --input-directory artifacts/verification/ribbon_joint285 --normalize-radii --output artifacts/verification/ribbon_finish295
+```
+
+Use new output directories for reproduction; historical runs refuse reuse.
+
+Subsequent aesthetic296/302/303changes the objective to integrated material-lane
+curvature with a declared5%length allowance. All four examined layouts improve that
+score and have retained native solids with named fidelity. Gym3peak curvature is
+24.733%lower for .079598mmextra length;G1curvature jumps remain. This supersedes the
+no-change outcome for visual broadening, not its historical contraction evidence.
+See`experiments/experiment_ribbon_aesthetic/NOTES.md`for the method, exact budgets,
+297transaction rollback,299missing-body stop, final coverage and limitations.
