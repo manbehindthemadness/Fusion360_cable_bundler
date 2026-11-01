@@ -73,6 +73,39 @@ repository-wide QA, native dimension matrix or different-layout collateral/holdo
 validation has run for the new constructor. These remain required evidence before
 any generalized reliability or production claim.
 
+## Different-layout fidelity after resumption — 2026-11-01
+
+User authorized fidelity item1; macaroni-limit item2 remains for direct collaboration.
+216..221retain four independent development configurations: unchanged211calibration
+and three gym layouts frozen before routing, seeds20261101/2/3, N1D.75/N3D1.5/N6D3.
+Different zone/face/roll selections are not a factorial dimension study or holdouts.
+One unchanged CONTINUOUS algebraic material candidate per new layout, default
+material radius, existing contact gate; no retired discovery or radius study.
+Four native attempts/four retained positive solids; no geometry retries or builder,
+profile, target, rule or production changes. Final uniform221checks pass4/4:
+30,520surface samples,1,702ordered seam chains, three material guides and both caps.
+Maximum sampled surface/guide errors6.824e-9/2.414e-9mm; tangent6.956e-8degrees.
+
+Preserve two instrument stops.216gym1has eight rejected UVmembership queries on
+triangular tip faces.217directUV also rejects;218same prescribed face proxies give
+distance<=1.8e-11mm, solid pointOn and exactly matching NURBS controls/knots/weights.
+219adds at most64same-face corroborations per case at unchanged1e-6mm/.001degree
+thresholds; no nearest-other-face fallback.219gym3then stops on three derived guide
+samples just below zero(-2.47e-17/-4.36e-17).221records raw fractions and measures
+those endpoint-roundoff probes at zero, rejecting excursions beyond1e-14. All four
+existing bodies pass the same renewed audit with unchanged revisions; neither
+instrument failure was resolved by rebuilding, relabeling or repairing geometry.
+
+220displays actual native BRep copies and original guides for the three new layouts
+using rigid display translations only. Bodies stay individually hidden, with both
+native cap sketches and three original guides retained. Existing211/203remain.
+Sampled RSS max528496KiB; in-flight peak unmeasured. Stage budgets/source pins held.
+46focused material-surface tests, scoped Ruff and IDE inspections pass; fullQA unrun.
+Final report/measurements/sourceZIP: `artifacts/verification/ribbon_fidelity221/`;
+earlier216..220outcomes remain. Four named fidelity passes are not continuous
+curvature/contact/strain certification:0fully accepted physical cables. No further
+builds or automatic item2work are scheduled.
+
 ## Existing triple sweep inspection
 
 204examines one existing gym-created203N3D1.5solid, source202case4. It performs
