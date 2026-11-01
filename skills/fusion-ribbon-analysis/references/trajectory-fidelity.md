@@ -149,6 +149,245 @@ Plans, failures, PNGs and sources remain under `artifacts/verification/ribbon_te
 through238. Final235..238Ruff/IDE checks pass; no app tests/fullQA were needed for
 this artifact-only prototype. Native capture:237/baked-overview-shaded.png.
 
+## Optional appearance requirement and deferred workflow — 2026-11-01
+
+The user accepts the prototype's endcap mismatch and visual side-face result.
+Detailed appearance work is an optional, infrequent operation. It must not become
+a mandatory geometry-generation cost. Record these timing categories separately:
+
+- Geometry generation includes the required material-surface translation, BRep
+  definition, native construction and insertion. Do not call kernel time alone
+  the full generation time or silently exclude required geometry preparation.
+- Optional appearance preparation includes source-map extraction, native display
+  chart collection, material-coordinate evaluation, rasterization and image I/O.
+- Optional appearance assignment includes document appearance creation/copying,
+  connecting the generated maps and assigning them to their corresponding faces.
+- Development checks, screenshots, archiving and orchestration have separate
+  timings. Retain total elapsed time when those operations actually execute.
+
+The earlier approximately29s is the prototype's optional chart/bake/assignment
+workflow, not a new geometry-generation measurement. Excluding it changes the
+reported scope; it does not constitute an optimization or measured speedup.
+No production counter or generation pipeline was changed by recording this policy.
+
+### What exists independently of a texture
+
+The frozen material plan defines material progress s and ordered profile position
+q, plus thickness/profile coordinates. These can be evaluated without images,
+appearance objects or physical-material assignment. They are not the renderer's
+UVs. The current successful method does not install arbitrary custom UVs into
+Fusion's BRep. Fusion still owns its actual per-face display texture coordinates.
+
+A useful native body therefore can exist first. A later explicit appearance
+operation can read its display charts, evaluate the retained material map and
+generate an image adapted to each face. There is one image per bounded BRep face,
+including analytic faces; mesh triangles are interpolation cells within it.
+This is a texture-specific compensation operation. Applying a different ordinary
+Fusion appearance afterward does not automatically inherit corrected native UVs.
+
+Retain the construction's fixed plan, conductor/order identity and face-family
+provenance so that later sampling has an authoritative material correspondence.
+Do not identify a conductor by whichever face is nearest. Experimental face
+indices are guarded against the exact body revision and topology; they are not
+persistent IDs that can be reused blindly after regeneration. Production would
+need durable associations to the existing conductor and routing identities.
+
+### Appearance classes and support boundary
+
+| Appearance class | Proposed later operation | Evidence boundary |
+| --- | --- | --- |
+| Plain exterior color | Assign a color appearance directly; no image bake | Initial untextured copies and color read-back are tested |
+| Image-backed opaque base color | Read source bitmap and supported placement settings; bake face images when requested | Experimental supported subset; see trial outcomes below |
+| Roughness or scalar masks | Remap their source maps through the same material mapping | Separate channel validation required; color-only evidence is insufficient |
+| Tangent-space normal/bump maps | Remap and, where necessary, transform the normal/tangent basis | Not validated by copying a normal-map filename or color rasterization |
+| Native procedural wood/noise/checker shaders | Need an evaluator/exporter or a separately implemented generator | No generic shader-sampling/bake API found; not established as supported |
+| Layered, transparent or other complex shaders | Need explicit per-shader/channel support | Not covered by an opaque base-color image proof |
+
+Native library names alone do not indicate a simple image appearance.239finds
+Fabric with albedo/specular-related channels and an unknown normal texture, Oak
+with separate color and roughness images, and Carbon Fiber with layered maps.
+The breadth trial extracts Fabric's base-color bitmap into a generic opaque
+Fusion appearance with fixed roughness0.47. It does not reproduce the complete
+library Fabric shader. That distinction must remain visible in reliability claims.
+
+The implemented experimental source subset is opaque RGB/RGBA8 noninterlaced PNG,
+positive finite physical tile dimensions, zero source offset/rotation and both
+repeat modes on. Nonopaque alpha, unsupported PNG formats, unknown/procedural
+texture types and unvalidated source transforms reject explicitly. This is a
+bounded experiment contract, not a promise that all appearance classes work.
+
+### Later selection, cache invalidation and persistence
+
+An intended application flow is: create geometry and its provenance; leave
+ordinary colors available; on an explicit textured-appearance request, inspect
+the source, validate supported channels/settings, collect native charts and bake;
+then apply document-owned appearance copies. Unsupported sources must leave a
+clear unsupported outcome rather than silently flattening or substituting them.
+No automatic production UI or drag-and-drop interception is implemented here.
+
+Cache identity must include source image content, source mapping settings, the
+retained material plan, body revision/topology, actual renderer charts, resolution
+and the mapping/raster algorithm version. An appearance name or local image path
+alone is inadequate. Replacing bytes at the same path or selecting another source
+must invalidate the generated images. Geometry regeneration requires correspondence
+validation and fresh charts; a matching face count is not sufficient.
+
+The live getter can return a library-relative image path such as
+`1/Mats/fabric_wire_grey.png`;240records this behavior. Resolve it only against an
+explicit known library asset root, check containment/readability and fingerprint
+the actual file. Do not guess a file in the working directory. Paths may also
+change after an archive import. Imported image bytes and face associations need
+checking independently of whether the source filename still looks familiar.
+
+Archive testing must distinguish embedded-image survival from an in-memory render
+cache. Export an owned component, make its external baked paths unavailable,
+reimport into an owned target and read the imported image data/face associations.
+Restore temporarily renamed experiment files on every exit. A same-session archive
+test is not a cold Fusion restart, generic export test or regeneration proof.
+
+### Reliability experiments and retained failures
+
+The maintained experimental entry points are
+`experiments/experiment_optional_appearance/{runner,bake,persistence_split}.py`;
+they are separate from production construction and ordinary test collection.
+The retained inputs are unchanged221calibration plus gym-1/2/3, with conductor
+count/diameter N3/D1.5, N1/D0.75, N3/D1.5 and N6/D3 respectively. These are four
+examined development configurations, not unseen holdouts or new route solutions.
+All geometry, caps, solver rules and conductor ordering remain fixed.
+
+240prepares all four plain-colored copies before selecting the image source and
+exports their actual charts.241bakes calibration but stops on gym-1 before its
+completion; gym-2/3are unattempted in that run.242diagnoses a periodic-phase branch
+mistake: a slightly negative entry angle was wrapped to the opposite fold end.
+243uses nearest-interval phase unwrapping, passes calibration/gym-1/gym-2and stops
+at gym-3's strict material-coordinate audit.244retains the16failed adjacency rows;
+maximum material disagreement is4.407e-4mm at float display samples.
+
+245adds an interpretation for actual mesh-boundary nodes that agree with an
+authored crease plane, circular profile arc and ordered arc extent within the
+float32 positional uncertainty. It supplies the known entry/exit phase rather than
+inverting an almost collapsed inner radius. No body point, UV, target, geometry
+limit or correspondence tolerance is changed. All four numerical preflights pass
+the same1e-4mm material-coordinate gate, maxima8.735e-7/2.386e-7/7.309e-7/2.679e-6mm.
+245uses constant placeholder pixels to isolate coordinate checks; it is explicitly
+not a texture bake or visual acceptance result. Preserve241/243rather than replacing
+their failure classifications with the later result.
+
+246then bakes the actual Grey Fabric source image on all four layouts.247checks
+every installed image by content hash, all native bitmap transform settings,
+roughness0.47and unchanged display points/UVs/triangles and geometry.248repeats the
+same algorithm with the native Light Brown Fabric base-color image;249applies and
+checks that replacement. Both variants pass the named mapping/data-assignment
+checks on4/4configurations. All872generated images and all four content-bound
+cache identities change for the replacement. This verifies explicit source-image
+selection/replacement, not automatic propagation from arbitrary material edits.
+
+| Configuration | Side faces | Actual side adjacencies / sampled | Matched nodes | Maximum material disagreement, mm | Grey source: mean / max RGB disagreement, 0–255 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Calibration N3/D1.5 | 200 | 382 / 382 | 2,122 | 8.735e-7 | 6.57 / 43.50 |
+| Gym-1 N1/D0.75 | 126 | 238 / 238 | 1,300 | 2.386e-7 | 2.30 / 25.00 |
+| Gym-2 N3/D1.5 | 210 | 402 / 402 | 2,212 | 7.309e-7 | 4.97 / 36.07 |
+| Gym-3 N6/D3 | 336 | 648 / 648 | 3,439 | 2.679e-6 | 11.67 / 97.50 |
+
+The RGB values come from bilinear samples of the actual saved PNGs at shared
+display nodes, not a renderer shader evaluation. Fine source-image detail exposes
+substantial128x128sampling/interpolation/gutter differences despite correct material
+correspondence. Brown-image mean/max values are8.86/63.50,2.54/26.00,6.87/62.00and
+14.21/90.69respectively. This is a known quality limitation, not seamless or
+pixel-perfect general image reproduction. A validated resolution/antialiasing/
+filtering policy remains necessary for demanding textures. Do not infer full
+Fabric-shader, color-management or normal-map fidelity from these results.
+
+### Archive outcome and transaction boundary
+
+250exports/imports the calibration component while its external generated PNG
+directory is temporarily unavailable, but stops after21verified faces because
+some imported image paths are not yet readable.251later reads them successfully.
+252adds a bounded10s event-pumped wait: calibration verifies200/200images, then
+gym-1stops waiting for two resources; gym-2/3remain unattempted.253again finds those
+resources readable on a later call. Retain both failed persistence procedures.
+
+254changes the verification schedule: export, import and verify use separate MCP
+calls, so import commits before verification. For each case, both its original
+baked-image directory and the archive's export-sidecar directory remain renamed
+and unavailable throughout import, commit and verification. They are restored by
+the controller's `finally` block on every exit. Every side-face image is then
+readable and byte-identical:200/126/210/336verified,4/4archives pass. Persistent
+face attributes preserve correspondence; stored source points evaluate on their
+corresponding imported faces within1e-6mm, with matching face counts and volume.
+This supports a post-import transaction/resource-readiness dependency; it is not
+proof that every missing texture anywhere in Fusion has that cause.
+
+254takes52.992s for four component archives, imports and checks. It opens/closes
+no documents, saves nothing to the cloud and leaves the imported diagnostic copies
+hidden in the same owned design. Original source PNGs and sidecars are restored.
+This is warm-session component archive evidence, not a cold application restart,
+arbitrary export-format guarantee or geometry regeneration test.255confirms all
+four original body revisions remain unchanged and the owned design is idle.
+
+### Timing, verification and next boundary
+
+The Grey source local bake/mapping/audit takes18.228/11.469/20.218/32.527s per
+configuration; Brown takes18.071/11.419/19.197/30.924s.247native assignment alone
+takes12.783/2.342/5.086/12.251s;249takes17.414/4.532/8.775/18.024s. These are
+instrumented development measurements with distinct renderer/cache state, not a
+controlled optimization comparison or production generation benchmark. All are
+optional appearance expense. Total phase times include additional checks/captures.
+
+Across the recorded240/241/243/246/247/248/249/250/252/254phases, measured target
+work sums466.006s, including failures. This excludes local diagnostics, controller
+latency and code preparation; total orchestration/token cost is unmeasured. Maximum
+sampled process RSS is1,993,184KiB (249), below4GiB; in-flight peak is unmeasured.
+Resource checks occur between bounded groups of16operations and between cases.
+Current work comprises4appearance-only copies plus7archive-import copies of the
+same four configurations,0newroute solves or sweep/createBody attempts and0newfull
+physical audits. Copies, faces and image variants do not increase independent
+geometry coverage. No production integration or promotion occurred.
+
+33focused tests cover image reading/checksums, explicit library-relative path
+resolution, replacement source bytes, invalid dimensions, unsupported native
+texture types/transforms/transparency, material inversion/phase branches, known
+crease recognition, unrelated chart-domain equivalence and restoration of offline
+directories. Final review adds a filesystem-only restoration helper that preserves
+files if an importer recreates a hidden directory; four focused tests exercise
+normal restoration, conflicting directories and missing retained sources. Native254
+used the earlier direct restoration path; the final helper does not alter import,
+image or geometry checks. Scoped Ruff and IDE
+inspections pass. No repository-wide suites/fullQA run was requested. Plans,
+partial outputs, screenshots, source snapshots and failures remain under
+`artifacts/verification/ribbon_optional239/` through256;256/summary.json aggregates
+the final evidence. Historical source digests resolve to retained source snapshots
+where the final implementation has changed.
+
+Use fresh output directories; completed plans/results never overwrite. The
+developer-only sequence is:
+
+```text
+uv run python -m experiments.experiment_optional_appearance.runner --phase export --output artifacts/verification/<new-export>
+uv run python -m experiments.experiment_optional_appearance.bake --export artifacts/verification/<new-export> --output artifacts/verification/<new-bake> --asset-root "<known-library-resource-root>"
+uv run python -m experiments.experiment_optional_appearance.runner --phase apply --export artifacts/verification/<new-export> --bake artifacts/verification/<new-bake> --output artifacts/verification/<new-apply>
+uv run python -m experiments.experiment_optional_appearance.persistence_split --bake artifacts/verification/<new-bake> --output artifacts/verification/<new-archive-test>
+```
+
+The host guard is intentionally bound to the current owned idle design and frozen
+case inputs. A different document/session requires an explicit newly pinned owned
+context; do not disable guards or point the experiment at an unrelated design.
+`bake --alternate` selects the recorded second library bitmap. The older
+`persistence` entry point retains the single-callback failure procedure; use
+`persistence_split` for the validated post-commit archive sequence.
+
+Current conclusion: deferred opaque base-color application and source replacement
+have positive evidence across these four development layouts; archived image data
+and face associations survive the tested post-commit import without source files.
+Fine-pattern visual fidelity, full procedural/PBR appearances, cold restart and
+regeneration remain explicit limits. The optional appearance requirement can be
+kept outside normal geometry generation, with the supported subset and remaining
+quality work recorded rather than concealed by a blanket reliability claim.
+
+Relevant API contracts: [read-only rendered texture coordinates](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_TriangleMesh_textureCoordinates.htm),
+[appearance image access and document image storage](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/core_Appearance_colorTexture.htm),
+and [texture type/property access](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/core_AppearanceTexture.htm).
+
 ## Direct material construction: first development result
 
 `experiments/experiment_ribbon_fold_route/material_profile.py`,
