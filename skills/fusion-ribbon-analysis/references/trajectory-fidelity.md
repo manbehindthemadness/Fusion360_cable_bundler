@@ -15,6 +15,140 @@ Do not use199..203's rigid-sweep radius ratios as validated material-plan minima
 Geometry fidelity now takes priority over solver-rule tuning. An experimental
 direct material constructor is implemented; production builders remain unchanged.
 
+## Texture continuity gate — 2026-11-01
+
+Geometry fidelity does not establish appearance UV continuity. User requested
+investigation before extending this method.222..226test native Automatic mapping
+on appearance-only copies of all four221material bodies plus the ordinary203
+sweep of the calibration plan. Same asymmetric diagnostic texture/settings; no
+new routes, geometry builds, profile/rule changes or production integration.
+
+All four direct bodies fail the named default-UV continuity gate. Across830/830
+longitudinal face joins,4,880matched display-mesh nodes expose nonmatching UVs;
+native captures corroborate texture phase/direction resets.226independently
+confirms that every measured pair shares native edges and all five originals'
+revisions are unchanged. Raw UV jumps use1e-6UVunits as a diagnostic reporting
+floor, not a physical tolerance. The ordinary sweep has eight continuous side
+faces along its path, so it has no equivalent internal longitudinal face joins;
+zero comparator seams is inapplicable, not a complete texture acceptance claim.
+
+Live2706.1.17 exposes projected Automatic/Planar/Box/Cylindrical/Spherical and3D
+mapping controls. Rendered `TriangleMesh.textureCoordinates` is read-only. No
+supported arbitrary per-BRep-face UV assignment was found in the examined API;
+this does not prove all material-aware parameterization/baking strategies
+impossible. Mathematical material coordinates are not automatically renderer UVs.
+Neither alternative is implemented or validated for generic color/normal/roughness
+maps, save/reopen, regeneration or export. Hold adoption as a sweep replacement
+where seamless material-following texture mapping is required; flat per-conductor
+color assignment is a separate capability.
+
+223stopped at Automatic setter InternalValidationError after one native copy;
+224confirmed the default mapping but stopped at nested occurrence placement.
+Both precede UV measurements.225reuses that copy, adds four others, avoids the
+mapping setter and moves only the root diagnostic occurrence. Failures remain.
+Five copies stay under `223 - Native texture continuity - fixed body copies`,
+translated100cm for display; direct calibration visible, other four hidden.
+Original geometry/visibility remains intact.225takes27.227s, all measured Fusion
+stages30.223s; RSSmax964576KiB, in-flight peak unmeasured. Scoped Ruff/IDE checks
+pass; no app tests/fullQA because no application or constructor changes occurred.
+Report/source archive: `artifacts/verification/ribbon_texture226/`; native captures
+and raw seam records: `artifacts/verification/ribbon_texture225/`. Prior geometry
+fidelity remains separate and valid; no new physical or item2limit acceptance.
+
+## Build-time parameter investigation — 2026-11-01
+
+227..229use one unchanged calibration configuration, three native attempts,
+three returned positive solids, two completed geometry audits and zero accepted
+seamless texture solutions. No new solve or limit tuning; production is unchanged.
+
+227assigns positive affine U/V domain stamps to all200side surfaces before
+`createBody`, preserving controls, weights and physical edges.48faces remain
+NURBS and retain the supplied domains; their actual rendered UV offsets change.
+The other152faces become40tori and112cylinders, losing the caller domains.
+The named7000point/ordered-seam/three-guide/cap audit passes. This proves partial
+build-time influence, not supported arbitrary renderer-UV assignment. Automatic
+mapping normalizes physical scale; domain scaling alone is not a seamless atlas.
+
+228multiplies the rational numerator and denominator by the same positive linear
+factor, preserving exact shape and parameterization with a higher profile degree.
+Fusion still produces the same48/152NURBS/analytic split. Geometry audit passes;
+the representation change does not prevent simplification or resolve texture joins.
+
+229concatenates existing spans into ten longitudinal NURBS skins, retaining the
+original boundary edge chains.4000transient correspondence samples agree within
+1.547e-14mm. Native construction takes56.656s and returns92faces rather than the
+expected12; outcomeInfo includes `illegal surface detected, healing failed` and
+analytic simplification. Its positive volume is620.197359537mm3, differing from
+the original620.203830261mm3. The topology guard stops before any native surface,
+guide, cap or texture audit. This is a failed construction candidate despite
+returning a solid, not proof of preserved geometry or continuous charts. It remains
+hidden under `229 - Continuous native material skins`; no retry or breadth batch.
+Total229Fusion work78.640s.227/228take50.539s/71.080s respectively; these include
+preflight and audits, not end-to-end solve timings. In-flight memory peak unmeasured.
+
+The original four221geometry-fidelity results remain separate. Keep the texture
+adoption hold. Per-face material-coordinate texture baking is an unvalidated
+alternative, not a native UV fix or an implemented resolution. Reports, pinned
+sources and failed evidence are retained in `artifacts/verification/ribbon_texture227/`
+through `ribbon_texture229/`. Scoped Ruff and IDE inspections pass on229's four
+artifact scripts; no production/app change or full QA run occurred.
+
+## Per-face texture bake: first development result — 2026-11-01
+
+User authorized trying face-specific images after the build-time-domain trials.
+230..238test one unchanged calibration configuration: one appearance-only copy,
+zero solves or geometry construction attempts, one completed named appearance
+audit. No additional independent configurations or full physical acceptance.
+
+The final200side-face PNGs encode global material progress s, ordered width q,
+and an asymmetric3mm directional pattern. Each BRep face receives one128x128image
+with a four-texel filtering gutter. Triangles interpolate within each face's image;
+they do not receive separate images. The actual Automatic-mapping display charts
+remain unchanged, including native analytic faces. Coordinate compensation happens
+in the images and appearance scale/offset controls, not writable BRep/mesh UVs.
+
+233exports23,636side-face display nodes in6.164s.235analytically inverts the frozen
+piece map and independently reconstructs every point against the original material
+evaluator/profile: maximum reconstruction1.111e-6mm, circular-profile radial
+residual1.384e-6mm. These measure float32 display coordinates, not a new relaxation
+of native geometry fidelity.230nodes have q roundoff outside exact width; validation
+sample clipping is bounded by1e-5mm after measuring the maximum1.011e-6mm overrun.
+Original q remains in the baked material coordinates. Across190longitudinal joins/
+1,038matched nodes, material-s disagreement<=8.962e-7mm and q<=5.583e-7mm.
+
+235bakes200PNGs in9.941s.236assigns200document-owned appearances in12.920s and
+captures native overview/five closeups; complete236work19.021s.237independently
+reads every assigned image by hash, exact scale/offset settings and all actual
+mesh coordinates/UVs/triangles against233. All200checks pass; original revision,
+copied revision and volume are unchanged.237takes9.732s including captures.
+The native captures visibly carry the gradient/pattern through face boundaries.
+
+238decodes the actual PNG files and samples them bilinearly at2,122matched nodes
+across382/382actual native side-face adjacencies.382excludes the eight explicitly
+collapsed seams counted by the earlier390topological checks. Maximum progress/
+width gradient disagreement is1/255color step. The finer blue directional pattern
+has up to26/255difference: coarse resolution/interpolation/filtering remains an
+observed seam defect. No claim of pixel-perfect arbitrary-texture continuity.
+27synthetic inverse checks and an independent raster midpoint check pass; these
+are algorithm checks, not27ribbon configurations or a physical-compliance audit.
+
+Preserve setup failures:230FloatProperty.units getter InternalValidationError;
+231transient surface-inverse correspondence residual;232read-only diagnosis finds
+original/copy face IDs/points/local mesh coordinates agree;234strict material-width
+evaluator rejects float32 endpoint roundoff before rasterization.235records the
+measured roundoff handling before its renewed bake. No geometry repair or rebuild.
+
+Only color-pattern baking on this development calibration is demonstrated.
+End caps, arbitrary source imagery, normal/roughness maps, save/reopen, regeneration,
+export, resolution/filtering policy and the three existing gym collateral layouts
+remain untested. Keep production unchanged and retain the texture adoption hold
+pending those checks. This is a viable compensation prototype, not shared native
+UV preservation. The copy stays visible under `230 - Per-face baked material texture`,
+translated100cm;237leaves a shaded overview. Original geometry is unchanged.
+Plans, failures, PNGs and sources remain under `artifacts/verification/ribbon_texture230/`
+through238. Final235..238Ruff/IDE checks pass; no app tests/fullQA were needed for
+this artifact-only prototype. Native capture:237/baked-overview-shaded.png.
+
 ## Direct material construction: first development result
 
 `experiments/experiment_ribbon_fold_route/material_profile.py`,
