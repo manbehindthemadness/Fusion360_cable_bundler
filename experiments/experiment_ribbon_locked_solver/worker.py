@@ -25,6 +25,7 @@ from experiments.experiment_ribbon_contraction.runner import snapshot
 
 from .inspection import freeze
 from .lock import verify
+from .progress import append
 from .settings import VERSION, Settings
 from .solver import solve
 
@@ -34,6 +35,7 @@ def run(directory: Path) -> Path:
     Preserve unresolved/failed results and every proposal; never launch native construction here.
     """
     started, cpu_started = perf_counter(), process_time()
+    append(directory, "numerical", "Worker started; validating frozen inputs and source lock.")
     plan = json.loads((directory / "plan.json").read_text())
     pins = verify()
     if plan.get("version") != VERSION or plan.get("sources") != pins:
@@ -47,6 +49,12 @@ def run(directory: Path) -> Path:
         raise ValueError("The selected gym procedure requires a frozen gym layout")
     settings = Settings.parse(plan["settings"])
     last_sources = perf_counter()
+    last_stage, last_report = "", 0.0
+    append(
+        directory,
+        "numerical",
+        f"Inputs validated; first-pass optimization {'on' if settings.first_pass_optimization else 'off'}, smoothing {settings.smoothing_percent:g}%.",
+    )
 
     def checkpoint() -> None:
         """
@@ -66,8 +74,14 @@ def run(directory: Path) -> Path:
         """
         Append each algebraic, contact, radius and layout proposal before advancing.
         """
+        nonlocal last_stage, last_report
         with (directory / "trials.jsonl").open("a") as stream:
             stream.write(json.dumps(event, allow_nan=False) + "\n")
+        stage = str(event.get("stage") or "smoothing")
+        now = perf_counter()
+        if stage != last_stage or now - last_report >= 0.5:
+            append(directory, stage, str(event.get("status") or "Working"))
+            last_stage, last_report = stage, now
 
     method: dict[str, Any] = {
         "id": plan["result_id"],
@@ -88,6 +102,13 @@ def run(directory: Path) -> Path:
         checkpoint()
         result = solve(targets, settings, checkpoint, record)
         write_document(directory / "numerical-result.json", result.detail)
+        append(
+            directory,
+            "numerical",
+            "Route accepted; writing geometry plan and checking display data."
+            if result.route is not None
+            else "No route accepted within the solver's rules and finite budget; no native build.",
+        )
         if result.route is not None:
             if result.first_pass is None:
                 raise ArithmeticError("Accepted route lacks its first-pass provenance")
@@ -113,6 +134,7 @@ def run(directory: Path) -> Path:
             ]
     except (ArithmeticError, OSError, RuntimeError, TimeoutError, TypeError, ValueError) as error:
         stopped = f"{type(error).__name__}: {error}"
+        append(directory, "failed", stopped)
         method.update(status="stopped", detail=stopped)
     method["rules"].extend(
         [
@@ -145,6 +167,8 @@ def run(directory: Path) -> Path:
         manifest["stopped"] = stopped
     destination = directory / "manifest.json"
     write_document(destination, manifest)
+    if not stopped and (directory / "route.json").exists():
+        append(directory, "numerical", "Numerical stage complete; waiting for native construction.")
     return destination
 
 

@@ -18,7 +18,7 @@ from devtools.ribbon_analysis.gym.handoff import validate
 from devtools.ribbon_analysis.inspection.archive import targets_payload, write_document
 from experiments.experiment_ribbon_diagnostic_viewer.controller import ProcedureController
 
-from . import lock
+from . import lock, progress
 from .lock import ROOT
 from .settings import VERSION, Settings
 
@@ -44,6 +44,7 @@ class Controller(ProcedureController):
         super().__init__(python, directory)
         self.document_id = document_id
         self.build = build
+        self._active_settings = Settings()
         self._status["detail"] = (
             "Selected material solver ready; historical seed-discovery methods remain retired."
         )
@@ -110,6 +111,7 @@ class Controller(ProcedureController):
         )
         self._job, self._started, self._seconds, self._cancelled = job, perf_counter(), 120, None
         self._log = (job / "worker.log").open("x")
+        progress.append(job, "control", "Request validated; launching numerical worker.")
         environment = dict(os.environ)
         environment.pop("PYTHONHOME", None)
         environment.pop("PYTHONPATH", None)
@@ -127,12 +129,17 @@ class Controller(ProcedureController):
                 text=True,
                 env=environment,
             )
-        except OSError:
-            self._log.close()
+        except OSError as error:
+            if self._log is not None:
+                self._log.close()
             self._log = None
+            progress.append(job, "control", f"Worker launch failed: {error}")
+            self._status.update(status="stopped", detail=f"Worker launch failed: {error}")
             raise
+        self._active_settings = settings
         self._status = {
             "status": "running",
+            "phase": "numerical",
             "detail": "Selected material solver running; fixed endpoints and source lock retained.",
             "procedure": VERSION,
             "completed": 0,
@@ -144,19 +151,46 @@ class Controller(ProcedureController):
         """
         Build accepted material geometry once and append native disposition in a new manifest.
         """
+        previous_process = self._process
         manifest = super().poll()
         if manifest is None:
+            if previous_process is not None and self._process is None and self._job is not None:
+                output = progress.tail(self._job / "worker.log", 4000).strip()
+                progress.append(
+                    self._job, "control", self._status["detail"] + ("\n" + output if output else "")
+                )
             return None
         document = json.loads(manifest.read_text())
         job = manifest.parent
         if not (job / "route.json").exists() or document.get("stopped"):
+            progress.append(
+                job,
+                "numerical",
+                str(
+                    document.get("stopped")
+                    or "No accepted route was produced; native construction was not attempted."
+                ),
+            )
+            if not document.get("stopped"):
+                self._status.update(
+                    status="unresolved",
+                    phase="finished",
+                    detail="No accepted route was produced; native construction was not attempted.",
+                )
             return manifest
         self._status.update(
             status="running",
             detail="Building native geometry and checking development fidelity.",
             phase="native",
         )
-        native = self.build(job)
+        progress.append(job, "control", "Numerical result collected; starting native construction.")
+        try:
+            native = self.build(job)
+        except (ArithmeticError, OSError, RuntimeError, TypeError, ValueError) as error:
+            message = f"Native stage could not complete: {type(error).__name__}: {error}"
+            progress.append(job, "native", message)
+            self._status.update(status="stopped", phase="finished", detail=message)
+            raise
         success = native.get("status") == "built_and_named_fidelity_checks_pass"
         method = document["solvers"][0]
         errors = str(native.get("error") or "Unknown native failure").strip().splitlines()
@@ -192,19 +226,21 @@ class Controller(ProcedureController):
             phase="finished",
             elapsed_seconds=perf_counter() - self._started,
         )
+        progress.append(job, "complete" if success else "failed", method["detail"])
         return final
 
     def state(self) -> dict[str, Any]:
         """
-        Advertise the selected method separately from unavailable historical discovery.
+        Advertise progress and the last launched controls, retaining settings across palette reconnects.
         """
         return {
             **super().state(),
             "job": str(self._job) if self._job is not None else None,
+            "build_log": progress.read(self._job),
             "active_solver": {
                 "id": VERSION,
                 "label": "Selected material solver v1",
-                "settings": asdict(Settings()),
+                "settings": asdict(self._active_settings),
                 "scope": "Joint construction, optional aesthetic smoothing and optional material UV metadata; full physical compliance unverified",
             },
         }

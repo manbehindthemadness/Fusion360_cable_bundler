@@ -109,6 +109,8 @@ class DiagnosticViewer:
         self._gym_group: Any = None
         self._gym_id: str | None = None
         self.on_gym: Callable[[], None] | None = None
+        self.on_clear_geometry: Callable[[], None] | None = None
+        self.geometry_available: Callable[[], bool] | None = None
         self._visibility = {
             "outlines": True,
             "envelope": True,
@@ -366,6 +368,27 @@ class DiagnosticViewer:
         self.on_gym = callback
         self._visibility.setdefault("gym", True)
 
+    def enable_geometry_clear(
+        self, callback: Callable[[], None], available: Callable[[], bool]
+    ) -> None:
+        """
+        Bind explicit native-output ownership without coupling diagnostic replay to a builder.
+        """
+        self.on_clear_geometry = callback
+        self.geometry_available = available
+
+    def report_progress(self, entry: dict[str, str]) -> None:
+        """
+        Forward a persisted native-stage event without letting a closed palette abort construction.
+        """
+        if self.palette is None or not self.palette.isValid:
+            return
+        try:
+            self.palette.sendInfoToHTML("build_progress", json.dumps(entry))
+        except RuntimeError as error:
+            # Optional UI delivery is fail-soft; the owned job retains the durable log.
+            self.last_event_error = f"Progress display unavailable: {error}"
+
     def open_layout(self, manifest: Path, label: str) -> None:
         """
         Register and select frozen gym inputs while preserving existing case sessions.
@@ -419,6 +442,15 @@ class DiagnosticViewer:
             ):
                 raise ValueError("Stop and collect the active job before editing a gym layout.")
             self.on_gym()
+        elif action == "clear_geometry":
+            if data or self.on_clear_geometry is None:
+                raise ValueError("Clear geometry requires an owned generated-output callback")
+            if self.runner is not None and self.runner.state()["status"] in (
+                "running",
+                "cancelling",
+            ):
+                raise ValueError("Stop and collect the active job before clearing geometry")
+            self.on_clear_geometry()
         elif action == "example":
             self._open_example(_text(data.get("id")))
         elif action == "compare":
@@ -492,6 +524,9 @@ class DiagnosticViewer:
             raise ValueError("Unknown diagnostic action.")
         state = self.session.state()
         state["gym_available"] = self.on_gym is not None
+        state["geometry_clear_available"] = (
+            self.geometry_available is not None and self.geometry_available()
+        )
         state["visibility"] = self._visibility.copy()
         state["visible_sections"] = visible_section_indices(
             len(self._sections), self.session.section

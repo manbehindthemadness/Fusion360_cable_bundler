@@ -8,7 +8,7 @@ import json
 import time
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -27,6 +27,7 @@ from experiments.experiment_ribbon_joint_route.fidelity import audit_with
 
 from .fidelity_base import audit
 from .lock import verify
+from .progress import append
 from .settings import VERSION, Settings
 
 
@@ -41,6 +42,15 @@ class NativeOwner:
         """
         self.document_id, self.display_x_cm = document_id, display_x_cm
         self.displayed: Any = None
+        self.on_progress: Callable[[dict[str, str]], None] | None = None
+
+    def _progress(self, directory: Path, stage: str, message: str) -> None:
+        """
+        Persist a native stage and notify the optional diagnostic progress view.
+        """
+        entry = append(directory, stage, message)
+        if self.on_progress is not None:
+            self.on_progress(entry)
 
     def hide(self) -> None:
         """
@@ -48,6 +58,35 @@ class NativeOwner:
         """
         if self.displayed is not None and self.displayed.isValid:
             self.displayed.isLightBulbOn = False
+
+    def has_geometry(self) -> bool:
+        """
+        Report whether this owner's latest generated occurrence still contains native bodies.
+        """
+        return (
+            self.displayed is not None
+            and self.displayed.isValid
+            and self.displayed.component.bRepBodies.count > 0
+        )
+
+    def clear(self) -> None:
+        """
+        Delete only the latest owned output occurrence, retaining diagnostic archives and other bodies.
+
+        The output's auxiliary end-profile sketches are removed with its occurrence.
+        Require the owned idle design; a missing or externally deleted output is a
+        harmless no-op. Failed deletion retains the handle for a subsequent explicit action.
+        """
+        app = adsk.core.Application.get()
+        if (
+            app.activeDocument.creationId != self.document_id
+            or app.userInterface.activeCommand != "SelectCommand"
+        ):
+            raise RuntimeError("Clear geometry requires its owned idle design")
+        if self.displayed is not None and self.displayed.isValid:
+            if not self.displayed.deleteMe():
+                raise RuntimeError("Fusion could not remove the generated output occurrence")
+        self.displayed = None
 
     def build(self, directory: Path) -> dict[str, Any]:
         """
@@ -57,6 +96,7 @@ class NativeOwner:
         audit. Optional coordinate attributes require no appearances or bitmaps.
         """
         destination = directory / "native-result.json"
+        self._progress(directory, "native", "Validating native build inputs.")
         if destination.exists():
             raise RuntimeError("This frozen gym job already has a native disposition; no retry")
         plan = json.loads((directory / "plan.json").read_text())
@@ -95,16 +135,19 @@ class NativeOwner:
             if snapshot(route)["case"] != plan["targets"]:
                 raise RuntimeError("Native route targets differ from frozen gym inputs")
             started = time.perf_counter()
+            self._progress(directory, "native", "Translating material geometry into NURBS patches.")
             profile = material_profile(route.targets.lines, route.targets.diameter_mm)
             patches = material_patches(route.pieces, profile)
             result["translation_seconds"] = time.perf_counter() - started
             if max(p.error_bound_mm for p in patches) > 1e-6:
                 raise RuntimeError("Selected material surface representation bound exceeded")
             started = time.perf_counter()
+            self._progress(directory, "native", "Defining native faces, edges and seams.")
             authored = define_material_body(route.pieces, patches, checkpoint)
             result["definition_seconds"] = time.perf_counter() - started
             checkpoint()
             result["native_attempted"] = 1
+            self._progress(directory, "native", "Creating the native BRep solid in Fusion.")
             destination.write_text(json.dumps(result, indent=2))
             started = time.perf_counter()
             transient = authored.definition.createBody()
@@ -146,6 +189,11 @@ class NativeOwner:
                 "guide_maximum_tangent_error_degrees": {},
             }
             result["audit"] = row["audit"]
+            self._progress(
+                directory,
+                "audit",
+                f"Solid created ({body.faces.count} faces); checking surface, guide, seam and cap fidelity.",
+            )
             started = time.perf_counter()
             audit_with(body, row, budget, occurrence, audit)
             result.update(fidelity_audited=1, audit_seconds=time.perf_counter() - started)
@@ -153,6 +201,7 @@ class NativeOwner:
                 raise RuntimeError("Native fidelity audit changed the body")
             started = time.perf_counter()
             if settings.material_uv:
+                self._progress(directory, "uv", "Storing optional material-coordinate metadata.")
                 appearances_before = design.appearances.count
                 metadata = json.loads((directory / "material-uv.json").read_text())
                 encoded = json.dumps(metadata, separators=(",", ":"))
@@ -181,6 +230,9 @@ class NativeOwner:
             occurrence.isLightBulbOn = True
             body.isLightBulbOn = True
             self.displayed = occurrence
+            self._progress(
+                directory, "native", "Fidelity checks passed; showing the generated body."
+            )
             capture(app, occurrence, directory / "native.png")
             result["status"] = "built_and_named_fidelity_checks_pass"
         except Exception:
@@ -188,6 +240,7 @@ class NativeOwner:
             if body is not None:
                 body.isLightBulbOn = False
             result.update(status="stopped", error=traceback.format_exc())
+            self._progress(directory, "failed", result["error"].strip().splitlines()[-1])
         finally:
             result.update(
                 elapsed_seconds=budget.clock() - budget.started, rss_samples=budget.samples

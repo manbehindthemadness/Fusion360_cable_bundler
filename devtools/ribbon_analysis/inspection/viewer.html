@@ -47,6 +47,8 @@
   <dl id="performanceRows" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-variant-numeric:tabular-nums"></dl>
   <p class="muted">Generation excludes UV work and auditing. First pass and smoothing are included in route time. CPU covers the numerical worker.</p>
 </section>
+<label><input id="envelope" type="checkbox" checked> Show transparent ribbon scaffold (both views)</label>
+<p class="muted">Hide the translucent diagnostic mesh to reduce viewport drawing work. The native conductor geometry stays visible.</p>
 <p id="gymScope" class="muted" hidden>Magenta: unconstrained endpoint-tangent pre-path. Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <p id="pathRules" class="muted"></p>
 <section id="selectedSolver" hidden>
@@ -59,8 +61,15 @@
   <p class="muted">Default 5%. Set 0 to disable the second pass. Straightaways are available runway; endpoint frames and physical rules remain fixed.</p>
   <label><input id="materialUV" type="checkbox"> Retain optional material UV coordinates</label>
   <p class="muted">Coordinates support later appearance work. No textures or appearances are created.</p>
-  <div class="toolbar"><button id="runSelected">Solve and build</button><button id="cancelSelected">Cancel numerical work</button></div>
+  <div class="toolbar"><button id="runSelected">Solve and build</button><button id="cancelSelected">Cancel numerical work</button><button id="clearGeometry" disabled>Clear geometry</button></div>
+  <p class="muted">Clear geometry removes the latest generated body. Layout and recorded diagnostic routes remain available.</p>
+  <p id="geometryStatus" role="status" class="muted"></p>
   <p id="selectedRunStatus" role="status" class="muted"></p>
+  <details id="buildLogPanel" open>
+    <summary>Build progress log</summary>
+    <p id="buildLogJob" class="muted"></p>
+    <pre id="buildLog" role="log" aria-live="polite" style="max-height:240px;overflow:auto;white-space:pre-wrap">No build requested in this panel.</pre>
+  </details>
 </section>
 <details id="procedurePanel" hidden>
   <summary>Historical methods</summary>
@@ -77,7 +86,6 @@
 <canvas id="canvas" aria-label="Rotatable three dimensional recorded cable geometry"></canvas>
 <div class="toolbar">
   <label><input id="outlines" type="checkbox" checked> Section outlines</label>
-  <label><input id="envelope" type="checkbox" checked> Thickness envelope</label>
   <label><input id="axes" type="checkbox" checked> Local XYZ</label>
   <label><input id="solverPanels" type="checkbox" checked> Solver panels in Fusion</label>
   <label><input id="constraintWitnesses" type="checkbox" checked> Constraint shapes (both views)</label>
@@ -125,10 +133,11 @@ const element = id => document.getElementById(id);
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}}} Execution */
+/** @typedef {{time:string,stage:string,message:string}} BuildEntry */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,job?:string,build_log?:BuildEntry[],active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,path_rules:string}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,geometry_clear_available?:boolean,path_rules:string}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -Math.PI / 4, pitch = Math.atan(1 / Math.sqrt(2)), zoom = 1, pending = false, connected = false;
@@ -136,6 +145,8 @@ let playing = false;
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 let procedureCatalog = "";
 let activeSolverVersion = "";
+/** @type {BuildEntry[]} */
+let controlLog = [], stageLog = [];
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
 const xyz = p => [p.x, p.y, p.z];
 const add = (a, b, scale = 1) => a.map((v, i) => v + b[i] * scale);
@@ -173,6 +184,7 @@ function controls() {
   const jobBusy = ["running", "cancelling"].includes(state?.execution?.status);
   for (const id of ["runSelected", "firstPassOptimization", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
   element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
+  element("clearGeometry").disabled = blocked || jobBusy || !state?.geometry_clear_available;
   comparisonControls();
 }
 function comparisonControls() {
@@ -182,6 +194,9 @@ function comparisonControls() {
 }
 /** @param {?Execution} execution */
 function renderExecution(execution) {
+  stageLog = execution?.build_log || [];
+  element("buildLogJob").textContent = execution?.job ? `Job: ${execution.job}` : "";
+  renderBuildLog();
   element("selectedSolver").hidden = !execution?.active_solver;
   if (execution?.active_solver && activeSolverVersion !== execution.active_solver.id) {
     activeSolverVersion = execution.active_solver.id;
@@ -214,6 +229,17 @@ function renderExecution(execution) {
   element("selectedRunStatus").textContent = element("runStatus").textContent;
 
 }
+function renderBuildLog() {
+  element("buildLog").textContent = [...controlLog, ...stageLog].slice(-100)
+    .map(entry => `${entry.time} [${entry.stage}] ${entry.message}`).join("\n") || "No build requested in this panel.";
+}
+/** @param {string} message */
+function logControl(message) {
+  controlLog.push({time:new Date().toISOString().slice(11,19),stage:"control",message});
+  controlLog = controlLog.slice(-20);
+  element("buildLogPanel").open = true;
+  renderBuildLog();
+}
 /** @param {{status:string,rows:{label:string,value:string}[]}|undefined} counters */
 function renderPerformance(counters) {
   element("performanceStatus").textContent = counters?.status || "No measured run for this layout";
@@ -225,6 +251,10 @@ function renderPerformance(counters) {
 }
 async function request(action, data = {}) {
   if (pending) return;
+  if (action === "run") {
+    controlLog = []; stageLog = [];
+    logControl("Solve and build requested; waiting for Fusion to validate the controls.");
+  }
   pending = true;
   controls();
   element("error").textContent = "";
@@ -248,14 +278,20 @@ async function request(action, data = {}) {
       connected = false;
       element("connection").textContent = "Fusion connection unavailable";
       element("error").textContent = "Fusion returned an invalid diagnostic response. Reconnect to read its state.";
+      logControl(`${action} failed: invalid response from Fusion.`);
       return;
     }
     connected = true;
     if (response.state) receive(response.state);
+    if (action === "run" && response.ok) logControl("Request accepted; numerical worker launched.");
+    if (!response.ok) logControl(`${action} rejected: ${response.error}`);
+    if (response.ok && action === "clear_geometry") element("geometryStatus").textContent = "Generated geometry cleared.";
+    if (response.ok && action === "run") element("geometryStatus").textContent = "";
     if (!response.ok) element("error").textContent = response.error;
     if (!response.ok) playing = false;
     element("connection").textContent = "Connected to Fusion";
   } catch (error) {
+    logControl(`${action} failed: ${error.message || error}`);
     playing = false;
     connected = false;
     element("connection").textContent = "Fusion connection unavailable";
@@ -321,6 +357,9 @@ function receive(value) {
   controls();
 }
 window.fusionJavaScriptHandler = {handle(action, data) {
+  if (action === "build_progress") {
+    stageLog.push(JSON.parse(data)); stageLog = stageLog.slice(-100); renderBuildLog();
+  }
   if (action === "state") receive(JSON.parse(data));
   if (action === "error") element("error").textContent = data;
   if (action === "diagnostic_playback") {
@@ -330,7 +369,7 @@ window.fusionJavaScriptHandler = {handle(action, data) {
   }
   if (action === "diagnostic_request") {
     const command = JSON.parse(data);
-    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare", "gym"].includes(command.action)) return "Unsupported diagnostic request";
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare", "gym", "clear_geometry"].includes(command.action)) return "Unsupported diagnostic request";
     if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
     request(command.action, command.data || {});
   }
@@ -470,6 +509,7 @@ element("runSelected").onclick = () => {
   request("run", {procedures: [{id: active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}}]});
 };
 element("cancelSelected").onclick = () => request("cancel");
+element("clearGeometry").onclick = () => request("clear_geometry");
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
 element("reconnect").onclick = () => request("ready");
 element("pairedBaseline").onclick = () => request("select", {solver:state.comparison.baseline});

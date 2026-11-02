@@ -12,7 +12,7 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
-from experiments.experiment_ribbon_locked_solver import VERSION, Settings, controller, lock
+from experiments.experiment_ribbon_locked_solver import VERSION, controller, lock
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 
 
@@ -71,11 +71,7 @@ def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
     assert plan["targets"] == scene.payload()["targets"]
     assert plan["sources"] == {"locked-source": "digest"}
     assert runner.state()["discovery_available"] is False
-    assert runner.state()["active_solver"]["settings"] == {
-        "smoothing_percent": Settings().smoothing_percent,
-        "material_uv": False,
-        "first_pass_optimization": True,
-    }
+    assert runner.state()["active_solver"]["settings"] == request["procedures"][0]["settings"]
     native.assert_not_called()
     assert runner._log is not None
     runner._log.close()
@@ -136,3 +132,37 @@ def test_completed_job_remains_available_to_counters_after_layout_navigation(
     runner._status = {"status": "idle", "detail": "Another frozen layout selected"}
     assert runner.state()["job"] == str(runner._job)
     assert runner.state()["status"] == "idle"
+
+
+def test_worker_launch_failure_is_logged_without_replacing_last_controls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Surface a subprocess launch error and retain the previous valid panel settings.
+    """
+    runner, native = _controller(tmp_path)
+    scene = generate()
+    previous = runner.state()["active_solver"]["settings"]
+    monkeypatch.setattr(lock, "verify", lambda: {"source": "digest"})
+    monkeypatch.setattr(
+        controller.subprocess, "Popen", Mock(side_effect=OSError("SDK unavailable"))
+    )
+    request = {
+        "procedures": [
+            {
+                "id": VERSION,
+                "settings": {
+                    "smoothing_percent": 1,
+                    "material_uv": False,
+                    "first_pass_optimization": False,
+                },
+            }
+        ]
+    }
+    with pytest.raises(OSError, match="SDK unavailable"):
+        runner.start(request, scene.targets, gym=scene.payload())
+    state = runner.state()
+    assert state["status"] == "stopped" and "SDK unavailable" in state["build_log"][-1]["message"]
+    assert state["active_solver"]["settings"] == previous
+    assert runner._log is None
+    native.assert_not_called()

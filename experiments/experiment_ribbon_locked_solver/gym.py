@@ -44,6 +44,8 @@ class SelectedWorkspace(Workspace):
         """
         self.native = native
         super().__init__(diagnostics, diagnostic_occurrence, gym_occurrence, directory, scene)
+        diagnostics.enable_geometry_clear(native.clear, native.has_geometry)
+        native.on_progress = diagnostics.report_progress
 
     def open_gym(self) -> None:
         """

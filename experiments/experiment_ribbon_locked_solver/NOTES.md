@@ -970,3 +970,157 @@ was reviewed/refrozen. This is settings/UI verification, **0new geometry solves,
 0native attempts and0new physical-audit coverage**. Previous381/382geometry evidence
 remains historical. Evidence: `artifacts/verification/checkbox385.cjs`,
 `refresh386.py`/`.json` and `review387.py`/`.json`.
+
+## Accessible scaffold visibility388/389 — 2026-11-02
+
+The existing thickness-envelope layer control moves from beneath the diagram to
+directly below the run counters, labeled **Show transparent ribbon scaffold (both
+views)**. It retains the same single `envelope` identity and existing seven-layer
+visibility protocol. It switches the complete translucent native Custom Graphics
+group and the diagram mesh without rebuilding the route or native conductor body.
+Other layer controls remain independent. No numerical or Python implementation
+changes; the executable source lock is refrozen for the maintained HTML change.
+
+388JavaScript syntax/DOM checks pass for unique control identity, accessible
+location, off/on boolean visibility dispatch and immediate diagram redraw. HTML
+IDE inspection passes (an initial timeout was repeated successfully).389checks
+the live native group off/on/off, verifies matching palette state and retention
+across a ready request, and preserves selected method/job/body revision/visibility
+and all other layers. The live checkbox is visibly unchecked and the transparent
+ribbon mesh absent; conductor geometry remains visible. No FPS benchmark or native
+renderer profiling is claimed.0new solves/native attempts/physical audits.
+
+Refreshing the palette reinitializes the smoothing draft to5%. An attempt to
+restore1%was interrupted by Fusion reporting user-driven app changes; automatic
+approval review then rejected a final UI state query for stale-state risk. Further
+UI interaction stopped. Final draft smoothing value is unconfirmed; no solve was
+started and the existing1%built result is unchanged. This UI recheck is the only
+blocked check; the prior native visibility/HTML checks are retained. No full QA
+or repeated Python tests were needed for this HTML-only control relocation.
+Evidence: `artifacts/verification/scaffold388.cjs`, `scaffold389.py`/`.json`.
+
+## Clear generated geometry390–392 — 2026-11-02
+
+**Clear geometry** appears beside Solve and build. It removes only the latest
+generated output occurrence retained by this gym's NativeOwner, including its
+auxiliary end-profile sketches. Other outputs/components, frozen layouts, numeric
+records and diagnostic graphics remain. It works for a hidden latest output too;
+it does not scan names or delete all historical bodies. NativeOwner releases its
+handle only after successful deletion; missing/invalid output is harmless.
+
+The generic diagnostic viewer accepts an explicit empty `clear_geometry` action
+through ownership/availability callbacks installed by SelectedWorkspace. Both
+palette and native dispatcher block it during running/cancelling jobs. The native
+owner also requires its own active idle document. The button disables when no
+native body remains, and shows a completion message after success. Normal Solve
+and build remains available afterward; clearing never deletes job records or
+changes historical fidelity/performance measurements.
+
+22focused tests pass:8new deletion/dispatch checks,8gym-handoff and6selected-
+controller consumers. Native API deletion is mocked: latest-only handle usage,
+repeat/no-output, wrong document/active command, failed deletion retaining ownership,
+empty-action validation, busy rejection and session retention. JavaScript syntax
+and simulated DOM checks pass for clear-button availability, empty action and busy
+state. Ruff check/format pass on four changed Python files. IDE has no introduced
+findings; existing historical-source duplication and the native builder's documented
+fail-soft broad exception remain. Full QA and actual native deletion are unrun.
+
+391installs the new callbacks/classes into the owned idle live gym and refreshes
+the maintained palette.392rebinds the retained navigation callback to the refreshed
+workspace class, then checks source lock, clear availability, callback ownership,
+navigation binding and clear event error. Current selected result/job/body revision
+and hidden-scaffold preference are unchanged. **0deletions,0solves,0native builds**;
+the current body is deliberately left for the user's button click. This palette
+refresh reinitializes draft controls to their usual defaults; it does not change
+the existing1%built result. No new CUA interaction or FPS/physical-audit evidence.
+Evidence: `artifacts/verification/clear390.cjs`, `clear391.py`/`.json` and
+`clear392.py`/`.json`. Executable source lock reviewed/refrozen; production unchanged.
+
+## Solve/build control failure and progress393–400 — 2026-11-02
+
+393read-only inspection finds an actual control failure, before any worker launch:
+the last request is `run`, but its event error is `Supply smoothing_percent and
+material_uv only`. The live runner is an archived
+`counter_controller321.Controller`, with the old two-field Settings binding, not
+the maintained controller tested locally. Its latest job is still381historical
+evidence and no worker exists. Clear geometry had successfully removed the old
+output. Thus the user's missing new body is not evidence of an exhausted solver.
+The earlier controller-binding check exercised the maintained module alias, not
+this actual live runner; that verification gap is acknowledged and corrected.
+Fusion application logs were inspected before host-side changes.
+
+The selected panel now exposes an open **Build progress log**. It shows control
+submission/rejection, worker validation, numerical stages/route acceptance, native
+patch/definition/kernel stages, fidelity checking, optional UV and completion or
+failure. Request errors are visible here even if no job can be created. Accepted
+jobs retain UTC events in `build-progress.jsonl`; at most100events/64KiB are read
+for the UI, tolerating partial writes. Numerical stage updates are throttled;
+full trials/tracebacks remain separate. Native events also push to the palette
+while the synchronous native call runs. Optional palette delivery cannot abort
+construction, and durable logging remains available if it closes.
+
+Controller collection now exposes worker crash output and distinguishes an
+unresolved no-route result from successful completion. Native exceptions outside
+the existing fail-soft adapter stop the control stage explicitly. Last successfully
+launched controls are retained in controller state, so palette reconnects no longer
+replace the last1%setting with the default5%. Malformed requests or failed launches
+do not replace those controls. Solver geometry, physical gates and native fidelity
+tolerances are unchanged; this is diagnostic/control work, not a solver tuning fix.
+
+395class-only repair stops before a solve because the old runner also has a
+per-instance `state` override, whose old class closure makes `super()` invalid
+after class reassignment. Its error response is retained.396instead creates a fresh
+maintained Controller and copies only explicit historical/job/layout state, never
+bound method overrides. This preserves methods, targets, jobs and native ownership.
+The actual controller contract now advertises and accepts all three settings.
+No solve/native attempt occurs in395/396.
+
+397freezes one current gym case,120s numerical/120s native/250s phase,4GiB RSS with
+3.8GiB launch headroom, at most one native attempt/no retries. It launches through
+the actual `DiagnosticViewer.dispatch('run',...)` path; the palette's ordinary
+polling collects the worker and performs native construction. At default5%smoothing,
+numerical routing succeeds and a152-face solid builds, but named fidelity rejects
+six shared-seam endpoint discrepancies, each4.420389e-6mm. Surface samples themselves
+pass (maximum1.615e-9mm). The solid remains hidden and its failure preserved. This
+is a native seam-fidelity failure after construction, not a missing route/control
+failure, and remains unresolved. Generation2.241300s; native-operation17.099224s;
+partial audit timer is not separately retained. Numerical2.436148s/CPU2.186866s.
+No gate is relaxed and no geometry retry is appended to that stopped phase.
+
+A separately reviewed3981%verification refuses scheduling because the latest job
+changed while the user was operating the panel: its prerequisite deliberately
+does not replace that job.0new solves/native attempts there.399then inspects the
+user-driven1%run `selected-eecd3dee1f3e472ca75af09d589731b8`: completed numerical,
+native construction and named fidelity pass. Targets and gym match397exactly;
+these are two settings variants of **one independent examined configuration**,
+not two independent successful cases. At1%:142faces, numerical1.984736s/CPU1.980530s,
+generation.988163s, named audit13.701331s, full controller elapsed18.860809s. Both
+variants miss the numerical<=generation timing goal. Sampled native RSS peaks
+612352/727536KiB, below4GiB; in-flight peak unmeasured.0full physical audits.
+
+400retains that successful user job and installs last-used-controls persistence
+without another build, deletion, layout change or forced diagnostic selection.
+The body is visible with its unchanged native revision, scaffold remains hidden,
+event error is clear, and29progress events end with named-fidelity completion.
+Current source lock verifies. The successful job's full source hash differs only
+in `controller.py`, whose subsequent edit retains launched preferences; its
+numerical/native implementations and logged geometry remain the executed versions.
+Do not relabel the old plan as a new exact full-source verification.
+
+Coverage for this diagnostic: one independent current gym layout, two numerical
+variants/native attempts/builds (one agent397launch and one user-driven run), one
+named-fidelity pass and one named-fidelity failure;0full physical audits/holdouts.
+395/398stopped setup/guard work and all historical failures remain recorded. No
+generalized construction or5%reliability claim. No further geometry run scheduled.
+
+23focused tests pass across7progress/worker/collection,7controller and9clear/UI
+boundary checks. Covers bounded/partial log reads, worker crash traces, no-route
+classification, native completion/error, launch failures, retained controls and
+optional progress-display failure. JavaScript checks verify visible control
+rejection, polled worker logs and pushed native events. Scoped Ruff check/format
+and IDE inspections pass with only existing archived-source duplication, the
+documented native broad exception and unchanged optional-job test warning. Complete
+diff/new-file review done. No full repository QA or standalone type checker.
+Evidence: `inspect393.json`, `log394.cjs`, repair395/396 responses,
+`ribbon_dispatch397`, stopped398response, `inspect399.json`, `retain400.json`, plus
+the original selected-job directories. Production harness/profile code unchanged.
