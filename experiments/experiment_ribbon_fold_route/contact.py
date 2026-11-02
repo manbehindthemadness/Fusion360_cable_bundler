@@ -11,6 +11,7 @@ from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
 from .contact_bounds import Cell, Span, cap_neighborhood, projection
+from .contact_caps import straight_bridge_pairs
 from .contact_inverse import occupied_coordinates, profile_height
 from .geometry import FoldRoute, pose_error
 
@@ -51,8 +52,9 @@ def inspect_contact(
     Enclose every pair of original pieces through bounded material-box subdivision.
 
     Single regular plane-cylinder-plane folds are injective for |angle|<=pi and
-    R>half-thickness. Shared caps are excluded only through a local half-space
-    argument. Nonadjacent thick regions are never ignored for being close along
+    R>half-thickness. Cap neighborhoods are excluded only through a local half-space
+    argument, including certified positive plane gaps across straight bridges.
+    Nonadjacent thick regions are never ignored for being close along
     the centerline. Positive separation uses outward floating interval envelopes;
     it is not a formal exact-arithmetic proof or native-solid validation.
     """
@@ -89,6 +91,7 @@ def inspect_contact(
         return cache[region]
 
     pending = [(a, b) for i, a in enumerate(cells) for b in cells[i + 1 :]]
+    bridges = straight_bridge_pairs(route)
     checked = 0
     while pending:
         if checkpoint is not None and checked % 64 == 0:
@@ -104,8 +107,10 @@ def inspect_contact(
         checked += 1
         a, b = route.pieces[first.piece], route.pieces[second.piece]
         if (
-            second.piece == first.piece + 1
-            and max(pose_error(a.end_pose(), b.pose)) < 1e-10
+            (
+                (second.piece == first.piece + 1 and max(pose_error(a.end_pose(), b.pose)) < 1e-10)
+                or (first.piece, second.piece) in bridges
+            )
             and cap_neighborhood(a, first, True)
             and cap_neighborhood(b, second, False)
         ):
@@ -179,5 +184,5 @@ def inspect_contact(
     return ContactResult(
         "separated",
         checked,
-        reason="Thick envelopes separated; only analytically monotone shared-cap neighborhoods excluded.",
+        reason="Thick envelopes separated; monotone shared caps and certified straight-bridge cap gaps excluded.",
     )

@@ -165,6 +165,17 @@ subsets. CPU covers the numerical worker only. Missing/invalid/partial timings
 remain unmeasured. Counter refresh reads cached timestamped job records without
 solver execution, scene rebuilding or resetting editable layout controls.
 
+Linking a gym retains the viewer's current context handle, identity and manual
+visibility. Later layout changes replace that owned context rather than leaving
+an untracked overlay. `Workspace.deactivate()` hides only its explicit view/palette
+handles and refuses active jobs; the selected installer retires previous owned
+workspaces in the same document while retaining their histories and bodies.
+
+The diagnostic canvas uses the gym preview's Z-up orbit convention and initial
+view, including back-to-front surface/envelope sorting. Reset restores that view;
+canvas orbit remains independent of the Fusion viewport camera. World coordinates,
+target frames and recorded route geometry are unchanged by diagram orientation.
+
 The **Diagnostic example** selector keeps the original single-conductor S/lateral90
 alongside a three-conductor spatial reversal. Each example retains its own session,
 selected section and imported histories. An active job must stop and be collected

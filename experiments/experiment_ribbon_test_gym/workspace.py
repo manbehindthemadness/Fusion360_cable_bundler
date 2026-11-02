@@ -74,6 +74,23 @@ class Workspace:
         runner = self.diagnostics.runner
         return from_execution(scene.targets, scene.payload(), runner.state() if runner else None)
 
+    def deactivate(self) -> None:
+        """
+        Hide this owned workspace without deleting histories, bodies or reusable viewer handles.
+
+        Refuse retirement during an active numerical/native job. An installer may
+        retire old workspaces in its own document; unrelated components are untouched.
+        """
+        runner = self.diagnostics.runner
+        if runner is not None and runner.state()["status"] in ("running", "cancelling"):
+            raise ValueError("Stop and collect the active job before retiring its workspace.")
+        for occurrence in (self.diagnostic_occurrence, self.gym_occurrence):
+            if occurrence.isValid:
+                occurrence.isLightBulbOn = False
+        for palette in (self.diagnostics.palette, self.gym.palette):
+            if palette is not None and palette.isValid:
+                palette.isVisible = False
+
     def open_gym(self) -> None:
         """
         Show the retained draft; frozen diagnostic cases remain unchanged.

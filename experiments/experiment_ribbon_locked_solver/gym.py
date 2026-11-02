@@ -71,6 +71,17 @@ def install(
         or app.userInterface.activeCommand != "SelectCommand"
     ):
         raise RuntimeError("Install the selected gym in its owned idle development design")
+    previous = tuple(
+        owner
+        for owner in _owners
+        if owner.diagnostics.root.isValid and owner.diagnostics.document.creationId == document_id
+    )
+    if any(
+        owner.diagnostics.runner is not None
+        and owner.diagnostics.runner.state()["status"] in ("running", "cancelling")
+        for owner in previous
+    ):
+        raise ValueError("Stop and collect the prior gym job before replacing its workspace")
     directory.mkdir(parents=True, exist_ok=False)
     root = adsk.fusion.Design.cast(app.activeProduct).rootComponent
     native = NativeOwner(document_id)
@@ -94,6 +105,9 @@ def install(
     workspace = SelectedWorkspace(
         native, diagnostics, diagnostics_occurrence, gym_occurrence, directory / "workspace", scene
     )
+    for owner in previous:
+        Workspace.deactivate(owner)
+        owner.native.hide()
     _owners.append(workspace)
     workspace.open_gym()
     return workspace

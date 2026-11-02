@@ -361,12 +361,10 @@ class DiagnosticViewer:
 
     def enable_gym(self, callback: Callable[[], None]) -> None:
         """
-        Attach a retained gym workspace, including when upgrading an existing viewer.
+        Attach navigation while retaining ownership and visibility of existing gym graphics.
         """
         self.on_gym = callback
-        self._gym_group = None
-        self._gym_id = None
-        self._visibility["gym"] = True
+        self._visibility.setdefault("gym", True)
 
     def open_layout(self, manifest: Path, label: str) -> None:
         """

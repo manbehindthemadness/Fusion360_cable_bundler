@@ -14,6 +14,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from devtools.ribbon_analysis.gym import Config, generate
+from devtools.ribbon_analysis.gym.handoff import identity
 from devtools.ribbon_analysis.inspection.session import Session
 from experiments.experiment_ribbon_diagnostic_viewer import examples
 
@@ -127,3 +129,80 @@ def test_switching_examples_retains_each_session_and_its_selected_section(
     viewer._open_example("single")
     assert viewer.session is original and viewer.session.section == 16
     assert len(viewer._sessions) == 2
+
+
+@pytest.mark.parametrize("visible", (True, False))
+def test_linking_gym_keeps_existing_context_owned_across_repeated_layout_changes(
+    palette_module: Any, monkeypatch: pytest.MonkeyPatch, visible: bool
+) -> None:
+    """
+    Re-linking navigation must not orphan a drawn context or reset manual layer visibility.
+    """
+    viewer: Any = object.__new__(palette_module.DiagnosticViewer)
+    scene = generate()
+    viewer.root = object()
+    viewer.session = SimpleNamespace(
+        solver="input", snapshot=None, gym=scene.payload(), targets=scene.targets
+    )
+    viewer._gym_group = Mock(isValid=True)
+    original = viewer._gym_group
+    viewer._gym_id = identity(scene.payload())
+    viewer._visibility = {"gym": visible}
+    viewer._scene = viewer._solver_sketch = None
+    viewer._methods = {"input": SimpleNamespace(isValid=True, component=object())}
+    viewer._apply_visibility = Mock()
+    viewer._budget = Mock(return_value=SimpleNamespace(check=Mock(), memory=lambda: 0))
+    monkeypatch.setitem(vars(palette_module), "retain_end_profiles", Mock())
+    replacements = [Mock(isValid=True), Mock(isValid=True)]
+    draw = Mock(side_effect=replacements)
+    monkeypatch.setitem(vars(palette_module), "draw_gym", draw)
+    callback = Mock()
+    viewer.enable_gym(callback)
+    viewer.enable_gym(callback)
+    viewer._draw()
+    assert viewer._gym_group is original
+    assert viewer.on_gym is callback
+    assert viewer._visibility["gym"] is visible
+    draw.assert_not_called()
+    for seed in (42, 43):
+        scene = generate(Config(seed=seed))
+        viewer.session.gym, viewer.session.targets = scene.payload(), scene.targets
+        viewer._draw()
+    assert draw.call_count == 2
+    original.deleteMe.assert_called_once_with()
+    replacements[0].deleteMe.assert_called_once_with()
+    replacements[1].deleteMe.assert_not_called()
+    assert viewer._gym_group is replacements[1]
+
+
+@pytest.mark.parametrize("running", (True, False))
+def test_retiring_workspace_hides_only_its_views_without_interrupting_jobs(
+    palette_module: Any, running: bool
+) -> None:
+    """
+    Retire explicit owned view handles only after job completion, retaining their data.
+    """
+    del palette_module
+    module = importlib.import_module("experiments.experiment_ribbon_test_gym.workspace")
+    workspace: Any = object.__new__(module.Workspace)
+    runner = Mock()
+    runner.state.return_value = {"status": "running" if running else "completed"}
+    workspace.diagnostics = SimpleNamespace(
+        runner=runner, palette=Mock(isValid=True, isVisible=True)
+    )
+    workspace.gym = SimpleNamespace(palette=Mock(isValid=True, isVisible=True))
+    workspace.diagnostic_occurrence = Mock(isValid=True, isLightBulbOn=True)
+    workspace.gym_occurrence = Mock(isValid=True, isLightBulbOn=True)
+    if running:
+        with pytest.raises(ValueError, match="active job"):
+            workspace.deactivate()
+        assert workspace.diagnostic_occurrence.isLightBulbOn
+        assert workspace.gym.palette.isVisible
+    else:
+        workspace.deactivate()
+        assert not workspace.diagnostic_occurrence.isLightBulbOn
+        assert not workspace.gym_occurrence.isLightBulbOn
+        assert not workspace.diagnostics.palette.isVisible
+        assert not workspace.gym.palette.isVisible
+        workspace.diagnostic_occurrence.deleteMe.assert_not_called()
+    runner.cancel.assert_not_called()

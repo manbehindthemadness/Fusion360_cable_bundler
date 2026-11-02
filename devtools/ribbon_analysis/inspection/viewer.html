@@ -129,7 +129,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,path_rules:string}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
-let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
+let yaw = -Math.PI / 4, pitch = Math.atan(1 / Math.sqrt(2)), zoom = 1, pending = false, connected = false;
 let playing = false;
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 let procedureCatalog = "";
@@ -393,11 +393,15 @@ function draw() {
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
   const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
   const scale = Math.min(width, height) * .72 / reach * zoom;
-  function project(point) {
+  function view(point) {
     const [x, y, z] = sub(point, center);
-    const a = Math.cos(yaw) * x + Math.sin(yaw) * z;
-    const b = -Math.sin(yaw) * x + Math.cos(yaw) * z;
-    return [width / 2 + a * scale, height / 2 - (Math.cos(pitch) * y - Math.sin(pitch) * b) * scale];
+    const a = Math.cos(yaw) * x - Math.sin(yaw) * y;
+    const b = Math.sin(yaw) * x + Math.cos(yaw) * y;
+    return [a, Math.cos(pitch) * z + Math.sin(pitch) * b, Math.sin(pitch) * z - Math.cos(pitch) * b];
+  }
+  function project(point) {
+    const [x, y] = view(point);
+    return [width / 2 + x * scale, height / 2 - y * scale];
   }
   function line(vertices, color, weight = 1) {
     ctx.strokeStyle = color; ctx.lineWidth = weight; ctx.beginPath();
@@ -405,11 +409,8 @@ function draw() {
   }
   if (gym) {
     const gymColors = {grid:"#8494a4",void:"#19a798",a:"#4b9bff",b:"#f5a541","a-zone":"#597e9f","b-zone":"#a68451"};
-    const depth = point => {
-      const [x, y, z] = sub(xyz(point), center);
-      return Math.sin(pitch) * y + Math.cos(pitch) * (-Math.sin(yaw) * x + Math.cos(yaw) * z);
-    };
-    const surfaces = [...gym.drawing.surfaces].sort((a, b) => b.points.reduce((sum, p) => sum + depth(p), 0) / b.points.length - a.points.reduce((sum, p) => sum + depth(p), 0) / a.points.length);
+    const depth = surface => surface.points.reduce((sum, p) => sum + view(xyz(p))[2], 0) / surface.points.length;
+    const surfaces = [...gym.drawing.surfaces].sort((a, b) => depth(a) - depth(b));
     for (const surface of surfaces) {
       ctx.fillStyle = gymColors[surface.role]; ctx.globalAlpha = surface.opacity;
       ctx.beginPath(); surface.points.map(xyz).map(project).forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.closePath(); ctx.fill();
@@ -421,12 +422,8 @@ function draw() {
   if (!snapshot) return;
   if (thickness) {
     const vertices = thickness.vertices.map(xyz), screen = vertices.map(project);
-    const depth = point => {
-      const [x, y, z] = sub(point, center);
-      return Math.sin(pitch) * y + Math.cos(pitch) * (-Math.sin(yaw) * x + Math.cos(yaw) * z);
-    };
-    const faces = thickness.triangles.map(indices => ({indices,depth:indices.reduce((total, index) => total + depth(vertices[index]), 0) / 3}));
-    faces.sort((a, b) => b.depth - a.depth);
+    const faces = thickness.triangles.map(indices => ({indices,depth:indices.reduce((total, index) => total + view(vertices[index])[2], 0) / 3}));
+    faces.sort((a, b) => a.depth - b.depth);
     ctx.fillStyle = `rgba(25,145,155,${thickness.opacity})`;
     for (const {indices} of faces) {
       ctx.beginPath(); indices.forEach((index, i) => i ? ctx.lineTo(...screen[index]) : ctx.moveTo(...screen[index])); ctx.closePath(); ctx.fill();
@@ -483,7 +480,7 @@ element("section").onchange = () => request("section", {index: Number(element("s
 for (const id of Object.values(layers)) element(id).onchange = () => {
   draw(); request("visibility", Object.fromEntries(Object.entries(layers).map(([key, id]) => [key, element(id).checked])));
 };
-element("reset").onclick = () => { yaw = -.65; pitch = .35; zoom = 1; draw(); };
+element("reset").onclick = () => { yaw = -Math.PI / 4; pitch = Math.atan(1 / Math.sqrt(2)); zoom = 1; draw(); };
 let drag = null;
 element("canvas").onpointerdown = event => { drag = [event.clientX, event.clientY]; event.target.setPointerCapture(event.pointerId); };
 element("canvas").onpointermove = event => {

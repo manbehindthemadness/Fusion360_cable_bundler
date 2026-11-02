@@ -238,3 +238,108 @@ lint/format, changed-file IDE inspection, JavaScript syntax and a bridge-functio
 check that polling leaves editors intact pass. The live diagnostic panel was
 visually reviewed; palette requests acknowledge without errors. No full suite or
 new solver/geometry validation was run. Source lock includes the counter display.
+
+## Stale diagnostic cleanup322/323
+
+The user reports old gym objects/pre-path remaining after a layout change. Live
+inspection322finds two visible gym-context groups in the active diagnostic root,
+only one tracked by the viewer, plus a visible retired workspace. Root cause:
+`enable_gym` reset the already-created `_gym_group`/`_gym_id` when attaching the
+workspace, orphaning that initial group. It now preserves both handles and manual
+layer visibility. Normal context replacement can therefore remove its prior group.
+Selected installation also retires previous owned workspaces in the same document,
+with an active-job guard. Retirement hides view/palette handles and the old owned
+native output; it does not delete histories or ribbon bodies.
+
+323creates one current replacement before removing the two identified stale
+transient context groups, and hides the two retired workspace views. The current
+body revision is unchanged. An acknowledged HTML-bridge switch to another existing
+gym context and back leaves exactly one gym group after each change, with no event
+error or retired view visible. The original user layout/body visibility are restored.
+No solves, native ribbon attempts or physical audits; this is display verification,
+not added geometry coverage. Cleanup.266s; source pins and partial evidence are in
+`artifacts/verification/ribbon_cleanup323`; initial inspection is `inspection322.json`.
+
+16focused palette/handoff tests pass, including repeated binding/layout replacement,
+manual layer visibility, retained case histories and refusal to retire an active
+job. A test fixture initially lacked its fake root; that setup was corrected before
+the passing run. Scoped Ruff lint/format and changed-file IDE inspections pass;
+the live cleaned viewport was reviewed. No full suite or new complete workspace
+installation/native build was run for this fix. The selected solver/source lock
+is retained with these display-lifecycle changes.
+
+## Smoothing contact certificate324–330
+
+The user's N3/D.75 gym layout (seed719117695) spent35.446s at5% and41.404s
+at10% smoothing while returning the original route unchanged. Each pass rejected
+its proposals as contact-unresolved: easing inserted short straights between folds,
+so the original shared-cap certificate no longer applied to those fold pairs.
+The interval checker exhausted its unchanged20,000-pair/depth36 bounds.
+
+`contact_caps.straight_bridge_pairs` extends the same half-space argument across
+continuous, straight-only bridges. The first cell must remain behind its end cap
+and the second ahead of its start cap, using the existing cell-specific tests.
+Their rigid frames must join, cap normals must agree, and positive signed plane
+separation must exceed a conservative floating/frame-error envelope. Tiny gaps,
+malformed joins, intervening folds and returning interiors retain subdivision.
+No adjacency-wide exemption, clearance tolerance, geometry repair or budget increase
+is introduced. This remains a floating analytical certificate, not exact arithmetic
+or a complete physical audit. The shared checker can also resolve previously
+unresolved first-pass candidates; first-pass geometry need not remain identical.
+
+Four independent, examined gym development layouts were frozen before the fix:
+the triggering layout plus priorGym1/2/3. They are not untouched holdouts.325uses
+the same frozen first passes/settings: trigger andGym1improve; Gym2/3reproduce their
+previous routes. Trigger smoothing.585s; curvature score220.575→38.319 (82.63%lower),
+peak2.484→.460; maximum sampled trajectory movement2.872mm. Eight radius and eight
+layout steps are accepted. Length21.206→22.266mm respects the original shared5%
+ceiling. Gym1further improves score131.952→120.050; smoothing1.839s. Gym2/3timings
+.417/.216s. All4final numerical cap/metric/contact gates pass.
+
+326cold entry-point verification reproduces first/final geometry for trigger,
+Gym1andGym2. Trigger cold solve/check.786s CPU.785s, including first.209s and
+smoothing.573s. Gym1solve2.378s/smoothing1.786s; Gym2solve.534s/smoothing.408s.
+Gym3hits the deliberately strict archive-parity assertion: the new checker accepts
+rank0at154.186705mm instead of the previously accepted rank1at154.190348mm.
+The stopped report is preserved.327reviews its retained trace without another
+solve: first sampled difference.08322mm; final.00754mm; final cap3.15e-11mm,
+metric3.33e-16, contact separated and5%ceiling retained. Its curvature score changes
+slightly (69.893→69.900, each normalized to its first-pass length); this is not an
+additional smoothing gain. Gym3was numerically attempted, despite326erroneously
+leaving it in its unattempted list after the assertion. Its missing cold timer is
+unmeasured. No cold or smoothing retry was run.
+
+After stopped-run review,327/328attempt only the two changed cold-parity results.
+Native construction2/4attempted,2/2built and passed unchanged named surface,
+ordered-guide, seam and cap fidelity checks;0full physical audits. Gym2is unchanged
+and has no fresh native claim; Gym3's changed cold variant remains diagnostic and
+natively unattempted. Trigger geometry.862s, separate audit12.012s; Gym1geometry
+.814s, audit7.890s. The solve<=construction timing goal passes trigger and misses
+Gym1(2.378>.814s). Optional UV is off; no appearance/texture expense is counted.
+The old308/314fidelity failures remain unresolved and are not reclassified.
+
+329/330imports the trigger as an explicitly labelled5%variant through the existing
+HTML bridge, preserves editor settings/history, and replaces only the owned native
+display with its verified body. The body revision is unchanged by display movement;
+matching counters and selected result acknowledge without event errors. Both native
+captures and the live viewport were reviewed.52focused contact/aesthetic/selected
+solver tests pass across scoped runs; scoped Ruff lint/format and changed-file IDE
+inspections pass. No full QA suite or production promotion. Frozen sources, plans,
+all dispositions and the parity-stop review are under
+`artifacts/verification/ribbon_smoothing324`; source lock includes the certificate.
+
+## Diagram orientation331–338
+
+The diagnostic canvas used Y-up; Fusion uses Z-up. Both canvas presets now use
+the native isometric camera at (+X,-Y,+Z), with a right-handed camera basis and
+matching back-to-front depth sorting. Reset restores that preset. Canvas orbit
+remains independent of the Fusion camera; world targets and routes are unchanged.
+The initial Z-up-only correction still faced the opposite XY direction; live
+review caught that intermediate mismatch before the final camera correction.
+Both scripts parse,20translated/orbited projection comparisons pass, the preset
+matches the native camera basis, and both HTML files have clean IDE inspections.
+The refreshed diagnostic diagram was reviewed beside the same native ribbon;
+body revision, selected result, histories and counters are retained. The current
+local review page adds only initial scrolling to center the canvas. No solves,
+native attempts or added geometry coverage. Updated source lock and evidence:
+`artifacts/verification/ribbon_diagram331` and `ribbon_diagram334`.
