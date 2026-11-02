@@ -7,6 +7,9 @@ from __future__ import annotations
 from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
+import adsk.core
+
+# noinspection PyUnresolvedReferences
 import adsk.fusion
 
 from cable_bundler.routing.geometry import Vector3
@@ -23,7 +26,13 @@ COLORS = {
 }
 
 
-def draw(component: Any, drawing: dict[str, Any], checkpoint: Callable[[], None]) -> Any:
+def draw(
+    component: Any,
+    drawing: dict[str, Any],
+    checkpoint: Callable[[], None],
+    *,
+    prepath: dict[str, Any] | None = None,
+) -> Any:
     """
     Return a complete custom-graphics group, deleting an incomplete replacement on error.
     """
@@ -41,6 +50,22 @@ def draw(component: Any, drawing: dict[str, Any], checkpoint: Callable[[], None]
             if not mesh.setOpacity(item["opacity"], True):
                 raise RuntimeError("Fusion could not set goal transparency.")
         checkpoint()
+        if prepath is not None:
+            curve = adsk.core.NurbsCurve3D.createNonRational(
+                [
+                    adsk.core.Point3D.create(*(p[a] / 10 for a in "xyz"))
+                    for p in prepath["controls"]
+                ],
+                3,
+                [0.0] * 4 + [1.0] * 4,
+                False,
+            )
+            if curve is None:
+                raise RuntimeError("Fusion could not create the endpoint pre-path.")
+            entity = group.addCurve(curve)
+            entity.name = "Pre-path - unconstrained endpoint-tangent spline"
+            entity.weight = 3
+            set_color(entity, (225, 45, 190))
         for item in drawing["strokes"]:
             draw_lines(
                 group,

@@ -112,3 +112,16 @@ def test_endpoint_only_run_requires_actual_frozen_gym_provenance(tmp_path: Path)
             },
             generate().targets,
         )
+
+
+def test_completed_job_remains_available_to_counters_after_layout_navigation(
+    tmp_path: Path,
+) -> None:
+    """
+    Retain the explicit latest job independently of temporary selected-layout status.
+    """
+    runner, _ = _controller(tmp_path)
+    runner._job = tmp_path / "completed-job"
+    runner._status = {"status": "idle", "detail": "Another frozen layout selected"}
+    assert runner.state()["job"] == str(runner._job)
+    assert runner.state()["status"] == "idle"

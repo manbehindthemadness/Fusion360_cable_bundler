@@ -14,6 +14,7 @@ from devtools.ribbon_analysis.gym import Config, Goal, generate
 from devtools.ribbon_analysis.gym.handoff import freeze, identity, validate
 from devtools.ribbon_analysis.inspection.archive import canonical, write_document
 from devtools.ribbon_analysis.inspection.session import Session
+from devtools.ribbon_analysis.prepath import drawing as prepath_drawing
 from experiments.experiment_ribbon_diagnostic_viewer import controller
 from experiments.experiment_ribbon_diagnostic_viewer.procedures import ROOT
 
@@ -40,6 +41,8 @@ def test_handoff_is_endpoint_only_stable_and_independent_of_later_edits(
     assert identity(other.gym) != identity(session.gym)
     assert manifest.read_bytes() == original_bytes
     assert session.state()["gym"]["side_mm"] == 9 * diameter
+    assert session.state()["prepath"] == prepath_drawing(scene.targets)
+    assert "prepath" not in session.gym
 
 
 @pytest.mark.parametrize("part", ("config", "geometry", "target", "role"))

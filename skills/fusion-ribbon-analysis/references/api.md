@@ -149,6 +149,22 @@ compliance remains unverified. See
 Macaroni/pinch, structural no-lateral-bending, sweep-profile creation and conductor
 identity/order remain unchanged. See [pinch.md](pinch.md).
 
+Gym drafts and frozen diagnostic gym contexts show the endpoint-tangent pre-path
+in magenta, including before a route exists. Native graphics use the exact cubic;
+palette canvases use129samples of that same curve. The solver and displays share
+`prepath.controls`, preserving chord/3handles and directed arrival. In diagnostics
+it follows the Gym layout visibility layer. It is an unconstrained reference, not
+a solved path or avoidance boundary. Display state adds `prepath` separately;
+existing frozen gym payloads and their identities remain unchanged.
+
+Both gym palettes also show conductor count and recorded performance for the
+latest explicit controller job matching the complete current layout. Different
+layouts clear the timings. Generation totals exclude optional UV preparation/
+storage and native fidelity auditing; first-pass and smoothing are route-time
+subsets. CPU covers the numerical worker only. Missing/invalid/partial timings
+remain unmeasured. Counter refresh reads cached timestamped job records without
+solver execution, scene rebuilding or resetting editable layout controls.
+
 The **Diagnostic example** selector keeps the original single-conductor S/lateral90
 alongside a three-conductor spatial reversal. Each example retains its own session,
 selected section and imported histories. An active job must stop and be collected

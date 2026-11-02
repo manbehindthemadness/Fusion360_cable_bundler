@@ -17,6 +17,8 @@ import adsk.fusion
 from ..budget import NativeBudget
 from ..end_profiles import retain_end_profiles
 from ..inspection.archive import write_document
+from ..performance import for_layout
+from ..prepath import drawing as prepath_drawing
 from .graphics import draw
 from .scene import Config, Goal, Scene, generate
 
@@ -67,6 +69,8 @@ class GymView:
         directory: Path,
         scene: Scene | None = None,
         open_diagnostics: Callable[[Scene], None] | None = None,
+        *,
+        performance: Callable[[Scene], dict[str, Any]] | None = None,
     ) -> None:
         """
         Require an owned component and write-once archive directory before display.
@@ -75,6 +79,7 @@ class GymView:
         self.component, self.directory = component, directory
         self.scene = scene or generate()
         self.open_diagnostics = open_diagnostics
+        self.performance = performance
         self.revision = 0
         self.received_requests = 0
         self.last_error: str | None = None
@@ -103,7 +108,10 @@ class GymView:
         if self._pending_profiles is not None:
             raise RuntimeError("Incomplete gym end profiles require review before redrawing.")
         group = draw(
-            self.component, scene.payload()["drawing"], lambda: budget.check("gym drawing")
+            self.component,
+            scene.payload()["drawing"],
+            lambda: budget.check("gym drawing"),
+            prepath=prepath_drawing(scene.targets),
         )
         self._pending_profiles = self.component.occurrences.addNewComponent(
             adsk.core.Matrix3D.create()
@@ -141,7 +149,11 @@ class GymView:
             if data or self.open_diagnostics is None:
                 raise ValueError("A linked diagnostic viewer is required.")
             self.open_diagnostics(self.scene)
-        elif action != "ready":
+        elif action == "performance":
+            if data:
+                raise ValueError("Performance refresh requires no layout edits.")
+            return {"performance": self.counters()}
+        elif action != "ready" or data:
             raise ValueError("Unknown gym action.")
         if candidate != self.scene:
             self.revision += 1
@@ -153,11 +165,26 @@ class GymView:
             self.palette.sendInfoToHTML("gym_state", json.dumps(state, allow_nan=False))
         return state
 
+    def counters(self) -> dict[str, Any]:
+        """
+        Refresh recorded counters without redrawing the scene or resetting editable controls.
+        """
+        return (
+            self.performance(self.scene)
+            if self.performance is not None
+            else for_layout(self.scene.targets, self.scene.payload(), None)
+        )
+
     def state(self) -> dict[str, Any]:
         """
         Expose layout data and the optional handoff capability without editing the scene.
         """
-        return dict(self.scene.payload(), diagnostics_available=self.open_diagnostics is not None)
+        return dict(
+            self.scene.payload(),
+            diagnostics_available=self.open_diagnostics is not None,
+            prepath=prepath_drawing(self.scene.targets),
+            performance=self.counters(),
+        )
 
     def show(self) -> None:
         """

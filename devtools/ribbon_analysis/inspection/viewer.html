@@ -41,7 +41,13 @@
 <button id="reconnect">Reconnect</button>
 <div id="examplePanel" hidden><label for="example">Example / frozen gym layout</label><select id="example"></select></div>
 <button id="openGym" hidden>Create/edit gym layout</button>
-<p id="gymScope" class="muted" hidden>Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
+<section aria-label="Conductor count and recorded performance">
+  <h2>Run counters</h2>
+  <p id="performanceStatus" class="muted">No measured run for this layout</p>
+  <dl id="performanceRows" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-variant-numeric:tabular-nums"></dl>
+  <p class="muted">Generation excludes UV work and auditing. First pass and smoothing are included in route time. CPU covers the numerical worker.</p>
+</section>
+<p id="gymScope" class="muted" hidden>Magenta: unconstrained endpoint-tangent pre-path. Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <p id="pathRules" class="muted"></p>
 <section id="selectedSolver" hidden>
   <h2>Selected material solver v1</h2>
@@ -120,7 +126,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean}}}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean,path_rules:string}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,path_rules:string}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
@@ -205,6 +211,15 @@ function renderExecution(execution) {
   element("selectedRunStatus").textContent = element("runStatus").textContent;
 
 }
+/** @param {{status:string,rows:{label:string,value:string}[]}|undefined} counters */
+function renderPerformance(counters) {
+  element("performanceStatus").textContent = counters?.status || "No measured run for this layout";
+  element("performanceRows").replaceChildren(...(counters?.rows || []).flatMap(row => {
+    const label = document.createElement("dt"), value = document.createElement("dd");
+    label.textContent = row.label; value.textContent = row.value; value.style.margin = "0";
+    return [label, value];
+  }));
+}
 async function request(action, data = {}) {
   if (pending) return;
   pending = true;
@@ -252,13 +267,14 @@ async function request(action, data = {}) {
 function receive(value) {
   if (value.execution_update) {
     if (state) state.execution = value.execution;
-    renderExecution(value.execution); controls(); return;
+    renderExecution(value.execution); renderPerformance(value.performance); controls(); return;
   }
   state = value;
   element("openGym").hidden = !state.gym_available;
   element("gymScope").hidden = !state.gym;
   element("gymLayer").hidden = !state.gym;
   renderExecution(state.execution);
+  renderPerformance(state.performance);
   if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
   const minimal = state.path_rules === "macaroni + no lateral bending";
@@ -360,6 +376,7 @@ function draw() {
   const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); ctx.clearRect(0, 0, width, height);
   const snapshot = state?.snapshot;
   const gym = element("gymLayout").checked ? state?.gym : null;
+  const prepath = gym ? state?.prepath : null;
   element("witnessNotes").textContent = "";
   element("thicknessNotes").textContent = "";
   if (!snapshot && !gym) {
@@ -371,7 +388,7 @@ function draw() {
   const thickness = element("envelope").checked ? state.thickness : null;
   if (thickness) element("thicknessNotes").textContent = `Teal thickness envelope: ${thickness.thickness_mm.toFixed(3)} mm, true scale. ${thickness.description} Sampled visualization; no collision or physical compliance audit.`;
   element("witnessNotes").textContent = witnesses.map(witness => `${witness.title}: ${witness.notes.join(" ")}`).join(" · ");
-  const points = [...(snapshot ? snapshot.guides.find(g => g.number === 0).controls.map(xyz) : []), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz))), ...(thickness ? thickness.vertices.map(xyz) : []), ...(gym ? gym.drawing.strokes.flatMap(stroke => stroke.points.map(xyz)) : [])];
+  const points = [...(snapshot ? snapshot.guides.find(g => g.number === 0).controls.map(xyz) : []), ...witnesses.flatMap(witness => witness.strokes.flatMap(stroke => stroke.points.map(xyz))), ...(thickness ? thickness.vertices.map(xyz) : []), ...(gym ? gym.drawing.strokes.flatMap(stroke => stroke.points.map(xyz)) : []), ...(prepath ? prepath.points.map(xyz) : [])];
   const lo = [0, 1, 2].map(i => Math.min(...points.map(p => p[i])));
   const hi = [0, 1, 2].map(i => Math.max(...points.map(p => p[i])));
   const center = add(lo, sub(hi, lo), .5), reach = Math.max(norm(sub(hi, lo)), state.diameter_mm * 6);
@@ -400,6 +417,7 @@ function draw() {
     ctx.globalAlpha = 1;
     for (const stroke of gym.drawing.strokes) line(stroke.points.map(xyz), gymColors[stroke.role], stroke.role === "grid" ? .5 : 1);
   }
+  if (prepath) line(prepath.points.map(xyz), "#e12dbe", 2);
   if (!snapshot) return;
   if (thickness) {
     const vertices = thickness.vertices.map(xyz), screen = vertices.map(project);

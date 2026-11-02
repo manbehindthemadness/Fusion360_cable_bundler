@@ -148,3 +148,93 @@ policy.62focused solver/controller/handoff tests and27affected witness/pinch/
 constraint tests pass across scoped invocations; Ruff lint/format, changed-file
 IDE inspections, JavaScript syntax and diff checks pass. No repository-wide suite
 was run. The native trim-membership failure remains the next bounded investigation.
+
+## Excursion report: conversion parity audit318
+
+The user identifies the large departure/U-turn excursion in the displayed316case.
+A frozen numerical-only replay covers that case plus the three distinct earlier
+Gym1/2/3configurations, with their original targets and declared radius bounds.
+Four planned/evaluated, zero native attempts/builds/full physical audits. No solver
+source, budget, tolerance, target or live body changed. Every stage/proposal is
+retained under `artifacts/verification/ribbon_port318`; these are examined cases,
+not fresh coverage. No invalid controls or general reliability claim.
+
+The cold selected entry point reproduces both first-pass and final archived
+geometry with **zero measured difference** on all four cases, sampling129material
+stations on center and both ordered edges. Earlier first-pass references are285;
+final references are307. The observed case compares to316. This supports numerical
+port parity on those configurations, not a continuous equivalence proof. The
+approved radius/merge/layout/merge stages were not omitted in the gym conversion.
+
+On the reported case, first-pass length21.888787mm grows to22.983226mm at5%smoothing,
+with endpoint chord6.855122mm. Initial explicit departure straight4.899480mm grows
+to5.187876mm; total explicit straight15.481740->16.129061mm.65station corresponding
+guide RMS4.016938->4.333689mm and maximum6.996649->7.518347mm. These ordered arc
+correspondence metrics are not nearest-distance or continuous deviation bounds.
+The large excursion exists before smoothing and increases during smoothing.
+
+The first pass uses guide-middle orientation and guide RMS only after material
+length in candidate ranking. It has no continuous guide-attraction/deviation
+trimming pass. The second pass minimizes curvature and permits up to5%growth,
+without a non-worsening guide-deviation gate. Thus unchanged approved mechanics
+can retain a long departure on new poses and increase deviation while easing
+curvature. Increasing smoothing allowance is not an evidenced solution. Future
+compactness work should separate first-pass fold/runway placement from smoothing
+deviation preservation, using normalized rules and all four frozen cases. No such
+algorithm change or additional native build was performed for this diagnosis.
+
+## Visible pre-path319
+
+User requests the pre-path beside the other gym diagnostics. Gym drafts and frozen
+diagnostic contexts now draw it in magenta, even without a route result. The native
+display uses the exact cubic; both palette canvases use129samples. The original
+chord/3endpoint controls were moved unchanged into shared `prepath.controls`, used
+by both `Guide.create` and the renderers. Arrival travel direction is preserved.
+The diagnostic Gym layout checkbox controls this reference with its other context.
+Display state carries it separately; frozen gym payload bytes/identities, profiles,
+solver settings, material geometry and native bodies are unchanged.
+
+319refreshes one already examined316result using fresh, explicitly named viewer
+classes and its existing native manifest/controller. Old stateful viewer objects
+and archives remain retained. Zero solves, native ribbon attempts or physical
+audits. The body revision is unchanged and displayed controls exactly match the
+solver's guide. The viewport capture shows the magenta reference crossing the
+central gym area alongside the long-excursion route. Display10.519s; this includes
+new diagnostic helpers/profiles/palettes and capture, not route-generation time.
+Evidence: `artifacts/verification/ribbon_prepath319`. New source lock records the
+shared helper/display changes without overwriting historical run fingerprints.
+
+47focused pre-path/guide/solver/handoff/witness/thickness tests pass. Changed Python
+and HTML files pass IDE inspections, scoped Ruff lint/format and JavaScript syntax
+checks. No repository-wide suite or new geometry generalization test was run.
+
+## Conductor count and performance counters320/321
+
+Both gym palettes now show conductor count plus generation total, route/check wall
+time, numerical CPU, first-pass and smoothing subsets, geometry build, optional UV
+preparation/storage and fidelity audit timings. Generation is measured solve/check
+wall time minus optional UV preparation, plus native geometry construction. Audit
+and optional UV storage are excluded. CPU is the numerical worker only. Missing,
+negative, boolean, malformed or nonfinite measurements display as unmeasured;
+measured zero remains zero. A partial native failure does not fabricate an audit
+or total time. The latest job remains explicitly addressable after layout
+navigation, while exact endpoint and complete gym-context matching prevents stale
+timings from being attributed to a changed draft.
+
+Read-only counter fields are cached by file timestamp/size. Gym counter polling
+updates only the counter panel; it does not reset in-progress editor values,
+redraw geometry, collect a worker or start a solve. UI counter refresh and source
+locks were adopted through fresh palette/controller-view objects, retaining the
+same live session, controller state, geometry handles and native body revision.
+Zero solves, native ribbon attempts or physical audits. Current316recorded values:
+1conductor; generation1.426s=route/check.563s+geometry.863s; CPU.559s; first.158s;
+smoothing.340s; separate fidelity audit8.223s; UV off. These remain original run
+measurements, not a new benchmark. Initial palette refresh.908s; no geometry work.
+Evidence: `artifacts/verification/ribbon_counters320` and `ribbon_counters321`.
+
+20focused counter/controller/handoff tests pass, covering cost exclusion, layout
+attribution, partial results/cache refresh and navigation identity. Scoped Ruff
+lint/format, changed-file IDE inspection, JavaScript syntax and a bridge-function
+check that polling leaves editors intact pass. The live diagnostic panel was
+visually reviewed; palette requests acknowledge without errors. No full suite or
+new solver/geometry validation was run. Source lock includes the counter display.

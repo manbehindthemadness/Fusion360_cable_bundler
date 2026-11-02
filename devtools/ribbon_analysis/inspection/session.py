@@ -10,6 +10,7 @@ from typing import Any
 
 from ..contracts import Targets
 from ..gym.handoff import validate as validate_gym
+from ..prepath import drawing as prepath_drawing
 from .archive import (
     RuleObservation,
     _integer,
@@ -355,6 +356,7 @@ class Session:
         return {
             "case": self.targets.name,
             "gym": self.gym,
+            "prepath": prepath_drawing(self.targets) if self.gym is not None else None,
             "path_rules": method["settings"].get("path_rules", "historical"),
             "bend_policy": {
                 "model": "pinch percent" if percent is not None else "legacy",

@@ -19,6 +19,8 @@ from ..end_profiles import retain_end_profiles
 from ..graphics import draw_lines, draw_text, draw_trace, set_color
 from ..gym.graphics import draw as draw_gym
 from ..gym.handoff import identity as gym_identity
+from ..performance import from_execution
+from ..prepath import drawing as prepath_drawing
 from .archive import _integer, _text
 from .display import visible_section_indices
 from .native_guides import retain
@@ -189,7 +191,12 @@ class DiagnosticViewer:
         identifier = gym_identity(gym) if gym is not None else None
         if identifier != self._gym_id:
             group = (
-                draw_gym(self.root, gym["drawing"], lambda: budget.check("gym context"))
+                draw_gym(
+                    self.root,
+                    gym["drawing"],
+                    lambda: budget.check("gym context"),
+                    prepath=prepath_drawing(self.session.targets),
+                )
                 if gym is not None
                 else None
             )
@@ -451,7 +458,14 @@ class DiagnosticViewer:
             else:
                 manifest = self.runner.poll()
                 if manifest is None:
-                    return {"execution_update": True, "execution": self.runner.state()}
+                    execution = self.runner.state()
+                    return {
+                        "execution_update": True,
+                        "execution": execution,
+                        "performance": from_execution(
+                            self.session.targets, self.session.gym, execution
+                        ),
+                    }
                 added = self.session.import_results(manifest)
                 budget = self._budget()
                 for method in self.session.methods:
@@ -485,5 +499,8 @@ class DiagnosticViewer:
             len(self._sections), self.session.section
         )
         state["execution"] = self.runner.state() if self.runner is not None else None
+        state["performance"] = from_execution(
+            self.session.targets, self.session.gym, state["execution"]
+        )
         self.palette.sendInfoToHTML("state", json.dumps(state, allow_nan=False))
         return state

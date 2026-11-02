@@ -12,6 +12,7 @@ from devtools.ribbon_analysis.gym.handoff import freeze, identity
 from devtools.ribbon_analysis.gym.view import GymView
 from devtools.ribbon_analysis.inspection.archive import write_document
 from devtools.ribbon_analysis.inspection.fusion_view import DiagnosticViewer
+from devtools.ribbon_analysis.performance import from_execution
 from experiments.experiment_ribbon_diagnostic_viewer.procedures import source_pins
 
 
@@ -58,9 +59,20 @@ class Workspace:
             },
         )
         self.gym = GymView(
-            gym_occurrence.component, directory / "draft", scene, self.open_diagnostics
+            gym_occurrence.component,
+            directory / "draft",
+            scene,
+            self.open_diagnostics,
+            performance=self.performance,
         )
         diagnostics.enable_gym(self.open_gym)
+
+    def performance(self, scene: Scene) -> dict[str, Any]:
+        """
+        Read matching recorded counters without starting or collecting numerical work.
+        """
+        runner = self.diagnostics.runner
+        return from_execution(scene.targets, scene.payload(), runner.state() if runner else None)
 
     def open_gym(self) -> None:
         """

@@ -200,6 +200,7 @@ class Controller(ProcedureController):
         """
         return {
             **super().state(),
+            "job": str(self._job) if self._job is not None else None,
             "active_solver": {
                 "id": VERSION,
                 "label": "Selected material solver v1",

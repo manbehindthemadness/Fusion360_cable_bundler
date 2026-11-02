@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from cable_bundler.routing.geometry import Vector3, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.contracts import Targets
+from devtools.ribbon_analysis.prepath import controls as prepath_controls
 from experiments.experiment_ribbon_fold_route.geometry import ZERO, FoldRoute
 
 
@@ -33,15 +34,7 @@ class Guide:
         """
         Match both fixed endpoint positions and directed tangents with257samples.
         """
-        chord = magnitude(difference(targets.end, targets.start))
-        if chord <= 1e-8:
-            raise ValueError("Distinct endpoints required for the chord-scaled guide.")
-        controls = (
-            targets.start,
-            targets.start.translated(targets.start_tangent, chord / 3),
-            targets.end.translated(targets.end_tangent, -chord / 3),
-            targets.end,
-        )
+        controls = prepath_controls(targets)
         provisional = cls(controls, (), ())
         parameters = tuple(i / 256 for i in range(257))
         points = [provisional.sample(u)[0] for u in parameters]
