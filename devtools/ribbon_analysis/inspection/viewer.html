@@ -52,6 +52,8 @@
 <section id="selectedSolver" hidden>
   <h2>Selected material solver v1</h2>
   <p class="muted">Joint route construction with configurable aesthetic smoothing. Gym surroundings are visual context. Native material fidelity is checked separately; full physical compliance remains unverified.</p>
+  <label><input id="firstPassOptimization" type="checkbox" checked> Enable first-pass optimization</label>
+  <p class="muted">Shorten the coarse route by adjusting bends and straightaways together. Applies to the next run, independently of aesthetic smoothing.</p>
   <label for="smoothingPercent">Smoothing allowance (% extra material length)</label>
   <input id="smoothingPercent" type="number" min="0" max="10" step="0.5" value="5">
   <p class="muted">Default 5%. Set 0 to disable the second pass. Straightaways are available runway; endpoint frames and physical rules remain fixed.</p>
@@ -123,7 +125,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean}}}} Execution */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,path_rules:string}} InspectionState */
@@ -169,7 +171,7 @@ function controls() {
   element("reconnect").disabled = pending;
   element("example").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   const jobBusy = ["running", "cancelling"].includes(state?.execution?.status);
-  for (const id of ["runSelected", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
+  for (const id of ["runSelected", "firstPassOptimization", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
   element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
   comparisonControls();
 }
@@ -185,6 +187,7 @@ function renderExecution(execution) {
     activeSolverVersion = execution.active_solver.id;
     element("smoothingPercent").value = execution.active_solver.settings.smoothing_percent;
     element("materialUV").checked = execution.active_solver.settings.material_uv;
+    element("firstPassOptimization").checked = execution.active_solver.settings.first_pass_optimization ?? true;
   }
   element("procedurePanel").hidden = !execution;
   element("examplePanel").hidden = !execution;
@@ -464,7 +467,7 @@ element("openGym").onclick = () => { setPlayback(false); request("gym"); };
 element("runSelected").onclick = () => {
   const active = state?.execution?.active_solver;
   if (!active) return;
-  request("run", {procedures: [{id: active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked}}]});
+  request("run", {procedures: [{id: active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}}]});
 };
 element("cancelSelected").onclick = () => request("cancel");
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };

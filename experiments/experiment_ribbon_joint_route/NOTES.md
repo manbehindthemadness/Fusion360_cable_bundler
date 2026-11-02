@@ -307,3 +307,34 @@ score and have retained native solids with named fidelity. Gym3peak curvature is
 no-change outcome for visual broadening, not its historical contraction evidence.
 See`experiments/experiment_ribbon_aesthetic/NOTES.md`for the method, exact budgets,
 297transaction rollback,299missing-body stop, final coverage and limitations.
+
+## First-pass length repair376–384 — 2026-11-02
+
+The user explicitly separates routing optimization from aesthetic smoothing. The
+constructor now optimizes its selected closed coarse route before returning the
+first pass. Signed bend angles, crease banks, physical-floor radii and all straight
+slots move together. Negative total-material-length descent is projected onto
+ordered-cap closure and retracted with the existing bounded Newton implementation.
+Every accepted update must shorten material, preserve complete caps/local metric,
+not worsen the initial sampled ordered-guide preference, and pass thick contact.
+Neither aggregate aesthetic fairness nor the old route's peak curvature is a
+routing veto. The declared physical radius floor remains unchanged.
+
+The geometry/retraction implementation is shared with aesthetic easing; its
+objective, sign/radius policy and step sizes remain distinct. Routing permits sign
+changes and uses25%of initial layout length/pi-over-four trust steps; aesthetics
+retains5%/.2radian steps, signed folds and its original curvature/length policies.
+Routing limits16iterations,6halvings,12contact proposals,1024contact pairs. A coarse
+certificate already exceeding1024pairs retains the validated route immediately;
+unresolved proposals cannot pass. Original coarse/final validation keeps20000pairs.
+No new folds, random search, native repair or appearance work is introduced.
+
+Five fixed examined development configurations: four numerical improvements and
+one retained route. Both problem configurations build and pass the named native
+fidelity checks; three other configurations are natively unattempted by scope.
+Zero full physical audits or untouched holdouts. Full provenance, failed/stopped
+preparations, exact numbers, budgets, CPU and live adoption are recorded in
+`../experiment_ribbon_locked_solver/NOTES.md` under376–384. Primary evidence:
+`artifacts/verification/ribbon_firstpass381`. This repairs a bounded first-pass
+length objective; it does not prove minimal length/features or acceptable shape
+on unseen layouts. The problem cases exhaust the contact-proposal budget.

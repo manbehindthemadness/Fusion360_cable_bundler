@@ -14,16 +14,19 @@ VERSION = "joint-material-v1"
 @dataclass(frozen=True)
 class Settings:
     """
-    Configure optional smoothing allowance and deferred material coordinates.
+    Configure first-pass optimization, aesthetic smoothing and deferred material coordinates.
 
-    Smoothing0disables the complete second pass. Positive percentages cap extra
+    Smoothing0disables the aesthetic second pass; bounded numerical sliver cleanup
+    remains active. Positive percentages cap extra
     material length relative to the first pass; they do not guarantee monotonic
     visible smoothing under finite contact bounds. Default5preserves the selected
     policy. UV metadata never creates or assigns an appearance or bitmap.
+    First-pass optimization defaults on and is independent of aesthetic smoothing.
     """
 
     smoothing_percent: float = 5.0
     material_uv: bool = False
+    first_pass_optimization: bool = True
 
     def __post_init__(self) -> None:
         """
@@ -38,12 +41,19 @@ class Settings:
             raise ValueError("Smoothing allowance must be a finite percentage from0to10")
         if type(self.material_uv) is not bool:
             raise ValueError("Material UV coordinates require an explicit boolean")
+        if type(self.first_pass_optimization) is not bool:
+            raise ValueError("First-pass optimization requires an explicit boolean")
 
     @classmethod
     def parse(cls, payload: Any) -> Settings:
         """
-        Read exactly the public settings contract at palette and worker boundaries.
+        Read public controls, defaulting older two-control records to optimization enabled.
         """
-        if not isinstance(payload, dict) or set(payload) != {"smoothing_percent", "material_uv"}:
-            raise ValueError("Supply smoothing_percent and material_uv only")
+        required = {"smoothing_percent", "material_uv"}
+        if not isinstance(payload, dict) or not required <= set(payload) <= required | {
+            "first_pass_optimization"
+        }:
+            raise ValueError(
+                "Supply smoothing_percent, material_uv and optional first_pass_optimization only"
+            )
         return cls(**payload)

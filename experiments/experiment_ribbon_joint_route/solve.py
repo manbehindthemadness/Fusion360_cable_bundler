@@ -9,13 +9,14 @@ from typing import Any, Callable
 
 from experiments.experiment_ribbon_bend_reduction.rewrite import fold_count
 from experiments.experiment_ribbon_contraction.runner import snapshot
-from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
-from experiments.experiment_ribbon_spline_guide.guide import Guide, agreement
+from experiments.experiment_ribbon_spline_guide.guide import Agreement, Guide, agreement
 
-from .allocation import Model, allocations
+from .allocation import Allocation, Model, allocations
 from .boundary import FoldBoundary
 from .frames import topologies
+from .optimization import optimize
 
 
 def construct(
@@ -25,18 +26,21 @@ def construct(
     record: Callable[[dict[str, Any]], None],
     *,
     comparison: FoldRoute | None = None,
+    first_pass_optimization: bool = True,
 ) -> tuple[FoldRoute | None, dict[str, Any]]:
     """
-    Jointly close each exact rotation family, then check up to twelve shortest candidates.
+    Close exact rotation families, then optimize the accepted first pass with free bend orientations.
 
     The source contributes fixed targets/profile/radius bound. An optional existing
     comparison limits length/fold regression; cold endpoint construction requires
-    no successful route or historical artifact. Guide-derived intermediate orientation
-    distributes rotation. No envelope gaps, entry resets, nonlinear attraction or
-    post-construction radius pass. Full thick contact remains a separate hard gate.
+    no successful route or historical artifact. Guide-derived rotation families
+    provide a rough closed route. Its angles, banks, radii and straight slots then
+    optimize together before first-pass output. Full thick contact remains a hard
+    gate throughout; optional aesthetic smoothing is owned by the caller.
+    Disabling optimization returns the selected separated coarse route unchanged.
     """
     families = topologies(source, guide)
-    candidates = []
+    candidates: list[tuple[Allocation, Agreement]] = []
     seen = set()
     for topology in families:
         checkpoint()
@@ -83,7 +87,8 @@ def construct(
         )
     )
     attempts = []
-    chosen = None
+    chosen: Allocation | None = None
+    chosen_contact: ContactResult | None = None
     for index, (item, score) in enumerate(candidates):
         row: dict[str, Any] = {
             "rank": index,
@@ -105,7 +110,8 @@ def construct(
         record({"stage": "contact", "route": snapshot(item.route), **row})
         if contact.status == "separated":
             chosen = item
-    details = {
+            chosen_contact = contact
+    details: dict[str, Any] = {
         "topologies": len(families),
         "ranked_candidates": len(candidates),
         "candidates": attempts,
@@ -114,7 +120,14 @@ def construct(
         if chosen
         else "no_separated_joint_route_within_families_and_budget",
     }
-    return (chosen.route if chosen else None), details
+    if chosen is None or chosen_contact is None:
+        return None, details
+    if not first_pass_optimization:
+        details["optimization"] = {"reason": "disabled", "seconds": 0.0}
+        return chosen.route, details
+    optimized = optimize(chosen.route, guide, checkpoint, record, baseline_contact=chosen_contact)
+    details["optimization"] = optimized.summary()
+    return optimized.route, details
 
 
 def solve(

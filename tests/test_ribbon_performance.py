@@ -114,3 +114,24 @@ def test_incomplete_file_is_unmeasured_then_refreshes_after_completion(tmp_path:
     _record(tmp_path, "native-result.json", {"generation_seconds": 0.25})
     after = for_layout(scene.targets, scene.payload(), tmp_path)
     assert next(r["value"] for r in after["rows"] if r["label"] == "Geometry build") == "0.250 s"
+
+
+@pytest.mark.parametrize("optimization,expected", ((True, "On"), (False, "Off"), (None, "—")))
+def test_optimization_counter_uses_recorded_run_setting(
+    tmp_path: Path, optimization: bool | None, expected: str
+) -> None:
+    """
+    Attribute the toggle to its measured job and leave older unspecified jobs unmeasured.
+    """
+    scene = generate()
+    settings = {} if optimization is None else {"first_pass_optimization": optimization}
+    _record(
+        tmp_path,
+        "plan.json",
+        {"targets": asdict(scene.targets), "gym": scene.payload(), "settings": settings},
+    )
+    result = for_layout(scene.targets, scene.payload(), tmp_path)
+    assert (
+        next(r["value"] for r in result["rows"] if r["label"] == "First-pass optimization")
+        == expected
+    )

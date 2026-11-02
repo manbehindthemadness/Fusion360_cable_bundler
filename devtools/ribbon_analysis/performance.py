@@ -128,8 +128,13 @@ def for_layout(targets: Targets, gym: dict[str, Any] | None, job: Path | None) -
         return f"{seconds:.3f} s" if seconds is not None else "—"
 
     uv = settings.get("material_uv")
+    optimization = settings.get("first_pass_optimization")
     rows = [
         ("Conductors", str(targets.lines)),
+        (
+            "First-pass optimization",
+            "On" if optimization is True else "Off" if optimization is False else "—",
+        ),
         ("Generation total", value(total)),
         ("Route + checks", value(route)),
         ("Numerical CPU", value(_seconds(numerical, "cpu_seconds"))),

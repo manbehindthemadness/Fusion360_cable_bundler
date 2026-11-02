@@ -5,7 +5,7 @@ Verify the selected cold solver, smoothing configuration and deferred material-c
 from __future__ import annotations
 
 import math
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,26 @@ def test_settings_require_exact_contract_and_explicit_uv_boolean() -> None:
     with pytest.raises(ValueError):
         Settings.parse({"smoothing_percent": 5, "material_uv": False, "seed": 1})
     assert Settings.parse({"smoothing_percent": 0, "material_uv": True}) == Settings(0, True)
+
+
+@pytest.mark.parametrize("value", (None, 0, 1, "false"))
+def test_first_pass_optimization_requires_boolean(value: Any) -> None:
+    """
+    Reject truthy or missing-shaped control values while preserving legacy defaults.
+    """
+    with pytest.raises(ValueError, match="explicit boolean"):
+        Settings.parse(
+            {"smoothing_percent": 0, "material_uv": False, "first_pass_optimization": value}
+        )
+
+
+def test_first_pass_optimization_round_trips_and_legacy_records_default_on() -> None:
+    """
+    Retain explicit disabled settings without changing the meaning of existing two-control jobs.
+    """
+    settings = Settings(1, False, False)
+    assert Settings.parse(asdict(settings)) == settings
+    assert Settings.parse({"smoothing_percent": 1, "material_uv": False}).first_pass_optimization
 
 
 @pytest.mark.parametrize("diameter_mm", [0.75, 1.0, 1.5, 3.0])

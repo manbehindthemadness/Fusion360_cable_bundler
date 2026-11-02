@@ -14,13 +14,14 @@ from experiments.experiment_ribbon_aesthetic.layout_solve import ease as ease_la
 from experiments.experiment_ribbon_aesthetic.merge import merge
 from experiments.experiment_ribbon_aesthetic.solve import ease as ease_radii
 from experiments.experiment_ribbon_contraction.contract import cap_error
-from experiments.experiment_ribbon_contraction.runner import material_error
+from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_joint_route.solve import construct
 from experiments.experiment_ribbon_spline_guide.guide import Guide
 
+from .cleanup import remove_slivers
 from .coordinates import metadata
 from .settings import VERSION, Settings
 
@@ -52,6 +53,8 @@ def solve(
     The optional declared radius supports exact frozen regression inputs; it never
     lowers the physical99.6%pinch floor. Six rotation families and twelve first-pass
     contact attempts retain the selected finite construction bounds.
+    Numerical slivers undergo bounded fixed-direction reclosure before final
+    validation and optional coordinate metadata, independently of smoothing.
     """
     started, cpu_started = perf_counter(), process_time()
     targets = Targets.capture(source)
@@ -63,7 +66,13 @@ def solve(
     guide = Guide.create(targets)
     checkpoint()
     first_started = perf_counter()
-    first, details = construct(boundary, guide, checkpoint, record)
+    first, details = construct(
+        boundary,
+        guide,
+        checkpoint,
+        record,
+        first_pass_optimization=settings.first_pass_optimization,
+    )
     first_seconds = perf_counter() - first_started
     if first is None:
         return Result(
@@ -92,6 +101,40 @@ def solve(
     else:
         stages["smoothing"] = "disabled"
     smoothing_seconds = perf_counter() - smoothing_started
+    cleanup_started = perf_counter()
+    cleaned = remove_slivers(final, checkpoint)
+    cleanup_seconds = perf_counter() - cleanup_started
+    cleanup_detail = {
+        "status": cleaned.status,
+        "removed_lengths_mm": cleaned.removed_lengths_mm,
+        "linear_projections": cleaned.projections,
+    }
+    if cleaned.removed_lengths_mm or cleaned.route is None:
+        record(
+            {
+                "stage": "numerical_cleanup",
+                **cleanup_detail,
+                "route": snapshot(cleaned.route or final),
+            }
+        )
+    if cleaned.route is None:
+        return Result(
+            None,
+            first,
+            {
+                "version": VERSION,
+                "status": "unresolved",
+                "construction": details,
+                "cleanup": cleanup_detail,
+                "cleanup_seconds": cleanup_seconds,
+                "first_pass_seconds": first_seconds,
+                "smoothing_seconds": smoothing_seconds,
+                "elapsed_seconds": perf_counter() - started,
+                "cpu_seconds": process_time() - cpu_started,
+            },
+            None,
+        )
+    final = cleaned.route
     contact = inspect_contact(final, checkpoint=checkpoint)
     metric = material_error(final)
     if (
@@ -115,6 +158,8 @@ def solve(
             "status": "numerically_accepted",
             "construction": details,
             "stages": stages,
+            "cleanup": cleanup_detail,
+            "cleanup_seconds": cleanup_seconds,
             "first_pass_seconds": first_seconds,
             "smoothing_seconds": smoothing_seconds,
             "material_uv_seconds": uv_seconds,

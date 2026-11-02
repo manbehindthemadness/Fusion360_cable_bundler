@@ -27,8 +27,9 @@ def _controller(tmp_path: Path) -> tuple[controller.Controller, Mock]:
     return runner, native
 
 
+@pytest.mark.parametrize("optimization", (True, False))
 def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, optimization: bool
 ) -> None:
     """
     A new procedure starts only from its explicit gym context and immutable public settings.
@@ -42,7 +43,16 @@ def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
     monkeypatch.setattr(lock, "verify", lambda: {"locked-source": "digest"})
     monkeypatch.setattr(controller.subprocess, "Popen", launch)
     request = {
-        "procedures": [{"id": VERSION, "settings": {"smoothing_percent": 2.5, "material_uv": True}}]
+        "procedures": [
+            {
+                "id": VERSION,
+                "settings": {
+                    "smoothing_percent": 2.5,
+                    "material_uv": True,
+                    "first_pass_optimization": optimization,
+                },
+            }
+        ]
     }
     runner.start(request, scene.targets, gym=scene.payload())
     assert launch.call_count == 1
@@ -64,6 +74,7 @@ def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
     assert runner.state()["active_solver"]["settings"] == {
         "smoothing_percent": Settings().smoothing_percent,
         "material_uv": False,
+        "first_pass_optimization": True,
     }
     native.assert_not_called()
     assert runner._log is not None

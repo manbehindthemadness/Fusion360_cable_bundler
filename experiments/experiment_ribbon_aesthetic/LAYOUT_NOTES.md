@@ -205,3 +205,19 @@ These are historical executed paths; directories refuse reuse. A future replay
 needs unused output paths, a distinct component prefix and its own frozen bounded
 plan.310preparation explicitly depends on the retained308failure; it is not a
 general automatic rejection-hiding layer or a new production routing API.
+
+## Shared material geometry, separate routing objective — 2026-11-02
+
+First-pass repair376–384 extracts this model's flexible geometry and bounded
+retraction into `experiment_ribbon_fold_relaxation/flexible.py` and
+`flexible_steps.py`. The aesthetic subclass retains its original angle-sign bounds,
+radius floor, curvature objective/gradient, labels,5%/.2radian step defaults,
+peak/contact gates and configurable length allowance. Immutable layout properties
+are cached. The first pass supplies its own free-angle/radius policy and material-
+length objective; smoothing0does not disable routing optimization.
+
+378compares all five frozen inputs against the prior committed aesthetic model:
+initial coordinates, reconstructed route/labels, score and length gradients,
+residuals and Jacobians match exactly. Existing18aesthetic tests remain passing.
+The new first-pass behavior and native coverage belong to joint-route and locked-
+solver NOTES; they are not aesthetic gains or five new independent smoothing cases.
