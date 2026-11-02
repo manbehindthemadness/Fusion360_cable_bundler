@@ -338,3 +338,94 @@ preparations, exact numbers, budgets, CPU and live adoption are recorded in
 `artifacts/verification/ribbon_firstpass381`. This repairs a bounded first-pass
 length objective; it does not prove minimal length/features or acceptable shape
 on unseen layouts. The problem cases exhaust the contact-proposal budget.
+
+## Coarse construction as constrained joints401/402 — 2026-11-02
+
+The user requests investigating intermediate orientation and bend-event placement
+without guessed candidate banks, while explicitly excluding the optional first-
+pass optimizer from this discussion. They propose treating bends as constrained
+joints. These two bounded measurements use only the five saved381coarse selections,
+stopping trial parsing at the first separated coarse candidate. No refinement,
+new positional solve, contact query, Fusion call or native build is executed.
+The active solver/source lock/live workspace remain unchanged.
+
+401freezes all five input hashes, source/rule/script hashes and2s/case/10sphase/
+4GiBlimits before analysis. Every selected fixed-angle/bank family has a numerical
+LP primal/dual minimum-length certificate under existing allocation uncertainties;
+duality gaps are at most4.264e-14mm and reduced-cost slack no worse than-1.333e-15mm.
+This is a conditional affine minimum, not a global route optimum or fresh contact
+certificate. Four cases have one minimum vertex in their recorded complete basic-
+allocation enumeration; the outward-turn trigger has two. Its equal-length affine
+face allows moving the intermediate boundary closer to the guide midpoint
+(8.628->7.418mm by exact segment projection), but cannot shorten material under
+the fixed-family contract. No interpolated route or contact result is constructed.
+
+| Saved coarse case | Length mm | Minimum vertices | Longest flat interval, % of material travel | Nearest middle-orientation flat to guide midpoint mm |
+| --- | ---: | ---: | --- | ---: |
+| new-excursion |72.876677|1|56.59–99.62|17.042237|
+| trigger |41.756299|2|53.54–86.85|3.135420|
+| gym-recent |19.123811|1|50.78–66.17|3.276614|
+| gym-one |11.870847|1|28.70–81.03|1.482933|
+| gym-six |154.186705|1|14.24–71.59|9.329580|
+
+Flat intervals include explicit straights and the bank-dependent flat leads.
+Heading activity integrates exact constant centre-lane curvature over each bend
+interval, checked against abs(angle)*cos(bank); it is distinct from total material-
+frame rotation. New-excursion has a50.565%heading-turn centroid despite its43.027%
+turn-free interval. Thus a balanced centroid alone misses separated clusters.
+Gym-one's52.335%flat interval also warns against treating long-flat percentage as
+a universal rejection rule. Middle-orientation placement measures the closest
+point on its complete flat interval, not only its arbitrary group boundary.
+
+402then measures a reduced constrained-joint representation: rotate the internal
+frame about its tangent, width and normal. Re-factor both orientation groups
+algebraically so fixed terminal orientation remains closed. Use the saved active
+allocation and LP dual to differentiate closure cost: dV/dq = dL/dq - dual dot
+dF/dq. Positions are forward-evaluated, not newly solved. Per case there are exactly
+13frame evaluations: baseline plus symmetric1e-5/5e-6radian differences on three
+axes. These are fixed derivative-precision measurements at the existing closure-
+Jacobian scale, not trial improvement angles. No random samples or alternative
+branches are substituted. Same2s/case/10sphase/4GiBscope, frozen before execution.
+
+All five archived branch identities match; branch counts stay stable and all15
+axis derivatives agree at the two resolutions (largest relative difference
+1.984e-9). Each case has nonzero local length sensitivity in these three internal
+frame coordinates. For the new excursion, derivatives are816.807/154.578/505.917
+mm/radian about tangent/width/normal. These are active-basis sensitivities, not a
+guaranteed finite-step shortening, globally differentiable optimum or contact-
+feasible direction. In particular the two-minimum-vertex trigger can change active
+branch. No predicted gain is promoted to an actual route improvement.
+
+The evidence supports testing joint freedom during coarse construction rather
+than merely redistributing straight travel within a fixed family. A reduced
+three-coordinate internal joint can preserve exact endpoint-rotation factorization
+and the existing cheap linear position closure, instead of freeing all17scalar
+coordinates of these four-fold routes in a general nonlinear solve. Bend placement
+would respond to that joint choice; equal spacing or a centroid penalty is not
+established as a useful rule. Actual update length, active-set/branch transitions,
+nonnegative allocation and contact acceptance still require a separate bounded
+construction experiment. Neither feasibility nor speed of that future solve is
+proven by derivative timing.
+
+Scope:5/5same examined gym configurations measured in each phase,0failed/skipped/
+unattempted measurements,0new independent cases or holdouts,0new route proposals/
+position solves/refinement/contact/native attempts/full physical audits. Historical
+coarse contact status is retained, not revalidated.401phase.053464sCPU.053460s;
+402phase.056312sCPU.056312s. Combined measurement CPU.109772s, roughly10ms/case
+per phase. Timers exclude SDK startup, import/source-plan preparation and tool
+orchestration; this is not end-to-end routing time. Local peak19,218,432bytes.
+Full-source/input guards and exact primitive identities pass. No application QA
+or new native coverage is implied; maintained changes are prose-only, diff reviewed.
+Evidence:`artifacts/verification/ribbon_construction401`, `ribbon_joints402`, with
+the executed `construction401.py` and `joints402.py` scripts/source hashes retained.
+
+403/404/406tests the reduced-joint move in an isolated experiment, without calling
+the selected first-pass optimizer or aesthetics. Five saved coarse inputs:4shorter,
+1retained,~3.10s aggregate incremental CPU. New-excursion/trigger shorten30.18%/11.69%
+for .45/.72s joint work. Bend distribution is mixed, with longer flat runs/guide
+regressions in two comparison cases. Native2attempts/builds: trigger named-fidelity
+pass; new-excursion topology rejects142faces where152authored. Other3native cases
+unattempted,0full physical audits. Failed body/report retained, no retry/promotion.
+Accepted trigger is framed with magenta reference and hidden original material
+guides. Selected solver remains unchanged. Full procedure, budgets, failures and
+QA in `../experiment_ribbon_reduced_joints/NOTES.md`.
