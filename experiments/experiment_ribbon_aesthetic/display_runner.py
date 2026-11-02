@@ -15,16 +15,28 @@ from experiments.qa_orchestrator import McpClient
 
 def main() -> None:
     """
-    Display the four original guides without solving, rebuilding or editing prior geometry.
+    Display frozen original guides without solving, rebuilding or editing prior geometry.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--native",
+        type=Path,
+        default=Path("artifacts/verification/ribbon_aesthetic302/result.json"),
+    )
+    parser.add_argument(
+        "--numerical",
+        type=Path,
+        default=Path("artifacts/verification/ribbon_aesthetic296/result.json"),
+    )
     args = parser.parse_args()
     run = args.output.resolve()
     run.relative_to(ROOT / "artifacts/verification")
     run.mkdir(parents=True, exist_ok=False)
-    native_path = ROOT / "artifacts/verification/ribbon_aesthetic302/result.json"
-    numerical_path = ROOT / "artifacts/verification/ribbon_aesthetic296/result.json"
+    native_path = (ROOT / args.native).resolve()
+    numerical_path = (ROOT / args.numerical).resolve()
+    native_path.relative_to(ROOT / "artifacts/verification")
+    numerical_path.relative_to(ROOT / "artifacts/verification")
     native, numerical = json.loads(native_path.read_text()), json.loads(numerical_path.read_text())
     if native["status"] != "completed" or numerical["status"] != "completed":
         raise RuntimeError("Successful numerical/native aesthetic phases required")
@@ -35,7 +47,9 @@ def main() -> None:
             "variants": [
                 {
                     "label": "eased",
-                    "native": f"artifacts/verification/ribbon_aesthetic302/{c['id']}-native.json",
+                    "native": str(
+                        (native_path.parent / f"{c['id']}-native.json").relative_to(ROOT)
+                    ),
                 }
             ],
         }
@@ -54,7 +68,7 @@ def main() -> None:
     plan = {
         "root": str(ROOT),
         "cases": cases,
-        "scope": "Display-only frozen270guides on audited302bodies;0solves/builds, preserve all earlier geometry/visibility/revisions.",
+        "scope": "Display-only frozen270guides on the explicitly recorded audited bodies;0solves/builds, preserve all earlier geometry/visibility/revisions.",
         "limits": {"seconds": 120, "rss_kib": 4194304, "launch_rss_kib": 3984588},
         "sources": {
             str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths

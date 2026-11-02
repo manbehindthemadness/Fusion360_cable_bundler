@@ -1,5 +1,10 @@
 # Aesthetic curvature easing after the joint first pass — 2026-11-01
 
+The later [layout-relative easing and merging investigation](LAYOUT_NOTES.md)
+records304..312, including the zero-runway reclosure fix, accepted larger Gym3,
+the rejected new calibration candidate and retained passing geometry. The296..303
+measurements below remain historical and unchanged.
+
 Four independent examined gym configurations planned/numerically evaluated/native
 attempted/retained/named-fidelity-audited: **4/4/4/4/4**. No skipped or unattempted
 configurations in the completed302phase; **zero complete physical native audits**.
