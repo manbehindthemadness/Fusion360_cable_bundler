@@ -19,6 +19,7 @@ from .allocation import Allocation, fit
 from .features import chains
 from .guide_frames import Frames
 from .repair import changed, correction, nearest, reframed
+from .selection import Branch, Policy, select
 
 
 @dataclass(frozen=True)
@@ -43,17 +44,23 @@ def construct(
     threshold_mm: float,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    selection_policy: Policy = Policy.MONOTONIC,
 ) -> Result:
     """
-    Fit one fixed frame sequence and attempt at most two contact-ranked algebraic branches.
+    Fit one fixed frame sequence and certify at most two algebraic branches.
 
     This never samples additional guide stations, guessed angles or radii. The
     matched baseline and inserted variant each have the same two-contact budget.
     Unresolved/penetrating intervals reject; resource/source errors propagate.
     Initially unclosed branches receive at most two residual-derived angular
     corrections with two finite step halvings. Radius and station choices stay fixed.
+    Original midpoint-ranked feasibility is preserved. If its first branch is
+    separated, use the spare contact certificate only for a shorter branch whose
+    ordered whole-guide RMS and direction loss are both non-increasing.
     """
     candidates: list[Allocation] = []
+    branches: list[Branch] = []
     for chain in chains(boundary, frames, parameters, checkpoint, record):
         allocation = fit(boundary, chain, threshold_mm, checkpoint, record)
         if allocation is None:
@@ -125,35 +132,46 @@ def construct(
                 }
             )
             candidates.append(allocation)
-    candidates.sort(key=lambda a: (round(a.score, 12), a.route.material_length_mm, a.chain.roots))
+            branches.append(Branch(chain.roots, allocation.route, score, allocation.score))
+    allocations = {a.chain.roots: a for a in candidates}
     contacts = 0
     contact_seconds = 0.0
-    for allocation in candidates[:2]:
+
+    def certify(branch: Branch) -> bool:
+        """
+        Preserve the existing conservative certificate and complete per-root contact ledger.
+        """
+        nonlocal contacts, contact_seconds
+        checked = allocations[branch.roots]
         checkpoint()
-        record({"stage": "feature_contact", "status": "started", "roots": allocation.chain.roots})
+        record({"stage": "feature_contact", "status": "started", "roots": checked.chain.roots})
         started = perf_counter()
-        result = inspect_contact(allocation.route, maximum_pairs=1024, checkpoint=checkpoint)
+        result = inspect_contact(checked.route, maximum_pairs=1024, checkpoint=checkpoint)
         contact_seconds += perf_counter() - started
         contacts += 1
         record(
             {
                 "stage": "feature_contact",
                 "status": result.status,
-                "roots": allocation.chain.roots,
+                "roots": checked.chain.roots,
                 "contact": asdict(result),
-                "route": snapshot(allocation.route),
+                "route": snapshot(checked.route),
             }
         )
-        if result.status == "separated":
-            return Result(
-                allocation.route,
-                allocation,
-                "separated",
-                contacts,
-                contact_seconds,
-                len(candidates),
-                len(candidates) - contacts,
-            )
+        return result.status == "separated"
+
+    selected = select(branches, certify, selection_policy)
+    if selected is not None:
+        allocation = allocations[selected.roots]
+        return Result(
+            allocation.route,
+            allocation,
+            "separated",
+            contacts,
+            contact_seconds,
+            len(candidates),
+            len(candidates) - contacts,
+        )
     return Result(
         None,
         None,

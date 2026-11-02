@@ -26,8 +26,11 @@ from experiments.experiment_ribbon_contraction.runner import snapshot
 from .inspection import freeze
 from .lock import verify
 from .progress import append
-from .settings import VERSION, Settings
+from .settings import Settings
 from .solver import solve
+from .solver_v2 import solve as solve_v2
+from .versions import V2
+from .versions import method as solver_method
 
 
 def run(directory: Path) -> Path:
@@ -38,7 +41,8 @@ def run(directory: Path) -> Path:
     append(directory, "numerical", "Worker started; validating frozen inputs and source lock.")
     plan = json.loads((directory / "plan.json").read_text())
     pins = verify()
-    if plan.get("version") != VERSION or plan.get("sources") != pins:
+    selected = solver_method(plan.get("version"))
+    if plan.get("sources") != pins:
         raise RuntimeError("Worker solver version/source mismatch")
     target = plan["targets"]
     targets = Targets.capture(
@@ -85,12 +89,12 @@ def run(directory: Path) -> Path:
 
     method: dict[str, Any] = {
         "id": plan["result_id"],
-        "label": "Selected material solver v1",
-        "source": "experiments/experiment_ribbon_locked_solver/solver.py",
-        "procedure": VERSION,
+        "label": selected.label,
+        "source": selected.source,
+        "procedure": selected.identifier,
         "settings": {
             **asdict(settings),
-            "solver_version": VERSION,
+            "solver_version": selected.identifier,
             "path_rules": "material-fold equal lengths + pinch + no lateral bending + thick contact",
         },
         "status": "unresolved",
@@ -100,7 +104,16 @@ def run(directory: Path) -> Path:
     stopped = None
     try:
         checkpoint()
-        result = solve(targets, settings, checkpoint, record)
+        if selected.identifier == V2:
+            result = solve_v2(
+                targets,
+                settings,
+                checkpoint,
+                record,
+                native_point_tolerance_mm=plan.get("native_point_tolerance_mm"),
+            )
+        else:
+            result = solve(targets, settings, checkpoint, record)
         write_document(directory / "numerical-result.json", result.detail)
         append(
             directory,

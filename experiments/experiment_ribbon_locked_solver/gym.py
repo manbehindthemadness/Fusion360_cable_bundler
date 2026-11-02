@@ -62,9 +62,9 @@ def install(
     Create one retained gym/diagnostic workspace without solving or changing unrelated designs.
 
     The explicit Solve and build action is the only solver launch. Inputs and
-    results stay under the caller-owned repository artifact directory; old solver
-    methods remain unavailable. Native profiles and per-conductor face order are
-    the existing material builder's unchanged contract.
+    results stay under the caller-owned repository artifact directory. V2 is the
+    default and original v1 remains selectable; retired discovery stays unavailable.
+    Native profiles and per-conductor face order preserve the existing builder contract.
     """
     verify()
     app = adsk.core.Application.get()
@@ -90,7 +90,7 @@ def install(
     transform = adsk.core.Matrix3D.create()
     transform.translation = adsk.core.Vector3D.create(native.display_x_cm, 0, 0)
     owner = root.occurrences.addNewComponent(transform)
-    owner.component.name = "Selected material solver v1 - endpoint gym"
+    owner.component.name = "Material solvers v1 and v2 - endpoint gym"
     diagnostics_occurrence = owner.component.occurrences.addNewComponent(
         adsk.core.Matrix3D.create()
     )
@@ -99,7 +99,13 @@ def install(
     gym_occurrence.component.name = "Endpoint gym draft"
     scene = scene or generate()
     manifest = freeze(scene, directory / "initial")
-    controller = Controller(python, directory / "jobs", document_id, native.build)
+    controller = Controller(
+        python,
+        directory / "jobs",
+        document_id,
+        native.build,
+        native_point_tolerance_mm=app.pointTolerance * 10,
+    )
     diagnostics = DiagnosticViewer(
         diagnostics_occurrence.component, app.activeDocument, manifest, runner=controller
     )

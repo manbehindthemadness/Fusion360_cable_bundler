@@ -122,7 +122,9 @@ def test_zero_smoothing_skips_every_second_pass_stage(monkeypatch: pytest.Monkey
         raise AssertionError("Smoothing is disabled")
 
     for name in ("ease_radii", "ease_layout", "merge"):
-        monkeypatch.setattr("experiments.experiment_ribbon_locked_solver.solver." + name, forbidden)
+        monkeypatch.setattr(
+            "experiments.experiment_ribbon_locked_solver.smoothing." + name, forbidden
+        )
     result = solve(_corner(), Settings(0), _checkpoint, _record)
     assert result.route is result.first_pass
     assert result.detail["stages"] == {"smoothing": "disabled"}

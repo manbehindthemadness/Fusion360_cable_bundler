@@ -52,13 +52,14 @@
 <p id="gymScope" class="muted" hidden>Magenta: unconstrained endpoint-tangent pre-path. Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <p id="pathRules" class="muted"></p>
 <section id="selectedSolver" hidden>
-  <h2>Selected material solver v1</h2>
-  <p class="muted">Joint route construction with configurable aesthetic smoothing. Gym surroundings are visual context. Native material fidelity is checked separately; full physical compliance remains unverified.</p>
+  <h2 id="selectedSolverTitle">Material solver</h2>
+  <label for="solverVersion">Solver version</label><select id="solverVersion"></select>
+  <p id="selectedSolverScope" class="muted"></p>
   <label><input id="firstPassOptimization" type="checkbox" checked> Enable first-pass optimization</label>
-  <p class="muted">Shorten the coarse route by adjusting bends and straightaways together. Applies to the next run, independently of aesthetic smoothing.</p>
+  <p id="optimizationScope" class="muted"></p>
   <label for="smoothingPercent">Smoothing allowance (% extra material length)</label>
   <input id="smoothingPercent" type="number" min="0" max="10" step="0.5" value="5">
-  <p class="muted">Default 5%. Set 0 to disable the second pass. Straightaways are available runway; endpoint frames and physical rules remain fixed.</p>
+  <p class="muted">Set 0 to disable the second pass. V2 opens at 0%; v1 opens at 5%. Endpoint frames and physical rules remain fixed.</p>
   <label><input id="materialUV" type="checkbox"> Retain optional material UV coordinates</label>
   <p class="muted">Coordinates support later appearance work. No textures or appearances are created.</p>
   <div class="toolbar"><button id="runSelected">Solve and build</button><button id="cancelSelected">Cancel numerical work</button><button id="clearGeometry" disabled>Clear geometry</button></div>
@@ -134,7 +135,8 @@ const element = id => document.getElementById(id);
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
 /** @typedef {{time:string,stage:string,message:string}} BuildEntry */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,job?:string,build_log?:BuildEntry[],active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}}} Execution */
+/** @typedef {{id:string,label:string,scope:string,optimization_detail:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}} SolverChoice */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,job?:string,build_log?:BuildEntry[],active_solver?:SolverChoice,available_solvers?:SolverChoice[]}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,geometry_clear_available?:boolean,path_rules:string}} InspectionState */
@@ -145,6 +147,7 @@ let playing = false;
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 let procedureCatalog = "";
 let activeSolverVersion = "";
+let solverChoicesKey = "";
 /** @type {BuildEntry[]} */
 let controlLog = [], stageLog = [];
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
@@ -182,7 +185,7 @@ function controls() {
   element("reconnect").disabled = pending;
   element("example").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   const jobBusy = ["running", "cancelling"].includes(state?.execution?.status);
-  for (const id of ["runSelected", "firstPassOptimization", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
+  for (const id of ["runSelected", "solverVersion", "firstPassOptimization", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
   element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
   element("clearGeometry").disabled = blocked || jobBusy || !state?.geometry_clear_available;
   comparisonControls();
@@ -198,11 +201,19 @@ function renderExecution(execution) {
   element("buildLogJob").textContent = execution?.job ? `Job: ${execution.job}` : "";
   renderBuildLog();
   element("selectedSolver").hidden = !execution?.active_solver;
+  const choices = execution?.available_solvers || (execution?.active_solver ? [execution.active_solver] : []);
+  const choicesKey = JSON.stringify(choices.map(choice => choice.id));
+  if (solverChoicesKey !== choicesKey) {
+    solverChoicesKey = choicesKey;
+    element("solverVersion").replaceChildren(...choices.map(choice => {
+      const option = document.createElement("option");
+      option.value = choice.id; option.textContent = choice.label; return option;
+    }));
+  }
   if (execution?.active_solver && activeSolverVersion !== execution.active_solver.id) {
     activeSolverVersion = execution.active_solver.id;
-    element("smoothingPercent").value = execution.active_solver.settings.smoothing_percent;
-    element("materialUV").checked = execution.active_solver.settings.material_uv;
-    element("firstPassOptimization").checked = execution.active_solver.settings.first_pass_optimization ?? true;
+    element("solverVersion").value = execution.active_solver.id;
+    renderSolverChoice(execution.active_solver);
   }
   element("procedurePanel").hidden = !execution;
   element("examplePanel").hidden = !execution;
@@ -228,6 +239,15 @@ function renderExecution(execution) {
   element("runStatus").textContent = `${execution.status}: ${execution.detail || ""}${execution.procedure ? ` · ${execution.procedure}` : ""}${execution.completed === undefined ? "" : ` · ${execution.completed}/${execution.total} attempted`}${execution.elapsed_seconds === undefined ? "" : ` · ${execution.elapsed_seconds.toFixed(1)} s`}`;
   element("selectedRunStatus").textContent = element("runStatus").textContent;
 
+}
+/** @param {SolverChoice} choice */
+function renderSolverChoice(choice) {
+  element("selectedSolverTitle").textContent = choice.label;
+  element("selectedSolverScope").textContent = choice.scope;
+  element("optimizationScope").textContent = choice.optimization_detail;
+  element("smoothingPercent").value = choice.settings.smoothing_percent;
+  element("materialUV").checked = choice.settings.material_uv;
+  element("firstPassOptimization").checked = choice.settings.first_pass_optimization ?? true;
 }
 function renderBuildLog() {
   element("buildLog").textContent = [...controlLog, ...stageLog].slice(-100)
@@ -503,10 +523,14 @@ function draw() {
 }
 element("solver").onchange = () => { playing = false; request("select", {solver: element("solver").value}); };
 element("openGym").onclick = () => { setPlayback(false); request("gym"); };
+element("solverVersion").onchange = () => {
+  const choice = state?.execution?.available_solvers?.find(entry => entry.id === element("solverVersion").value);
+  if (choice) renderSolverChoice(choice);
+};
 element("runSelected").onclick = () => {
   const active = state?.execution?.active_solver;
   if (!active) return;
-  request("run", {procedures: [{id: active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}}]});
+  request("run", {procedures: [{id: element("solverVersion").value || active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}}]});
 };
 element("cancelSelected").onclick = () => request("cancel");
 element("clearGeometry").onclick = () => request("clear_geometry");

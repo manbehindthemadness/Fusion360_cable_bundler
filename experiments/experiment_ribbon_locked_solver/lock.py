@@ -9,7 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from .settings import VERSION
+from .versions import DEFAULT_VERSION, METHODS
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCK = Path(__file__).with_name("solver-lock.json")
@@ -32,6 +32,7 @@ def sources() -> dict[str, str]:
         "experiment_ribbon_fold_relaxation",
         "experiment_ribbon_contraction",
         "experiment_ribbon_diagnostic_viewer",
+        "experiment_ribbon_feature_insertion",
     ):
         paths.update((ROOT / "experiments" / package).glob("*.py"))
     paths.update(
@@ -39,6 +40,7 @@ def sources() -> dict[str, str]:
         for p in (
             "experiments/experiment_optional_appearance/material.py",
             "experiments/experiment_ribbon_spline_guide/guide.py",
+            "experiments/experiment_ribbon_reduced_joints/kinematics.py",
             "experiments/experiment_optional_appearance/host.py",
             "experiments/experiment_ribbon_test_gym/workspace.py",
             "cable_bundler/routing/geometry.py",
@@ -67,7 +69,8 @@ def verify() -> dict[str, str]:
     current = sources()
     if (
         not isinstance(payload, dict)
-        or payload.get("version") != VERSION
+        or payload.get("version") != DEFAULT_VERSION
+        or payload.get("methods") != [entry.identifier for entry in METHODS]
         or payload.get("sources") != current
     ):
         raise RuntimeError(
@@ -87,7 +90,8 @@ def main() -> None:
         LOCK.write_text(
             json.dumps(
                 {
-                    "version": VERSION,
+                    "version": DEFAULT_VERSION,
+                    "methods": [entry.identifier for entry in METHODS],
                     "scope": "Selected gym solver baseline; development fidelity required; not a general physical certificate",
                     "sources": sources(),
                 },

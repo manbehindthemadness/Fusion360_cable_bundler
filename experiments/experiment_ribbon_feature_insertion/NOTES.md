@@ -173,3 +173,135 @@ including both numerical variants/all rejected roots and masks, source pins,
 native422plan/results and inspected423capture. Executed runners `features420.py`,
 `features421.py`, `features422-native.frozen`, `features423-display.frozen`. Historical
 strict failures remain. The added-feature goal is not achieved by these experiments.
+
+## Unseen gym validation424–426
+
+User requested testing transfer before adopting the method. `validation.py` freezes
+12 fresh endpoint-gym layouts before any solve: three ordinary generation contexts,
+three shallow-zone contexts and six additional independent contexts, counts1..64,
+diameters0.5..1.5mm. All have unknown physical feasibility. This is an explicitly
+gym-only matrix, not the legacy non-gym normal/stress inventory or a calibrated
+invalid-control set. No split, full-winding or obstacle coverage. The tested method
+is the unchanged421two-stage **baseline byproduct**, not extra-feature insertion.
+
+All12 evaluated under4s/case,48s/phase,4GiB; no stops or retries. Fixed minimum
+radii, guide station1/2, existing angular corrections/root enumeration, two contact
+attempts and1024pairs/certificate remain unchanged. Nine produce separated routes:
+01/02/03/05/07/08/09/10/11. Cases04/06/12 each exhaust both contact certificates
+and remain unresolved; this does not establish collision or physical infeasibility.
+Numerical phase3.443872s wall/3.433783s CPU, per-case58–650ms, excluding process
+startup/imports/input-plan creation. Local peak RSS is retained in result.json.
+Sampled cap/material/join checks pass for the nine accepted numerical routes.
+These are feasibility checks, not acceptance of routing quality or optimality.
+
+Native sample01/04/08 was selected before solving, without substitutions.425attempts
+01and08: both build one positive-volume joined solid and pass unchanged named
+surface/guide/seam/cap fidelity checks,98/212faces, zero seam flags.04is unattempted
+because its contact certificate is unresolved. Other nine configurations are
+unattempted by sample design: **12planned/12numerically evaluated/2native attempted/
+2built/2named-fidelity audited/0full physical audits**. Native outcome was registered
+unknown before construction. No warning waiver, geometry repair, UV or textures.
+
+Generation01/08=2.961348/1.233094s; separate audit18.848492/19.174032s. Numerical
+solve plus checks.284560/.209654s, below matched native generation for these two.
+Native phase45.842067s, sampled maximum832448KiB, below4GiB. Native CPU and token/
+monetary costs unmeasured. Existing owned unsaved design and earlier bodies retained.
+
+**Route-quality failure08:** user screenshot correctly challenges the long return.
+Length42.378839mm versus24.280320mm chord,95.4955%flat including intrinsic leads.
+First explicit6.730200mm run precedes a167.64degree fold; middle run28.070765mm.
+The saved solve already contained another closed33.150386mm branch with guide
+RMS1.557528mm versus selected5.061781mm. It was not contact-checked. Selection
+instead favors single shared-site squared error4.162266 over4.985552mm², then
+returns at the first separated route. Thus a slightly better midpoint score can
+override much worse whole-route agreement and length, while leaving the other
+closed branch untested. This is direct trace/source evidence, not proof the
+shorter branch is safe, shortest or free of other features. No ranking repair or
+additional contact experiment was run. Case01also has length/chord7.445, reinforcing
+that successful construction is not satisfactory routing. Do not promote this
+candidate or count the9numerical outcomes as9optimized routes.
+
+426retains three hidden original material-guide sketches on each existing body,
+keeps the hidden joined caps and shows magenta exact pre-planner cubics. This is
+display only,0solves/native attempts; capture and timing retained separately.
+The constructor, selected160-file lock, production and standards are unchanged.
+Eleven existing analytical tests pass; validation runner passes focused Ruff and
+IDE checks. After424/425finished, its callback binding was changed to `partial`
+to remove a mutable-default IDE warning; executed pre-change runner remains in
+424source_snapshot, candidate geometry code unchanged. No geometry rerun for that
+harness-only correction. Evidence: `artifacts/verification/ribbon_holdout424/`,
+including all12inputs/trial ledgers, numerical/native plans/results and captures.
+
+## Bounded monotonic branch selection427–431
+
+User requested resolving the suboptimal08excursion. First isolate ranking from
+geometry:427replays all precomputed424closed branches, shortest material first,
+same two contact certificates/1024pairs,4s/case48s/phase4GiB. Trigger08and collateral
+02/05/09run first.08's33.150386mm branch separates, proving the former42.378839mm
+selection unnecessarily discarded a safe shorter/better-guide alternative. But07
+shortens56.398285→53.743475mm while RMS worsens7.974925→8.469477mm. Stop as planned:
+12planned/9evaluated,1improved/5retained/1quality-regressed/2contact-unresolved;
+10/11/12unattempted. No native work. CPU2.129856s. Keep this rejected policy/source
+snapshot; do not promote shortest-first as a universal fix.
+
+428freezes a different, conservative rule implemented in `selection.select`:
+
+1. Certify the original first midpoint-ranked branch.
+2. If it separates, spend at most one spare certificate on an existing branch
+   with **strictly shorter material, non-increasing guide RMS and non-increasing
+   guide direction loss**. Choose the shortest qualifying branch, whole-guide
+   metrics/root identity breaking ties. Retain baseline if that certificate fails.
+3. If original first rejects/unresolved, certify original second and stop, exactly
+   preserving the previous fallback budget. Hard source/resource errors propagate.
+
+This never trades one preference for another, invents angle/station candidates,
+relaxes radii or adds a third contact attempt. It preserves original finite-budget
+feasibility for deterministic certificates. A first-branch rejection consumes the
+spare opportunity; no automatic extra work is authorized. Guide RMS/direction are
+65station sampled preferences, not continuous physical or optimality certificates.
+Fixed-root straight allocation still minimizes one shared-site error; that separate
+limitation is unchanged. This is branch selection, not a general shortening solver.
+
+428replays all12:08improves, other8numerical passes have identical selected geometry,
+04/06/12remain contact-unresolved, no quality regression. CPU3.033102s. Integrate
+the same helper into experimental `solve.construct`, reusing already-measured
+guide scores.430then reconstructs all12directly from frozen endpoint inputs, with
+no old route fallback. Exact snapshots/statuses match428.4s/case48s/phase/4GiB/
+two contacts unchanged; CPU3.644860s, wall3.649367s, max case.644502s. This is one
+12-case examined development set across method variants, not33independent cases.
+429has0evaluated/0native: setup failed on relative runpy __file__ while pinning;
+earlier uv CLI dispatch also failed before execution. Its setup ledger is retained.
+430resolves the script path and uses a fresh output; no numerical-budget change.
+
+08material42.378839→33.150386mm (21.8%shorter); guide RMS5.061781→1.557528mm,
+direction loss.269981→.106291. Fresh solve/checks.406895s, including.341538s contact;
+construction/frame/logging remainder.065357s. Original42408total.209654s had one
+contact; improvement now uses two. The extra certificate costs about.20s here;
+do not claim a free improvement or a cold startup benchmark. Across427/428/430,
+numerical experiment CPU8.807818s excludes tests, setup/imports and orchestration.
+
+431separately freezes one native attempt on changed08only,120s/case130s/phase,
+4GiB/3.8GiB launch headroom. One positive-volume226-face solid passes unchanged
+named fidelity:7840surface points,434seam chains,0flags, max surface error
+6.965237e-9mm. Generation3.947609s, audit40.833230s, display.964758s, phase47.998008s;
+sampled peak680912KiB. Solve/checks meet matched-generation timing goal. Other11
+configurations native-unattempted this phase;0full physical audits. No UV/textures,
+warning waiver, repair or tolerance change. Native CPU/currency costs unmeasured.
+
+New08is displayed at1200cm with magenta exact prepath,3hidden original material
+guides and2hidden joined cap profiles. Old08at1160cm retained hidden intact; earlier
+unrelated bodies/views untouched. Capture inspected: shorter entry return, but
+still a tight-fold route rather than a demonstrated optimum. No radius easing,
+extra-feature development or selected gym/production promotion. The160-file
+selected solver lock remains unchanged.
+
+Seven new selection unit cases and11existing construction tests pass. Coverage
+includes rejected-dominator fallback, conflicting preferences without extra work,
+preserved second contact attempt and propagated hard stops. Focused Ruff/format
+and IDE checks pass; no full repository suite or standalone type checker. Complete
+changed code/diff reviewed. After430/431, formatter adds one blank line before
+the nested certificate helper; executed pre-format source retained in430snapshot,
+no behavior change or geometry replay. Evidence: ignored ribbon_selection427,
+ribbon_selection428, ribbon_selection429, ribbon_selection430; native431and its
+capture under430. Executed integration payload is `selection429.frozen` with its
+resolved-path430renewal; native payload `selection431-native.frozen`.

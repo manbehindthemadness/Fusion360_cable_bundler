@@ -5,6 +5,7 @@ Expose one bounded selected solver while keeping historical seed-discovery proce
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 from dataclasses import asdict
@@ -20,7 +21,9 @@ from experiments.experiment_ribbon_diagnostic_viewer.controller import Procedure
 
 from . import lock, progress
 from .lock import ROOT
-from .settings import VERSION, Settings
+from .settings import Settings
+from .versions import DEFAULT_VERSION, METHODS
+from .versions import method as solver_method
 
 
 class Controller(ProcedureController):
@@ -37,14 +40,24 @@ class Controller(ProcedureController):
         directory: Path,
         document_id: str,
         build: Callable[[Path], dict[str, Any]],
+        *,
+        native_point_tolerance_mm: float = 1e-5,
     ) -> None:
         """
         Bind the configured SDK, explicit design identity and owned native-build callback.
         """
         super().__init__(python, directory)
+        if (
+            type(native_point_tolerance_mm) not in (int, float)
+            or not math.isfinite(native_point_tolerance_mm)
+            or native_point_tolerance_mm <= 0
+        ):
+            raise ValueError("Native point tolerance must be finite and positive")
         self.document_id = document_id
         self.build = build
-        self._active_settings = Settings()
+        self.native_point_tolerance_mm = native_point_tolerance_mm
+        self._active_version = DEFAULT_VERSION
+        self._active_settings = solver_method(DEFAULT_VERSION).defaults
         self._status["detail"] = (
             "Selected material solver ready; historical seed-discovery methods remain retired."
         )
@@ -73,13 +86,14 @@ class Controller(ProcedureController):
             or not isinstance(choices, list)
             or len(choices) != 1
             or not isinstance(choices[0], dict)
-            or choices[0].get("id") != VERSION
+            or choices[0].get("id") not in tuple(entry.identifier for entry in METHODS)
         ):
             super().start(request, targets, gym=gym)
             return
         if set(choices[0]) != {"id", "settings"}:
             raise ValueError("Selected solver requests require id and settings only")
         settings = Settings.parse(choices[0]["settings"])
+        selected = solver_method(choices[0]["id"])
         targets = Targets.capture(targets)
         context = validate(gym, targets)
         if context is None:
@@ -88,17 +102,18 @@ class Controller(ProcedureController):
         self.directory.mkdir(parents=True, exist_ok=True)
         job = self.directory / ("selected-" + uuid4().hex)
         job.mkdir()
-        result_id = "run-" + job.name + ":" + VERSION
+        result_id = "run-" + job.name + ":" + selected.identifier
         write_document(
             job / "plan.json",
             {
-                "version": VERSION,
+                "version": selected.identifier,
                 "result_id": result_id,
                 "targets": targets_payload(targets),
                 "gym": context,
                 "settings": asdict(settings),
                 "sources": pins,
                 "document_id": self.document_id,
+                "native_point_tolerance_mm": self.native_point_tolerance_mm,
                 "limits": {
                     "numerical_seconds": 120,
                     "native_seconds": 120,
@@ -137,11 +152,12 @@ class Controller(ProcedureController):
             self._status.update(status="stopped", detail=f"Worker launch failed: {error}")
             raise
         self._active_settings = settings
+        self._active_version = selected.identifier
         self._status = {
             "status": "running",
             "phase": "numerical",
             "detail": "Selected material solver running; fixed endpoints and source lock retained.",
-            "procedure": VERSION,
+            "procedure": selected.identifier,
             "completed": 0,
             "total": 1,
             "job": str(job),
@@ -238,9 +254,8 @@ class Controller(ProcedureController):
             "job": str(self._job) if self._job is not None else None,
             "build_log": progress.read(self._job),
             "active_solver": {
-                "id": VERSION,
-                "label": "Selected material solver v1",
+                **solver_method(self._active_version).payload(),
                 "settings": asdict(self._active_settings),
-                "scope": "Joint construction, optional aesthetic smoothing and optional material UV metadata; full physical compliance unverified",
             },
+            "available_solvers": [entry.payload() for entry in METHODS],
         }

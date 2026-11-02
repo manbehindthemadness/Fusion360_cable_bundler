@@ -15,6 +15,7 @@ import pytest
 from devtools.ribbon_analysis.gym import generate
 from experiments.experiment_ribbon_locked_solver import controller, progress, worker
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
+from experiments.experiment_ribbon_locked_solver.settings import VERSION
 
 
 def _finished_worker(
@@ -127,7 +128,7 @@ def test_unresolved_worker_records_no_geometry_without_a_native_claim(
     (tmp_path / "plan.json").write_text(
         json.dumps(
             {
-                "version": worker.VERSION,
+                "version": VERSION,
                 "result_id": "run:test",
                 "targets": asdict(scene.targets),
                 "gym": scene.payload(),

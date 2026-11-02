@@ -28,7 +28,8 @@ from experiments.experiment_ribbon_joint_route.fidelity import audit_with
 from .fidelity_base import audit
 from .lock import verify
 from .progress import append
-from .settings import VERSION, Settings
+from .settings import Settings
+from .versions import method
 
 
 class NativeOwner:
@@ -100,11 +101,12 @@ class NativeOwner:
         if destination.exists():
             raise RuntimeError("This frozen gym job already has a native disposition; no retry")
         plan = json.loads((directory / "plan.json").read_text())
+        selected = method(plan["version"])
         settings = Settings.parse(plan["settings"])
         budget = NativeBudget(maximum_seconds=120, maximum_rss_kib=4194304)
         result: dict[str, Any] = {
             "status": "preparing",
-            "version": VERSION,
+            "version": selected.identifier,
             "native_attempted": 0,
             "built": 0,
             "fidelity_audited": 0,
@@ -155,9 +157,9 @@ class NativeOwner:
             if transient is None or not transient.isSolid or transient.volume <= 0:
                 raise RuntimeError("Selected gym builder requires one positive-volume solid")
             occurrence = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
-            occurrence.component.name = "Selected solver v1 - " + directory.name
+            occurrence.component.name = selected.label + " - " + directory.name
             body = occurrence.component.bRepBodies.add(transient)
-            body.name = "Material ribbon - selected solver v1"
+            body.name = "Material ribbon - " + selected.label
             body.isLightBulbOn = False
             revision = body.revisionId
             result.update(

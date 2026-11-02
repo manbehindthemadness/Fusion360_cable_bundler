@@ -10,9 +10,6 @@ from typing import Any, Callable
 
 from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.pinch import PinchLimit
-from experiments.experiment_ribbon_aesthetic.layout_solve import ease as ease_layout
-from experiments.experiment_ribbon_aesthetic.merge import merge
-from experiments.experiment_ribbon_aesthetic.solve import ease as ease_radii
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
@@ -24,6 +21,7 @@ from experiments.experiment_ribbon_spline_guide.guide import Guide
 from .cleanup import remove_slivers
 from .coordinates import metadata
 from .settings import VERSION, Settings
+from .smoothing import smooth
 
 
 @dataclass(frozen=True)
@@ -88,18 +86,8 @@ def solve(
             },
             None,
         )
-    final = first
-    stages: dict[str, str] = {}
     smoothing_started = perf_counter()
-    if settings.smoothing_percent:
-        fraction = settings.smoothing_percent / 100
-        maximum_length = first.material_length_mm * (1 + fraction)
-        final, stages["radius_easing"] = ease_radii(first, fraction, checkpoint, record)
-        final, stages["merge_before"] = merge(final, maximum_length, checkpoint, record)
-        final, stages["layout_easing"] = ease_layout(final, maximum_length, checkpoint, record)
-        final, stages["merge_after"] = merge(final, maximum_length, checkpoint, record)
-    else:
-        stages["smoothing"] = "disabled"
+    final, stages = smooth(first, settings.smoothing_percent, checkpoint, record)
     smoothing_seconds = perf_counter() - smoothing_started
     cleanup_started = perf_counter()
     cleaned = remove_slivers(final, checkpoint)

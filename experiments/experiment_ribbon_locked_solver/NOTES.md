@@ -1,5 +1,67 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Material solver v2 gym promotion — 2026-11-02
+
+User explicitly authorized adding the measured431method as solver v2 for gym
+testing. `versions.py` advertises `guide-material-v2` as default and preserves
+`joint-material-v1` as a selectable comparison. V1's numerical construction and
+cleanup policy remain; its aesthetic sequence is shared through `smoothing.py`.
+The source bundle now pins174files and both method identities. The former160-file
+lock and exact source bytes are retained under ignored
+`artifacts/verification/solver_v2_promotion/source_v1/` with `.frozen` suffixes.
+Old jobs retain their original pins; do not silently rebuild them against v2.
+
+V2 runs the421/430two-stage guide-frame tight constructor, at most two contact
+certificates and four seconds for first construction. No extra-feature insertion,
+historical route/v1 fallback or first-phase radius growth/sliver repair. Defaults:
+smoothing0%, first-pass optimization on, optional material UV off. The optimization
+toggle switches bounded monotonic branch selection versus original midpoint
+selection; its UI description changes with version. It does not invoke v1's
+contraction pass. Fusion's measured point tolerance is frozen in each job and
+forwarded to v2's tiny-straight rejection gate. Unknown/malformed versions and
+controls fail before launching work.
+
+Optional smoothing retains the original radius/merge/layout/merge sequence and
+one0..10%shared material allowance; v1 defaults5%. V2's unchanged certified first
+pass avoids a redundant contact audit. Changed aesthetic geometry receives a fresh
+conservative certificate. Optional UV metadata and native attribute storage remain
+separately timed and create no texture/appearance. Joined profile, conductor/face
+ordering and native fidelity gates are unchanged. Gym Solve and build, numerical
+cancellation, transparent scaffold controls, counters, progress log, clear geometry
+and recorded-result selection remain available. This is development gym promotion;
+ordinary product harness routing is unchanged.
+
+Installed owned workspace `gym433`, preserving the current draft and prior owner.
+432installation stopped before any solve/build: stale loaded gym renderer lacked
+the current prepath keyword. Host log confirmed it;433coherently reloads graphics,
+viewer and workspace dependencies, same30s/4GiBscope, completes3.985820s. No
+application-code workaround or source/tolerance relaxation. All setup failures
+remain recorded.434's optional nonexistent refresh helper raised after its one
+successful dispatch launch; dispatch had already sent state, so normal palette
+polling completed that same worker/build, without another launch. Its script
+transaction also invalidated a cached context graphic;435display selection reports
+the deleted handle.436resets that invalid cache and redraws the same immutable
+result,0solves/builds. Original draft and older native geometry remain retained.
+
+434smoke: **1planned/1numerically evaluated/1native attempted/1built/1named-fidelity
+audited/0full physical audits**, same examined gym08, not a new holdout. V2 reproduces
+33.150386mm. Route/checks.714317s, numerical CPU.606925s, native generation1.222210s,
+generation counter1.936527s; separate fidelity audit20.987426s, native operation
+23.723710s, sampled peak579760KiB.226faces,7840surface points,434seam chains,
+0seam flags, max surface error6.965238e-9mm. No v1 native comparison or positive
+smoothing/native UV smoke in this phase. Complete rule compliance remains unmeasured.
+
+82focused tests pass, including12new v2 dispatch/toggle/coordinate/tolerance cases;
+Ruff check/format pass on affected packages/tests and viewer HTML is IDE-clean.
+IDE checks cover all changed Python files; pre-existing duplicate-fragment weak
+warnings remain in unchanged adapter sections, plus the documented broad native
+fail-soft exception. No new IDE errors/findings in v2 implementation/tests. Full
+repository QA and standalone type checker were not run. A native screenshot shows
+v2 heading, selector, matching completed counters and optimization control; backend
+version selection is unit-tested. Optional live keyboard switching hit a computer-
+use transport timeout, so no extra comparison solve was launched. Evidence and
+all setup/display dispositions: `artifacts/verification/solver_v2_promotion/`.
+
 Four fresh complete gym configurations planned and numerically evaluated in314;
 two natively attempted and built, **one passed the named fidelity checks and one
 failed**. The other two remain natively unattempted after the stop. Zero complete
