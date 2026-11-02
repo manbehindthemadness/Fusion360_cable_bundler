@@ -161,3 +161,115 @@ but the one corrected native solid fails the unchanged1nmseam endpoint guard
 (maximum6.071nm, live Fusion point-comparison tolerance10nm). No named-fidelity
 acceptance, tolerance relaxation or promotion follows. The initial no-length-growth
 rejection411 and the explicitly revised bounded-parameter413policy are both retained.
+
+## Long-run origin419 — static diagnosis, 2026-11-02
+
+User requests understanding why the constructor retains long straight travel to
+match bend events. Freeze and inspect all five saved407routes and their final
+allocation ledgers; do not propose routes or run closure/contact/native trials.
+Limits2s/case,10s/phase,4GiB. All5complete,0skipped/unattempted inspections,
+0new route solves/contact/native attempts/full audits. Static phase.037389s wall,
+.037331s CPU. Inputs and selected source lock remain unchanged. Evidence/script:
+`artifacts/verification/ribbon_closure419`, `closure419.py`.
+
+The shown hairpin's endpoints are5.266593mm apart; its unconstrained reference
+guide is6.300599mm, not a certified feasible ribbon length. Actual material is
+51.343299mm. Explicit straights contribute35.925338mm; flat portions intrinsic
+to banked folds add10.944835mm. Only4.473127mm is center-lane curved travel:
+91.2878%of this route is flat. Fold pieces therefore cannot be counted wholly as
+bending activity when diagnosing distribution.
+
+Its two large straight lengths are14.850976/21.074360mm, with tangent directions
+164.777277degrees apart. Their chord-direction cosines are+.999855/-.966281.
+The four fixed folds already contribute10.781525mm along the start/end chord;
+the straight system must return5.514932mm along that direction to reach the
+5.266593mm target displacement. This is compensating out-and-back travel.
+
+Holding all other pieces fixed, resolve the endpoint residual along the first
+large-run direction and the second run's perpendicular component. The remaining
+sideways displacement is5.533534mm, and the second direction's leverage is
+sin(164.777277deg)=.262571883. Thus its length is forced to
+5.533534/.262571883=21.074360mm. The other equation gives14.850976mm. Both match
+the recorded route within1.812e-13mm. This proves the conditional two-run closure
+identity, not physical necessity of this bend family or a global routing optimum.
+
+The saved final frame trial contains6basic position closures, and the selected
+51.343299mm route is the shortest of them. Trigger and recent are also at their
+shortest recorded basic allocations in their final frames (10/16closed supports).
+Gym-six has7supports and only a.000222mm difference to its shorter unselected
+support, whose contact is unmeasured. Gym-one retains its original coarse state.
+Thus sparse-allocation selection is not the principal explanation for the large
+hairpin's length: ranking more interior placements at fixed angles cannot beat
+that fixed-family linear minimum. The previous discussion of interior guide-fit
+allocations remains relevant to nonlinear placement quality, but is insufficient
+as a remedy for this long-run example.
+
+Upstream construction limitations are explicit in maintained source:
+
+- `orientation.orient` chooses two-fold factorizations with equal/opposite banks.
+  This is a selected algebraic representation, not a macaroni/material law.
+- The first pair here has banks+/-65.552785degrees. Each fold includes2.639601mm
+  of flat lead at each end to accommodate that oblique crease across the profile;
+  the pair alone carries10.558405mm of flat lead. Those leads are required for
+  the selected bank, not universal required straight lengths for these targets.
+- `frames.middle_frame` uses guide midpoint direction but explicitly leaves its
+  spatial location unconstrained.407moves this one intermediate orientation in
+  three angular coordinates, retaining the balanced factor branches/group sizes;
+  it does not independently free all four bend events.
+-407's objective scores bend-center positions without the ordered heading
+  history, so a better score can retain the same compensating travel structure.
+
+The start/end tangents are180degrees apart and the257sampled guide accumulates
+180degrees of heading change. A reversal is required by these inputs;419does not
+show that the reversal itself should disappear. It shows why the chosen fold
+family places it far away and how the closure must then buy long travel.
+
+Avoid a universal penalty on straight percentage: gym-six spans121.074mm and its
+80.609mm straight advances toward the target with cosine.992018; long forward
+travel there is not equivalent to the hairpin's nearly cancelling legs. Recent
+has no explicit straight pieces and34.40%intrinsic flat travel. The useful next
+investigation is coupled spatial/orientation choice and the balanced-bank
+restriction, preserving physical rules and bounded cost. No alternate factorization
+or improvement is established by this read-only analysis. No new implementation,
+test suite, native attempt or display change is performed; documentation diff
+reviewed under the prose-only profile.
+
+## User-directed feature-insertion priority — 2026-11-02
+
+The user separates two remedies for the pictured long-run problem: relax the
+existing torus joint, or introduce another bend feature. Investigate feature
+insertion first to establish compact tight-fold routing. Defer relaxed behavior
+because it can conceal missing routing freedom. This priority supersedes treating
+radius relaxation as the immediate remedy; it changes no physical bend minimum.
+
+A bend feature represents an additional admissible directional transition with
+incoming/outgoing material frames. It is not a split in a straight with unchanged
+direction, nor a count of native faces. It may require multiple legal fold
+primitives; report feature and primitive counts separately. Inserting it requires
+re-solving neighboring rotations and complete position closure together, preserving
+both fixed cap frames, profile/side/conductor identity and material compatibility.
+Do not assume that a point on the guide supplies a physically admissible width
+frame or that a sketch establishes a feasible corrected route.
+
+First experiments must explicitly fix their tight-radius policy and disable
+radius relaxation/aesthetic smoothing. Do not silently tighten existing nonminimum
+baseline radii when comparing other layouts: freeze the comparison policy before
+execution. Derive insertion intent from the measured closure deficit/guide turning
+history, not an arbitrary angle bank, uniform feature spacing or specimen-specific
+landmark. Limit the first insertion experiment to one additional feature per
+configuration, with a frozen primitive/branch/contact/time budget and retained
+fallback/failures. Additional features are allowed when needed for steering;
+minimum feature count must not forbid a compact feasible route.
+
+Verify compact placement, complete closure, physical rules/contact and CPU before
+claiming insertion works. Native build/fidelity remains separate. No insertion
+algorithm, new solve or native attempt is implemented by recording this direction.
+
+User authorizes trying this in420–423; see
+`../experiment_ribbon_feature_insertion/NOTES.md`. Five layouts, fixed tight radii,
+one derived extra station, no guessed station/angle bank. Fixed guide headings420
+overconstrain closure; bounded endpoint-derived angular reclosure421retains all
+failures and yields three better tight baselines. Added-feature variants have no
+compact contact-safe success under the fixed budget. A separately scoped hairpin
+baseline improves37.13→23.78mm/flat14.26→6.55mm and passes one unchanged native
+fidelity check; it is explicitly not an insertion success. Working solver unchanged.

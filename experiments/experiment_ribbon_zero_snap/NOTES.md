@@ -139,3 +139,116 @@ diagnosis and rejected source snapshot), and `ribbon_snap413` (including414nativ
 plan/result). Executed scripts: `tolerance410.py`, `snap411.py`, `diagnose412.py`,
 `snap413.py`, `native414.py` under `artifacts/verification`. All five inputs and
 unsuccessful outcomes remain in the denominator. No further experiment scheduled.
+
+## User-requested seam inspection416–418
+
+The user requests viewing the retained failure. No new route solve, body build,
+fidelity-policy change or tolerance change runs. One retained gym configuration,
+20recorded failed seams and two passing controls. The frozen418plan caps inspection/
+display at60s/4GiB,3.8GiB launch headroom,33display samples per shared edge. It
+compares the same planned patch corners with native BRep vertices and curve
+evaluations at each bounded edge's returned parameter extents.
+
+418 completes22records in5.181458s, sampled peak611840KiB. Body revision and
+selected source lock remain unchanged. The20flags involve20distinct connected
+shared edges but only four shared vertices exceed the1nmguard. Their errors are
+1.138274,1.722393,4.586038 and6.071320nm. Two early passing control seams have zero
+reported vertex/curve endpoint residual. These controls are not independent
+complete-ribbon coverage or a new native validation pass.
+
+Evaluated bounded-curve endpoints are not uniformly coincident with vertex
+positions: maximum planned-corner error18.345084nm and curve-end-to-vertex distance
+13.759046nm. Worst example is faces129/119, piece5 bend, left-top profile: the
+flagged vertex differs4.586038nm while its evaluated curve endpoint differs
+18.345084nm. These observations require investigating native trim-parameter and
+endpoint representation before attributing all flags merely to harmless vertex
+rounding or changing the guard to10nm. They do not demonstrate visible cracks or
+continuous surface error along the edge.
+
+The original body is now deliberately visible and framed at display x980cm.
+Red polylines locate flagged shared edges, green marks the two controls; flags
+concern endpoints, not a claim that entire red edges are displaced. Nanometre
+errors are not visually exaggerated into gaps. Three original frozen guides and
+both fixed cap profiles are retained as hidden native sketches. A failed-fidelity
+caption remains visible. Overview capture reviewed; no appearance or body geometry
+changed. Previous bodies/visibility outside this owned result are preserved.
+
+Setup failures remain recorded: the first MCP wrapper rejected a future import
+before execution; corrected416then stopped before measurements because MCP has no
+`__file__`.417retains partial read-only records after a display parameter rounded
+outside its native bounds.418reuses exact cached endpoint evaluations and clamps
+interior display parameters. None of these starts a solver/native build or alters
+the body. Executed source copies are `.frozen` to avoid IDE duplicate indexing.
+
+Maintained adapter: `inspect_native.py`; focused Ruff check/format, IDE diagnostics
+and complete source/diff review pass. No application tests/full suite are run for
+this inspection-only adapter. Evidence and prior failed setup responses remain
+under ignored `ribbon_seam416`, `ribbon_seam417`, `ribbon_seam418` and adjacent
+transport records. No native acceptance or production promotion follows.
+
+## User review: routing quality takes priority — 2026-11-02
+
+The user identifies the displayed long out-and-back excursion and concentrated
+late turning as worse than the earlier result. They also clarify that bounded
+seam precision findings should be warnings when they cause no functional problem;
+welding/clamping is acceptable in principle. This is not evidence that arbitrary
+open topology, material mismatch or downstream failures may be ignored. The
+observed seams already share edges; another weld does not address route placement.
+No blanket warning threshold or new native repair is implemented in this review.
+
+Read-only comparison confirms identical targets/profile/radius for saved381final
+and displayed413.381has first-pass optimization12updates/12contacts, smoothing off;
+407/413uses4joint updates/4contacts and excludes that optimizer. Budgets/stages
+differ, so no matched speed comparison or causal ablation follows. Nevertheless,
+the displayed experiment does not improve on the saved refined route:
+
+| Same layout variant | Material mm | Longest flat mm | Guide RMS mm | Guide maximum mm |
+| --- | ---: | ---: | ---: | ---: |
+| saved381 after working first-pass optimizer |37.130034|14.264242|9.423004|16.188198|
+| displayed413 guide-joint experiment plus zero snap |51.343310|21.267580|13.508696|23.550185|
+
+The earlier reported percentage shortening was against the72.876677mm coarse
+initialization, not the saved37.130034mm route. This distinction should have led
+the presentation. Snapping itself moves corresponding left/center/right material
+stations by at most5.933e-6mm on257fixed samples; it did not create the macroscopic
+excursion. These are sampled comparisons, not continuous displacement bounds.
+
+Source inspection identifies two retained limitations relevant to distribution:
+407scores bend-center position, without directed heading/history alignment; its
+inner closure still enumerates only basic allocations with at most three positive
+straight/radius-growth coordinates. Ranking that set by quadratic guide error
+does not minimize guide placement over interior feasible allocations. A better
+bend-center score therefore does not establish distributed navigational activity.
+Treat this experiment as insufficient for the user's placement goal. Repair the
+first construction formulation; do not use aesthetic smoothing to mask the run
+and concentrated correction or enlarge the candidate bank to chase this specimen.
+No solver change, new solve or native build occurs in this review.
+
+The user asks whether the other layouts worked. Read-only comparison of all five
+with saved381final confirms identical targets/profile contracts. Against those
+working refined outputs, none of the four changed407routes is shorter; gym-one
+is identical. Partial improvements remain and should not be reported as universal
+failure or as an overall improvement:
+
+| Layout | Saved381 → experiment material mm | Saved381 → experiment longest flat mm | Additional finding |
+| --- | --- | --- | --- |
+| new-excursion |37.130 →51.343|14.264 →21.268|Guide position/direction worse; built, strict seam flags retained|
+| trigger |35.647 →36.686|13.889 →13.440|Slight flat reduction, guide measures worse;408named native fidelity pass|
+| gym-recent |17.310 →18.640|2.342 →1.643|Flat reduction, guide position/direction worse; native unattempted|
+| gym-one |11.871 →11.871|6.213 →6.213|Identical; native unattempted|
+| gym-six |153.666 →154.113|88.853 →88.524|Guide RMS6.346 →6.241mm improves, direction loss worsens; native unattempted|
+
+These are outcomes under different refinement/contact budgets, not an equal-budget
+algorithm comparison. No new solve/build is run. One new variant has a named native
+pass, one is built with retained strict seam failure, three are unbuilt. No clear
+overall routing win over the working baseline is established.
+
+Static419diagnosis refines the earlier sparse-allocation explanation: the hairpin
+is already shortest among all6recorded basic closures at its final selected frame.
+Its14.851/21.074mm runs are164.777degrees apart; a5.534mm transverse closure demand
+with.262572leverage forces the21.074mm return leg. Existing angles/banks/placement
+must change to remove the long detour. Total flat travel is91.29%, including flat
+leads inside banked folds. Endpoint tangents require180degrees reversal, but do
+not establish this large excursion as necessary. See
+`../experiment_ribbon_guide_joints/NOTES.md` for all-five-case evidence, limits and
+the selected equal/opposite-bank factorization restriction.0new solves/builds.
