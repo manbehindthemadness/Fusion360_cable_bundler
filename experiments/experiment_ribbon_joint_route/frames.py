@@ -8,9 +8,11 @@ from dataclasses import dataclass
 
 from cable_bundler.routing.geometry import cross, dot, magnitude, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
-from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose
+from experiments.experiment_ribbon_fold_route.geometry import Pose
 from experiments.experiment_ribbon_fold_route.orientation import orient
 from experiments.experiment_ribbon_spline_guide.guide import Guide
+
+from .boundary import FoldBoundary
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,7 @@ def rotation_choices(
     return tuple(choices) if choices else (chosen,)
 
 
-def middle_frame(route: FoldRoute, guide: Guide) -> Pose:
+def middle_frame(route: FoldBoundary, guide: Guide) -> Pose:
     """
     Use the guide's middle tangent and projected mean ordered width, without a landmark.
 
@@ -68,7 +70,7 @@ def middle_frame(route: FoldRoute, guide: Guide) -> Pose:
     return Pose(origin, tangent, unit(width))
 
 
-def topologies(route: FoldRoute, guide: Guide) -> tuple[Topology, ...]:
+def topologies(route: FoldBoundary, guide: Guide) -> tuple[Topology, ...]:
     """
     Offer direct rotation and two stages through the guide frame, at most six branches.
 

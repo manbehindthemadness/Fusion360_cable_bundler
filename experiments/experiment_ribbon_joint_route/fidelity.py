@@ -5,7 +5,7 @@ Extend the unchanged221audit with a strict actual-trim certificate for collapsed
 from __future__ import annotations
 
 import runpy
-from typing import Any
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -220,13 +220,29 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
     and complete ordered caps remain unchanged. Historical reports and archived
     source are never edited. New reports name this extended policy explicitly.
     """
+    original = runpy.run_path(
+        str(ROOT / "artifacts/verification/ribbon_fidelity221/fidelity_audit221.py")
+    )["audit"]
+    return audit_with(body, row, budget, occurrence, original)
+
+
+def audit_with(
+    body: Any,
+    row: dict[str, Any],
+    budget: NativeBudget,
+    occurrence: Any,
+    original: Callable[[Any, dict[str, Any], NativeBudget, Any], dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Apply the same strict trim adapter to an explicitly selected base audit implementation.
+
+    The locked solver supplies its maintained copy of221; historical replay keeps
+    the original archived function. Geometry and every numerical gate are unchanged.
+    """
     route = restore(row)
     patches = material_patches(route.pieces, material_profile(row["lines"], row["diameter_mm"]))
     output = row["audit"]
     output["trim_certifications"] = []
     output["fidelity_policy"] = "221plus explicit actual-UV-rectangle/collapsed-edge certificate"
-    original = runpy.run_path(
-        str(ROOT / "artifacts/verification/ribbon_fidelity221/fidelity_audit221.py")
-    )["audit"]
     faces = _Faces(body, patches, occurrence, output, budget)
     return original(_Body(body, faces), row, budget, occurrence)

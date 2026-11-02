@@ -135,9 +135,19 @@ combined refinement, compatible shooting, director shooting and family/contact-g
 search all depended on seeds and are removed from active diagnostic execution.
 Historical source modules remain for interpreting old evidence and their shared
 geometry implementations; they are not a fallback for the current solver.
-No replacement endpoint solver is implemented yet. Macaroni/pinch and structural
-no-lateral-bending geometry remain available, and sweep-profile creation, conductor
-identity/order and native geometry construction are unchanged. See [pinch.md](pinch.md).
+The ordinary controller still has no replacement endpoint solver. The separately
+installed selected-material gym uses
+`experiments.experiment_ribbon_locked_solver.gym.install(directory, python, document_id, scene)`
+and its dedicated `Controller`. It advertises `active_solver`, with
+`smoothing_percent`0..10(default5;0disables the complete second pass) and
+`material_uv`boolean(defaultfalse; deferred coordinate metadata, no textures).
+Only an explicit Solve and build action starts work, from an actual frozen gym
+payload. Source locks and fixed budgets apply. Numerical acceptance, native
+construction and named fidelity have separate dispositions; full physical
+compliance remains unverified. See
+[selected solver notes](../../../experiments/experiment_ribbon_locked_solver/NOTES.md).
+Macaroni/pinch, structural no-lateral-bending, sweep-profile creation and conductor
+identity/order remain unchanged. See [pinch.md](pinch.md).
 
 The **Diagnostic example** selector keeps the original single-conductor S/lateral90
 alongside a three-conductor spatial reversal. Each example retains its own session,

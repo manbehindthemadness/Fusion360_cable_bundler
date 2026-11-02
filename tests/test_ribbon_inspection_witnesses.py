@@ -18,12 +18,17 @@ from experiments.experiment_ribbon_diagnostic_viewer import examples
 
 
 @pytest.mark.parametrize("vertical", (False, True))
-def test_circles_touch_the_curve_and_retain_the_actual_bend_plane(vertical: bool) -> None:
+@pytest.mark.parametrize("interval", (1.0, 1e-7))
+def test_circles_touch_the_curve_and_retain_the_actual_bend_plane(
+    vertical: bool, interval: float
+) -> None:
     """
-    Use an exact parabola with known peak radius and rotate its bend plane in space.
+    Retain the exact parabola's radius and bend plane even on very short parameter intervals.
     """
     controls = tuple(
-        Vector3(0, x, y) if vertical else Vector3(x, y, 0)
+        Vector3(0, interval * x, interval**2 * y)
+        if vertical
+        else Vector3(interval * x, interval**2 * y, 0)
         for x, y in ((0, 0), (1 / 3, 0), (2 / 3, 1 / 3), (1, 1))
     )
     guide = TracePath(0, (CubicBezier(*controls),), controls, (0,) * 4 + (1,) * 4)

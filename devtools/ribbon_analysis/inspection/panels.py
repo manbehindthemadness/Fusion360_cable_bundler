@@ -174,9 +174,14 @@ def bend_witness(guide: TracePath, minimum: float, title: str) -> Overlay:
             tangent = unit(velocity)
             acceleration = curve.second_derivative(fraction)
             normal = acceleration.translated(tangent, -dot(acceleration, tangent))
-            curvature = magnitude(normal) / speed**2
+            normal_length = magnitude(normal)
+            curvature = normal_length / speed**2
             if curvature > 1e-12 and (best is None or curvature > best[0]):
-                best = (curvature, curve.point(fraction), tangent, unit(normal))
+                # Short cubic intervals scale acceleration without changing curvature.
+                direction = Vector3(
+                    normal.x / normal_length, normal.y / normal_length, normal.z / normal_length
+                )
+                best = (curvature, curve.point(fraction), tangent, direction)
     if best is None:
         return Overlay(
             "bend_witness",

@@ -14,20 +14,24 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_spline_guide.guide import Guide, agreement
 
 from .allocation import Model, allocations
+from .boundary import FoldBoundary
 from .frames import topologies
 
 
-def solve(
-    source: FoldRoute,
+def construct(
+    source: FoldBoundary,
     guide: Guide,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
-) -> tuple[FoldRoute, dict[str, Any]]:
+    *,
+    comparison: FoldRoute | None = None,
+) -> tuple[FoldRoute | None, dict[str, Any]]:
     """
     Jointly close each exact rotation family, then check up to twelve shortest candidates.
 
-    The source contributes fixed targets/profile/radius bound and a comparison cap,
-    never its old fold order, banks or lengths. Guide-derived intermediate orientation
+    The source contributes fixed targets/profile/radius bound. An optional existing
+    comparison limits length/fold regression; cold endpoint construction requires
+    no successful route or historical artifact. Guide-derived intermediate orientation
     distributes rotation. No envelope gaps, entry resets, nonlinear attraction or
     post-construction radius pass. Full thick contact remains a separate hard gate.
     """
@@ -46,10 +50,10 @@ def solve(
         )
         for item in allocations(Model(source, topology), checkpoint, record):
             route = item.route
-            if (
+            if comparison is not None and (
                 route.material_length_mm
-                > source.material_length_mm + 1e-8 * source.targets.diameter_mm
-                or fold_count(route) > fold_count(source)
+                > comparison.material_length_mm + 1e-8 * source.targets.diameter_mm
+                or fold_count(route) > fold_count(comparison)
             ):
                 record(
                     {
@@ -110,4 +114,17 @@ def solve(
         if chosen
         else "no_separated_joint_route_within_families_and_budget",
     }
-    return (chosen.route if chosen else source), details
+    return (chosen.route if chosen else None), details
+
+
+def solve(
+    source: FoldRoute,
+    guide: Guide,
+    checkpoint: Callable[[], None],
+    record: Callable[[dict[str, Any]], None],
+) -> tuple[FoldRoute, dict[str, Any]]:
+    """
+    Preserve the historical comparison entry point and its unchanged valid fallback.
+    """
+    route, details = construct(source, guide, checkpoint, record, comparison=source)
+    return (route if route is not None else source), details

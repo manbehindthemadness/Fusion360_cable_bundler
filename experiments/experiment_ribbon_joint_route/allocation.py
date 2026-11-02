@@ -16,6 +16,7 @@ from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
 from experiments.experiment_ribbon_fold_route.primitives import Piece
 
+from .boundary import FoldBoundary
 from .frames import Topology
 
 
@@ -42,7 +43,7 @@ class Model:
     determines all lengths before any contact check or native construction.
     """
 
-    source: FoldRoute
+    source: FoldBoundary
     topology: Topology
 
     @property

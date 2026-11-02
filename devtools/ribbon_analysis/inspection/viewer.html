@@ -6,7 +6,7 @@
 <title>Routing diagnostics</title>
 <style>
   :root { color-scheme: light; font: 14px system-ui, sans-serif; color: #182c3a; background: #f4f6f8; }
-  body { margin: 18px; }
+  body { margin: 18px; background: #f4f6f8; color: #182c3a; }
   h1 { margin: 0 0 4px; font-size: 23px; }
   p { line-height: 1.45; }
   label { display: block; margin-top: 13px; font-weight: 600; }
@@ -43,9 +43,20 @@
 <button id="openGym" hidden>Create/edit gym layout</button>
 <p id="gymScope" class="muted" hidden>Frozen gym geometry is visual context. Routing boundaries are not enforced.</p>
 <p id="pathRules" class="muted"></p>
+<section id="selectedSolver" hidden>
+  <h2>Selected material solver v1</h2>
+  <p class="muted">Joint route construction with configurable aesthetic smoothing. Gym surroundings are visual context. Native material fidelity is checked separately; full physical compliance remains unverified.</p>
+  <label for="smoothingPercent">Smoothing allowance (% extra material length)</label>
+  <input id="smoothingPercent" type="number" min="0" max="10" step="0.5" value="5">
+  <p class="muted">Default 5%. Set 0 to disable the second pass. Straightaways are available runway; endpoint frames and physical rules remain fixed.</p>
+  <label><input id="materialUV" type="checkbox"> Retain optional material UV coordinates</label>
+  <p class="muted">Coordinates support later appearance work. No textures or appearances are created.</p>
+  <div class="toolbar"><button id="runSelected">Solve and build</button><button id="cancelSelected">Cancel numerical work</button></div>
+  <p id="selectedRunStatus" role="status" class="muted"></p>
+</section>
 <details id="procedurePanel" hidden>
   <summary>Historical methods</summary>
-  <p class="muted">Path search and seed-based discovery have been removed. Recorded paths remain available below. A replacement endpoint solver has not been implemented.</p>
+  <p class="muted">Historical path search and seed-based discovery remain retired. Recorded paths remain available below. A configured selected solver is shown separately above.</p>
   <div id="procedureForms"></div>
   <p id="runStatus" role="status" class="muted"></p>
 </details>
@@ -82,7 +93,7 @@
   <canvas id="bendChart" style="height:160px" aria-label="Centre and edge curvature along the selected recorded path"></canvas>
   <p id="bendChartLegend" class="muted"></p>
 </details>
-<p class="muted">Measurements and recorded rule settings remain available. New solver runs and rule comparisons are unavailable while endpoint discovery is being replaced.</p>
+<p class="muted">Measurements and recorded rule settings remain available. Historical seed-search procedures and rule-ablation runs remain unavailable.</p>
 <table><thead><tr><th>Rule / measurement</th><th>Status and scope</th><th>Recorded rule scope</th></tr></thead><tbody id="rules"></tbody></table>
 <div class="toolbar"><button id="pairedBaseline" disabled>View paired baseline</button></div>
 <p id="comparisonScope" class="muted"></p>
@@ -106,7 +117,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{role:string,baseline:string,detail:string,measurements:{name:string,baseline:number,current:number,delta:number}[]}} Comparison */
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
-/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number}} Execution */
+/** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,active_solver?:{id:string,settings:{smoothing_percent:number,material_uv:boolean}}}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
 /** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,gym:?Gym,gym_available?:boolean,path_rules:string}} InspectionState */
@@ -116,6 +127,7 @@ let yaw = -.65, pitch = .35, zoom = 1, pending = false, connected = false;
 let playing = false;
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 let procedureCatalog = "";
+let activeSolverVersion = "";
 const colors = ["#1e8cc8", "#d7691e", "#9141b4", "#1e9664"];
 const xyz = p => [p.x, p.y, p.z];
 const add = (a, b, scale = 1) => a.map((v, i) => v + b[i] * scale);
@@ -150,15 +162,24 @@ function controls() {
   element("baselineGhost").disabled = blocked || !state.snapshot || state.comparison?.role !== "ablation";
   element("reconnect").disabled = pending;
   element("example").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
+  const jobBusy = ["running", "cancelling"].includes(state?.execution?.status);
+  for (const id of ["runSelected", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
+  element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
   comparisonControls();
 }
 function comparisonControls() {
   const blocked = pending || !connected || ["running", "cancelling"].includes(state?.execution?.status);
   element("pairedBaseline").disabled = blocked || !state?.comparison || !state.solvers.some(entry => entry.id === state.comparison.baseline);
-  element("comparisonScope").textContent = "Archived comparisons remain viewable. New comparisons require a replacement endpoint solver.";
+  element("comparisonScope").textContent = "Archived comparisons remain viewable. New rule comparisons are unavailable.";
 }
 /** @param {?Execution} execution */
 function renderExecution(execution) {
+  element("selectedSolver").hidden = !execution?.active_solver;
+  if (execution?.active_solver && activeSolverVersion !== execution.active_solver.id) {
+    activeSolverVersion = execution.active_solver.id;
+    element("smoothingPercent").value = execution.active_solver.settings.smoothing_percent;
+    element("materialUV").checked = execution.active_solver.settings.material_uv;
+  }
   element("procedurePanel").hidden = !execution;
   element("examplePanel").hidden = !execution;
   if (!execution) return;
@@ -181,6 +202,7 @@ function renderExecution(execution) {
   }
 
   element("runStatus").textContent = `${execution.status}: ${execution.detail || ""}${execution.procedure ? ` · ${execution.procedure}` : ""}${execution.completed === undefined ? "" : ` · ${execution.completed}/${execution.total} attempted`}${execution.elapsed_seconds === undefined ? "" : ` · ${execution.elapsed_seconds.toFixed(1)} s`}`;
+  element("selectedRunStatus").textContent = element("runStatus").textContent;
 
 }
 async function request(action, data = {}) {
@@ -194,7 +216,7 @@ async function request(action, data = {}) {
     const host = await waitForFusionHost();
     const message = "ribbon_inspection_" + action;
     const timeout = new Promise((_, reject) => {
-      timer = window.setTimeout(() => reject(new Error("Fusion has not acknowledged this request. Reconnect to read its current state; the request has not been repeated.")), 35000);
+      timer = window.setTimeout(() => reject(new Error("Fusion has not acknowledged this request. Reconnect to read its current state; the request has not been repeated.")), action === "poll" && state?.execution?.active_solver ? 180000 : 35000);
     });
     let raw = await Promise.race([host.fusionSendData(message, JSON.stringify(data)), timeout]);
     // A newly created palette can load before its native handler is registered.
@@ -240,7 +262,7 @@ function receive(value) {
   if (state.visibility) for (const [key, id] of Object.entries(layers)) element(id).checked = state.visibility[key];
   const method = state.solvers.find(m => m.id === state.solver);
   const minimal = state.path_rules === "macaroni + no lateral bending";
-  element("pathRules").textContent = minimal ? "Recorded path rules: macaroni pinch and structural no lateral bending. Connection targets stay fixed. Other measurements are observations; self-contact, clearance, sphere, gym, length-balance and extra-loop rules do not steer or reject this recorded run. New endpoint discovery is currently unavailable." : "Historical recorded pathing policy. New endpoint discovery is currently unavailable; recorded results retain their original scope.";
+  element("pathRules").textContent = state.execution?.active_solver ? "Selected solver: fixed ordered caps, equal local material lengths, macaroni/pinch, no lateral bending and thick self-contact checks. Historical methods below remain retired." : minimal ? "Recorded path rules: macaroni pinch and structural no lateral bending. Connection targets stay fixed. Other measurements are observations; self-contact, clearance, sphere, gym, length-balance and extra-loop rules do not steer or reject this recorded run. New endpoint discovery is currently unavailable." : "Historical recorded pathing policy. New endpoint discovery is currently unavailable; recorded results retain their original scope.";
   element("case").textContent = `${state.case} · D ${state.diameter_mm} mm · one independent configuration`;
   element("solver").replaceChildren(...state.solvers.map(m => {
     const option = document.createElement("option");
@@ -424,6 +446,12 @@ function draw() {
 }
 element("solver").onchange = () => { playing = false; request("select", {solver: element("solver").value}); };
 element("openGym").onclick = () => { setPlayback(false); request("gym"); };
+element("runSelected").onclick = () => {
+  const active = state?.execution?.active_solver;
+  if (!active) return;
+  request("run", {procedures: [{id: active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked}}]});
+};
+element("cancelSelected").onclick = () => request("cancel");
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
 element("reconnect").onclick = () => request("ready");
 element("pairedBaseline").onclick = () => request("select", {solver:state.comparison.baseline});
