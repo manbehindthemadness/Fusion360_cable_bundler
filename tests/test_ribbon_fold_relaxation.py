@@ -167,3 +167,19 @@ def test_half_turn_frame_cannot_masquerade_as_closed_rotation() -> None:
     candidate = model.route(tuple(values))
     assert candidate is not None
     assert cap_error(candidate) > 1
+
+
+@pytest.mark.parametrize("angle", (3e-6, -3e-6, 1e-6, -1e-6))
+def test_aesthetic_jacobian_keeps_tiny_angle_probes_inside_bounds(angle: float) -> None:
+    """
+    Keep a one-sided difference from rounding past the signed nonzero-angle floor.
+    """
+    from experiments.experiment_ribbon_aesthetic.layout_model import Model as LayoutModel
+
+    model = LayoutModel(_route())
+    values = list(model.initial)
+    index = 1 if angle > 0 else 5
+    values[index] = angle
+    rows = model.jacobian(tuple(values))
+    assert len(rows) == 6 and all(len(row) == len(values) for row in rows)
+    assert all(math.isfinite(value) for row in rows for value in row)

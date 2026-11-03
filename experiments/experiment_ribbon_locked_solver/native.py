@@ -20,11 +20,15 @@ from devtools.ribbon_analysis.budget import NativeBudget
 from devtools.ribbon_analysis.end_profiles import retain_end_profiles
 from experiments.experiment_optional_appearance.host import capture
 from experiments.experiment_ribbon_contraction.runner import restore, snapshot
-from experiments.experiment_ribbon_fold_route.material_native import define_material_body
+from experiments.experiment_ribbon_fold_route.material_native import (
+    define_material_body,
+    native_point,
+)
 from experiments.experiment_ribbon_fold_route.material_profile import material_profile
 from experiments.experiment_ribbon_fold_route.material_surfaces import material_patches
 from experiments.experiment_ribbon_joint_route.fidelity import audit_with
 
+from .correspondence import MaterialFaces
 from .fidelity_base import audit
 from .lock import verify
 from .progress import append
@@ -197,7 +201,31 @@ class NativeOwner:
                 f"Solid created ({body.faces.count} faces); checking surface, guide, seam and cap fidelity.",
             )
             started = time.perf_counter()
-            audit_with(body, row, budget, occurrence, audit)
+            face_records = authored.face_records
+            if body.faces.count == len(patches) + 2:
+                audit_with(body, row, budget, occurrence, audit)
+                result["face_mapping_policy"] = "original one-to-one native patches"
+            else:
+
+                def trimmed_distance(point: Any, entity: Any) -> float:
+                    """
+                    Measure actual native trim support in assembly space at the unchanged tolerance.
+                    """
+                    return app.measureManager.measureMinimumDistance(point, entity).value * 10
+
+                families = MaterialFaces(
+                    body,
+                    route,
+                    patches,
+                    occurrence,
+                    budget,
+                    native_point,
+                    trimmed_distance,
+                    row["audit"],
+                )
+                audit(body, row, budget, occurrence, material_faces=families)
+                face_records = families.records()
+                result["face_mapping_policy"] = "verified material regions across native faces"
             result.update(fidelity_audited=1, audit_seconds=time.perf_counter() - started)
             if body.revisionId != revision:
                 raise RuntimeError("Native fidelity audit changed the body")
@@ -208,7 +236,7 @@ class NativeOwner:
                 metadata = json.loads((directory / "material-uv.json").read_text())
                 encoded = json.dumps(metadata, separators=(",", ":"))
                 occurrence.component.attributes.add("RibbonMaterialCoordinates", "map", encoded)
-                for index, record in enumerate(authored.face_records):
+                for index, record in enumerate(face_records):
                     face = body.faces.item(index)
                     source = json.dumps(record, separators=(",", ":"))
                     face.attributes.add("RibbonMaterialCoordinates", "source_face", source)
@@ -222,7 +250,7 @@ class NativeOwner:
                     raise RuntimeError("Material coordinate metadata read-back failed")
                 if design.appearances.count != appearances_before or body.revisionId != revision:
                     raise RuntimeError("Material metadata changed appearances or geometry")
-                result.update(material_uv_faces=len(authored.face_records), appearances_created=0)
+                result.update(material_uv_faces=len(face_records), appearances_created=0)
             result["material_uv_seconds"] = time.perf_counter() - started
             retain_end_profiles(occurrence.component, route.targets, checkpoint)
             matrix = adsk.core.Matrix3D.create()

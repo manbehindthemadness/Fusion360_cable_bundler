@@ -1,5 +1,202 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Native/material correspondence repair 453–462 — 2026-11-02
+
+**Current disposition:** the unchanged current gym layout now completes normal
+Solve and build, passes all named fidelity checks and displays its positive solid.
+The previous count guard rejected122actual faces versus132authored material
+regions before measuring geometry. Fusion merged the tiny terminal bend's material
+regions into neighboring native faces. Independent measurements establish their
+sampled physical correspondence; a raw count difference alone cannot decide it.
+This supersedes the unresolved disposition in443–451, whose original failures and
+alternative constructions remain recorded without rewriting their results.
+
+`correspondence.py` records actual native-face identity separately from ordered
+material regions. It requires full sampled source coverage, ownership of every
+actual lateral face by one unique profile arc, and two independently matched
+terminal caps. Selected points are evaluated on actual native supports. Raw trim
+membership failures require independent minimum distance to the actual trimmed
+face in assembly space. Material boundaries inside a merged face receive nine
+authored-support samples checked on both source families. Where a shorter source
+seam occupies part of a larger actual shared edge, its nine samples also require
+distance to that real edge. Original whole-edge discrepancies remain in the
+report. No synthetic native faces/edges, route edits, radius changes, physical
+rule changes or tolerance expansion: surface/trim/seam1e-6mm and original guide
+tangent/cap gates remain. Face-query/distance limits30000/512, native120s/4GiB.
+
+The normal NativeOwner keeps the original audit fast path when native/authored
+counts match and uses verified correspondence on count mismatch. Real native
+counts remain explicitly reported. Optional UV metadata enumerates actual faces
+and retains every contributing source region; the new `coordinates_for_face`
+inverse recovers continuous global material U/V/thickness from those regions.
+It creates no appearance or texture. Unit tests cover multi-source roundtrips;
+this phase's normal native run has UVoff, so native UV attribute writes are
+**unattempted**. This is development fidelity work, not product-time generation
+expense or a complete physical native audit.
+
+All experiments concern variants/measurements of **one independent configuration**:
+seed1283296667,3xD.75,A22f5r2/B12f3r0,optimizationon,smoothing1%,UVoff.
+
+- 453reads current user job `selected-3336adc182db41ecbc0b78a96d1e43d2` and
+  retained face IDs. IDs are reindexed and do not supply authored correspondence.
+- 454stops on an artifact-script fingerprint path error before construction:
+  **0native attempts**. The corrected455is separately frozen, not a rewritten454.
+- 455one scaled transient construction yields129/132faces and stops before
+  conversion/restoration. 456one normalized-knot scaled construction also yields
+  129/132and stops. Neither completes fidelity or persists geometry; both remain
+  artifact-only, unpromoted experiments. Original builders stay unchanged.
+- 457read-only sampling stops after89complete patches at its512distance-call
+  cap;0failed sampled points, incomplete coverage. 458checks cheap memberships
+  first, then independent trim distance: all4550points pass across130patches,
+  maximum6.628815e-8mm,12trim distances,11.360588s. All lateral native faces have
+  unique profile ownership; two caps remain for independent matching.
+- 459full correspondence audit passes surfaces, three guides and both caps,
+  but12whole-edge endpoint comparisons reject shorter logical seam subsegments.
+  It stops with those findings intact in13.329846s.
+- 460adds actual shared-edge subchain measurements:4550points,250seams with
+  0failures, all three ordered guides and both caps pass in41.415299s. Complete
+  correspondence covers122actual native faces and132material regions. Combined
+  trim/edge distance corroborations192/512. This is a read-only audit of the
+  existing solid, **0solves/builds/geometry edits**.
+- 461freezes one normal v2job, one native attempt,120s numerical/120s native,
+  240s phase,4GiB RSS/3.8GiB launch headroom; no retries. Reloads only the three
+  reviewed native-audit modules and rebinds the existing owner's actual build
+  callback. The palette's ordinary polling completes job
+  `selected-a4aee91715cb416abfcec6e099502687`:122-face positive solid, generation
+  .985002s, named audit22.344116s, total native24.989209s. Numerical acceptance
+  is separate:.383071s wall/.359844s CPU, strict separation retained.4550surface points,
+  max6.628815e-8mm,250seams/0failures; guide position<=1.078e-9mm and tangent
+  <=4.985e-8degrees. Both complete cap checks pass; actual revision unchanged by
+  audit.10345face queries/192distance checks, sampled RSS peak723920KiB. Native
+  generation excludes audit/graphics; in-flight memory peak is not measured.
+- 462read-only live confirmation: completed job, clear event error, current
+  NativeOwner/class callback, visible positive solid, same native revision,
+  one valid tracked gym context group, strict contact mode and preserved1%/UVoff
+  settings. Capture inspected.0additional solves/builds/geometry edits.
+
+This continuation has3positive-solid creation events (455/456/461), one complete
+normal native-build fidelity pass and the separate460existing-body audit pass;
+neither measurements nor child faces count as independent configurations. Three
+collateral numerical layouts from445remain natively unattempted in this scope.
+0full physical audits/new holdouts. No universal topology, route-optimality or
+production-readiness claim. Failed and incomplete runs remain explicit above.
+
+178-file executable lock reviewed/refrozen and verified. **70focused tests pass**
+across correspondence, selected solver, v2, native clear, progress, closure,
+graphics and Jacobian consumers. All13changed Python files pass Ruff check and
+format check; complete diff/new-file review and `git diff --check` pass. IDE
+inspections show no introduced findings. Existing copied-source duplicate-fragment
+reports, original fidelity-local shadowing and the documented native fail-soft
+broad exception remain. No full repository QA, standalone type/document checker
+or full physical audit was run. Native UV writes and three collateral native
+configurations remain unattempted. Original geometry construction is untouched;
+speculative scaling/conversion remains unpromoted. Evidence:
+`ribbon_topology453/`,454response,`ribbon_scale455/` and456,
+`ribbon_measure457/` and458,`ribbon_audit459/` and460,`ribbon_native461/`, plus the
+original frozen job directories. Host application log inspected before changes.
+
+## New closure failure and duplicate gym graphics 443–451 — 2026-11-02
+
+**Historical disposition before453–462:** the reported layout closes numerically, including its
+requested1%smoothing, and the duplicate gym context is removed. Native construction
+still fails the unchanged topology/fidelity guard. Do not describe this case as a
+successful complete build or solved native translation problem. No native builder,
+physical-rule or fidelity-tolerance change is promoted from this investigation.
+
+Trigger: gym seed1283296667,3conductors/D.75, A(zone22,face5,roll2),
+B(zone12,face3,roll0), optimization on/UVoff/smoothing1%. Original user job
+`selected-c2798bd10fa344e18252faa1850097ed` stops in65.76ms with0closed branches,
+0contacts,0smoothing and0native attempts. Its best existing root[0,0] reduces
+position residual to.0654031diameters (.0490523mm), then hits the two-correction
+cap. This failure precedes contact checking and is distinct from437–442.
+
+`reclosure.py` preserves the original two corrections on every derived branch.
+Only when **none** closes does the closest still-progressing unfinished branch
+receive up to four further residual-derived corrections, with the same pi/4step
+cap, two halvings, fixed roots/radii/sites and strict cap/material/contact gates.
+Stalling stops; no new guessed orientations, candidates or target snapping.
+Successful original constructions never enter this continuation. The trigger uses
+only two extra corrections: residual .0654031D ->.000187843D ->6.290218e-10D;
+the resulting strict first-pass contact check uses33comparisons.
+
+444baseline freezes that trigger and three collateral gym layouts before changes:
+compact4033669276, shallow8conductor gym424-05 and spatial12conductor gym424-09.
+Three pass; trigger unresolved. First444candidate closes its route/contact but
+stops in1%smoothing when a finite-difference coordinate rounds outside its bound.
+The raw early-error report lists all four as unattempted because results append
+only after solve returns; actual disposition is **trigger attempted/stopped,
+three collateral unattempted**. Trials and traceback preserve that failure.
+
+The shared closure Jacobian now clamps probe coordinates to the unchanged closed
+bounds and divides by their actual representable separation. For example,
+3e-6-(3e-6-1e-6) can become9.999999999999997e-7, below the1e-6signed angle floor.
+This corrects derivative evaluation, not geometry or constraints. Four analytic
+regressions cover both signs and exact-bound probes. 445then completes all four
+strict numerical cases in.775308s/CPU.772204s. Trigger15.695280mm, solve/checks
+.278646s (firstpass.079430s, smoothing.191014s), cap residual1.292e-10mm.
+All three collateral snapshots are byte-equivalent as parsed to their baseline
+geometry; no extra closure work occurs for their already successful constructions.
+Four examined layouts, not new holdouts or native coverage.
+
+443read-only inspection also confirms two visible reserved gym graphics groups
+inside the current diagnostics component: one tracked, one orphaned. The shared
+gym renderer now completes a replacement, then retires all earlier groups with
+its reserved name in that explicitly owned component. It preserves differently
+named graphics and prior groups on drawing failure. Tests cover lost handles,
+repeat replacement, interrupted drawing and failed deletion. 446live refresh
+measures **2 ->1**groups;448still observes1. Older hidden workspaces, native bodies,
+draft inputs and layer preferences remain untouched.
+
+Native findings, all variants of **one independent trigger layout**:
+
+- 446normal1%job `selected-79b916f4c675453db508ccbecea38b32` builds a positive
+  solid in1.016686s, but has122faces versus132authored faces;0fidelity audits
+  completed. Last fold is driven to1e-6radians by smoothing. The audit fails
+  before point/seam/cap sampling; positive volume is not fidelity acceptance.
+- A derived full bend-station-chord filter was tested in447, preserving the axial
+  bank contribution. Numerical4/4pass; trigger15.559836mm/.302182s and unchanged
+  collateral routes. 448normal job `selected-b3353a4f55ab4610a0c60f17cc4a75a0`
+  builds in1.031331s but has137faces versus142authored; fidelity still fails.
+  **That filter is insufficient and is removed from active code.** Exact source
+  bytes and its tests are parked under `ribbon_closure447/parked_source/`.
+- 449read-only support inspection locates missing exact NURBS bend patches only
+  in the tiny final turn: all10in446, profiles0/1/2/3/9in448. Many ordinary flat
+  lead supports become analytic cylinders; absence of an identical NURBS support
+  there is not itself proof of missing material. Both existing bodies retain their
+  revisions. Inspection21.088649s,0construction attempts.
+- 450scales a disposable transient copy by2then.5 successfully, keeping137faces
+  and original-body revision; .544390s,0construction attempts. This establishes
+  only API capability, not a fidelity repair.
+- 451constructs the exact448plan once at a derived power-of-two scale256, then
+  restores physical size and inserts it before the unchanged audit. Scaled body
+  has all142authored faces, but the restored/inserted body has145and fails the
+  same guard. Intermediate face count between restoration and insertion was not
+  retained, so do not attribute splitting to one stage alone. Generation1.787121s;
+  0fidelity audits completed. MCP reports failure and may roll back its newly
+  created component; persistent retention of that third body is unverified.
+  Scale normalization remains an unpromoted artifact-only experiment. Final452
+  read-only inspection confirms its component is absent after MCP rollback;
+  both446/448failed bodies remain retained. The current gym has one valid tracked
+  context group, strict policy and the latest native job explicitly stopped.
+
+Native total:1independent configuration across3attempts/3positive-solid creation
+events, **0named fidelity passes/0full physical audits**. Three collateral layouts
+remain natively unattempted throughout this scope. No further builds scheduled;
+the next question is native face correspondence and small-face handling, without
+waiving topology or altering planned material geometry.
+
+Final executable source matches the fully checked445candidate source exactly:
+177-file lock, closure continuation + bounded Jacobian probes + orphan graphics
+replacement. Speculative resolution gates, signature plumbing and scaling are
+absent from maintained runtime. Original profile/native builders, contact fix,
+strict policy, targets/identity and optional UV behavior remain unchanged.
+Focused verification passes (including53tests after final restoration, earlier
+graphics/handoff/selection/controller checks); scoped Ruff/format and IDE checks
+show no introduced findings. Existing duplicate-fragment weak warnings remain.
+No full repository QA, standalone type checker or complete physical audit.
+Evidence: `inspect443.json`, `ribbon_closure444/`, `ribbon_closure445/`,
+`ribbon_closure447/`, `ribbon_scale451/`, and the three named job/script records.
+
 ## Contact measurement repair 437–442 — 2026-11-02
 
 The user requested pair-budget exhaustion to stop/log measurement rather than

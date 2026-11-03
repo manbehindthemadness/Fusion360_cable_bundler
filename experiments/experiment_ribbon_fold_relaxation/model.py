@@ -134,19 +134,28 @@ class Model:
 
     def jacobian(self, values: tuple[float, ...]) -> list[list[float]]:
         """
-        Differentiate six closure equations with bounded diameter-scaled differences.
+        Differentiate six closure equations with probes inside the closed coordinate bounds.
+
+        Subtracting a distance to a bound can round just beyond that bound.
+        Clamp the probe coordinates themselves and divide by their actual
+        representable separation. This never changes the evaluated route or bounds.
         """
         columns = []
         for index, value in enumerate(values):
             low, high = self.bounds(index)
+            if not math.isfinite(value) or not low <= value <= high:
+                raise ValueError("Differentiate only coordinates inside their declared bounds")
             before = min(1e-5, value - low)
             after = min(1e-5, high - value)
             first = list(values)
             last = list(values)
-            first[index] -= before
-            last[index] += after
+            first[index] = max(low, value - before)
+            last[index] = min(high, value + after)
+            separation = last[index] - first[index]
+            if separation <= 0:
+                raise ValueError("Closure derivative needs distinct representable probes")
             a, b = self.residual(tuple(first)), self.residual(tuple(last))
-            columns.append(tuple((y - x) / (before + after) for x, y in zip(a, b)))
+            columns.append(tuple((y - x) / separation for x, y in zip(a, b)))
         return [[column[row] for column in columns] for row in range(6)]
 
     def straight_length(self, values: tuple[float, ...]) -> float:

@@ -19,7 +19,8 @@ from .allocation import Allocation, fit
 from .contact_measurement import ContactPolicy
 from .features import chains
 from .guide_frames import Frames
-from .repair import changed, correction, nearest, reframed
+from .reclosure import Unclosed, refine
+from .repair import nearest
 from .selection import Branch, Policy, select
 
 
@@ -59,85 +60,55 @@ def construct(
     exhaustion as an explicitly incomplete measurement; actual penetration and
     other unresolved outcomes reject. Resource/source errors always propagate.
     Initially unclosed branches receive at most two residual-derived angular
-    corrections with two finite step halvings. Radius and station choices stay fixed.
+    corrections with two finite step halvings. If no branch closes, only the
+    closest still-progressing branch receives at most four additional corrections.
+    Successful original constructions never incur this continuation. Radius and
+    station choices stay fixed.
     Original midpoint-ranked feasibility is preserved. If its first branch is
     separated, use the spare contact certificate only for a shorter branch whose
     ordered whole-guide RMS and direction loss are both non-increasing.
     """
     candidates: list[Allocation] = []
     branches: list[Branch] = []
+    unfinished: list[Unclosed] = []
     for chain in chains(boundary, frames, parameters, checkpoint, record):
         allocation = fit(boundary, chain, threshold_mm, checkpoint, record)
         if allocation is None:
-            current = chain
-            closure = nearest(Model(boundary, current.topology), checkpoint)
-            for iteration in range(2):
-                delta = correction(boundary, current, closure, checkpoint)
-                if delta is None:
-                    record(
-                        {
-                            "stage": "feature_reclosure",
-                            "roots": chain.roots,
-                            "iteration": iteration,
-                            "status": "derivative_unresolved",
-                            "position_error_diameters": closure.error,
-                        }
-                    )
-                    break
-                progressed = False
-                for halving in range(2):
-                    checkpoint()
-                    probe = reframed(
-                        boundary, current, changed(current.targets, delta, 0.5**halving)
-                    )
-                    if probe is None:
-                        record(
-                            {
-                                "stage": "feature_reclosure",
-                                "roots": chain.roots,
-                                "iteration": iteration,
-                                "halving": halving,
-                                "status": "branch_unresolved",
-                            }
-                        )
-                        continue
-                    trial = nearest(Model(boundary, probe.topology), checkpoint)
-                    record(
-                        {
-                            "stage": "feature_reclosure",
-                            "roots": chain.roots,
-                            "iteration": iteration,
-                            "halving": halving,
-                            "status": "residual_reduced"
-                            if trial.error < closure.error - 1e-10
-                            else "no_gain",
-                            "position_error_diameters": trial.error,
-                            "angular_delta": delta,
-                        }
-                    )
-                    if trial.error < closure.error - 1e-10:
-                        current, closure, progressed = probe, trial, True
-                        if trial.error <= 1e-7 / boundary.targets.diameter_mm:
-                            allocation = fit(boundary, current, threshold_mm, checkpoint, record)
-                        break
-                if allocation is not None or not progressed:
-                    break
+            pending = Unclosed(chain, nearest(Model(boundary, chain.topology), checkpoint))
+            outcome = refine(boundary, pending, threshold_mm, 2, checkpoint, record)
+            if isinstance(outcome, Allocation):
+                allocation = outcome
+            elif isinstance(outcome, Unclosed):
+                unfinished.append(outcome)
         if allocation is not None:
-            score = agreement(allocation.route, frames.guide)
+            candidates.append(allocation)
+            branches.append(_branch(allocation, frames, record))
+    if not branches and unfinished:
+        pending = min(unfinished, key=lambda item: (item.closure.error, item.chain.roots))
+        record(
+            {
+                "stage": "feature_closure_continuation",
+                "status": "continuing_closest",
+                "roots": pending.chain.roots,
+                "position_error_diameters": pending.closure.error,
+                "maximum_additional_steps": 4,
+            }
+        )
+        outcome = refine(boundary, pending, threshold_mm, 4, checkpoint, record)
+        if isinstance(outcome, Allocation):
+            candidates.append(outcome)
+            branches.append(_branch(outcome, frames, record))
+        else:
             record(
                 {
-                    "stage": "feature_branch",
-                    "status": "closed",
-                    "roots": chain.roots,
-                    "features": chain.feature_count,
-                    "primitives": len(chain.topology.folds),
-                    "site_error_mm2": allocation.score,
-                    "guide": asdict(score),
-                    "route": snapshot(allocation.route),
+                    "stage": "feature_closure_continuation",
+                    "status": "unresolved" if isinstance(outcome, Unclosed) else "stalled",
+                    "roots": pending.chain.roots,
+                    "position_error_diameters": outcome.closure.error
+                    if isinstance(outcome, Unclosed)
+                    else None,
                 }
             )
-            candidates.append(allocation)
-            branches.append(Branch(chain.roots, allocation.route, score, allocation.score))
     allocations = {a.chain.roots: a for a in candidates}
     contacts = 0
     contact_seconds = 0.0
@@ -190,3 +161,26 @@ def construct(
         len(candidates),
         max(0, len(candidates) - contacts),
     )
+
+
+def _branch(
+    allocation: Allocation, frames: Frames, record: Callable[[dict[str, Any]], None]
+) -> Branch:
+    """
+    Record the same closed material geometry before bounded contact selection.
+    """
+    chain = allocation.chain
+    score = agreement(allocation.route, frames.guide)
+    record(
+        {
+            "stage": "feature_branch",
+            "status": "closed",
+            "roots": chain.roots,
+            "features": chain.feature_count,
+            "primitives": len(chain.topology.folds),
+            "site_error_mm2": allocation.score,
+            "guide": asdict(score),
+            "route": snapshot(allocation.route),
+        }
+    )
+    return Branch(chain.roots, allocation.route, score, allocation.score)

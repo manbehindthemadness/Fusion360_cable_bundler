@@ -173,3 +173,36 @@ def test_unresolved_construction_does_not_revert_to_a_retired_solver(
     result = solve(_corner(), Settings(), _checkpoint, _record)
     assert result.route is result.first_pass is None
     assert result.detail["status"] == "unresolved"
+
+
+def test_combined_native_face_sources_recover_continuous_material_coordinates() -> None:
+    """
+    Recover the same global U/V and thickness across several explicitly retained source regions.
+    """
+    from cable_bundler.routing.geometry import cross, unit
+    from experiments.experiment_ribbon_locked_solver.coordinates import coordinates_for_face
+
+    result = solve(_corner(), Settings(0), _checkpoint, _record)
+    assert result.route is not None
+    route = result.route
+    sources = [
+        {"piece_index": i, "region": region}
+        for i, piece in enumerate(route.pieces)
+        for region in (
+            ("before", "bend", "after")
+            if isinstance(piece.geometry, CylindricalFold)
+            else ("straight",)
+        )
+    ]
+    for i, piece in enumerate(route.pieces):
+        for u in (0.05, 0.5, 0.95):
+            q, height = route.half_width_mm * 0.3, route.targets.diameter_mm * 0.1
+            position, velocity, across, _ = piece.surface(u, q)
+            point = position.translated(unit(cross(velocity, across)), height)
+            actual = coordinates_for_face(route, {"sources": sources}, point)
+            expected_u = (
+                route.starts_mm[i] + u * piece.geometry.material_length_mm
+            ) / route.material_length_mm
+            assert actual == pytest.approx((expected_u, 0.65, height), abs=1e-9)
+    with pytest.raises(ValueError, match="outside the retained"):
+        coordinates_for_face(route, {"sources": [{"region": "end"}]}, route.targets.end)

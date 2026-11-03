@@ -1,8 +1,9 @@
 """
 Preserve the selected221surface/seam/ordered-guide/cap audit in maintained source.
 
-Copied without changing its measurement policy from the retained221artifact.
-No geometry repair or tolerance expansion is performed by this development audit.
+Direct-index mode preserves the retained221policy. Explicit material/native
+correspondence supports merged regions using separately recorded actual-face and
+edge-subchain measurements. No geometry repair or tolerance expansion is performed.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from experiments.experiment_ribbon_fold_route.material_native import native_poin
 from experiments.experiment_ribbon_fold_route.material_profile import material_profile
 from experiments.experiment_ribbon_fold_route.material_surfaces import material_patches
 
+from .correspondence import MaterialFaces
+
 
 def angle(a: Vector3, b: Vector3) -> float:
     """
@@ -34,14 +37,26 @@ def angle(a: Vector3, b: Vector3) -> float:
     return math.degrees(math.atan2(magnitude(cross(unit(a), unit(b))), dot(unit(a), unit(b))))
 
 
-def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any) -> dict[str, Any]:
+def audit(
+    body: Any,
+    row: dict[str, Any],
+    budget: NativeBudget,
+    occurrence: Any,
+    *,
+    material_faces: MaterialFaces | None = None,
+) -> dict[str, Any]:
     """
     Measure fixed native face families, ordered seam chains, three guides and caps.
 
-    Extends archived212/213 to varying count/diameter without nearest-side lookup.
+    Direct-index mode preserves archived212/213. Explicit material correspondence
+    retains actual face count and unique profile ownership while supporting source
+    boundaries inside a common native face. Those boundaries receive independent
+    nine-point trim-distance measurements instead of a nonexistent native edge.
     A failure preserves partial measurements through the caller-owned output dict.
     """
+    faces = material_faces if material_faces is not None else body.faces
     output: dict[str, Any] = row["audit"]
+    output["native_face_count"] = body.faces.count
     output["membership_corroborations"] = []
     output["endpoint_sample_roundoff"] = []
 
@@ -53,7 +68,7 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
         both pass; no other face, side reassignment or expanded tolerance is used.
         All initial membership rejections remain individually reported.
         """
-        face = body.faces.item(face_index)
+        face = faces.item(face_index)
         if face.evaluator.isParameterOnFace(uv):
             return True
         if len(output["membership_corroborations"]) >= 64:
@@ -103,11 +118,11 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
     count = len(profile)
     lookup = {(p.piece_index, p.region, p.profile_index): i for i, p in enumerate(patches)}
     half = row["profile_width_mm"] / 2
-    if body.faces.count != len(patches) + 2:
+    if faces.count != len(patches) + 2:
         raise RuntimeError("Frozen triple/topology guard")
     for index, patch in enumerate(patches):
         budget.check("native surface audit")
-        face = body.faces.item(index)
+        face = faces.item(index)
         piece = pieces[patch.piece_index]
         geometry = piece.geometry
         patch_max = 0.0
@@ -163,6 +178,9 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
     if output["failed_points"]:
         raise RuntimeError("Native full-profile surface fidelity gate")
 
+    if material_faces is not None:
+        material_faces.seal_surfaces()
+
     for index, patch in enumerate(patches):
         budget.check("ordered seam chains")
         pairs = [
@@ -170,9 +188,21 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
         ]
         if index >= count:
             pairs.append((index - count, patch.rows[0][0], patch.rows[0][-1]))
-        for neighbor, start, end in pairs:
-            face = body.faces.item(index)
-            other = {edge.tempId for edge in body.faces.item(neighbor).edges}
+        for side, (neighbor, start, end) in enumerate(pairs):
+            if material_faces is not None and material_faces.shared(index, neighbor):
+                residual = material_faces.seam_error(index, neighbor, _seam_points(patch, side))
+                output["seams_checked"] += 1
+                if residual > 1e-6:
+                    output["seam_failures"].append(
+                        {
+                            "faces": [index, neighbor],
+                            "kind": "shared_native_face_material_boundary",
+                            "endpoint_error_mm": residual,
+                        }
+                    )
+                continue
+            face = faces.item(index)
+            other = {edge.tempId for edge in faces.item(neighbor).edges}
             shared = [edge for edge in face.edges if edge.tempId in other]
             counts: Counter[int] = Counter()
             vertices: dict[int, Any] = {}
@@ -218,6 +248,20 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
                     * 10
                 )
                 valid = residual <= 1e-6
+            if not valid and material_faces is not None:
+                original_residual = residual
+                residual = material_faces.edge_seam_error(
+                    index, neighbor, _seam_points(patch, side)
+                )
+                valid = residual <= 1e-6
+                output["face_correspondence"].setdefault("edge_chain_reinterpretations", []).append(
+                    {
+                        "regions": [index, neighbor],
+                        "original_endpoint_error_mm": original_residual,
+                        "subchain_error_mm": residual if math.isfinite(residual) else None,
+                        "accepted": valid,
+                    }
+                )
             output["seams_checked"] += 1
             if not valid:
                 output["seam_failures"].append(
@@ -256,7 +300,7 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
         point, velocity, across, _ = material_piece.surface(material_u, offset_mm)
         planned_point = point.translated(unit(cross(velocity, across)), height_mm)
         face_index = lookup[(piece_number, region, profile_index)]
-        material_face = body.faces.item(face_index)
+        material_face = faces.item(face_index)
         inverted, uv = material_face.evaluator.getParameterAtPoint(native_point(planned_point))
         if not inverted or not membership(
             face_index, native_point(planned_point), uv, patches[face_index]
@@ -334,7 +378,7 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
         )
         width = Vector3(**row["case"][side + "_width"])
         center = guide(piece_index, u, "center")
-        face = body.faces.item(len(patches) + (1 if end else 0))
+        face = faces.item(len(patches) + (1 if end else 0))
         ok, normal = face.evaluator.getNormalAtPoint(native_point(center))
         if not ok:
             raise RuntimeError("Native cap normal unavailable")
@@ -365,3 +409,24 @@ def audit(body: Any, row: dict[str, Any], budget: NativeBudget, occurrence: Any)
     ):
         raise RuntimeError("Ordered cap gate")
     return output
+
+
+def _seam_points(patch: Any, side: int) -> tuple[Any, ...]:
+    """
+    Sample the complete authored seam on its independent NURBS support, including both endpoints.
+    """
+    support = native_surface(patch)
+    points = []
+    for sample in range(9):
+        t = sample / 8
+        uv = adsk.core.Point2D.create(
+            patch.knots_u[0] + t * (patch.knots_u[-1] - patch.knots_u[0])
+            if side == 0
+            else patch.knots_u[0],
+            1.0 if side == 0 else t,
+        )
+        ok, point = support.evaluator.getPointAtParameter(uv)
+        if not ok:
+            raise RuntimeError("Authored material seam evaluation failed")
+        points.append(point)
+    return tuple(points)

@@ -24,6 +24,7 @@ COLORS = {
     "a-zone": (55, 100, 150),
     "b-zone": (155, 100, 45),
 }
+GROUP_NAME = "Gym / empty center / virtual goal faces"
 
 
 def draw(
@@ -34,10 +35,15 @@ def draw(
     prepath: dict[str, Any] | None = None,
 ) -> Any:
     """
-    Return a complete custom-graphics group, deleting an incomplete replacement on error.
+    Replace this owned component's gym groups only after a complete drawing succeeds.
+
+    Remove all prior groups bearing this renderer's reserved name, including
+    orphaned groups whose Python handles were lost. Other graphics remain intact.
+    Drawing failure removes its incomplete new group and preserves prior groups.
+    Failure to retire a prior owned drawing is reported rather than hidden.
     """
     group = component.customGraphicsGroups.add()
-    group.name = "Gym / empty center / virtual goal faces"
+    group.name = GROUP_NAME
     try:
         for item in drawing["surfaces"]:
             points = tuple(Vector3(**point) for point in item["points"])
@@ -74,6 +80,12 @@ def draw(
                 item["role"],
             )
         checkpoint()
+        groups = component.customGraphicsGroups
+        for index in reversed(range(groups.count)):
+            previous = groups.item(index)
+            if previous != group and previous.name == GROUP_NAME:
+                if not previous.deleteMe():
+                    raise RuntimeError("Fusion could not remove a prior owned gym drawing.")
     except (RuntimeError, ValueError, TypeError, AttributeError):
         group.deleteMe()
         raise
