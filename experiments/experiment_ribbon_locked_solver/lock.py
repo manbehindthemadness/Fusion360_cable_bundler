@@ -29,6 +29,7 @@ def sources() -> dict[str, str]:
         "experiment_ribbon_aesthetic",
         "experiment_ribbon_radius_allocation",
         "experiment_ribbon_bend_reduction",
+        "experiment_ribbon_bend_relocation",
         "experiment_ribbon_fold_relaxation",
         "experiment_ribbon_contraction",
         "experiment_ribbon_diagnostic_viewer",

@@ -70,16 +70,17 @@ def material_profile(lines: int, diameter_mm: float) -> tuple[MaterialArc, ...]:
     cx = originals[-2].center[0]
     phase = math.atan2(valley, nominal - cx)
     cap_weight = math.cos(phase / 2)
-    control_q = cx + cap_radius * math.cos(phase / 2) / cap_weight
+    # The tangent at the outer tip fixes this control's q to the same exact value.
+    control_q = nominal + extension
     control_b = cap_radius * math.sin(phase / 2) / cap_weight
     right_caps = (
         MaterialArc(
-            ((nominal, valley), (control_q, control_b), (nominal + extension, 0.0)),
+            ((nominal, valley), (control_q, control_b), (control_q, 0.0)),
             (1.0, cap_weight, 1.0),
             "right-top",
         ),
         MaterialArc(
-            ((nominal + extension, 0.0), (control_q, -control_b), (nominal, -valley)),
+            ((control_q, 0.0), (control_q, -control_b), (nominal, -valley)),
             (1.0, cap_weight, 1.0),
             "right-bottom",
         ),

@@ -1,10 +1,86 @@
-# Existing-bend contraction — 497–500, 2026-11-02
+# Existing-bend contraction
+
+## Selected v2 integration530–536 — 2026-11-03
+
+The five-conductor excursion is the built ed8423layout. First-pass branches are
+37.901194mm and113.250549mm. The nearer-guide branch is tried first but has a
+strict interior penetration witness between pieces0/4 after544pairs. The fallback
+clears in516pairs;104.639508mm(92.4%)is explicit straight travel. Smoothing raises
+its length to113.772232mm. This is first-pass feasibility without effective
+contraction, not a smoothing defect or permission to ignore the collision.
+
+Earlier497–500contraction had not been installed in v2.530freezes this pre-smoothing
+route and the compact/shallow/spatial gym controls from464, confirms all four strict
+baseline separations, and retains the penetrating trigger branch as invalid control.
+531applies the same498rule: four projected total-material descent steps,0.2radian
+coordinate limit, two scalar halvings, six-Newton/four-halving cap retraction with
+exact zero-straight active sets, at most two final strict1024pair checks. No guessed
+initialization, inserted event, radius growth or smoothing.533maintained snapshots
+exactly match531on all four independent examined development configurations:
+
+| Configuration | Original mm | Contracted mm | 533 CPU s | Guide RMS original → new mm |
+| --- | ---: | ---: | ---: | ---: |
+| five-conductor trigger2641972872 | 113.250549 | 28.942999 | 0.144575 | 26.266540 → 3.789160 |
+| compact4033669276 | 20.057443 | 15.911437 | 0.091437 | 2.441302 → 2.826886 |
+| shallow8-gym424-05 | 47.585465 | 32.261073 | 0.151864 | 4.833012 → 2.632929 |
+| spatial12-gym424-09 | 84.531991 | 78.527534 | 0.089591 | 3.481914 → 1.581348 |
+
+4/4shorter/separated,0failed/unresolved/skipped/unattempted. Compact guide position/
+direction worsen despite shortening. Guide frames initialize this phase but do not
+lock descent. All retain four ordered bends, original radii/profile/targets,
+cap error<=1.57e-9mm, sampled metric error<=8.03e-16 and no native straight slivers.
+Invalid control correctly rejected1/1. No holdouts, global optimum or universal
+shape-quality guarantee is claimed.
+
+532integrates model/solve in this package. Selected v2 calls contraction before
+smoothing when first-pass optimization is enabled and initial contact is separated.
+Checkbox off retains previous midpoint branch behavior and skips contraction;
+temporary contact-unmeasured routes also skip it. V1/native builder are unchanged.
+All trials/raw contact results log as`first_pass_contraction`; first-pass counter
+includes it, and smoothing's length allowance starts from the contracted route.
+Optional work caps:0.35CPU s, at most2wall s shortened to the remainder of the
+existing4sfirst-pass deadline. Local exhaustion/rejection retains the safe original;
+hard worker cancellation/time/RSS/source errors propagate.185-file lock includes
+the three new package/model/solve files. No production/standards edits.
+
+534source guard stops before any solve/native attempt because the live lock module
+still hashes its old package list. Response/setup disposition retained.535records
+renewal with identical sources/inputs/limits, reloads live lock, updates method
+explanations and runs one ordinary unchanged gym solve/build: optimization on,
+smoothing1%,UVoff.536collects completion/body visible and no UI error. New job
+39baa723first pass28.942999mm becomes29.232429mm after smoothing, versus old
+113.772232mm. Old body/revision/history retained hidden; matching gym remains and
+native screenshot inspected. No unrelated document/layout edits.
+
+Native coverage:1/4independent configurations attempted/built/named-fidelity audited;
+other three native-unattempted by scope,0full physical audits.212faces,7350surface
+samples/406seams/three guides/two caps pass original goal,0warnings/findings,
+max surface error1.230084e-9mm, revision`b9a7afa7-a461-4d30-8077-348ba67b0352`.
+535numerical CPU1.222301s/wall1.299308s; first pass0.567424s includes contraction
+CPU0.198446s/wall0.228190s. Smoothing0.687272s is a subset. Generation1.302123s,
+audit20.528263s, native operation23.776170s. Numerical wall is near matched
+generation on this run; no stable speed guarantee.530/531/533SDK phases total
+1.577136CPU s excluding imports/QA/orchestration/native CPU. Native sampled peak
+501104KiB;120sworker/120snative/240sphase/4GiB RSS/3.8GiB launch limits held.
+One native attempt, no geometry retry; token/currency costs unmeasured.
+
+78focused relocation/contact/solver/selection/controller/aesthetic/relaxation tests
+pass; scoped Ruff lint/format and new changed-file IDE inspections clean. Coverage
+includes checkbox integration, physical/cap invariants, contact rejection, optional
+CPU/wall fallback and hard caller errors. Contact-specific tests disable optimization
+to retain their isolated baseline. FullQA/three collateral native builds/full physical
+audits unrun. Evidence: ignored`ribbon_excursion530`,`ribbon_relocation531/532/533/535`,
+530–536drivers,534setup stop and533source snapshot. This is active experimental gym
+v2 behavior, not production promotion or universal solver success.
+
+## Standalone prototype497–500 — 2026-11-02
 
 The user clarified that the visible bend should move, rather than adding another
 two-bend rotation stage. One unchanged deterministic procedure shortened all four
 examined gym configurations numerically. One new solid builds and passes the named
-native fidelity checks. This is an experimental prototype, not an installed solver,
-unseen validation, shortest-route proof or delivered feature-insertion capability.
+native fidelity checks. These are the standalone-stage results; selected-v2
+integration is recorded above. They do not establish unseen validation, a shortest
+route proof or delivered feature-insertion capability.
 
 ## Rule and degrees of freedom
 

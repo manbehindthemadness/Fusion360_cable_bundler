@@ -50,7 +50,7 @@ def patch_point(patch: MaterialPatch, u: float, v: float) -> Vector3:
     )
 
 
-@pytest.mark.parametrize("lines", [1, 3, 6])
+@pytest.mark.parametrize("lines", [1, 3, 5, 6])
 @pytest.mark.parametrize("diameter", [0.75, 1.5, 3.0])
 def test_ordered_profile_retains_exact_joined_arcs(lines: int, diameter: float) -> None:
     """
@@ -75,7 +75,7 @@ def test_ordered_profile_retains_exact_joined_arcs(lines: int, diameter: float) 
 
 
 @pytest.mark.parametrize("bank,angle", [(0, 1.7), (0.63, 2.1), (-0.47, -2.3), (0.9, -0.4)])
-@pytest.mark.parametrize("lines", [1, 3, 6])
+@pytest.mark.parametrize("lines", [1, 3, 5, 6])
 @pytest.mark.parametrize("diameter", [0.75, 1.5, 3.0])
 def test_surface_controls_follow_material_map(
     bank: float, angle: float, lines: int, diameter: float
@@ -122,3 +122,18 @@ def test_straight_surface_is_exact_and_has_no_bend_patches() -> None:
         assert patch.region == "straight"
         assert patch.error_bound_mm == 0
         assert magnitude(difference(patch_point(patch, 0.21, 0.37), Vector3(0.63, q, b))) < 1e-14
+
+
+@pytest.mark.parametrize("lines", (1, 3, 5, 8, 12, 128))
+@pytest.mark.parametrize("diameter", (0.01, 0.075, 0.75, 1.5, 3.0))
+def test_side_arc_controls_share_exact_outer_tip_width(lines: int, diameter: float) -> None:
+    """
+    Keep tangent controls inside the declared strip without weakening coordinate guards.
+    """
+    profile = material_profile(lines, diameter)
+    half_width = lines * diameter / 2 + 0.1 * diameter
+    assert all(abs(q) <= half_width for arc in profile for q, _ in arc.controls)
+    for arc in profile:
+        if arc.label.startswith(("left-", "right-")):
+            assert abs(arc.controls[1][0]) == half_width
+            assert any(q == arc.controls[1][0] and b == 0 for q, b in arc.controls)

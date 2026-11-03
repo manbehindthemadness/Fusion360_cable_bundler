@@ -55,7 +55,7 @@ def test_closed_branch_clears_empty_profile_corners_with_original_contact_budget
     """
     scene = Scene(Config(2641972872, 3, 0.75, 300, 300), Goal(10, 0, 0), Goal(7, 8, 1))
     rows: list[dict[str, Any]] = []
-    result = solver_v2.solve(scene.targets, Settings(0), lambda: None, rows.append)
+    result = solver_v2.solve(scene.targets, Settings(0, False, False), lambda: None, rows.append)
     assert result.route is not None
     assert result.detail["status"] == "numerically_accepted"
     assert result.detail["contact"] == "separated"
@@ -171,7 +171,9 @@ def test_compact_route_now_passes_strict_contact_within_original_budget() -> Non
     """
     Resolve the original gym regression without the temporary policy or a larger budget.
     """
-    result = solver_v2.solve(_scene().targets, Settings(0), lambda: None, lambda event: None)
+    result = solver_v2.solve(
+        _scene().targets, Settings(0, False, False), lambda: None, lambda event: None
+    )
     assert result.route is not None
     assert result.route.material_length_mm == pytest.approx(20.057442613744374, abs=1e-7)
     assert result.detail["status"] == "numerically_accepted"

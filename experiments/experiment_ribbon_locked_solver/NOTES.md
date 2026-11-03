@@ -1,5 +1,103 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## First-pass movable-bend contraction530–536 — 2026-11-03
+
+Five-conductor ed8423build exposed113.250549mm first-pass excursion. Its nearer
+37.901194mm branch is correctly rejected for actual penetration; fallback has
+92.4%explicit straights. Earlier498contraction remained standalone and was absent
+from selected v2. It is now called before smoothing when first-pass optimization
+is enabled, only after strict initial separation. Checkbox off skips it; v1 is
+unchanged. Same ordered bends/radii/profile/caps, four deterministic descent steps,
+at most two strict1024pair certificates,0.35CPU s and at most2wall s within the
+remaining original4sfirst-pass allowance. Optional exhaustion/rejection keeps the
+safe baseline; hard worker cancellation/time/RSS/source errors propagate.
+All trials are logged; counters include it and smoothing uses its shorter length.
+New package/model/solve files are included in the185-file source lock.
+
+530baseline/531prototype/533maintained compare four independent examined gym
+configurations:113.251→28.943,20.057→15.911,47.585→32.261,84.532→78.528mm,
+all shorter/strictly separated, exact prototype parity. Known invalid branch stays
+penetrating1/1. Compact guide agreement worsens; no universal route-quality claim.
+534live source-list setup stop launches0solves/builds; retained, corrected by
+reloading live lock under a new identical-budget535plan. Normal535job
+`selected-39baa7239d65410d826a21b601f00b55`completes, matching gym/body visible.
+Smoothed length29.232429mm instead of113.772232mm.212faces/7350points/406seams/
+guides/caps strict original-goal pass,0warnings, maxsurface1.230084e-9mm.
+Contraction CPU.198446s; numericalCPU1.222301/wall1.299308 incl.firstpass.567424
+and smoothing.687272s subsets. Native generation1.302123s/audit20.528263s.
+One native configuration attempted/built/named-audited of four; other three native
+unattempted,0fullphysical/holdouts. Old output/history retained hidden.78focused
+tests/Ruff pass; new code IDE-clean, fullQAunrun. No production/standards changes.
+Detailed rule/coverage/performance/retention evidence is maintained in
+`../experiment_ribbon_bend_relocation/NOTES.md`, ignored530–536plans and outputs.
+
+## Exact side-tip control authoring524–529 — 2026-11-03
+
+Five-conductor job`selected-b00738ef7d1d4532b092a9e573464b2b` passes numerical
+material/cap/contact and smoothing1%, then fails before a native kernel attempt:
+`Fold coordinates must lie within the material strip.` The same seed2641972872
+and goal selections as518now use5conductors/D0.75mm, scaling the gym targets.
+This is distinct from the contact-depth failure; the prior three-conductor jobs
+still build. Fusion application logs were inspected; the retained native traceback
+identifies the local profile-to-patch translation, before any Fusion kernel call.
+
+524freezes this trigger and contracted499/correspondence461/tight-baseline422
+before four cached translation baselines. Trigger fails; all three controls
+translate. Its four side-cap tangent controls have q=+/-1.9500000000000002mm,
+one floating-point step(2.220446049250313e-16mm)outside strip half-width1.95mm.
+The outer tip itself already uses the correct1.95mm. Computing the tangent
+control through a cancelling trigonometric expression introduced the discrepancy.
+
+`material_profile` now authors the tangent control at the same exact q as the
+outer tip, nominal+extension. This is the analytic tangent-intersection identity
+for that circle, independent of conductor count/size, not a tolerance/clamp or
+modified material strip. Profile arc ordering/labels/weights, dimensions, lane
+identity and all route/radius/contact/accuracy gates remain. No search or iterative
+work is added.525replays one unchanged fix on all four cached configurations:
+4/4translate,0failed/unresolved/skipped/unattempted. All three collateral profiles
+are bit-for-bit equal to their baselines. Trigger produces224lateral patches.
+No native construction or full physical audit is inferred from translation.
+
+526launches one normal solve/build on unchanged five-conductor targets/settings.
+It builds a226-face solid in1.356475s, but verification stops before measuring any
+points: the live`experiment_ribbon_joint_route.fidelity`adapter still imports the
+old profile function. Native builder/current base audit/coordinates had been
+refreshed; this additional live consumer was missed. This is a failed verification
+setup, not an accepted build or a measured native geometry finding. Original job
+`selected-12fe5996957b418d93ba0c53e018c162`and its hidden body remain unchanged.
+
+528records this stopped-run review and renews exactly one ordinary solve/build
+under the same limits/source/rules/targets/settings, explicitly refreshing the
+missed audit binding.529collects normal completion, visible body, no UI error:
+job`selected-ed8423def6314462952076ff4d60ba9f`, revision
+`f3ce0cea-3906-4f7b-b649-dfd15012b7df`. Saved route exactly equals original
+failed b007route.226faces,7840surface samples/434seams/three guides/two caps pass
+the original accuracy goal, max surface error1.433269e-9mm,0warnings/hard findings.
+
+Final numerical wall1.984228s/CPU1.897612s; first pass0.392499s including
+contact0.291758s, smoothing1.553906s is a subset. Smoothed contact separates
+in166pairs. Generation1.467048s, audit26.724730s, native operation29.922398s.
+Numerical time exceeds matched generation here; no speed-goal improvement claim.
+524–525cached translations total0.820598CPU s; the two native operations total
+31.587123s, with generation2.823523s a subset. Orchestration/native CPU/token and
+currency costs unmeasured. Each native plan120sworker/120snative/240sphase,
+4GiB RSS/3.8GiB launch headroom held; final retained native peak1326208KiB.
+
+Coverage:4independent examined gym configurations translated;1/4native attempted,
+2native operations/built bodies on that same trigger,1complete named fidelity
+audit,3/4collateral native attempts unattempted by scope,0full physical audits or
+holdouts. Original failed translation and stale-binding audit remain failed;
+renewed build passes. No universal success or native breadth beyond that one
+configuration is claimed.157focused material/cylinder/accuracy/correspondence/
+selected-solver tests pass, including5-conductor independent circle/material-map
+comparisons and exact strip bounds for1/3/5/8/12/128conductors across five diameters.
+Scoped Ruff lint/format and complete diff review pass; existing duplicate-fragment
+IDE weak warnings in material_profile.py/old tests remain, no new findings.
+FullQA unrun. Source lock remains182files, profile hash renewed; no production or
+standards edits. Evidence: ignored`ribbon_profile524/525/526/528`,524–529drivers,
+original source and525source snapshot. Live refreshes of profile authoring must
+also update joint_route.fidelity's imported function; new processes import it fresh.
+
 ## Conservative occupied-profile contact bounds518–522 — 2026-11-03
 
 The14:14:03failure, job`selected-c5758c2df1104c01a4e4ae4fca18ccfc`,

@@ -45,8 +45,8 @@ METHODS = (
         "Material solver v2",
         "experiments/experiment_ribbon_locked_solver/solver_v2.py",
         Settings(0, False, True),
-        "Guide-directed tight folds with bounded shorter-route selection. Smoothing is optional; full physical compliance remains unverified.",
-        "Use a spare contact check only for a shorter branch whose whole-guide position and direction are no worse. At most two first-pass contact checks.",
+        "Guide-directed tight folds with bounded existing-bend contraction. Smoothing is optional; full physical compliance remains unverified.",
+        "Shorten the route by relocating existing bends and straightaways before smoothing. Keep the original safe route if no shorter replacement passes contact.",
     ),
     Method(
         VERSION,

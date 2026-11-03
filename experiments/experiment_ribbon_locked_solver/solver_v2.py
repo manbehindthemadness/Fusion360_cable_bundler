@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.pinch import PinchLimit
+from experiments.experiment_ribbon_bend_relocation.solve import contract
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
@@ -39,9 +40,12 @@ def solve(
     """
     Construct two tight guide stages once, with optional separately timed smoothing and UV metadata.
 
-    First construction is bounded to four seconds and two contact certificates.
-    No v1 fallback, extra steering features, radius relaxation or sliver repair
-    occurs in that phase. With smoothing zero, the measured accepted route is
+    First construction is bounded to four seconds and two branch contact certificates.
+    Enabled first-pass optimization then contracts existing bends with four steps,
+    at most0.35CPU seconds and two additional strict certificates, within the same
+    four-second deadline. Failed improvement retains the accepted baseline.
+    No v1 fallback, extra features or radius relaxation occurs in that phase.
+    With smoothing zero, the measured accepted route is
     returned directly; its separated certificate is not needlessly repeated.
     Native point tolerance rejects tiny explicit straights; it is not a bend rule.
     An explicitly configured temporary gym policy may retain pair-limit exhaustion
@@ -103,13 +107,34 @@ def solve(
         )
         return Result(None, None, detail, None)
     first = result.route
+    measurement = result.contact
+    if measurement is None:
+        raise ArithmeticError("V2 geometry lacks its contact measurement provenance")
+    detail["construction"]["raw_length_mm"] = first.material_length_mm
+    detail["contraction"] = {"status": "disabled"}
+    remaining = 4 - (perf_counter() - started)
+    if settings.first_pass_optimization and measurement.status == "separated" and remaining > 0:
+        contraction = contract(
+            first,
+            checkpoint,
+            record,
+            minimum_straight_mm=native_point_tolerance_mm,
+            maximum_seconds=min(2.0, remaining),
+        )
+        first = contraction.route
+        measurement = contraction.contact or measurement
+        detail["contraction"] = contraction.detail
+    elif settings.first_pass_optimization:
+        detail["contraction"] = {
+            "status": "requires_separated_baseline"
+            if measurement.status != "separated"
+            else "first_pass_deadline"
+        }
+    detail["first_pass_seconds"] = perf_counter() - started
     smoothing_started = perf_counter()
     final, stages = smooth(first, settings.smoothing_percent, checkpoint, record)
     detail.update(stages=stages, smoothing_seconds=perf_counter() - smoothing_started)
     # A changed aesthetic route needs a new certificate; the unchanged first pass already has one.
-    measurement = result.contact
-    if measurement is None:
-        raise ArithmeticError("V2 geometry lacks its contact measurement provenance")
     if final is not first:
         measurement = inspect_contact(final, maximum_pairs=1024, checkpoint=checkpoint)
     contact = measurement.status
