@@ -2,6 +2,13 @@ Ribbon experiment restart — retained requirements and findings
 Recorded 2026-10-05 before rollback. These are requirements and diagnostic
 observations, not a claim of a durable solver or generalized certification.
 
+2026-11-02 temporary user-directed v2 gym override: pair-budget exhaustion may
+stop/log contact measurement while geometry continues, with contact explicitly
+unmeasured. Preserve the unresolved result; this is not a clearance pass or real
+solver repair. Strict default, actual penetration rejection, other unresolved
+conditions and resource/source/material/cap/native gates remain. See the explicit
+temporary-session exception at the top of experiment_testing_rules.txt.
+
 END-LOFT MASTER RULES TO CARRY FORWARD
 
 1. The trunk and split endings are one physical ribbon/connection structure.

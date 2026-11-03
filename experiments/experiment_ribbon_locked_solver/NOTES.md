@@ -1,6 +1,107 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Contact measurement repair 437–442 — 2026-11-02
+
+The user requested pair-budget exhaustion to stop/log measurement rather than
+abort geometry, explicitly **temporarily**, followed immediately by a real fix.
+An explicit v2 session policy retains only `unresolved/limit=pairs` with its raw
+count, pieces and reason. Worker rules, progress, counters and native completion
+keep contact unmeasured; successful native fidelity cannot erase the warning.
+Penetration, depth/regularity ambiguity and all other hard gates still reject.
+Normal APIs and v1 remain strict. The temporary policy is now **inactive in the
+live gym**; 442 restored `require_separation` for both advertised versions.
+
+437 examined four retained complete gym layouts, not untouched holdouts. Two
+separated and two exhausted1024pairs; geometry continued with explicit warnings
+on those two only. 438 made one native attempt on the unchanged user-trigger
+20.057443mm route: built and passed named fidelity,162faces, generation1.356529s,
+separate audit18.380582s. The other three were natively unattempted in this scope;
+zero full physical audits. Its original job stays `completed_with_warning` and
+contact-unmeasured. Do not silently upgrade historical reports.
+
+439 traced the unchanged checker once per retained route. On the user trigger,
+654 comparisons involved pieces1/2,249 involved1/3 and41 involved2/3:92.2%of the
+1024budget around the first folds/following straight. No penetration witness was
+found. Inspection located unnecessary interval inflation: rotated material xi/eta
+were bounded independently, losing their correlation inside a banked fold.
+
+The integrated repair retains that correlation. A thick rectangular material
+cell projects as f(xi)+beta*eta, affine in height. Extrema therefore occur on its
+four parallelogram edges at either height endpoint. `contact_extrema.py` evaluates
+edge endpoints, plane/cylinder joins and every analytic stationary phase, without
+angle grids or guessed candidates. `contact_bounds.projection` adds a numerical
+guard scaled by cancelling transform terms; nonfinite/underflowed extrema fall
+back to the old conservative interval implementation. The full rectangular
+thickness envelope, witnesses, cap/bridge exclusions, subdivision and1024pair/
+depth36limits remain. Construction steering deliberately retains its original
+interval envelopes, so tighter contact bounds do not change module spacing.
+These remain guarded floating calculations, not exact-arithmetic certificates.
+
+440 compared the prototype on four unchanged routes plus the already penetrating
+gym424-09branch (five dependent variants, four independent configurations).
+Both formerly unresolved routes separated; the known penetrating branch retained
+the exact same witness. No solves or native work in that comparison. The exact
+prototype bytes are archived as `ribbon_contact_bounds440/prototype-source.frozen`.
+
+441 then reran the integrated **strict** v2 constructor on all four original inputs,
+smoothing0/UVoff, at most two contacts and4s/solve,20s/phase,4GiB. Every resulting
+snapshot exactly matches its437route. All four passed the numerical material/cap/
+contact checks, with no warning or budget increase:
+
+| Retained layout | Length mm | Selected contact pairs | Solve + numerical checks s |
+| --- | ---: | ---: | ---: |
+| User trigger |20.057443|198|0.133437|
+| gym424-02 |22.969329|28|0.072893|
+| gym424-05 |47.585465|453|0.225485|
+| gym424-09 |84.531991|175|0.194536|
+
+User-trigger contact time0.060569s; its snapshot also exactly equals the route
+used for native438. This supplies a separate strict numerical measurement of that
+geometry without another native build. The penetrating control is still rejected
+in198comparisons with the same witness. Entire441phase0.751860s/CPU0.732154s;
+zero unresolved/stopped/unattempted numerical cases. Other algebraic branches
+remain contact-unattempted according to each solver's ordinary bounded policy.
+No native reruns, full physical audits or generalized reliability claim follow.
+
+442 reloads only the measured contact modules/consumers and restores the live
+controller's strict policy, preserving its draft, selected historical job, body
+revision and geometry. No solve/build/deletion,0.200904s, sampled RSS301392KiB.
+The old warning remains visible because it describes438, while future runs use
+strict checking. The reviewed bundle now pins176files. Four examined layouts
+are limited developmental evidence; broader unseen geometry remains unverified.
+
+Verification:144distinct focused tests passed across the analytic bounds, strict
+regression, temporary policy, constructor/selection, original fold/contact/cap,
+v1/v2 dispatch, controller/progress and performance consumers. Changed Python
+lint/format checks pass; IDE inspections show no introduced findings. Existing
+duplicate-fragment weak warnings remain in unchanged adapter/interval/steering
+sections. Full repository QA and standalone type checking were not run. Evidence:
+`artifacts/verification/ribbon_contact_warning437/`, `ribbon_contact_profile439/`,
+`ribbon_contact_bounds440/`, `ribbon_contact_strict441/` and native438job
+`solver_v2_promotion/gym433/jobs/selected-a8b4ddc4e2704e8b92f3416c4d754d61`.
+
 ## Material solver v2 gym promotion — 2026-11-02
+
+**Subsequent matched user-run regression:** gym seed4033669276,3conductors/D.75,
+identical endpoint/profile records across v1 and v2. V1 final19.218321mm,
+first-pass18.303163mm, initial selected candidate18.991639mm; v2 final50.389604mm.
+V1smoothing5%versusv2zero cannot explain the excursion: v1was already much shorter
+before aesthetics. V2's recorded20.057443mm closed branch has RMS2.441302mm but
+exhausts1024contact pairs on pieces1/2, with no penetration witness. It is unresolved,
+not known colliding. V2then certifies its next50.389604mm branch, RMS12.576853mm.
+The monotonic rule has no spare certificate after the original first branch fails.
+V1first pass allows a.934946mm fold radius versus.376506mm floor; v2locks all radii
+at the floor. This difference in construction freedoms also needs accounting;
+the records do not prove that contact-budget expansion or radius growth is the
+correct repair. Both user-produced bodies pass named native fidelity;0full physical
+audits. V1route/checks4.959145s/native1.108713s; v2.598799s/native2.165924s.
+One complete layout across method/repeated-run variants, not new independent cases.
+Evidence: gym433/jobs/selected-d5515776b56349f2adc54371a523d823(v1) and
+selected-1cbfb78962134189ba568dd26da840d9(v2); repeated v2selected-46d68a...matches.
+This read-only comparison launches0solves/builds and changes0solver policies.
+Retain the reported turn-removal benefit while recording v2's clear routing-quality
+regression. Next diagnostic target is the unresolved compact branch's1/2junction;
+do not mask it with smoothing, invented candidates or a silent contact-budget rise.
 
 User explicitly authorized adding the measured431method as solver v2 for gym
 testing. `versions.py` advertises `guide-material-v2` as default and preserves

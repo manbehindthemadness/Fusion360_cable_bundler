@@ -18,11 +18,12 @@ from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.gym.handoff import validate
 from devtools.ribbon_analysis.inspection.archive import targets_payload, write_document
 from experiments.experiment_ribbon_diagnostic_viewer.controller import ProcedureController
+from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 
 from . import lock, progress
 from .lock import ROOT
 from .settings import Settings
-from .versions import DEFAULT_VERSION, METHODS
+from .versions import DEFAULT_VERSION, METHODS, V2
 from .versions import method as solver_method
 
 
@@ -42,6 +43,7 @@ class Controller(ProcedureController):
         build: Callable[[Path], dict[str, Any]],
         *,
         native_point_tolerance_mm: float = 1e-5,
+        contact_policy: ContactPolicy = ContactPolicy.STRICT,
     ) -> None:
         """
         Bind the configured SDK, explicit design identity and owned native-build callback.
@@ -56,6 +58,7 @@ class Controller(ProcedureController):
         self.document_id = document_id
         self.build = build
         self.native_point_tolerance_mm = native_point_tolerance_mm
+        self.contact_policy = ContactPolicy(contact_policy)
         self._active_version = DEFAULT_VERSION
         self._active_settings = solver_method(DEFAULT_VERSION).defaults
         self._status["detail"] = (
@@ -114,6 +117,9 @@ class Controller(ProcedureController):
                 "sources": pins,
                 "document_id": self.document_id,
                 "native_point_tolerance_mm": self.native_point_tolerance_mm,
+                "contact_measurement_policy": self.contact_policy.value
+                if selected.identifier == V2
+                else ContactPolicy.STRICT.value,
                 "limits": {
                     "numerical_seconds": 120,
                     "native_seconds": 120,
@@ -209,6 +215,7 @@ class Controller(ProcedureController):
             raise
         success = native.get("status") == "built_and_named_fidelity_checks_pass"
         method = document["solvers"][0]
+        contact_warning = method.get("contact_warning") is True
         errors = str(native.get("error") or "Unknown native failure").strip().splitlines()
         failure = errors[-1] if errors else "Unknown native failure"
         method["detail"] = (
@@ -216,6 +223,10 @@ class Controller(ProcedureController):
             if success
             else "Numerical route retained for diagnosis; native build/fidelity failed: " + failure
         )
+        if success and contact_warning:
+            method["detail"] = (
+                "Native material fidelity passes; contact measurement aborted at its pair limit and remains unmeasured (temporary gym override). Full physical audit remains unmeasured."
+            )
         method["status"] = "recorded" if success else "stopped"
         method["rules"] = [
             rule for rule in method["rules"] if rule.get("name") != "Native material fidelity"
@@ -236,7 +247,9 @@ class Controller(ProcedureController):
         write_document(final, document)
         summary = {k: v for k, v in native.items() if k not in {"audit", "rss_samples"}}
         self._status.update(
-            status="completed" if success else "stopped",
+            status=("completed_with_warning" if contact_warning else "completed")
+            if success
+            else "stopped",
             detail=method["detail"],
             native=summary,
             phase="finished",
@@ -254,8 +267,15 @@ class Controller(ProcedureController):
             "job": str(self._job) if self._job is not None else None,
             "build_log": progress.read(self._job),
             "active_solver": {
-                **solver_method(self._active_version).payload(),
+                **self._method_payload(self._active_version),
                 "settings": asdict(self._active_settings),
             },
-            "available_solvers": [entry.payload() for entry in METHODS],
+            "available_solvers": [self._method_payload(entry.identifier) for entry in METHODS],
         }
+
+    def _method_payload(self, identifier: str) -> dict[str, Any]:
+        """
+        Expose the session-only diagnostic override without changing either method's normal default.
+        """
+        policy = self.contact_policy if identifier == V2 else ContactPolicy.STRICT
+        return {**solver_method(identifier).payload(), "contact_measurement_policy": policy.value}

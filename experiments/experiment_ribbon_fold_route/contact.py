@@ -5,7 +5,7 @@ Reject thick ribbon self-intersection using analytic envelopes and volume witnes
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Literal
 
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
@@ -39,6 +39,7 @@ class ContactResult:
     witness: Penetration | None = None
     unresolved_pieces: tuple[int, int] | None = None
     reason: str = ""
+    limit: Literal["pairs", "depth"] | None = None
 
 
 def inspect_contact(
@@ -103,6 +104,7 @@ def inspect_contact(
                 checked,
                 unresolved_pieces=(first.piece, second.piece),
                 reason="Contact subdivision budget exhausted.",
+                limit="pairs",
             )
         checked += 1
         a, b = route.pieces[first.piece], route.pieces[second.piece]
@@ -166,6 +168,7 @@ def inspect_contact(
                 checked,
                 unresolved_pieces=(first.piece, second.piece),
                 reason="Near-contact interval resolution exhausted.",
+                limit="depth",
             )
         size_a = max(
             (first.u.high - first.u.low) * a.geometry.material_length_mm,

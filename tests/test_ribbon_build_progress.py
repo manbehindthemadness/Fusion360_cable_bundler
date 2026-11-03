@@ -153,3 +153,37 @@ def test_unresolved_worker_records_no_geometry_without_a_native_claim(
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert manifest["solvers"][0]["status"] == "unresolved"
     assert all(rule["status"] == "unmeasured" for rule in manifest["solvers"][0]["rules"])
+
+
+def test_native_fidelity_success_does_not_erase_temporary_contact_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Keep numerical contact explicitly unmeasured after a successful native build.
+    """
+    runner, native = _finished_worker(tmp_path, monkeypatch)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "solvers": [
+                    {
+                        "id": "warning",
+                        "status": "recorded",
+                        "contact_warning": True,
+                        "rules": [{"name": "Contact measurement", "status": "unmeasured"}],
+                    }
+                ]
+            }
+        )
+    )
+    (tmp_path / "route.json").write_text("{}")
+    native.return_value = {"status": "built_and_named_fidelity_checks_pass"}
+    manifest = runner.poll()
+    assert manifest is not None
+    method = json.loads(manifest.read_text())["solvers"][0]
+    assert runner.state()["status"] == "completed_with_warning"
+    assert "contact measurement aborted" in method["detail"]
+    assert (
+        next(rule for rule in method["rules"] if rule["name"] == "Contact measurement")["status"]
+        == "unmeasured"
+    )

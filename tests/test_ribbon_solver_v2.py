@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
+from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 from experiments.experiment_ribbon_locked_solver import controller, solver_v2, worker
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 from experiments.experiment_ribbon_locked_solver.settings import VERSION, Settings
@@ -82,7 +83,10 @@ def test_worker_dispatches_one_explicit_version_without_cross_version_fallback(
     selected.assert_called_once()
     other.assert_not_called()
     if version == V2:
-        assert selected.call_args.kwargs == {"native_point_tolerance_mm": 2e-5}
+        assert selected.call_args.kwargs == {
+            "native_point_tolerance_mm": 2e-5,
+            "contact_policy": ContactPolicy.STRICT,
+        }
     manifest = json.loads(destination.read_text())
     assert manifest["solvers"][0]["procedure"] == version
     assert not (tmp_path / "route.json").exists()

@@ -1,6 +1,20 @@
 EXPERIMENT INTEGRITY AND RESOURCE SAFEGUARDS
 Effective 2026-10-05. Read before experimental solver work or reporting.
 
+USER-DIRECTED TEMPORARY V2 GYM CONTACT MEASUREMENT OVERRIDE — 2026-11-02
+-------------------------------------------------------------------
+The user explicitly directs contact pair-budget exhaustion to abort measurement
+and log the incomplete result rather than abort geometry, temporarily, followed
+by investigation of a real contact-checking solution. In an explicitly configured
+v2 gym session only, retain the original unresolved/pairs-limited result and allow
+geometry construction with a visible contact-unmeasured warning. This supersedes
+the unresolved-contact construction stop only for pair-budget exhaustion in that
+temporary session. Separation is not established or counted as a pass. Demonstrated
+penetration, other unresolved conditions, source/cancellation/time/memory errors,
+material/cap gates and native fidelity remain hard stops. Strict behavior stays
+the default elsewhere. Do not enlarge the pair budget, claim clearance/generalized
+success or promote this temporary override as the actual solver repair.
+
 Purpose and incident
 --------------------
 The user reported a three-day setback and consumption of most of the project's

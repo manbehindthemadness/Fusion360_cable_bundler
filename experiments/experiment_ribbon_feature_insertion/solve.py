@@ -9,13 +9,14 @@ from time import perf_counter
 from typing import Any, Callable
 
 from experiments.experiment_ribbon_contraction.runner import snapshot
-from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
 
 from .allocation import Allocation, fit
+from .contact_measurement import ContactPolicy
 from .features import chains
 from .guide_frames import Frames
 from .repair import changed, correction, nearest, reframed
@@ -35,6 +36,7 @@ class Result:
     contact_seconds: float
     closed_branches: int
     unattempted_contacts: int
+    contact: ContactResult | None = None
 
 
 def construct(
@@ -46,13 +48,16 @@ def construct(
     record: Callable[[dict[str, Any]], None],
     *,
     selection_policy: Policy = Policy.MONOTONIC,
+    contact_policy: ContactPolicy = ContactPolicy.STRICT,
 ) -> Result:
     """
     Fit one fixed frame sequence and certify at most two algebraic branches.
 
     This never samples additional guide stations, guessed angles or radii. The
     matched baseline and inserted variant each have the same two-contact budget.
-    Unresolved/penetrating intervals reject; resource/source errors propagate.
+    Contact is strict by default. The temporary gym policy may retain pair-budget
+    exhaustion as an explicitly incomplete measurement; actual penetration and
+    other unresolved outcomes reject. Resource/source errors always propagate.
     Initially unclosed branches receive at most two residual-derived angular
     corrections with two finite step halvings. Radius and station choices stay fixed.
     Original midpoint-ranked feasibility is preserved. If its first branch is
@@ -136,10 +141,11 @@ def construct(
     allocations = {a.chain.roots: a for a in candidates}
     contacts = 0
     contact_seconds = 0.0
+    measurements: dict[tuple[int, ...], ContactResult] = {}
 
-    def certify(branch: Branch) -> bool:
+    def measure(branch: Branch) -> bool:
         """
-        Preserve the existing conservative certificate and complete per-root contact ledger.
+        Retain the raw contact measurement before applying the explicit geometry policy.
         """
         nonlocal contacts, contact_seconds
         checked = allocations[branch.roots]
@@ -149,6 +155,7 @@ def construct(
         result = inspect_contact(checked.route, maximum_pairs=1024, checkpoint=checkpoint)
         contact_seconds += perf_counter() - started
         contacts += 1
+        measurements[branch.roots] = result
         record(
             {
                 "stage": "feature_contact",
@@ -158,19 +165,21 @@ def construct(
                 "route": snapshot(checked.route),
             }
         )
-        return result.status == "separated"
+        return contact_policy.permits_geometry(result)
 
-    selected = select(branches, certify, selection_policy)
+    selected = select(branches, measure, selection_policy)
     if selected is not None:
         allocation = allocations[selected.roots]
+        measurement = measurements[selected.roots]
         return Result(
             allocation.route,
             allocation,
-            "separated",
+            "separated" if measurement.status == "separated" else "contact_measurement_incomplete",
             contacts,
             contact_seconds,
             len(candidates),
             len(candidates) - contacts,
+            measurement,
         )
     return Result(
         None,

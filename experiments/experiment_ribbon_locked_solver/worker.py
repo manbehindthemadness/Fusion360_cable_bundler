@@ -22,6 +22,7 @@ from devtools.ribbon_analysis.inspection.archive import (
     write_document,
 )
 from experiments.experiment_ribbon_contraction.runner import snapshot
+from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 
 from .inspection import freeze
 from .lock import verify
@@ -42,6 +43,11 @@ def run(directory: Path) -> Path:
     plan = json.loads((directory / "plan.json").read_text())
     pins = verify()
     selected = solver_method(plan.get("version"))
+    contact_policy = ContactPolicy(
+        plan.get("contact_measurement_policy", ContactPolicy.STRICT.value)
+    )
+    if selected.identifier != V2 and contact_policy is not ContactPolicy.STRICT:
+        raise ValueError("Temporary contact measurement override is v2 gym only")
     if plan.get("sources") != pins:
         raise RuntimeError("Worker solver version/source mismatch")
     target = plan["targets"]
@@ -96,6 +102,7 @@ def run(directory: Path) -> Path:
             **asdict(settings),
             "solver_version": selected.identifier,
             "path_rules": "material-fold equal lengths + pinch + no lateral bending + thick contact",
+            "contact_measurement_policy": contact_policy.value,
         },
         "status": "unresolved",
         "detail": "No accepted route within the selected finite families/budget.",
@@ -111,6 +118,7 @@ def run(directory: Path) -> Path:
                 checkpoint,
                 record,
                 native_point_tolerance_mm=plan.get("native_point_tolerance_mm"),
+                contact_policy=contact_policy,
             )
         else:
             result = solve(targets, settings, checkpoint, record)
@@ -118,7 +126,7 @@ def run(directory: Path) -> Path:
         append(
             directory,
             "numerical",
-            "Route accepted; writing geometry plan and checking display data."
+            "Geometry plan ready; writing route and checking display data."
             if result.route is not None
             else "No route accepted within the solver's rules and finite budget; no native build.",
         )
@@ -133,18 +141,38 @@ def run(directory: Path) -> Path:
                 status="recorded",
                 detail="Numerical material/cap/contact checks pass; native construction/fidelity remain unattempted.",
                 snapshot=snapshot_payload(freeze(result.route, plan["result_id"])),
+                contact_warning=result.detail.get("contact_warning") is True,
             )
+            warning = method["contact_warning"]
+            if warning:
+                method["detail"] = (
+                    "Geometry retained under the temporary gym override: material/cap checks pass, contact measurement stopped at its pair limit and remains unmeasured. Native fidelity is pending."
+                )
+                append(directory, "warning", method["detail"])
             method["rules"] = [
                 asdict(
                     RuleObservation(
-                        "Numerical material/cap/contact",
+                        "Numerical material/caps" if warning else "Numerical material/cap/contact",
                         "measured",
-                        "Exact material primitives with independent cap/contact gates; cubic display is an approximation.",
+                        "Exact material primitives and fixed caps; contact is separately labelled. Cubic display is an approximation.",
                         result.detail["cap_error_mm"],
                         1e-7,
                     )
                 )
             ]
+            if warning:
+                measurement = result.detail["contact_measurement"]
+                method["rules"].append(
+                    asdict(
+                        RuleObservation(
+                            "Contact measurement",
+                            "unmeasured",
+                            f"Temporary diagnostic: {measurement['reason']} Unresolved pieces: {measurement['unresolved_pieces']}. Geometry was retained without clearance certification.",
+                            measurement["pairs_checked"],
+                            1024,
+                        )
+                    )
+                )
     except (ArithmeticError, OSError, RuntimeError, TimeoutError, TypeError, ValueError) as error:
         stopped = f"{type(error).__name__}: {error}"
         append(directory, "failed", stopped)

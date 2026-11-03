@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from cable_bundler.routing.geometry import Vector3, cross, dot
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
+from .contact_extrema import extrema
 from .geometry import PlacedPiece, Straight
 
 
@@ -98,6 +99,49 @@ class Cell:
 
 
 def projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:
+    """
+    Enclose the full thick material cell while retaining rotated fold coordinates.
+
+    Correlated analytic edge extrema avoid needless subdivision of banked folds.
+    The guard covers cancelling floating transforms, not physical clearance.
+    Nonfinite or underflowed extrema fall back to conservative interval arithmetic.
+    """
+    if isinstance(piece.geometry, Straight):
+        return interval_projection(piece, cell, axis)
+    fold = piece.geometry
+    c, s = math.cos(fold.bank_radians), math.sin(fold.bank_radians)
+    alpha = dot(piece.pose.direction(Vector3(c, s, 0)), axis)
+    beta = dot(piece.pose.direction(Vector3(-s, c, 0)), axis)
+    gamma = dot(cross(piece.pose.tangent, piece.pose.width), axis)
+    base = dot(piece.pose.origin, axis) + fold.before_mm * dot(piece.pose.tangent, axis)
+    corners = []
+    for u, q in (
+        (cell.u.low, cell.q.low),
+        (cell.u.high, cell.q.low),
+        (cell.u.high, cell.q.high),
+        (cell.u.low, cell.q.high),
+    ):
+        along = u * fold.material_length_mm - fold.before_mm
+        corners.append((c * along + s * q, -s * along + c * q))
+    result = extrema(fold, tuple(corners), (cell.height.low, cell.height.high), alpha, beta, gamma)
+    extent = fold.radius_mm * 2 + max(abs(x) for x, _ in corners)
+    extent += max(abs(cell.height.low), abs(cell.height.high))
+    origin = piece.pose.origin
+    translation_scale = abs(origin.x * axis.x) + abs(origin.y * axis.y) + abs(origin.z * axis.z)
+    scale = (
+        1
+        + translation_scale
+        + abs(fold.before_mm * dot(piece.pose.tangent, axis))
+        + (abs(alpha) + abs(gamma)) * extent
+        + abs(beta) * max(abs(y) for _, y in corners)
+    )
+    if result is None or not math.isfinite(base + scale):
+        return interval_projection(piece, cell, axis)
+    guard = 1e-11 * scale
+    return Span(base + result[0] - guard, base + result[1] + guard)
+
+
+def interval_projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:
     """
     Enclose all occupied points of a material cell projected onto a fixed axis.
 

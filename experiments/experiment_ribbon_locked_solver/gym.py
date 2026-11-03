@@ -16,6 +16,7 @@ import adsk.fusion
 from devtools.ribbon_analysis.gym import Scene, generate
 from devtools.ribbon_analysis.gym.handoff import freeze
 from devtools.ribbon_analysis.inspection.fusion_view import DiagnosticViewer
+from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 from experiments.experiment_ribbon_test_gym.workspace import Workspace
 
 from .controller import Controller
@@ -56,7 +57,12 @@ class SelectedWorkspace(Workspace):
 
 
 def install(
-    directory: Path, python: Path, document_id: str, scene: Scene | None = None
+    directory: Path,
+    python: Path,
+    document_id: str,
+    scene: Scene | None = None,
+    *,
+    contact_policy: ContactPolicy = ContactPolicy.STRICT,
 ) -> SelectedWorkspace:
     """
     Create one retained gym/diagnostic workspace without solving or changing unrelated designs.
@@ -105,6 +111,7 @@ def install(
         document_id,
         native.build,
         native_point_tolerance_mm=app.pointTolerance * 10,
+        contact_policy=contact_policy,
     )
     diagnostics = DiagnosticViewer(
         diagnostics_occurrence.component, app.activeDocument, manifest, runner=controller

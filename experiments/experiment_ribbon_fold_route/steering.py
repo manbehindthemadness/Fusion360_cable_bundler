@@ -9,7 +9,7 @@ from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, difference
 
-from .contact_bounds import Cell, Span, projection
+from .contact_bounds import Cell, Span, interval_projection
 from .geometry import ZERO, PlacedPiece, Pose, Straight, extend
 from .lateral import halfturn_pair
 from .primitives import Piece
@@ -45,7 +45,7 @@ def signed_distance(
 
 def _extent(pose: Pose, pieces: tuple[Piece, ...], width: float, half_thickness: float) -> Span:
     """
-    Bound an entire module along the departure tangent, including width/thickness.
+    Retain established conservative construction spacing, including width/thickness.
     """
     spans = []
     for geometry in pieces:
@@ -53,7 +53,7 @@ def _extent(pose: Pose, pieces: tuple[Piece, ...], width: float, half_thickness:
         cell = Cell(
             0, Span(0, 1), Span(-width / 2, width / 2), Span(-half_thickness, half_thickness)
         )
-        spans.append(projection(piece, cell, Vector3(1, 0, 0)))
+        spans.append(interval_projection(piece, cell, Vector3(1, 0, 0)))
         pose = piece.end_pose()
     return Span(min(span.low for span in spans), max(span.high for span in spans))
 

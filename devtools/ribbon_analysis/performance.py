@@ -23,6 +23,7 @@ _KEYS = {
         "smoothing_seconds",
         "material_uv_seconds",
         "status",
+        "contact_warning",
     ),
     "native-result.json": (
         "generation_seconds",
@@ -66,13 +67,21 @@ def _seconds(payload: dict[str, Any], key: str) -> float | None:
     Reject missing, negative, boolean or nonfinite timings rather than displaying zero.
     """
     value = payload.get(key)
-    if type(value) not in (int, float):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
         seconds = float(value)
     except OverflowError:
         return None
     return seconds if math.isfinite(seconds) and seconds >= 0 else None
+
+
+def _contact_warning(payload: dict[str, Any]) -> bool:
+    """
+    Recognize only an explicit warning boolean in a recorded numerical result.
+    """
+    warning = payload.get("contact_warning")
+    return isinstance(warning, bool) and warning
 
 
 def for_layout(targets: Targets, gym: dict[str, Any] | None, job: Path | None) -> dict[str, Any]:
@@ -104,13 +113,16 @@ def for_layout(targets: Targets, gym: dict[str, Any] | None, job: Path | None) -
             settings = raw_settings if isinstance(raw_settings, dict) else {}
             disposition = native.get("status") or numerical.get("status")
             if not isinstance(disposition, str):
-                disposition = None
+                disposition = ""
             status = {
                 "built_and_named_fidelity_checks_pass": "Latest run: completed; named fidelity passed",
                 "stopped": "Latest run: stopped; partial measurements",
                 "numerically_accepted": "Latest run: numerical checks completed",
                 "unresolved": "Latest run: unresolved",
+                "geometry_ready_contact_unmeasured": "Latest run: geometry ready",
             }.get(disposition, "Latest run: awaiting measurements")
+            if _contact_warning(numerical):
+                status += "; contact measurement incomplete (pair limit)"
     elapsed = _seconds(numerical, "elapsed_seconds")
     uv_prepare = _seconds(numerical, "material_uv_seconds")
     route = (

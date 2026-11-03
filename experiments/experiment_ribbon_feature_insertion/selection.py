@@ -78,30 +78,32 @@ def improves(candidate: Branch, baseline: Branch) -> bool:
 
 def select(
     branches: Sequence[Branch],
-    certify: Callable[[Branch], bool],
+    permit: Callable[[Branch], bool],
     policy: Policy = Policy.MONOTONIC,
 ) -> Branch | None:
     """
     Preserve original two-attempt feasibility and use spare contact work for a dominating branch.
 
-    Try the original midpoint-ranked first branch. If separated, certify at most
+    Try the original midpoint-ranked first branch. If permitted, evaluate at most
     one strictly shorter/non-worsening alternative, keeping the baseline if that
     check fails. Otherwise try the original second branch and stop. Thus neither
     contact failures nor conflicting preferences displace an original safe route,
-    and no execution exceeds two certificates. Hard errors propagate.
+    and no execution exceeds two measurements. The caller retains raw contact
+    results, including any explicitly authorized temporary measurement warning.
+    Hard errors propagate.
     """
     ordered = sorted(
         branches,
         key=lambda b: (round(b.site_error_mm2, 12), b.route.material_length_mm, b.roots),
     )
     for index, baseline in enumerate(ordered[:2]):
-        if not certify(baseline):
+        if not permit(baseline):
             continue
         if index == 0 and policy is Policy.MONOTONIC:
             alternatives = sorted(
                 (b for b in ordered if improves(b, baseline)), key=lambda b: b.priority
             )
-            if alternatives and certify(alternatives[0]):
+            if alternatives and permit(alternatives[0]):
                 return alternatives[0]
         return baseline
     return None
