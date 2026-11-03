@@ -65,10 +65,11 @@ def construct(
     exhaustion as an explicitly incomplete measurement; actual penetration and
     other unresolved outcomes reject. Resource/source errors always propagate.
     Initially unclosed branches receive at most two residual-derived angular
-    corrections with two finite step halvings. If no branch closes, only the
-    closest still-progressing branch receives at most four additional corrections.
-    Successful original constructions never incur this continuation. Radius and
-    station choices stay fixed.
+    corrections with two finite step halvings. If no closed branch passes contact
+    and pair work remains, only the closest still-progressing branch receives at
+    most four additional corrections and one bounded certificate. Successful
+    original constructions never incur this continuation. Radius and station
+    choices stay fixed.
     Original midpoint-ranked feasibility is preserved. If its first branch is
     separated, use the spare contact certificate only for a shorter branch whose
     ordered whole-guide RMS and direction loss are both non-increasing.
@@ -88,32 +89,6 @@ def construct(
         if allocation is not None:
             candidates.append(allocation)
             branches.append(_branch(allocation, frames, record))
-    if not branches and unfinished:
-        pending = min(unfinished, key=lambda item: (item.closure.error, item.chain.roots))
-        record(
-            {
-                "stage": "feature_closure_continuation",
-                "status": "continuing_closest",
-                "roots": pending.chain.roots,
-                "position_error_diameters": pending.closure.error,
-                "maximum_additional_steps": 4,
-            }
-        )
-        outcome = refine(boundary, pending, threshold_mm, 4, checkpoint, record)
-        if isinstance(outcome, Allocation):
-            candidates.append(outcome)
-            branches.append(_branch(outcome, frames, record))
-        else:
-            record(
-                {
-                    "stage": "feature_closure_continuation",
-                    "status": "unresolved" if isinstance(outcome, Unclosed) else "stalled",
-                    "roots": pending.chain.roots,
-                    "position_error_diameters": outcome.closure.error
-                    if isinstance(outcome, Unclosed)
-                    else None,
-                }
-            )
     allocations = {a.chain.roots: a for a in candidates}
     contacts = 0
     contact_pairs = 0
@@ -154,6 +129,36 @@ def construct(
         return contact_policy.permits_geometry(result)
 
     selected = select(branches, measure, selection_policy, maximum_attempts=max(2, len(branches)))
+    if selected is None and unfinished and contact_pairs < CONTACT_PAIR_BUDGET:
+        pending = min(unfinished, key=lambda item: (item.closure.error, item.chain.roots))
+        record(
+            {
+                "stage": "feature_closure_continuation",
+                "status": "continuing_closest",
+                "roots": pending.chain.roots,
+                "position_error_diameters": pending.closure.error,
+                "maximum_additional_steps": 4,
+            }
+        )
+        outcome = refine(boundary, pending, threshold_mm, 4, checkpoint, record)
+        if isinstance(outcome, Allocation):
+            candidates.append(outcome)
+            recovered_branch = _branch(outcome, frames, record)
+            branches.append(recovered_branch)
+            allocations[outcome.chain.roots] = outcome
+            if measure(recovered_branch):
+                selected = recovered_branch
+        else:
+            record(
+                {
+                    "stage": "feature_closure_continuation",
+                    "status": "unresolved" if isinstance(outcome, Unclosed) else "stalled",
+                    "roots": pending.chain.roots,
+                    "position_error_diameters": outcome.closure.error
+                    if isinstance(outcome, Unclosed)
+                    else None,
+                }
+            )
     if selected is not None:
         allocation = allocations[selected.roots]
         measurement = measurements[selected.roots]

@@ -1,5 +1,64 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Contact-aware continuation eligibility563–568 — 2026-11-03
+
+User's random range-e4447case12(seed1041927501,N5,D0.75mm,zones19/7,
+faces12/3,roll90/90) stops after11passes. Original jobcbb68120afe044d9b9a435f065fced80
+has two position-closed branches: roots0/1penetrate in325pairs; roots0/0reach depth36
+in350pairs at an entry-fold/return-straight near-contact.675/2048pairs used,0native
+attempts. The second result is unresolved, not a separation or penetration proof.
+Contact limits/physical acceptance remain unchanged; neither route is accepted.
+
+563freezes this input and three existing compact/shallow/spatial gym controls,
+but its observational function-copy setup omits future annotations underPython3.9
+and fails before any contact evaluation.0/4evaluated/0solves/native attempts;
+payload/plan/failure retained.564records renewal with the missing future import,
+reproduces exact original outcomes and traces depth cells without changing the
+algorithm. All three cached controls separate.0solves/native attempts.
+
+The underlying workflow blocks recovery too early: existing four-step continuation
+is eligible only when no position-closed branch exists, even if every closed branch
+later contact-fails. Two unfinished exact-root branches still reduce positional
+error; closest roots1/1have residual.137166diameters. Move the existing continuation
+after unsuccessful contact selection, conditional on remaining pooled pair work.
+Only that closest progressing root receives at most four additional corrections,
+then one certificate within the same2048total/1024per-call allowance. Successful
+baselines and exhausted pools skip this work. Source/resource failures propagate.
+Four-second first pass, depth36, radius/angle rules, fixed targets/profile/identity,
+same guide site and algebraic root inventory stay unchanged. No guessed candidates,
+snapping, new station, tolerance relaxation or native-output repair is introduced.
+
+565freezes four cold numerical baselines before adjustment: trigger unresolved,
+compact4033669276/shallow8-gym424-05/spatial12-gym424-09 accepted.566tests an isolated
+function copy;567verifies integrated source against every frozen prototype output.
+Both phases accept/contact-separate4/4; all three controls' full final snapshots
+are bitwise identical to565. These remain four examined configurations, not twelve
+independent cases or untouched holdouts. Trigger roots1/1close after two additional
+corrections, certify in73pairs/748total, then contract40.405814→36.410773mm.
+565/566/567wall2.597350/3.104589/3.130802s; trigger567CPU.739247/wall.740534s.
+Baseline failure never reaches contraction/smoothing, so full times are not matched
+stage-overhead comparisons.0native attempts in these host-only phases.
+
+568freezes and replays only exact original case12 via normal tester, capped1case.
+1/1cold numerical accepted/separated/native attempted/built/named-fidelity audited,
+0warnings.184faces/6370surface points/350seams/three guides/two caps pass;
+maxsurface1.903596e-9mm. NumericalCPU.866490/wall.975933s; firstpass.411363s,
+contraction.089667s(subset), smoothing.542882s. Generation1.251667s; separate
+development audit21.211151s; numerical meets matched-generation timing goal.
+Native phase24.964468s, screenshot.310338s, tester36.157529s separately.
+Sampled native peak781552KiB<4GiB. Screenshot reviewed; body/PNG retained.
+Jobb6233ae68b3c41038ab2fa5216718cc9/runf89990f2ce264544b2917c88722ea206.
+Original failed run remains12attempts/11passes; new replay stopped1/1/0warnings.
+Initialized browser range form is preserved; no unlimited restart or further cases.
+
+Current coverage4/4numerical configurations,1/4native attempted/built/named-audited;
+three controls native-unattempted by frozen sample choice.0full physical audits;
+no generalized solver/native reliability claim.66focused tests, affected14file
+Ruff lint/format, changed-file IDE diagnostics and complete diff review pass.
+194-file source lock renews only constructor hash. FullQA/broader native validation
+unrun. Production/standards unchanged. Evidence: ignored ribbon_depth563–564 and
+ribbon_recovery565–568 plans/results, original range/job and retained captures.
+
 ## Reuse unspent branch contact work559–562 — 2026-11-03
 
 Random range-214590case1(seed1281098652,N3,D0.75mm,zones19/13,faces8/3,

@@ -1,5 +1,12 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current563–568continuation eligibility follows contact selection: after every
+original closed branch rejects, allow the closest still-progressing exact root
+its existing maximum four additional corrections, only while pooled pair work
+remains. The recovered closure still needs a strict certificate. Successful
+baseline outputs skip this work. Contact depth/pairs, roots, radii, sites and4s
+first-pass deadline stay fixed. See selected solver NOTES.md for bounded evidence.
+
 Current559–562contact accounting supersedes the historical two-certificate limit
 below: preserve the same2048total subdivision-pair ceiling/1024per certificate,
 and let remaining already-derived roots use unspent work after original failures.
