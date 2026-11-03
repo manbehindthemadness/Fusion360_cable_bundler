@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import time
 import traceback
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable
 
@@ -20,14 +21,21 @@ from devtools.ribbon_analysis.budget import NativeBudget
 from devtools.ribbon_analysis.end_profiles import retain_end_profiles
 from experiments.experiment_optional_appearance.host import capture
 from experiments.experiment_ribbon_contraction.runner import restore, snapshot
+from experiments.experiment_ribbon_fold_route.material_cylinder import FlatSurfaces
 from experiments.experiment_ribbon_fold_route.material_native import (
+    circular_flat_surface,
     define_material_body,
     native_point,
+    native_surface,
 )
 from experiments.experiment_ribbon_fold_route.material_profile import material_profile
-from experiments.experiment_ribbon_fold_route.material_surfaces import material_patches
+from experiments.experiment_ribbon_fold_route.material_surfaces import (
+    MaterialPatch,
+    material_patches,
+)
 from experiments.experiment_ribbon_joint_route.fidelity import audit_with
 
+from .accuracy import DISPLAY_ACCURACY, warning_summary
 from .correspondence import MaterialFaces
 from .fidelity_base import audit
 from .lock import verify
@@ -41,11 +49,18 @@ class NativeOwner:
     Retain only this gym's native output visibility; preserve unrelated documents and bodies.
     """
 
-    def __init__(self, document_id: str, display_x_cm: float = 610) -> None:
+    def __init__(
+        self,
+        document_id: str,
+        display_x_cm: float = 610,
+        *,
+        flat_surfaces: FlatSurfaces = FlatSurfaces.CYLINDERS,
+    ) -> None:
         """
         Bind a fixed design identity and a display-only translation after native verification.
         """
         self.document_id, self.display_x_cm = document_id, display_x_cm
+        self.flat_surfaces = FlatSurfaces(flat_surfaces)
         self.displayed: Any = None
         self.on_progress: Callable[[dict[str, str]], None] | None = None
 
@@ -115,6 +130,8 @@ class NativeOwner:
             "built": 0,
             "fidelity_audited": 0,
             "full_physical_audit": 0,
+            "accuracy_goal_mm": DISPLAY_ACCURACY.goal_mm,
+            "accuracy_warning_below_mm": DISPLAY_ACCURACY.warning_below_mm,
         }
         body = None
 
@@ -145,11 +162,26 @@ class NativeOwner:
             profile = material_profile(route.targets.lines, route.targets.diameter_mm)
             patches = material_patches(route.pieces, profile)
             result["translation_seconds"] = time.perf_counter() - started
-            if max(p.error_bound_mm for p in patches) > 1e-6:
+            representation_error = max(p.error_bound_mm for p in patches)
+            if not DISPLAY_ACCURACY.accepts(representation_error):
                 raise RuntimeError("Selected material surface representation bound exceeded")
             started = time.perf_counter()
             self._progress(directory, "native", "Defining native faces, edges and seams.")
-            authored = define_material_body(route.pieces, patches, checkpoint)
+
+            def surface_factory(patch: MaterialPatch) -> Any:
+                """
+                Choose equivalent flat supports under this owner's explicit construction policy.
+                """
+                return (
+                    circular_flat_surface(route.pieces[patch.piece_index], patch)
+                    if self.flat_surfaces is FlatSurfaces.CYLINDERS
+                    else native_surface(patch)
+                )
+
+            authored = define_material_body(
+                route.pieces, patches, checkpoint, surface_factory=surface_factory
+            )
+            result["flat_surface_policy"] = self.flat_surfaces.value
             result["definition_seconds"] = time.perf_counter() - started
             checkpoint()
             result["native_attempted"] = 1
@@ -195,6 +227,7 @@ class NativeOwner:
                 "guide_maximum_tangent_error_degrees": {},
             }
             result["audit"] = row["audit"]
+            DISPLAY_ACCURACY.observe(row["audit"], "surface_representation", representation_error)
             self._progress(
                 directory,
                 "audit",
@@ -203,13 +236,13 @@ class NativeOwner:
             started = time.perf_counter()
             face_records = authored.face_records
             if body.faces.count == len(patches) + 2:
-                audit_with(body, row, budget, occurrence, audit)
+                audit_with(body, row, budget, occurrence, partial(audit, accuracy=DISPLAY_ACCURACY))
                 result["face_mapping_policy"] = "original one-to-one native patches"
             else:
 
                 def trimmed_distance(point: Any, entity: Any) -> float:
                     """
-                    Measure actual native trim support in assembly space at the unchanged tolerance.
+                    Measure actual native trim support for the selected accuracy policy.
                     """
                     return app.measureManager.measureMinimumDistance(point, entity).value * 10
 
@@ -222,10 +255,22 @@ class NativeOwner:
                     native_point,
                     trimmed_distance,
                     row["audit"],
+                    accuracy=DISPLAY_ACCURACY,
                 )
-                audit(body, row, budget, occurrence, material_faces=families)
+                audit(
+                    body,
+                    row,
+                    budget,
+                    occurrence,
+                    material_faces=families,
+                    accuracy=DISPLAY_ACCURACY,
+                )
                 face_records = families.records()
                 result["face_mapping_policy"] = "verified material regions across native faces"
+            warning = warning_summary(row["audit"].get("accuracy_warnings", []))
+            if warning is not None:
+                result["precision_warning"] = warning
+                self._progress(directory, "warning", warning["message"])
             result.update(fidelity_audited=1, audit_seconds=time.perf_counter() - started)
             if body.revisionId != revision:
                 raise RuntimeError("Native fidelity audit changed the body")
@@ -261,10 +306,18 @@ class NativeOwner:
             body.isLightBulbOn = True
             self.displayed = occurrence
             self._progress(
-                directory, "native", "Fidelity checks passed; showing the generated body."
+                directory,
+                "warning" if result.get("precision_warning") else "native",
+                "Showing generated body with recorded dimensional accuracy warnings."
+                if result.get("precision_warning")
+                else "Fidelity checks passed; showing the generated body.",
             )
             capture(app, occurrence, directory / "native.png")
-            result["status"] = "built_and_named_fidelity_checks_pass"
+            result["status"] = (
+                "built_with_precision_warning"
+                if result.get("precision_warning")
+                else "built_and_named_fidelity_checks_pass"
+            )
         except Exception:
             # Intentional fail-soft native boundary preserves partial bodies and complete evidence.
             if body is not None:

@@ -14,6 +14,11 @@ import pytest
 
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_fold_route.material_surfaces import MaterialPatch
+from experiments.experiment_ribbon_locked_solver.accuracy import (
+    DISPLAY_ACCURACY,
+    STRICT_ACCURACY,
+    DimensionalAccuracy,
+)
 from experiments.experiment_ribbon_locked_solver.correspondence import MaterialFaces
 
 
@@ -69,7 +74,11 @@ def _face(x0: float, x1: float, y0: float, y1: float, raw: bool = True) -> Any:
 
 
 def _collection(
-    *, extra: bool = False, raw: bool = True, measured_error: float = 0.0
+    *,
+    extra: bool = False,
+    raw: bool = True,
+    measured_error: float = 0.0,
+    accuracy: DimensionalAccuracy = STRICT_ACCURACY,
 ) -> tuple[MaterialFaces, list[Any]]:
     """
     Model two authored regions merged into one native profile face, plus another profile and caps.
@@ -117,6 +126,7 @@ def _collection(
         lambda p: p,
         lambda point, entity: measured_error,
         output,
+        accuracy=accuracy,
     )
     return collection, faces
 
@@ -200,3 +210,33 @@ def test_error_and_query_budgets_never_turn_missing_evidence_into_success() -> N
     collection.queries = 30000
     with pytest.raises(RuntimeError, match="face-query budget"):
         collection.item(0).getParameterAtPoint(Point(1, 0.5))
+
+
+@pytest.mark.parametrize("error,accepted", [(0.005, True), (0.0099999, True), (0.01, False)])
+def test_display_policy_uses_the_same_exclusive_bound_for_trim_distance(
+    error: float, accepted: bool
+) -> None:
+    """
+    Corroborated native trim distance uses the policy and retains every accepted goal miss.
+    """
+    collection, _ = _collection(raw=False, measured_error=error, accuracy=DISPLAY_ACCURACY)
+    assert collection.item(0).getParameterAtPoint(Point(1, 0.5))[0] is accepted
+    warnings = collection.output.get("accuracy_warnings", [])
+    assert bool(warnings) is accepted
+    if accepted:
+        assert warnings[-1]["goal_mm"] == 1e-6
+        assert warnings[-1]["error_mm"] == error
+
+
+def test_warning_distance_does_not_relax_face_identity_or_coverage() -> None:
+    """
+    A sub-limit displacement does not allow reassigning conductor profile ownership.
+    """
+    collection, _ = _collection(extra=True, accuracy=DISPLAY_ACCURACY)
+    _cover(collection)
+    family = collection.item(0)
+    ok, uv = family.getParameterAtPoint(Point(1, 0.5, 0.0005))
+    assert ok and family.getPointAtParameter(uv)[1].z == 0
+    assert not collection.item(2).getParameterAtPoint(Point(1, 0.5, 0.0005))[0]
+    with pytest.raises(RuntimeError, match="Uncovered native faces"):
+        collection.seal_surfaces()

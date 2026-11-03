@@ -1,5 +1,10 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+User-directed rollback496 restores pre-angular code/178-file lock and the retained
+original gym body. No accepted insertion was delivered by464–495; their failed
+diagnostic artifacts remain historical, unpromoted. The two angular modules and
+associated tests are removed. Details: `../experiment_ribbon_locked_solver/NOTES.md`.
+
 Five existing gym configurations planned/evaluated in each numerical phase, with
 matched baseline and inserted variants: not ten independent configurations per
 phase. No compact contact-safe added-feature success is established. Three421

@@ -116,6 +116,7 @@ def for_layout(targets: Targets, gym: dict[str, Any] | None, job: Path | None) -
                 disposition = ""
             status = {
                 "built_and_named_fidelity_checks_pass": "Latest run: completed; named fidelity passed",
+                "built_with_precision_warning": "Latest run: completed with native precision warning",
                 "stopped": "Latest run: stopped; partial measurements",
                 "numerically_accepted": "Latest run: numerical checks completed",
                 "unresolved": "Latest run: unresolved",

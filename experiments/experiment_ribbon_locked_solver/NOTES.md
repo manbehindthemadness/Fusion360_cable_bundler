@@ -1,5 +1,231 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## User-directed0.01mm warning ceiling516–517 — 2026-11-02
+
+User explicitly requests native dimensional deviations below0.01mm to warn while
+still aiming at original accuracy. `accuracy.py` separates original1e-6mm goals
+from the exclusive0.01mm warning ceiling. Errors <=original goal pass; goal misses
+strictly below0.01mm warn;0.01mm or greater, invalid or nonfinite measurements stop.
+Surface-representation bounds, native surface/trim distances, connected seams,
+guide positions and cap positions share this policy. Actual values, original goals,
+maxima and every warning remain recorded. Original `failed_points`/`seam_failures`
+are retained as strict-goal findings; warnings do not claim original-goal compliance.
+
+The native audit now completes remaining checks after a warning-level surface or
+seam measurement. Valid membership, complete native-face coverage, conductor/profile
+ownership, seam topology, closed positive volume and original angular gates remain
+hard. No0.01degree conversion is implied. Contact/material/bend/resource/source and
+internal mathematical/API convention assertions are unchanged. Exact-cylinder
+construction remains enabled and aims at original accuracy; no route or native
+geometry is adjusted to meet the warning band. Historical default audit replay
+remains strict unless the display policy is explicitly supplied.
+
+NativeOwner passes the display policy to both direct and merged-face audits. The
+controller, counters and optional native-QA reporter propagate precision warnings
+without aborting geometry or labelling them strict passes. Diagnostic rule archives
+now accept additive `warning` observations; native fidelity rows show warning rather
+than failed when only accepted dimensional goal misses exist. Raw detailed audit
+findings and original goal remain available. The older seam-only/live-point-tolerance
+helper is retained for historical replay/tests but no longer governs active builds.
+
+516freezes four examined independent gym configurations: the old smoothing/sphere
+failure plus three retained controls. Three controls replay complete cached strict
+audit records; actual read-only native re-audits cover the sphere and merged-face
+control.0new solves/builds/native attempts,2/4new native audit evaluations,0full
+physical audits or holdouts. Sphere audit now completes all4900surface/270seam/
+three-guide/two-cap measurements with7surface warnings, max7.907172e-6mm,18.440282s.
+Merged-face control retains its original goal pass without warnings,20.937290s.
+Other two controls remain cached-only, not new native coverage. No new failures,
+resource stops, body/visibility changes or historical report edits. Original exact
+failed/strict reports remain unchanged. Executed accuracy/fidelity sources are
+archived alongside516before the final defensive nonfinite-data guards were added.
+
+517refreshes scoped native/controller/correspondence/accuracy bindings and the
+current archive rule parser, with181-file source lock verified. Existing scene,
+selection, body revision/visibility and exact-cylinder policy remain unchanged.
+No job, solve or native build is launched. Future gym builds use the new warning
+policy. Mandatory safeguard files record this explicit user policy revision.
+
+84focused accuracy/correspondence/controller/progress/performance/inspection tests
+pass, including exact0.01mm rejection, sub-limit errors, nonfinite/missing data,
+preserved profile ownership and warning archive support. Changed Python passes
+Ruff lint/format and complete diff review; new helper/tests are IDE-clean. Existing
+legacy duplicate/shadow/fail-soft findings remain in older adapters. Full QA and
+native geometry creation under the new reporting policy were not rerun; topology,
+angular and physical acceptance are not inferred from dimensional warnings.
+Evidence: ignored `ribbon_accuracy516/517`,516driver/payloads and517application
+result. Numerically identical geometry and prior515successful body remain visible.
+
+## Exact circular flat supports511–515 — 2026-11-02
+
+Smoothing1% jobs `selected-a4a715699144469a960d5e55d0a1893a` and
+`selected-a03c378186cd498fb42146ef7b29c715` pass numerical/material/cap/strict
+contact checks and each create a142-face solid. The surface audit rejects seven
+samples on flat region face124, maximum7.907172e-6mm, before guides/caps are audited.
+This is a distinct surface failure; the seam-only warning correctly does not apply.
+Both original failed builds/reports remain retained, not retrospectively passed.
+
+512reads the existing failed body without modification. Its corresponding flat
+patch is stored as a native **Sphere**, whereas the supplied rational patch is a
+circular extrusion. Independent actual-trim distances reproduce all seven errors;
+this is not merely inaccurate point inversion. Direct authored UVs are inapplicable
+to that spherical chart.511first assumes NURBS getData shape and stops with an
+IndexError before measuring; its stopped payload is retained.512validates the
+surface-data shape and records the sphere and distances.0new native attempts.
+
+`material_cylinder.py` derives each circular profile's center/radius from exact
+rational-arc points, with normalized reconstruction and independent quarter-point
+checks. A flat before/after/straight region is an extrusion along its constant
+material tangent, even when crease trims are oblique. Supply its exact analytic
+Cylinder support to the existing body definition, retaining every authored edge,
+vertex, trim, radius, profile identity and target. Curved regions retain their
+original bounded NURBS; unsupported noncircular profiles retain original NURBS.
+No perturbation, welding, scaling, route repair or audit-tolerance change.
+
+The shared body author accepts an optional surface factory, defaulting to its
+original NURBS for historical callers. `NativeOwner` defaults to typed
+`FlatSurfaces.CYLINDERS`; the original NURBS policy remains explicit for comparison.
+This avoids the observed spherical approximation at construction time. Optional
+physical/material-coordinate metadata is unchanged; UV/textures stay off in this
+native verification. Native UV/appearance coverage for the new supports is untested.
+
+513freezes the smoothing trigger and three distinct previously examined gym
+controls before any new build; all routes are replayed without solving/refitting.
+Four planned/evaluated/native attempted/built/named-fidelity audited;4/4strict
+passes,0failed/unresolved/skipped/unattempted,0full physical audits/holdouts.
+Original full-profile/guide/cap/seam gates pass without even the seam warning.
+122-face correspondence mode preserves the earlier merged-face repair.
+
+| Gym configuration | Faces | Generation s | Audit s   | Max surface error mm |
+| ----------------- | ----: | -----------: | --------: | -------------------: |
+| smoothing trigger |   142 |     3.300876 | 24.620825 |           1.29745e-9 |
+| contracted499     |   132 |     1.453072 | 15.058932 |          7.33566e-10 |
+| correspondence461 |   122 |     1.078187 | 22.667229 |           3.80966e-8 |
+| tight baseline422 |   152 |     1.224755 | 18.076026 |          7.59657e-10 |
+
+Limits120s/case480s/phase,4GiB RSS/3.8GiB launch headroom, one attempt per case,
+first failure stop. Sampled maximum717472KiB. Separate RPCs schedule one case
+at a time. No source/resource/API/kernel/audit stops or warnings in513. Measured
+case-operation total93.405028s excludes orchestration; generation7.056891s and
+audit80.423013s are subsets. Native CPU/currency costs unmeasured. These are
+development construction results, not new cold-solver or global generality evidence.
+
+514adopts the verified policy in the live owned callback and launches one normal
+matched Solve/build with smoothing still1%.515confirms job
+`selected-fa4508b4c8594694bb3b31a8d41e5cff` completed and visible, event error clear,
+strict named fidelity passes with zero warnings. Entire saved material route is
+exactly equal to the original failed job's route; only native support authoring
+changes.142faces/4900surface samples/270seams, zero failures, max1.297448e-9mm;
+all three ordered guides and both caps pass. Native generation1.164765s, separate
+audit16.065551s; workerCPU1.109528s/wall1.158266s, smoothing.947663s subset.
+Measured solve/check wall meets matched generation goal narrowly on this run.
+Native operation19.178421s; sampled maximum532880KiB. Body revision
+`fa27dbf4-1e9a-42fb-ac6f-9d6e1abdb479`; capture with matching gym inspected.
+
+Five new native operations across513/514remain **four independent configurations**;
+the live smoke repeats the trigger. All prior bodies/history/layout/settings are
+preserved; four standalone verification copies retained hidden.180-file source
+lock verifies. Numerical solver/smoothing and standalone contraction status unchanged.
+16new analytical support tests pass;52focused cylinder/precision/progress tests pass.
+Changed Python passes Ruff lint/format and full diff review. New helper/tests are
+IDE-clean; pre-existing legacy duplicate and fail-soft exception weak warnings
+remain. No full QA, unseen matrix, new contact search or full physical audit.
+Evidence: ignored `ribbon_smoothing511/512`, `ribbon_cylinders513/514`, frozen
+payloads/513driver and all source-pinned native/numerical job records.
+
+## Bounded native seam precision warning507–510 — 2026-11-02
+
+User reports another creation stop. Job `selected-f7c1bb4572a14dfb99d92a8b334efcc7`
+passes numerical material/caps/strict contact and creates a positive-volume152-face
+solid in1.136320s. The strict post-build audit then hides it:20shared-one-edge seam
+endpoint discrepancies1.599e-6..4.435e-6mm exceed its1e-6mm gate. All5250surface
+points,150patches,three ordered guide positions/tangents and both caps pass.
+This is a native audit/display stop, not a routing or kernel construction failure.
+Original strict report/body remain retained unchanged.
+
+Implement the user's previously allowed bounded precision-warning policy in
+`precision.py`, called only after the original combined seam/tangent exception.
+Require a complete fixed-revision audit; every original surface/guide/cap gate
+must pass independently. Every seam finding must be a connected direct single
+shared-edge chain with positive endpoint residual above1e-6mm and no greater than
+Fusion's live point tolerance. The original audit proves chain connectivity before
+emitting a positive direct-edge residual. Reject missing/branched/merged-face or
+zero-residual topology failures, malformed/incomplete evidence and other errors.
+Restrict native continuation to original one-to-one face/patch mapping so UV face
+provenance remains established. No geometry repair, tolerance change in the base
+audit, target/radius/profile/contact change or extra route search.
+
+Reports retain `audit.seam_failures` and use `built_with_precision_warning`, never
+the strict named-fidelity-pass status. The controller shows `completed_with_warning`
+and retains a failed strict native-fidelity rule with the diagnostic warning
+explained. Counter labels distinguish this result. A simultaneous contact-warning
+session still reports contact unmeasured. UV remains separate/off in this live run.
+Strict QA still treats warning status as distinct from an unconditional pass.
+
+507replays four already examined complete-gym audit records: triggering f7c1 plus
+499contracted hairpin,461correspondence repair and422tight baseline. Trigger
+qualifies for warning; all three strict controls retain their original passes.
+Classifier-only0.007490CPU s including report reads;0solves/native attempts or new
+geometry coverage. Synthetic tests also reject missing topology, larger seams,
+guide/cap failures, malformed/partial reports and exceeded native tolerance.
+
+508stops before reload/solve/native launch because its input guard compares tuple
+fields in a live payload with JSON lists.509normalizes that comparison to JSON;
+exact targets/settings/rules and budgets remain unchanged. This is a preserved
+setup failure, not a failed geometry attempt. Source-pinned one-case native scope:
+4s first-pass,120s numerical/120s native,240s phase,4GiB RSS/3.8GiB launch headroom,
+one native attempt; no retries after launch. Refresh only current owned native and
+controller callbacks. Source lock becomes179files; numerical solver/math unchanged.
+
+509normal Solve/build job `selected-9cd41ae70d98450892e9733219b994dc` completes;
+510confirms visible body, clear event error and `completed_with_warning`. One
+independent configuration attempted/built/complete named measurements, with the
+strict seam audit still failed and bounded warning explicitly retained;0full
+physical audits. Three collateral configurations native-unattempted in this phase.
+152faces/5250surface points/290seams,20same precision flags/max4.435041e-6mm versus
+live tolerance1e-5mm; surfaces/guides/caps pass. Generation1.394604s, separate audit
+16.137033s, native operation19.032865s. No relaxed contact or native correction.
+Body revision `545a7e39-f9c8-4a55-aaaa-4e80cad4ef00`; capture inspected. Existing
+layout, settings and historical bodies/reports preserved. This does not install
+the standalone497–500bend contraction in the numerical solver.
+
+Latest focused verification:63precision/controller/progress/performance/contact
+tests pass; prior selected-solver checks also passed before the final UI-only
+consumer changes. Seven changed Python files pass Ruff lint/format; full diff
+reviewed. New helper/tests are IDE-clean; pre-existing duplicate fragments in
+native/controller/performance and the documented native fail-soft broad exception
+remain. No full QA, new unseen geometry matrix or complete physical audit.
+Evidence: ignored `ribbon_precision507`, `ribbon_precision509`, original/current
+job files and `precision507.frozen` through `precision510-collect.frozen`.
+
+New standalone experiment497–500 contracts existing individual bends rather than
+inserting a rotation stage. Four examined gym routes shorten with strict numerical
+contact; one builds/passes named fidelity and is visible separately. Selected gym
+solver and rollback496 body remain unchanged. The compact layout worsens guide
+agreement; no unseen validation or global optimum is claimed. Full fixed procedure,
+costs and limitations: [existing-bend contraction](../experiment_ribbon_bend_relocation/NOTES.md).
+
+## User-directed rollback496 — 2026-11-02
+
+The user directs reverting the unsuccessful angular/event-insertion attempt.
+Executable code/tests/lock are restored exactly to pre-attempt HEAD `e75a189`:
+178sources, original v2two-contact/four-second first-pass policy. Remove the new
+angular modules/tests; preserve the earlier closure, geometry-correspondence,
+progress, visibility and orphan-gym fixes. Failed464–495payloads/results remain
+under ignored verification artifacts and are not active solver capabilities.
+
+496restores retained job `selected-88c7ae3777e5450290c5d005520a0e9d` and its
+42.746057mmoriginal body/diagnostic selection/counters, unchanged native revision
+and0%smoothing/UVoff/optimizationon. Removes exactly the unchanged enhanced470
+occurrence after verifying both revisions, current inputs and idle ownership.
+Original body visible, event error clear;0solves/0native builds. Histories retained.
+No accepted event insertion or excursion correction is claimed. Evidence:
+`artifacts/verification/ribbon_revert496/` and `revert496.frozen`.
+
+Rollback verification:42focused solver/closure/progress tests pass; restored
+Python files pass Ruff lint/format and IDE inspections. Executable diff is empty
+against HEAD and the178-file lock verifies. No full QA or new native build needed.
+
 ## Native/material correspondence repair 453–462 — 2026-11-02
 
 **Current disposition:** the unchanged current gym layout now completes normal

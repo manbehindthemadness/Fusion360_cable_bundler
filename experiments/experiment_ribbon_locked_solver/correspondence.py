@@ -12,6 +12,8 @@ from devtools.ribbon_analysis.budget import NativeBudget
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_fold_route.material_surfaces import MaterialPatch
 
+from .accuracy import STRICT_ACCURACY, DimensionalAccuracy
+
 
 @dataclass(frozen=True)
 class Selection:
@@ -44,11 +46,14 @@ class MaterialFaces:
         point: Callable[[Any], Any],
         distance: Callable[[Any, Any], float],
         output: dict[str, Any],
+        *,
+        accuracy: DimensionalAccuracy = STRICT_ACCURACY,
     ) -> None:
         """
         Cache native bounds once; keep the supplied solid and all entity identities untouched.
         """
         self.body, self.route, self.patches = body, route, patches
+        self.accuracy = accuracy
         if not body.isSolid or body.volume <= 0:
             raise ValueError("Material correspondence requires a closed positive solid")
         self.occurrence, self.budget = occurrence, budget
@@ -90,7 +95,7 @@ class MaterialFaces:
 
     def select(self, index: int, point: Any, allowed: set[int] | None = None) -> Selection | None:
         """
-        Find a true trimmed-face witness within the unchanged1e-6mm fidelity tolerance.
+        Find a true trimmed-face witness within the explicit dimensional accuracy policy.
 
         Evaluate cheap raw memberships first. Only their collective failure invokes
         actual trimmed-face distance. Source interior samples may claim unowned faces;
@@ -111,7 +116,9 @@ class MaterialFaces:
                 if self.sealed and owner is None:
                     continue
                 if not all(
-                    low - 1e-7 <= getattr(point, a) <= high + 1e-7
+                    low - self.accuracy.search_radius_mm / 10
+                    <= getattr(point, a)
+                    <= high + self.accuracy.search_radius_mm / 10
                     for a, (low, high) in zip("xyz", box)
                 ):
                     continue
@@ -123,7 +130,7 @@ class MaterialFaces:
                     continue
                 ok, actual = face.evaluator.getPointAtParameter(uv)
                 error = actual.distanceTo(point) * 10 if ok else math.inf
-                if error > 1e-6:
+                if not self.accuracy.accepts(error):
                     continue
                 target = candidates if face.evaluator.isParameterOnFace(uv) else pending
                 target.append((error, j, uv))
@@ -146,7 +153,10 @@ class MaterialFaces:
                             "distance_mm": error,
                         }
                     )
-                    if error <= 1e-6:
+                    if self.accuracy.accepts(error):
+                        self.accuracy.observe(
+                            self.output, "trim_distance", error, region=index, native_face=j
+                        )
                         candidates.append((error, j, uv))
                         break
             if not candidates:
@@ -324,7 +334,7 @@ class Family:
 
     def isParameterOnFace(self, uv: Any) -> bool:
         """
-        Report the selected raw-membership or separately recorded strict trim-distance proof.
+        Report selected raw membership or independently measured trim-distance correspondence.
         """
         return self.active is not None and uv == self.active.uv
 

@@ -204,9 +204,16 @@ def native(directory: Path) -> None:
             )
             report["unattempted"].remove(case["id"])
             print(json.dumps(report["cases"][-1]), flush=True)
-            if row["status"] != "built_and_named_fidelity_checks_pass":
+            if row["status"] not in (
+                "built_and_named_fidelity_checks_pass",
+                "built_with_precision_warning",
+            ):
                 raise RuntimeError("Native selected-solver QA stopped: " + case["id"])
-        report["status"] = "completed"
+        report["status"] = (
+            "completed_with_warning"
+            if any(row.get("status") == "built_with_precision_warning" for row in report["cases"])
+            else "completed"
+        )
     except (OSError, RuntimeError, ValueError) as error:
         report.update(status="stopped", error=str(error))
         raise

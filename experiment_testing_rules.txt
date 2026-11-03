@@ -1,6 +1,24 @@
 EXPERIMENT INTEGRITY AND RESOURCE SAFEGUARDS
 Effective 2026-10-05. Read before experimental solver work or reporting.
 
+USER-DIRECTED NATIVE DIMENSIONAL WARNING BAND — 2026-11-02
+-------------------------------------------------------
+Keep the original native dimensional accuracy goals (currently1e-6mm), but treat
+measured goal misses strictly below0.01mm as warnings instead of aborting geometry.
+At or above0.01mm remains a dimensional failure. Measure/report original errors,
+goals, maxima and every warning; a warning is not a strict accuracy pass. Apply to
+native surface/representation, seam, guide-position and cap-position comparisons,
+including native material-face correspondence. Complete all other audit checks.
+Keep construction aiming at original accuracy, including exact cylinder supports.
+This supersedes older hard native dimensional thresholds for current/future gym
+display, not immutable historical results or default historical audit replay.
+
+No0.01degree threshold is implied. Preserve angular gates, valid/complete native
+topology, closed positive volume, membership/provenance/ordered identity, material
+and bend constraints, strict contact policy, source/cancellation/resource limits.
+Internal mathematical/API convention assertions are not physical accuracy
+measurements. No target movement, welding, output repair or new batch follows.
+
 USER-DIRECTED TEMPORARY V2 GYM CONTACT MEASUREMENT OVERRIDE — 2026-11-02
 -------------------------------------------------------------------
 The user explicitly directs contact pair-budget exhaustion to abort measurement

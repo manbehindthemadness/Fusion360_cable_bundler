@@ -22,7 +22,12 @@ def _record(directory: Path, name: str, data: Any) -> None:
     (directory / name).write_text(json.dumps(data), encoding="utf-8")
 
 
-def test_generation_excludes_uv_and_audit_and_clears_for_changed_layout(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "native_status", ("built_and_named_fidelity_checks_pass", "built_with_precision_warning")
+)
+def test_generation_excludes_uv_and_audit_and_clears_for_changed_layout(
+    tmp_path: Path, native_status: str
+) -> None:
     """
     Keep nested timers distinct and never attribute another case's measurements to a new draft.
     """
@@ -54,7 +59,7 @@ def test_generation_excludes_uv_and_audit_and_clears_for_changed_layout(tmp_path
             "generation_seconds": 3.0,
             "material_uv_seconds": 4.0,
             "audit_seconds": 20.0,
-            "status": "built_and_named_fidelity_checks_pass",
+            "status": native_status,
         },
     )
     result = for_layout(scene.targets, scene.payload(), tmp_path)
@@ -64,6 +69,9 @@ def test_generation_excludes_uv_and_audit_and_clears_for_changed_layout(tmp_path
     assert rows["Route + checks"] == "2.000 s"
     assert rows["Fidelity audit"] == "20.000 s"
     assert rows["UV storage"] == "4.000 s"
+    assert ("precision warning" in result["status"]) == (
+        native_status == "built_with_precision_warning"
+    )
     changed = generate(Config(seed=42, lines=3))
     stale = for_layout(changed.targets, changed.payload(), tmp_path)
     assert stale["status"] == "No measured run for this layout"

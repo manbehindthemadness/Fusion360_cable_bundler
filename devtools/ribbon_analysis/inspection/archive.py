@@ -139,7 +139,7 @@ class RuleObservation:
     """
 
     name: str
-    status: Literal["measured", "unmeasured", "legacy", "not_applicable", "failed"]
+    status: Literal["measured", "warning", "unmeasured", "legacy", "not_applicable", "failed"]
     detail: str
     value: float | None = None
     limit: float | None = None
@@ -151,7 +151,8 @@ class RuleObservation:
         if (
             not self.name.strip()
             or not self.detail.strip()
-            or self.status not in ("measured", "unmeasured", "legacy", "not_applicable", "failed")
+            or self.status
+            not in ("measured", "warning", "unmeasured", "legacy", "not_applicable", "failed")
         ):
             raise ValueError("Rule observations require a name, scope and known status.")
         for value in (self.value, self.limit):

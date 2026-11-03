@@ -3,7 +3,7 @@ Preserve the selected221surface/seam/ordered-guide/cap audit in maintained sourc
 
 Direct-index mode preserves the retained221policy. Explicit material/native
 correspondence supports merged regions using separately recorded actual-face and
-edge-subchain measurements. No geometry repair or tolerance expansion is performed.
+edge-subchain measurements. Dimensional display policy is explicit; no geometry is repaired.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from experiments.experiment_ribbon_fold_route.material_native import native_poin
 from experiments.experiment_ribbon_fold_route.material_profile import material_profile
 from experiments.experiment_ribbon_fold_route.material_surfaces import material_patches
 
+from .accuracy import STRICT_ACCURACY, DimensionalAccuracy
 from .correspondence import MaterialFaces
 
 
@@ -44,6 +45,7 @@ def audit(
     occurrence: Any,
     *,
     material_faces: MaterialFaces | None = None,
+    accuracy: DimensionalAccuracy = STRICT_ACCURACY,
 ) -> dict[str, Any]:
     """
     Measure fixed native face families, ordered seam chains, three guides and caps.
@@ -53,19 +55,26 @@ def audit(
     boundaries inside a common native face. Those boundaries receive independent
     nine-point trim-distance measurements instead of a nonexistent native edge.
     A failure preserves partial measurements through the caller-owned output dict.
+    Preserve original accuracy findings while an explicit policy can classify
+    sub-ceiling dimensional errors as warnings. Angular/topology gates remain hard.
     """
     faces = material_faces if material_faces is not None else body.faces
     output: dict[str, Any] = row["audit"]
     output["native_face_count"] = body.faces.count
     output["membership_corroborations"] = []
     output["endpoint_sample_roundoff"] = []
+    output["accuracy_policy"] = {
+        "goal_mm": accuracy.goal_mm,
+        "warning_below_mm": accuracy.warning_below_mm,
+    }
+    output.setdefault("accuracy_warnings", [])
 
     def membership(face_index: int, point: Any, uv: Any, patch: Any) -> bool:
         """
         Corroborate rejected UV queries on the same trimmed face and solid.
 
         Native NURBS control equality and independent trimmed-face distance must
-        both pass; no other face, side reassignment or expanded tolerance is used.
+        both pass under the explicit dimensional policy; no face or side is reassigned.
         All initial membership rejections remain individually reported.
         """
         face = faces.item(face_index)
@@ -89,7 +98,7 @@ def audit(
         distance = measured.value * 10
         accepted = (
             controls_match
-            and distance <= 1e-6
+            and accuracy.accepts(distance)
             and containment == adsk.fusion.PointContainment.PointOnPointContainment
         )
         output["membership_corroborations"].append(
@@ -102,6 +111,8 @@ def audit(
                 "accepted": accepted,
             }
         )
+        if accepted:
+            accuracy.observe(output, "trim_distance", distance, face=face_index)
         return accepted
 
     pieces = []
@@ -151,7 +162,9 @@ def audit(
                 error = actual.distanceTo(native_point(expected)) * 10 if ok else math.inf
                 output["native_points_checked"] += 1
                 patch_max = max(patch_max, error)
-                if not inside or error > 1e-6:
+                if inside:
+                    accuracy.observe(output, "surface", error, face=index, fraction=fraction, v=v)
+                if not inside or not accuracy.meets_goal(error):
                     output["failed_points"].append(
                         {
                             "face": index,
@@ -175,7 +188,10 @@ def audit(
             }
         )
 
-    if output["failed_points"]:
+    if any(
+        not failure["inside"] or not accuracy.accepts(failure["error_mm"])
+        for failure in output["failed_points"]
+    ):
         raise RuntimeError("Native full-profile surface fidelity gate")
 
     if material_faces is not None:
@@ -192,12 +208,14 @@ def audit(
             if material_faces is not None and material_faces.shared(index, neighbor):
                 residual = material_faces.seam_error(index, neighbor, _seam_points(patch, side))
                 output["seams_checked"] += 1
-                if residual > 1e-6:
+                accuracy.observe(output, "seam", residual, faces=[index, neighbor])
+                if not accuracy.meets_goal(residual):
                     output["seam_failures"].append(
                         {
                             "faces": [index, neighbor],
                             "kind": "shared_native_face_material_boundary",
                             "endpoint_error_mm": residual,
+                            "topology_valid": math.isfinite(residual),
                         }
                     )
                 continue
@@ -231,6 +249,7 @@ def audit(
                     and reached == set(counts)
                 )
             )
+            topology_valid = valid
             residual = 0.0
             if valid and not collapsed:
                 a, b = [vertices[key].geometry for key in tips]
@@ -247,13 +266,14 @@ def audit(
                     )
                     * 10
                 )
-                valid = residual <= 1e-6
+                valid = residual <= accuracy.goal_mm
             if not valid and material_faces is not None:
                 original_residual = residual
                 residual = material_faces.edge_seam_error(
                     index, neighbor, _seam_points(patch, side)
                 )
-                valid = residual <= 1e-6
+                topology_valid = math.isfinite(residual)
+                valid = residual <= accuracy.goal_mm
                 output["face_correspondence"].setdefault("edge_chain_reinterpretations", []).append(
                     {
                         "regions": [index, neighbor],
@@ -263,12 +283,15 @@ def audit(
                     }
                 )
             output["seams_checked"] += 1
+            if topology_valid:
+                accuracy.observe(output, "seam", residual, faces=[index, neighbor])
             if not valid:
                 output["seam_failures"].append(
                     {
                         "faces": [index, neighbor],
                         "edge_count": len(shared),
                         "endpoint_error_mm": residual,
+                        "topology_valid": topology_valid,
                     }
                 )
 
@@ -307,7 +330,17 @@ def audit(
         ):
             raise RuntimeError("Corresponding guide point is outside prescribed native face")
         evaluated, native_value = material_face.evaluator.getPointAtParameter(uv)
-        if not evaluated or native_value.distanceTo(native_point(planned_point)) * 10 > 1e-6:
+        projection_error = (
+            native_value.distanceTo(native_point(planned_point)) * 10 if evaluated else math.inf
+        )
+        if not accuracy.observe(
+            output,
+            "guide_position",
+            projection_error,
+            piece=piece_number,
+            material_u=material_u,
+            profile_index=profile_index,
+        ):
             raise RuntimeError("Native guide projection mismatch")
         return Vector3(native_value.x * 10, native_value.y * 10, native_value.z * 10)
 
@@ -396,14 +429,21 @@ def audit(
             }
         )
     output["body_revision_after"] = body.revisionId
-    if (
-        output["seam_failures"]
-        or max(output["guide_maximum_tangent_error_degrees"].values()) > 0.001
+    if any(
+        not failure["topology_valid"] or not accuracy.accepts(failure["endpoint_error_mm"])
+        for failure in output["seam_failures"]
+    ) or any(
+        not math.isfinite(value) or value > 0.001
+        for value in output["guide_maximum_tangent_error_degrees"].values()
     ):
         raise RuntimeError("Native seam or guide tangent gate")
+    for cap in output["caps"]:
+        accuracy.observe(output, "cap_position", cap["center_error_mm"], side=cap["side"])
     if any(
-        cap["center_error_mm"] > 1e-6
+        not accuracy.accepts(cap["center_error_mm"])
+        or not math.isfinite(cap["ordered_width_error_degrees"])
         or cap["ordered_width_error_degrees"] > 0.001
+        or not math.isfinite(cap["outward_normal_error_degrees"])
         or cap["outward_normal_error_degrees"] > 0.001
         for cap in output["caps"]
     ):

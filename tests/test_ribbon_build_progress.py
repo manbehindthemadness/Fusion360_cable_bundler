@@ -90,7 +90,13 @@ def test_no_route_is_unresolved_and_skips_native_build(
 
 
 @pytest.mark.parametrize(
-    "native_status", ("built_and_named_fidelity_checks_pass", "stopped", "exception")
+    "native_status",
+    (
+        "built_and_named_fidelity_checks_pass",
+        "built_with_precision_warning",
+        "stopped",
+        "exception",
+    ),
 )
 def test_native_collection_records_completion_or_failure_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_status: str
@@ -109,9 +115,15 @@ def test_native_collection_records_completion_or_failure_once(
         native.return_value = {"status": native_status, "error": "Native gate failed"}
         assert runner.poll() == tmp_path / "native-manifest.json"
     state = runner.state()
-    assert state["status"] == (
-        "completed" if native_status == "built_and_named_fidelity_checks_pass" else "stopped"
-    )
+    expected = {
+        "built_and_named_fidelity_checks_pass": "completed",
+        "built_with_precision_warning": "completed_with_warning",
+    }
+    assert state["status"] == expected.get(native_status, "stopped")
+    if native_status == "built_with_precision_warning":
+        method = json.loads((tmp_path / "native-manifest.json").read_text())["solvers"][0]
+        assert method["rules"][-1]["status"] == "warning"
+        assert "strict accuracy findings retained" in method["detail"]
     assert any("starting native" in entry["message"] for entry in state["build_log"])
     assert runner.poll() is None
     native.assert_called_once_with(tmp_path)
@@ -155,8 +167,11 @@ def test_unresolved_worker_records_no_geometry_without_a_native_claim(
     assert all(rule["status"] == "unmeasured" for rule in manifest["solvers"][0]["rules"])
 
 
+@pytest.mark.parametrize(
+    "native_status", ("built_and_named_fidelity_checks_pass", "built_with_precision_warning")
+)
 def test_native_fidelity_success_does_not_erase_temporary_contact_warning(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_status: str
 ) -> None:
     """
     Keep numerical contact explicitly unmeasured after a successful native build.
@@ -177,12 +192,13 @@ def test_native_fidelity_success_does_not_erase_temporary_contact_warning(
         )
     )
     (tmp_path / "route.json").write_text("{}")
-    native.return_value = {"status": "built_and_named_fidelity_checks_pass"}
+    native.return_value = {"status": native_status}
     manifest = runner.poll()
     assert manifest is not None
     method = json.loads(manifest.read_text())["solvers"][0]
     assert runner.state()["status"] == "completed_with_warning"
-    assert "contact measurement aborted" in method["detail"]
+    assert "contact measurement" in method["detail"].lower()
+    assert "unmeasured" in method["detail"]
     assert (
         next(rule for rule in method["rules"] if rule["name"] == "Contact measurement")["status"]
         == "unmeasured"

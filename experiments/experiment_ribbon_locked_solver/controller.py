@@ -213,7 +213,11 @@ class Controller(ProcedureController):
             progress.append(job, "native", message)
             self._status.update(status="stopped", phase="finished", detail=message)
             raise
-        success = native.get("status") == "built_and_named_fidelity_checks_pass"
+        success = native.get("status") in (
+            "built_and_named_fidelity_checks_pass",
+            "built_with_precision_warning",
+        )
+        precision_warning = native.get("status") == "built_with_precision_warning"
         method = document["solvers"][0]
         contact_warning = method.get("contact_warning") is True
         errors = str(native.get("error") or "Unknown native failure").strip().splitlines()
@@ -227,6 +231,15 @@ class Controller(ProcedureController):
             method["detail"] = (
                 "Native material fidelity passes; contact measurement aborted at its pair limit and remains unmeasured (temporary gym override). Full physical audit remains unmeasured."
             )
+        if precision_warning:
+            method["detail"] = (
+                "Native solid displayed with dimensional accuracy warnings below 0.01 mm; "
+                "strict accuracy findings retained. Topology and angular checks pass. "
+                "Full physical audit remains unmeasured."
+            )
+            if contact_warning:
+                method["detail"] += " Contact measurement remains unmeasured (temporary override)."
+            method["native_precision_warning"] = native.get("precision_warning")
         method["status"] = "recorded" if success else "stopped"
         method["rules"] = [
             rule for rule in method["rules"] if rule.get("name") != "Native material fidelity"
@@ -234,8 +247,10 @@ class Controller(ProcedureController):
         method["rules"].append(
             {
                 "name": "Native material fidelity",
-                "status": "measured" if success else "failed",
-                "detail": "Surface, ordered guide, seam and cap gates; full physical audit unmeasured.",
+                "status": "warning" if precision_warning else "measured" if success else "failed",
+                "detail": "Original dimensional accuracy goals missed; sub-0.01 mm warnings retained."
+                if precision_warning
+                else "Surface, ordered guide, seam and cap gates; full physical audit unmeasured.",
                 "value": None,
                 "limit": None,
             }
@@ -247,7 +262,9 @@ class Controller(ProcedureController):
         write_document(final, document)
         summary = {k: v for k, v in native.items() if k not in {"audit", "rss_samples"}}
         self._status.update(
-            status=("completed_with_warning" if contact_warning else "completed")
+            status=(
+                "completed_with_warning" if contact_warning or precision_warning else "completed"
+            )
             if success
             else "stopped",
             detail=method["detail"],

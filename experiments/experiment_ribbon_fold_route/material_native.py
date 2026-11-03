@@ -20,6 +20,7 @@ import adsk.fusion
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 
 from .geometry import PlacedPiece
+from .material_cylinder import cylinder
 from .material_surfaces import MaterialPatch
 
 
@@ -60,6 +61,30 @@ def native_surface(patch: MaterialPatch) -> Any:
     return surface
 
 
+def circular_flat_surface(piece: PlacedPiece, patch: MaterialPatch) -> Any:
+    """
+    Supply exact cylinders for flat circular extrusions and unchanged NURBS for bends.
+
+    Keep all original trim edges and profile identities. Analytic support avoids
+    a kernel approximation of a thin circular extrusion as another surface type.
+    Unsupported noncircular profiles retain their original NURBS representation.
+    """
+    if patch.region == "bend":
+        return native_surface(patch)
+    try:
+        support = cylinder(piece, patch)
+    except ValueError:
+        return native_surface(patch)
+    surface = adsk.core.Cylinder.create(
+        native_point(support.origin),
+        adsk.core.Vector3D.create(support.axis.x, support.axis.y, support.axis.z),
+        support.radius_mm / 10,
+    )
+    if surface is None:
+        raise RuntimeError("Native circular-extrusion support creation failed")
+    return surface
+
+
 @dataclass(frozen=True)
 class NativeMaterialDefinition:
     """
@@ -75,6 +100,8 @@ def define_material_body(
     pieces: tuple[PlacedPiece, ...],
     patches: tuple[MaterialPatch, ...],
     checkpoint: Callable[[], None],
+    *,
+    surface_factory: Callable[[MaterialPatch], Any] = native_surface,
 ) -> NativeMaterialDefinition:
     """
     Share exact station and longitudinal edges across a closed oriented shell.
@@ -82,6 +109,8 @@ def define_material_body(
     Only corresponding vertices at consecutive stations may coincide. Zero
     material-tip lead edges are omitted explicitly; their side faces have three
     coedges. Unrelated nearby points are never merged by proximity.
+    An explicit surface factory may supply an equivalent analytic support while
+    retaining the same edge/vertex definitions; the default keeps original NURBS.
     """
     definition = adsk.fusion.BRepBodyDefinition.create()
     definition.doFullHealing = False
@@ -176,7 +205,7 @@ def define_material_body(
         ]
         collapsed += sum(item is None for item in longitudinal)
         for i, patch in enumerate(group):
-            face = shell.faceDefinitions.add(native_surface(patch), False)
+            face = shell.faceDefinitions.add(surface_factory(patch), False)
             face.associativeID = 1 + group_number * count + i
             loop = face.loopDefinitions.add()
             for boundary, opposed in (
