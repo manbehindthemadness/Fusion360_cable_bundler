@@ -78,6 +78,7 @@ class MaterialFaces:
             "trim_distance_corroborations": [],
             "shared_face_seams": [],
             "native_edge_subchains": [],
+            "native_vertex_boundaries": [],
         }
 
     @property
@@ -247,19 +248,24 @@ class MaterialFaces:
         )
         return tuple(output)
 
-    def edge_seam_error(self, first: int, second: int, points: tuple[Any, ...]) -> float:
+    def edge_seam_error(
+        self, first: int, second: int, points: tuple[Any, ...], *, controls: tuple[Any, ...] = ()
+    ) -> float:
         """
         Require a source seam to lie on an actual shared native edge subchain.
 
         Kernel simplification can extend a native edge beyond a short authored
         material region. Its entire endpoint chain need not equal that subregion;
         every sampled source boundary must still lie on the real shared edges.
+        A kernel-collapsed edge instead requires a shared native vertex and the
+        entire positive-weight source control hull within the original accuracy
+        goal of that vertex. Coincident unconnected vertices are insufficient.
         """
         first_edges = {edge.tempId: edge for edge in self.item(first).edges}
         second_edges = {edge.tempId for edge in self.item(second).edges}
         shared = [edge for key, edge in first_edges.items() if key in second_edges]
         if not shared:
-            return math.inf
+            return self._vertex_seam_error(first, second, points, controls)
         errors = []
         for point in points:
             if self.select(first, point) is None or self.select(second, point) is None:
@@ -283,6 +289,61 @@ class MaterialFaces:
                 "edges": [edge.tempId for edge in shared],
                 "samples": len(points),
                 "maximum_error_mm": maximum,
+            }
+        )
+        return maximum
+
+    def _vertex_seam_error(
+        self, first: int, second: int, points: tuple[Any, ...], controls: tuple[Any, ...]
+    ) -> float:
+        """
+        Certify a collapsed material boundary through actual shared vertex identity and strict bounds.
+
+        Controls come from the authored positive-weight seam, whose curve lies
+        inside their convex hull. Use the original dimensional goal even when
+        display warnings permit larger errors. Never create or weld topology.
+        """
+        if not points or not controls:
+            return math.inf
+        vertices = []
+        for region in (first, second):
+            vertices.append(
+                {
+                    vertex.tempId: vertex
+                    for edge in self.item(region).edges
+                    for vertex in (edge.startVertex, edge.endVertex)
+                }
+            )
+        candidates = []
+        for key in sorted(vertices[0].keys() & vertices[1].keys()):
+            self.budget.check("actual collapsed seam vertex")
+            vertex = vertices[0][key]
+            distances = tuple(vertex.geometry.distanceTo(point) * 10 for point in controls)
+            if all(self.accuracy.meets_goal(value) for value in distances):
+                candidates.append((max(distances), key))
+        if not candidates:
+            return math.inf
+        bound, vertex_id = min(candidates)
+        errors = [bound]
+        for point in points:
+            a, b = self.select(first, point), self.select(second, point)
+            if (
+                a is None
+                or b is None
+                or not all(self.accuracy.meets_goal(value) for value in (a.error_mm, b.error_mm))
+            ):
+                return math.inf
+            errors.extend((a.error_mm, b.error_mm))
+        maximum = max(errors)
+        self.output["face_correspondence"]["native_vertex_boundaries"].append(
+            {
+                "regions": [first, second],
+                "vertex": vertex_id,
+                "controls": len(controls),
+                "samples": len(points),
+                "control_hull_bound_mm": bound,
+                "maximum_error_mm": maximum,
+                "goal_mm": self.accuracy.goal_mm,
             }
         )
         return maximum

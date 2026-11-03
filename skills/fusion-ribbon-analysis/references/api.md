@@ -193,6 +193,17 @@ it freezes display-recovery-<uuid>.json under the workspace and never starts a
 route solve/native body. Valid siblings/output remain; deleted native output stays
 deleted. Clear geometry still removes only the explicit latest output occurrence.
 
+Selected native fidelity uses a complete affine chord for straight guide directions;
+curved guides keep the local centered stencil and unchanged0.001degree gate.
+guide_tangent_records retains actual sample fractions/chord lengths/errors. For
+kernel-collapsed material boundaries, MaterialFaces requires a shared actual
+native vertex plus the entire positive-weight source seam control hull and both
+face projections within the original dimensional goal. This certificate never
+uses the larger display warning ceiling, welds topology or accepts coincident
+unconnected vertices. native_vertex_boundaries records the witness and bound.
+Native geometry/targets/profiles and solver/contact rules are unchanged. On live
+audit reload, refresh native.audit and native.MaterialFaces imported bindings too.
+
 Gym drafts and frozen diagnostic gym contexts show the endpoint-tangent pre-path
 in magenta, including before a route exists. Native graphics use the exact cubic;
 palette canvases use129samples of that same curve. The solver and displays share

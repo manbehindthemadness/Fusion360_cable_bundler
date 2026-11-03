@@ -201,6 +201,49 @@ def test_shared_edge_subsegment_requires_real_edge_distance() -> None:
     assert math.isinf(collection.edge_seam_error(0, 2, points))
 
 
+@pytest.mark.parametrize("connected", (True, False))
+def test_collapsed_seam_requires_a_real_shared_vertex_and_strict_control_hull(
+    connected: bool,
+) -> None:
+    """
+    Admit a sub-goal kernel vertex boundary, rejecting coincident but topologically separate vertices.
+    """
+    collection, faces = _collection(accuracy=DISPLAY_ACCURACY)
+    common = SimpleNamespace(tempId=71, geometry=Point(1, 1))
+    other = common if connected else SimpleNamespace(tempId=72, geometry=Point(1, 1))
+    faces[0].edges = [SimpleNamespace(tempId=90, startVertex=common, endVertex=common)]
+    faces[1].edges = [SimpleNamespace(tempId=91, startVertex=other, endVertex=other)]
+    _cover(collection)
+    collection.seal_surfaces()
+    controls = (Point(1, 1), Point(1 + 4.708e-8, 1))
+    residual = collection.edge_seam_error(0, 2, controls, controls=controls)
+    assert (residual <= 1e-6) is connected
+    records = collection.output["face_correspondence"]["native_vertex_boundaries"]
+    assert bool(records) is connected
+    if connected:
+        assert records[-1]["vertex"] == 71 and records[-1]["control_hull_bound_mm"] == residual
+    # A source curve can leave the point even when its endpoints coincide.
+    outside = (*controls, Point(1 + 1e-5, 1))
+    assert math.isinf(collection.edge_seam_error(0, 2, controls, controls=outside))
+    assert math.isinf(collection.edge_seam_error(0, 2, controls))
+
+
+def test_collapsed_seam_rejects_nonfinite_control_distances() -> None:
+    """
+    Check every control rather than allowing a NaN to disappear inside a maximum reduction.
+    """
+    collection, faces = _collection()
+    vertex = SimpleNamespace(tempId=71, geometry=Point(1, 1))
+    faces[0].edges = [SimpleNamespace(tempId=90, startVertex=vertex, endVertex=vertex)]
+    faces[1].edges = [SimpleNamespace(tempId=91, startVertex=vertex, endVertex=vertex)]
+    _cover(collection)
+    collection.seal_surfaces()
+    points = (Point(1, 1),)
+    assert math.isinf(
+        collection.edge_seam_error(0, 2, points, controls=(*points, Point(math.nan, 1)))
+    )
+
+
 def test_error_and_query_budgets_never_turn_missing_evidence_into_success() -> None:
     """
     Reject actual projection error and propagate bounded native-query exhaustion.

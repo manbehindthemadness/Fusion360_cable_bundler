@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Any
+from functools import partial
+from typing import Any, Callable
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -63,6 +64,7 @@ def audit(
     output["native_face_count"] = body.faces.count
     output["membership_corroborations"] = []
     output["endpoint_sample_roundoff"] = []
+    output["guide_tangent_records"] = []
     output["accuracy_policy"] = {
         "goal_mm": accuracy.goal_mm,
         "warning_below_mm": accuracy.warning_below_mm,
@@ -270,7 +272,7 @@ def audit(
             if not valid and material_faces is not None:
                 original_residual = residual
                 residual = material_faces.edge_seam_error(
-                    index, neighbor, _seam_points(patch, side)
+                    index, neighbor, _seam_points(patch, side), controls=_seam_controls(patch, side)
                 )
                 topology_valid = math.isfinite(residual)
                 valid = residual <= accuracy.goal_mm
@@ -395,11 +397,21 @@ def audit(
             for u in middles:
                 if not 1e-4 < u < 1 - 1e-4:
                     continue
-                before, after = (
-                    guide(piece_index, u - 1e-5, name),
-                    guide(piece_index, u + 1e-5, name),
+                chord, sample_fractions = _guide_chord(
+                    geometry, u, partial(guide, piece_index, guide_name=name)
                 )
-                tangent_errors.append(angle(difference(after, before), placed.surface(u, q)[1]))
+                error = angle(chord, placed.surface(u, q)[1])
+                tangent_errors.append(error)
+                output["guide_tangent_records"].append(
+                    {
+                        "name": name,
+                        "piece": piece_index,
+                        "u": u,
+                        "sample_u": list(sample_fractions),
+                        "chord_mm": magnitude(chord),
+                        "error_degrees": error,
+                    }
+                )
         output["guide_maximum_position_error_mm"][name] = max(errors)
         output["guide_maximum_tangent_error_degrees"][name] = max(tangent_errors)
     for end in (False, True):
@@ -470,3 +482,25 @@ def _seam_points(patch: Any, side: int) -> tuple[Any, ...]:
             raise RuntimeError("Authored material seam evaluation failed")
         points.append(point)
     return tuple(points)
+
+
+def _seam_controls(patch: Any, side: int) -> tuple[Any, ...]:
+    """
+    Return the authored positive-weight seam's control hull in native centimeters.
+    """
+    controls = tuple(row[-1] for row in patch.rows) if side == 0 else patch.rows[0]
+    return tuple(native_point(point) for point in controls)
+
+
+def _guide_chord(
+    geometry: Straight | CylindricalFold, u: float, sample: Callable[[float], Vector3]
+) -> tuple[Vector3, tuple[float, float]]:
+    """
+    Measure straight guide direction across its full affine segment; retain the local fold stencil.
+
+    A straight's full secant has exactly its tangent direction and avoids subtracting
+    nearly identical points on submicron segments. Curved guides retain the original
+    centered difference and angular gate. Samples always evaluate actual native geometry.
+    """
+    lower, upper = (0.0, 1.0) if isinstance(geometry, Straight) else (u - 1e-5, u + 1e-5)
+    return difference(sample(upper), sample(lower)), (lower, upper)

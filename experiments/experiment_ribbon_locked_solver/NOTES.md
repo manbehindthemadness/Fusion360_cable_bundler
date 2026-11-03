@@ -1,5 +1,58 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Subnanometer native boundary/guide audit552–555 — 2026-11-03
+
+Tester range-ba66case4(seed2901896184,N4,D0.75mm,zones1/2,faces1/1,roll90/90)
+numerically accepts/separates and creates a158-face positive solid, then stops at
+the combined seam/tangent gate. Original jobbd32bf09f8874344983c08b3cb2296f4and
+its failed native-result remain immutable.5880surface points already pass with
+max9.063024e-10mm.552repeats the original audit on this same retained solid,
+revisionb9e42a05-f438-4572-87ff-562eb28dba69, without solving/building/editing it.
+
+The first straight is4.708008e-7mm(0.470801nm). Fusion collapses the seam between
+material regions4/5 to actual shared vertex248. Its complete two-control source
+seam lies within4.708008e-7mm of that vertex, below the unchanged1e-6mm goal.
+The old audit required an edge even for this actual point topology. Separately,
+its u±1e-5straight tangent chord is only9.415e-12mm: coordinate subtraction noise
+produces0.002618/0.006577/0.008513degree errors. All other piece tangent errors are
+<=2.903e-8degrees. The caps already pass, so no terminal-frame correction is needed.
+
+MaterialFaces now accepts a kernel-collapsed boundary only with shared real native
+vertex identity, all positive-weight authored seam controls within the original
+dimensional goal of that vertex, and both native face projections within that
+same goal at all seam samples. Coincident unconnected vertices, missing controls,
+nonfinite data and an escaping control hull reject. The0.01mm display-warning
+ceiling does not relax this certificate. No topology is welded or invented.
+Straight guide tangents now use their full actual-native affine secant, exactly
+the same mathematical direction with a conditioned chord. Curved stencils and
+the0.001degree angular gate stay unchanged. Per-guide tangent fractions/chord/
+angle and native vertex-boundary certificates are recorded explicitly.
+
+553freezes the trigger plus three existing gym collateral routes(compact4033669276,
+shallow8-gym424-05,spatial12-gym424-09)before adjustment. Their cached source-guide
+chord baselines are retained.554applies one unchanged audit correction: the same
+158-face native solid passes5880points/324seams/three guides/two caps,0warnings,
+unchanged revision and surface error. Max tangent error2.438572e-7degrees; one
+vertex certificate at4.708008e-7mm. Three collateral source-guide replays remain
+below2.061e-13degrees, but their native checks/builds are unattempted. This is
+4cached numerical configurations and1/4retained-native named audit, not four
+native validations or holdouts.0new solves/native attempts/full physical audits.
+
+552original retained audit51.446s/peak891696KiB;553cached baseline.328s;
+554corrected retained audit+cached controls40.320s/peak463488KiB. Warm evaluator
+timings are not a generation-speed benchmark.100s/4GiB gates held.555shows only
+the reviewed existing solid at its normal display translation, frames/captures it
+in1.034s, and binds the owned output handle. Body revision and original failed
+report bytes stay unchanged; original tester remains stopped(4attempts/3passes).
+No further cases start automatically. Future builds use coherently refreshed
+native.audit/native.MaterialFaces bindings; new processes import them normally.
+
+Source lock remains194files with two audit hashes renewed.62focused native
+correspondence/chord/accuracy/precision tests and scoped Ruff lint/format pass;
+new code IDE-clean, pre-existing fidelity_base shadow/duplication weak warnings
+remain. FullQA and broader native revalidation unrun. Evidence: ignored
+ribbon_micro552–555 plans/results, preserved original range/job and review.png.
+
 ## Deleted display-container recovery546–550 — 2026-11-03
 
 User's range-a8f69first iteration stopped with a deleted API object before any
