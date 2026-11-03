@@ -17,6 +17,7 @@ from devtools.ribbon_analysis.inspection.run_contract import ProcedureRunner
 from ..settings import Settings
 from ..versions import method
 from .journal import Journal, problem
+from .screenshots import Screenshots
 from .sequence import Specification
 
 
@@ -38,12 +39,17 @@ class Tester:
         cleanup: Callable[[], None],
         present: Callable[[Scene, Path | None], None],
         setup: Callable[[], None],
+        capture: Callable[[Path], None] | None = None,
     ) -> None:
         """
         Receive explicit ownership/resource boundaries rather than importing Fusion into scheduling.
         """
         self.directory, self.runner, self.verify, self.guard = directory, runner, verify, guard
         self.prepare, self.cleanup, self.present, self.setup = prepare, cleanup, present, setup
+        self.capture = capture
+        self.screenshots: Screenshots | None = None
+        self.last_screenshot: dict[str, Any] | None = None
+        self._capture_attempted = False
         self.active = False
         self.phase = "idle"
         self.reason = "Not started."
@@ -76,6 +82,8 @@ class Tester:
         self.guard()
         sources = self.verify()
         chosen = json.loads(json.dumps(selection, allow_nan=False))
+        if spec.screenshots.enabled and self.capture is None:
+            raise ValueError("This tester has no viewport screenshot exporter.")
         journal = Journal(
             self.directory / ("range-" + uuid4().hex),
             {
@@ -94,6 +102,11 @@ class Tester:
                 "scope": "User-started sequential gym testing. Zero case limit means continue until a problem or Stop. Each input is frozen before one normal solve/build/audit; no retry, outcome filtering or tolerance changes. Successful test geometry is cleared before the next case; logs persist. Existing user output is retained. Full physical audit remains unmeasured.",
             },
         )
+        screenshots = (
+            Screenshots(spec.screenshots, journal.directory.name, self.capture)
+            if spec.screenshots.enabled and self.capture is not None
+            else None
+        )
         self.specification, self.selection, self.sources, self.journal = (
             spec,
             chosen,
@@ -105,6 +118,8 @@ class Tester:
         self._stop_reason = None
         self._journal_error = None
         self._setup_done = False
+        self.screenshots, self.last_screenshot = screenshots, None
+        self._capture_attempted = False
         self._started = perf_counter()
         self._elapsed = 0.0
         self.active, self.phase, self.reason = True, "next", "Ready to start the first case."
@@ -174,7 +189,9 @@ class Tester:
         self.cleanup()
         scene = self.specification.scene(self.attempted)
         self.scene = scene
-        self.manifest, self.job = None, None
+        self.manifest, self.job, self._input = None, None, None
+        self.last_screenshot = None
+        self._capture_attempted = False
         input_path = self.journal.begin(self.attempted, scene)
         self._input = input_path
         self.prepare(scene)
@@ -220,6 +237,7 @@ class Tester:
             return
         self.passed += 1
         self.warnings += int(state.get("status") == "completed_with_warning")
+        self._capture()
         if self.specification.maximum_cases and self.attempted >= self.specification.maximum_cases:
             self._finish("Configured case limit reached.", "completed")
             return
@@ -230,22 +248,51 @@ class Tester:
         Latch the stop before inspection so a display error cannot schedule more cases.
         """
         self.active, self.phase, self.reason = False, phase, reason
+        if self.scene is not None:
+            try:
+                self.present(self.scene, self.manifest)
+            except (ArithmeticError, OSError, RuntimeError, TypeError, ValueError) as error:
+                self.reason += f" Inspection could not open: {type(error).__name__}: {error}"
+                # Do not label a stale viewport as the failed case when presentation failed.
+                self._capture_attempted = True
+            try:
+                self._capture()
+            except (OSError, RuntimeError, ValueError) as error:
+                self.reason += f" Screenshot failed: {type(error).__name__}: {error}"
         if self.journal is not None:
             try:
                 self.journal.append(
-                    {"event": "tester_stopped", "phase": phase, "reason": reason, "job": self.job}
+                    {
+                        "event": "tester_stopped",
+                        "phase": self.phase,
+                        "reason": self.reason,
+                        "job": self.job,
+                    }
                 )
             except OSError as error:
                 # Failure logging is fail-soft only after the scheduling latch is closed.
                 failure = f"Stop record could not be persisted: {error}"
                 self._journal_error = failure
                 self.reason += " " + failure
-        if self.scene is not None:
-            try:
-                self.present(self.scene, self.manifest)
-            except (ArithmeticError, OSError, RuntimeError, TypeError, ValueError) as error:
-                self.reason += f" Inspection could not open: {type(error).__name__}: {error}"
         self._elapsed = perf_counter() - self._started
+
+    def _capture(self) -> None:
+        """
+        Record one screenshot after terminal work, before another case can clear its geometry.
+        """
+        if self.screenshots is None or self._capture_attempted or self._input is None:
+            return
+        self._capture_attempted = True
+        assert self.journal is not None
+        try:
+            saved = self.screenshots.save(self._input.stem)
+        except (OSError, RuntimeError, ValueError) as error:
+            self.journal.append(
+                {"event": "screenshot_failed", "input": str(self._input), "error": str(error)}
+            )
+            raise
+        self.last_screenshot = saved
+        self.journal.append({"event": "screenshot_saved", "input": str(self._input), **saved})
 
     def inspect(self) -> None:
         """
@@ -278,6 +325,7 @@ class Tester:
             else None,
             "elapsed_seconds": perf_counter() - self._started if self.active else self._elapsed,
             "specification": self.specification.payload() if self.specification else None,
+            "screenshot": self.last_screenshot,
         }
 
     def _save(self) -> None:

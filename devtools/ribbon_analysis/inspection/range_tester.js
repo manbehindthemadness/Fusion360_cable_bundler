@@ -1,10 +1,10 @@
 "use strict";
 
 /** @typedef {{name:string,label:string,minimum:number,maximum:?number,integer:boolean,quarter_turn:boolean}} RangeTestField */
-/** @typedef {{ranges:Object<string,{min:string,max:string,step:string}>,mode:string,seed:number,stop_on_warnings:boolean,maximum_cases:number}} RangeTestSpecification */
+/** @typedef {{ranges:Object<string,{min:string,max:string,step:string}>,mode:string,seed:number,stop_on_warnings:boolean,maximum_cases:number,screenshots?:{enabled:boolean,directory:string}}} RangeTestSpecification */
 /** @typedef {{zone:number,face:number,roll:number}} RangeTestGoal */
 /** @typedef {{seed:number,lines:number,diameter_mm:number,void_percent:number,zone_percent:number}} RangeTestConfig */
-/** @typedef {{available:boolean,fields:RangeTestField[],specification:?RangeTestSpecification,defaults:RangeTestSpecification,active:boolean,phase:string,reason:string,attempted:number,passed:number,warnings:number,elapsed_seconds:number,current:?{config:RangeTestConfig,a:RangeTestGoal,b:RangeTestGoal},directory:?string,input:?string,job:?string}} RangeTestState */
+/** @typedef {{available:boolean,fields:RangeTestField[],specification:?RangeTestSpecification,defaults:RangeTestSpecification,active:boolean,phase:string,reason:string,attempted:number,passed:number,warnings:number,elapsed_seconds:number,current:?{config:RangeTestConfig,a:RangeTestGoal,b:RangeTestGoal},directory:?string,input:?string,job:?string,screenshot?:?{path:string,seconds:number,bytes:number}}} RangeTestState */
 /** Range controls share the diagnostic bridge; they never run a solver in JavaScript. */
 window.RangeTestPanel = class {
   /**
@@ -56,6 +56,8 @@ window.RangeTestPanel = class {
       this.element("testerSeed").value = spec.seed;
       this.element("testerLimit").value = spec.maximum_cases;
       this.element("testerWarnings").checked = spec.stop_on_warnings;
+      this.element("testerScreenshots").checked = spec.screenshots?.enabled || false;
+      this.element("testerScreenshotDirectory").value = spec.screenshots?.directory || "~/Pictures/testxyz";
       this.initialized = true;
     }
     const lines = [
@@ -71,6 +73,7 @@ window.RangeTestPanel = class {
     if (state.input) lines.push(`Input snapshot: ${state.input}`);
     if (state.job) lines.push(`Current job: ${state.job}`);
     else if (state.current) lines.push("No solver worker was launched for this prepared case.");
+    if (state.screenshot) lines.push(`Screenshot (${state.screenshot.seconds.toFixed(2)} s): ${state.screenshot.path}`);
     this.element("testerStatus").textContent = lines.join("\n");
   }
 
@@ -102,6 +105,7 @@ window.RangeTestPanel = class {
       seed: Number(this.element("testerSeed").value),
       stop_on_warnings: this.element("testerWarnings").checked,
       maximum_cases: Number(this.element("testerLimit").value),
+      screenshots: {enabled: this.element("testerScreenshots").checked, directory: this.element("testerScreenshotDirectory").value},
     }});
   }
 };

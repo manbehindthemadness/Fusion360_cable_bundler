@@ -24,6 +24,7 @@ from .controller import Controller
 from .lock import verify
 from .native import NativeOwner
 from .tester.runtime import Runtime as RangeTester
+from .views import restore as restore_views
 
 _owners: list[SelectedWorkspace] = []
 
@@ -41,23 +42,41 @@ class SelectedWorkspace(Workspace):
         gym_occurrence: Any,
         directory: Path,
         scene: Scene,
+        *,
+        container: Any = None,
     ) -> None:
         """
         Retain the native owner before the base workspace binds its navigation callback.
         """
         self.native = native
+        self.container: Any = container
         super().__init__(diagnostics, diagnostic_occurrence, gym_occurrence, directory, scene)
         diagnostics.enable_geometry_clear(native.clear, native.has_geometry)
         native.on_progress = diagnostics.report_progress
         self.range_tester = RangeTester(self)
         diagnostics.tester = self.range_tester
+        diagnostics.ensure_owned_views = self.ensure_views
+
+    def ensure_views(self) -> None:
+        """
+        Recreate deleted display containers without resetting model inputs, logs or active work.
+        """
+        restore_views(self)
 
     def open_gym(self) -> None:
         """
         Hide this workspace's last native output while editing its next endpoint draft.
         """
         self.native.hide()
+        self.ensure_views()
         super().open_gym()
+
+    def open_diagnostics(self, scene: Scene) -> None:
+        """
+        Recover a deleted diagnostic container before handing off the current draft.
+        """
+        self.ensure_views()
+        super().open_diagnostics(scene)
 
 
 def install(
@@ -125,7 +144,13 @@ def install(
     )
     diagnostics.show()
     workspace = SelectedWorkspace(
-        native, diagnostics, diagnostics_occurrence, gym_occurrence, directory / "workspace", scene
+        native,
+        diagnostics,
+        diagnostics_occurrence,
+        gym_occurrence,
+        directory / "workspace",
+        scene,
+        container=owner,
     )
     for owner in previous:
         Workspace.deactivate(owner)

@@ -1,5 +1,60 @@
 # Gym range tester — 2026-11-03
 
+## Deleted display containers546–550
+
+Deleting the gym/diagnostic browser containers formerly left their palettes alive
+with invalid API handles. The first prepared case then stopped before worker
+launch and could not open inspection. SelectedWorkspace now recreates only missing
+owned display branches at its retained offset, rebinds native view handles, and
+preserves input models, palettes/forms, cached sessions/selection, layers, runner
+and durable logs. Deleted output bodies stay deleted. Surviving siblings/output
+stay untouched. Recovery is bounded/source-pinned and launches no route/native body.
+Normal output clearing is still limited to NativeOwner's latest generated body.
+
+Actual deleted views recovered547; the exact originally blocked first input passed
+one bounded solve/build/named audit and PNG export548. Actual Clear geometry and
+preview count1→2→1 pass549without more solves. Tester left inactive with cleared
+body and last route/logs inspectable. Full details, timings, coverage and residual
+limits: [selected solver notes](../NOTES.md#deleted-display-container-recovery546550).
+
+## Optional screenshots543–544
+
+Enable **Save one geometry screenshot per case** and set **Screenshot folder**
+(default `~/Pictures/testxyz`). The folder is created at Start when enabled.
+Every prepared iteration gets at most one1600×1000 Fusion viewport PNG, before
+the following case clears its body. Successful cases capture the current draft
+gym/native body; failed cases first open their available diagnostic path. No
+palette chrome is included. Missing geometry remains a preview, not a built
+result. Display/ownership failure may prevent capture and remains in the stop
+reason. Inspect/reconnect never repeats a capture. The setting starts unchecked.
+
+Filenames are `range-<run-uuid>-case-000001.png` directly inside the chosen folder.
+Existing images are never overwritten. Each image's absolute path, bytes and
+separate capture wall time are recorded in cases.jsonl; latest image metadata
+also appears in status/palette state. Capture time includes framing/refresh/PNG
+export, not geometry generation or numerical CPU. An export/IO/invalid-PNG error
+stops the tester and preserves the solver result, with no retry; partial files
+remain diagnostic evidence. When unchecked, no output folder/export work occurs.
+Legacy plans without the optional screenshots object remain readable and disabled.
+
+Framing uses only the current gym cube plus current local body bounds or failed
+diagnostic guide/section points, translated by the workspace display offset.
+It does not use global Fit, unrelated layout bounds or visual-quality acceptance.
+543 exported a valid PNG but global Fit made current geometry tiny among distant
+historical layouts; that image/result remain preserved. Renewed544 uses the
+current-case bound and saves a reviewed373961-byte PNG in1.417360s;193source pins,
+same body revision/job/inputs, tester idle. Both runs exported one existing-layout
+image each and performed0route solves/native construction/audits. No new complete
+ribbon coverage is claimed. Failed-case ordering and export-failure latching are
+covered locally; an extended screenshot-enabled live loop remains unattempted.
+36focused range/sequence/screenshot tests, scoped Ruff lint/format and actual
+palette-script client harness pass. Changed Python/JavaScript IDE inspections
+pass; large viewer HTML inspection returns0findings but still times out.
+Final UI-only545refreshes the idle engine's input-log failure guard with no image
+or geometry work. A failed new input snapshot cannot reuse the previous image's
+case identifier. Source pins remain193; tester idle and option unchecked.
+
+
 The selected material-solver diagnostics expose **Gym range tester**. Set Min,
 Max and Step for conductor count, diameter, central void percentage, zone depth,
 and both endpoints' zone, face and roll. Zones/faces use the gym's one-based
@@ -53,8 +108,8 @@ is no disk resume, automatic retry or automatic visual-quality classification.
 Implementation separates ranges, scheduling, journaling, and Fusion ownership.
 The diagnostic viewer uses optional TesterControls, controller.inspect_layout
 and viewer.open_results to preserve the stopped job; GymView.set_scene shares the
-ordinary preview replacement path. The source lock includes all six tester
-modules and the external palette JavaScript (192 files total).
+ordinary preview replacement path. The source lock includes all seven tester
+modules and the external palette JavaScript (194 files total, including views.py).
 
 ## Verification and limits
 

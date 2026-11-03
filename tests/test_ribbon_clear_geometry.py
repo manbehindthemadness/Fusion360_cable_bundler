@@ -129,6 +129,7 @@ def test_viewer_clear_dispatch_preserves_session_and_blocks_active_work(
     )
     viewer.session = session
     viewer.runner = SimpleNamespace(state=lambda: {"status": status})
+    viewer.tester = None
     viewer.on_gym = None
     viewer._visibility = {}
     viewer._sections = []

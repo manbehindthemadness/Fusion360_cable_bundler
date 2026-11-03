@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 # noinspection PyUnresolvedReferences
 import adsk.core
 
+from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.budget import NativeBudget
 from devtools.ribbon_analysis.gym.handoff import freeze
 from devtools.ribbon_analysis.gym.scene import Scene
@@ -20,6 +21,7 @@ from ..controller import Controller
 from ..native import NativeOwner
 from .engine import Tester
 from .ranges import FIELDS
+from .screenshots import frame
 from .sequence import defaults
 
 if TYPE_CHECKING:
@@ -51,6 +53,7 @@ class Runtime:
             self._cleanup,
             self._present,
             self._setup,
+            self._capture,
         )
 
     @property
@@ -110,6 +113,7 @@ class Runtime:
         Show one current endpoint preview while keeping the diagnostics controls available.
         """
         workspace = self.workspace
+        workspace.ensure_views()
         workspace.gym.set_scene(scene)
         workspace.gym_occurrence.isLightBulbOn = True
         workspace.diagnostic_occurrence.isLightBulbOn = False
@@ -121,6 +125,7 @@ class Runtime:
         """
         self._guard()
         workspace = self.workspace
+        workspace.ensure_views()
         workspace.gym.set_scene(scene)
         assert self.engine.journal is not None
         layout = freeze(scene, self.engine.journal.directory / "inspection")
@@ -131,6 +136,42 @@ class Runtime:
         workspace.diagnostic_occurrence.isLightBulbOn = True
         workspace.diagnostics.palette.isVisible = True
         adsk.core.Application.get().activeViewport.fit()
+
+    def _capture(self, path: Path) -> None:
+        """
+        Frame only current gym/ribbon bounds and export a PNG without palette chrome or old layouts.
+        """
+        self._guard()
+        workspace = self.workspace
+        points: list[Vector3] = []
+        if workspace.native.has_geometry():
+            box = workspace.native.displayed.component.bRepBodies.item(0).boundingBox
+            points.extend(
+                Vector3(p.x * 10, p.y * 10, p.z * 10) for p in (box.minPoint, box.maxPoint)
+            )
+        elif workspace.diagnostic_occurrence.isLightBulbOn:
+            snapshot = workspace.diagnostics.session.snapshot
+            if snapshot is not None:
+                points.extend(p for guide in snapshot.guides for p in guide.controls)
+                points.extend(p for section in snapshot.sections for p in section.outline)
+        center, span_mm = frame(workspace.gym.scene.config.extent_mm, points)
+        shift = workspace.native.display_x_cm
+        span = span_mm / 10
+        viewport = adsk.core.Application.get().activeViewport
+        camera = viewport.camera
+        camera.target = adsk.core.Point3D.create(
+            center.x / 10 + shift, center.y / 10, center.z / 10
+        )
+        target = camera.target
+        camera.eye = adsk.core.Point3D.create(target.x + span, target.y - span, target.z + span)
+        camera.upVector = adsk.core.Vector3D.create(0, 0, 1)
+        camera.isFitView = False
+        camera.isSmoothTransition = False
+        camera.viewExtents = span * 1.5
+        viewport.camera = camera
+        viewport.refresh()
+        if not viewport.saveAsImageFile(str(path), 1600, 1000):
+            raise RuntimeError(f"Fusion could not save the requested screenshot: {path}")
 
     def dispatch(self, action: str, data: dict[str, Any]) -> None:
         """

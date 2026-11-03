@@ -114,12 +114,20 @@ def make_tester(tmp_path: Path, outcomes: list[str]) -> tuple[RangeTester, Runne
     return tester, runner, present
 
 
-def start(tester: RangeTester, *, warnings: bool = True, limit: int = 0) -> None:
+def start(
+    tester: RangeTester,
+    *,
+    warnings: bool = True,
+    limit: int = 0,
+    screenshots: dict[str, Any] | None = None,
+) -> None:
     """
     Start an explicitly frozen selection without launching the first case yet.
     """
     payload = specification()
     payload.update(stop_on_warnings=warnings, maximum_cases=limit)
+    if screenshots is not None:
+        payload["screenshots"] = screenshots
     tester.start(
         payload,
         {

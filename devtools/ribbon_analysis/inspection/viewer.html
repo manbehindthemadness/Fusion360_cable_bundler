@@ -83,6 +83,9 @@
   <label>Test seed<input id="testerSeed" type="number" min="0" max="4294967295" step="1" required></label>
   <label>Case limit (0 = keep going until a problem)<input id="testerLimit" type="number" min="0" max="1000000" step="1" value="0" required></label>
   <label><input id="testerWarnings" type="checkbox" checked> Stop on native accuracy warnings</label>
+  <label><input id="testerScreenshots" type="checkbox"> Save one geometry screenshot per case</label>
+  <label>Screenshot folder<input id="testerScreenshotDirectory" type="text" value="~/Pictures/testxyz" required style="width:100%;box-sizing:border-box;margin-top:5px;padding:7px"></label>
+  <p class="muted">Saves 1600 × 1000 PNGs with a unique run ID and case number. Captures the fitted Fusion viewport before the next case clears its geometry; failed cases show the available diagnostic path. Screenshot time is separate from generation. An export failure stops testing.</p>
   <p class="muted">Per case: up to 120 s numerical work and 120 s native work, with 4 GiB memory limit. Successful test bodies are cleared before the next case; all logs and prior manual output are retained. Stop waits for an in-flight native operation to finish.</p>
   <div class="toolbar"><button id="testerStart">Start new test</button><button id="testerStop" disabled>Stop testing</button><button id="testerInspect" disabled>Inspect last case</button></div>
   <pre id="testerStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere">Not started.</pre>

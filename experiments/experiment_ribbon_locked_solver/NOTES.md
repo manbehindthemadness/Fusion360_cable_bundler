@@ -1,5 +1,60 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Deleted display-container recovery546–550 — 2026-11-03
+
+User's range-a8f69first iteration stopped with a deleted API object before any
+worker launch.546host inspection confirms gym occurrence/component/profiles and
+diagnostic occurrence/root are all invalid while palettes, input models and logs
+survive. The original failed journal remains unchanged. This is display lifetime
+failure, not a numerical/native geometry rejection; exact deletion action is not
+established. The ordinary Clear geometry callback still deletes only its output.
+
+SelectedWorkspace now retains the display parent and checks/recreates missing
+owned branches at the original display offset. GymView.rebind_component and
+DiagnosticViewer.rebind_root discard invalid host handles while preserving layouts,
+session selection/history, layer settings, palettes and execution logs. The viewer
+has a workspace recovery callback (unlinked viewers retain caller ownership).
+Navigation, tester preparation and stopped-case presentation share this recovery.
+Surviving siblings/native output are preserved; deleted native output stays deleted.
+Each recovery freezes a source-pinned display-only plan under its workspace and
+retains the existing30s/4GiB/3.8GiB gates. No route solve/native body is launched by
+recovery. Source lock194includes the new views module; solver mathematics unchanged.
+
+547coherent reload/rebind recovers the actual deleted containers and opens the
+exact stopped one-conductor case in11.331s,0solves/builds.548then runs only that
+first original-range input with the same solver/settings and user's enabled
+~/Pictures/test1screenshot preference, capped at1case. One complete configuration
+planned/numerically accepted/contact separated/native attempted/built/named-audited;
+0fullphysical audits or holdouts.80faces/2730surface samples plus seam/guide/cap
+checks pass, max9.704120e-10mm,0warnings. Jobff9443c256614e9e84f649ad3b1a8ade.
+NumericalCPU2.921177/wall2.975554s; generation2.502793/audit16.720158s; screenshot
+.595797s and tester wall41.466193s separately. Numerical time exceeds matched
+generation, a recorded performance-goal miss, not a construction-rule failure.
+
+549calls actual Clear geometry twice on the new test body, keeps the same valid
+display containers/job/logs, changes count1→2→1 in preview only, and reopens the
+completed case.0additional solves/builds/images; two preview updates are not extra
+complete-ribbon coverage. Check9.884s.550installs final callback typing/default
+without geometry work. Left stopped, body cleared, route/logs inspectable and user
+range/screenshot form preserved.58focused affected tests pass;25rechecked after
+final callback change, scoped Ruff lint/format pass. New code IDE-clean; legacy
+duplicate-fragment weak warnings remain. FullQA/extended live cycling unrun.
+Evidence: ignored ribbon_clear546–550 plans/readiness/results and retained a8f69run.
+
+## Optional per-iteration PNG exports543–544 — 2026-11-03
+
+Range tester now has an unchecked screenshot option and editable folder, default
+`~/Pictures/testxyz`. One1600×1000 viewport PNG per prepared case, before cleanup;
+failed cases first open their available path. Unique run/case names never overwrite.
+Capture wall time/path/bytes are separate ledger/status fields; errors halt without
+retry. Unchecked means no export/folder work. Current gym/body bounds avoid global
+Fit pulling in old layouts.193-file lock,36focused tests/Ruff/client harness pass;
+HTML IDE remains timed out with0findings. Two existing-geometry image exports,
+first poorly framed543preserved, corrected544reviewed(1.417s);0new solves/builds.
+Tester left idle; no extended live screenshot loop or new geometry coverage.
+UI-only545loads the final input-log failure guard without exports or geometry.
+See [screenshot details](tester/NOTES.md#optional-screenshots543544).
+
 ## User-started gym range tester537–541 — 2026-11-03
 
 Diagnostics now include Min/Max/Step controls for all ten gym values, systematic

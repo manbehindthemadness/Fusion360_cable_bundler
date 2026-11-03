@@ -171,6 +171,28 @@ select stopped inputs/results without resetting terminal execution logs, and
 GymView.set_scene shares ordinary preview replacement. No automatic disk resume
 or retry. See [range tester notes](../../../experiments/experiment_ribbon_locked_solver/tester/NOTES.md).
 
+Range plans optionally add `screenshots: {enabled: boolean, directory: string}`;
+omission remains disabled for old plans. The unchecked screenshot control defaults
+to `~/Pictures/testxyz` and accepts an absolute or home-relative folder. One
+1600×1000 viewport PNG is saved per prepared case before cleanup, with unique
+run/case filenames and no overwrite/retry. Failure cases first open their recorded
+path if available; presentation/ownership failure can prevent capture and is logged.
+Current gym/native bounds or failed guide/section points frame the view, excluding
+distant layout bounds. Latest image metadata is in tester state; cases.jsonl
+records every path/byte count/capture time separately from geometry generation.
+Export/IO/invalid-PNG failures halt the loop. Inspect/reconnect do not export again.
+
+SelectedWorkspace retains its owned display parent and restores externally deleted
+gym/diagnostic branches before palette actions, navigation, tester preparation or
+stopped-case presentation. GymView.rebind_component / DiagnosticViewer.rebind_root
+replace invalid native handles while preserving retained inputs, sessions, layer
+preferences, palettes and execution logs. The viewer's ensure_owned_views callback
+defaults to leaving unlinked display ownership with its caller. Recovery requires
+the owned idle document, source lock and existing30s/4GiB/3.8GiB display limits;
+it freezes display-recovery-<uuid>.json under the workspace and never starts a
+route solve/native body. Valid siblings/output remain; deleted native output stays
+deleted. Clear geometry still removes only the explicit latest output occurrence.
+
 Gym drafts and frozen diagnostic gym contexts show the endpoint-tangent pre-path
 in magenta, including before a route exists. Native graphics use the exact cubic;
 palette canvases use129samples of that same curve. The solver and displays share

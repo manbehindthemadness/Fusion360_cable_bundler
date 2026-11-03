@@ -173,6 +173,19 @@ class GymView:
             self._draw(scene)
             self.scene = scene
 
+    def rebind_component(self, component: Any) -> None:
+        """
+        Recreate a deleted preview container from retained inputs without reviving deleted bodies.
+
+        Drop only invalid native handles. Layout revision, archive, palette and
+        user controls stay attached to this view; drawing failure propagates.
+        """
+        if self.component.isValid or not component.isValid:
+            raise ValueError("Replace only a deleted gym component with a valid owned component.")
+        self.component = component
+        self.group = self._profiles = self._pending_profiles = None
+        self._draw(self.scene)
+
     def counters(self) -> dict[str, Any]:
         """
         Refresh recorded counters without redrawing the scene or resetting editable controls.

@@ -101,6 +101,7 @@ class DiagnosticViewer:
         self.root = owned_component
         self.runner = runner
         self.tester: TesterControls | None = None
+        self.ensure_owned_views: Callable[[], None] = self._retain_unlinked_views
         self.palette: Any = None
         self._handler: PaletteIncomingHandler | None = None
         self._scene: Any = None
@@ -151,6 +152,34 @@ class DiagnosticViewer:
         occurrence.component.name = f"{method['label']} [{method['status']}]"
         occurrence.isLightBulbOn = False
         self._methods[method["id"]] = occurrence
+
+    @staticmethod
+    def _retain_unlinked_views() -> None:
+        """
+        Leave an unlinked viewer's display recovery under its caller's ownership.
+        """
+        return
+
+    def rebind_root(self, component: Any) -> None:
+        """
+        Rebuild a deleted display root while retaining all sessions, selection, layer choices and logs.
+
+        Only native display handles are discarded. Cached session dictionaries
+        stay shared with their selected method map and lazily recreate other layouts.
+        """
+        if self.root.isValid or not component.isValid:
+            raise ValueError("Replace only a deleted diagnostic root with a valid owned component.")
+        self.root = component
+        for _, methods in self._sessions.values():
+            methods.clear()
+        self._methods.clear()
+        self._scene = self._frame = self._triad = self._envelope = None
+        self._gym_group = self._solver_sketch = self._baseline_group = None
+        self._gym_id = None
+        self._sections, self._solver_groups, self._constraint_groups = [], [], []
+        for method in self.session.methods:
+            self._register_method(method)
+        self._draw()
 
     @staticmethod
     def _budget() -> NativeBudget:
@@ -472,6 +501,10 @@ class DiagnosticViewer:
             and not action.startswith("tester_")
         ):
             raise ValueError("Stop the range tester before changing layouts or running manually.")
+        ensure: Callable[[], None] = getattr(
+            self, "ensure_owned_views", self._retain_unlinked_views
+        )
+        ensure()
         if action.startswith("tester_"):
             if self.tester is None:
                 raise ValueError("Range testing requires a linked selected-solver gym.")

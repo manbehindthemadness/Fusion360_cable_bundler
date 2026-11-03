@@ -13,6 +13,7 @@ from typing import Any
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 
 from .ranges import FIELDS, NumericRange
+from .screenshots import ScreenshotSettings
 
 
 @dataclass(frozen=True)
@@ -26,13 +27,14 @@ class Specification:
     seed: int
     stop_on_warnings: bool
     maximum_cases: int
+    screenshots: ScreenshotSettings = ScreenshotSettings()
 
     @classmethod
     def parse(cls, payload: Any) -> Specification:
         """
         Validate the complete range plan and existence of distinct endpoint zones before launch.
         """
-        if not isinstance(payload, dict) or set(payload) != {
+        if not isinstance(payload, dict) or set(payload) - {"screenshots"} != {
             "ranges",
             "mode",
             "seed",
@@ -65,6 +67,7 @@ class Specification:
             payload["seed"],
             payload["stop_on_warnings"],
             payload["maximum_cases"],
+            ScreenshotSettings.parse(payload.get("screenshots")),
         )
         if not result.zone_pairs:
             raise ValueError("A and B need at least one pair of different zones.")
@@ -146,6 +149,7 @@ class Specification:
             "seed": self.seed,
             "stop_on_warnings": self.stop_on_warnings,
             "maximum_cases": self.maximum_cases,
+            "screenshots": self.screenshots.payload(),
         }
 
 
@@ -176,4 +180,5 @@ def defaults(scene: Scene) -> dict[str, Any]:
         "seed": scene.config.seed,
         "stop_on_warnings": True,
         "maximum_cases": 0,
+        "screenshots": ScreenshotSettings().payload(),
     }
