@@ -89,6 +89,22 @@ def test_no_route_is_unresolved_and_skips_native_build(
     native.assert_not_called()
 
 
+def test_cancel_after_worker_exit_does_not_start_native_construction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Honor a queued tester Stop even when the numerical worker has already produced a route.
+    """
+    runner, native = _finished_worker(tmp_path, monkeypatch)
+    _manifest(tmp_path)
+    (tmp_path / "route.json").write_text("{}")
+    runner.cancel()
+    assert runner.poll() == tmp_path / "manifest.json"
+    assert runner.state()["status"] == "cancelled"
+    assert "native construction not attempted" in runner.state()["detail"]
+    native.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "native_status",
     (

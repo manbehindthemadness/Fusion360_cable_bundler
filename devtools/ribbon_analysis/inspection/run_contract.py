@@ -27,6 +27,12 @@ class ProcedureRunner(Protocol):
         """
         ...
 
+    def inspect_layout(self, manifest: Path, label: str) -> Path:
+        """
+        Select finished-run input geometry without clearing its retained execution disposition.
+        """
+        ...
+
     def start(
         self, request: dict[str, Any], targets: Targets, *, gym: dict[str, Any] | None = None
     ) -> None:
@@ -50,5 +56,30 @@ class ProcedureRunner(Protocol):
     def state(self) -> dict[str, Any]:
         """
         Return available procedures/settings and the latest job disposition.
+        """
+        ...
+
+
+class TesterControls(Protocol):
+    """
+    Expose optional owned range testing without coupling replay to its scheduler.
+    """
+
+    @property
+    def active(self) -> bool:
+        """
+        Report whether manual layout/run controls must remain locked.
+        """
+        ...
+
+    def dispatch(self, action: str, data: dict[str, Any]) -> None:
+        """
+        Apply an explicit tester start, poll, stop or inspection request.
+        """
+        ...
+
+    def state(self) -> dict[str, Any]:
+        """
+        Return bounded form, progress and log-location data.
         """
         ...

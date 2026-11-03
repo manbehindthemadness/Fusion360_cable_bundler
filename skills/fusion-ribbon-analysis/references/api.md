@@ -141,13 +141,35 @@ installed selected-material gym uses
 and its dedicated `Controller`. It advertises `active_solver`, with
 `smoothing_percent`0..10(default5;0disables the complete second pass) and
 `material_uv`boolean(defaultfalse; deferred coordinate metadata, no textures).
-Only an explicit Solve and build action starts work, from an actual frozen gym
-payload. Source locks and fixed budgets apply. Numerical acceptance, native
+Manual Solve and build or explicitly starting the **Gym range tester** launches
+work from actual frozen gym payloads. Source locks and fixed budgets apply.
+Numerical acceptance, native
 construction and named fidelity have separate dispositions; full physical
 compliance remains unverified. See
 [selected solver notes](../../../experiments/experiment_ribbon_locked_solver/NOTES.md).
 Macaroni/pinch, structural no-lateral-bending, sweep-profile creation and conductor
 identity/order remain unchanged. See [pinch.md](pinch.md).
+
+The selected gym's optional TesterControls exposes start/poll/stop/inspect through
+the diagnostics bridge. Min/Max/Step cover all ten gym inputs; zone/face labels
+are one-based and rolls use degrees in90-degree steps. Systematic mode visits
+every valid combination (conductors fastest), then repeats with continuing seeds;
+seeded random mode deterministically samples stepped values. Equal endpoint zones
+are excluded before any solver outcome. The selected solver and optimization/
+smoothing/UV settings are frozen on Start. Case limit0 explicitly authorizes the
+user-run until-problem loop; agent verification remains separately bounded.
+Every case uses the ordinary worker/build/named audit with existing120s/120s/4GiB
+limits. The first failure/unresolved or unmeasured-contact result stops; accuracy
+warnings stop by default with an explicit continue option. Source/resource/logging
+failures also stop. Valid unattractive routes and full physical compliance remain
+unmeasured. Stop waits for an in-flight native call and takes priority over another
+launch; manual controls stay locked until collection. Successful tester bodies
+are cleared between cases while prior manual output stays retained hidden.
+Plans, case snapshots, cases.jsonl and status.json live in workspace/range-tests;
+ordinary job logs remain linked. controller.inspect_layout/viewer.open_results
+select stopped inputs/results without resetting terminal execution logs, and
+GymView.set_scene shares ordinary preview replacement. No automatic disk resume
+or retry. See [range tester notes](../../../experiments/experiment_ribbon_locked_solver/tester/NOTES.md).
 
 Gym drafts and frozen diagnostic gym contexts show the endpoint-tangent pre-path
 in magenta, including before a route exists. Native graphics use the exact cubic;

@@ -24,7 +24,7 @@ from ..prepath import drawing as prepath_drawing
 from .archive import _integer, _text
 from .display import visible_section_indices
 from .native_guides import retain
-from .run_contract import ProcedureRunner
+from .run_contract import ProcedureRunner, TesterControls
 from .session import Session
 from .solver_graphics import render as render_solver_graphics
 from .solver_graphics import render_witnesses
@@ -100,6 +100,7 @@ class DiagnosticViewer:
         self.document = document
         self.root = owned_component
         self.runner = runner
+        self.tester: TesterControls | None = None
         self.palette: Any = None
         self._handler: PaletteIncomingHandler | None = None
         self._scene: Any = None
@@ -345,6 +346,8 @@ class DiagnosticViewer:
         """
         Release only this viewer's recreatable scenes and palette; keep its archive.
         """
+        if self.tester is not None and self.tester.active:
+            self.tester.dispatch("stop", {})
         if self.runner is not None:
             self.runner.cancel()
         if self.palette is not None and self.palette.isValid:
@@ -398,6 +401,29 @@ class DiagnosticViewer:
         identifier = self.runner.register_layout(manifest, label)
         self.dispatch("example", {"id": identifier})
 
+    def open_results(self, layout: Path, label: str, result: Path | None) -> None:
+        """
+        Inspect a stopped tester case while retaining its controller status and durable logs.
+        """
+        if self.runner is None:
+            raise ValueError("A numerical controller is required for result inspection.")
+        self._select_layout(self.runner.inspect_layout(layout, label))
+        if result is not None:
+            incoming = Session(result)
+            if incoming.targets != self.session.targets or incoming.gym != self.session.gym:
+                raise ValueError("Inspection result differs from the selected tester input.")
+            identifiers = tuple(method["id"] for method in incoming.methods)
+            if not set(identifiers) <= {method["id"] for method in self.session.methods}:
+                self.session.import_results(result)
+            for method in self.session.methods:
+                if method["id"] in identifiers and method["id"] not in self._methods:
+                    self._register_method(method)
+            if identifiers:
+                selected = next(m for m in self.session.methods if m["id"] == identifiers[-1])
+                proposal = selected["history_count"] - 1 if not selected["has_result"] else -1
+                self.session.select(identifiers[-1], proposal)
+        self._draw()
+
     def _start(self, request: dict[str, Any]) -> None:
         """
         Send exact endpoint inputs and optional frozen surroundings to the worker.
@@ -416,6 +442,12 @@ class DiagnosticViewer:
         if self.runner is None:
             raise ValueError("Diagnostic examples are not configured.")
         manifest = self.runner.open_example(identifier).resolve()
+        self._select_layout(manifest)
+
+    def _select_layout(self, manifest: Path) -> None:
+        """
+        Switch owned replay sessions without changing an execution controller's disposition.
+        """
         incoming = self._sessions.get(manifest)
         if incoming is None:
             incoming = (Session(manifest), {})
@@ -433,7 +465,28 @@ class DiagnosticViewer:
         """
         Apply a validated selection and send matching frozen geometry to the palette.
         """
-        if action == "gym":
+        if (
+            self.tester is not None
+            and self.tester.active
+            and action != "ready"
+            and not action.startswith("tester_")
+        ):
+            raise ValueError("Stop the range tester before changing layouts or running manually.")
+        if action.startswith("tester_"):
+            if self.tester is None:
+                raise ValueError("Range testing requires a linked selected-solver gym.")
+            self.tester.dispatch(action[len("tester_") :], data)
+            if self.tester.active:
+                execution = self.runner.state() if self.runner else None
+                return {
+                    "execution_update": True,
+                    "execution": execution,
+                    "performance": from_execution(
+                        self.session.targets, self.session.gym, execution
+                    ),
+                    "tester": self.tester.state(),
+                }
+        elif action == "gym":
             if data or self.on_gym is None:
                 raise ValueError("A linked gym workspace is required.")
             if self.runner is not None and self.runner.state()["status"] in (
@@ -495,6 +548,7 @@ class DiagnosticViewer:
                         "performance": from_execution(
                             self.session.targets, self.session.gym, execution
                         ),
+                        "tester": self.tester.state() if self.tester is not None else None,
                     }
                 added = self.session.import_results(manifest)
                 budget = self._budget()
@@ -524,6 +578,7 @@ class DiagnosticViewer:
             raise ValueError("Unknown diagnostic action.")
         state = self.session.state()
         state["gym_available"] = self.on_gym is not None
+        state["tester"] = self.tester.state() if self.tester is not None else None
         state["geometry_clear_available"] = (
             self.geometry_available is not None and self.geometry_available()
         )

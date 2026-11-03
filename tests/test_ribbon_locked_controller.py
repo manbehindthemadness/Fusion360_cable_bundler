@@ -12,6 +12,7 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
+from devtools.ribbon_analysis.gym.handoff import freeze
 from experiments.experiment_ribbon_locked_solver import VERSION, controller, lock
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 
@@ -132,6 +133,22 @@ def test_completed_job_remains_available_to_counters_after_layout_navigation(
     runner._status = {"status": "idle", "detail": "Another frozen layout selected"}
     assert runner.state()["job"] == str(runner._job)
     assert runner.state()["status"] == "idle"
+
+
+def test_inspecting_tester_input_retains_terminal_status_and_log_job(tmp_path: Path) -> None:
+    """
+    Select the stopped case without hiding its failure behind an idle example disposition.
+    """
+    runner, _ = _controller(tmp_path)
+    job = tmp_path / "failed-job"
+    runner._job = job
+    runner._status = {"status": "stopped", "detail": "Native construction failed"}
+    layout = freeze(generate(), tmp_path / "inputs")
+    assert runner.inspect_layout(layout, "Failed range case") == layout.resolve()
+    state = runner.state()
+    assert state["status"] == "stopped" and state["detail"] == "Native construction failed"
+    assert state["job"] == str(job)
+    assert state["example"].startswith("gym-")
 
 
 def test_worker_launch_failure_is_logged_without_replacing_last_controls(

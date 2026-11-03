@@ -1,5 +1,19 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## User-started gym range tester537–541 — 2026-11-03
+
+Diagnostics now include Min/Max/Step controls for all ten gym values, systematic
+or seeded random scheduling, optional native-warning stops, case limit0 until
+a problem, Stop and Inspect last case. Each case uses the normal solve/build/audit;
+the first failure/unresolved result latches scheduling and retains exact inputs,
+logs and inspectable geometry/history. Successful test bodies are cleared between
+cases; initial manual output remains hidden. Source/resource/physical rules stay.
+192-file lock includes the six tester modules and external palette script.
+Local scheduling/client/controller checks pass; one live configuration passes
+numerical/contact/native/named fidelity and halts at case limit1. No extended
+soak or generalization claim. See [tester notes](tester/NOTES.md) for controls,
+lifecycle, limits, setup failures and separate coverage evidence.
+
 ## First-pass movable-bend contraction530–536 — 2026-11-03
 
 Five-conductor ed8423build exposed113.250549mm first-pass excursion. Its nearer

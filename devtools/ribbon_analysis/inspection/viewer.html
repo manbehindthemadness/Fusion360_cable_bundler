@@ -31,6 +31,7 @@
   #procedureForms label { margin-top: 5px; }
   #procedureForms input[type=number] { width: 110px; margin: 5px 10px; padding: 5px; }
   #procedureForms select { margin-bottom: 8px; }
+  #testerRanges input { width: 100%; min-width: 0; box-sizing: border-box; padding: 5px 2px; }
   button:disabled { opacity: .5; }
 </style>
 </head>
@@ -73,6 +74,20 @@
     <pre id="buildLog" role="log" aria-live="polite" style="max-height:240px;overflow:auto;white-space:pre-wrap">No build requested in this panel.</pre>
   </details>
 </section>
+<details id="rangeTesterPanel" hidden>
+  <summary>Gym range tester</summary>
+  <p class="muted">Uses the solver, optimization, smoothing and UV settings above. Runs one case at a time and stops on the first failure or unresolved result. The stopped case opens for inspection with its build log.</p>
+  <table style="width:100%;table-layout:fixed"><thead><tr><th style="width:34%">Gym value</th><th>Min</th><th>Max</th><th>Step</th></tr></thead><tbody id="testerRanges"></tbody></table>
+  <p class="muted">Max is inclusive when reached by the step. A and B always use different zones. Systematic mode varies conductor count fastest and repeats with continuing gym seeds; random mode is replayable from the test seed.</p>
+  <label>Order<select id="testerMode"><option value="systematic">Systematic range sweep</option><option value="random">Seeded random sampling</option></select></label>
+  <label>Test seed<input id="testerSeed" type="number" min="0" max="4294967295" step="1" required></label>
+  <label>Case limit (0 = keep going until a problem)<input id="testerLimit" type="number" min="0" max="1000000" step="1" value="0" required></label>
+  <label><input id="testerWarnings" type="checkbox" checked> Stop on native accuracy warnings</label>
+  <p class="muted">Per case: up to 120 s numerical work and 120 s native work, with 4 GiB memory limit. Successful test bodies are cleared before the next case; all logs and prior manual output are retained. Stop waits for an in-flight native operation to finish.</p>
+  <div class="toolbar"><button id="testerStart">Start new test</button><button id="testerStop" disabled>Stop testing</button><button id="testerInspect" disabled>Inspect last case</button></div>
+  <pre id="testerStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere">Not started.</pre>
+  <p class="muted">Watch the current gym in Fusion while testing. Diagnostic plots update when testing stops. Valid but unattractive routes are not automatically classified as failures.</p>
+</details>
 <details id="procedurePanel" hidden>
   <summary>Historical methods</summary>
   <p class="muted">Historical path search and seed-based discovery remain retired. Recorded paths remain available below. A configured selected solver is shown separately above.</p>
@@ -118,6 +133,7 @@
 <p id="comparisonResult" class="muted"></p>
 <p id="source" class="muted"></p>
 <pre id="error"></pre>
+<script src="range_tester.js"></script>
 <script>
 "use strict";
 const element = id => document.getElementById(id);
@@ -140,11 +156,13 @@ const element = id => document.getElementById(id);
 /** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,job?:string,build_log?:BuildEntry[],active_solver?:SolverChoice,available_solvers?:SolverChoice[]}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
-/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,geometry_clear_available?:boolean,path_rules:string}} InspectionState */
+/** @typedef {{case:string, diameter_mm:number, solvers:Method[], solver:string, proposal:number, proposal_info:?Proposal, section:number, snapshot:?Snapshot, notice:string, visibility?:Object<string,boolean>, visible_sections:number[], execution:?Execution, execution_update?:boolean,bends:?BendInspection,rules:Rule[],comparison:?Comparison,witnesses:Witness[],thickness:?Thickness,performance?:{status:string,rows:{label:string,value:string}[]},gym:?Gym,prepath?:{controls:XYZ[],points:XYZ[]},gym_available?:boolean,geometry_clear_available?:boolean,path_rules:string,tester?:?RangeTestState}} InspectionState */
 /** @type {?InspectionState} */
 let state = null;
 let yaw = -Math.PI / 4, pitch = Math.atan(1 / Math.sqrt(2)), zoom = 1, pending = false, connected = false;
 let playing = false;
+let testerStopQueued = false;
+const rangeTester = new window.RangeTestPanel(element, selectedProcedure, (action, data) => { request(action, data); }, stopTester);
 const layers = {outlines:"outlines",envelope:"envelope",axes:"axes",solver:"solverPanels",constraints:"constraintWitnesses",baseline:"baselineGhost",gym:"gymLayout"};
 let procedureCatalog = "";
 let activeSolverVersion = "";
@@ -170,7 +188,7 @@ function waitForFusionHost() {
 }
 function controls() {
   const method = state?.solvers.find(m => m.id === state.solver);
-  const blocked = pending || !connected || !state;
+  const blocked = pending || !connected || !state || Boolean(state?.tester?.active);
   element("solver").disabled = blocked;
   element("proposal").disabled = blocked || !method?.history_count;
   element("previous").disabled = blocked || state.proposal < 0;
@@ -190,16 +208,18 @@ function controls() {
   element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
   element("clearGeometry").disabled = blocked || jobBusy || !state?.geometry_clear_available;
   comparisonControls();
+  rangeTester.controls(pending || !connected || !state || jobBusy, testerStopQueued);
 }
 function comparisonControls() {
-  const blocked = pending || !connected || ["running", "cancelling"].includes(state?.execution?.status);
+  const blocked = pending || !connected || Boolean(state?.tester?.active) || ["running", "cancelling"].includes(state?.execution?.status);
   element("pairedBaseline").disabled = blocked || !state?.comparison || !state.solvers.some(entry => entry.id === state.comparison.baseline);
   element("comparisonScope").textContent = "Archived comparisons remain viewable. New rule comparisons are unavailable.";
 }
 /** @param {?Execution} execution */
 function renderExecution(execution) {
-  stageLog = execution?.build_log || [];
-  element("buildLogJob").textContent = execution?.job ? `Job: ${execution.job}` : "";
+  const noTestJob = state?.tester?.active && state.tester.current && state.tester.job !== execution?.job;
+  stageLog = noTestJob ? [] : execution?.build_log || [];
+  element("buildLogJob").textContent = noTestJob ? "No solver job for this prepared test case; see the tester's input snapshot and reason." : execution?.job ? `Job: ${execution.job}` : "";
   renderBuildLog();
   element("selectedSolver").hidden = !execution?.active_solver;
   const choices = execution?.available_solvers || (execution?.active_solver ? [execution.active_solver] : []);
@@ -280,13 +300,13 @@ async function request(action, data = {}) {
   pending = true;
   controls();
   element("error").textContent = "";
-  if (action !== "poll") element("connection").textContent = "Waiting for Fusion…";
+  if (!["poll", "tester_poll"].includes(action)) element("connection").textContent = "Waiting for Fusion…";
   let timer;
   try {
     const host = await waitForFusionHost();
     const message = "ribbon_inspection_" + action;
     const timeout = new Promise((_, reject) => {
-      timer = window.setTimeout(() => reject(new Error("Fusion has not acknowledged this request. Reconnect to read its current state; the request has not been repeated.")), action === "poll" && state?.execution?.active_solver ? 180000 : 35000);
+      timer = window.setTimeout(() => reject(new Error("Fusion has not acknowledged this request. Reconnect to read its current state; the request has not been repeated.")), ["poll", "tester_poll"].includes(action) && state?.execution?.active_solver ? 180000 : 35000);
     });
     let raw = await Promise.race([host.fusionSendData(message, JSON.stringify(data)), timeout]);
     // A newly created palette can load before its native handler is registered.
@@ -322,10 +342,18 @@ async function request(action, data = {}) {
     window.clearTimeout(timer);
     pending = false;
     controls();
+    if (testerStopQueued) {
+      testerStopQueued = false;
+      request("tester_stop");
+    }
   }
 }
 /** @param {InspectionState} value */
 function receive(value) {
+  if (value.tester !== undefined) {
+    if (state) state.tester = value.tester;
+    rangeTester.render(value.tester);
+  }
   if (value.execution_update) {
     if (state) state.execution = value.execution;
     renderExecution(value.execution); renderPerformance(value.performance); controls(); return;
@@ -391,7 +419,7 @@ window.fusionJavaScriptHandler = {handle(action, data) {
   }
   if (action === "diagnostic_request") {
     const command = JSON.parse(data);
-    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare", "gym", "clear_geometry"].includes(command.action)) return "Unsupported diagnostic request";
+    if (!command || typeof command !== "object" || !["ready", "select", "section", "visibility", "run", "poll", "cancel", "example", "compare", "gym", "clear_geometry", "tester_start", "tester_poll", "tester_stop", "tester_inspect"].includes(command.action)) return "Unsupported diagnostic request";
     if (command.data !== undefined && (!command.data || typeof command.data !== "object" || Array.isArray(command.data))) return "Invalid diagnostic payload";
     request(command.action, command.data || {});
   }
@@ -529,11 +557,16 @@ element("solverVersion").onchange = () => {
   const choice = state?.execution?.available_solvers?.find(entry => entry.id === element("solverVersion").value);
   if (choice) renderSolverChoice(choice);
 };
-element("runSelected").onclick = () => {
+function selectedProcedure() {
   const active = state?.execution?.active_solver;
-  if (!active) return;
-  request("run", {procedures: [{id: element("solverVersion").value || active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}}]});
-};
+  if (!active) return null;
+  return {id: element("solverVersion").value || active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}};
+}
+element("runSelected").onclick = () => { const selection = selectedProcedure(); if (selection) request("run", {procedures: [selection]}); };
+function stopTester() {
+  if (pending) { testerStopQueued = true; controls(); }
+  else request("tester_stop");
+}
 element("cancelSelected").onclick = () => request("cancel");
 element("clearGeometry").onclick = () => request("clear_geometry");
 element("example").onchange = () => { playing = false; if (element("example").value) request("example", {id: element("example").value}); };
@@ -563,7 +596,11 @@ window.addEventListener("resize", () => { draw(); drawBends(); });
 element("bendPanel").ontoggle = drawBends;
 controls();
 window.addEventListener("load", () => request("ready"));
-window.setInterval(() => { if (!pending && ["running", "cancelling"].includes(state?.execution?.status)) request("poll"); }, 800);
+window.setInterval(() => {
+  if (pending || !connected) return;
+  if (state?.tester?.active) request("tester_poll");
+  else if (["running", "cancelling"].includes(state?.execution?.status)) request("poll");
+}, 800);
 window.setInterval(() => {
   if (!playing || pending || !connected || !state) return;
   const method = state.solvers.find(entry => entry.id === state.solver);

@@ -16,12 +16,14 @@ import adsk.fusion
 from devtools.ribbon_analysis.gym import Scene, generate
 from devtools.ribbon_analysis.gym.handoff import freeze
 from devtools.ribbon_analysis.inspection.fusion_view import DiagnosticViewer
+from devtools.ribbon_analysis.inspection.run_contract import TesterControls
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 from experiments.experiment_ribbon_test_gym.workspace import Workspace
 
 from .controller import Controller
 from .lock import verify
 from .native import NativeOwner
+from .tester.runtime import Runtime as RangeTester
 
 _owners: list[SelectedWorkspace] = []
 
@@ -47,6 +49,8 @@ class SelectedWorkspace(Workspace):
         super().__init__(diagnostics, diagnostic_occurrence, gym_occurrence, directory, scene)
         diagnostics.enable_geometry_clear(native.clear, native.has_geometry)
         native.on_progress = diagnostics.report_progress
+        self.range_tester = RangeTester(self)
+        diagnostics.tester = self.range_tester
 
     def open_gym(self) -> None:
         """
@@ -67,7 +71,7 @@ def install(
     """
     Create one retained gym/diagnostic workspace without solving or changing unrelated designs.
 
-    The explicit Solve and build action is the only solver launch. Inputs and
+    Manual Solve and build or an explicitly started range tester launches work. Inputs and
     results stay under the caller-owned repository artifact directory. V2 is the
     default and original v1 remains selectable; retired discovery stays unavailable.
     Native profiles and per-conductor face order preserve the existing builder contract.
@@ -84,12 +88,15 @@ def install(
         for owner in _owners
         if owner.diagnostics.root.isValid and owner.diagnostics.document.creationId == document_id
     )
-    if any(
-        owner.diagnostics.runner is not None
-        and owner.diagnostics.runner.state()["status"] in ("running", "cancelling")
-        for owner in previous
-    ):
-        raise ValueError("Stop and collect the prior gym job before replacing its workspace")
+    for owner in previous:
+        tester: TesterControls | None = getattr(owner.diagnostics, "tester", None)
+        if (
+            owner.diagnostics.runner is not None
+            and owner.diagnostics.runner.state()["status"] in ("running", "cancelling")
+        ) or (tester is not None and tester.active):
+            raise ValueError(
+                "Stop and collect the prior gym job/tester before replacing its workspace"
+            )
     directory.mkdir(parents=True, exist_ok=False)
     root = adsk.fusion.Design.cast(app.activeProduct).rootComponent
     native = NativeOwner(document_id)

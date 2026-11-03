@@ -20,9 +20,11 @@ def sources() -> dict[str, str]:
     Hash maintained numerical, native and coordinate implementations required by this version.
     """
     paths = {*Path(__file__).parent.glob("*.py")}
+    paths.update((Path(__file__).parent / "tester").glob("*.py"))
     analysis = ROOT / "devtools/ribbon_analysis"
     paths.update(analysis.rglob("*.py"))
     paths.update(analysis.rglob("*.html"))
+    paths.update(analysis.rglob("*.js"))
     for package in (
         "experiment_ribbon_fold_route",
         "experiment_ribbon_joint_route",

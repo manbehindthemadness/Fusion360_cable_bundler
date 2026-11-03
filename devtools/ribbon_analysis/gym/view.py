@@ -155,15 +155,23 @@ class GymView:
             return {"performance": self.counters()}
         elif action != "ready" or data:
             raise ValueError("Unknown gym action.")
-        if candidate != self.scene:
-            self.revision += 1
-            self._record(candidate)
-            self._draw(candidate)
-            self.scene = candidate
+        self.set_scene(candidate)
         state = self.state()
         if self.palette is not None:
             self.palette.sendInfoToHTML("gym_state", json.dumps(state, allow_nan=False))
         return state
+
+    def set_scene(self, scene: Scene) -> None:
+        """
+        Replace the owned preview with one validated complete scene, preserving selected goals.
+        """
+        if not isinstance(scene, Scene):
+            raise ValueError("Supply a validated gym scene.")
+        if scene != self.scene:
+            self.revision += 1
+            self._record(scene)
+            self._draw(scene)
+            self.scene = scene
 
     def counters(self) -> dict[str, Any]:
         """

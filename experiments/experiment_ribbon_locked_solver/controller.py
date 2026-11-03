@@ -184,6 +184,13 @@ class Controller(ProcedureController):
             return None
         document = json.loads(manifest.read_text())
         job = manifest.parent
+        if self._cancelled is not None:
+            message = (
+                "Numerical work collected after cancellation; native construction not attempted."
+            )
+            progress.append(job, "control", message)
+            self._status.update(status="cancelled", phase="finished", detail=message)
+            return manifest
         if not (job / "route.json").exists() or document.get("stopped"):
             progress.append(
                 job,

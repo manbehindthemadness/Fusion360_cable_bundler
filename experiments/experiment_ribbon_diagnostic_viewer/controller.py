@@ -201,3 +201,10 @@ class ProcedureController:
             "detail": "Example selected. " + procedures.DISCOVERY_REMOVED,
         }
         return self._examples[identifier]
+
+    def inspect_layout(self, manifest: Path, label: str) -> Path:
+        """
+        Select finished-run inputs while preserving the current job's status and build log.
+        """
+        self._example = self.register_layout(manifest, label)
+        return manifest.resolve()

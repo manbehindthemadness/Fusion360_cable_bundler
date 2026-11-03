@@ -15,7 +15,8 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
-from devtools.ribbon_analysis.gym.handoff import identity
+from devtools.ribbon_analysis.gym.handoff import freeze, identity
+from devtools.ribbon_analysis.inspection.archive import SCHEMA, write_document
 from devtools.ribbon_analysis.inspection.session import Session
 from experiments.experiment_ribbon_diagnostic_viewer import examples
 
@@ -129,6 +130,49 @@ def test_switching_examples_retains_each_session_and_its_selected_section(
     viewer._open_example("single")
     assert viewer.session is original and viewer.session.section == 16
     assert len(viewer._sessions) == 2
+
+
+def test_stopped_tester_case_can_be_inspected_repeatedly_without_duplicate_results(
+    palette_module: Any, tmp_path: Path
+) -> None:
+    """
+    Reuse frozen inputs and their existing imported failure after a reconnect or Inspect click.
+    """
+    scene = generate()
+    layout = freeze(scene, tmp_path / "inputs")
+    result = tmp_path / "result.json"
+    write_document(
+        result,
+        {
+            "schema": SCHEMA,
+            "targets": scene.payload()["targets"],
+            "gym": scene.payload(),
+            "solvers": [
+                {
+                    "id": "range-stop",
+                    "label": "Stopped case",
+                    "status": "unresolved",
+                    "detail": "No accepted route",
+                    "source": "unit boundary",
+                    "rules": [],
+                }
+            ],
+        },
+    )
+    viewer: Any = object.__new__(palette_module.DiagnosticViewer)
+    viewer.session = Session(layout)
+    viewer._methods, viewer._sessions = {}, {}
+    viewer.runner = Mock()
+    viewer.runner.inspect_layout.return_value = layout.resolve()
+    viewer._register_method = Mock(
+        side_effect=lambda item: viewer._methods.update({item["id"]: Mock()})
+    )
+    viewer._draw = Mock()
+    viewer.open_results(layout, "Stopped range input", result)
+    viewer.open_results(layout, "Stopped range input", result)
+    assert len(viewer.session.methods) == 2 and viewer.session.solver == "range-stop"
+    assert viewer.session.targets == scene.targets
+    viewer.runner.open_example.assert_not_called()
 
 
 @pytest.mark.parametrize("visible", (True, False))
