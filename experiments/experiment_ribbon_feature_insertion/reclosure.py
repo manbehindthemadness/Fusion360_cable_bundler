@@ -12,7 +12,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .allocation import Allocation, fit
 from .features import Chain
-from .repair import Closure, changed, correction, nearest, reframed
+from .repair import Closure, StraightMotion, changed, correction, nearest, reframed
 
 
 @dataclass(frozen=True)
@@ -40,11 +40,19 @@ def refine(
     Every accepted step must reduce the actual globally reprojected residual.
     The original pi/4 angular cap and two step halvings remain. Return an
     unfinished state only after exhausting the cap while still progressing;
-    derivative failure or stalling returns None. Targets, roots and radii stay fixed.
+    derivative failure or stalling returns None. Only the last step of a resumed
+    continuation eliminates positive straight freedom from its angular system;
+    earlier steps preserve established fixed-straight behavior. The step count,
+    targets, roots and radii stay fixed.
     """
     current, closure = unfinished.chain, unfinished.closure
     for iteration in range(unfinished.iteration, unfinished.iteration + maximum_steps):
-        delta = correction(boundary, current, closure, checkpoint)
+        motion = (
+            StraightMotion.REALLOCATABLE
+            if unfinished.iteration > 0 and iteration == unfinished.iteration + maximum_steps - 1
+            else StraightMotion.FIXED
+        )
+        delta = correction(boundary, current, closure, checkpoint, straight_motion=motion)
         if delta is None:
             record(
                 {
@@ -53,6 +61,7 @@ def refine(
                     "iteration": iteration,
                     "status": "derivative_unresolved",
                     "position_error_diameters": closure.error,
+                    "straight_motion": motion.value,
                 }
             )
             return None
@@ -83,6 +92,7 @@ def refine(
                     else "no_gain",
                     "position_error_diameters": trial.error,
                     "angular_delta": delta,
+                    "straight_motion": motion.value,
                 }
             )
             if trial.error < closure.error - 1e-10:

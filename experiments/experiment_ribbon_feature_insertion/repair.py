@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from itertools import combinations
 from typing import Callable
 
@@ -19,6 +20,15 @@ from experiments.experiment_ribbon_reduced_joints.kinematics import moved
 
 from .features import Chain
 from .linear_fit import least_squares
+
+
+class StraightMotion(Enum):
+    """
+    Choose the straight degrees of freedom eliminated from an angular correction.
+    """
+
+    FIXED = "fixed"
+    REALLOCATABLE = "reallocatable"
 
 
 @dataclass(frozen=True)
@@ -122,13 +132,18 @@ def correction(
     chain: Chain,
     closure: Closure,
     checkpoint: Callable[[], None],
+    *,
+    straight_motion: StraightMotion = StraightMotion.FIXED,
 ) -> list[float] | None:
     """
     Derive a minimum-norm linearized endpoint correction from six probes per shared joint.
 
     Exact terminal orientation is eliminated algebraically. Straight allocation is
-    held for differentiation, then re-projected globally after every finite step.
-    The angular norm is capped at pi/4; no trial orientation bank is introduced.
+    held for differentiation. Reallocatable mode eliminates the span of positive
+    straight slots from the endpoint columns and residual before solving for
+    angles. Zero slots remain constrained. Actual nonnegative lengths are globally
+    re-projected after every finite step. The angular norm is capped at pi/4;
+    no trial orientation bank or extra correction step is introduced.
     """
     columns = []
     count = len(chain.targets) * 3
@@ -146,9 +161,23 @@ def correction(
         columns.append(
             tuple(getattr(rate, a) / (2 * step * boundary.targets.diameter_mm) for a in "xyz")
         )
+    residual = list(closure.residual)
+    if straight_motion is StraightMotion.REALLOCATABLE:
+        checkpoint()
+        rays, _ = Model(boundary, chain.topology).equations()
+        active = [list(rays[i]) for i in range(0, len(closure.values), 2) if closure.values[i] > 0]
+        for index, column in enumerate(columns):
+            projected = affine_projection(active, [0.0] * len(active), list(column))
+            if projected is None:
+                return None
+            columns[index] = tuple(projected)
+        projected_residual = affine_projection(active, [0.0] * len(active), residual)
+        if projected_residual is None:
+            return None
+        residual = projected_residual
     delta = affine_projection(
         [[column[a] for column in columns] for a in range(3)],
-        [-v for v in closure.residual],
+        [-v for v in residual],
         [0.0] * count,
     )
     if delta is None:

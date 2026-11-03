@@ -1,5 +1,12 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current569–573final recovery correction eliminates positive straight freedom from
+the angular Jacobian/residual only on the last allowed resumed iteration. Earlier
+steps retain the original derivative. Same2+4steps/radii/roots/strictphysical gates;
+no iteration/tolerance increase. Full-time coupling570was rejected for a collateral
+guide-quality regression. Terminal571/572preserves all five passing controls and
+recovers the new trigger;573native replay passes. Details selected solver NOTES.md.
+
 Current563–568continuation eligibility follows contact selection: after every
 original closed branch rejects, allow the closest still-progressing exact root
 its existing maximum four additional corrections, only while pooled pair work

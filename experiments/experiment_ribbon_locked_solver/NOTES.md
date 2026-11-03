@@ -1,5 +1,67 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Coupled final recovery correction569–573 — 2026-11-03
+
+Random range-ae157case31(seed3889213147,N6,D0.75mm,zones9/13,faces11/10,
+roll90/90) stops after30passes. Original jobc9e987718be24034abdab6fc7d47510d is
+numerically unresolved/native-unattempted. Three closed roots penetrate in772total
+pairs. Closest pending roots1/1use all2+4corrections and finish with endpoint error
+3.802485e-7diameters(2.851864e-7mm), above the unchanged1e-7mm cap goal. This is
+finite convergence exhaustion, not floating-point roundoff or proven infeasibility.
+
+The original angular derivative holds allocated straights fixed, then actual trial
+evaluation reallocates them globally. Positive straight freedom can absorb some
+endpoint directions without angular motion. A coupled derivative projects endpoint
+columns/residual orthogonal to those positive straight directions before the same
+minimum-norm angular solve. Zero slots are excluded from this free span; actual
+nonnegative reallocation and strict cap/material/contact gates remain authoritative.
+
+569freezes six gym inputs before adjustment: trigger, compact4033669276,
+shallow8-gym424-05,spatial12-gym424-09, retained recovery1041927501 and
+budget1281098652. Current cold baseline5/6accepts; trigger unresolved.570tests
+coupling on every angular correction in an isolated copy. It closes the trigger
+in one step, but worsens recovery104's guide RMS1.673718→3.037470mm and direction
+loss.041257→.126667 despite shortening36.774881→35.246448mm. Reject that policy:
+5/6evaluated, four preference passes/one regression; budget128unattempted at stop,
+0native attempts. Failed prototype/source/plan/outcomes remain preserved.
+
+571instead reserves coupling for only the final allowed step of an already-resumed
+continuation. Earlier fixed-straight corrections stay identical, preserving their
+placement behavior. Same2+4steps, two halvings, pi/4angle cap, root/site/radius
+inventory, four-second deadline and2048pair pool. No extra iteration or tolerance
+change. All6/6accept/separate; five previously passing outputs bitwise equal569.
+572integrated source reproduces all six571final snapshots. Trigger's final iteration5
+reduces residual4.906631e-4→4.210902e-10diameters; roots1/1then separate in173pairs,
+945total. Raw48.739081mm contracts to44.400425mm before bounded smoothing.
+569/570/571/572host phase wall4.389763/4.636066/5.117083/5.140875s. These are
+23cold solve executions on six fixed configurations, not23independent cases.
+0native attempts in these phases. Token/currency cost and total orchestration
+wall are unmeasured; failed baseline never reaches later smoothing/construction.
+
+StraightMotion explicitly distinguishes FIXED(default) and REALLOCATABLE. Refine
+selects the latter only on its last resumed iteration, logging straight_motion
+with each measured correction. New unit checks cover scale covariance, actual
+post-step reallocation, default-policy identity and one terminal policy activation.
+70focused tests pass; affected14file Ruff lint/format and changed-file IDE checks
+are clear. Complete diff reviewed;194source pins renew repair/reclosure hashes.
+
+573replays only exact original case31 through normal tester, capped1case:
+1/1cold numerical accepted/separated/native attempted/built/named-fidelity audited,
+0warnings.210faces/7280surface points/400seams/three guides/two caps pass;
+maxsurface1.329866e-9mm. NumericalCPU1.083890/wall1.127993s; firstpass.524838s,
+contraction.125667s(subset), smoothing.571400s. Generation1.391656s; separate
+development audit25.989068s. Numerical meets matched-generation timing goal.
+Native phase29.802861s; screenshot.335543s/tester41.949903s separately.
+Sampled native peak989056KiB<4GiB. Reviewed PNG/body retained; tester stopped1/1.
+Job14d2fa1e6c9445ee9362d9b74ac322b4/run1bf8cbcb8fc54978823b234723bf80aa.
+Original31attempts/30passes/failure unchanged; initialized browser form preserved.
+
+Current coverage6/6numerical cases,1/6native attempted/built/named-audited; other
+five native-unattempted by frozen choice.0full physical audits/untouched holdouts,
+no generalized reliability claim. FullQA/broader native validation unrun.
+Production/standards unchanged. Evidence: ignored ribbon_projected569–573 plans,
+failed570ledger, source copies, results, original range/job and retained capture.
+
 ## Contact-aware continuation eligibility563–568 — 2026-11-03
 
 User's random range-e4447case12(seed1041927501,N5,D0.75mm,zones19/7,
