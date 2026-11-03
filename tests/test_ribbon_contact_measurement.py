@@ -49,6 +49,21 @@ def _scene() -> Scene:
     return Scene(Config(4033669276, 3, 0.75, 300, 300), Goal(10, 6, 0), Goal(2, 6, 1))
 
 
+def test_closed_branch_clears_empty_profile_corners_with_original_contact_budget() -> None:
+    """
+    Accept the fixed failed gym after bounding actual profile material, without rerouting.
+    """
+    scene = Scene(Config(2641972872, 3, 0.75, 300, 300), Goal(10, 0, 0), Goal(7, 8, 1))
+    rows: list[dict[str, Any]] = []
+    result = solver_v2.solve(scene.targets, Settings(0), lambda: None, rows.append)
+    assert result.route is not None
+    assert result.detail["status"] == "numerically_accepted"
+    assert result.detail["contact"] == "separated"
+    assert result.detail["contact_measurement"]["pairs_checked"] <= 1024
+    assert result.detail["cap_error_mm"] < 1e-7
+    assert result.route.material_length_mm == pytest.approx(23.433206320916888)
+
+
 def test_compact_route_is_retained_as_unmeasured_without_relaxing_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

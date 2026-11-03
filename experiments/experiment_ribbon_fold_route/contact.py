@@ -13,6 +13,7 @@ from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from .contact_bounds import Cell, Span, cap_neighborhood, projection
 from .contact_caps import straight_bridge_pairs
 from .contact_inverse import occupied_coordinates, profile_height
+from .contact_profile import clip_profile
 from .geometry import FoldRoute, pose_error
 
 
@@ -58,6 +59,7 @@ def inspect_contact(
     Nonadjacent thick regions are never ignored for being close along
     the centerline. Positive separation uses outward floating interval envelopes;
     it is not a formal exact-arithmetic proof or native-solid validation.
+    Joined-profile bounds remove only empty space outside the actual lobed section.
     """
     if (
         isinstance(maximum_pairs, bool)
@@ -107,6 +109,10 @@ def inspect_contact(
                 limit="pairs",
             )
         checked += 1
+        first = clip_profile(first, route.targets.lines, route.targets.diameter_mm)
+        second = clip_profile(second, route.targets.lines, route.targets.diameter_mm)
+        if first is None or second is None:
+            continue
         a, b = route.pieces[first.piece], route.pieces[second.piece]
         if (
             (

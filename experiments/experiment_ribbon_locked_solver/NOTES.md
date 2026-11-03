@@ -1,5 +1,75 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Conservative occupied-profile contact bounds518–522 — 2026-11-03
+
+The14:14:03failure, job`selected-c5758c2df1104c01a4e4ae4fca18ccfc`,
+stops before smoothing/native construction. Seed2641972872,3conductors,D0.75mm,
+void/zone300%,A10/face0/roll0,B7/face8/roll1 produces one closed23.433206mm
+branch. Strict contact stops after336pairs at depth36 between straight pieces0/4,
+without a penetration witness. Total original numericalCPU0.110771s. This is a
+contact-enclosure limitation, unrelated to the native0.01mm warning policy.
+
+518freezes and replays this unchanged rejected route once, instrumenting only
+the existing depth return. Both stalled material boxes contain no actual joined
+profile: piece0 |height|>=0.280518mm versus profile maximum0.180483mm;
+piece4 |height|>=0.374268mm versus maximum0.069227mm. The full rectangular
+section envelope includes empty space outside the original lobes and side arcs.
+
+`contact_profile.clip_profile` now encloses actual profile half-height across each
+cell's complete qinterval, using interval endpoints and any enclosed circular-lobe
+apex. Side arcs decrease toward the outer tips. An outward numerical guard enlarges
+the bound; height is intersected with that enclosure, and empty cells are discarded.
+This changes no profile/route/pose/radius, clearance threshold or physical rule.
+Pair1024/depth36 limits remain; discarded cells still count against the pair budget.
+True penetration and remaining unresolved contact still reject ordinary geometry.
+The bound is constant work per cell, independent of conductor count.
+
+519first establishes original baselines for the trigger, contracted499,
+correspondence461 and tight-baseline422, plus a known penetrating branch control;
+then applies one unchanged clipping prototype.520repeats the same fixed scope with
+maintained code and the renewed182-file source lock. Four independent complete
+examined gym configurations planned/evaluated,4/4separated,0failed/unresolved/
+skipped/unattempted. Invalid branch control correctly rejected1/1, separately.
+No holdouts, new route searches or native builds in these contact-only runs.
+
+| Configuration | Original contact | Maintained contact | Maintained CPU s |
+| --- | --- | --- | ---: |
+| trigger2641972872 | unresolved,336pairs/depth | separated,289pairs | 0.047516 |
+| contracted499 | separated,138pairs | separated,138pairs | 0.042011 |
+| correspondence461 | separated,28pairs | separated,28pairs | 0.007413 |
+| tight-baseline422 | separated,127pairs | separated,127pairs | 0.032233 |
+| invalid branch control | penetration,57pairs | penetration,57pairs | 0.014964 |
+
+521–522perform one ordinary solve/build on the unchanged trigger and original
+settings: optimization on,smoothing1%,UVoff. Fresh worker passes strict contact;
+first pass0.118994s includes contact0.051211s. Numerical wall0.963169s,
+CPU0.904951s; smoothing0.836739s is a subset. Smoothed contact separates in28pairs;
+cap error4.254e-15mm, material metric error6.517e-16. Native generation1.064487s,
+named fidelity audit13.515103s, native operation total16.568573s.132faces,
+4550surface samples/250seams/three guides/two caps pass the original goal;
+maximum surface error1.899204e-9mm,0precision warnings or hard findings.
+
+Native coverage:1/4independent configurations attempted/built/named-fidelity
+audited,3/4native unattempted by the declared scope;0full physical audits.
+The original failed job/report remain. New job
+`selected-3a88112972014a9ca62f3c530e957ee3` completes normally with visible body,
+revision`07eaa329-a688-45bc-97f2-269544f3e437`, in the existing owned gym/document.
+No unrelated geometry/layout changes. Limits120sworker/120snative/240sphase,
+4GiB RSS/3.8GiB launch headroom held; highest retained native sample718160KiB.
+Contact diagnostics518–520 total0.537470CPU s, excluding imports/unit tests;
+native CPU, orchestration wall time and token/currency costs unmeasured.
+
+Focused contact/profile tests and affected solver/smoothing/selection consumers
+pass; Ruff lint of contact/selected-solver/feature/aesthetic packages and changed
+tests, changed-file format checks and complete diff review pass. New helper/tests
+are IDE-clean; existing duplicate-fragment weak warnings remain in contact.py.
+Two initial synthetic10mm parallel-prism unit probes still exhausted finite contact
+work; the isolated profile test uses0.2mm prisms. No algorithm budget was increased.
+Long near-contact configurations can still remain unresolved. No universal solver
+success, native preservation on the other three controls, fullQA or full physical
+certification is claimed. Evidence: ignored`ribbon_contact518`through`521`,
+frozen518–522drivers and520source snapshot. No production/standards edits.
+
 ## User-directed0.01mm warning ceiling516–517 — 2026-11-02
 
 User explicitly requests native dimensional deviations below0.01mm to warn while
