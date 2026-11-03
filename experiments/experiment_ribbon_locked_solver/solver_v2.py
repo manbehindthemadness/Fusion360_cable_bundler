@@ -17,7 +17,7 @@ from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Policy
-from experiments.experiment_ribbon_feature_insertion.solve import construct
+from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
@@ -40,7 +40,8 @@ def solve(
     """
     Construct two tight guide stages once, with optional separately timed smoothing and UV metadata.
 
-    First construction is bounded to four seconds and two branch contact certificates.
+    First construction is bounded to four seconds and2048contact subdivision pairs,
+    with at most1024per certificate over already-derived branches.
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
@@ -87,6 +88,8 @@ def solve(
         "construction": {
             "status": result.status,
             "contacts": result.contacts,
+            "contact_pairs": result.contact_pairs,
+            "contact_pair_budget": CONTACT_PAIR_BUDGET,
             "contact_seconds": result.contact_seconds,
             "closed_branches": result.closed_branches,
             "unattempted_contacts": result.unattempted_contacts,

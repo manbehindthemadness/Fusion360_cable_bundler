@@ -23,6 +23,8 @@ from .reclosure import Unclosed, refine
 from .repair import nearest
 from .selection import Branch, Policy, select
 
+CONTACT_PAIR_BUDGET = 2048
+
 
 @dataclass(frozen=True)
 class Result:
@@ -38,6 +40,7 @@ class Result:
     closed_branches: int
     unattempted_contacts: int
     contact: ContactResult | None = None
+    contact_pairs: int = 0
 
 
 def construct(
@@ -52,10 +55,12 @@ def construct(
     contact_policy: ContactPolicy = ContactPolicy.STRICT,
 ) -> Result:
     """
-    Fit one fixed frame sequence and certify at most two algebraic branches.
+    Fit one fixed frame sequence with a shared2048pair contact-work allowance.
 
     This never samples additional guide stations, guessed angles or radii. The
-    matched baseline and inserted variant each have the same two-contact budget.
+    matched baseline and inserted variant each retain the original2048pair ceiling,
+    at most1024per certificate. Cheap rejections leave unused work for remaining
+    already-derived branches; two full certificates still exhaust the allowance.
     Contact is strict by default. The temporary gym policy may retain pair-budget
     exhaustion as an explicitly incomplete measurement; actual penetration and
     other unresolved outcomes reject. Resource/source errors always propagate.
@@ -111,6 +116,7 @@ def construct(
             )
     allocations = {a.chain.roots: a for a in candidates}
     contacts = 0
+    contact_pairs = 0
     contact_seconds = 0.0
     measurements: dict[tuple[int, ...], ContactResult] = {}
 
@@ -118,12 +124,19 @@ def construct(
         """
         Retain the raw contact measurement before applying the explicit geometry policy.
         """
-        nonlocal contacts, contact_seconds
+        nonlocal contacts, contact_seconds, contact_pairs
+        remaining = CONTACT_PAIR_BUDGET - contact_pairs
+        if remaining == 0:
+            return False
         checked = allocations[branch.roots]
         checkpoint()
         record({"stage": "feature_contact", "status": "started", "roots": checked.chain.roots})
         started = perf_counter()
-        result = inspect_contact(checked.route, maximum_pairs=1024, checkpoint=checkpoint)
+        allowance = min(1024, remaining)
+        result = inspect_contact(checked.route, maximum_pairs=allowance, checkpoint=checkpoint)
+        if type(result.pairs_checked) is not int or not 0 <= result.pairs_checked <= allowance:
+            raise ArithmeticError("Contact measurement exceeded its declared pair allowance")
+        contact_pairs += result.pairs_checked
         contact_seconds += perf_counter() - started
         contacts += 1
         measurements[branch.roots] = result
@@ -133,12 +146,14 @@ def construct(
                 "status": result.status,
                 "roots": checked.chain.roots,
                 "contact": asdict(result),
+                "pair_allowance": allowance,
+                "pair_budget_remaining": CONTACT_PAIR_BUDGET - contact_pairs,
                 "route": snapshot(checked.route),
             }
         )
         return contact_policy.permits_geometry(result)
 
-    selected = select(branches, measure, selection_policy)
+    selected = select(branches, measure, selection_policy, maximum_attempts=max(2, len(branches)))
     if selected is not None:
         allocation = allocations[selected.roots]
         measurement = measurements[selected.roots]
@@ -151,6 +166,7 @@ def construct(
             len(candidates),
             len(candidates) - contacts,
             measurement,
+            contact_pairs,
         )
     return Result(
         None,
@@ -160,6 +176,7 @@ def construct(
         contact_seconds,
         len(candidates),
         max(0, len(candidates) - contacts),
+        contact_pairs=contact_pairs,
     )
 
 

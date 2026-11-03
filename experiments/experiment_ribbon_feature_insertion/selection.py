@@ -80,26 +80,33 @@ def select(
     branches: Sequence[Branch],
     permit: Callable[[Branch], bool],
     policy: Policy = Policy.MONOTONIC,
+    *,
+    maximum_attempts: int = 2,
 ) -> Branch | None:
     """
-    Preserve original two-attempt feasibility and use spare contact work for a dominating branch.
+    Preserve original feasibility order within the caller's finite contact-work allowance.
 
     Try the original midpoint-ranked first branch. If permitted, evaluate at most
     one strictly shorter/non-worsening alternative, keeping the baseline if that
-    check fails. Otherwise try the original second branch and stop. Thus neither
+    check fails. Otherwise try subsequent midpoint-ranked branches in order. Thus neither
     contact failures nor conflicting preferences displace an original safe route,
-    and no execution exceeds two measurements. The caller retains raw contact
+    and an accepted original fallback still stops selection. The default retains
+    two attempts; a caller may expose more existing branches under its own shared
+    work budget. This helper never creates geometry or authorizes extra pair work.
+    The caller retains raw contact
     results, including any explicitly authorized temporary measurement warning.
     Hard errors propagate.
     """
+    if type(maximum_attempts) is not int or maximum_attempts < 1:
+        raise ValueError("A positive finite branch-attempt count is required")
     ordered = sorted(
         branches,
         key=lambda b: (round(b.site_error_mm2, 12), b.route.material_length_mm, b.roots),
     )
-    for index, baseline in enumerate(ordered[:2]):
+    for index, baseline in enumerate(ordered[:maximum_attempts]):
         if not permit(baseline):
             continue
-        if index == 0 and policy is Policy.MONOTONIC:
+        if index == 0 and maximum_attempts > 1 and policy is Policy.MONOTONIC:
             alternatives = sorted(
                 (b for b in ordered if improves(b, baseline)), key=lambda b: b.priority
             )

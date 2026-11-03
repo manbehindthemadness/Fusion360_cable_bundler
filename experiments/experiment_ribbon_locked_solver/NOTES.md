@@ -1,5 +1,61 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Reuse unspent branch contact work559–562 — 2026-11-03
+
+Random range-214590case1(seed1281098652,N3,D0.75mm,zones19/13,faces8/3,
+roll90/90) produces three closed exact-root branches, then rejects two for actual
+material penetration. Original job8188a10cfebc4df49aa200775a3361f5 remains intact:
+numerically unresolved, native unattempted. Midpoint-site ranking checks roots1/1
+then0/0; roots0/1 are skipped by the two-certificate count despite unused work.
+559freezes these branches plus three distinct existing gym controls. Read-only
+contact replay confirms both penetrations and establishes that the skipped20.590062mm
+branch separates in255pairs/.065550s. The failures use135+347pairs, not2048.
+No source change, new route solve or native attempt occurs in559.
+
+The first-pass constructor now pools the existing2048pair maximum, at most1024per
+certificate, across the finite already-derived branches. Preserve original order:
+an accepted first branch still permits only its original dominating improvement;
+an accepted second branch still returns immediately. Only after original failures
+may remaining roots consume unused work. Each new certificate receives at most
+the remaining allowance. Two full certificates exhaust the pool; unmeasured or
+penetrating geometry still rejects under strict policy. Invalid reported work
+counts raise a hard error. At most eight exact-root combinations and the4s
+first-pass deadline remain; no extra stations, guessed angles, radii or candidates.
+Contraction's separate four-step/.35CPU-second/two-certificate budget is unchanged.
+The selection helper defaults to its historical two-attempt behavior for other
+callers. Trial logs retain each allowance/remaining pool; numerical construction
+metadata exposes contact_pairs/contact_pair_budget.194source pins renew3hashes.
+
+560freezes four cold numerical baselines before adjustment: trigger unresolved,
+compact4033669276/shallow8-gym424-05/spatial12-gym424-09 accepted.561uses exactly
+the same inputs/settings(1%smoothing, optimization on, UV off):4/4accept/contact
+separate, all three controls' complete final route snapshots bitwise unchanged.
+Trigger selects roots0/1 after737total pairs, then contracts20.590062→17.927520mm.
+560wall2.874146s/561wall3.416410s; successful trigger's cold solve1.013968s includes
+contraction/smoothing that its failed baseline never reached. Contact alone costs
+.179386s vs.128549s; this is extra use within the same pair/time ceilings.
+
+562replays only the exact original random first input via normal tester, limit1.
+1/1cold numerical accepted/contact separated/native attempted/built/named-fidelity
+audited,0warnings.132faces/4550surface points/250seams/three guides/two caps pass;
+maxsurface9.396932e-10mm. NumericalCPU1.092354/wall1.103794s; firstpass.435555s,
+contraction.164398s(subset), smoothing.622933s. Native generation1.271242s,
+separate development audit15.132366s; numerical meets matched-generation goal.
+Native phase18.267701s; PNG.245579s/tester28.129400s measured separately.
+Sampled native peak778400KiB<4GiB. Screenshot reviewed; original range form kept,
+geometry/PNG retained and tester stopped1/1/0warnings. Job175c50f20eb54a4ba31b7d9fd805a26a,
+new range1f9a20435bcf4092a8a93417a4a2eea4. No unlimited restart or further cases.
+
+Coverage:4/4numerically evaluated after change,1/4native attempted/built/named-audited;
+other3native-unattempted by frozen selection.0full physical audits or untouched
+holdouts. Preserve the original failed trigger, its two penetrations and skipped
+branch in baseline evidence; no physical-rule or generalized reliability claim.
+60focused tests pass (final mock-binding correction rechecks5), affected16file
+Ruff lint/format and complete diff review pass. Changed code has no new IDE findings;
+two duplicate-fragment weak warnings in unchanged solver_v2 sections remain.
+FullQA/broader native coverage unrun. Production modules/standards unchanged.
+Evidence: ignored ribbon_contact559–562 plans/results/state and original range/job.
+
 ## Exact normalized-radius anchors556–558 — 2026-11-03
 
 Range-fc758case5(seed2901896185,N5,D0.75mm,zones1/2,faces1/1,roll90/90)

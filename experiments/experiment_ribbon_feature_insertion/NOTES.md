@@ -1,5 +1,12 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current559–562contact accounting supersedes the historical two-certificate limit
+below: preserve the same2048total subdivision-pair ceiling/1024per certificate,
+and let remaining already-derived roots use unspent work after original failures.
+No new branches, guide sites, guesses or physical-rule changes. Original ranking
+and accepted fallback geometry stay intact. See selected solver NOTES.md for the
+source-pinned four-case comparison, one native replay and remaining coverage gaps.
+
 User-directed rollback496 restores pre-angular code/178-file lock and the retained
 original gym body. No accepted insertion was delivered by464–495; their failed
 diagnostic artifacts remain historical, unpromoted. The two angular modules and

@@ -73,7 +73,8 @@ def test_conflicting_preferences_do_not_spend_a_certificate(dimension: str) -> N
     assert calls == [baseline]
 
 
-def test_failed_first_branch_preserves_original_second_attempt() -> None:
+@pytest.mark.parametrize("maximum_attempts", (2, 8))
+def test_failed_first_branch_preserves_original_second_attempt(maximum_attempts: int) -> None:
     """
     Do not displace the original fallback with an attractive untested third branch.
     """
@@ -89,7 +90,7 @@ def test_failed_first_branch_preserves_original_second_attempt() -> None:
         calls.append(branch)
         return branch is second
 
-    assert select((third, second, first), certify) is second
+    assert select((third, second, first), certify, maximum_attempts=maximum_attempts) is second
     assert calls == [first, second]
 
 
