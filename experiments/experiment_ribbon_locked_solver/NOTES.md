@@ -1,5 +1,56 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Exact normalized-radius anchors556–558 — 2026-11-03
+
+Range-fc758case5(seed2901896185,N5,D0.75mm,zones1/2,faces1/1,roll90/90)
+stops before native construction with FlexibleModel's coordinate-bound ValueError.
+The original job6253776ee65d497a8f0e5c8d540453ec and failed journal remain intact.
+Contraction had succeeded, shortening19.712073 to14.207865mm. Its fixed normalized
+radius was divided/multiplied by the original material length, changing the exact
+physical minimum0.3765060244728916 to0.37650602447289155mm, one ULP lower.
+The next smoothing model's radius coordinate is consequently one normalized ULP
+below its strict lower bound. This is conversion drift, not material infeasibility.
+
+FlexibleModel now reconstructs an unchanged radius coordinate from its exact source
+radius, and an active lower-bound coordinate from its exact declared physical
+minimum. Other radius coordinates retain ordinary scaling. No epsilon, clamping
+of invalid coordinates, output repair, extra solve, budget increase or bound change
+is introduced. MovableBends therefore preserves fixed physical radii exactly even
+as angles/banks/runways change. Already-invalid archived coordinates still reject.
+The194-file solver lock renews only the flexible-model hash.
+
+556freezes the trigger's pre/post-contraction variants and three existing compact,
+shallow and spatial gym controls before adjustment.557replays one existing bounded
+contraction on each of four independent configurations:4/4 retain exact radii,
+separated contact, cap residual<=3.555e-11mm and sampled metric error<=4.441e-16.
+The old contracted trigger is separately a correctly rejected invalid variant,
+not a fifth independent case. Cached contraction replay totals0.458s wall;
+it excludes cold search and native work. Each case remains within unchanged
+four-step/.35CPU-second/two-contact limits.0native attempts in this phase.
+
+558freezes the exact original fifth input, settings(1%smoothing, optimization on,
+UV off), screenshot preference and source pins; normal tester is capped at1case.
+1/1 cold numerical accepted/contact separated, native attempted, built and named
+fidelity audited,0warnings.184faces;6860surface points, seam/guide/cap checks pass;
+maxsurface8.990143e-10mm. CPU0.930407/wall1.001960s, contraction0.123499CPU s
+(subset), smoothing0.675293s(subset); native generation1.765250s, separate diagnostic
+audit29.742798s. Numerical time meets the matched-generation goal for this case.
+Screenshot0.289571s; tester wall43.932615s includes polling/display/diagnostics.
+Sampled native peak729248KiB, below4GiB. Screenshot reviewed; geometry retained.
+Jobfacf95eba6b444e8a57513f8f44811f7; run49290cebcd8f41348b3642b263e67688.
+
+Across this work:4/4 cached numerical configurations,1/4 native attempted/built/
+named-audited; other3native-unattempted by frozen sample design.0full physical
+audits or untouched holdouts; no generalized native-reliability claim. Original
+trigger's failed numerical attempt/native-unattempted disposition is preserved.
+Tester stopped at1/1/0warnings; initialized browser range form remains unchanged.
+81focused tests, scoped Ruff lint/format and complete diff review pass. New helper
+and tests are IDE-clean; four duplicate-fragment weak warnings in unchanged parts
+of flexible.py remain. Affected consumer tests and lint/format checks supplement
+the focused profile. FullQA and broader native revalidation remain unrun.
+Evidence: ignored ribbon_radius556–558 plans/baselines/replay/state and preserved
+original range/job. No production-module changes or further cases scheduled.
+
 ## Subnanometer native boundary/guide audit552–555 — 2026-11-03
 
 Tester range-ba66case4(seed2901896184,N4,D0.75mm,zones1/2,faces1/1,roll90/90)

@@ -120,7 +120,12 @@ class FlexibleModel(ClosureModel):
                 else:
                     geometries.append(
                         CylindricalFold(
-                            radius * self.scale, angle, bank, original.width_mm, before, after
+                            self._radius_mm(index, radius),
+                            angle,
+                            bank,
+                            original.width_mm,
+                            before,
+                            after,
                         )
                     )
             for geometry in geometries:
@@ -138,6 +143,23 @@ class FlexibleModel(ClosureModel):
                 output.append(placed)
                 pose = placed.end_pose()
         return tuple(output)
+
+    def _radius_mm(self, fold_index: int, coordinate: float) -> float:
+        """
+        Preserve exact physical anchors when undoing normalized radius coordinates.
+
+        An unchanged coordinate denotes its original radius, and an active lower
+        bound denotes the declared physical minimum. Dividing and multiplying
+        either anchor can otherwise move it one floating-point step below its
+        bound. Other coordinates retain ordinary scaling; input bounds stay strict.
+        """
+        source = self.folds[fold_index].radius_mm
+        minimum = self.original.radius_mm
+        if coordinate == source / self.scale and source >= minimum:
+            return source
+        if coordinate == minimum / self.scale:
+            return minimum
+        return coordinate * self.scale
 
     def residual(self, values: tuple[float, ...]) -> tuple[float, ...]:
         """
