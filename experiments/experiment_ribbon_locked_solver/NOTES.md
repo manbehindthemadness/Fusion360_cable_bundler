@@ -1,5 +1,51 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Unresolved multi-contact case599–604 — 2026-11-04
+
+Range-d058case12(seed2633163145,N2,D0.75mm,UI zones1/2,faces2/1,roll0/0)
+stops after11passes(one warning pass included). Job3535473fc62e42e1a6aed4f7825db61f
+closes four algebraic branches. Original contact checking: roots0/0penetrate234
+pairs,1/0unresolved/pairs1024,0/1unresolved/pairs790; all2048pool work consumed,
+roots1/1unattempted. Recovery is correctly not launched without remaining work.
+Original numericalwall.335515s/CPU.333478s; zero native attempts. This is not a
+new angular-input or native-build failure; both endpoint rolls are0degrees.
+
+599freezes nine gym inputs: trigger plus depth1689995010, compact4033669276,
+shallow8-gym424-05, spatial12-gym424-09, recovery1041927501, budget1281098652,
+terminal3889213147 and joint1483650491. Baseline8accepted/1unresolved,8.811014s.
+Same1%smoothing and fixed targets, original depth36/2048pool/1024certificate/4s
+first-pass/.35CPUrecovery bounds. No source edits or native work in these phases.
+
+600isolated breadth-first contact traversal does not recover the trigger and
+regresses depth1689995010 from accepted to unresolved. Stop after2/9evaluated;
+seven controls unattempted in this variant.601observational-only extraction of
+the original two pair-limited boxes keeps original traversal/acceptance unchanged;
+measures their structural crease-axis projection bounds.602adds that exact
+crease axis to separation tests under original DFS. Trigger still unresolved;
+depth1689995010again regresses, so stop2/9,seven unattempted. Neither prototype
+is promoted. They demonstrate why faster/reordered contact work cannot be assumed
+to preserve finite-budget recovery, not that those axes or traversal are invalid.
+
+603measures existing recovery on cached penetrating roots0/0with its original
+1814remaining pairs available before other checks spend them. First update clears
+the implicated4/6whole-piece gap by+.022415mm, but its certificate finds a different
+actual3/7penetration in182pairs. Four updates finish with that gap still-.940026mm;
+no accepted route. CPU.174750/wall.177917s; no budget expansion or solver launch.
+604checks the original unattempted roots1/1cached route: actual0/3penetration in
+124pairs/.027401s. A fairer allocation alone therefore does not establish a usable
+fourth branch. Roots1/0and0/1remain unresolved, not proven infeasible or clear.
+
+Thirteen cold numerical executions across nine fixed configurations, plus the
+explicit cached diagnostic operations above; no new native attempts/full physical
+audits/holdouts. Native failure rate unmeasured. Original12attempts/11passes/problem,
+metadata PNG and failure logs remain intact; tester remains stopped. No safe fix
+identified or implemented; physical rules and all197source pins unchanged. Only
+this diagnostic note/summary changed; prose diff reviewed, no application QA run.
+Evidence: ignored ribbon_contact599–604 plans/results/failed variants and original
+range/job. Further work must address coupled contact recovery and its allocation
+within the original work pool; simply raising limits or accepting unresolved
+contact is not a solution established by this investigation.
+
 ## Kernel-collapsed seam warning597–598 — 2026-11-04
 
 Range-64ddcase5(seed2633163138,N5,D0.75mm,UI zones1/2,faces1/1,roll0/0)

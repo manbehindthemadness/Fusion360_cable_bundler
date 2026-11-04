@@ -27,6 +27,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_measurement import 
 from .inspection import freeze
 from .lock import verify
 from .progress import append
+from .rejected_display import retain
 from .settings import Settings
 from .solver import solve
 from .solver_v2 import solve as solve_v2
@@ -177,6 +178,30 @@ def run(directory: Path) -> Path:
         stopped = f"{type(error).__name__}: {error}"
         append(directory, "failed", stopped)
         method.update(status="stopped", detail=stopped)
+    if not (directory / "route.json").exists():
+        try:
+            count = retain(method, directory / "trials.jsonl", directory, targets, checkpoint)
+            if count:
+                append(
+                    directory,
+                    "diagnostic",
+                    f"Retained {count} rejected branches for visual inspection; no native build.",
+                )
+        except (
+            ArithmeticError,
+            KeyError,
+            OSError,
+            RuntimeError,
+            TimeoutError,
+            TypeError,
+            ValueError,
+        ) as error:
+            # Optional display must preserve the original numerical failure and native stop.
+            append(
+                directory,
+                "diagnostic",
+                f"Rejected geometry unavailable: {type(error).__name__}: {error}",
+            )
     method["rules"].extend(
         [
             asdict(
