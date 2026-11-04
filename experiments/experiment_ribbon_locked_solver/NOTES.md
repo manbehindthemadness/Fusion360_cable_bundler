@@ -1,5 +1,65 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Depth-region joint recovery584–588 — 2026-11-03
+
+Range-c9e5case82(seed1689995010,N2,D0.75mm,UI zones4/10,faces10/7,
+roll90/90) stops after81passes. Original job13ef501c13974d4baced3e68bfead188
+has one closed branch, unresolved at depth36 after637pairs on curved pieces2/5.
+There is no penetration witness, so witness-only recovery performs zero updates.
+This is unresolved contact, not demonstrated penetration or clearance.
+
+ContactResult now retains the two actual undecided material cells only at depth
+exhaustion. Separation.from_measurement preserves actual-witness behavior; for
+depth evidence it derives a normal from an implicated straight when present,
+otherwise the first undecided cell's material midpoint. Missing/mismatched evidence
+remains unsupported. These cells initialize a constraint axis, never acceptance.
+The existing bounded joint recovery still requires a new strict global separation
+certificate, preserves radii/profile/fold identities/targets, and consumes only
+unspent2048pair work. Depth36, per-certificate1024pairs, four updates, .35CPU/2wall
+local recovery and enclosing4sfirst-pass deadline are unchanged. No new candidate
+bank, folds or tolerance relaxation.196pins retained; three source hashes renewed.
+
+584freezes eight cold configurations: new trigger, compact4033669276,
+shallow8-gym424-05,spatial12-gym424-09,recovery1041927501,budget1281098652,
+terminal3889213147,joint1483650491. Seven pass; trigger fails.585straight-only
+prototype is inapplicable to the actual curved pair: zero updates, trigger still
+unresolved; seven controls unattempted, zero native attempts. It is not promoted.
+586material-cell prototype and587integrated source accept8/8numerically with
+strict separation. All seven prior final snapshots are bitwise unchanged, and all
+eight integrated routes equal the successful prototype. New depth recovery is
+exercised on one configuration; prior witness recovery is a preservation control.
+
+Three updates use592new pairs/two certificates: first finds actual penetration on
+pieces3/5, second certifies separation. Total1229pairs leaves819unused.587recovery
+CPU.226956/wall.227244s; whole numericalCPU1.494572/wall1.495274s. Ordinary
+contraction shortens recovered21.610262→9.503584mm; 1%smoothing ends9.598620mm.
+584/586/587phase wall6.742762/7.834825/7.963557s. Including stopped585,25host
+cold executions cover eight independent configurations, not25ribbons. All host
+phases have zero native attempts. Plans retain failed/skipped outcomes; total
+orchestration wall and token/currency cost are unmeasured.
+
+588exact original input replay through normal tester, limit1:1/1numerically
+accepted/separated/native attempted/built/named-fidelity audited; zero warnings.
+106faces/3640surface points/200seams/three guides/two caps pass; max surface error
+7.777654e-10mm. NumericalCPU1.581630/wall1.586114s; recovery.233560CPU/.233682wall
+is a subset, contraction.139083s and smoothing.870391s. Generation1.370010s;
+separate diagnostic audit15.795553s. Solve exceeds matched generation: timing-goal
+miss recorded, with no construction-rule waiver. Native phase19.895872s;
+screenshot.263312s/tester34.747982s/peak1171712KiB<4GiB separately. PNG reviewed.
+Job3c6cdb66373443b0be439e0f85f4d928/run527f0cc9389349859b5b0883cfe0a10f.
+Replay stopped1/1; body/PNG retained, original82attempts/81passes/failure preserved.
+No unlimited restart; optional UV/material creation off.
+
+119focused tests pass; final test-only assertion refinement rechecks seven new
+tests. Affected37file Ruff lint/format and changed-code IDE checks pass apart from
+three existing duplicate-fragment weak warnings in unchanged contact loops.
+Complete diff reviewed; fullQA unrun. Current coverage8/8numerical,1/8native
+attempted/built/named-audited; seven controls native-unattempted by frozen scope.
+Zero full physical audits or untouched holdouts. Generalized recovery/native
+reliability and shortest-route optimality remain unmeasured. No production or
+standards edits. Evidence: ignored ribbon_depth584–588 plans/failures/results,
+original range/job and retained screenshot.
+
 ## Witness-driven joint separation574–583 — 2026-11-03
 
 Range-f8669case81(seed1483650491,N6,D0.75mm,zones16/23,faces2/4,

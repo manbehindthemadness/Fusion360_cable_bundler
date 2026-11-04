@@ -1,5 +1,14 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current584–588extends failure-only joint recovery to actual depth-limited material
+cells when no penetration witness exists. Use an implicated straight normal or
+the first undecided cell's midpoint normal; cells guide correction, never permit
+acceptance. Strict final contact, all budgets and original physical rules remain.
+Eight numerical cases pass; seven previously passing final routes are unchanged.
+Only the new trigger exercises this depth path; its one native replay passes named
+fidelity with zero warnings. Straight-only585failed/inapplicable and remains
+unpromoted. Evidence, separate timings and coverage gaps: selected solver NOTES.md.
+
 Current574–583V2workflow retains typed rejected closures for a single bounded
 witness-driven joint-separation recovery when normal construction fails. Original
 successful routes skip it; no extra feature or radius relaxation was promoted.

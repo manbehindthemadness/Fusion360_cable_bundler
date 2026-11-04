@@ -33,6 +33,10 @@ class Penetration:
 class ContactResult:
     """
     Separate envelope clearance, demonstrated penetration and unresolved near-contact.
+
+    A depth-limited result retains its undecided material boxes for diagnostic or
+    constraint initialization. Those boxes are neither a penetration witness nor
+    permission to accept geometry without a later separation certificate.
     """
 
     status: str
@@ -41,6 +45,7 @@ class ContactResult:
     unresolved_pieces: tuple[int, int] | None = None
     reason: str = ""
     limit: Literal["pairs", "depth"] | None = None
+    unresolved_regions: tuple[Cell, Cell] | None = None
 
 
 def inspect_contact(
@@ -175,6 +180,7 @@ def inspect_contact(
                 unresolved_pieces=(first.piece, second.piece),
                 reason="Near-contact interval resolution exhausted.",
                 limit="depth",
+                unresolved_regions=(first, second),
             )
         size_a = max(
             (first.u.high - first.u.low) * a.geometry.material_length_mm,

@@ -4,6 +4,7 @@ Measure complete material-region separation while bend joints move and caps rema
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
@@ -11,7 +12,7 @@ from typing import Callable
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends
-from experiments.experiment_ribbon_fold_route.contact import Penetration
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, projection
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
 
@@ -91,6 +92,58 @@ class Separation:
     model: MovableBends
     pair: tuple[Region, Region]
     axis: Vector3
+
+    @classmethod
+    def from_measurement(
+        cls, model: MovableBends, route: FoldRoute, measurement: ContactResult
+    ) -> Separation | None:
+        """
+        Initialize a constraint from a witness or actual depth-limited material boxes.
+
+        Preserve the existing penetration rule. For unresolved depth evidence,
+        prefer a straight sheet normal; otherwise use the first undecided box's
+        material midpoint normal. Missing, mismatched or malformed evidence stays
+        unsupported. This chooses a constraint axis, never contact acceptance.
+        """
+        if measurement.status == "penetration" and measurement.witness is not None:
+            return cls.create(model, route, measurement.witness)
+        if measurement.status != "unresolved" or measurement.limit != "depth":
+            return None
+        pair, cells = measurement.unresolved_pieces, measurement.unresolved_regions
+        if (
+            not isinstance(pair, tuple)
+            or len(pair) != 2
+            or not isinstance(cells, tuple)
+            or len(cells) != 2
+            or not all(isinstance(cell, Cell) for cell in cells)
+            or any(type(i) is not int or not 0 <= i < len(route.pieces) for i in pair)
+            or tuple(cell.piece for cell in cells) != pair
+        ):
+            return None
+        flat = next(
+            (i for i in reversed(pair) if isinstance(route.pieces[i].geometry, Straight)), None
+        )
+        if flat is not None:
+            piece = route.pieces[flat]
+            axis = unit(cross(piece.pose.tangent, piece.pose.width))
+        else:
+            first = cells[0]
+            if (
+                not isinstance(first.u, Span)
+                or not isinstance(first.q, Span)
+                or not all(
+                    math.isfinite(v) for v in (first.u.low, first.u.high, first.q.low, first.q.high)
+                )
+                or not 0 <= first.u.low <= first.u.high <= 1
+                or not -route.half_width_mm <= first.q.low <= first.q.high <= route.half_width_mm
+            ):
+                return None
+            _, velocity, width, _ = route.pieces[pair[0]].surface(
+                (first.u.low + first.u.high) / 2, (first.q.low + first.q.high) / 2
+            )
+            axis = unit(cross(velocity, width))
+        tags = regions(route)
+        return cls(model, (tags[pair[0]], tags[pair[1]]), axis)
 
     @classmethod
     def create(cls, model: MovableBends, route: FoldRoute, witness: Penetration) -> Separation:

@@ -83,10 +83,10 @@ def recover(
             bounded()
             detail["iterations"] += 1
             if bound is None:
-                if measurement.witness is None:
-                    detail["stop_reason"] = "no_penetration_witness"
+                bound = Separation.from_measurement(model, route, measurement)
+                if bound is None:
+                    detail["stop_reason"] = "no_supported_contact_region"
                     break
-                bound = Separation.create(model, route, measurement.witness)
             assert bound is not None
             residual, rows = model.residual(values), model.jacobian(values)
             options: list[tuple[float, Side, float, tuple[float, ...]]] = []
