@@ -24,7 +24,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .coordinates import metadata
 from .settings import Settings
-from .smoothing import smooth
+from .smoothing_contact import smooth_with_contact
 from .solver import Result
 from .versions import V2
 
@@ -49,8 +49,9 @@ def solve(
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
     No v1 fallback, extra features or radius relaxation occurs in that phase.
-    With smoothing zero, the measured accepted route is
-    returned directly; its separated certificate is not needlessly repeated.
+    Unchanged routes retain their separation certificate, including an exact
+    final geometry match to an accepted aesthetic proposal. Otherwise the final
+    route requires the normal bounded contact check.
     Native point tolerance rejects tiny explicit straights; it is not a bend rule.
     An explicitly configured temporary gym policy may retain pair-limit exhaustion
     with contact unmeasured; ordinary calls retain strict contact acceptance.
@@ -161,11 +162,17 @@ def solve(
         }
     detail["first_pass_seconds"] = perf_counter() - started
     smoothing_started = perf_counter()
-    final, stages = smooth(first, settings.smoothing_percent, checkpoint, record)
-    detail.update(stages=stages, smoothing_seconds=perf_counter() - smoothing_started)
-    # A changed aesthetic route needs a new certificate; the unchanged first pass already has one.
-    if final is not first:
+    smoothed = smooth_with_contact(first, settings.smoothing_percent, checkpoint, record)
+    final = smoothed.route
+    detail.update(stages=smoothed.stages, smoothing_seconds=perf_counter() - smoothing_started)
+    if smoothed.contact is not None:
+        measurement = smoothed.contact
+        detail["final_contact_source"] = "identical_accepted_smoothing_geometry"
+    elif final is not first:
         measurement = inspect_contact(final, maximum_pairs=1024, checkpoint=checkpoint)
+        detail["final_contact_source"] = "final_geometry_audit"
+    else:
+        detail["final_contact_source"] = "unchanged_first_pass"
     contact = measurement.status
     warning = contact != "separated" and contact_policy.permits_geometry(measurement)
     detail.update(contact=contact, contact_measurement=asdict(measurement), contact_warning=warning)

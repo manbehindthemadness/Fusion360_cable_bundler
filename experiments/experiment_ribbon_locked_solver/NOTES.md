@@ -1,5 +1,65 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Completed smoothing certificate retention628–632 — 2026-11-04
+
+Trigger is range29d5case13, seed2520867837,N9,D.75mm,void/zone300%, Azone5/face5/
+roll28degrees and Bzone24/face7/roll50degrees. Tester stopped13attempts/12passes.
+This is a different stop from the earlier factor-continuity defect. Original
+construction closes three branches, checks0/1(1024pairs unresolved) then1/1
+(749pairs separated). Contraction retains the83.376763mm baseline after a
+penetrating and a depth-unresolved shortening proposal. Aesthetic radius easing
+accepts seven improvements, rejects one penetrating proposal, then exhausts its
+proposal count. Layout easing rejects all six proposals for peak curvature and
+returns the last accepted radius result. No bend reversal is missing at this stop.
+
+The exact final84.210531mm route already has a complete1563pair separated contact
+certificate, but solver_v2 repeats that check with only1024pairs and discards the
+route as unresolved. Cached629reproduces both outcomes on the same saved geometry
+in.766657s, cap error1.786630e-13mm, sampled metric error3.651028e-16. No solves or
+builds. The displayed original332-face rejected inspection body is the shortest
+closed0/0branch (82.220499mm), whose contact was unattempted, not this final route.
+The existing shortest-branch inspection policy remains unchanged in this fix.
+
+New smoothing_contact observes the unchanged aesthetic events. It carries only
+complete separated evidence from an accepted proposal whose canonical full
+material snapshot exactly matches the final route. No rounding/tolerance match;
+targets, dimensions, ordered pieces/poses and parameters all participate. Changed
+or missing geometry/evidence still uses the original bounded final audit. Logging,
+cancellation and source failures propagate. The public shared smoothing API, all
+proposal/contact budgets, bend directions, physical rules and native builder stay
+unchanged. New final_contact_source records provenance. Source lock202pins.
+
+630freezes the trigger plus structurally different original gym cases1/5/9 before
+comparison. All four baselines run first, then one unchanged correction, eight
+cold core executions total,15s/execution/120sphase/4GiB,0native. Baseline3/4accepted,
+trigger unresolved; corrected4/4accepted. All three accepted controls' complete
+routes and all four first passes are exactly unchanged. Trigger final equals its
+already-recorded accepted smoothing geometry. Phase21.185776s; original evidence
+hashes unchanged. Trigger baseline6.725330CPU versus corrected6.229211CPU; matched
+first pass.644101wall and smoothing5.616531wall. Improvement is removal of redundant
+work, not a general performance or routing-optimality result.
+
+631native harness stops before any construction because it compares a raw Python
+scene containing tuples with JSON arrays. Preserved response/script; no geometry
+attempt. Renewed632normalizes serialization for exact comparison, freezes a new
+plan, and attempts the same cached accepted route once. One310-face solid builds
+and passes named native fidelity:10780surface points,594seams, maximum surface
+error9.852503e-10mm, zero warnings. Generation1.525958s, separate audit17.687533s,
+native stage20.354219s, sampled RSS peak564656KiB. No new numerical solve for this
+cached build. The matched cold solve6.229211CPU exceeds1.525958s construction;
+the timing goal remains missed, predominantly by existing smoothing cost.
+
+Independent scope4planned/4numerically evaluated/1native-attempted/1built/1named
+fidelity-audited; three controls native-unattempted, zero full physical audits.
+51unique focused tests pass; two old v2 length-test parameterizations excluded
+(one has the independently established pre-existing expected-length mismatch).
+Scoped Ruff lint/format and changed-code IDE checks pass, with three existing
+solver duplication weak warnings. Full QA and wider native breadth unattempted.
+Corrected body visible, original failure body retained hidden; inputs, logs,
+screenshot and stopped tester13/12 unchanged. Next normal worker uses the new
+source lock; range testing was not restarted. Ignored evidence: ribbon_reversal
+628/629/630/632, frozen628–632scripts, and preserved631failure response.
+
 ## Optional gym placement rule627 — 2026-11-04
 
 Endpoint gym and range tester now expose default-on **Avoid adjacent cubicles**:
