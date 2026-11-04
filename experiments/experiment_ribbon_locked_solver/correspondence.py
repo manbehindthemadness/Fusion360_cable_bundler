@@ -48,12 +48,24 @@ class MaterialFaces:
         output: dict[str, Any],
         *,
         accuracy: DimensionalAccuracy = STRICT_ACCURACY,
+        collapsed_boundary_tolerance_mm: float | None = None,
     ) -> None:
         """
         Cache native bounds once; keep the supplied solid and all entity identities untouched.
         """
         self.body, self.route, self.patches = body, route, patches
         self.accuracy = accuracy
+        self.collapsed_boundary_tolerance_mm = (
+            accuracy.goal_mm
+            if collapsed_boundary_tolerance_mm is None
+            else collapsed_boundary_tolerance_mm
+        )
+        if (
+            type(self.collapsed_boundary_tolerance_mm) not in (int, float)
+            or not math.isfinite(self.collapsed_boundary_tolerance_mm)
+            or self.collapsed_boundary_tolerance_mm <= 0
+        ):
+            raise ValueError("Collapsed boundary tolerance must be finite and positive")
         if not body.isSolid or body.volume <= 0:
             raise ValueError("Material correspondence requires a closed positive solid")
         self.occurrence, self.budget = occurrence, budget
@@ -258,8 +270,9 @@ class MaterialFaces:
         material region. Its entire endpoint chain need not equal that subregion;
         every sampled source boundary must still lie on the real shared edges.
         A kernel-collapsed edge instead requires a shared native vertex and the
-        entire positive-weight source control hull within the original accuracy
-        goal of that vertex. Coincident unconnected vertices are insufficient.
+        entire positive-weight source control hull within the supplied kernel point
+        tolerance and dimensional policy. The default remains the original goal;
+        coincident unconnected vertices are insufficient.
         """
         first_edges = {edge.tempId: edge for edge in self.item(first).edges}
         second_edges = {edge.tempId for edge in self.item(second).edges}
@@ -300,8 +313,10 @@ class MaterialFaces:
         Certify a collapsed material boundary through actual shared vertex identity and strict bounds.
 
         Controls come from the authored positive-weight seam, whose curve lies
-        inside their convex hull. Use the original dimensional goal even when
-        display warnings permit larger errors. Never create or weld topology.
+        inside their convex hull. A caller may supply the kernel's point tolerance
+        for measured collapsed topology, independently bounded by dimensional
+        acceptance. Preserve the original goal in the record; a larger accepted
+        residual is still a seam accuracy warning. Never create or weld topology.
         """
         if not points or not controls:
             return math.inf
@@ -319,7 +334,10 @@ class MaterialFaces:
             self.budget.check("actual collapsed seam vertex")
             vertex = vertices[0][key]
             distances = tuple(vertex.geometry.distanceTo(point) * 10 for point in controls)
-            if all(self.accuracy.meets_goal(value) for value in distances):
+            if all(
+                self.accuracy.accepts(value) and value <= self.collapsed_boundary_tolerance_mm
+                for value in distances
+            ):
                 candidates.append((max(distances), key))
         if not candidates:
             return math.inf
@@ -330,7 +348,10 @@ class MaterialFaces:
             if (
                 a is None
                 or b is None
-                or not all(self.accuracy.meets_goal(value) for value in (a.error_mm, b.error_mm))
+                or not all(
+                    self.accuracy.accepts(value) and value <= self.collapsed_boundary_tolerance_mm
+                    for value in (a.error_mm, b.error_mm)
+                )
             ):
                 return math.inf
             errors.extend((a.error_mm, b.error_mm))
@@ -344,6 +365,7 @@ class MaterialFaces:
                 "control_hull_bound_mm": bound,
                 "maximum_error_mm": maximum,
                 "goal_mm": self.accuracy.goal_mm,
+                "collapsed_boundary_tolerance_mm": self.collapsed_boundary_tolerance_mm,
             }
         )
         return maximum

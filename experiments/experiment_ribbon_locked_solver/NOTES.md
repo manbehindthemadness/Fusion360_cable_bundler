@@ -1,5 +1,56 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Kernel-collapsed seam warning597–598 — 2026-11-04
+
+Range-64ddcase5(seed2633163138,N5,D0.75mm,UI zones1/2,faces1/1,roll0/0)
+stops after4passes. Numerical route accepts/separates and native construction
+creates184faces, but the named audit stops at the seam/guide gate. All6860surface
+points pass(max8.386012e-10mm), as do guides and caps. The sole rejection is the
+missing edge between authored regions12/13 on the2.260965e-6mm initial straight.
+Original jobece7dbe7f3e04a478031f882e49ea5e0/result/PNG remain unchanged.
+
+597read-only audit reproduces the failure on that retained native body. Regions
+12/13 map to actual faces12/13 and share real vertex259. Their complete two-control
+source hull is at distances[2.260965e-6,0]mm from that vertex. Fusion point tolerance
+is1e-5mm; the previous collapsed-vertex certificate required the original1e-6mm
+goal even under the dimensional-warning policy. This is a measured2.261nm collapse,
+not a missing native connection or failed tangent. Body revision/source pins stay
+unchanged. One retained-body audit, zero new solves/native attempts;17.500763s
+to last sampled checkpoint, peak579872KiB. Application logs were inspected; the
+native audit measurements establish the specific failure.
+
+Native gym correspondence now supplies Fusion's actual point tolerance explicitly.
+A collapsed seam still requires the same real shared vertex identity, the entire
+positive-weight authored hull and both trimmed-face projections within that kernel
+bound, and acceptance under the dimensional policy. No coincident-unconnected
+vertex, missing controls, nonfinite data or beyond-kernel hull is licensed by the
+larger0.01mm display ceiling. Original goal misses remain measured seam warnings.
+Default correspondence and strict accuracy still require the original1e-6mm goal;
+only explicit kernel-bound display auditing supports this additional warning case.
+This supersedes the display-path strict-hull restriction recorded for552–555, not
+historical outcomes or the strict replay default. No weld, source geometry repair,
+target/routing change or native builder representation change.
+
+598one exact cold replay accepts/separates and builds184faces with named fidelity
+complete and one precision warning2.260965e-6mm. Topology now verified; the original
+dimensional miss stays in seam_failures with topology_valid=true and the warnings
+list.6860points/378seams/three guides/two caps checked. Final route.json is byte-
+identical to the original15.226962mm route. CPU.970847/wall1.009205s; native
+generation1.400705s, separate audit11.292816s; timing goal met. Nativephase13.735731s,
+PNG.175394s/tester18.363800s separately. Peak454528KiB. PNG reviewed and embeds
+replay metadata. Job33278cebf7784132a9f6bd24f378d638/run5f0dd0f832c34796bcd5693a1558c4ab.
+Replay stopped1attempt/1warningpass; body visible, original5attempts/4passes/failure
+retained. No unlimited restart. One independent configuration, one new numerical
+solve/native attempt/build/named audit with warning;0full physical audits/holdouts.
+Collateral native audits/builds unattempted; no generalized reliability claim.
+
+Focused correspondence/accuracy37tests and correspondence/precision43tests pass
+(overlapping inventories, not80unique tests), plus20lock tests. Scoped3file Ruff
+lint/format, complete diff and changed-code IDE pass except six existing native.py
+weak warnings(duplication/intentional broad fail-soft boundary). New test duplication
+was removed. FullQA unrun.197pins remain; two hashes renewed. No production or
+standards changes. Evidence: ignored ribbon_seam597–598 and original range/job/PNGs.
+
 ## Excursion despite named passes589 — 2026-11-03
 
 User screenshot matches range-b5b7f85e0b84490bba20790c01eaaf73case52,

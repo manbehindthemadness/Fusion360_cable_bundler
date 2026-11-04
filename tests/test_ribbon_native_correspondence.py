@@ -79,6 +79,7 @@ def _collection(
     raw: bool = True,
     measured_error: float = 0.0,
     accuracy: DimensionalAccuracy = STRICT_ACCURACY,
+    collapsed_boundary_tolerance_mm: float | None = None,
 ) -> tuple[MaterialFaces, list[Any]]:
     """
     Model two authored regions merged into one native profile face, plus another profile and caps.
@@ -127,6 +128,7 @@ def _collection(
         lambda point, entity: measured_error,
         output,
         accuracy=accuracy,
+        collapsed_boundary_tolerance_mm=collapsed_boundary_tolerance_mm,
     )
     return collection, faces
 
@@ -201,6 +203,16 @@ def test_shared_edge_subsegment_requires_real_edge_distance() -> None:
     assert math.isinf(collection.edge_seam_error(0, 2, points))
 
 
+def _vertex_boundary(faces: list[Any], connected: bool) -> None:
+    """
+    Give neighboring faces one shared vertex identity or geometrically coincident separate vertices.
+    """
+    common = SimpleNamespace(tempId=71, geometry=Point(1, 1))
+    other = common if connected else SimpleNamespace(tempId=72, geometry=Point(1, 1))
+    faces[0].edges = [SimpleNamespace(tempId=90, startVertex=common, endVertex=common)]
+    faces[1].edges = [SimpleNamespace(tempId=91, startVertex=other, endVertex=other)]
+
+
 @pytest.mark.parametrize("connected", (True, False))
 def test_collapsed_seam_requires_a_real_shared_vertex_and_strict_control_hull(
     connected: bool,
@@ -209,10 +221,7 @@ def test_collapsed_seam_requires_a_real_shared_vertex_and_strict_control_hull(
     Admit a sub-goal kernel vertex boundary, rejecting coincident but topologically separate vertices.
     """
     collection, faces = _collection(accuracy=DISPLAY_ACCURACY)
-    common = SimpleNamespace(tempId=71, geometry=Point(1, 1))
-    other = common if connected else SimpleNamespace(tempId=72, geometry=Point(1, 1))
-    faces[0].edges = [SimpleNamespace(tempId=90, startVertex=common, endVertex=common)]
-    faces[1].edges = [SimpleNamespace(tempId=91, startVertex=other, endVertex=other)]
+    _vertex_boundary(faces, connected)
     _cover(collection)
     collection.seal_surfaces()
     controls = (Point(1, 1), Point(1 + 4.708e-8, 1))
@@ -226,6 +235,34 @@ def test_collapsed_seam_requires_a_real_shared_vertex_and_strict_control_hull(
     outside = (*controls, Point(1 + 1e-5, 1))
     assert math.isinf(collection.edge_seam_error(0, 2, controls, controls=outside))
     assert math.isinf(collection.edge_seam_error(0, 2, controls))
+
+
+@pytest.mark.parametrize("accuracy", (STRICT_ACCURACY, DISPLAY_ACCURACY))
+@pytest.mark.parametrize("connected", (True, False))
+def test_kernel_collapsed_seam_retains_goal_miss_without_waiving_topology(
+    accuracy: DimensionalAccuracy, connected: bool
+) -> None:
+    """
+    Permit a real2.261nm collapse only under the warning policy and explicit10nm kernel bound.
+    """
+    collection, faces = _collection(accuracy=accuracy, collapsed_boundary_tolerance_mm=1e-5)
+    _vertex_boundary(faces, connected)
+    _cover(collection)
+    collection.seal_surfaces()
+    controls = (Point(1, 1), Point(1 + 2.261e-7, 1))
+    residual = collection.edge_seam_error(0, 2, controls, controls=controls)
+    accepted = connected and accuracy is DISPLAY_ACCURACY
+    assert math.isfinite(residual) is accepted
+    if accepted:
+        assert residual == pytest.approx(2.261e-6)
+        assert accuracy.observe(collection.output, "seam", residual, faces=[0, 2])
+        warning = collection.output["accuracy_warnings"][-1]
+        assert warning["goal_mm"] == 1e-6 and warning["error_mm"] == residual
+        record = collection.output["face_correspondence"]["native_vertex_boundaries"][-1]
+        assert record["collapsed_boundary_tolerance_mm"] == 1e-5
+    # The display ceiling cannot license a source hull beyond native collapse precision.
+    outside = (*controls, Point(1 + 2e-6, 1))
+    assert math.isinf(collection.edge_seam_error(0, 2, controls, controls=outside))
 
 
 def test_collapsed_seam_rejects_nonfinite_control_distances() -> None:

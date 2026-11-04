@@ -256,6 +256,7 @@ class NativeOwner:
                     trimmed_distance,
                     row["audit"],
                     accuracy=DISPLAY_ACCURACY,
+                    collapsed_boundary_tolerance_mm=app.pointTolerance * 10,
                 )
                 audit(
                     body,
