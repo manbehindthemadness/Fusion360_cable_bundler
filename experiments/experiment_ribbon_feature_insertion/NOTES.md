@@ -1,5 +1,36 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current614–624corrects unstable quadratic-root indexing during angular reclosure.
+Root indices can exchange physical factor rotations after a small frame change;
+the logged (1,1)trigger changed its first pair from negative to positive bends.
+`continuation.closest` matches the existing ordered factor rotations instead of
+their current quadratic indices, independently of scale and quaternion sign;
+ties/changed group sizes stay unresolved. The policy is shared by angular probes
+and trial reconstruction, with unchanged logical roots, caps, radii and profile.
+
+The selected constructor retains legacy reclosure first. Closed results without
+a detected factor discontinuity skip the new attempt. Missing closure or a detected
+jump permits one additional two-step continuous attempt; failed, longer or worse
+site-error closed alternatives retain the legacy result. Resumed work stays legacy.
+This explicitly adds at most two initial correction steps within the original4s
+first-pass deadline; no additional contact branches, pair budget, depth, bend count,
+radius relaxation or aesthetic change. It is not a universal contact-fallback or
+no-regression guarantee; the final route still needs its strict contact certificate.
+
+Maintained622passes21frozen gym configurations: repaired trigger plus20accepted
+controls, all20retaining baseline material lengths. One623normal cold worker/native
+build passes named fidelity,98faces/3360points/184seams,zero warnings. Its one native
+configuration does not establish native breadth across21cases. Native body visible;
+old failures/inspection bodies and tester ranges/counters retained. Numerical CPU
+.660822s, first-pass wall.273932s, numerical wall.696633s, generation.642094s and
+separate diagnostic audit4.668727s. Solve-vs-generation wall goal misses by.054539s;
+not a stop under the existing timing policy.200pins frozen; selected gym workers
+use the correction.77focused tests pass with the already-established solver-length
+expectation failure still present; scoped Ruff and all six changed-code IDE checks
+pass without findings. Full QA/full physical audit unrun. Experiments, unsuccessful
+variants and limited coverage are recorded in selected solver NOTES.md and ignored
+ribbon_fold614–624. No production promotion.
+
 Current584–588extends failure-only joint recovery to actual depth-limited material
 cells when no penetration witness exists. Use an implicated straight normal or
 the first undecided cell's midpoint normal; cells guide correction, never permit

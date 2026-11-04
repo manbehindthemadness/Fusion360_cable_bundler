@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_joint_route.frames import Topology, rotation_choices
 from experiments.experiment_ribbon_reduced_joints.kinematics import moved
 
+from .continuation import BranchPolicy, closest
 from .features import Chain
 from .linear_fit import least_squares
 
@@ -77,9 +78,18 @@ def nearest(model: Model, checkpoint: Callable[[], None]) -> Closure:
     return best
 
 
-def reframed(boundary: Boundary, original: Chain, references: tuple[Pose, ...]) -> Chain | None:
+def reframed(
+    boundary: Boundary,
+    original: Chain,
+    references: tuple[Pose, ...],
+    *,
+    branch_policy: BranchPolicy = BranchPolicy.INDEX,
+) -> Chain | None:
     """
-    Preserve the same exact root indices/group sizes while shared guide joint orientations change.
+    Recompute exact factors under the selected index or physical-continuation policy.
+
+    Logical roots and group sizes remain fixed. Record any legacy index jump in
+    factor rotations so reclosure can consider a continuous alternative explicitly.
     """
     target = boundary.targets
     sequence = (
@@ -94,6 +104,8 @@ def reframed(boundary: Boundary, original: Chain, references: tuple[Pose, ...]) 
         )
     )
     groups = []
+    begin = 0
+    discontinuity = original.factor_discontinuity
     for a, b, root, size in zip(sequence, sequence[1:], original.roots, sizes):
         try:
             choices = rotation_choices(a, b, boundary.radius_mm, boundary.half_width_mm * 2)
@@ -101,13 +113,23 @@ def reframed(boundary: Boundary, original: Chain, references: tuple[Pose, ...]) 
             return None
         if root >= len(choices) or len(choices[root]) != size:
             return None
-        groups.append(choices[root])
+        previous = original.topology.folds[begin : begin + size]
+        matched = closest(previous, choices)
+        selected = matched if branch_policy is BranchPolicy.CONTINUOUS else choices[root]
+        if selected is None:
+            return None
+        discontinuity = discontinuity or (
+            branch_policy is BranchPolicy.INDEX and matched is not None and selected is not matched
+        )
+        groups.append(selected)
+        begin += size
     return Chain(
         Topology(original.topology.identifier, tuple(p for group in groups for p in group), None),
         original.group_ends,
         references,
         original.feature_count,
         original.roots,
+        discontinuity,
     )
 
 
@@ -134,6 +156,7 @@ def correction(
     checkpoint: Callable[[], None],
     *,
     straight_motion: StraightMotion = StraightMotion.FIXED,
+    branch_policy: BranchPolicy = BranchPolicy.INDEX,
 ) -> list[float] | None:
     """
     Derive a minimum-norm linearized endpoint correction from six probes per shared joint.
@@ -153,7 +176,12 @@ def correction(
         positions = []
         for sign in (-1, 1):
             checkpoint()
-            probe = reframed(boundary, chain, changed(chain.targets, delta, sign * step))
+            probe = reframed(
+                boundary,
+                chain,
+                changed(chain.targets, delta, sign * step),
+                branch_policy=branch_policy,
+            )
             if probe is None:
                 return None
             positions.append(Model(boundary, probe.topology).endpoint(closure.values).origin)

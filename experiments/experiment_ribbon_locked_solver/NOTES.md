@@ -1,5 +1,85 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Continuous fold-factor identity614–624 — 2026-11-04
+
+User identifies the upper event of d058case12 as a clear failure and asks for a
+clean, cheap correction that generalizes.614measures four original cached upper
+subpaths: roots0/0penetrate234checks;0/1,1/0,1/1locally separate in35/101/17checks.
+The existing opposite upper event0/1also proves a different global0/4penetration
+at846checks when given its original full1024certificate allowance. Thus reversing
+that event alone moves the problem. Total cached checks1233/.198596s; no solving.
+615existing recovery on cached0/1uses four updates/.092991CPU and no new contact
+checks but remains unresolved (complete-region bound gap-.659195mm). Not promoted.
+
+The concrete defect is algebraic branch identity: the stable quadratic formula's
+root ordering changes as its coefficients change. `repair.reframed` previously
+treated root index as physical fold identity. The original (1,1)frame correction
+half-step flips its first pair from(-146.729,-140.574)degrees to approximately
+(149.482,167.120)degrees despite the small reference-frame change. These are local
+factor angles on different axes, not a global left/right sign rule.
+
+616prototype continues actual factor rotations instead. It solves the trigger to
+12.850200mm but loses the first depth control; stopped2/9,seven unattempted.617keeps
+legacy reclosure when continuity fails to close:9/9numerical passes.618source-prefix
+and619invalid-seed setup errors occur before any numerical executions; preserved
+scripts/responses and620plan record them.620freezes12valid new gym configurations,
+with N1..6,three diameters,two layout scales and noncardinal integer rolls. Paired
+baseline/prototype runs alternate order:24/24numerical passes, same paired route
+lengths,16.558023s.621applies continuity to derivative probes as well as trial
+steps:9/9pass,8.953784s, but one control differs from the earlier trial-only variant.
+None of these prototypes is silently relabelled as maintained-code verification.
+
+Maintained implementation uses typed BranchPolicy and `continuation.closest` over
+the existing exact factors. Dimensionless summed1-dot² quaternion matching does
+not depend on root order, spatial scale or quaternion sign; ambiguous ties or
+different factor counts return unresolved. Legacy index mode remains available.
+Chain records factor-discontinuity evidence. The selected constructor tries legacy
+reclosure first; stable closed results incur no continuous attempt. Missing closure
+or a factor jump permits one additional two-step attempt, using continuous matching
+in both probes and actual steps. Closed legacy results are replaced only if site
+error and material length are non-increasing. Failed attempts retain legacy progress;
+resumed reclosure stays legacy, and hard caller errors propagate. This explicitly
+adds up to two initial correction steps within the original4sfirst-pass deadline.
+The2048contact pool/1024certificate/depth36, radius/profile/fold-count/cap/material
+and strict contact rules are unchanged; no station/angle grid, extra feature or
+physical-rule waiver. This is an algebraic fallback, not a universal guarantee of
+preserving every feasible result under a finite contact budget.
+
+622freezes final200source pins and replays all21inputs with maintained code.
+21/21numerically accepted; trigger now12.850200mm, all20accepted controls retain
+their baseline material lengths. No skipped cases or length/acceptance regressions
+in this scope;17.183815s. Every accepted result retains the numerical material/cap/
+contact gates. These sampled regression results are not global optimality or a
+universal generalization proof. Only the original trigger is built natively.
+
+623launches one normal Solve/build/fidelity run through public viewer dispatch;
+624collects it without another draw/build. Job4c6a9f41eb2445c0ad4a20160196a300completes
+strictly,98faces,3360native points,184seams,zero warnings, maximum sampled surface
+error9.977747e-10mm. Numerical CPU.660822s/wall.696633s, first-pass wall.273932s;
+generation.642094s(kernel.288331s); separate named audit4.668727s, native operation
+6.422900s. Matched solve-vs-generation wall goal misses by.054539s; retained as a
+performance finding under the existing non-blocking timing policy. Sampled native
+RSS peaks380240KiB; in-flight peak unmeasured. Full physical audit remains0.
+New accepted body visible and completed method selected. Old rejected bodies/logs/
+metadataPNG remain; original tester stays stopped/problem at12attempts/11passes
+with its specification/settings unchanged. Fresh worker processes load the new
+numerical implementation; native/UI code is unchanged, so no host reload required.
+
+66cold numerical executions across21independent gym configurations in616/617/620/
+621/622/623, plus the explicitly separate cached614/615operations; one native
+attempt/build/named fidelity pass,20native configurations unattempted.616's failed
+control and skipped seven,615unresolved recovery and618/619setup stops remain in
+the record. No additional search/native run scheduled or production promotion.
+
+77focused checks pass across factor continuity, feature allocation/reclosure,
+projected correction, contact recovery/depth/policy, locked solver and V2 consumers.
+One pre-existing regression still expects33.150386mm but produces27.240032mm, as
+already reproduced on committed baseline in609; not changed or hidden here.
+Ruff lint/format on the affected feature package and new tests pass. All six changed
+Python files have clear IDE inspections; complete code/new-file/lock/docs diff
+reviewed. No full repository QA or standalone type checker. Evidence: ignored
+ribbon_fold614–623plans/results, frozen614–624scripts/responses, and original jobs.
+
 ## Native-first rejected inspection609–613 — 2026-11-04
 
 User prefers the native failed specimen to the coarse scaffold. Numerically

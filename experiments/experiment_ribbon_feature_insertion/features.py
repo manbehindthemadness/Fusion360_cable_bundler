@@ -19,7 +19,7 @@ from .guide_frames import Frames
 @dataclass(frozen=True)
 class Chain:
     """
-    Retain steering-feature boundaries separately from their required fold primitives.
+    Retain steering-feature boundaries, logical roots and legacy factor-discontinuity evidence.
     """
 
     topology: Topology
@@ -27,6 +27,7 @@ class Chain:
     targets: tuple[Pose, ...]
     feature_count: int
     roots: tuple[int, ...]
+    factor_discontinuity: bool = False
 
 
 def chains(

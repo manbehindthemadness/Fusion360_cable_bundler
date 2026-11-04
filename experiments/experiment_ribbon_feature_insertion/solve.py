@@ -19,7 +19,8 @@ from .allocation import Allocation, fit
 from .contact_measurement import ContactPolicy
 from .features import chains
 from .guide_frames import Frames
-from .reclosure import Unclosed, refine
+from .reclosure import Unclosed
+from .reclosure import refine_preserving_legacy as refine
 from .repair import nearest
 from .selection import Branch, Policy, select
 
@@ -65,8 +66,12 @@ def construct(
     Contact is strict by default. The temporary gym policy may retain pair-budget
     exhaustion as an explicitly incomplete measurement; actual penetration and
     other unresolved outcomes reject. Resource/source errors always propagate.
-    Initially unclosed branches receive at most two residual-derived angular
-    corrections with two finite step halvings. If no closed branch passes contact
+    Initially unclosed branches receive two residual-derived angular corrections
+    with two finite step halvings. An unclosed or factor-discontinuous result may
+    receive one additional two-step physical-continuation attempt, retaining the
+    legacy result if that attempt fails or worsens its site error/material length.
+    All reclosure work shares the caller's unchanged first-pass time limit and
+    creates no additional contact branches. If no closed branch passes contact
     and pair work remains, only the closest still-progressing branch receives at
     most four additional corrections and one bounded certificate. Successful
     original constructions never incur this continuation. Radius and station

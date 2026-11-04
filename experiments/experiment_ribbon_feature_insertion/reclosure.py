@@ -11,6 +11,7 @@ from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .allocation import Allocation, fit
+from .continuation import BranchPolicy
 from .features import Chain
 from .repair import Closure, StraightMotion, changed, correction, nearest, reframed
 
@@ -33,6 +34,8 @@ def refine(
     maximum_steps: int,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    branch_policy: BranchPolicy = BranchPolicy.INDEX,
 ) -> Allocation | Unclosed | None:
     """
     Continue the same residual-derived corrections until exact closure, stalling or a finite cap.
@@ -52,7 +55,14 @@ def refine(
             if unfinished.iteration > 0 and iteration == unfinished.iteration + maximum_steps - 1
             else StraightMotion.FIXED
         )
-        delta = correction(boundary, current, closure, checkpoint, straight_motion=motion)
+        delta = correction(
+            boundary,
+            current,
+            closure,
+            checkpoint,
+            straight_motion=motion,
+            branch_policy=branch_policy,
+        )
         if delta is None:
             record(
                 {
@@ -68,7 +78,12 @@ def refine(
         progressed = False
         for halving in range(2):
             checkpoint()
-            probe = reframed(boundary, current, changed(current.targets, delta, 0.5**halving))
+            probe = reframed(
+                boundary,
+                current,
+                changed(current.targets, delta, 0.5**halving),
+                branch_policy=branch_policy,
+            )
             if probe is None:
                 record(
                     {
@@ -92,6 +107,7 @@ def refine(
                     else "no_gain",
                     "position_error_diameters": trial.error,
                     "angular_delta": delta,
+                    "branch_policy": branch_policy.value,
                     "straight_motion": motion.value,
                 }
             )
@@ -109,3 +125,52 @@ def refine(
         if closure.error > 1e-7 / boundary.targets.diameter_mm
         else None
     )
+
+
+def refine_preserving_legacy(
+    boundary: Boundary,
+    unfinished: Unclosed,
+    threshold_mm: float,
+    maximum_steps: int,
+    checkpoint: Callable[[], None],
+    record: Callable[[dict[str, Any]], None],
+) -> Allocation | Unclosed | None:
+    """
+    Keep closed continuous legacy results; correct detected factor jumps without losing fallback.
+
+    Initial reclosure gets at most one additional equally bounded continuation
+    attempt, within the caller's unchanged first-pass time/contact limits. Resumed
+    work retains the legacy policy. A continuous result replaces a closed legacy
+    result only with non-increasing site error and material length. Hard errors
+    propagate; unsuccessful continuation retains the original result.
+    """
+    legacy = refine(boundary, unfinished, threshold_mm, maximum_steps, checkpoint, record)
+    if unfinished.iteration or (
+        isinstance(legacy, Allocation) and not legacy.chain.factor_discontinuity
+    ):
+        return legacy
+    continuous = refine(
+        boundary,
+        unfinished,
+        threshold_mm,
+        maximum_steps,
+        checkpoint,
+        record,
+        branch_policy=BranchPolicy.CONTINUOUS,
+    )
+    if not isinstance(continuous, Allocation):
+        return legacy
+    if isinstance(legacy, Allocation) and (
+        continuous.score > legacy.score
+        or continuous.route.material_length_mm > legacy.route.material_length_mm
+    ):
+        return legacy
+    record(
+        {
+            "stage": "factor_continuation",
+            "status": "closed",
+            "roots": unfinished.chain.roots,
+            "legacy_closed": isinstance(legacy, Allocation),
+        }
+    )
+    return continuous
