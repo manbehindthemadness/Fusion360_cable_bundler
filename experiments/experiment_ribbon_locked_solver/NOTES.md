@@ -1,5 +1,68 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Stage-aware smoothing effort633–638 — 2026-11-04
+
+User asks how to avoid useless smoothing while distinguishing a bad calculation
+from a genuinely blocked improvement.633reads four cached gym routes; existing
+layout projection ignores the active peak-curvature acceptance bound. Adding a
+linearized peak row creates18.5%surface-score descent in the trigger without
+sharpening its worst bend, but does not resolve all layouts.634tests a coupled
+peak/length/cap retraction prototype against the unchanged layout stage, baseline
+first for four cases: old0/4changed, prototype1/4changed (case5,10.6132%surface-score
+gain,8separated proposals/772checks). Cases1/9retain baseline after reclosure fails;
+trigger's valid first proposal penetrates in70checks and the five smaller ones
+fail reclosure. All original geometric gates retained. This prototype is archived,
+not installed; no generalized layout or global no-improvement claim follows.
+
+That ineffective layout stage costs only.039370s on the trigger. Radius easing
+dominates smoothing cost by repeatedly certifying small intermediate adjustments.
+635separates the same eight-iteration/six-halving deterministic radius math from
+at most two final certificates. Four cached first-pass configurations, baseline
+first, no native work: all radius objectives preserve/improve. Trigger5.519613→
+1.343991s,19705→4522checks,22.9855→23.6567%lane-curvature reduction. Its first final
+check is unresolved, its immediate predecessor separates; no waiver occurs.636
+freezes eight additional pre-existing gym cases (2/3/4/6/7/8/10/11) before new-policy
+evaluation: all eight preserve their radius results, often with fewer checks.
+Six of the twelve combined cases have no projected radius descent and make zero
+radius contact calls. They still receive merge/layout processing; case5shows why
+radius stationarity must not be treated as a useless whole smoothing pass.
+
+Maintained implementation extracts shared radius_descent proposals and an explicit
+ContactSchedule. V2 uses FINAL_DESCENT; historical API/v1 default PER_STEP retains
+its original sequence. No random candidate proposals, extra math iterations,
+expanded certificates, physical tolerance changes or native builder changes.
+Intermediate progress logs are explicitly contact-unmeasured; only a complete
+separated certificate returns changed geometry. Both final certificates failing
+returns the original input. Zero smoothing still skips everything. Source lock203.
+
+637compares exact prior source versus the implementation in four cold complete v2
+core cases, eight executions, same frozen caps/settings/budgets,15s/execution/
+120sphase/4GiB. Both4/4accepted; three control routes and all four first passes are
+exactly unchanged. Trigger84.210531mm, CPU6.407175→2.223328, smoothing5.781668→
+1.656286s; first pass.739430s. Phase16.965438s, original hashes unchanged. Final
+separation1881checks, inherited from an identical accepted smoothing snapshot.
+
+638builds that exact cached route once and completes named native fidelity:
+310faces,10780points,594seams, maximum surface error9.968861e-10mm,zero warnings.
+Generation4.006655s, audit33.172695s, native stage39.172024s, peak sampled566736KiB.
+No fresh numerical solve for the build. Cold numerical CPU2.223328s is below this
+matched4.006655s construction, but that kernel run is slower than632's1.525958s;
+do not infer general native speed improvement. A final function line-wrap after637
+is reviewed with saved-source SHA and exact AST equality before the fresh203pin
+native plan; no geometry or solver change is hidden by the source renewal.
+
+Independent scope12cached configurations numerically compared, including four
+cold endpoint-solver pairs;1native-attempted/built/named-audited,11new-policy native
+unattempted,0full physical audits. No skipped cases inside the selected scopes.
+75unique focused tests pass; two known old v2 length-test parameters excluded.
+Affected Ruff lint/format passes. Changed-code IDE inspections show no findings;
+radius_descent returns empty diagnostics but times out, including errors-only,
+so its complete IDE inspection remains unavailable. Full QA remains unrun.
+Current body visible; earlier bodies hidden/preserved; inputs/logs/screenshot and
+stopped tester13/12 retained. No range restart or further native work scheduled.
+Evidence: ignored ribbon_smoothing633/634/635/636 and ribbon_reversal637/638 plus
+their frozen scripts. No production routing changes or general reliability claim.
+
 ## Completed smoothing certificate retention628–632 — 2026-11-04
 
 Trigger is range29d5case13, seed2520867837,N9,D.75mm,void/zone300%, Azone5/face5/

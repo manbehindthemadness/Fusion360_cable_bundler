@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from experiments.experiment_ribbon_aesthetic.layout_solve import ease as ease_layout
 from experiments.experiment_ribbon_aesthetic.merge import merge
+from experiments.experiment_ribbon_aesthetic.solve import ContactSchedule
 from experiments.experiment_ribbon_aesthetic.solve import ease as ease_radii
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
@@ -17,6 +18,8 @@ def smooth(
     percent: float,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    contact_schedule: ContactSchedule = ContactSchedule.PER_STEP,
 ) -> tuple[FoldRoute, dict[str, str]]:
     """
     Preserve the original radius/merge/layout/merge ordering; zero performs no work.
@@ -25,7 +28,9 @@ def smooth(
         return first, {"smoothing": "disabled"}
     fraction = percent / 100
     maximum_length = first.material_length_mm * (1 + fraction)
-    final, radius = ease_radii(first, fraction, checkpoint, record)
+    final, radius = ease_radii(
+        first, fraction, checkpoint, record, contact_schedule=contact_schedule
+    )
     final, before = merge(final, maximum_length, checkpoint, record)
     final, layout = ease_layout(final, maximum_length, checkpoint, record)
     final, after = merge(final, maximum_length, checkpoint, record)

@@ -11,6 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from experiments.experiment_ribbon_aesthetic.solve import ContactSchedule
 from experiments.experiment_ribbon_contraction.runner import restore, snapshot
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
@@ -33,11 +34,14 @@ def _sequence(
         percent: float,
         checkpoint: Callable[[], None],
         record: Callable[[dict[str, Any]], None],
+        *,
+        contact_schedule: ContactSchedule = ContactSchedule.PER_STEP,
     ) -> tuple[FoldRoute, dict[str, str]]:
         """
         Forward an immutable proposal then return the declared final geometry.
         """
         del first, percent
+        assert contact_schedule is ContactSchedule.FINAL_DESCENT
         checkpoint()
         record(event)
         return final, {"radius_easing": "iteration_budget"}

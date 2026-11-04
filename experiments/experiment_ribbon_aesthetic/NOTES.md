@@ -1,5 +1,38 @@
 # Aesthetic curvature easing after the joint first pass — 2026-11-01
 
+## Stage-aware effort and deferred radius certification633–638 — 2026-11-04
+
+The selected v2 gym now uses `ContactSchedule.FINAL_DESCENT`. Shared radius
+proposal generation retains the original affine closure, radius/peak/length bounds,
+eight iterations and six halvings. A stationary projected direction or exhausted
+coordinate/length allowance ends radius work before contact checking. This is a
+local radius-model stop, not proof that the whole layout cannot be smoothed:
+merge and layout stages still run. Other callers, including v1, retain historical
+`PER_STEP` certification by default; `direction` remains import-compatible.
+
+V2 first computes bounded radius descent without claiming contact acceptance,
+then checks the final mathematical improvement and at most its immediate
+predecessor. Both failing retains the original certified input. Expensive checks
+are not repeated for every intermediate adjustment. No unmeasured or penetrating
+proposal is accepted, no contact budget increases, and the final exact-snapshot
+certificate reuse remains in effect. Logs distinguish `radius_math` unmeasured
+improvements/stop reason from `radius_certificate` started/accepted/rejected work.
+
+Twelve frozen cached gym first passes preserve or improve their radius objective
+under this schedule; six have no projected radius descent and incur zero contact
+checks. Trigger radius stage5.519613→1.343991s,19705→4522subdivision checks, curvature
+reduction22.9855→23.6567%. Full four-case cold v2 comparison preserves all accepted
+results, all first passes and three control routes exactly. Trigger total CPU
+6.407175→2.223328s, smoothing5.781668→1.656286s. One new native build/named fidelity
+passes; broader native coverage and full physical audits remain absent.
+
+The separate peak-aware layout prototype634is not installed: it improves one of
+four cached layouts (10.61%surface-score reduction) but retains three unchanged;
+the trigger's promising direction penetrates. Thus repeated layout rejection is
+not evidence of no useful direction, and this investigation does not introduce a
+blanket whole-pass skip. Detailed scope, native timing, tests and remaining IDE
+inspection limit: [selected solver notes](../experiment_ribbon_locked_solver/NOTES.md#stage-aware-smoothing-effort633638--2026-11-04).
+
 The later [layout-relative easing and merging investigation](LAYOUT_NOTES.md)
 records304..312, including the zero-runway reclosure fix, accepted larger Gym3,
 the rejected new calibration candidate and retained passing geometry. The296..303

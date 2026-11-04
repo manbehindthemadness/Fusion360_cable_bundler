@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from devtools.ribbon_analysis.inspection.archive import canonical
+from experiments.experiment_ribbon_aesthetic.solve import ContactSchedule
 from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
@@ -69,7 +70,9 @@ def smooth_with_contact(
             )
         record(event)
 
-    final, stages = smooth(first, percent, checkpoint, observe)
+    final, stages = smooth(
+        first, percent, checkpoint, observe, contact_schedule=ContactSchedule.FINAL_DESCENT
+    )
     if certified_geometry is None or certified_geometry != canonical(snapshot(final)):
         measurement = None
     return Result(final, stages, measurement)
