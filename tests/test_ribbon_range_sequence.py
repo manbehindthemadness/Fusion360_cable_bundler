@@ -18,7 +18,9 @@ def specification() -> dict[str, Any]:
     """
     Use fixed selected faces and small dimensions without supplying a route.
     """
-    return defaults(Scene(Config(19, 3, 0.75, 300, 300), Goal(10, 0), Goal(7, 8, 1)))
+    payload = defaults(Scene(Config(19, 3, 0.75, 300, 300), Goal(10, 0), Goal(7, 8, 1)))
+    payload["avoid_adjacent_zones"] = False
+    return payload
 
 
 def test_decimal_steps_are_exact_and_stop_at_the_declared_maximum() -> None:

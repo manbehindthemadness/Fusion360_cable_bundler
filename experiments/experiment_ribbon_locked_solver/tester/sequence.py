@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
+from devtools.ribbon_analysis.gym.placement import allowed_pairs
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 
 from .ranges import FIELDS, NumericRange
@@ -28,13 +29,17 @@ class Specification:
     stop_on_warnings: bool
     maximum_cases: int
     screenshots: ScreenshotSettings = ScreenshotSettings()
+    avoid_adjacent_zones: bool | None = None
 
     @classmethod
     def parse(cls, payload: Any) -> Specification:
         """
         Validate the complete range plan and existence of distinct endpoint zones before launch.
         """
-        if not isinstance(payload, dict) or set(payload) - {"screenshots"} != {
+        if not isinstance(payload, dict) or set(payload) - {
+            "screenshots",
+            "avoid_adjacent_zones",
+        } != {
             "ranges",
             "mode",
             "seed",
@@ -54,6 +59,8 @@ class Specification:
             raise ValueError("Test seed must be an integer in 0..4294967295.")
         if type(payload["stop_on_warnings"]) is not bool:
             raise ValueError("Choose explicitly whether native accuracy warnings stop testing.")
+        if "avoid_adjacent_zones" in payload and type(payload["avoid_adjacent_zones"]) is not bool:
+            raise ValueError("Choose explicitly whether to avoid adjacent cubicles.")
         if (
             type(payload["maximum_cases"]) is not int
             or not 0 <= payload["maximum_cases"] <= 1_000_000
@@ -68,8 +75,14 @@ class Specification:
             payload["stop_on_warnings"],
             payload["maximum_cases"],
             ScreenshotSettings.parse(payload.get("screenshots")),
+            payload.get("avoid_adjacent_zones"),
         )
         if not result.zone_pairs:
+            if result.avoid_adjacent_zones:
+                raise ValueError(
+                    "No non-adjacent cubicle pairs in these ranges. "
+                    "Broaden zone ranges or disable Avoid adjacent cubicles."
+                )
             raise ValueError("A and B need at least one pair of different zones.")
         Config(
             0,
@@ -83,14 +96,16 @@ class Specification:
     @cached_property
     def zone_pairs(self) -> tuple[tuple[int, int], ...]:
         """
-        Exclude only intrinsically invalid equal-zone inputs, before any solver outcome.
+        Apply the frozen placement policy before any solver outcome or case attempt.
         """
         a, b = self.ranges["a_zone"], self.ranges["b_zone"]
         return tuple(
-            (int(a.value(i)), int(b.value(j)))
-            for i in range(a.count)
-            for j in range(b.count)
-            if a.value(i) != b.value(j)
+            (first + 1, second + 1)
+            for first, second in allowed_pairs(
+                tuple(int(a.value(i)) - 1 for i in range(a.count)),
+                tuple(int(b.value(j)) - 1 for j in range(b.count)),
+                avoid_adjacent_zones=bool(self.avoid_adjacent_zones),
+            )
         )
 
     @cached_property
@@ -143,7 +158,7 @@ class Specification:
         """
         Serialize the replayable settings without counts or generated geometry.
         """
-        return {
+        result = {
             "ranges": {name: values.payload() for name, values in self.ranges.items()},
             "mode": self.mode,
             "seed": self.seed,
@@ -151,6 +166,9 @@ class Specification:
             "maximum_cases": self.maximum_cases,
             "screenshots": self.screenshots.payload(),
         }
+        if self.avoid_adjacent_zones is not None:
+            result["avoid_adjacent_zones"] = self.avoid_adjacent_zones
+        return result
 
 
 def defaults(scene: Scene) -> dict[str, Any]:
@@ -180,4 +198,5 @@ def defaults(scene: Scene) -> dict[str, Any]:
         "stop_on_warnings": True,
         "maximum_cases": 0,
         "screenshots": ScreenshotSettings().payload(),
+        "avoid_adjacent_zones": True,
     }

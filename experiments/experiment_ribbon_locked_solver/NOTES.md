@@ -1,5 +1,76 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Optional gym placement rule627 — 2026-11-04
+
+Endpoint gym and range tester now expose default-on **Avoid adjacent cubicles**:
+face, edge and corner neighbors are excluded before generation/scheduling, with
+an independent disable checkbox in each panel. Existing recorded scenes and old
+range plans remain replayable. No solver, contact, construction or tolerance rules
+change. Current adjacent failure remains displayed for inspection. Live627refresh
+preserves body, inputs, stopped tester and logs with0solves/builds/redraws;201pins.
+Behavior, verification and evidence: [tester notes](tester/NOTES.md#optional-cubicle-separation627--2026-11-04).
+
+## Existing N7 failure / before-after inspection625–626 — 2026-11-04
+
+User reports a new visually familiar excursion and suspects physically impossible
+gym inputs; explicitly asks to run checks while leaving that separate issue for
+consideration. Current stopped range-d11fcase4/jobd29fcefc37744c0382901fb1933c69c1:
+seed3079315550,N7,D.75mm,void/zone300%,UI Azone15/face12/roll67degrees and Bzone24/
+face6/roll45degrees. Original range remains stopped at4attempts/3passes. The shown
+272-face native body is rejected inspection geometry (generation1.346244s), not
+accepted routing; no native fidelity audit is implied by that construction.
+
+625freezes this range's four exact inputs and compares each with pre-continuity
+commitc4cf142's exact four numerical modules versus current200pin code. Eight cold
+numerical-core executions, alternating variant order,5s/execution/45sphase/4GiB,
+unchanged settings/rules/budgets,zero native attempts. Three accepted controls
+(N8seed2355999392,N2seed871963558,N10seed1957585417) produce exactly identical full
+route payloads in both versions. The new N7case remains unresolved in both.626also
+compares the recorded closed branch geometry, not just the two null final routes:
+it is exactly identical before/after. No acceptance or geometry regression from
+the continuity fix is observed in these four configurations. Phase5.816022s;
+original plan/trials/numerical-result hashes remain unchanged.
+
+626cached inspection measures its sole closed228.647157mm route against6.628358mm
+endpoint distance:172.722474mm explicit straights (75.5411%). One3.772161degree fold
+has77.051170degree crease bank and23.596263mm total material length, mostly its
+required flat diagonal leads. The other banks/turns and whole route are retained
+in the ignored report; these are existing finite-construction choices, not a
+new constraint or proof that all feasible routes need this excursion.
+
+Original contact rejects pieces1/6 in524checks. Recovery first improves that gap,
+then certifies a different0/6penetration in619checks; another update improves its
+bound but the.35CPU allowance stops further work. Original recovery reports
+.356198CPU,3iterations,1completed certificate,905remaining pooled pairs. The paired
+replays complete two recovery certificates/1696total pairs before the same local
+CPU stop; this timing-sensitive difference does not change the failure. Both
+versions use the same closed plan and retain hard material/contact rejection.
+Contraction and aesthetic smoothing are never reached, explaining why already
+improved successful-route features can reappear in the raw inspection specimen.
+Cached cap error2.877205e-13 and material metric error4.502177e-16 pass their usual
+goals; those checks do not establish separation or native fidelity.
+
+Gym sanity checks: frozen payload validates, endpoint centers match selected face
+centers, and both complete rational joined-profile contours are enclosed inside
+their selected pentagons by positive-weight control-hull bounds (minimum margins
+.484816/.797778mm). A face-axis projection proves the two dodecahedra disjoint with
+2.889923mm separating-axis gap; this is not an exact minimum-distance claim. These
+checks do NOT prove physical reachability, obstacle avoidance or a feasible ribbon
+connection. Gym validation currently checks authored input consistency and distinct
+zones, not connection feasibility; gym solids are excluded from routing avoidance.
+The user's broader physical-layout concern therefore remains open, not dismissed
+or labelled impossible solely from finite solver failure. No gym/layout changes.
+
+Four independent configurations, each numerically evaluated with two versions:
+3/4accepted and1/4unresolved in both; no skipped comparisons,0new native attempts,
+0post-build/full physical audits. Native failure rate for these comparisons remains
+unmeasured. Cached626work.045295s,0solves. All200source pins unchanged; no solver,
+test, UI or production edits, no new native work, no repairs or budget expansion.
+Documentation diff reviewed; no application tests for these prose-only changes.
+Original inspection body, tester controls, logs and metadata PNG left untouched.
+Evidence: ignored ribbon_check625/626 plans/results and frozen625/626scripts plus
+original range/job. Further solver or physical-gym work is not scheduled here.
+
 ## Continuous fold-factor identity614–624 — 2026-11-04
 
 User identifies the upper event of d058case12 as a clear failure and asks for a

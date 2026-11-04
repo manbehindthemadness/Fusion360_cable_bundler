@@ -1,5 +1,35 @@
 # Gym range tester — 2026-11-03
 
+## Optional cubicle separation627 — 2026-11-04
+
+**Avoid adjacent cubicles** starts enabled in both the endpoint gym and range
+tester. Face, edge and corner contact count as adjacency: an allowed pair must
+differ by two cell coordinates on at least one axis. This dimension-independent
+placement rule does not certify physical reachability. Uncheck it in the relevant
+panel to restore the old distinct-cubicle behavior; each control applies to its
+own workflow. Existing displayed and saved layouts remain unchanged.
+
+New gym generation chooses directly from386allowed ordered pairs (650disabled),
+without retries or solver work. Manual zone menus disable excluded cells and
+the backend rejects invalid edits. Range plans filter pairs before counting or
+sampling. If no pair remains, Start explains how to broaden the ranges or disable
+the option, without consuming attempts. New plans freeze the explicit boolean,
+which also travels with their screenshot metadata. Historical plans lacking it
+retain their original pair order and inputs, and serialize without the new field;
+explicit false survives reconnect. Scene/Goal payloads and hashes are unchanged.
+Disabled interactive generation retains the original seed mapping.
+
+123focused gym/range/handoff/recovery tests and17PNG/palette tests pass. Both
+maintained browser scripts pass host harnesses covering checkbox serialization,
+eligible zones and existing controls. Affected Ruff checks/format and changed-code
+IDE inspections pass with only pre-existing duplication/async weak warnings.
+Live627refreshes the idle owned gym610palettes and verifies on/off, adjacent-edit
+rejection and386/650pairs, preserving current layout, body revisions/visibility,
+selection, frozen historical plan and tester4attempts/3passes. Source lock201pins.
+Zero solves, native builds, layout redraws or compliance audits; no new complete
+ribbon coverage. Full QA remains unrun. Evidence: ignored ribbon_placement627
+plan/before/result and placement627browser harnesses.
+
 ## Deleted display containers546–550
 
 Deleting the gym/diagnostic browser containers formerly left their palettes alive
@@ -58,8 +88,10 @@ case identifier. Source pins remain193; tester idle and option unchecked.
 The selected material-solver diagnostics expose **Gym range tester**. Set Min,
 Max and Step for conductor count, diameter, central void percentage, zone depth,
 and both endpoints' zone, face and roll. Zones/faces use the gym's one-based
-labels; roll now supports integer0..359degrees (see the degree-control update below). Equal endpoint zones are excluded before
-scheduling. Max is included only when reached by the step. Decimal stepping uses
+labels; roll now supports integer0..359degrees (see the degree-control update below).
+Equal endpoint zones are always excluded; the optional adjacency rule above also
+filters neighboring cubicles before scheduling. Max is included only when reached
+by the step. Decimal stepping uses
 exact fractions rather than cumulative floating addition.
 
 Choose systematic or seeded random scheduling. Systematic mode visits the

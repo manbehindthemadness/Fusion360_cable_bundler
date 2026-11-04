@@ -13,8 +13,9 @@ import adsk.core
 # noinspection PyUnresolvedReferences
 import adsk.fusion
 
-from devtools.ribbon_analysis.gym import Scene, generate
+from devtools.ribbon_analysis.gym import Scene
 from devtools.ribbon_analysis.gym.handoff import freeze
+from devtools.ribbon_analysis.gym.placement import generate_layout
 from devtools.ribbon_analysis.inspection.fusion_view import DiagnosticViewer
 from devtools.ribbon_analysis.inspection.run_contract import TesterControls
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
@@ -164,7 +165,7 @@ def install(
     diagnostics_occurrence.component.name = "Selected solver diagnostics"
     gym_occurrence = owner.component.occurrences.addNewComponent(adsk.core.Matrix3D.create())
     gym_occurrence.component.name = "Endpoint gym draft"
-    scene = scene or generate()
+    scene = scene or generate_layout()
     manifest = freeze(scene, directory / "initial")
     controller = Controller(
         python,

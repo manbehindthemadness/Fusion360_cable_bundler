@@ -20,7 +20,8 @@ from ..inspection.archive import write_document
 from ..performance import for_layout
 from ..prepath import drawing as prepath_drawing
 from .graphics import draw
-from .scene import Config, Goal, Scene, generate
+from .placement import adjacent, allowed_pairs, generate_layout
+from .scene import Config, Goal, Scene
 
 
 class Incoming(adsk.core.HTMLEventHandler):
@@ -77,7 +78,8 @@ class GymView:
         """
         directory.mkdir(parents=True, exist_ok=False)
         self.component, self.directory = component, directory
-        self.scene = scene or generate()
+        self.avoid_adjacent_zones = True
+        self.scene = scene or generate_layout()
         self.open_diagnostics = open_diagnostics
         self.performance = performance
         self.revision = 0
@@ -138,7 +140,9 @@ class GymView:
         if action == "generate":
             if set(data) != {"seed", "lines", "diameter_mm", "void_percent", "zone_percent"}:
                 raise ValueError("Supply the seed, cable dimensions, and void/zone percentages.")
-            candidate = generate(Config(**data))
+            candidate = generate_layout(
+                Config(**data), avoid_adjacent_zones=getattr(self, "avoid_adjacent_zones", False)
+            )
         elif action == "select":
             if set(data) == {"role", "zone", "face", "roll_degrees"}:
                 goal = Goal.from_degrees(data["zone"], data["face"], data["roll_degrees"])
@@ -147,6 +151,20 @@ class GymView:
             else:
                 raise ValueError("Supply a goal, zone, face and orientation.")
             candidate = self.scene.choose(data["role"], goal)
+            if getattr(self, "avoid_adjacent_zones", False) and adjacent(
+                candidate.a.zone, candidate.b.zone
+            ):
+                raise ValueError(
+                    "Choose non-adjacent cubicles or disable Avoid adjacent cubicles. "
+                    "Face, edge and corner contact count as adjacency."
+                )
+        elif action == "placement":
+            if (
+                set(data) != {"avoid_adjacent_zones"}
+                or type(data["avoid_adjacent_zones"]) is not bool
+            ):
+                raise ValueError("Choose explicitly whether to avoid adjacent cubicles.")
+            self.avoid_adjacent_zones = data["avoid_adjacent_zones"]
         elif action == "diagnostics":
             if data or self.open_diagnostics is None:
                 raise ValueError("A linked diagnostic viewer is required.")
@@ -204,6 +222,23 @@ class GymView:
         """
         return dict(
             self.scene.payload(),
+            avoid_adjacent_zones=getattr(self, "avoid_adjacent_zones", False),
+            eligible_a_zones=[
+                a
+                for a, _ in allowed_pairs(
+                    tuple(range(26)),
+                    (self.scene.b.zone,),
+                    avoid_adjacent_zones=getattr(self, "avoid_adjacent_zones", False),
+                )
+            ],
+            eligible_b_zones=[
+                b
+                for _, b in allowed_pairs(
+                    (self.scene.a.zone,),
+                    tuple(range(26)),
+                    avoid_adjacent_zones=getattr(self, "avoid_adjacent_zones", False),
+                )
+            ],
             diagnostics_available=self.open_diagnostics is not None,
             prepath=prepath_drawing(self.scene.targets),
             performance=self.counters(),
