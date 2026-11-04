@@ -58,7 +58,7 @@ case identifier. Source pins remain193; tester idle and option unchecked.
 The selected material-solver diagnostics expose **Gym range tester**. Set Min,
 Max and Step for conductor count, diameter, central void percentage, zone depth,
 and both endpoints' zone, face and roll. Zones/faces use the gym's one-based
-labels; roll uses 0/90/180/270 degrees. Equal endpoint zones are excluded before
+labels; roll now supports integer0..359degrees (see the degree-control update below). Equal endpoint zones are excluded before
 scheduling. Max is included only when reached by the step. Decimal stepping uses
 exact fractions rather than cumulative floating addition.
 
@@ -156,6 +156,41 @@ Pre-existing duplicate-fragment IDE weak warnings and the old Optional-job strin
 warning in test_ribbon_locked_controller.py remain; no introduced substantive
 findings remain. Extended cycling/native cleanup across multiple configurations
 is still unverified live; scheduling/cleanup boundaries are covered locally.
+
+## One-degree nest rolls595–596 — 2026-11-04
+
+Both nest roll controls now accept whole degrees0..359. Tester min/max/step are
+integer degrees with minimum step1;0..90/10 visits0,10,...,90 instead of rounding
+into quarter turns.360 is excluded because it duplicates0. Roll rotates the
+ordered connector width around the selected face's outward normal; face center,
+normal, solids and other endpoint stay fixed. Solver geometry/rules are unchanged.
+
+Compatibility: existing Goal(zone,face,roll) and archived `roll:0..3` keep their
+quarter-turn meaning. `Goal.from_degrees` canonicalizes quarter turns to those old
+objects/payloads and uses an explicit `roll_degrees` field for other angles. The
+scene schema accepts this additive field; ambiguous simultaneous nonzero legacy
+roll plus explicit degrees rejects. Cardinal width vectors use the exact original
+construction, preserving old poses and layout hashes. Existing seeded Generate
+behavior remains unchanged; arbitrary angles come from manual controls or tester
+ranges. Old range specifications retain their step and scheduling policy. New
+defaults use step1; the status view and PNG replay record preserve actual degrees.
+
+151focused gym/roll/handoff/range/PNG/controller/lock tests pass. All360integer
+orientations are numerically checked on each of12faces, independently measuring
+the face-plane rotation. These are input-pose checks, not4320complete ribbons.
+Scoped18file Ruff lint/format and changed-code IDE checks pass except existing
+duplicate-fragment weak warnings in unchanged gym scene/view sections. FullQA is
+unrun; route solving/native build breadth for the newly available angles is not
+established.197source pins remain; seven implementation/HTML/JS hashes renewed.
+
+596coherently reloads the idle UI and preserves the current full quarter-turn
+layout payload exactly. Public gym select dispatch accepts A1degree and B359degrees
+in a bounded preview check, then restores both original goals. The live tester
+parser generates0..90/10 exactly. Two preview edits plus restoration, zero route
+solves or native route attempts; end-profile preview sketches are subordinate UI
+work, not complete geometry coverage. Install4.115563s; peak sampled530448KiB.
+Original workspace/history retained, new gym596active/tester stopped; evidence
+under ignored roll595-inspect and roll596. Connected palette visually checked.
 
 ## Portable screenshot replay metadata — 2026-11-04
 

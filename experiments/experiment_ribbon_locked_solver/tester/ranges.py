@@ -90,7 +90,6 @@ class Field:
     maximum: int | None = None
     integer: bool = True
     positive: bool = False
-    quarter_turn: bool = False
 
     def validate(self, values: NumericRange) -> None:
         """
@@ -107,10 +106,6 @@ class Field:
             for value in (values.minimum, values.maximum, values.step)
         ):
             raise ValueError(f"{self.label} requires integer min, max and step.")
-        if self.quarter_turn and any(
-            Fraction(value) % 90 for value in (values.minimum, values.maximum, values.step)
-        ):
-            raise ValueError(f"{self.label} uses multiples of 90 degrees.")
 
 
 FIELDS = (
@@ -120,8 +115,8 @@ FIELDS = (
     Field("zone_percent", "Zone depth (%)", 0, integer=False, positive=True),
     Field("a_zone", "A zone (1–26)", 1, 26),
     Field("a_face", "A face (1–12)", 1, 12),
-    Field("a_roll", "A roll (degrees)", 0, 270, quarter_turn=True),
+    Field("a_roll", "A roll (degrees)", 0, 359),
     Field("b_zone", "B zone (1–26)", 1, 26),
     Field("b_face", "B face (1–12)", 1, 12),
-    Field("b_roll", "B roll (degrees)", 0, 270, quarter_turn=True),
+    Field("b_roll", "B roll (degrees)", 0, 359),
 )

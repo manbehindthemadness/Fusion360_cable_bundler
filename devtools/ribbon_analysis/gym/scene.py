@@ -95,20 +95,55 @@ class Config:
 @dataclass(frozen=True)
 class Goal:
     """
-    Preserve selected zone, face and ordered in-face connector orientation.
+    Preserve selected face and in-face orientation, including legacy quarter-turn inputs.
     """
 
     zone: int
     face: int
     roll: int = 0
+    roll_degrees: int | None = None
 
     def __post_init__(self) -> None:
         """
-        Validate stable zone/face identifiers and quarter-turn in-face orientation.
+        Keep legacy roll indices unambiguous; explicit degrees use integer0..359.
         """
         _integer(self.zone, 0, 25)
         _integer(self.face, 0, 11)
         _integer(self.roll, 0, 3)
+        if self.roll_degrees is not None:
+            _integer(self.roll_degrees, 0, 359)
+            if self.roll != 0:
+                raise ValueError("Supply either a legacy roll index or explicit roll degrees")
+
+    @classmethod
+    def from_degrees(cls, zone: int, face: int, degrees: int) -> Goal:
+        """
+        Accept one-degree inputs while retaining canonical historical quarter-turn identities.
+        """
+        _integer(degrees, 0, 359)
+        return (
+            cls(zone, face, degrees // 90)
+            if degrees % 90 == 0
+            else cls(zone, face, roll_degrees=degrees)
+        )
+
+    @property
+    def degrees(self) -> int:
+        """
+        Expose the actual orientation without interpreting legacy indices as degrees.
+        """
+        return self.roll * 90 if self.roll_degrees is None else self.roll_degrees
+
+    def payload(self) -> dict[str, int]:
+        """
+        Preserve old serialized goals exactly; label new angles with explicit units.
+        """
+        orientation = (
+            {"roll": self.roll}
+            if self.roll_degrees is None
+            else {"roll_degrees": self.roll_degrees}
+        )
+        return {"zone": self.zone, "face": self.face, **orientation}
 
 
 @dataclass(frozen=True)
@@ -182,7 +217,18 @@ class Scene:
             Vector3(0, 0, 0).translated(across, -1),
             Vector3(0, 0, 0).translated(up, -1),
         )
-        return origin, normal, widths[goal.roll]
+        degrees = goal.degrees
+        if degrees % 90 == 0:
+            width = widths[degrees // 90]
+        else:
+            angle = math.radians(degrees)
+            width = Vector3(
+                *(
+                    a * math.cos(angle) + b * math.sin(angle)
+                    for a, b in zip((across.x, across.y, across.z), (up.x, up.y, up.z))
+                )
+            )
+        return origin, normal, width
 
     @property
     def targets(self) -> Targets:
@@ -226,8 +272,8 @@ class Scene:
             "side_mm": self.config.side_mm,
             "zone_mm": self.config.zone_mm,
             "extent_mm": self.config.extent_mm,
-            "a": asdict(self.a),
-            "b": asdict(self.b),
+            "a": self.a.payload(),
+            "b": self.b.payload(),
             "zones": [",".join(map(str, zone)) for zone in ZONES],
             "faces": FACES,
             "solids": [

@@ -135,8 +135,8 @@ class Specification:
         )
         return Scene(
             config,
-            Goal(a_zone - 1, int(values["a_face"]) - 1, int(values["a_roll"]) // 90),
-            Goal(b_zone - 1, int(values["b_face"]) - 1, int(values["b_roll"]) // 90),
+            Goal.from_degrees(a_zone - 1, int(values["a_face"]) - 1, int(values["a_roll"])),
+            Goal.from_degrees(b_zone - 1, int(values["b_face"]) - 1, int(values["b_roll"])),
         )
 
     def payload(self) -> dict[str, Any]:
@@ -164,14 +164,13 @@ def defaults(scene: Scene) -> dict[str, Any]:
         "zone_percent": scene.config.zone_percent,
         "a_zone": scene.a.zone + 1,
         "a_face": scene.a.face + 1,
-        "a_roll": scene.a.roll * 90,
+        "a_roll": scene.a.degrees,
         "b_zone": scene.b.zone + 1,
         "b_face": scene.b.face + 1,
-        "b_roll": scene.b.roll * 90,
+        "b_roll": scene.b.degrees,
     }
     ranges = {
-        name: {"min": str(value), "max": str(value), "step": "90" if name.endswith("roll") else "1"}
-        for name, value in values.items()
+        name: {"min": str(value), "max": str(value), "step": "1"} for name, value in values.items()
     }
     ranges["lines"] = {"min": "1", "max": str(max(6, scene.config.lines)), "step": "1"}
     return {

@@ -140,11 +140,13 @@ class GymView:
                 raise ValueError("Supply the seed, cable dimensions, and void/zone percentages.")
             candidate = generate(Config(**data))
         elif action == "select":
-            if set(data) != {"role", "zone", "face", "roll"}:
+            if set(data) == {"role", "zone", "face", "roll_degrees"}:
+                goal = Goal.from_degrees(data["zone"], data["face"], data["roll_degrees"])
+            elif set(data) == {"role", "zone", "face", "roll"}:
+                goal = Goal(data["zone"], data["face"], data["roll"])
+            else:
                 raise ValueError("Supply a goal, zone, face and orientation.")
-            candidate = self.scene.choose(
-                data["role"], Goal(data["zone"], data["face"], data["roll"])
-            )
+            candidate = self.scene.choose(data["role"], goal)
         elif action == "diagnostics":
             if data or self.open_diagnostics is None:
                 raise ValueError("A linked diagnostic viewer is required.")

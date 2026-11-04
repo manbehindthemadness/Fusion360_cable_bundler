@@ -1,8 +1,8 @@
 "use strict";
 
-/** @typedef {{name:string,label:string,minimum:number,maximum:?number,integer:boolean,quarter_turn:boolean}} RangeTestField */
+/** @typedef {{name:string,label:string,minimum:number,maximum:?number,integer:boolean}} RangeTestField */
 /** @typedef {{ranges:Object<string,{min:string,max:string,step:string}>,mode:string,seed:number,stop_on_warnings:boolean,maximum_cases:number,screenshots?:{enabled:boolean,directory:string}}} RangeTestSpecification */
-/** @typedef {{zone:number,face:number,roll:number}} RangeTestGoal */
+/** @typedef {{zone:number,face:number,roll?:number,roll_degrees?:number}} RangeTestGoal */
 /** @typedef {{seed:number,lines:number,diameter_mm:number,void_percent:number,zone_percent:number}} RangeTestConfig */
 /** @typedef {{available:boolean,fields:RangeTestField[],specification:?RangeTestSpecification,defaults:RangeTestSpecification,active:boolean,phase:string,reason:string,attempted:number,passed:number,warnings:number,elapsed_seconds:number,current:?{config:RangeTestConfig,a:RangeTestGoal,b:RangeTestGoal},directory:?string,input:?string,job:?string,screenshot?:?{path:string,seconds:number,bytes:number}}} RangeTestState */
 /** Range controls share the diagnostic bridge; they never run a solver in JavaScript. */
@@ -42,11 +42,11 @@ window.RangeTestPanel = class {
           input.type = "number"; input.required = true;
           input.id = `tester_${field.name}_${part}`;
           input.setAttribute("aria-label", `${field.label} ${part}`);
-          input.step = field.quarter_turn ? "90" : field.integer ? "1" : "any";
+          input.step = field.integer ? "1" : "any";
           if (part !== "step") {
             input.min = String(field.minimum);
             if (field.maximum !== null) input.max = String(field.maximum);
-          } else input.min = field.integer ? (field.quarter_turn ? "90" : "1") : "0";
+          } else input.min = field.integer ? "1" : "0";
           input.value = spec.ranges[field.name][part];
           cell.append(input); row.append(cell);
         }
@@ -67,7 +67,7 @@ window.RangeTestPanel = class {
     if (state.current) {
       const c = state.current.config, a = state.current.a, b = state.current.b;
       lines.push(`Current: seed ${c.seed} · ${c.lines} conductors · D ${c.diameter_mm} mm · void ${c.void_percent}% · zones ${c.zone_percent}%`);
-      lines.push(`A zone ${a.zone + 1}/face ${a.face + 1}/roll ${a.roll * 90}° · B zone ${b.zone + 1}/face ${b.face + 1}/roll ${b.roll * 90}°`);
+      lines.push(`A zone ${a.zone + 1}/face ${a.face + 1}/roll ${a.roll_degrees ?? (a.roll ?? 0) * 90}° · B zone ${b.zone + 1}/face ${b.face + 1}/roll ${b.roll_degrees ?? (b.roll ?? 0) * 90}°`);
     }
     if (state.directory) lines.push(`Test logs: ${state.directory}`);
     if (state.input) lines.push(`Input snapshot: ${state.input}`);

@@ -320,8 +320,8 @@ class Tester:
             "input": str(self._input) if self._input else None,
             "current": {
                 "config": asdict(self.scene.config),
-                "a": asdict(self.scene.a),
-                "b": asdict(self.scene.b),
+                "a": self.scene.a.payload(),
+                "b": self.scene.b.payload(),
             }
             if self.scene
             else None,
