@@ -41,6 +41,7 @@ class Result:
     unattempted_contacts: int
     contact: ContactResult | None = None
     contact_pairs: int = 0
+    rejected: tuple[tuple[Branch, ContactResult], ...] = ()
 
 
 def construct(
@@ -182,6 +183,7 @@ def construct(
         len(candidates),
         max(0, len(candidates) - contacts),
         contact_pairs=contact_pairs,
+        rejected=tuple((b, measurements[b.roots]) for b in branches if b.roots in measurements),
     )
 
 

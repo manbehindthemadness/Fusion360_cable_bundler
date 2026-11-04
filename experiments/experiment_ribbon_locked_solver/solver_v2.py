@@ -5,7 +5,7 @@ Expose the measured tight guide-frame constructor as the gym's version-two metho
 from __future__ import annotations
 
 import math
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -15,6 +15,7 @@ from experiments.experiment_ribbon_bend_relocation.solve import contract
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
+from experiments.experiment_ribbon_feature_insertion.contact_recovery import recover
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Policy
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
@@ -41,7 +42,9 @@ def solve(
     Construct two tight guide stages once, with optional separately timed smoothing and UV metadata.
 
     First construction is bounded to four seconds and2048contact subdivision pairs,
-    with at most1024per certificate over already-derived branches.
+    with at most1024per certificate over already-derived branches. If all reject,
+    one shortest closed plan may receive four joint-separation updates using the
+    remaining pair work and at most0.35CPU/2wall seconds within that deadline.
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
@@ -81,6 +84,28 @@ def solve(
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
         contact_policy=contact_policy,
     )
+    recovery_detail = None
+    if result.route is None and result.rejected and result.contact_pairs < CONTACT_PAIR_BUDGET:
+        branch, rejected_contact = min(result.rejected, key=lambda item: item[0].priority)
+        recovery = recover(
+            branch.route,
+            rejected_contact,
+            CONTACT_PAIR_BUDGET - result.contact_pairs,
+            native_point_tolerance_mm,
+            first_checkpoint,
+            record,
+        )
+        recovery_detail = recovery.detail
+        result = replace(
+            result,
+            route=recovery.route,
+            allocation=None,
+            status="separated" if recovery.route is not None else result.status,
+            contact=recovery.contact,
+            contacts=result.contacts + recovery.contacts,
+            contact_pairs=result.contact_pairs + recovery.pairs,
+            contact_seconds=result.contact_seconds + recovery.contact_seconds,
+        )
     first_seconds = perf_counter() - started
     detail: dict[str, Any] = {
         "version": V2,
@@ -94,6 +119,7 @@ def solve(
             "closed_branches": result.closed_branches,
             "unattempted_contacts": result.unattempted_contacts,
             "selection": "monotonic" if settings.first_pass_optimization else "midpoint",
+            "recovery": recovery_detail,
         },
         "first_pass_seconds": first_seconds,
         "native_point_tolerance_mm": native_point_tolerance_mm,

@@ -1,5 +1,14 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+Current574–583V2workflow retains typed rejected closures for a single bounded
+witness-driven joint-separation recovery when normal construction fails. Original
+successful routes skip it; no extra feature or radius relaxation was promoted.
+Complete analytic piece bounds drive minimum-norm joint motion with cap retraction;
+strict contact still decides acceptance. Fourupdates/.35CPU/2wall seconds within
+the existing4sfirstpass and unspent2048pairs. Source/rules/prototype failures and
+one native replay are detailed in selected solver NOTES.md. Recovery breadth and
+shortest-route optimality remain unmeasured beyond the named development case.
+
 Current569–573final recovery correction eliminates positive straight freedom from
 the angular Jacobian/residual only on the last allowed resumed iteration. Earlier
 steps retain the original derivative. Same2+4steps/radii/roots/strictphysical gates;

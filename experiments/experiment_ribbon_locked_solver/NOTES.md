@@ -1,5 +1,93 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Witness-driven joint separation574–583 — 2026-11-03
+
+Range-f8669case81(seed1483650491,N6,D0.75mm,zones16/23,faces2/4,
+roll90/90) stops after80passes. Original job062153cb633540dfae447701262f655b is
+numerically unresolved/native-unattempted: all four exact-root closures penetrate,
+1227/2048pairs used. This is real self-intersection, not a control failure or a
+precision-warning case.574restores all17previously computed closed straight masks:
+all17penetrate; three distinct cached gym controls separate. These are variants
+of one triggering configuration, not17independent cases. No new solve/native work.
+
+575freezes seven current cold baselines: trigger plus compact4033669276,
+shallow8-gym424-05,spatial12-gym424-09 and retained recovery1041927501,
+budget1281098652,terminal3889213147. Six pass, trigger fails. Bounded rejected
+prototypes preserve those inputs and all failures, stopping before other six cases:
+576one dominant-turn guide event is placed near entry and fails contact;577uses
+the unanimously implicated exit stage instead, but remaining821pairs exhaust.
+578read-only depth36/64comparison on the shortest inserted branch establishes an
+actual near-cap penetration at416pairs, not separation. Active depth remains36.
+Its other cached geometries include three passing controls and three historical
+rejected branches; their identical depth outcomes are not new successful solves.
+579existing length contraction shortens47.249591→34.361986mm but both certificates
+penetrate.580fixed-angle straight allocation under whole-piece separation has no
+feasible solution along the witness sheet normal; this is not global infeasibility.
+No failed prototype is promoted and none launches a native body.
+
+581adds the missing joint-separation constraint in an isolated prototype. When
+normal construction returns no route, select the shortest already-closed rejected
+branch (whole-guide RMS/direction/root ties). Use its actual penetration witness
+to derive a sheet normal, preferring a colliding straight. Complete analytic thick
+piece bounds define two signed separation half-spaces. Choose the minimum-norm
+linearized joint displacement satisfying cap closure and one separation constraint;
+retract nonlinear caps, require actual gap improvement, then certify all contact.
+No guessed stations/angle bank, added folds, radius relaxation, target movement or
+native-output repair. This is local constrained recovery, not a shortest-route proof.
+
+Maximum four joint updates,0.2radian bounded steps/two scalar halvings and existing
+six-Newton/four-halving cap retraction. Local0.35CPU/2wall seconds are subordinate
+to the existing4sfirst-pass deadline. Certificates consume only the unspent original
+2048pair pool, at most1024each. Unresolved/penetrating/sub-native-straight/topology
+changes never become accepted geometry. Local exhaustion retains numerical
+rejection; caller cancellation/source/resource errors propagate. Optional smoothing
+and normal separated-baseline contraction keep their existing separate budgets.
+
+Source implementation is split between contact_recovery.py and separation.py.
+Stable fold/straight-slot identities survive omitted zero slots; tiny analysis-only
+slabs conservatively bound absent slots without creating route geometry. Vanishing
+fold identity explicitly rejects. Constructor Result retains typed rejected
+branches/certificates rather than parsing logs. V2 exposes recovery CPU/time/pairs,
+iteration count and stop reason; trial/progress logs retain measured proposals.
+Successful original routes never invoke recovery.196source pins include2newmodules.
+
+581/582accept7/7numerical configurations; all six prior passing final snapshots
+are bitwise identical to575. Integrated582matches every581prototype route. The new
+recovery is actually exercised on only the trigger; other six are preservation
+controls, not six demonstrations of recovery breadth. Two updates improve whole-
+piece gap-1.817857→+.353407mm; one new strict certificate429pairs,1656total.
+582recoveryCPU.162147/wall.162209s; complete numericalCPU1.480854/wall1.481484s.
+Recovered baseline63.330247mm/final63.963268mm is longer than the rejected47.249591mm
+route. Ordinary contraction proposals fail contact and keep the new safe baseline.
+No optimality or aesthetic improvement over an accepted baseline is claimed.
+
+575/581/582phase wall5.496808/6.636577/6.645964s. Including the four stopped
+prototype phases,25host cold numerical executions examine seven fixed configurations,
+not25independent cases.574/578cached contact checks are separate diagnostic cost.
+Source-pinned plans preserve all skipped cases/outcomes; token/currency and total
+orchestration wall are unmeasured.75focused tests pass; final logging/type-flow
+edits recheck the five new tests. Affected17file Ruff lint/format, new-code IDE and
+complete diff review pass; two pre-existing duplicate weak warnings in solver_v2
+remain. FullQA is unrun. No production or standards edits.
+
+583replays exact original case81 through normal tester, limit1:1/1cold numerical
+accepted/separated/native attempted/built/named-fidelity audited,0warnings.
+242faces/8400surface points/464seams/three guides/two caps pass; max1.993468e-9mm.
+NumericalCPU1.882492/wall2.007190s; firstpass.998962s, recovery.208870CPU/
+.235986wall(subset), smoothing.960555s. Generation1.745532s; separate development
+audit35.498789s. Solve exceeds matched generation here: recorded timing-goal miss,
+not a construction-rule waiver. Native phase42.478574s, screenshot.433148s and
+tester59.073315s separately. Sampled native peak1636976KiB<4GiB. PNG reviewed.
+Job235252b697114df0aae0412e96a37014/run5425e86af85c44e29ce07759e05742cd.
+Body/PNG retained; new replay stopped1/1/0warnings, initialized browser ranges kept.
+Original81attempts/80passes/failure remain intact; no unlimited restart.
+
+Current coverage7/7numerical cases,1/7native attempted/built/named-audited; six
+controls native-unattempted by frozen selection.0full physical audits/holdouts;
+generalized recovery/native reliability and shortest-route optimality unmeasured.
+Evidence: ignored ribbon_masks574,event575–577,interval578,contract579,cut580,
+joint581–583 plans/failures/results, original range/job and retained screenshot.
+
 ## Coupled final recovery correction569–573 — 2026-11-03
 
 Random range-ae157case31(seed3889213147,N6,D0.75mm,zones9/13,faces11/10,
