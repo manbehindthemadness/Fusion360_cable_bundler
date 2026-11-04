@@ -44,8 +44,9 @@ def solve(
     First construction is bounded to four seconds and2048contact subdivision pairs,
     with at most1024per certificate over already-derived branches. If all reject,
     one existing closed plan, selected by its bounded separation correction, may
-    receive four joint-separation updates using the
-    remaining pair work and at most0.35CPU/2wall seconds within that deadline.
+    receive four joint-separation updates using remaining pair work and at most
+    0.35CPU/2wall seconds within that deadline. If a different pair then penetrates,
+    unused updates may pass to the next derived branch within those same totals.
     Monotonic optimization may instead use that same unused work on one measured
     penetrating branch that is shorter and better-guided than a separated fallback.
     Failed recovery retains the separated fallback and counts all work performed.

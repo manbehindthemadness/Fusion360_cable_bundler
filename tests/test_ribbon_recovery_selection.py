@@ -43,6 +43,12 @@ def test_prediction_fraction_precedes_length_and_priority_breaks_ties(
     events: list[dict[str, Any]] = []
     result = recovery_selection.select_recovery(candidates, lambda: None, events.append)
     assert result.choice == candidates[expected]
+    assert result.alternatives == (candidates[1 - expected],)
+    assert len(result.initial_steps) == 2
+    assert all(
+        cached.source is candidate[0].route and cached.measurement is candidate[1]
+        for cached, candidate in zip(result.initial_steps, candidates)
+    )
     assert planning.call_count == 2
     assert 0 < result.maximum_cpu_seconds <= 0.35
     assert 0 < result.maximum_seconds <= 2
@@ -98,6 +104,9 @@ def test_caller_source_failure_propagates_during_selection() -> None:
         ("maximum_seconds", 2.1),
         ("maximum_cpu_seconds", 0),
         ("maximum_seconds", True),
+        ("maximum_updates", 5),
+        ("maximum_updates", 0),
+        ("maximum_updates", True),
     ),
 )
 def test_explicit_sublimits_cannot_enlarge_original_recovery_caps(field: str, value: Any) -> None:

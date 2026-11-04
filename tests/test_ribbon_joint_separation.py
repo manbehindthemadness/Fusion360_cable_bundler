@@ -4,6 +4,7 @@ Recover closed intersecting material plans only through bounded, independently c
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 from unittest.mock import Mock
 
@@ -24,6 +25,7 @@ from experiments.experiment_ribbon_feature_insertion.separation import (
     Side,
     TopologyChanged,
 )
+from experiments.experiment_ribbon_feature_insertion.separation_step import InitialStep, plan_step
 from experiments.experiment_ribbon_feature_insertion.solve import construct
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
@@ -146,3 +148,46 @@ def test_absent_slot_bounds_never_add_geometry_or_rebind_a_vanished_fold(
     values[1] = 0
     with pytest.raises(TopologyChanged):
         bound.gap(tuple(values), Side.BEFORE)
+
+
+def test_cached_first_motion_reuses_exact_math_and_rejects_different_evidence(
+    rejected: tuple[Branch, ContactResult], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Avoid repeating prediction derivatives without transferring them to any other source or witness.
+    """
+    branch, measurement = rejected
+    model = MovableBends(branch.route)
+    bound = Separation.from_measurement(model, branch.route, measurement)
+    assert bound is not None
+    planned = plan_step(model, model.initial, bound, None, lambda: None)
+    assert planned is not None
+    cached = InitialStep(branch.route, measurement, planned)
+    baseline: list[dict[str, Any]] = []
+    contact_recovery.recover(
+        branch.route, measurement, 821, 1e-5, lambda: None, baseline.append, maximum_updates=1
+    )
+    forbidden = Mock(side_effect=AssertionError("First derivatives must not be recomputed"))
+    monkeypatch.setitem(vars(contact_recovery), "plan_step", forbidden)
+    events: list[dict[str, Any]] = []
+    contact_recovery.recover(
+        branch.route,
+        measurement,
+        821,
+        1e-5,
+        lambda: None,
+        events.append,
+        maximum_updates=1,
+        initial_step=cached,
+    )
+    assert [row for row in events if "route" in row] == [row for row in baseline if "route" in row]
+    assert any("route" in row for row in events)
+    forbidden.assert_not_called()
+    for route, evidence in (
+        (replace(branch.route), measurement),
+        (branch.route, replace(measurement)),
+    ):
+        with pytest.raises(ValueError, match="identical source and measurement"):
+            contact_recovery.recover(
+                route, evidence, 821, 1e-5, lambda: None, events.append, initial_step=cached
+            )

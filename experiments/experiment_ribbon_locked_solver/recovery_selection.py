@@ -15,7 +15,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 )
 from experiments.experiment_ribbon_feature_insertion.selection import Branch
 from experiments.experiment_ribbon_feature_insertion.separation import Separation, TopologyChanged
-from experiments.experiment_ribbon_feature_insertion.separation_step import plan_step
+from experiments.experiment_ribbon_feature_insertion.separation_step import InitialStep, plan_step
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 
 
@@ -35,6 +35,8 @@ class Selection:
     maximum_cpu_seconds: float
     maximum_seconds: float
     detail: dict[str, Any]
+    alternatives: tuple[tuple[Branch, ContactResult], ...] = ()
+    initial_steps: tuple[InitialStep, ...] = ()
 
 
 def select_recovery(
@@ -54,6 +56,7 @@ def select_recovery(
     started, cpu = perf_counter(), process_time()
     choices: list[tuple[float, tuple[Any, ...], Branch, ContactResult]] = []
     rows: list[dict[str, Any]] = []
+    initial_steps: list[InitialStep] = []
     stopped = None
 
     def bounded() -> None:
@@ -80,6 +83,7 @@ def select_recovery(
             if planned is not None and planned.fraction > 0:
                 row.update(status="predicted", fraction=planned.fraction, side=planned.side.value)
                 choices.append((-planned.fraction, branch.priority, branch, measurement))
+                initial_steps.append(InitialStep(branch.route, measurement, planned))
             rows.append(row)
         bounded()
     except _Exhausted:
@@ -88,9 +92,12 @@ def select_recovery(
     remaining_cpu = max(0.0, MAXIMUM_CPU_SECONDS - spent_cpu)
     remaining_wall = max(0.0, MAXIMUM_WALL_SECONDS - spent_wall)
     choice = None
+    alternatives: tuple[tuple[Branch, ContactResult], ...] = ()
     if choices and stopped is None and remaining_cpu > 0 and remaining_wall > 0:
-        _, _, branch, measurement = min(choices, key=lambda item: (item[0], item[1]))
+        ordered = sorted(choices, key=lambda item: (item[0], item[1]))
+        _, _, branch, measurement = ordered[0]
         choice = branch, measurement
+        alternatives = tuple((branch, measurement) for _, _, branch, measurement in ordered[1:])
     detail = {
         "status": stopped or ("selected" if choice else "no_supported_separation_step"),
         "predictions": rows,
@@ -99,4 +106,6 @@ def select_recovery(
         "elapsed_seconds": spent_wall,
     }
     record({"stage": "recovery_selection", **detail})
-    return Selection(choice, remaining_cpu, remaining_wall, detail)
+    return Selection(
+        choice, remaining_cpu, remaining_wall, detail, alternatives, tuple(initial_steps)
+    )

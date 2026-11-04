@@ -1,5 +1,89 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Collision-triggered recovery handoff653–661 — 2026-11-04
+
+Stopped rangef1f730 case103, seed2433123344,N5,D.75mm,void/zone300%,A internal
+zone23/face8/roll1deg,Bzone9/face3/roll30deg. Three closed arrangements penetrate;
+the previous fraction-based selector runs correctly and selects roots0/1. Two
+updates clear pieces4/6, then a fresh certificate finds pieces4/8penetrating.
+Its last two updates chase that different obstruction and remain unresolved.
+The user-visible198-face body is explicitly rejected inspection, not acceptance.
+
+654diagnoses all three cached branches under unchanged four-update/.35CPU/2wall/
+1181remaining-pair bounds:0/1and1/1unresolved,0/0separates in two updates,
+.176973CPU/471checks. One independent configuration, three diagnostic variants,
+0new endpoint solves/native attempts; aggregate.483388s. Original first-contact
+ranking cannot predict subsequent obstruction clearance, so retain that limited
+prediction and react only to a measured different collision.
+
+New recovery_queue handles all-rejected construction. Keep the existing predicted
+branch order. After a correction's fresh certificate demonstrates penetration
+between a DIFFERENT stable material-region pair, hand unused updates to the next
+already-derived branch. Total FOURupdates across all branches,.35CPU/2wall and
+the original remaining2048constructionpair pool include every attempt, prediction
+and handoff. No branch retry, angle/root guesses, new bend events or enlarged work.
+Other local failures/exhausted work stop; the last branch follows original local
+contact continuation. Already separated fallback improvement keeps its old policy.
+Profiles, radii, targets, materials, tolerances and native builder stay unchanged.
+
+655compares exact prior source against this candidate:20cold executions/24.666290s,
+15s/run/120sphase/4GiB. Its10rows contain only NINE distinct fixed configurations:
+current case1duplicates retained prior case1. Do not count it twice. Eight distinct
+success controls preserve complete routes and first passes exactly; trigger now
+60.191505mm, four total updates (two0/1+two0/0),1446/2048constructionpairs
+(867original+108firstrecovery+471secondrecovery),602unused,.315232recoveryCPU.
+656adds distinct new-range case77, baseline/current both accepted with identical
+route/first pass:2cold executions/3.146884s. Combined TEN independent configurations,
+nine accepted controls unchanged and trigger unresolved-to-accepted. New collateral
+controls51/77/102 are distinct; prior six controls retained. No skipped numerical
+inputs.656also verifies a byte-exact inverse of an IDE-only local variable rename
+against655's source hash; no numerical condition/operation changed in that bridge.
+
+657fresh normal worker stops before its final recovery certificate at.351010CPU.
+No accepted route/native attempt. Automatic rejected inspection separately builds
+one unaudited body, generation2.417104s. Preserve that job, its failed classification
+and658state; do not describe the first fresh live attempt as successful.
+
+Remove duplicate first-step computation rather than raising the cap. Selection
+retains InitialStep with the exact immutable source AND ContactResult identities.
+Recovery accepts it only for those identical objects and its first update;
+changed-geometry updates always recalculate derivatives. Tests reject even equal
+copies belonging to different objects. Full contact certificates stay fresh.
+659freezes all TEN distinct inputs, executes current source once each against
+retained baseline/candidate evidence:10cold runs/12.044771s. All complete routes
+and first passes exactly equal the uncached candidate, all9controls equal prior
+baseline; trigger recovery.269458CPU versus655's.315232. No geometry improvement
+or timing guarantee is inferred from removing this repeated arithmetic.
+
+660renews one normal job under unchanged limits;661collects. Trigger accepted,
+60.191505mm, numerical1.045266CPU/1.113891wall, first-pass1.002287wall/smoothing
+.109397wall. Recovery.334987CPU/.381369wall, still below.35CPU/2wall; same four
+updates/1446pairs. One212-face native solid passes7350points/406seams, maximum
+surface discrepancy1.645458e-9mm,0warnings. Generation1.366523s (definition.748483,
+kernel.528721,translation.089319); named audit22.052249s, native total26.374118s.
+Numerical<=generation goal met for this run. Sampled launchRSS511728KiB, in-flight
+peak unmeasured. Accepted body visible, event error clear. Stopped103attempts/
+102passes engine, exact current inputs, original failure and657failure logs kept.
+
+Coverage:TENindependent configurations numerically compared,ONE native-attempted
+configuration with TWO new native operations (657rejected inspection and660accepted
+build),2built/1named-fidelity-audited/0fullphysicalaudits. Nine controls native-
+unattempted under this change.32cold core executions across655/656/659 include the
+duplicate row;34including both fresh normal trigger jobs.654cached probes are
+separate, not cold solves or added configurations. This is examined development/
+regression evidence, not unseen holdouts, universal reversal or optimality proof.
+
+Final95focused tests pass/2known old v2 length parameters deselected; other known
+closure-continuation expectation failures were not rerun or repaired. Deterministic
+geometry unit separates CPU-clock behavior from its mathematical assertions;
+dedicated scheduler tests cover CPU/update/pair stop boundaries, and cold/live
+experiments above retain real time measurements including657's failure. Scoped
+affected-package Ruff check/format pass; changed-code IDE diagnostics clear except
+3pre-existing solver_v2 duplication weak warnings. Complete diff/new-file review
+done; fullQA unrun. Source lock207pins. Production harness unchanged. Evidence:
+ignoredribbon_reversal653/658,ribbon_next654/655/656/657/659/660 and next653–661
+scripts/responses. No further geometry runs scheduled.
+
 ## Bounded end-choice recovery648–652 — 2026-11-04
 
 Current stopped range12867 case73, seed667803872,N4,D.75mm,void/zone300%,

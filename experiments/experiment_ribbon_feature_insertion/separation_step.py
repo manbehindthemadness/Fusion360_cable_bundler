@@ -10,6 +10,8 @@ from typing import Callable
 
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_fold_relaxation.steps import projected, step_limit
+from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .separation import Separation, Side
 
@@ -24,6 +26,17 @@ class SeparationStep:
     gap: float
     delta: tuple[float, ...]
     fraction: float
+
+
+@dataclass(frozen=True)
+class InitialStep:
+    """
+    Bind a predicted first motion to the exact immutable route and contact evidence it used.
+    """
+
+    source: FoldRoute
+    measurement: ContactResult
+    step: SeparationStep
 
 
 def plan_step(

@@ -12,7 +12,7 @@ from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy, improves
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
 
-from .recovery_selection import select_recovery
+from .recovery_queue import recover_failed
 
 
 def recover_construction(
@@ -25,9 +25,10 @@ def recover_construction(
     selection_policy: Policy,
 ) -> tuple[Result, dict[str, Any] | None]:
     """
-    Correct one existing failed branch without losing an already separated baseline.
+    Correct existing failed branches without losing an already separated baseline.
 
-    Unaccepted constructions select by their initial bounded separation correction.
+    Unaccepted constructions select by their initial bounded separation correction,
+    yielding unused updates to the next branch only after a different pair collides.
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
@@ -57,15 +58,18 @@ def recover_construction(
         )
         if not candidates:
             return result, None
-    selection = None
+    fallback_branch: Branch | None = None
     if baseline is None:
-        selection = select_recovery(candidates, checkpoint, record)
-        if selection.choice is None:
-            return result, {"status": "unresolved", "selection": selection.detail}
-        branch, measurement = selection.choice
+        recovery = recover_failed(
+            candidates,
+            CONTACT_PAIR_BUDGET - result.contact_pairs,
+            threshold_mm,
+            checkpoint,
+            record,
+        )
     else:
         branch, measurement = min(candidates, key=lambda item: item[0].priority)
-    if baseline is not None:
+        fallback_branch = branch
         record(
             {
                 "stage": "fallback_branch_recovery",
@@ -76,43 +80,29 @@ def recover_construction(
                 "remaining_pair_budget": CONTACT_PAIR_BUDGET - result.contact_pairs,
             }
         )
-    limits = (
-        {
-            "maximum_cpu_seconds": selection.maximum_cpu_seconds,
-            "maximum_seconds": selection.maximum_seconds,
-        }
-        if selection is not None
-        else {}
-    )
-    recovery = recover(
-        branch.route,
-        measurement,
-        CONTACT_PAIR_BUDGET - result.contact_pairs,
-        threshold_mm,
-        checkpoint,
-        record,
-        **limits,
-    )
+        recovery = recover(
+            branch.route,
+            measurement,
+            CONTACT_PAIR_BUDGET - result.contact_pairs,
+            threshold_mm,
+            checkpoint,
+            record,
+        )
     selected = recovery.route
     if selected is not None and (
         recovery.contact is None or recovery.contact.status != "separated"
     ):
         raise ArithmeticError("Recovered construction lacks a separated contact certificate")
     detail = dict(recovery.detail)
-    if selection is not None:
-        detail["selection"] = selection.detail
-        detail["cpu_seconds"] = detail.get("cpu_seconds", 0.0) + selection.detail["cpu_seconds"]
-        detail["elapsed_seconds"] = (
-            detail.get("elapsed_seconds", 0.0) + selection.detail["elapsed_seconds"]
-        )
     if baseline is not None:
+        assert fallback_branch is not None
         if selected is not None:
-            candidate = Branch.measure(branch.roots, selected, frames.guide)
+            candidate = Branch.measure(fallback_branch.roots, selected, frames.guide)
             if not improves(candidate, baseline):
                 selected = None
         detail.update(
             purpose="improve_separated_fallback",
-            roots=branch.roots,
+            roots=fallback_branch.roots,
             baseline_length_mm=baseline.route.material_length_mm,
             accepted_improvement=selected is not None,
         )

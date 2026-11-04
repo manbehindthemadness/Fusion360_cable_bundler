@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict, dataclass
+from enum import Enum
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -17,10 +18,19 @@ from experiments.experiment_ribbon_fold_route.contact import ContactResult, insp
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .separation import Separation, Side, TopologyChanged
-from .separation_step import plan_step
+from .separation_step import InitialStep, plan_step
 
 MAXIMUM_CPU_SECONDS = 0.35
 MAXIMUM_WALL_SECONDS = 2.0
+
+
+class ContactContinuation(Enum):
+    """
+    Keep following contact locally or yield unused work when a different material pair collides.
+    """
+
+    FOLLOW = "follow"
+    YIELD_ON_NEW_PAIR = "yield_on_new_pair"
 
 
 class _Exhausted(RuntimeError):
@@ -53,6 +63,9 @@ def recover(
     *,
     maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
     maximum_seconds: float = MAXIMUM_WALL_SECONDS,
+    maximum_updates: int = 4,
+    continuation: ContactContinuation = ContactContinuation.FOLLOW,
+    initial_step: InitialStep | None = None,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
@@ -64,11 +77,23 @@ def recover(
     sublimits may only reduce the defaults. Never return the rejected source as
     an accepted fallback. Pair/depth
     ambiguity and failed improvement remain unresolved; caller hard errors propagate.
+    A scheduler can reserve updates and request a yield after a different stable
+    material pair penetrates. This returns no accepted geometry or certificate.
+    A cached first motion requires the identical immutable source and measurement;
+    subsequent updates always recompute their derivatives on the changed geometry.
     """
     if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
         raise ValueError("Supply positive remaining first-pass work, at most2048pairs")
     if not math.isfinite(threshold_mm) or threshold_mm <= 0:
         raise ValueError("A positive native straight threshold is required")
+    if type(maximum_updates) is not int or not 1 <= maximum_updates <= 4:
+        raise ValueError("Recovery sublimits require one to four updates")
+    if not isinstance(continuation, ContactContinuation):
+        raise ValueError("Supply an explicit contact continuation policy")
+    if initial_step is not None and (
+        initial_step.source is not source or initial_step.measurement is not measurement
+    ):
+        raise ValueError("A cached first step requires the identical source and measurement")
     for allowance, ceiling in (
         (maximum_cpu_seconds, MAXIMUM_CPU_SECONDS),
         (maximum_seconds, MAXIMUM_WALL_SECONDS),
@@ -101,7 +126,7 @@ def recover(
             raise _Exhausted("Joint separation recovery exhausted its local allowance")
 
     try:
-        for iteration in range(4):
+        for iteration in range(maximum_updates):
             bounded()
             detail["iterations"] += 1
             if bound is None:
@@ -110,7 +135,11 @@ def recover(
                     detail["stop_reason"] = "no_supported_contact_region"
                     break
             assert bound is not None
-            planned = plan_step(model, values, bound, side, bounded)
+            planned = (
+                initial_step.step
+                if iteration == 0 and initial_step is not None
+                else plan_step(model, values, bound, side, bounded)
+            )
             if planned is None:
                 detail["stop_reason"] = "no_projected_separation"
                 break
@@ -178,6 +207,14 @@ def recover(
                 selected, accepted = route, measurement
                 detail["status"] = "separated"
                 break
+            if (
+                continuation is ContactContinuation.YIELD_ON_NEW_PAIR
+                and measurement.status == "penetration"
+            ):
+                next_bound = Separation.from_measurement(model, route, measurement)
+                if next_bound is not None and next_bound.pair != bound.pair:
+                    detail["stop_reason"] = "different_contact_pair"
+                    break
             bound, side = None, None
     except _Exhausted:
         detail["stop_reason"] = "local_budget"
