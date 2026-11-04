@@ -178,6 +178,12 @@ def construct(
             len(candidates) - contacts,
             measurement,
             contact_pairs,
+            rejected=tuple(
+                (branch, measurements[branch.roots])
+                for branch in branches
+                if branch.roots in measurements
+                and not contact_policy.permits_geometry(measurements[branch.roots])
+            ),
         )
     return Result(
         None,

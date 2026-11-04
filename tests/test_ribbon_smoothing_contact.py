@@ -77,6 +77,7 @@ def test_separated_certificate_survives_exact_reconstruction_and_final_dispatch(
                 contact_seconds=0.0,
                 closed_branches=1,
                 unattempted_contacts=0,
+                rejected=(),
             )
         ),
     )

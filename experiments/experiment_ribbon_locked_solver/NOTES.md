@@ -1,5 +1,79 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Shorter-branch fallback recovery639–647 — 2026-11-04
+
+User supplies an extreme-excursion PNG. Its embedded RibbonGymReplay identifies
+case30 of rangeae26, seed2469379198,N9,D.75mm,void/zone300%, Azone2/face5/roll78deg,
+Bzone26/face7/roll11deg, jobfbfe8bc314e740389a96c64fbee6af19. Current stopped case31
+is a different input, so do not diagnose the live selection as the image. The PNG
+captures an accepted1828.701428mm native route for60.292156mm endpoint separation.
+Original plan, native354faces and named fidelity pass; this is a route-quality
+failure, not a construction/cap failure or proof that the long route is necessary.
+
+Construction derives three closed branches: roots0/1 length130.526199mm penetrates
+in263checks,1/1 length93.813942mm penetrates in224, and1/0 length1810.595473mm
+separates in904. It accepts the latter. Contraction calculates581.197936,100.053378,
+88.440396 and79.638983mm; its two latest certificates penetrate, restoring the full
+1810mm fallback. Smoothing adds its allowed1%, preserving the huge excursion.
+
+640checks only the two previously unmeasured cached contractions:581mm separates
+in763checks,100mm penetrates in95; caps/material pass. This.220547s diagnostic
+confirms lost progress, but581mm still is not a compact resolution.641tries the
+existing four-update recovery on100mm once: the first correction clears one
+collision but creates another,281checks/.178407CPU; unresolved and not installed.
+642freezes three current-range controls1/15/31 plus the trigger. For an accepted
+fallback, consider only an already-measured penetrating branch that strictly
+shortens it and does not worsen whole-guide RMS or direction loss. Controls have
+no eligible branch. Trigger roots1/1corrects in one update/.152977CPU,490of the
+original657unused construction checks, producing a separated108.358458mm route
+that still improves both guide measures. No new roots, bend proposals or radii.
+
+Implementation retains measured failed branches in construction Result even when
+a safe branch was selected. New branch_recovery preserves the old all-rejected
+recovery rule and enables the above fallback improvement only under monotonic
+first-pass optimization. It uses the same2048pool,1024per-certificate bound,
+four-update/.35CPU recovery limit and overall4s first-pass deadline. Recheck the
+length/guide preferences after recovery; failure retains the certified fallback
+and counts actual work. Contact-unmeasured baselines and optimization-off do no
+extra improvement. No physical tolerances, profiles, native builder or production
+routing changed. Source lock204pins.
+
+643runs exact prior source then corrected source on all four frozen cases, eight
+cold core executions,15s/execution/120sphase/4GiB. Both4/4accepted; all three controls'
+whole routes/first passes exactly unchanged. Trigger1828.701428→109.442037mm,
+CPU1.161615→1.356611s, construction1881/2048checks (1391original+490recovery),
+first pass.755547s/smoothing.603951s. Phase8.398190s; original file hashes unchanged.
+No skipped cases in this numerical comparison. This is bounded development
+evidence across four configurations, not global optimality or universal recovery.
+
+644native launch stops before scene/solve/build because temporary Node extraction
+of the PNG normalized two0.0components to integer0; a representation-sensitive
+canonical guard rejects.645proves all values match the original job and regenerated
+scene. Renewed646uses the actual PNG reader, retaining the exact original JSON and
+unchanged guard. It replays case30 in the owned gym and launches one normal fresh
+worker/native build/named audit. Final109.442037mm, numerical1.530072CPU,
+first-pass.903016s/smoothing.705484s; native generation1.819572s, audit26.012463s,
+native total30.080655s, sampled peak750016KiB. One354-face solid,12320points/682seams,
+maximum surface error1.773609e-9mm, zero warnings. Timing goal met in this run;
+native construction performance is not generalized.647collects without more work.
+
+Independent scope4numerically compared/1native-attempted/1built/1named-audited,
+3controls new-policy native-unattempted,0full physical audits. Nine cold numerical
+executions include the one repeated trigger for its normal native job. Earlier
+cached probes and setup stops remain retained, not additional configurations.
+70focused tests pass; two known old v2 length-test parameters excluded. An existing
+bend-relocation test now records the newly improved39.255mm raw construction versus
+its113.251mm optimization-off baseline, retaining its original physical assertions.
+Scoped Ruff lint/format and changed-code IDE checks pass; three pre-existing solver
+duplication weak warnings remain. Full QA and broader native coverage unattempted.
+Corrected case30body and primitives visible; prior bodies/logs/PNG preserved. The
+range engine remains stopped31attempts/31passes with its original case31, plan and
+screenshot unchanged. Manual gym/defaults now follow image case30; the initial
+launch's whole-runtime comparison is false only because defaults follow that new
+draft.647verifies the frozen engine state exactly. No tester restart scheduled.
+Evidence: ignored ribbon_reversal639/643, ribbon_excursion640/641/642/646 and frozen
+639–647scripts, including preserved644guard response and645representation report.
+
 ## Stage-aware smoothing effort633–638 — 2026-11-04
 
 User asks how to avoid useless smoothing while distinguishing a bad calculation

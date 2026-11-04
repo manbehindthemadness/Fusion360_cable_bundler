@@ -5,7 +5,7 @@ Expose the measured tight guide-frame constructor as the gym's version-two metho
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -15,13 +15,13 @@ from experiments.experiment_ribbon_bend_relocation.solve import contract
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
-from experiments.experiment_ribbon_feature_insertion.contact_recovery import recover
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Policy
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
+from .branch_recovery import recover_construction
 from .coordinates import metadata
 from .settings import Settings
 from .smoothing_contact import smooth_with_contact
@@ -45,6 +45,9 @@ def solve(
     with at most1024per certificate over already-derived branches. If all reject,
     one shortest closed plan may receive four joint-separation updates using the
     remaining pair work and at most0.35CPU/2wall seconds within that deadline.
+    Monotonic optimization may instead use that same unused work on one measured
+    penetrating branch that is shorter and better-guided than a separated fallback.
+    Failed recovery retains the separated fallback and counts all work performed.
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
@@ -85,28 +88,14 @@ def solve(
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
         contact_policy=contact_policy,
     )
-    recovery_detail = None
-    if result.route is None and result.rejected and result.contact_pairs < CONTACT_PAIR_BUDGET:
-        branch, rejected_contact = min(result.rejected, key=lambda item: item[0].priority)
-        recovery = recover(
-            branch.route,
-            rejected_contact,
-            CONTACT_PAIR_BUDGET - result.contact_pairs,
-            native_point_tolerance_mm,
-            first_checkpoint,
-            record,
-        )
-        recovery_detail = recovery.detail
-        result = replace(
-            result,
-            route=recovery.route,
-            allocation=None,
-            status="separated" if recovery.route is not None else result.status,
-            contact=recovery.contact,
-            contacts=result.contacts + recovery.contacts,
-            contact_pairs=result.contact_pairs + recovery.pairs,
-            contact_seconds=result.contact_seconds + recovery.contact_seconds,
-        )
+    result, recovery_detail = recover_construction(
+        result,
+        frames,
+        native_point_tolerance_mm,
+        first_checkpoint,
+        record,
+        selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
+    )
     first_seconds = perf_counter() - started
     detail: dict[str, Any] = {
         "version": V2,

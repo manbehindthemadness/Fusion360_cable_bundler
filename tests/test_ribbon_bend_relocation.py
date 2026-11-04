@@ -40,9 +40,10 @@ def test_checkbox_contracts_first_pass_before_disabled_smoothing(original: FoldR
     assert result.route is result.first_pass and result.route is not None
     assert result.detail["contraction"]["status"] == "shortened"
     assert result.detail["stages"] == {"smoothing": "disabled"}
-    assert result.detail["construction"]["raw_length_mm"] == pytest.approx(
-        original.material_length_mm
-    )
+    recovery = result.detail["construction"]["recovery"]
+    assert recovery is not None and recovery["accepted_improvement"] is True
+    assert recovery["baseline_length_mm"] == pytest.approx(original.material_length_mm)
+    assert result.detail["construction"]["raw_length_mm"] < original.material_length_mm
     assert result.route.material_length_mm < original.material_length_mm * 0.3
     assert result.detail["contact"] == "separated"
     assert result.detail["contraction"]["contacts"] <= 2
