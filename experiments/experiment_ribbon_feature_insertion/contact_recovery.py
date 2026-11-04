@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_fold_route.contact import ContactResult, insp
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
+from .attached_regions import RegionPolicy, with_attached_straights
 from .separation import Separation, Side, TopologyChanged
 from .separation_step import InitialStep, plan_step
 
@@ -68,6 +69,7 @@ def recover(
     continuation: ContactContinuation = ContactContinuation.FOLLOW,
     initial_step: InitialStep | None = None,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
+    region_policy: RegionPolicy = RegionPolicy.WITNESS,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
@@ -94,10 +96,16 @@ def recover(
         raise ValueError("Supply an explicit contact continuation policy")
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
+    if not isinstance(region_policy, RegionPolicy):
+        raise ValueError("Supply an explicit separation-region policy")
     if initial_step is not None and (
-        initial_step.source is not source or initial_step.measurement is not measurement
+        initial_step.source is not source
+        or initial_step.measurement is not measurement
+        or region_policy is not RegionPolicy.WITNESS
     ):
-        raise ValueError("A cached first step requires the identical source and measurement")
+        raise ValueError(
+            "A cached first step requires the identical source and measurement with witness regions"
+        )
     for allowance, ceiling in (
         (maximum_cpu_seconds, MAXIMUM_CPU_SECONDS),
         (maximum_seconds, MAXIMUM_WALL_SECONDS),
@@ -133,17 +141,34 @@ def recover(
         for iteration in range(maximum_updates):
             bounded()
             detail["iterations"] += 1
+            planned = None
             if bound is None:
                 bound = Separation.from_measurement(model, route, measurement)
+                if bound is not None and region_policy is RegionPolicy.ATTACHED_STRAIGHTS:
+                    expanded = with_attached_straights(bound, route, measurement)
+                    if expanded.extra_regions:
+                        trial = plan_step(model, values, expanded, None, bounded)
+                        fits = trial is not None and trial.fraction == 1.0
+                        record(
+                            {
+                                "stage": "attached_region_selection",
+                                "status": "used" if fits else "deferred_to_witness",
+                                "fraction": trial.fraction if trial else None,
+                                "additional_regions": len(expanded.extra_regions),
+                            }
+                        )
+                        if fits:
+                            bound, planned = expanded, trial
                 if bound is None:
                     detail["stop_reason"] = "no_supported_contact_region"
                     break
             assert bound is not None
-            planned = (
-                initial_step.step
-                if iteration == 0 and initial_step is not None
-                else plan_step(model, values, bound, side, bounded)
-            )
+            if planned is None:
+                planned = (
+                    initial_step.step
+                    if iteration == 0 and initial_step is not None
+                    else plan_step(model, values, bound, side, bounded)
+                )
             if planned is None:
                 detail["stop_reason"] = "no_projected_separation"
                 break

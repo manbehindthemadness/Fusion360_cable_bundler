@@ -11,7 +11,9 @@ from time import perf_counter
 from typing import Any, Callable
 from uuid import uuid4
 
+from devtools.ribbon_analysis.gym.boundary import BoundaryReport
 from devtools.ribbon_analysis.gym.scene import Scene
+from devtools.ribbon_analysis.inspection.archive import write_document
 from devtools.ribbon_analysis.inspection.run_contract import ProcedureRunner
 
 from ..settings import Settings
@@ -41,6 +43,7 @@ class Tester:
         present: Callable[[Scene, Path | None], None],
         setup: Callable[[], None],
         capture: Callable[[Path], None] | None = None,
+        measure_boundary: Callable[[Scene], BoundaryReport] | None = None,
     ) -> None:
         """
         Receive explicit ownership/resource boundaries rather than importing Fusion into scheduling.
@@ -48,6 +51,8 @@ class Tester:
         self.directory, self.runner, self.verify, self.guard = directory, runner, verify, guard
         self.prepare, self.cleanup, self.present, self.setup = prepare, cleanup, present, setup
         self.capture = capture
+        self.measure_boundary = measure_boundary
+        self.boundary: BoundaryReport | None = None
         self.screenshots: Screenshots | None = None
         self.last_screenshot: dict[str, Any] | None = None
         self._capture_attempted = False
@@ -101,6 +106,14 @@ class Tester:
                     "maximum_cases": spec.maximum_cases,
                 },
                 "scope": "User-started sequential gym testing. Zero case limit means continue until a problem or Stop. Each input is frozen before one normal solve/build/audit; no retry, outcome filtering or tolerance changes. Successful test geometry is cleared before the next case; logs persist. Existing user output is retained. Full physical audit remains unmeasured.",
+                "gym_boundary": {
+                    "policy": "one-extra-cubicle-layer-v1",
+                    "enforced": self.measure_boundary is not None,
+                    "measurement": "native_precise_body_bounds_in_component_coordinates",
+                    "extra_layers": 1,
+                    "graphics": False,
+                    "solver_feedback": False,
+                },
             },
         )
         screenshots = (
@@ -115,6 +128,7 @@ class Tester:
             journal,
         )
         self.scene, self.manifest, self.job, self._input = None, None, None, None
+        self.boundary = None
         self.attempted = self.passed = self.warnings = 0
         self._stop_reason = None
         self._journal_error = None
@@ -190,6 +204,7 @@ class Tester:
         self.cleanup()
         scene = self.specification.scene(self.attempted)
         self.scene = scene
+        self.boundary = None
         self.manifest, self.job, self._input = None, None, None
         self.last_screenshot = None
         self._capture_attempted = False
@@ -220,6 +235,12 @@ class Tester:
         """
         assert self.specification is not None and self.journal is not None
         reason = self._stop_reason or problem(state, self.specification.stop_on_warnings)
+        if reason is None and self.measure_boundary is not None:
+            assert self.scene is not None and self.job is not None
+            boundary = self.measure_boundary(self.scene)
+            self.boundary = boundary
+            write_document(Path(self.job) / "gym-boundary.json", boundary.payload())
+            reason = boundary.problem
         self.journal.append(
             {
                 "event": "case_finished",
@@ -231,6 +252,7 @@ class Tester:
                 "detail": state.get("detail"),
                 "problem": reason,
                 "native": state.get("native"),
+                "gym_boundary": self.boundary.payload() if self.boundary else None,
             }
         )
         if reason:
@@ -328,6 +350,7 @@ class Tester:
             "elapsed_seconds": perf_counter() - self._started if self.active else self._elapsed,
             "specification": self.specification.payload() if self.specification else None,
             "screenshot": self.last_screenshot,
+            "gym_boundary": self.boundary.payload() if self.boundary else None,
         }
 
     def _save(self) -> None:

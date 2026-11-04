@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Callable
 
+from experiments.experiment_ribbon_feature_insertion.attached_regions import RegionPolicy
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import recover
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy, improves
@@ -29,6 +30,9 @@ def recover_construction(
 
     Unaccepted constructions select by their initial bounded separation correction,
     yielding unused updates to the next branch only after a different pair collides.
+    Accepted-fallback recovery may group a colliding fold with a confirmed crossing
+    attached straight only if that complete correction fits one original trust step;
+    otherwise preserve the original witness correction.
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
@@ -87,6 +91,7 @@ def recover_construction(
             threshold_mm,
             checkpoint,
             record,
+            region_policy=RegionPolicy.ATTACHED_STRAIGHTS,
         )
     selected = recovery.route
     if selected is not None and (

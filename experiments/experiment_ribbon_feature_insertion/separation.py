@@ -92,6 +92,7 @@ class Separation:
     model: MovableBends
     pair: tuple[Region, Region]
     axis: Vector3
+    extra_regions: tuple[tuple[int, Region], ...] = ()
 
     @classmethod
     def from_measurement(
@@ -172,15 +173,19 @@ class Separation:
         source = self.model.original
         pieces = self.model.pieces(values)
         spans = []
-        for region in self.pair:
-            piece = _located(source, pieces, region)
+        for part_index, region in enumerate(self.pair):
             cell = Cell(
                 0,
                 Span(0, 1),
                 Span(-source.half_width_mm, source.half_width_mm),
                 Span(-source.targets.diameter_mm / 2, source.targets.diameter_mm / 2),
             )
-            spans.append(projection(piece, cell, self.axis))
+            bound = projection(_located(source, pieces, region), cell, self.axis)
+            for part, tag in self.extra_regions:
+                if part == part_index:
+                    extra = projection(_located(source, pieces, tag), cell, self.axis)
+                    bound = Span(min(bound.low, extra.low), max(bound.high, extra.high))
+            spans.append(bound)
         first, second = spans
         gap = second.low - first.high if side is Side.BEFORE else first.low - second.high
         return gap / self.model.scale

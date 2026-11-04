@@ -1,5 +1,111 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Attached straight recovery and invisible outer cubicles673–686 — 2026-11-04
+
+The new PNG identifies range0b262 case20, seed2945237171,N8,D.75mm,void/zone300%,
+A internal zone2/face3/roll12deg,Bzone15/face1/roll53deg. Current stopped case21
+is a different N3input; preserve21attempts/21passes. Image route450.492157mm has
+a separated446.031839mm roots1/0fallback. Compact0/0=110.631254mm and0/1=82.200948mm
+penetrate. Original recovery chooses0/1: four updates/.208388CPU clear the first
+1/3collision, expose0/4penetration and remain unresolved. Construction1797pairs
+includes294recovery checks;251remain. Contraction reaches74.035/59.825/58.995/
+58.247mm; two latest proposals penetrate adjacent3/4in7/12checks, restoring446mm.
+
+675checks the two previously unmeasured cached contractions:74.035is depth-limited
+on3/5in306pairs,59.825penetrates3/4in7. Thus no earlier safe fallback is established.
+676retains three distinct new-range control inputs and diagnoses three cached
+variants of ONE case: both compact branches and74.035remain unresolved under
+original four updates/.35CPU/2wall/545remainingpairs.678compares both analytic
+initial signed constraints on those three cached variants: only0/1's other initial
+side separates, four updates/.209331CPU/516pairs,102.681435mm. Five variants remain
+unresolved. These are diagnostics, not six independent cases or a combined runtime
+budget.679confirms an attached straight already intersects the same opposing sheet:
+first-witness recovery constrains the fold but overlooks its attached straight.
+
+New straight_witness clips the two straight midplanes' intersection line to their
+finite material rectangles and validates the midpoint through BOTH actual joined-
+profile inverse maps. A returned point confirms penetration; None never means
+clearance (parallel/thickness-only intersections can be missed). attached_regions
+includes only directly adjacent straights with such a confirmed crossing against
+the opposing straight. Separation encloses the UNION with stable material-region
+identities; it is a stronger constraint, not an adjacency exemption or guessed bend.
+680tests two cached branches with that bound:0/0unresolved,0/1separates at102.681mm
+using the same four updates/516checks. No native attempts in these cached probes.
+
+681freezes fifteen distinct configurations: eleven retained, new-range10/11/21,
+image20. New-range1duplicates retained prior1and is explicitly excluded from the
+independent count. All15baseline runs finish; current run stops on its SECONDcase:
+prior30regresses109.442→1828.701mm. Only2current rows evaluated;13unattempted retained.
+No native launch followed this failed candidate.682measures why: its optional full
+attached-feature correction fits only.00613689of a trust step, versus1for the old
+witness correction. In current image20both fit1; grouping changes the chosen sign
+without clipping the desired correction. Final policy uses the union only when
+its initial complete correction fits the original bounded step exactly; otherwise
+preserve witness recovery. Reuse that initial plan instead of recalculating it.
+Default all-rejected and post-contraction recovery retain their earlier policies.
+No new roots, angular proposals, radii, targets, physical tolerances or work caps.
+
+683repeats the frozen baseline/current comparison under the guarded policy,30cold
+executions/34.096939s,15s/run/120sphase/4GiB. Both15/15numerically accepted; all FOURTEEN
+controls' complete routes AND first passes exactly unchanged. Trigger450.492157→
+60.301685mm, CPU1.334674→.864899s. Recovery raw102.681435mm/fourupdates/.214251CPU/
+516pairs; construction2019/2048total,29unused. Subsequent ordinary contraction now
+certifies59.704639mm and1%smoothing produces60.301685mm. Original evidence hashes
+held. Retained681regression and all cached failed/unknown variants remain visible
+in their artifacts, not relabeled success. This is examined regression evidence.
+
+USER-REQUESTED GYM STRESS RULE: one imaginary extra cubicle layer beyond every
+outer gym face, no graphics. New gym.boundary uses half=extent_mm/2+zone_mm, scaling
+with each actual conductor/void/zone layout. Default uniform3x3x3gym becomes an
+invisible5x5x5envelope; N8/D.75/300/300limit is±45mm. Use the complete generated
+native body's preciseBoundingBox in COMPONENT coordinates (cm→mm), excluding the
+display-only610cmtranslation. Closed boundary permits touching; any strict crossing
+fails. Invalid/reversed/nonfinite bounds never pass. This is post-native gym test
+classification, NEVER a route input/constraint, physical rule or extra graphic.
+
+Runtime supplies the measurement callback to Tester. After normal native fidelity/
+contact acceptance, persist job/gym-boundary.json, include its report in case_finished
+and reconnect state, then stop on failure BEFORE incrementing passes, clearing the
+body or launching another case. Existing first-problem presentation/screenshot
+retention applies. New tester plans freeze the rule,extra_layers1/graphicsFalse/
+solver_feedbackFalse, so replay PNGs inherit it through their embedded test plan.
+Legacy plans/results/counters are not rewritten. This gate is the RANGE TESTER's
+post-native check; numerical core acceptance and native fidelity remain separate.
+
+677verifies Fusion's precise bounds API/local frame on the existing N3body.684
+installs fresh idle Runtime/Tester instances with explicit stopped evidence-field
+transfer, coherent callbacks and unchanged native/controller ownership. Current
+body revision/inputs/21attempts/21passes unchanged;0solves/native attempts/graphics.
+Existing N3body passes±16.875mm in.202208s including ownership/RSS checks. Future
+automatic completions now enforce the new gate. Host unit test confirms a completed
+native result outside the box stops the tester with0passes and no next launch.
+
+685replays exact image20metadata for one normal fresh solve/build/named audit;
+686collects and invokes that same installed boundary callback. Final60.301685mm,
+numerical1.048211CPU/1.104336wall, first-pass.967310wall/smoothing.135733wall. Recovery
+.243361CPU/fourupdates/516pairs; ordinary contraction.131991CPU/onecertificate.
+One282-face body passes9800points/540seams, maxsurface discrepancy1.511987e-9mm,
+0warnings. Generation1.688038s (definition.733521/kernel.738542/translation.215975),
+named audit32.560626s, native total37.866155s. Timing goal met for this run. Boundary
+measurement.136580s, separate from solve/generation/audit: min(-22.121856,-20.868928,
+-4.557019),max(-.529787,16.314774,24.476559)mm,±45limit/excess0. Current body and
+original gym primitives visible; no added outer graphics. Source lock212pins,
+sampled launchRSS606240KiB; in-flight peak unmeasured. Manual draft is image20;
+stopped engine/inputcase21/21counters and original PNG/logs retained. Event errorclear.
+
+Coverage15independent configurations numerically compared,1new native attempt/
+build/named-fidelity pass,0fullphysicalaudits. Fourteen controls new-native/boundary
+unattempted; existing case21body separately boundary-measured. Native outside-box
+halt has mocked-boundary coverage, not a new deliberately failing native build.
+48cold core executions include stopped681's17, renewed683's30 and fresh685's1.
+Cached diagnostics are separate variants, not extra complete-case coverage.
+Final199focused/affected tests pass/2known old v2 length parameters deselected;
+includes six boundary faces, dimensional scaling, invalid bounds, tester latching,
+real inverse-map witness, stable attached regions and existing solver/tester/image
+consumers. Scoped Ruff check/format and changed-code IDE inspections clear; fullQA
+unrun. Complete diff/new-file review done. Production harness unchanged. Evidence
+ignoredexcursion673image,reversal674,excursion675–686,boundary677/684; no more runs.
+
 ## Recovering measured compact contractions662–672 — 2026-11-04
 
 The user's excursion PNG identifies rangef1f730 case80, seed2986789582,N8,D.75mm,

@@ -13,6 +13,7 @@ import adsk.core
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.budget import NativeBudget
+from devtools.ribbon_analysis.gym.boundary import BoundaryReport, assess
 from devtools.ribbon_analysis.gym.handoff import freeze
 from devtools.ribbon_analysis.gym.scene import Scene
 
@@ -54,6 +55,7 @@ class Runtime:
             self._present,
             self._setup,
             self._capture,
+            self._measure_boundary,
         )
 
     @property
@@ -176,6 +178,27 @@ class Runtime:
         viewport.refresh()
         if not viewport.saveAsImageFile(str(path), 1600, 1000):
             raise RuntimeError(f"Fusion could not save the requested screenshot: {path}")
+
+    def _measure_boundary(self, scene: Scene) -> BoundaryReport:
+        """
+        Measure complete built material in local coordinates after fidelity, retaining failures for inspection.
+
+        The occurrence's display translation is excluded by using its native
+        component body. No sampled guide, approximate drawing or new graphics.
+        """
+        self._guard()
+        native = self.workspace.native
+        if not native.has_geometry() or native.displayed.component.bRepBodies.count != 1:
+            raise RuntimeError("Gym boundary requires the current complete native body")
+        box = native.displayed.component.bRepBodies.item(0).preciseBoundingBox
+        if box is None:
+            raise RuntimeError("Fusion did not return precise native body bounds")
+        low, high = box.minPoint, box.maxPoint
+        return assess(
+            scene.config,
+            Vector3(low.x * 10, low.y * 10, low.z * 10),
+            Vector3(high.x * 10, high.y * 10, high.z * 10),
+        )
 
     def dispatch(self, action: str, data: dict[str, Any]) -> None:
         """
