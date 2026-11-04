@@ -10,7 +10,8 @@ from typing import Callable, Literal
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
-from .contact_bounds import Cell, Span, cap_neighborhood, projection
+from .contact_bounds import Cell, Span, projection
+from .contact_cap_support import CapPolicy, cap_region
 from .contact_caps import straight_bridge_pairs
 from .contact_inverse import occupied_coordinates, profile_height
 from .contact_profile import clip_profile
@@ -54,6 +55,7 @@ def inspect_contact(
     maximum_pairs: int = 20000,
     maximum_depth: int = 36,
     checkpoint: Callable[[], None] | None = None,
+    cap_policy: CapPolicy = CapPolicy.MONOTONE,
 ) -> ContactResult:
     """
     Enclose every pair of original pieces through bounded material-box subdivision.
@@ -65,7 +67,11 @@ def inspect_contact(
     the centerline. Positive separation uses outward floating interval envelopes;
     it is not a formal exact-arithmetic proof or native-solid validation.
     Joined-profile bounds remove only empty space outside the actual lobed section.
+    Optional analytic cap support strengthens the same halfspace certificate;
+    historical calls retain their original monotonicity proof and traversal.
     """
+    if not isinstance(cap_policy, CapPolicy):
+        raise ValueError("Supply an explicit cap separation policy")
     if (
         isinstance(maximum_pairs, bool)
         or not isinstance(maximum_pairs, int)
@@ -124,8 +130,8 @@ def inspect_contact(
                 (second.piece == first.piece + 1 and max(pose_error(a.end_pose(), b.pose)) < 1e-10)
                 or (first.piece, second.piece) in bridges
             )
-            and cap_neighborhood(a, first, True)
-            and cap_neighborhood(b, second, False)
+            and cap_region(a, first, True, cap_policy)
+            and cap_region(b, second, False, cap_policy)
         ):
             continue
         if any(x.high < y.low or y.high < x.low for x, y in zip(bounds(first), bounds(second))):

@@ -22,6 +22,7 @@ from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .branch_recovery import recover_construction
+from .contraction_recovery import recover_contracted
 from .coordinates import metadata
 from .settings import Settings
 from .smoothing_contact import smooth_with_contact
@@ -53,6 +54,9 @@ def solve(
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
+    If feasibility recovery was unused, a measured shorter contraction may use
+    that same four-update/.35CPU allowance and original remaining construction
+    pairs. Its analytic cap support certificate grants no contact exemption.
     No v1 fallback, extra features or radius relaxation occurs in that phase.
     Unchanged routes retain their separation certificate, including an exact
     final geometry match to an accepted aesthetic proposal. Otherwise the final
@@ -145,6 +149,26 @@ def solve(
         first = contraction.route
         measurement = contraction.contact or measurement
         detail["contraction"] = contraction.detail
+        remaining = 4 - (perf_counter() - started)
+        if recovery_detail is None and result.contact_pairs < CONTACT_PAIR_BUDGET and remaining > 0:
+            recovered = recover_contracted(
+                contraction,
+                frames,
+                CONTACT_PAIR_BUDGET - result.contact_pairs,
+                native_point_tolerance_mm,
+                checkpoint,
+                record,
+                maximum_seconds=min(2.0, remaining),
+            )
+            if recovered is not None:
+                detail["construction"]["recovery"] = recovered.detail
+                detail["construction"]["contacts"] += recovered.contacts
+                detail["construction"]["contact_pairs"] += recovered.pairs
+                detail["construction"]["contact_seconds"] += recovered.contact_seconds
+                if recovered.route is not None:
+                    first = recovered.route
+                    assert recovered.contact is not None
+                    measurement = recovered.contact
     elif settings.first_pass_optimization:
         detail["contraction"] = {
             "status": "requires_separated_baseline"

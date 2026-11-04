@@ -71,6 +71,8 @@ def test_failed_shorter_certificates_retain_original_safe_route(
     assert result.route is original and result.contact is None
     assert result.detail["status"] == "baseline_retained"
     assert 1 <= inspect.call_count <= 2
+    assert len(result.rejected) == inspect.call_count
+    assert all(contact.status == status for _, contact in result.rejected)
 
 
 def test_local_cpu_exhaustion_retains_baseline(

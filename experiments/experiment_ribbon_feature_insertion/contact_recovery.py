@@ -15,6 +15,7 @@ from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_relaxation.steps import advance
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .separation import Separation, Side, TopologyChanged
@@ -66,6 +67,7 @@ def recover(
     maximum_updates: int = 4,
     continuation: ContactContinuation = ContactContinuation.FOLLOW,
     initial_step: InitialStep | None = None,
+    cap_policy: CapPolicy = CapPolicy.MONOTONE,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
@@ -90,6 +92,8 @@ def recover(
         raise ValueError("Recovery sublimits require one to four updates")
     if not isinstance(continuation, ContactContinuation):
         raise ValueError("Supply an explicit contact continuation policy")
+    if not isinstance(cap_policy, CapPolicy):
+        raise ValueError("Supply an explicit cap separation policy")
     if initial_step is not None and (
         initial_step.source is not source or initial_step.measurement is not measurement
     ):
@@ -184,7 +188,10 @@ def recover(
                 detail["stop_reason"] = "pair_budget"
                 break
             now = perf_counter()
-            measurement = inspect_contact(route, maximum_pairs=allowance, checkpoint=bounded)
+            options = {"cap_policy": cap_policy} if cap_policy is not CapPolicy.MONOTONE else {}
+            measurement = inspect_contact(
+                route, maximum_pairs=allowance, checkpoint=bounded, **options
+            )
             if (
                 type(measurement.pairs_checked) is not int
                 or not 0 <= measurement.pairs_checked <= allowance

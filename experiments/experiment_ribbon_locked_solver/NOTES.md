@@ -1,5 +1,91 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Recovering measured compact contractions662–672 — 2026-11-04
+
+The user's excursion PNG identifies rangef1f730 case80, seed2986789582,N8,D.75mm,
+void/zone300%,A internal zone10/face5/roll35deg,Bzone14/face4/roll48deg. This is
+different from the stopped case103. Original native/numerical route224.771412mm;
+construction roots0/0is42.973545mm but contact exhausts1024pairs,0/1separates
+in577pairs at222.546269mm. Total1601/2048,447unused; no original feasibility
+recovery is eligible. Four contraction steps reach109.841/67.359/40.062/39.460mm.
+Newest39.460check reaches depth36without clearance in362pairs; previous40.062
+penetrates in211. Restore222.546mm;1%smoothing produces the photographed224.771mm.
+Thus a measured compact proposal is discarded, not absent from the route planner.
+
+664profiles ONEcached42.974branch at the original1024budget: unresolved on2/3,
+mostly around an adjacent straight/fold seam; instrumented2.479978s is not runtime
+performance.665is a separately bounded diagnostic4096ceiling, NOT a runtime increase:
+the same branch reaches depth uncertainty on1/4after1280checks/.331006s. No clearance
+claim from the extra observation.666prototype harness stops before any contact
+call because copied function keyword defaults were missing; retained failure.json.
+667copies the original defaults and compares a conservative analytic cap support
+proof on three cached variants of case80plus the prior corrected case103control.
+Compact branch now reaches the SAME undecided1/4boxes in574checks;39.460remains
+depth-limited in294,40.062remains penetrating in143, control stays separated.
+The compact branch's original bounded recovery still fails by moving collision
+to0/4.668diagnoses both signed constraints on three cached variants, six local
+recoveries of ONE configuration: four unresolved, two separated (39.460after-side
+to55.215488mm;40.062after-side to56.155989mm). These are diagnostic alternatives,
+not six independent configurations or one combined runtime allowance.
+
+669checks recovered55.215mmwith the original checker at447remainingpairs: still
+pair-limited, no acceptance. Its source39.460's ORIGINAL minimum-norm signed step
+already chooses the successful after-side, so runtime needs no sign guessing.
+The new cap proof's245-check certificate fits that same447allowance. Default
+contact traversal/monotonic cap proof remains unchanged; new ANALYTIC_SUPPORT is
+used only for the deferred contraction recovery certificate. Entry-flat material
+is on its cap side; circular support uses nonnegative sine for|angle|<=pi and
+positive thick radius; the clipped exit-plane polygon is checked at all vertices
+and thickness extrema with a strict local numerical guard. Reverse caps reverse
+u/bank/bend sign/thickness. No adjacent-piece blanket exemption or physical slack.
+
+Contraction now retains only its already-measured rejected proposals. When first-
+pass optimization is on AND feasibility recovery was wholly unused, one shorter
+measured penetration/depth proposal may use that original four-update/.35CPU/2wall
+allowance AFTER contraction, sharing original remaining construction pairs and4s
+first-pass deadline. Require strict shortening and non-increasing whole-guide RMS/
+direction before AND after correction; otherwise keep the certified baseline and
+count all work. Unsupported/pair-only evidence adds no correction. Existing early
+branch recovery keeps priority and cannot be charged again. Original four-step
+contraction/two certificates stay intact. Source lock209pins; no new radii, roots,
+profile changes, tolerances, UV/material changes or production harness changes.
+
+670freezes eleven distinct fixed gym configurations: ten retained successful
+controls plus image80, exact prior source first then corrected source,22cold core
+executions/26.933862s,15s/run/120sphase/4GiB. Both11/11accepted, all TENcontrols'
+complete routes AND first passes exactly unchanged. Trigger224.771412→55.767642mm,
+CPU1.121868→1.175310s. Deferred recovery.126695CPU/two updates/245pairs; construction
+1846/2048total,202unused. Both original contraction certificates remain failed;
+their planned geometry is not relabeled accepted. Original evidence hashes held.
+No skipped numerical cases. This is examined regression evidence, not holdouts.
+
+671replays exact PNG data in the owned gym and runs one normal fresh solve/native/
+named audit;672collects without more geometry. Final55.767642mm; numerical1.342439CPU/
+1.416043wall, first-pass1.094304wall/smoothing.320215wall. Recovery.162727CPU/two
+updates/245pairs; same1846total. Native322faces,11200points/620seams, maximum surface
+discrepancy1.791217e-9mm,0warnings. Generation1.775807s (definition.829856/kernel
+.637632/translation.308319); named audit34.700894s, native total39.683121s. Timing
+goal met in this run; audit/graphics are excluded from generation. Sampled launch
+RSS701744KiB, in-flight peak unmeasured. Compact body visible with gym primitives,
+prior bodies and original PNG/job retained. Stopped engine/current case103and
+103attempts/102passes unchanged; manual gym draft now shows the requested case80.
+
+Scope:11numerically compared/1native-attempted/1built/1named-fidelity-audited,
+10controls native-unattempted under this change,0full physical audits.23cold core
+executions include the normal fresh trigger job; cached probes are separate.
+666setup failure, all unknown/penetrating variants and previous histories retained.
+No universal recovery, native reliability or global shortest-route claim.
+
+148focused/affected tests pass,2known old v2 length parameters deselected. Covers
+analytic support on both signed bends/banks/reversed caps against independently
+placed thick points, closed half-turn non-acceptance, historical proof compatibility,
+retained rejection provenance, bounded improvement/failure/no-work and existing
+contact/reversal/smoothing/dispatch consumers. Scoped affected-package Ruff check/
+format pass. New helper/test IDE diagnostics clear; archived-source duplication
+remains in unchanged contact/relocation/solver sections (4/4/3weak findings).
+Complete diff/new-file review done. FullQA unrun. Evidence ignoredexcursion662image,
+reversal663,excursion664–672; no additional geometry work scheduled.
+
 ## Collision-triggered recovery handoff653–661 — 2026-11-04
 
 Stopped rangef1f730 case103, seed2433123344,N5,D.75mm,void/zone300%,A internal

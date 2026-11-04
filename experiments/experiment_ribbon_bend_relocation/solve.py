@@ -29,11 +29,15 @@ class _PhaseExhausted(RuntimeError):
 class Result:
     """
     Return the original route or a shorter certified replacement, with complete phase accounting.
+
+    Rejected entries retain only already-measured proposals for optional caller
+    recovery; they are never accepted geometry or permission for further work.
     """
 
     route: FoldRoute
     contact: ContactResult | None
     detail: dict[str, Any]
+    rejected: tuple[tuple[FoldRoute, ContactResult], ...] = ()
 
 
 def contract(
@@ -70,6 +74,7 @@ def contract(
     model = MovableBends(original)
     values, current = model.initial, original
     proposals: list[FoldRoute] = []
+    rejected: list[tuple[FoldRoute, ContactResult]] = []
     selected, measurement = original, None
     detail: dict[str, Any] = {
         "status": "baseline_retained",
@@ -157,6 +162,7 @@ def contract(
                 selected, measurement = candidate, contact
                 detail["status"] = "shortened"
                 break
+            rejected.append((candidate, contact))
     except _PhaseExhausted:
         detail["stop_reason"] = "phase_budget"
     detail.update(
@@ -165,4 +171,4 @@ def contract(
         elapsed_seconds=perf_counter() - started,
     )
     emit(detail["status"], **{key: value for key, value in detail.items() if key != "status"})
-    return Result(selected, measurement, detail)
+    return Result(selected, measurement, detail, tuple(rejected))
