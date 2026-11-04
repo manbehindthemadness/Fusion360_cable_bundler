@@ -111,6 +111,8 @@ class DiagnosticViewer:
         self._gym_group: Any = None
         self._gym_id: str | None = None
         self.on_gym: Callable[[], None] | None = None
+        self.prefer_native_result: Callable[[Path], bool] = self._no_native_result
+        self.on_replay: Callable[[], None] = self._retain_unlinked_views
         self.on_clear_geometry: Callable[[], None] | None = None
         self.geometry_available: Callable[[], bool] | None = None
         self._visibility = {
@@ -129,6 +131,7 @@ class DiagnosticViewer:
         self._details_visibility: dict[tuple[str, str], bool] = {}
         self._solver_sketch_key = (str(self.session.manifest), self.session.solver)
         self._follow_comparison = False
+        self._native_preferred = False
         self._methods: dict[str, Any] = {}
         self._sessions: dict[Path, tuple[Session, dict[str, Any]]] = {
             manifest.resolve(): (self.session, self._methods)
@@ -152,6 +155,14 @@ class DiagnosticViewer:
         occurrence.component.name = f"{method['label']} [{method['status']}]"
         occurrence.isLightBulbOn = False
         self._methods[method["id"]] = occurrence
+
+    @staticmethod
+    def _no_native_result(manifest: Path) -> bool:
+        """
+        Keep standalone viewers on their archived diagnostic geometry.
+        """
+        del manifest
+        return False
 
     @staticmethod
     def _retain_unlinked_views() -> None:
@@ -192,6 +203,9 @@ class DiagnosticViewer:
         """
         Replace only this viewer's selected scene, preserving the archived proposals.
         """
+        self._native_preferred = False
+        replay: Callable[[], None] = getattr(self, "on_replay", self._retain_unlinked_views)
+        replay()
         budget = self._budget()
         budget.check("replay launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
@@ -451,7 +465,12 @@ class DiagnosticViewer:
                 selected = next(m for m in self.session.methods if m["id"] == identifiers[-1])
                 proposal = selected["history_count"] - 1 if not selected["has_result"] else -1
                 self.session.select(identifiers[-1], proposal)
-        self._draw()
+        prefer: Callable[[Path], bool] = getattr(
+            self, "prefer_native_result", self._no_native_result
+        )
+        self._native_preferred = result is not None and prefer(result)
+        if not self._native_preferred:
+            self._draw()
 
     def _start(self, request: dict[str, Any]) -> None:
         """
@@ -472,6 +491,7 @@ class DiagnosticViewer:
             raise ValueError("Diagnostic examples are not configured.")
         manifest = self.runner.open_example(identifier).resolve()
         self._select_layout(manifest)
+        self._draw()
 
     def _select_layout(self, manifest: Path) -> None:
         """
@@ -488,7 +508,6 @@ class DiagnosticViewer:
         for method in self.session.methods:
             if method["id"] not in self._methods:
                 self._register_method(method)
-        self._draw()
 
     def dispatch(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
         """
@@ -589,6 +608,19 @@ class DiagnosticViewer:
                     if method["id"] in added:
                         budget.check("new numerical result")
                         self._register_method(method)
+                prefer: Callable[[Path], bool] = getattr(
+                    self, "prefer_native_result", self._no_native_result
+                )
+                native_visible = prefer(manifest)
+                self._native_preferred = native_visible
+                latest = next(
+                    method for method in self.session.methods if method["id"] == added[-1]
+                )
+                if native_visible:
+                    self.session.select(added[-1])
+                if not native_visible and latest["status"] == "unresolved" and latest["has_result"]:
+                    self.session.select(added[-1])
+                    self._draw()
                 if self._follow_comparison:
                     self.session.select(added[-1])
                     self._draw()
@@ -598,7 +630,10 @@ class DiagnosticViewer:
             self._draw()
         elif action == "section":
             self.session.select_section(_integer(data.get("index")))
-            self._draw_frame()
+            if getattr(self, "_native_preferred", False):
+                self._draw()
+            else:
+                self._draw_frame()
             self._apply_visibility()
         elif action == "visibility":
             if set(data) != set(self._visibility) or any(

@@ -31,8 +31,8 @@ class Controller(ProcedureController):
     """
     Reuse the existing owned-worker cancellation/replay boundary for one new procedure.
 
-    Native building is supplied by the owning Fusion workspace and runs only
-    after completed numerical acceptance. No historical solver is enabled.
+    Accepted construction and rejected inspection have separate callbacks and
+    dispositions. Optional rejected bodies never count as solver acceptance.
     """
 
     def __init__(
@@ -44,6 +44,7 @@ class Controller(ProcedureController):
         *,
         native_point_tolerance_mm: float = 1e-5,
         contact_policy: ContactPolicy = ContactPolicy.STRICT,
+        inspect_rejected: Callable[[Path], dict[str, Any]] | None = None,
     ) -> None:
         """
         Bind the configured SDK, explicit design identity and owned native-build callback.
@@ -57,6 +58,7 @@ class Controller(ProcedureController):
             raise ValueError("Native point tolerance must be finite and positive")
         self.document_id = document_id
         self.build = build
+        self.inspect_rejected = inspect_rejected
         self.native_point_tolerance_mm = native_point_tolerance_mm
         self.contact_policy = ContactPolicy(contact_policy)
         self._active_version = DEFAULT_VERSION
@@ -127,7 +129,8 @@ class Controller(ProcedureController):
                     "launch_rss_kib": 3984588,
                 },
                 "native_prediction": "Unknown; numerical acceptance is separate from native fidelity",
-                "stop": "First source/resource/API/numerical/native-fidelity error; retain all evidence, no retry or tolerance changes",
+                "failed_inspection": "One native attempt for a closed rejected route, then scaffold fallback; never acceptance",
+                "stop": "First failure stops routing/testing; rejected native inspection is separate and attempted once. Source/resource/cancellation stops inspection; no retry or tolerance changes.",
             },
         )
         self._job, self._started, self._seconds, self._cancelled = job, perf_counter(), 120, None
@@ -206,6 +209,12 @@ class Controller(ProcedureController):
                     phase="finished",
                     detail="No accepted route was produced; native construction was not attempted.",
                 )
+            if (
+                not document.get("stopped")
+                and self.inspect_rejected is not None
+                and (job / "rejected-geometry.json").exists()
+            ):
+                return self._inspect_rejected(manifest, document)
             return manifest
         self._status.update(
             status="running",
@@ -280,6 +289,34 @@ class Controller(ProcedureController):
             elapsed_seconds=perf_counter() - self._started,
         )
         progress.append(job, "complete" if success else "failed", method["detail"])
+        return final
+
+    def _inspect_rejected(self, manifest: Path, document: dict[str, Any]) -> Path:
+        """
+        Append optional native inspection evidence while preserving the unresolved stop.
+        """
+        assert self.inspect_rejected is not None
+        job = manifest.parent
+        try:
+            result = self.inspect_rejected(job)
+        except (ArithmeticError, OSError, RuntimeError, TypeError, ValueError) as error:
+            result = {"built": 0, "error": f"{type(error).__name__}: {error}"}
+        message = (
+            "Rejected route displayed as a native inspection body; NOT ACCEPTED."
+            if result.get("built") == 1
+            else "Rejected route retained as diagnostic scaffold; native inspection unavailable."
+        )
+        progress.append(job, "inspection", message)
+        document["rejected_native_result"] = result
+        document["solvers"][0]["detail"] += " " + message
+        self._status.update(
+            status="unresolved",
+            phase="finished",
+            detail=self._status["detail"] + " " + message,
+            inspection={key: value for key, value in result.items() if key != "rss_samples"},
+        )
+        final = job / "inspection-manifest.json"
+        write_document(final, document)
         return final
 
     def state(self) -> dict[str, Any]:

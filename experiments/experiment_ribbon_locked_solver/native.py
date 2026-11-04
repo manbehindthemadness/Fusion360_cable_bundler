@@ -40,6 +40,7 @@ from .correspondence import MaterialFaces
 from .fidelity_base import audit
 from .lock import verify
 from .progress import append
+from .rejected_native import build as build_rejected
 from .settings import Settings
 from .versions import method
 
@@ -62,6 +63,7 @@ class NativeOwner:
         self.document_id, self.display_x_cm = document_id, display_x_cm
         self.flat_surfaces = FlatSurfaces(flat_surfaces)
         self.displayed: Any = None
+        self.rejected_job: Path | None = None
         self.on_progress: Callable[[dict[str, str]], None] | None = None
 
     def _progress(self, directory: Path, stage: str, message: str) -> None:
@@ -107,6 +109,21 @@ class NativeOwner:
             if not self.displayed.deleteMe():
                 raise RuntimeError("Fusion could not remove the generated output occurrence")
         self.displayed = None
+        self.rejected_job = None
+
+    def inspect_rejected(self, directory: Path) -> dict[str, Any]:
+        """
+        Own an inspection-only rejected body under the ordinary hide/clear/capture controls.
+        """
+        occurrence, result = build_rejected(
+            directory, self.document_id, self.display_x_cm, self.flat_surfaces
+        )
+        if occurrence is not None:
+            self.hide()
+            self.displayed = occurrence
+            self.rejected_job = directory.resolve()
+            occurrence.isLightBulbOn = True
+        return result
 
     def build(self, directory: Path) -> dict[str, Any]:
         """
@@ -306,6 +323,7 @@ class NativeOwner:
             occurrence.isLightBulbOn = True
             body.isLightBulbOn = True
             self.displayed = occurrence
+            self.rejected_job = None
             self._progress(
                 directory,
                 "warning" if result.get("precision_warning") else "native",

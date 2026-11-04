@@ -88,6 +88,30 @@ def test_externally_deleted_output_is_harmless(native_host: tuple[Any, Any]) -> 
     assert owner.displayed is None
 
 
+def test_rejected_inspection_uses_normal_output_ownership(
+    native_host: tuple[Any, Any], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """
+    A rejected body participates in hide/clear without becoming accepted output.
+    """
+    module, _ = native_host
+    owner = module.NativeOwner("owned")
+    occurrence = SimpleNamespace(
+        isValid=True,
+        isLightBulbOn=False,
+        component=SimpleNamespace(bRepBodies=SimpleNamespace(count=1)),
+        deleteMe=Mock(return_value=True),
+    )
+    result = {"built": 1, "accepted": False}
+    monkeypatch.setitem(vars(module), "build_rejected", Mock(return_value=(occurrence, result)))
+    assert owner.inspect_rejected(tmp_path) is result
+    assert owner.has_geometry() and owner.rejected_job == tmp_path.resolve()
+    owner.hide()
+    assert not occurrence.isLightBulbOn
+    owner.clear()
+    assert not owner.has_geometry() and owner.rejected_job is None
+
+
 def test_closed_progress_view_does_not_abort_native_stage_logging(
     native_host: tuple[Any, Any], tmp_path: Path
 ) -> None:

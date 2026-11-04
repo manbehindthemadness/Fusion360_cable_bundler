@@ -53,9 +53,44 @@ class SelectedWorkspace(Workspace):
         super().__init__(diagnostics, diagnostic_occurrence, gym_occurrence, directory, scene)
         diagnostics.enable_geometry_clear(native.clear, native.has_geometry)
         native.on_progress = diagnostics.report_progress
+        runner = diagnostics.runner
+        if not isinstance(runner, Controller):
+            raise ValueError("Selected workspace requires its selected solver controller")
+        runner.inspect_rejected = self._inspect_rejected
+        diagnostics.prefer_native_result = self._prefer_native_result
+        diagnostics.on_replay = self._show_replay
         self.range_tester = RangeTester(self)
         diagnostics.tester = self.range_tester
         diagnostics.ensure_owned_views = self.ensure_views
+
+    def _inspect_rejected(self, directory: Path) -> dict[str, Any]:
+        """
+        Attempt the rejected inspection using the current tester/manual native owner.
+        """
+        result = self.native.inspect_rejected(directory)
+        if result.get("built") == 1:
+            self.diagnostic_occurrence.isLightBulbOn = False
+        return result
+
+    def _prefer_native_result(self, manifest: Path) -> bool:
+        """
+        Show a matching rejected body without constructing the expensive scaffold overlay.
+        """
+        available = (
+            self.native.rejected_job == manifest.parent.resolve() and self.native.has_geometry()
+        )
+        if available:
+            self.native.displayed.isLightBulbOn = True
+            self.diagnostic_occurrence.isLightBulbOn = False
+        return available
+
+    def _show_replay(self) -> None:
+        """
+        Restore explicit diagnostic browsing after the native-first stopped-case view.
+        """
+        if self.native.rejected_job is not None:
+            self.native.hide()
+        self.diagnostic_occurrence.isLightBulbOn = True
 
     def ensure_views(self) -> None:
         """

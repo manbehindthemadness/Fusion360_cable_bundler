@@ -132,8 +132,9 @@ def test_switching_examples_retains_each_session_and_its_selected_section(
     assert len(viewer._sessions) == 2
 
 
+@pytest.mark.parametrize("native_visible", (True, False))
 def test_stopped_tester_case_can_be_inspected_repeatedly_without_duplicate_results(
-    palette_module: Any, tmp_path: Path
+    palette_module: Any, tmp_path: Path, native_visible: bool
 ) -> None:
     """
     Reuse frozen inputs and their existing imported failure after a reconnect or Inspect click.
@@ -168,11 +169,40 @@ def test_stopped_tester_case_can_be_inspected_repeatedly_without_duplicate_resul
         side_effect=lambda item: viewer._methods.update({item["id"]: Mock()})
     )
     viewer._draw = Mock()
+    viewer.prefer_native_result = Mock(return_value=native_visible)
     viewer.open_results(layout, "Stopped range input", result)
     viewer.open_results(layout, "Stopped range input", result)
     assert len(viewer.session.methods) == 2 and viewer.session.solver == "range-stop"
     assert viewer.session.targets == scene.targets
     viewer.runner.open_example.assert_not_called()
+    assert viewer._draw.call_count == (0 if native_visible else 2)
+
+
+@pytest.mark.parametrize("native_preferred", (True, False))
+def test_section_control_reconstructs_replay_after_native_first_view(
+    palette_module: Any, native_preferred: bool
+) -> None:
+    """
+    Native-first presentation has no scaffold frame until an explicit section inspection.
+    """
+    viewer: Any = object.__new__(palette_module.DiagnosticViewer)
+    scene = generate()
+    viewer.session = SimpleNamespace(
+        targets=scene.targets,
+        gym=scene.payload(),
+        section=0,
+        select_section=Mock(),
+        state=Mock(return_value={}),
+    )
+    viewer._native_preferred = native_preferred
+    viewer.tester, viewer.runner, viewer.on_gym, viewer.geometry_available = None, None, None, None
+    viewer._visibility, viewer._sections = {}, []
+    viewer.palette = Mock()
+    viewer._draw, viewer._draw_frame, viewer._apply_visibility = Mock(), Mock(), Mock()
+    viewer.dispatch("section", {"index": 0})
+    viewer.session.select_section.assert_called_once_with(0)
+    assert viewer._draw.call_count == int(native_preferred)
+    assert viewer._draw_frame.call_count == int(not native_preferred)
 
 
 @pytest.mark.parametrize("visible", (True, False))

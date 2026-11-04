@@ -1,5 +1,148 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Native-first rejected inspection609–613 — 2026-11-04
+
+User prefers the native failed specimen to the coarse scaffold. Numerically
+unresolved jobs with recorded closed branches now receive one optional native
+inspection attempt before presentation. `rejected_native.py` uses the shortest
+recorded branch, unchanged material profile/patch/cylinder supports, fixed targets,
+120s/4GiB RSS/3.8GiB launch headroom and source/cancellation guards. It performs no
+solve, contact retry, healing, UV/appearance work or fidelity audit. A durable
+`rejected-native-result.json` prohibits retries. Missing geometry, hard worker stops
+and cancellation do not launch inspection; kernel/no-solid/persistence errors
+retain the scaffold fallback. Normal accepted construction/audit is unchanged.
+
+Controller collection writes a separate `inspection-manifest.json`, preserving
+unresolved status, original numerical failure and contact dispositions. Inspection
+costs are separate from accepted generation counters. A built body is explicitly
+NOT ACCEPTED and owned by NativeOwner, so hide/clear/tester capture work normally.
+The viewer skips scaffold construction when a matching native inspection body
+exists. Explicit history/section replay restores diagnostics and hides that body;
+Inspect after clearing it can show the scaffold without another kernel attempt.
+Manual collection and stopped tester presentation share this preference. The
+ordinary accepted-native fidelity-failure path is unchanged.
+
+609verification initially88focused checks pass across native rejection/fallback/guards,
+ownership/clear, worker collection, palette, tester, view recovery and screenshot
+consumers. Broader affected checks:123pass/1failure. The unchanged optimized solver
+regression expects33.15038581896378mm but receives27.240032425256548mm; an isolated
+run with every edited existing Python module loaded from committed HEAD reproduces
+the identical failure (1pass/1fail). Numerical implementation files were not
+changed; this pre-existing expectation discrepancy remains out of scope. Scoped
+Ruff lint/format pass. All11changed Python files inspected: no new IDE findings;
+20existing duplication/broad-exception weak warnings remain in native/controller/
+gym/viewer. Complete changed/new-file and lock diff reviewed;199pins frozen. No
+full repository QA or standalone type checker.
+
+610activates a fresh coherent gym610/viewer/controller/native/runtime, preserving
+the original scene, solver settings, tester specification, stopped counters and
+history. Its cached smoke setup stops before construction because the harness
+omits creation of the jobs parent directory;0solves/0native attempts. The response
+and pre-operation plan remain.611records renewal for that setup-only correction:
+one cached configuration, zero solves, one native attempt, one122-face built body,
+zero native-fidelity/full physical audits. The installed controller inspection
+callback and tester presentation prefer the native body with scaffold hidden;
+clear availability is true, error is null, original12attempts/11passes stay stopped.
+Unit tests exercise automatic poll collection; live611invokes its inspection
+collection method directly on a separately identified cached result, not a new
+cold numerical worker run. No natural live kernel-rejection fallback was tested.
+
+611cached native generation.861719s(translation.062369/definition.438052/kernel
+.361297), inspection elapsed1.181714s. This warm replay is not a performance gain
+claim against cold608. Sampled enclosing setup/display RSS peaks635584KiB, below
+4GiB; in-flight peak unmeasured. Exact original route/contact failure remains
+unchanged. The prior608curiosity body is retained hidden; new inspection body is
+visible and gym-owned. Historical original logs/results/metadataPNG remain intact.
+No new routing success/generalization claim, solver fix or production promotion.
+Evidence: ignored native-first609baseline script/log,610plan/setup-stop response,
+native_first611 plan/result/PNG and gym610/jobs/cached-rejected-inspection-611.
+
+612adds explicit native-view state so Section controls construct the missing
+scaffold before moving its frame. Two additional checks bring focused coverage
+to90passing tests. Live612refreshes the stopped viewer without replacing evidence,
+shows one section replay, then restores the same native body; revision unchanged,
+zero solves/native cable attempts,2.101s, sampled RSS599216KiB maximum.613loads the
+final constructor initialization (removing new IDE weak warnings) without drawing
+or building; native preference, body revision and clear availability remain intact.
+The affected19palette/view-recovery checks pass after that final code edit; Ruff
+and changed-file IDE inspections retain only the existing findings above. Final
+199pins verify; frozen611/612source provenance remains distinct from613refresh.
+Evidence also native_first612/613 plans/results and restored native PNG. Final
+code/notes diff reviewed; no further native build or solver run scheduled.
+
+## User-requested rejected-route native curiosity607–608 — 2026-11-04
+
+After seeing605, the user asks whether Fusion will actually build that failing
+route.607confirms the owned document is idle and tester stopped.608freezes one
+cached independent gym configuration, roots0/0exactly as originally recorded,
+one native attempt/120s/4GiB RSS/3.8GiB launch headroom, no solve/recovery/retry.
+It explicitly records demonstrated material penetration between pieces4/6 and
+does not create a controller-ready `route.json` or change acceptance policy.
+
+The unchanged material profile/patch/cylinder-support constructor returns a body:
+Fusion reports isSolid=true,122faces,31.926609mm3volume. Full healing is disabled.
+Translation.347843s, definition.924117s, kernel1.729274s; generation3.001234s.
+Total4.496645s includes persistence, hidden end profiles and viewport PNG. Sampled
+RSS358272..460896KiB before final289280KiB; in-flight peak unmeasured. No named
+native-fidelity or full physical audit is attempted; kernel success does not
+establish a non-self-intersecting or faithful material solid.
+
+The body is visible in the separate root component `REJECTED route608 -
+self-intersection - kernel curiosity`, with body name NOT ACCEPTED and source/
+failure attributes. Gym/scaffold occurrences are hidden to inspect the native
+body clearly; no prior body/diagnostic archive is deleted. This curiosity output
+is independent of the ordinary NativeOwner clear/generated-output handle.
+Original manifest/trials/numerical-result hashes and exact route are unchanged;
+all198source pins unchanged. Tester remains stopped/problem at its original case.
+One cached configuration/one native attempt/one built/zero native-fidelity and
+full physical audits, not new routing success or generalized geometry coverage.
+Evidence: ignored `rejected607-state`, `ribbon_rejected608` plan/result/nativePNG
+and608response. Screenshot reviewed; documentation diff reviewed. No maintained
+implementation changes, application tests, full QA or production promotion.
+
+## Rejected-route diagnostic scaffolds605–606 — 2026-11-04
+
+Numerical jobs without a native-ready route now attach recorded closed v2 branches
+to the existing inspection history. `rejected_display.py` restores exact trial
+routes and freezes the usual diagnostic guide/section/thickness interpolation;
+it never solves, retries contact, writes `route.json` or authorizes native cable
+construction. The shortest recorded branch is the initial display. Original branch
+order and contact penetration/unresolved/unattempted dispositions remain explicit.
+Unresolved/stopped status stays unchanged; labels state NOT ACCEPTED. Missing closed
+geometry stays unavailable. Optional display failures are logged without replacing
+the original numerical failure. Existing cancellation/time/RSS/source limits apply;
+the ledger is bounded256MiB/4MiB per record and at most eight branches. Display
+preparation has its own timer, separate from the retained numerical result.
+
+605renders the four original cached d058case12 branches, initially roots0/0with
+known penetration. All four are indexed in viewer history; the shortest scaffold
+is visually confirmed in Fusion and its saved PNG. Original manifest/trials/result
+hashes remain identical; the derived inspection manifest records both original
+solver provenance and current display-source pins. Tester stays problem/stopped,
+12attempts/11passes/one warning pass. No solve, contact retry, native cable build or
+full physical audit. This is one cached independent configuration, not four cases.
+Display/archive/capture elapsed10.561623s; sampled RSS342512..485952KiB, below4GiB,
+in-flight peak unmeasured. This is display overhead, not a generation benchmark.
+
+606attempted supplementary history-navigation/focused-camera verification, but the
+owned-idle/stopped-design guard rejected before setup or mutations; zero redraws,
+solves or native cable attempts. No retry or forced command cancellation. The605
+display remains the last verified rendering. Existing Inspect-last-case still
+points to the immutable original job for this historical case; select the derived
+rejected-geometry method again if inspecting the old manifest resets selection.
+Future failed jobs contain their own diagnostic history automatically.
+
+32focused tests pass across rejected-display, worker progress, controller and
+inspection modules. Includes worker-to-Session-to-controller failure display with
+native build blocked, original ledger preservation, all four dispositions, absent
+geometry, fixed-target/cancellation checks and optional-display failure handling.
+Scoped Ruff lint/format pass; IDE reports no new findings (four pre-existing worker
+duplication weak warnings retained). Complete changed/new-file diff reviewed.
+198source pins frozen: worker changed and display helper added; solver/search and
+native construction sources unchanged. No full repository QA, geometry reliability
+claim or production promotion. Evidence: ignored `ribbon_rejected605`,605response,
+606guard response and original stopped range/job.
+
 ## Unresolved multi-contact case599–604 — 2026-11-04
 
 Range-d058case12(seed2633163145,N2,D0.75mm,UI zones1/2,faces2/1,roll0/0)

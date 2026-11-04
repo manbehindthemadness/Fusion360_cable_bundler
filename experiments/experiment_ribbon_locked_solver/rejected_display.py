@@ -105,7 +105,7 @@ def retain(
     method.update(
         label=method["label"] + " — rejected geometry",
         detail=method["detail"]
-        + f" Diagnostic scaffold only; NOT ACCEPTED, no native build. Showing roots {branch['roots']}: {branch['disposition']}. All {len(branches)} recorded branches are available in history.",
+        + f" NOT ACCEPTED. Default diagnostic branch: roots {branch['roots']}, {branch['disposition']}. All {len(branches)} recorded branches are available in history; native inspection does not imply acceptance.",
         history="rejected-history.jsonl",
         snapshot=selected_snapshot,
         diagnostic_geometry_seconds=perf_counter() - started,

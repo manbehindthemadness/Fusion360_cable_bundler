@@ -89,6 +89,41 @@ def test_no_route_is_unresolved_and_skips_native_build(
     native.assert_not_called()
 
 
+@pytest.mark.parametrize("outcome", ("built", "fallback", "exception", "cancelled", "stopped"))
+def test_rejected_native_inspection_never_changes_numerical_acceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    """
+    Closed rejected routes get one optional inspection; cancellation and hard stops prohibit it.
+    """
+    runner, native = _finished_worker(tmp_path, monkeypatch)
+    _manifest(tmp_path)
+    document = json.loads((tmp_path / "manifest.json").read_text())
+    document["solvers"][0].update(status="unresolved", detail="No accepted route.")
+    if outcome == "stopped":
+        document["stopped"] = "source/resource stop"
+    (tmp_path / "manifest.json").write_text(json.dumps(document))
+    (tmp_path / "rejected-geometry.json").write_text("{}")
+    inspection = Mock(return_value={"built": int(outcome == "built"), "accepted": False})
+    if outcome == "exception":
+        inspection.side_effect = RuntimeError("native inspection unavailable")
+    runner.inspect_rejected = inspection
+    if outcome == "cancelled":
+        runner.cancel()
+    final = runner.poll()
+    assert final is not None
+    if outcome in ("cancelled", "stopped"):
+        inspection.assert_not_called()
+    else:
+        inspection.assert_called_once_with(tmp_path)
+        assert runner.state()["status"] == "unresolved"
+        recorded = json.loads(final.read_text())
+        assert recorded["solvers"][0]["status"] == "unresolved"
+        assert "No accepted route." in recorded["solvers"][0]["detail"]
+        assert runner.poll() is None
+    native.assert_not_called()
+
+
 def test_cancel_after_worker_exit_does_not_start_native_construction(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
