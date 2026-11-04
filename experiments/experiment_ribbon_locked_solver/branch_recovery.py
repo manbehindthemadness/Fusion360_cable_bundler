@@ -12,6 +12,8 @@ from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy, improves
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
 
+from .recovery_selection import select_recovery
+
 
 def recover_construction(
     result: Result,
@@ -25,7 +27,7 @@ def recover_construction(
     """
     Correct one existing failed branch without losing an already separated baseline.
 
-    Unaccepted constructions retain their original shortest-failure recovery rule.
+    Unaccepted constructions select by their initial bounded separation correction.
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
@@ -55,7 +57,14 @@ def recover_construction(
         )
         if not candidates:
             return result, None
-    branch, measurement = min(candidates, key=lambda item: item[0].priority)
+    selection = None
+    if baseline is None:
+        selection = select_recovery(candidates, checkpoint, record)
+        if selection.choice is None:
+            return result, {"status": "unresolved", "selection": selection.detail}
+        branch, measurement = selection.choice
+    else:
+        branch, measurement = min(candidates, key=lambda item: item[0].priority)
     if baseline is not None:
         record(
             {
@@ -67,6 +76,14 @@ def recover_construction(
                 "remaining_pair_budget": CONTACT_PAIR_BUDGET - result.contact_pairs,
             }
         )
+    limits = (
+        {
+            "maximum_cpu_seconds": selection.maximum_cpu_seconds,
+            "maximum_seconds": selection.maximum_seconds,
+        }
+        if selection is not None
+        else {}
+    )
     recovery = recover(
         branch.route,
         measurement,
@@ -74,6 +91,7 @@ def recover_construction(
         threshold_mm,
         checkpoint,
         record,
+        **limits,
     )
     selected = recovery.route
     if selected is not None and (
@@ -81,6 +99,12 @@ def recover_construction(
     ):
         raise ArithmeticError("Recovered construction lacks a separated contact certificate")
     detail = dict(recovery.detail)
+    if selection is not None:
+        detail["selection"] = selection.detail
+        detail["cpu_seconds"] = detail.get("cpu_seconds", 0.0) + selection.detail["cpu_seconds"]
+        detail["elapsed_seconds"] = (
+            detail.get("elapsed_seconds", 0.0) + selection.detail["elapsed_seconds"]
+        )
     if baseline is not None:
         if selected is not None:
             candidate = Branch.measure(branch.roots, selected, frames.guide)

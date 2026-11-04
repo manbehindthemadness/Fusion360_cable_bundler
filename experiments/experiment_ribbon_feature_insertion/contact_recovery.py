@@ -12,11 +12,15 @@ from typing import Any, Callable
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends, retract_active
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
-from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
+from experiments.experiment_ribbon_fold_relaxation.steps import advance
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .separation import Separation, Side, TopologyChanged
+from .separation_step import plan_step
+
+MAXIMUM_CPU_SECONDS = 0.35
+MAXIMUM_WALL_SECONDS = 2.0
 
 
 class _Exhausted(RuntimeError):
@@ -46,6 +50,9 @@ def recover(
     threshold_mm: float,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
+    maximum_seconds: float = MAXIMUM_WALL_SECONDS,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
@@ -53,13 +60,25 @@ def recover(
     Keep radii, profile, fold count/order and both caps. Use a minimum-norm
     linearized separation constraint, bounded joint steps and existing nonlinear
     cap retraction. Local limits are0.35CPU/2wall seconds, subordinate to caller
-    limits. Never return the rejected source as an accepted fallback. Pair/depth
+    limits. Callers may reserve part of those allowances for selection; explicit
+    sublimits may only reduce the defaults. Never return the rejected source as
+    an accepted fallback. Pair/depth
     ambiguity and failed improvement remain unresolved; caller hard errors propagate.
     """
     if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
         raise ValueError("Supply positive remaining first-pass work, at most2048pairs")
     if not math.isfinite(threshold_mm) or threshold_mm <= 0:
         raise ValueError("A positive native straight threshold is required")
+    for allowance, ceiling in (
+        (maximum_cpu_seconds, MAXIMUM_CPU_SECONDS),
+        (maximum_seconds, MAXIMUM_WALL_SECONDS),
+    ):
+        if (
+            type(allowance) not in (int, float)
+            or not math.isfinite(allowance)
+            or not 0 < allowance <= ceiling
+        ):
+            raise ValueError("Recovery sublimits must be positive and within original ceilings")
     started, cpu = perf_counter(), process_time()
     model = MovableBends(source)
     values, route = model.initial, source
@@ -75,7 +94,10 @@ def recover(
         Preserve caller hard gates and distinguish exhaustion of this optional operation.
         """
         checkpoint()
-        if process_time() - cpu >= 0.35 or perf_counter() - started >= 2:
+        if (
+            process_time() - cpu >= maximum_cpu_seconds
+            or perf_counter() - started >= maximum_seconds
+        ):
             raise _Exhausted("Joint separation recovery exhausted its local allowance")
 
     try:
@@ -88,26 +110,13 @@ def recover(
                     detail["stop_reason"] = "no_supported_contact_region"
                     break
             assert bound is not None
-            residual, rows = model.residual(values), model.jacobian(values)
-            options: list[tuple[float, Side, float, tuple[float, ...]]] = []
-            for direction in (s for s in Side if side is None or s is side):
-                gap = bound.gap(values, direction)
-                gradient = bound.gradient(values, direction, bounded)
-                delta = projected(
-                    model,
-                    values,
-                    rows + [gradient],
-                    [-v for v in residual] + [1e-8 / model.scale - gap],
-                    [0.0] * len(values),
-                )
-                if delta is not None:
-                    options.append((math.fsum(d * d for d in delta), direction, gap, delta))
-            if not options:
+            planned = plan_step(model, values, bound, side, bounded)
+            if planned is None:
                 detail["stop_reason"] = "no_projected_separation"
                 break
-            _, chosen_side, gap, delta = min(options, key=lambda item: (item[0], item[1].value))
+            chosen_side, gap, delta = planned.side, planned.gap, planned.delta
             side = chosen_side
-            step = step_limit(model, values, delta, 1.0)
+            step = planned.fraction
             changed = None
             for _ in range(2):
                 bounded()

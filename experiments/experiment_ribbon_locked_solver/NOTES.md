@@ -1,5 +1,70 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Bounded end-choice recovery648–652 — 2026-11-04
+
+Current stopped range12867 case73, seed667803872,N4,D.75mm,void/zone300%,
+A internal zone25/face8/roll61deg,Bzone1/face0/roll37deg. User identifies the
+opposite end-bend arrangement as the apparent solution. All four closed branches
+penetrate. Old all-rejected recovery chooses the shortest59.593mm roots1/0;
+four joint updates do not clear its local gap and no extra certificate runs.
+This is failed branch selection, not missing native construction controls.
+
+649freezes four cached variants of this ONE configuration, each independently
+diagnosed under the original four-update/.35CPU/2wall/736remaining-pair limits.
+Only roots1/1separates: two updates/.141250CPU,408checks,80.337373mm. Other three
+remain unresolved; these failures remain retained. Aggregate diagnostic.511529s,
+0new endpoint solves/native attempts. Initial correction permitted fractions are
+0/0=.228061,0/1=.849012,1/0=.070357,1/1=1. Raw squared joint corrections are not
+comparable across differently normalized routes; rank the permitted fraction.
+
+New recovery_selection applies ONLY when construction has no accepted route:
+reuse the original minimum-norm, cap-preserving separation calculation for each
+already-derived failed branch, prefer the correction least clipped by existing
+coordinate/0.2radian trust bounds, then original material/guide/root priority.
+This is a linear prediction, not a clearance certificate or guaranteed solution.
+Execute just one branch recovery. Shared separation_step is also used by recovery,
+so prediction and execution use the same equations. Prediction time is deducted
+from the existing.35CPU/2wall allowance; recovery rejects explicit larger limits.
+No new bend guesses, roots, profile/radius changes, contact allowance or tolerances.
+Previously accepted fallback improvement keeps its existing selection policy.
+Source lock206pins; no production harness change.
+
+650freezes six independent current-range configurations1/30/37/71/72/73, exact
+prior source first then corrected source:12cold core runs/14.217485s,15s/run,
+120sphase/4GiB. Prior5/6accepted; corrected6/6. All five successful controls'
+complete routes AND first passes exactly unchanged, including30/71which exercise
+the previous fallback-recovery repair. Trigger81.140747mm final,1.231427CPU;
+selection.068972CPU plus correction.140341CPU=.209313CPU within.35. Construction
+1720/2048pairs (1312original+408recovery),328unused. Original evidence hashes held.
+No skipped numerical configurations or new-policy native attempts in650.
+
+651launches one normal fresh job for case73 in the unchanged owned gym;652collects
+without further geometry. One170-face native body, named fidelity passes5880points/
+324seams, maximum surface discrepancy4.799476e-9mm,0warnings. Numerical1.385579CPU,
+first-pass1.058765wall/smoothing.391191wall; combined selection/recovery.290955CPU.
+Generation3.254751s, including definition.982690/kernel1.908534/translation.363526;
+named audit22.043307s, native-operation30.529866s. Timing goal met for this run;
+generation/audit timings are distinct. Sampled launch RSS377216KiB; in-flight peak
+unmeasured. Current accepted body visible; original failed body/logs/case73 remain,
+stopped engine unchanged73attempts/72passes. UI has no event error.
+
+Scope:6numerically compared/1native-attempted/1built/1named-fidelity-audited,
+5controls native-unattempted under this change,0full physical audits.13cold core
+executions include the repeated trigger for normal construction. Examined gym
+development/regression evidence, not unseen holdouts or general optimality proof.
+
+Focused verification35passes; affected consumers49passes/2pre-existing failures,
+2known old v2 length parameters deselected. The two closure_continuation tests
+also fail identically under exact prior modules: expected continuation is absent,
+expected20.057mm already yields15.911mm. Preserved baseline report, no unrelated
+test repair. Joint-separation regression now checks bounded recovery and original
+caps/profile/radii/material/contact accounting rather than former branch-specific
+iteration/pair counts. Scoped Ruff check/format pass; changed-code IDE inspections
+clear except3pre-existing solver_v2 duplicate weak warnings. Complete diff/new-file
+review done. FullQA unrun. The skill's linked ../../VERIFICATION.md is unavailable;
+repository AGENTS focused profile used. Evidence ignoredribbon_reversal648,
+ribbon_next649/650/651 and next648–652scripts/responses; no additional runs planned.
+
 ## Shorter-branch fallback recovery639–647 — 2026-11-04
 
 User supplies an extreme-excursion PNG. Its embedded RibbonGymReplay identifies

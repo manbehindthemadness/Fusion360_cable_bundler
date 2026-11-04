@@ -60,10 +60,13 @@ def test_solver_recovers_with_original_caps_profile_radii_and_pair_pool(
     )
     assert result.route is not None and result.detail["contact"] == "separated"
     recovery = result.detail["construction"]["recovery"]
-    assert recovery["status"] == "separated" and recovery["iterations"] == 2
-    assert recovery["pairs"] == 429 and recovery["contacts"] == 1
-    assert result.detail["construction"]["contact_pairs"] == 1656 < 2048
+    assert recovery["status"] == "separated" and 1 <= recovery["iterations"] <= 4
+    assert 0 < recovery["pairs"] <= 821 and recovery["contacts"] == 1
+    assert result.detail["construction"]["contact_pairs"] == 1227 + recovery["pairs"] <= 2048
     assert result.detail["construction"]["contacts"] == 5
+    selection = recovery["selection"]
+    assert selection["status"] == "selected" and selection["roots"] != branch.roots
+    assert recovery["cpu_seconds"] <= 0.35 and recovery["elapsed_seconds"] <= 2
     before = [p.geometry for p in branch.route.pieces if isinstance(p.geometry, CylindricalFold)]
     after = [p.geometry for p in result.route.pieces if isinstance(p.geometry, CylindricalFold)]
     assert len(before) == len(after) == 4
