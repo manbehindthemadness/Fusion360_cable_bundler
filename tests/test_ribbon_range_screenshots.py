@@ -12,6 +12,7 @@ from unittest.mock import Mock
 import pytest
 
 from cable_bundler.routing.geometry import Vector3
+from experiments.experiment_ribbon_locked_solver.tester.image_replay import SCHEMA, read
 from experiments.experiment_ribbon_locked_solver.tester.screenshots import (
     Screenshots,
     ScreenshotSettings,
@@ -81,12 +82,15 @@ def test_export_names_separate_runs_and_never_overwrite_existing_images(tmp_path
     settings = ScreenshotSettings(True, str(tmp_path / "pictures"))
     capture = Mock(side_effect=write_png)
     first = Screenshots(settings, "run-a", capture)
-    saved = first.save("case-000001")
-    second = Screenshots(settings, "run-b", capture).save("case-000001")
+    replay = {"schema": SCHEMA, "case": "case-000001"}
+    saved = first.save("case-000001", replay)
+    second = Screenshots(settings, "run-b", capture).save("case-000001", replay)
     assert saved["path"] != second["path"] and saved["seconds"] >= 0
-    assert Path(saved["path"]).read_bytes() == PNG
+    original = Path(saved["path"]).read_bytes()
+    assert read(Path(saved["path"])) == replay
     with pytest.raises(FileExistsError):
-        first.save("case-000001")
+        first.save("case-000001", replay)
+    assert Path(saved["path"]).read_bytes() == original
     assert capture.call_count == 2
 
 
@@ -118,6 +122,11 @@ def test_each_completed_case_is_captured_before_cleanup_and_problem_after_presen
     assert len(list((tmp_path / "pictures").glob("*.png"))) == 2
     assert tester.journal is not None
     assert (tester.journal.directory / "cases.jsonl").read_text().count('"screenshot_saved"') == 2
+    records = [read(path) for path in sorted((tmp_path / "pictures").glob("*.png"))]
+    assert [row["input"]["index"] for row in records] == [0, 1]
+    assert all(row["test_plan"]["selection"] == tester.selection for row in records)
+    assert all(row["test_plan"]["sources"] == tester.sources for row in records)
+    assert records[0]["input"]["gym"] != records[1]["input"]["gym"]
     tester.inspect()
     tester.poll()
     assert events.count("capture") == 2 and len(runner.jobs) == 2

@@ -11,6 +11,8 @@ from typing import Any, Callable, Iterable
 
 from cable_bundler.routing.geometry import Vector3
 
+from .image_replay import KEY, embed
+
 DEFAULT_DIRECTORY = "~/Pictures/testxyz"
 
 
@@ -89,10 +91,11 @@ class Screenshots:
         self.folder, self.run, self.capture = settings.folder, run, capture
         self.folder.mkdir(parents=True, exist_ok=True)
 
-    def save(self, case: str) -> dict[str, Any]:
+    def save(self, case: str, replay: dict[str, Any]) -> dict[str, Any]:
         """
         Export once without overwriting existing images; propagate failures to stop scheduling.
 
+        Embed frozen replay metadata in the original PNG without changing its pixels.
         A failed/partial export is retained for diagnosis and is never silently retried.
         The caller supplies only journal-generated run/case identifiers.
         """
@@ -105,8 +108,10 @@ class Screenshots:
             header = stream.read(24)
         if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
             raise RuntimeError(f"Viewport export did not produce a PNG: {path}")
+        embed(path, replay)
         return {
             "path": str(path),
             "seconds": perf_counter() - started,
             "bytes": path.stat().st_size,
+            "replay_metadata": KEY.decode("ascii"),
         }

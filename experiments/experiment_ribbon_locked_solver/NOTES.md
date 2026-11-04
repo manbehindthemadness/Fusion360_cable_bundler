@@ -1,5 +1,41 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Excursion despite named passes589 — 2026-11-03
+
+User screenshot matches range-b5b7f85e0b84490bba20790c01eaaf73case52,
+jobcfb981c2e90d4ad69482dbd191726a79,seed225246225,N6,D0.75mm,void/zones300%,
+UI Azone20/face11/roll90,Bzone10/face7/roll90. Original input, trial ledger,
+route, native audit and PNG remain unchanged. This is a route-quality failure
+despite the recorded numerical/material/contact/native-fidelity passes, not a
+proven native representation or display failure. No compactness acceptance gate
+was part of those named checks; their pass must not imply optimized routing.
+
+Raw accepted230.218873mm/final232.521062mm versus endpoint chord32.515428mm
+(chord is a lower bound, not an achievable constrained-route oracle). Three final
+straight runs94.392880/40.855192/68.739585mm total203.987657mm,87.729%of route.
+Contraction generated80.924036,52.458462,51.103434,49.932850mm iterates. Only the
+last two received certificates, both actual penetration on pieces3/4 after5pairs;
+earlier two remain contact-unmeasured. All shorter outputs were discarded and
+the long separated baseline retained. Smoothing uses its permitted1%length budget
+and cannot resolve this first-pass issue. The initial191.878053mm root1/0branch
+also penetrates; root0/0separates, third closed branch remains unattempted.
+
+Code explains the missing connection: solver_v2 invokes joint recovery only if
+construction returns no route. An accepted long fallback bypasses it. Contraction
+does unconstrained contact-free length descent, certifies only its last two
+iterates and has no contact-driven correction before reverting. Simply applying
+the existing whole-piece separating-plane recovery is not yet established for
+the adjacent3/4pair, which legitimately shares a material cap. No relaxation of
+contact, extra guessed candidates or budget increase is justified by this finding.
+
+No new solve or native build in589. Existing case52numericalwall.909870s,
+nativegeneration2.224922s,separateaudit40.027674s. Native242faces/8400points/
+464seams pass named checks,max1.433870e-9mm,zero warnings; full physical audit0.
+User-stopped range retains53attempts/53named passes/0warnings; current visible
+case53 differs from the screenshot. Narrow read-only live state/viewport saved
+under ignored ribbon_visual589; no visibility or geometry changed. This diagnosis
+does not establish a compact feasible replacement or general route quality.
+
 ## Depth-region joint recovery584–588 — 2026-11-03
 
 Range-c9e5case82(seed1689995010,N2,D0.75mm,UI zones4/10,faces10/7,

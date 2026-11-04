@@ -157,3 +157,38 @@ warning in test_ribbon_locked_controller.py remain; no introduced substantive
 findings remain. Extended cycling/native cleanup across multiple configurations
 is still unverified live; scheduling/cleanup boundaries are covered locally.
 
+## Portable screenshot replay metadata — 2026-11-04
+
+Every newly exported tester PNG carries a versioned JSON record in its standard
+`tEXt` chunk named `RibbonGymReplay`. This applies to passing cases and retained
+problem cases alike. Original run/case filenames remain unchanged. The record
+contains the complete frozen case (configuration, zone/face/roll selections and
+exact target poses), test plan (solver settings, ranges and source hashes), and
+the execution plan when a job was launched (including contact policy, native
+tolerance and resource bounds). Local log paths are convenience links; extraction
+needs only the original PNG. Source hashes identify historical code; they do not
+bundle that code or guarantee identical output after a solver change.
+
+To extract without starting Fusion or solving, use the configured project SDK:
+
+```sh
+uv run python -m experiments.experiment_ribbon_locked_solver.tester.image_replay /absolute/path/case.png > replay.json
+```
+
+The module also exposes `read(Path(...))`. JSON is data, never executed. The
+extractor checks the replay schema and chunk checksum and rejects absent,
+duplicate, truncated or corrupt metadata. Each export verifies exact read-back.
+Metadata errors stop the tester through its existing screenshot-failure path;
+the partial image and case logs remain available. No new dependencies, bitmap
+re-encoding or solver evaluations. PNG reads/writes are bounded at64MiB. Image
+editors, re-encoding and sharing services may remove metadata: retain/send the
+original PNG. Earlier screenshots have no embedded record; use their run/case
+filename to locate the existing logs. No automatic PNG-import UI is added.
+
+Verification:41focused PNG/range tests and selected-lock tests; corrupt/stripped
+metadata rejects, renamed image works after source logs are removed, original PNG
+chunks remain byte-for-byte unchanged. One live layout-only Fusion capture594
+round-trips exactly (capture+metadata.887419s, extraction.000419s); zero numerical
+solves/native builds or geometry coverage added. Current idle tester updated;
+197source pins include the new metadata module. FullQA unrun.
+

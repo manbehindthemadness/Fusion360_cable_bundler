@@ -16,6 +16,7 @@ from devtools.ribbon_analysis.inspection.run_contract import ProcedureRunner
 
 from ..settings import Settings
 from ..versions import method
+from .image_replay import capture_record
 from .journal import Journal, problem
 from .screenshots import Screenshots
 from .sequence import Specification
@@ -285,7 +286,8 @@ class Tester:
         self._capture_attempted = True
         assert self.journal is not None
         try:
-            saved = self.screenshots.save(self._input.stem)
+            replay = capture_record(self._input, self.journal.directory / "plan.json", self.job)
+            saved = self.screenshots.save(self._input.stem, replay)
         except (OSError, RuntimeError, ValueError) as error:
             self.journal.append(
                 {"event": "screenshot_failed", "input": str(self._input), "error": str(error)}
