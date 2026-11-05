@@ -19,6 +19,7 @@ from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Policy
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .branch_recovery import recover_construction
@@ -93,6 +94,7 @@ def solve(
         record,
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
         contact_policy=contact_policy,
+        cap_policy=CapPolicy.ANALYTIC_SUPPORT,
     )
     result, recovery_detail = recover_construction(
         result,
@@ -111,6 +113,7 @@ def solve(
             "contacts": result.contacts,
             "contact_pairs": result.contact_pairs,
             "contact_pair_budget": CONTACT_PAIR_BUDGET,
+            "cap_support_policy": CapPolicy.ANALYTIC_SUPPORT.value,
             "contact_seconds": result.contact_seconds,
             "closed_branches": result.closed_branches,
             "unattempted_contacts": result.unattempted_contacts,

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 import random
+import sys
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
@@ -30,6 +31,7 @@ class Specification:
     maximum_cases: int
     screenshots: ScreenshotSettings = ScreenshotSettings()
     avoid_adjacent_zones: bool | None = None
+    keep_awake: bool = False
 
     @classmethod
     def parse(cls, payload: Any) -> Specification:
@@ -39,6 +41,7 @@ class Specification:
         if not isinstance(payload, dict) or set(payload) - {
             "screenshots",
             "avoid_adjacent_zones",
+            "keep_awake",
         } != {
             "ranges",
             "mode",
@@ -61,6 +64,8 @@ class Specification:
             raise ValueError("Choose explicitly whether native accuracy warnings stop testing.")
         if "avoid_adjacent_zones" in payload and type(payload["avoid_adjacent_zones"]) is not bool:
             raise ValueError("Choose explicitly whether to avoid adjacent cubicles.")
+        if "keep_awake" in payload and type(payload["keep_awake"]) is not bool:
+            raise ValueError("Choose explicitly whether to keep the Mac awake during testing.")
         if (
             type(payload["maximum_cases"]) is not int
             or not 0 <= payload["maximum_cases"] <= 1_000_000
@@ -76,6 +81,7 @@ class Specification:
             payload["maximum_cases"],
             ScreenshotSettings.parse(payload.get("screenshots")),
             payload.get("avoid_adjacent_zones"),
+            payload.get("keep_awake", False),
         )
         if not result.zone_pairs:
             if result.avoid_adjacent_zones:
@@ -165,6 +171,7 @@ class Specification:
             "stop_on_warnings": self.stop_on_warnings,
             "maximum_cases": self.maximum_cases,
             "screenshots": self.screenshots.payload(),
+            "keep_awake": self.keep_awake,
         }
         if self.avoid_adjacent_zones is not None:
             result["avoid_adjacent_zones"] = self.avoid_adjacent_zones
@@ -197,6 +204,7 @@ def defaults(scene: Scene) -> dict[str, Any]:
         "seed": scene.config.seed,
         "stop_on_warnings": True,
         "maximum_cases": 0,
+        "keep_awake": sys.platform == "darwin",
         "screenshots": ScreenshotSettings().payload(),
         "avoid_adjacent_zones": True,
     }

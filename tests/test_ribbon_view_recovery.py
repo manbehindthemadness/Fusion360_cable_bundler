@@ -170,6 +170,36 @@ def test_gym_rebind_keeps_inputs_palette_revision_and_archive(
     view._draw.assert_called_once_with(view.scene)
 
 
+@pytest.mark.parametrize("recoverable", [True, False])
+def test_new_run_archives_only_a_reviewed_checkpoint_interruption(
+    addin_module: _PaletteLifecycleModule, monkeypatch: pytest.MonkeyPatch, recoverable: bool
+) -> None:
+    """
+    Preserve failed geometry and keep the blocking guard after actual native authoring failures.
+    """
+    del addin_module
+    module = importlib.import_module("devtools.ribbon_analysis.gym.view")
+    view: Any = object.__new__(module.GymView)
+    pending = SimpleNamespace(
+        isValid=True, isLightBulbOn=True, component=SimpleNamespace(name="Pending")
+    )
+    view._pending_profiles = pending
+    view._draw = Mock()
+    validate = Mock(return_value=recoverable)
+    monkeypatch.setitem(vars(module), "checkpoint_interrupted", validate)
+    view.archive_interrupted_profiles()
+    validate.assert_called_once_with(pending.component)
+    if recoverable:
+        assert (view._pending_profiles, pending.isLightBulbOn, pending.component.name) == (
+            None,
+            False,
+            "Sweep profiles - interrupted preparation (retained)",
+        )
+    else:
+        assert view._pending_profiles is pending and pending.isLightBulbOn
+    view._draw.assert_not_called()
+
+
 def test_diagnostic_rebind_keeps_replay_sessions_selection_and_terminal_job(
     addin_module: _PaletteLifecycleModule, tmp_path: Path
 ) -> None:

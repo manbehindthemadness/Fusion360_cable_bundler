@@ -20,10 +20,11 @@ from devtools.ribbon_analysis.gym.scene import Scene
 from .. import lock
 from ..controller import Controller
 from ..native import NativeOwner
+from .awake import KeepAwake
 from .engine import Tester
 from .ranges import FIELDS
 from .screenshots import frame
-from .sequence import defaults
+from .sequence import Specification, defaults
 
 if TYPE_CHECKING:
     from ..gym import SelectedWorkspace
@@ -45,6 +46,7 @@ class Runtime:
         self.runner = runner
         self.document_id = workspace.native.document_id
         self.native: NativeOwner | None = None
+        self.awake = KeepAwake()
         self.engine = Tester(
             workspace.directory / "range-tests",
             runner,
@@ -92,6 +94,7 @@ class Runtime:
         Preserve prior user output and give automatic cleanup a fresh, exclusively owned body handle.
         """
         workspace = self.workspace
+        workspace.gym.archive_interrupted_profiles()
         previous = workspace.native
         previous.hide()
         native = NativeOwner(
@@ -204,16 +207,46 @@ class Runtime:
         """
         Accept only explicit start/poll/stop/inspect actions from the diagnostic panel.
         """
+        try:
+            self._dispatch(action, data)
+        finally:
+            if not self.engine.active:
+                self.awake.release()
+
+    def _dispatch(self, action: str, data: dict[str, Any]) -> None:
+        """
+        Bind optional wake protection to explicit scheduling and verify it before each poll.
+        """
         if action == "start":
             if set(data) != {"specification", "selection"}:
                 raise ValueError("Supply tester specification and one solver selection.")
+            spec = Specification.parse(data["specification"])
             self.engine.start(data["specification"], data["selection"])
+            if spec.keep_awake:
+                try:
+                    self.awake.acquire()
+                except (OSError, RuntimeError) as error:
+                    self.engine.stop(f"Keep-awake could not start: {error}")
+                    raise
         elif data:
             raise ValueError("Tester poll, stop and inspect actions do not accept input edits.")
         elif action == "poll":
+            if (
+                self.engine.active
+                and self.engine.phase != "stopping"
+                and self.engine.specification is not None
+                and self.engine.specification.keep_awake
+            ):
+                try:
+                    self.awake.check()
+                except RuntimeError as error:
+                    self.engine.stop(f"Keep-awake stopped unexpectedly: {error}")
             self.engine.poll()
         elif action == "stop":
-            self.engine.stop()
+            try:
+                self.engine.stop()
+            finally:
+                self.awake.release()
         elif action == "inspect":
             self.engine.inspect()
         else:
@@ -223,9 +256,12 @@ class Runtime:
         """
         Expose available ranges and current progress without regenerating a drawing.
         """
+        if not self.engine.active:
+            self.awake.release()
         return {
             **self.engine.state(),
             "available": True,
+            "keep_awake": self.awake.state(),
             "defaults": defaults(self.workspace.gym.scene),
             "fields": [asdict(field) for field in FIELDS],
         }

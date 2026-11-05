@@ -5,7 +5,7 @@ Measure complete material-region separation while bend joints move and caps rema
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Callable
 
@@ -169,6 +169,28 @@ class Separation:
             _, velocity, width, _ = piece.surface(u, q)
             axis = unit(cross(velocity, width))
         return cls(model, (tags[first], tags[second]), axis)
+
+    @classmethod
+    def following_measurement(
+        cls, model: MovableBends, route: FoldRoute, measurement: ContactResult
+    ) -> Separation | None:
+        """
+        Follow a newly confirmed straight crossing after the initial joint correction.
+
+        The first material sheet supplies the moving plane during differentiation
+        and retraction. Initial branch prediction, fold contacts and undecided
+        depth boxes retain their existing constraint axes. This chooses motion;
+        acceptance still requires an independent complete contact certificate.
+        """
+        bound = cls.from_measurement(model, route, measurement)
+        if (
+            bound is not None
+            and measurement.status == "penetration"
+            and measurement.witness is not None
+            and all(region.straight for region in bound.pair)
+        ):
+            return replace(bound, plane=bound.pair[0])
+        return bound
 
     def gap(self, values: tuple[float, ...], side: Side) -> float:
         """

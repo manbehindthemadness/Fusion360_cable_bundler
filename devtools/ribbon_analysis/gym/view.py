@@ -15,7 +15,7 @@ import adsk.core
 import adsk.fusion
 
 from ..budget import NativeBudget
-from ..end_profiles import retain_end_profiles
+from ..end_profiles import checkpoint_interrupted, retain_end_profiles
 from ..inspection.archive import write_document
 from ..performance import for_layout
 from ..prepath import drawing as prepath_drawing
@@ -205,6 +205,20 @@ class GymView:
         self.component = component
         self.group = self._profiles = self._pending_profiles = None
         self._draw(self.scene)
+
+    def archive_interrupted_profiles(self) -> None:
+        """
+        Release a scheduling-interrupted prefix only for a newly requested test run.
+
+        Keep the original component and its native geometry for inspection. Actual
+        native-authoring failures and damaged prefixes retain the blocking guard.
+        This never redraws, retries a profile or deletes failed work.
+        """
+        pending = self._pending_profiles
+        if pending is not None and pending.isValid and checkpoint_interrupted(pending.component):
+            pending.component.name = "Sweep profiles - interrupted preparation (retained)"
+            pending.isLightBulbOn = False
+            self._pending_profiles = None
 
     def counters(self) -> dict[str, Any]:
         """

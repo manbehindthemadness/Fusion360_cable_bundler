@@ -21,6 +21,38 @@ _BUILDER = (
 _ROLES = ("start", "end")
 
 
+def checkpoint_interrupted(component: Any) -> bool:
+    """
+    Recognize a retained prefix stopped before the next native profile operation.
+
+    A checkpoint marker is distinct from failed native authoring. Validate every
+    retained cap before allowing a new explicit test run to archive the prefix.
+    Missing, altered or completed records are not recoverable interruptions.
+    """
+    source = component.attributes.itemByName(_GROUP, "source")
+    marker = component.attributes.itemByName(_GROUP, "checkpoint_interrupted")
+    complete = component.attributes.itemByName(_GROUP, "complete")
+    if source is None or marker is None or complete is not None:
+        return False
+    expected = next(
+        (
+            _ROLES[:index]
+            for index, role in enumerate(_ROLES)
+            if marker.value == source.value + ":" + role
+        ),
+        None,
+    )
+    if expected is None:
+        return False
+    roles = []
+    for sketch in component.sketches:
+        role = sketch.attributes.itemByName(_GROUP, "role")
+        if role is None or sketch.profiles.count != 1:
+            return False
+        roles.append(role.value)
+    return tuple(roles) == expected
+
+
 def _author(component: Any, targets: Targets, role: str) -> Any:
     """
     Delegate the exact target-plane contour to the existing profile builder.
@@ -72,7 +104,9 @@ def retain_end_profiles(
 
     Reuse a complete matching pair without changing manual visibility. Changed
     targets need another owned layout component. Preserve incomplete work and
-    refuse automatic retries after native failure. No route or solid is created.
+    refuse automatic retries after native failure. Record checkpoint interruptions
+    separately so a later explicit test run can archive unattempted work without
+    treating native authoring errors as recoverable. No route or solid is created.
     """
     targets = Targets.capture(source)
     payload = json.dumps(asdict(targets), sort_keys=True, separators=(",", ":"))
@@ -100,7 +134,11 @@ def retain_end_profiles(
     component.attributes.add(_GROUP, "source", fingerprint)
     retained = {}
     for role in _ROLES:
-        checkpoint()
+        try:
+            checkpoint()
+        except (RuntimeError, OSError):
+            component.attributes.add(_GROUP, "checkpoint_interrupted", fingerprint + ":" + role)
+            raise
         sketch = _author(component, targets, role)
         sketch.name = f"Sweep profile - {role.title()} cap"
         sketch.isLightBulbOn = False

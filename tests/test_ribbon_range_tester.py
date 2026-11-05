@@ -271,3 +271,28 @@ def test_persistence_failure_stops_scheduling_even_if_status_cannot_be_saved(
     runner.poll = poll
     tester.poll()
     assert not tester.active and len(runner.jobs) == 1 and "persisted" in tester.reason
+
+
+def test_setup_stop_is_not_a_geometry_attempt_and_new_start_does_not_rewrite_it(
+    tmp_path: Path,
+) -> None:
+    """
+    Label a preview interruption before launch, preserve its journal, and allow a new explicit run.
+    """
+    tester, runner, _ = make_tester(tmp_path, ["completed"])
+    tester.prepare = Mock(
+        side_effect=RuntimeError("Scheduling limit reached before gym end profiles")
+    )
+    start(tester)
+    tester.poll()
+    assert not tester.active and tester.attempted == tester.passed == 0
+    assert tester.reason.startswith("Tester setup stopped before solver launch:")
+    assert not runner.jobs and tester.journal is not None
+    previous = tester.journal.directory
+    logs = {p.name: p.read_bytes() for p in previous.iterdir()}
+    tester.prepare = Mock()
+    start(tester, limit=1)
+    tester.poll()
+    tester.poll()
+    assert tester.phase == "completed" and tester.attempted == tester.passed == 1
+    assert {p.name: p.read_bytes() for p in previous.iterdir()} == logs

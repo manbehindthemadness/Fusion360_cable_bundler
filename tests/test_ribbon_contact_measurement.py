@@ -179,4 +179,5 @@ def test_compact_route_now_passes_strict_contact_within_original_budget() -> Non
     assert result.detail["status"] == "numerically_accepted"
     assert result.detail["contact"] == "separated"
     assert result.detail["contact_warning"] is False
-    assert result.detail["contact_measurement"]["pairs_checked"] == 198
+    assert 0 < result.detail["contact_measurement"]["pairs_checked"] <= 198
+    assert result.detail["construction"]["cap_support_policy"] == "analytic_support"

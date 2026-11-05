@@ -12,6 +12,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import rec
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy, improves
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 
 from .recovery_queue import recover_failed
 
@@ -33,6 +34,8 @@ def recover_construction(
     Accepted-fallback recovery may group a colliding fold with a confirmed crossing
     attached straight only if that complete correction fits one original trust step;
     otherwise preserve the original witness correction.
+    Accepted-fallback recovery uses the existing analytic full-cap support proof
+    to reduce certificate work within the same allowance.
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
@@ -92,6 +95,7 @@ def recover_construction(
             checkpoint,
             record,
             region_policy=RegionPolicy.ATTACHED_STRAIGHTS,
+            cap_policy=CapPolicy.ANALYTIC_SUPPORT,
         )
     selected = recovery.route
     if selected is not None and (
@@ -110,6 +114,7 @@ def recover_construction(
             roots=fallback_branch.roots,
             baseline_length_mm=baseline.route.material_length_mm,
             accepted_improvement=selected is not None,
+            cap_support_policy=CapPolicy.ANALYTIC_SUPPORT.value,
         )
         record(
             {

@@ -145,20 +145,21 @@ class Tester:
         self.active, self.phase, self.reason = True, "next", "Ready to start the first case."
         self._save()
 
-    def stop(self) -> None:
+    def stop(self, reason: str = "Stopped by user.") -> None:
         """
         Stop scheduling immediately; collect numerical cancellation without starting native work.
+
+        A supplied host-error reason remains a problem rather than a user cancellation.
         """
         if not self.active:
             return
-        reason = "Stopped by user."
         self._stop_reason = reason
         if self.phase == "running":
             self.runner.cancel()
             self.phase = "stopping"
             self.reason = "Stopping at the next safe operation boundary."
         else:
-            self._finish(reason, "stopped")
+            self._finish(reason, "stopped" if reason == "Stopped by user." else "problem")
         self._save()
 
     def poll(self) -> None:
@@ -186,7 +187,12 @@ class Tester:
             else:
                 self._launch()
         except (ArithmeticError, OSError, RuntimeError, TypeError, ValueError) as error:
-            reason = f"Tester stopped: {type(error).__name__}: {error}"
+            context = (
+                "Tester setup stopped before solver launch"
+                if self.job is None and self._input is not None
+                else "Tester stopped"
+            )
+            reason = f"{context}: {type(error).__name__}: {error}"
             if self.runner.state().get("status") in ("running", "cancelling"):
                 self._stop_reason = reason
                 self.runner.cancel()

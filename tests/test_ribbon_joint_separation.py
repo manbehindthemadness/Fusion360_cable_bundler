@@ -64,7 +64,15 @@ def test_solver_recovers_with_original_caps_profile_radii_and_pair_pool(
     recovery = result.detail["construction"]["recovery"]
     assert recovery["status"] == "separated" and 1 <= recovery["iterations"] <= 4
     assert 0 < recovery["pairs"] <= 821 and recovery["contacts"] == 1
-    assert result.detail["construction"]["contact_pairs"] == 1227 + recovery["pairs"] <= 2048
+    initial_pairs = sum(
+        row["contact"]["pairs_checked"]
+        for row in rows
+        if row.get("stage") == "feature_contact" and "contact" in row
+    )
+    assert 0 < initial_pairs <= 1227
+    assert (
+        result.detail["construction"]["contact_pairs"] == initial_pairs + recovery["pairs"] <= 2048
+    )
     assert result.detail["construction"]["contacts"] == 5
     selection = recovery["selection"]
     assert selection["status"] == "selected" and selection["roots"] != branch.roots

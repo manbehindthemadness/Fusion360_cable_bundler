@@ -24,6 +24,7 @@ from ..prepath import drawing as prepath_drawing
 from .archive import _integer, _text
 from .display import visible_section_indices
 from .native_guides import retain
+from .palette_lifecycle import closed_handler
 from .run_contract import ProcedureRunner, TesterControls
 from .session import Session
 from .solver_graphics import render as render_solver_graphics
@@ -104,6 +105,7 @@ class DiagnosticViewer:
         self.ensure_owned_views: Callable[[], None] = self._retain_unlinked_views
         self.palette: Any = None
         self._handler: PaletteIncomingHandler | None = None
+        self._closed_handler: Any = None
         self._scene: Any = None
         self._frame: Any = None
         self._triad: Any = None
@@ -379,6 +381,10 @@ class DiagnosticViewer:
         if not self.palette.incomingFromHTML.add(self._handler):
             self.palette.deleteMe()
             raise RuntimeError("Fusion did not register the diagnostic palette handler.")
+        self._closed_handler = closed_handler(self)
+        if not self.palette.closed.add(self._closed_handler):
+            self.palette.deleteMe()
+            raise RuntimeError("Fusion did not register diagnostic palette cleanup.")
         self.palette.dockingOption = (
             adsk.core.PaletteDockingOptions.PaletteDockOptionsToVerticalOnly
         )
@@ -396,7 +402,7 @@ class DiagnosticViewer:
         if self.palette is not None and self.palette.isValid:
             self.palette.deleteMe()
         self.palette = None
-        self._handler = None
+        self._handler = self._closed_handler = None
         if self._gym_group is not None and self._gym_group.isValid:
             self._gym_group.deleteMe()
         self._gym_group, self._gym_id = None, None

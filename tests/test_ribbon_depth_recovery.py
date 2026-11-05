@@ -101,7 +101,8 @@ def test_depth_case_finishes_only_after_new_strict_contact_certificate(
     )
     assert result.route is not None and result.detail["contact"] == "separated"
     detail = result.detail["construction"]
-    assert detail["contact_pairs"] == 1229 <= 2048
+    assert 0 < detail["contact_pairs"] <= 1229
+    assert detail["cap_support_policy"] == "analytic_support"
     assert detail["recovery"]["iterations"] == 3 and detail["recovery"]["contacts"] == 2
     assert contact.status == "unresolved" and contact.witness is None
     before = [p.geometry for p in branch.route.pieces if isinstance(p.geometry, CylindricalFold)]

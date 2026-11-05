@@ -1,5 +1,226 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Test-scoped Mac/display wake protection733–736 — 2026-11-05
+
+User requests preventing monitor-off/automatic logout while diagnosing intermittent
+stops. Added "Keep Mac and display awake while testing" to the range tester, on by
+default for new Mac form defaults, with explicit opt-out. Old plans missing the
+boolean remain readable as false; the current legacy form falls back to the new
+Mac default. The preference is frozen in each new test specification and never
+changes generated gym inputs or solver policies. Actual automatic account logout
+is a separate macOS setting; sleep/display assertions do not promise to override
+it, security locking, deliberate sleep or lid closure. No persistent OS settings
+are changed. Sleep causing the earlier preview timeout remains unproven.
+Read-only pmset history records the prior display turning off at23:08:45Nov4,
+after the setup stop status was written at22:29:45; it does not explain that stop.
+System AutoLogOutDelay reads0; no user-domain override was found or changed.
+
+The host owns one `/usr/bin/caffeinate -d -i -w <FusionPID>` helper for an enabled
+run. Start validates/freezes the ordinary test before acquiring protection; failed
+acquisition stops before any case launches. Poll verifies a requested helper is
+still alive. Completion, failure, explicit Stop, diagnostic close and interpreter
+exit release it; the PID watch releases after Fusion exits unexpectedly. Bounded
+terminate/wait/kill cleanup targets only the owned helper. No periodic keystrokes,
+user-activity spoofing, global power preference changes or extra background timer.
+Opt-out runs acquire nothing. The UI shows an active lease in tester status.
+
+733confirms the owned tester is stopped before source changes.734actual maintained
+JavaScript checks default/explicit false, serialization, held status, reconnect
+and preservation of form edits.735installs the new classes and callback bindings,
+refreshes only the diagnostic palette, retaining the last recorded range/solver
+settings, stopped engine state and body revision. One short standalone lease in
+Fusion is verified using pmset: owned PID10155has both PreventUserIdleSystemSleep
+and PreventUserIdleDisplaySleep. Both disappear after release; the live manager
+is inactive while testing remains stopped. New Mac default true,215source pins,
+sampled RSS485728KiB.0solver calls,0native body attempts,0test restarts. This is
+host/assertion verification, not new geometry or long-duration stability coverage.
+
+736also registers Fusion's native Palette.closed event, which is distinct from
+calling the viewer's cleanup method. The retained callback requests Stop and
+immediate wake release without depending on another browser poll; pending worker
+cancellation remains collectable on reopening. Native registration and inactive
+callback preserve the stopped state/body; active close behavior is unit-verified.
+Final source lock216pins. No second assertion acquisition or geometry work.
+
+102focused/affected checks pass, including the following contracts:
+one-helper ownership, termination escalation, missing/exited helpers, optional
+boolean replay compatibility, unchanged layouts, all terminal poll outcomes,
+immediate Stop release during cancellation, malformed Stop preservation and helper
+launch failure before geometry and native palette-close cancellation. Scoped Ruff
+check/format and new IDE findings clear; unchanged archived duplication in
+fusion_view.py and viewer.html's missing-await weak warning remain. Complete diff/
+new files reviewed. Full QA, actual automatic-logout prevention and overnight
+stability unmeasured. Source lock216pins; numerical/native construction unchanged.
+The separate proposed10→30s preview limit is still awaiting user choice; remains10s.
+
+## Preview setup stop and checkpoint recovery729–732 — 2026-11-05
+
+User reports repeated stops with no apparent geometry failure. Range1c9ef...has
+144/144solver/native/fidelity/boundary passes, including one warning pass. Its
+prepared145/N7/seed2331177176never launches a solver: preview drawing/profile setup
+hits the10s scheduling cap at10.594s/1082416KiB. One valid closed start profile is
+retained; the end profile was not attempted. The next explicit range92b5...stops
+at0attempts on that leftover incomplete-prefix guard. Neither is a demonstrated
+route failure. A subsequent manual N3body remains valid and must not be confused
+with these unlaunched inputs. Current Fusion application log inspected first.
+
+729confirms the actual pending prefix, complete prior profile pair, idle controller,
+stopped tester, one graphics group and fast direct-RSS binding. This is not another
+stale ps-reader installation.730freezes three complete gym inputs before editing:
+145/N7, the new range's first N8input and previous passing144/N3. First preview
+prepares in.442381s(graphics.123647s/profiles.208167s). A write-once partial-report
+error stops the harness after the second preview call; its outcome is unmeasured,
+third unattempted there.731renews only the third preview: .312601s, two closed
+profiles. Inspection found no retained730children, so do not claim a retained
+native baseline for the second configuration. All failed reports are preserved.
+
+End-profile retention now stamps interruptions raised at the checkpoint BEFORE
+native authoring. A validator requires the exact stamped completed prefix, one
+closed region per retained cap and no complete-pair stamp. Native authoring errors
+remain unmarked and retain the blocking guard. A NEW explicit test run can archive
+a validated interrupted prefix without deleting its work or automatically retrying
+it. Setup exceptions before launch now explicitly say that no solver was launched.
+Normal geometry, source/RSS/cancellation, fidelity/contact and boundary gates stay
+unchanged. No automatic retry, skipped test case or inferred geometry pass.
+
+732installs the new classes/callback bindings in the owned idle gym, preserving the
+current body revision, scene and original tester state/logs. Its pre-marker legacy
+prefix is explicitly reviewed against145's target/builder fingerprint, one closed
+start profile and checkpoint failure record, stamped and archived. The original
+partial native work remains inspectable. Three fixed candidate previews prepare
+in.351298/.510191/.252926s with two single-region end profiles each.0solver calls,
+0new native BODY attempts/route audits; these are preview checks, not three solved
+ribbons or new solver generalization evidence. Final sampled RSS495728KiB.
+
+Both unchanged-input setup comparisons with measured baselines pass; the N8baseline
+remains harness-unresolved. No long-duration stress run is claimed. Preview limit
+remains10seconds; user asked whether to allow30seconds, unanswered at handoff.
+Solver/native/RSS limits and all historical stops are preserved. Tester remains
+stopped; previous144/144and current0/0records unchanged,1000goal still paused.
+
+45focused and47affected checks pass (overlapping test groups, not92independent
+checks). Tests cover checkpoint versus native failure, closed-prefix validation,
+no automatic retries, explicit-start archival, setup labels and immutable journals.
+Scoped Ruff lint/format pass and new-code IDE findings are clear. Existing archived
+duplication weak warnings in end_profiles/view remain; fullQA/body reconstruction/
+long-run stability unmeasured. Complete diff reviewed;214source pins verify.
+Production and numerical solver implementations unchanged by this repair.
+
+## Follow-up crossing plane and bounded certificate715–727 — 2026-11-04
+
+User-started range799774...stops at139/N9/seed284829440after138passes, one warning
+pass. A zone2/face7/roll73°, B zone24/face1/roll0°; D.75mm, void/zones300%, v2,
+optimization on,1%smoothing, UVoff, strict contact. Original selected7afe...builds
+and passes named fidelity, but its592.527828mmroute exceeds the±60.625mmstress box
+by81.796956mm. The raw safe branch is586.661216mm. Compact rejected root1/0starts
+at78.465791mm. Its initial fold correction exposes a new confirmed straight3/7
+crossing. Subsequent recovery freezes a world-space plane while that sheet moves,
+fails to certify improvement, and retains the enormous safe fallback.
+
+715tests existing cap support on already-derived65/68mmcontraction proposals:
+reserved.25CPU certificate allowance exhausted; partial certificate outcomes not
+retained, no clearance inferred and no contraction-proof change installed.
+716shadow follows straight material planes and certifies96.886mmwithin4updates/
+.301CPU/694pairs.717freezes27distinct complete gym inputs: previous23plus current
+130/134/138collaterals and139. All27baseline numerical passes;139is an excursion
+failure despite numerical acceptance.718broad moving-plane policy stops at15/27:
+image20length60.302→86.639mm, remaining12unattempted.719straight-only initial
+policy stops at19/27: repaired115length87.458→217.665mm, remaining8unattempted.
+Both rejected policies are reverted and retained with their failed comparisons.
+
+Maintained following_measurement now attaches the first sheet only for a newly
+confirmed straight/straight crossing encountered AFTER the initial joint motion.
+Initial prediction/cached correction, fold contacts and undecided depth evidence
+retain prior behavior. Whole material projections and the final independent strict
+contact certificate remain mandatory.720all27accepted; all26control routes AND
+first passes exactly unchanged;139becomes97.854585mm. No new candidates, radii,
+folds, updates, tolerance changes or larger time/pair/RSS limits.
+
+721fresh ordinary worker hits.35CPU recovery limit (.358753reported after its
+cooperative stop) before finishing the final certificate. Native builds the
+592.528mmfallback and passes named fidelity, but722confirms the same81.797mm
+boundary failure. This unsuccessful live attempt is retained, not relabelled.
+723certifies the identical saved96.886mmproposal: MONOTONE398pairs/.088843CPU,
+existing ANALYTIC_SUPPORT250pairs/.055566CPU. Accepted-fallback recovery now opts
+into that existing proof; other recovery dispatch policies stay unchanged.
+724all27accepted, all26controls/first passes still exactly unchanged,27.207s.
+725ordinary file-logging worker also accepts97.854585mm: recovery4updates/
+.246687CPU/478pairs;1079/2048constructionpairs total,969remaining. No guards are
+skipped or checkpoints removed; full cold numerical1.504448CPU.
+
+726one renewed fresh solve/build;727collects exact bounds and viewport. Current
+job selected-5271fc0b3c574fb68976e0a5234c08e9 in gym697,97.854585mm. Numerical
+1.691800CPU/1.886204wall; live recovery.348053CPU/.473522wall,478pairs/4updates,
+just below its unchanged.35CPU cap. CPU headroom remains small under live load.
+Generation1.037157s/audit1.662261s/native stage6.907477s. Numerical<=generation
+timing goal still missed.376faces,13090points/726seams,max1.124758e-9mm,0warnings.
+Precise body bounds min(-19.950,-13.717,-18.371), max(22.639,24.593,25.402)mm
+pass±60.625mm,excess0. Peak sampled native RSS873648KiB; viewport reviewed.
+
+Coverage:27examined development configurations,118complete numerical executions
+across baselines/rejected policies/accepted comparisons/real workers; repeated
+measurements are not independent cases. Final27/27numerically accepted,26controls
+new-native unattempted. Trigger has2new native attempts/builds/named-fidelity
+passes, one boundary failure and one boundary pass;0fullphysicalaudits/untouched
+holdouts.115comparison workers total101.477CPU/102.509wall seconds, plus three
+ordinary workers4.272CPU and small dependent certificate/recovery probes. No
+further run scheduled. Original138/139ledger and all unsuccessful probes retained;
+tester remains stopped and1000goal paused. Production unchanged.
+
+162affected tests pass,2known old v2length expectations deselected; after proof
+wiring,64affected consumer tests pass again. New tests verify moving derivatives,
+fixed initial/fold axes, unsupported evidence rejection and strict follow-up
+recovery. Scoped Ruff check/format and all newly changed code IDE inspections pass.
+Complete diff/new files reviewed; fullQA/new-native controls/fullphysical unrun.
+Source lock214pins. Evidence ignored ribbon_failure715through727.
+
+## First-construction cap support710–714 — 2026-11-04
+
+Next user-started range4c204...stops at116/N10/seed2993953655after115passes,
+0warning passes. No accepted native attempt follows the numerical rejection;
+the retained rejected native inspection is explicitly NOTACCEPTED. Three initial
+branches consume1024+331+693=2048pairs, leaving no recovery work. The first124.380mm
+branch is pair-limited near a cap, not demonstrated penetrating.710uses the
+already-maintained ANALYTIC_SUPPORT proof on that exact saved route:890pairs
+certify separation,1158remain. No geometry, acceptance tolerance or budget changes.
+
+Feature construct now accepts an explicit CapPolicy, retaining MONOTONE as the
+historical default. Selected v2 opts into the existing full-cap halfspace support;
+trial events and construction detail record the proof policy. This proves proper
+material halfspaces on complete local plane/cylinder/plane cells; it is not a
+wholesale adjacency exemption or permission to accept unresolved contact.
+Default contact callers, v1 and the recovery/optimization machinery remain intact.
+
+711freezes23distinct gym inputs before editing: previous19including repaired115,
+three current-run104/110/112collaterals and triggering116. Baseline22accepted/
+1unresolved,23.410s.712same23inputs all numerically accepted,23.737s; all22control
+complete routes ANDfirst passes exactly unchanged. Trigger becomes73.383860mm,
+CPU1.672424after completing downstream contraction/smoothing, versus.601258for the
+early unresolved baseline. This is not an end-to-end speedup comparison.
+
+713launches one fresh ordinary solve/build/audit;714collects bounds/viewport.
+New job selected-ab9fffd4700e43549e104d6fac493459 in gym697. First branch124.380282mm
+uses890constructionpairs, no recovery; ordinary contraction72.657287mm and1%
+smoothing73.383860mm. Fresh numerical2.129466CPU/2.338108wall; contraction.319215CPU,
+smoothing1.493107CPU. Generation1.092713s, audit2.024712s, native stage6.346230s.
+Numerical<=generation timing goal missed; accepted under the existing authorized
+timing-goal exception, with no enlarged resource limit.314faces,10920points/
+600seams, max surface error9.641405e-10mm,0warnings. Precise native bounds pass
+±66.25mm: min(-22.452,-28.337,-11.749), max(3.833,31.888,8.183)mm; peak sampled
+native RSS805472KiB. Current body is displayed, original115/116ledger preserved,
+tester stopped and1000goal still paused. No automatic range restart.
+
+Coverage:23examined development configurations,46cold comparison runs; final
+23/23numerical acceptance. One fresh native attempt/build/named-fidelity/boundary
+pass,22controls new-native unattempted,0fullphysicalaudits.158focused tests pass,
+2known old v2length expectations deselected. Three old exact-work assertions now
+check conservation and no more than historical work; stronger proofs reduce their
+pair counts. Original geometry/identity/contact checks remain. Scoped Ruff lint/
+format pass, changed code has no introduced IDE findings; three pre-existing
+solver_v2archive-duplication warnings remain. Full QA unrun. Source lock214pins;
+only first-construction proof wiring changes. Evidence ignored ribbon_failure710
+through714; prior failures and all cases retained. Production unchanged.
+
 ## Confirmed straight evidence and moving separation plane698–709 — 2026-11-04
 
 After restart the user-started range2289fb... completes114accepted iterations

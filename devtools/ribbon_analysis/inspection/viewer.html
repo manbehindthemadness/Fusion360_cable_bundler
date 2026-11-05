@@ -84,6 +84,8 @@
   <label>Case limit (0 = keep going until a problem)<input id="testerLimit" type="number" min="0" max="1000000" step="1" value="0" required></label>
   <label><input id="testerAvoidAdjacent" type="checkbox" checked> Avoid adjacent cubicles (face, edge or corner contact)</label>
   <label><input id="testerWarnings" type="checkbox" checked> Stop on native accuracy warnings</label>
+  <label><input id="testerKeepAwake" type="checkbox" checked> Keep Mac and display awake while testing</label>
+  <p class="muted">Automatically released when testing stops. Prevents idle sleep; account logout and security lock policies remain separate.</p>
   <label><input id="testerScreenshots" type="checkbox"> Save one geometry screenshot per case</label>
   <label>Screenshot folder<input id="testerScreenshotDirectory" type="text" value="~/Pictures/testxyz" required style="width:100%;box-sizing:border-box;margin-top:5px;padding:7px"></label>
   <p class="muted">Saves 1600 × 1000 PNGs with a unique run ID and case number. Captures the fitted Fusion viewport before the next case clears its geometry; failed cases show the available diagnostic path. Screenshot time is separate from generation. An export failure stops testing.</p>

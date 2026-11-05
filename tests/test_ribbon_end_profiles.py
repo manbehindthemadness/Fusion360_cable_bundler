@@ -116,6 +116,53 @@ def test_changed_or_partial_profiles_cannot_be_replaced_silently(
     with pytest.raises(RuntimeError, match="separate layout"):
         end_profiles.retain_end_profiles(component, replace(_targets(), end=Vector3(9, 0, 0)))
     assert author.call_count == 1
+    assert not end_profiles.checkpoint_interrupted(component)
+
+
+@pytest.mark.parametrize("completed", [0, 1])
+def test_checkpoint_interruptions_preserve_only_the_completed_native_prefix(
+    native_boundary: tuple[Any, Mock], completed: int
+) -> None:
+    """
+    Distinguish a scheduling stop before authoring from a failed native operation, without retrying.
+    """
+    component, author = native_boundary
+    calls = 0
+
+    def checkpoint() -> None:
+        """
+        Interrupt immediately before the selected unattempted native cap operation.
+        """
+        nonlocal calls
+        if calls == completed:
+            raise RuntimeError("scheduling limit")
+        calls += 1
+
+    with pytest.raises(RuntimeError, match="scheduling limit"):
+        end_profiles.retain_end_profiles(component, _targets(), checkpoint)
+    assert author.call_count == completed and end_profiles.checkpoint_interrupted(component)
+    with pytest.raises(RuntimeError, match="Incomplete end profiles"):
+        end_profiles.retain_end_profiles(component, _targets())
+    assert author.call_count == completed
+    if completed:
+        component.sketches[0].profiles.count = 0
+        assert not end_profiles.checkpoint_interrupted(component)
+
+
+def test_complete_profiles_cannot_be_reclassified_as_interrupted(
+    native_boundary: tuple[Any, Mock],
+) -> None:
+    """
+    Preserve complete native pairs and reject stale or externally modified interruption markers.
+    """
+    component, _ = native_boundary
+    assert not end_profiles.checkpoint_interrupted(component)
+    end_profiles.retain_end_profiles(component, _targets())
+    source = component.attributes.itemByName("RibbonAnalysisEndProfiles", "source")
+    component.attributes.add(
+        "RibbonAnalysisEndProfiles", "checkpoint_interrupted", source.value + ":end"
+    )
+    assert not end_profiles.checkpoint_interrupted(component)
 
 
 @pytest.mark.parametrize("damage", ["missing", "duplicate", "open"])

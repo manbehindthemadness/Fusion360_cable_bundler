@@ -17,6 +17,7 @@ from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy
 from experiments.experiment_ribbon_feature_insertion.solve import Result
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
 from experiments.experiment_ribbon_locked_solver import branch_recovery
@@ -93,9 +94,11 @@ def test_recovery_uses_only_remaining_pool_and_rechecks_preferences(
     )
     assert attempt.call_args.args[0] is branch.route
     assert attempt.call_args.args[2] == 657
+    assert attempt.call_args.kwargs["cap_policy"] is CapPolicy.ANALYTIC_SUPPORT
     assert result.contact_pairs == 1514 and result.contacts == 4
     assert result.contact_seconds == pytest.approx(0.03)
     assert detail is not None and detail["accepted_improvement"] is (outcome == "shorter")
+    assert detail["cap_support_policy"] == "analytic_support"
     if outcome == "shorter":
         assert result.route is branch.route and result.contact is contact
         assert events[-1]["status"] == "improved"

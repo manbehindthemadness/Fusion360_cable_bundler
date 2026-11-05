@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
@@ -55,6 +56,7 @@ def construct(
     *,
     selection_policy: Policy = Policy.MONOTONIC,
     contact_policy: ContactPolicy = ContactPolicy.STRICT,
+    cap_policy: CapPolicy = CapPolicy.MONOTONE,
 ) -> Result:
     """
     Fit one fixed frame sequence with a shared2048pair contact-work allowance.
@@ -79,7 +81,12 @@ def construct(
     Original midpoint-ranked feasibility is preserved. If its first branch is
     separated, use the spare contact certificate only for a shorter branch whose
     ordered whole-guide RMS and direction loss are both non-increasing.
+    The optional analytic cap proof strengthens the same complete halfspace
+    certificate without changing geometry, contact acceptance or pair limits.
+    Historical callers retain their original monotone-cap proof.
     """
+    if not isinstance(cap_policy, CapPolicy):
+        raise ValueError("Supply an explicit cap separation policy")
     candidates: list[Allocation] = []
     branches: list[Branch] = []
     unfinished: list[Unclosed] = []
@@ -114,7 +121,10 @@ def construct(
         record({"stage": "feature_contact", "status": "started", "roots": checked.chain.roots})
         started = perf_counter()
         allowance = min(1024, remaining)
-        result = inspect_contact(checked.route, maximum_pairs=allowance, checkpoint=checkpoint)
+        options = {"cap_policy": cap_policy} if cap_policy is not CapPolicy.MONOTONE else {}
+        result = inspect_contact(
+            checked.route, maximum_pairs=allowance, checkpoint=checkpoint, **options
+        )
         if type(result.pairs_checked) is not int or not 0 <= result.pairs_checked <= allowance:
             raise ArithmeticError("Contact measurement exceeded its declared pair allowance")
         contact_pairs += result.pairs_checked
@@ -129,6 +139,7 @@ def construct(
                 "contact": asdict(result),
                 "pair_allowance": allowance,
                 "pair_budget_remaining": CONTACT_PAIR_BUDGET - contact_pairs,
+                "cap_support_policy": cap_policy.value,
                 "route": snapshot(checked.route),
             }
         )

@@ -151,7 +151,11 @@ def recover(
             detail["iterations"] += 1
             planned = None
             if bound is None:
-                bound = Separation.from_measurement(model, route, measurement)
+                bound = (
+                    Separation.from_measurement(model, route, measurement)
+                    if iteration == 0
+                    else Separation.following_measurement(model, route, measurement)
+                )
                 if bound is not None and iteration == 0 and initial_step is not None:
                     bound = replace(bound, plane=initial_step.plane)
                 if bound is not None and region_policy is RegionPolicy.ATTACHED_STRAIGHTS:
