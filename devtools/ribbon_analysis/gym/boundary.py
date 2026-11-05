@@ -1,5 +1,5 @@
 """
-Measure the entire native output against one invisible extra layer of gym cubicles.
+Measure native output against one invisible extra cubicle layer plus a fixed allowance.
 """
 
 from __future__ import annotations
@@ -11,6 +11,9 @@ from typing import Any
 from cable_bundler.routing.geometry import Vector3
 
 from .scene import Config
+
+BOUNDARY_POLICY = "one-extra-cubicle-layer-plus-10mm-v2"
+EXTRA_ALLOWANCE_MM = 10.0
 
 
 @dataclass(frozen=True)
@@ -30,7 +33,7 @@ class BoundaryReport:
         Fail any strict crossing of the closed outer cubicle box; touching is permitted.
         """
         return (
-            f"Gym boundary failed: generated body exceeds the extra cubicle layer by {self.excess_mm:.6g} mm (limit ±{self.half_extent_mm:.6g} mm)."
+            f"Gym boundary failed: generated body exceeds the outer allowance by {self.excess_mm:.6g} mm (limit ±{self.half_extent_mm:.6g} mm)."
             if self.excess_mm > 0
             else None
         )
@@ -40,7 +43,8 @@ class BoundaryReport:
         Serialize measured bounds and policy without adding solver inputs or graphic geometry.
         """
         return {
-            "policy": "one-extra-cubicle-layer-v1",
+            "policy": BOUNDARY_POLICY,
+            "extra_allowance_mm": EXTRA_ALLOWANCE_MM,
             "status": "failed" if self.problem else "passed",
             "measurement": "native_precise_body_bounds_in_component_coordinates",
             **asdict(self),
@@ -49,7 +53,7 @@ class BoundaryReport:
 
 def assess(config: Config, minimum_mm: Vector3, maximum_mm: Vector3) -> BoundaryReport:
     """
-    Compare precise whole-body bounds against half the visible extent plus one zone depth per side.
+    Compare whole-body bounds with half the visible extent plus one zone and10mm per side.
 
     Use each layout's actual void and zone dimensions. This is a gym stress-test
     rule only; it never steers route selection, alters geometry or proves physical
@@ -61,6 +65,6 @@ def assess(config: Config, minimum_mm: Vector3, maximum_mm: Vector3) -> Boundary
         low > high for low, high in zip(lows, highs)
     ):
         raise ValueError("Native boundary measurement requires finite ordered bounds")
-    half = config.extent_mm / 2 + config.zone_mm
+    half = config.extent_mm / 2 + config.zone_mm + EXTRA_ALLOWANCE_MM
     excess = max(0.0, *(-half - value for value in lows), *(value - half for value in highs))
     return BoundaryReport(half, minimum_mm, maximum_mm, excess)

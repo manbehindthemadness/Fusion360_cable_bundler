@@ -6,12 +6,14 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
 
 from .provenance import mark_loaded
+from .resident_memory import darwin_resident_kib
 
 
 def resident_kib() -> int:
@@ -20,7 +22,10 @@ def resident_kib() -> int:
 
     RSS excludes compressed and other physical-footprint accounting. It is
     the explicitly agreed observable ceiling, not total host-memory usage.
+    On macOS, query libproc directly instead of launching ps at each checkpoint.
     """
+    if sys.platform == "darwin":
+        return darwin_resident_kib()
     result = subprocess.run(
         ["/bin/ps", "-o", "rss=", "-p", str(os.getpid())],
         check=True,

@@ -87,12 +87,16 @@ def _located(source: FoldRoute, pieces: tuple[PlacedPiece, ...], region: Region)
 class Separation:
     """
     Retain a witness-derived sheet normal and two complete analytic material bounds.
+
+    An explicit straight plane follows that material region through joint motion,
+    including differentiation. Other constraints retain their historical world axis.
     """
 
     model: MovableBends
     pair: tuple[Region, Region]
     axis: Vector3
     extra_regions: tuple[tuple[int, Region], ...] = ()
+    plane: Region | None = None
 
     @classmethod
     def from_measurement(
@@ -168,10 +172,14 @@ class Separation:
 
     def gap(self, values: tuple[float, ...], side: Side) -> float:
         """
-        Return a normalized signed gap between outward-enclosed complete thick pieces.
+        Return a normalized signed gap, following an explicitly attached material plane when supplied.
         """
         source = self.model.original
         pieces = self.model.pieces(values)
+        direction = self.axis
+        if self.plane is not None:
+            sheet = _located(source, pieces, self.plane)
+            direction = unit(cross(sheet.pose.tangent, sheet.pose.width))
         spans = []
         for part_index, region in enumerate(self.pair):
             cell = Cell(
@@ -180,10 +188,10 @@ class Separation:
                 Span(-source.half_width_mm, source.half_width_mm),
                 Span(-source.targets.diameter_mm / 2, source.targets.diameter_mm / 2),
             )
-            bound = projection(_located(source, pieces, region), cell, self.axis)
+            bound = projection(_located(source, pieces, region), cell, direction)
             for part, tag in self.extra_regions:
                 if part == part_index:
-                    extra = projection(_located(source, pieces, tag), cell, self.axis)
+                    extra = projection(_located(source, pieces, tag), cell, direction)
                     bound = Span(min(bound.low, extra.low), max(bound.high, extra.high))
             spans.append(bound)
         first, second = spans

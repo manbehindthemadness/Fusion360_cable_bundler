@@ -5,7 +5,7 @@ Recover one rejected closed plan through bounded joint separation without accept
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import Enum
 from time import perf_counter, process_time
 from typing import Any, Callable
@@ -19,7 +19,7 @@ from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPoli
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .attached_regions import RegionPolicy, with_attached_straights
-from .separation import Separation, Side, TopologyChanged
+from .separation import Separation, Side, TopologyChanged, regions
 from .separation_step import InitialStep, plan_step
 
 MAXIMUM_CPU_SECONDS = 0.35
@@ -106,6 +106,14 @@ def recover(
         raise ValueError(
             "A cached first step requires the identical source and measurement with witness regions"
         )
+    if initial_step is not None and initial_step.plane is not None:
+        witness = measurement.witness
+        if (
+            witness is None
+            or not all(isinstance(source.pieces[i].geometry, Straight) for i in witness.pieces)
+            or initial_step.plane != regions(source)[witness.pieces[0]]
+        ):
+            raise ValueError("A cached moving plane requires the first confirmed straight sheet")
     for allowance, ceiling in (
         (maximum_cpu_seconds, MAXIMUM_CPU_SECONDS),
         (maximum_seconds, MAXIMUM_WALL_SECONDS),
@@ -144,6 +152,8 @@ def recover(
             planned = None
             if bound is None:
                 bound = Separation.from_measurement(model, route, measurement)
+                if bound is not None and iteration == 0 and initial_step is not None:
+                    bound = replace(bound, plane=initial_step.plane)
                 if bound is not None and region_policy is RegionPolicy.ATTACHED_STRAIGHTS:
                     expanded = with_attached_straights(bound, route, measurement)
                     if expanded.extra_regions:

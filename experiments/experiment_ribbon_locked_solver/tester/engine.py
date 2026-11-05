@@ -11,7 +11,11 @@ from time import perf_counter
 from typing import Any, Callable
 from uuid import uuid4
 
-from devtools.ribbon_analysis.gym.boundary import BoundaryReport
+from devtools.ribbon_analysis.gym.boundary import (
+    BOUNDARY_POLICY,
+    EXTRA_ALLOWANCE_MM,
+    BoundaryReport,
+)
 from devtools.ribbon_analysis.gym.scene import Scene
 from devtools.ribbon_analysis.inspection.archive import write_document
 from devtools.ribbon_analysis.inspection.run_contract import ProcedureRunner
@@ -107,10 +111,11 @@ class Tester:
                 },
                 "scope": "User-started sequential gym testing. Zero case limit means continue until a problem or Stop. Each input is frozen before one normal solve/build/audit; no retry, outcome filtering or tolerance changes. Successful test geometry is cleared before the next case; logs persist. Existing user output is retained. Full physical audit remains unmeasured.",
                 "gym_boundary": {
-                    "policy": "one-extra-cubicle-layer-v1",
+                    "policy": BOUNDARY_POLICY,
                     "enforced": self.measure_boundary is not None,
                     "measurement": "native_precise_body_bounds_in_component_coordinates",
                     "extra_layers": 1,
+                    "extra_allowance_mm": EXTRA_ALLOWANCE_MM,
                     "graphics": False,
                     "solver_feedback": False,
                 },

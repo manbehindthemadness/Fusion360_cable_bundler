@@ -13,7 +13,7 @@ from experiments.experiment_ribbon_fold_relaxation.steps import projected, step_
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
-from .separation import Separation, Side
+from .separation import Region, Separation, Side
 
 
 @dataclass(frozen=True)
@@ -32,11 +32,15 @@ class SeparationStep:
 class InitialStep:
     """
     Bind a predicted first motion to the exact immutable route and contact evidence it used.
+
+    Retain an optional straight-plane identity so execution uses the same moving
+    constraint as prediction instead of silently restoring a fixed world normal.
     """
 
     source: FoldRoute
     measurement: ContactResult
     step: SeparationStep
+    plane: Region | None = None
 
 
 def plan_step(

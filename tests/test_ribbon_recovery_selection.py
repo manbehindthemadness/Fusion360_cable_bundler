@@ -19,12 +19,15 @@ from experiments.experiment_ribbon_locked_solver import recovery_selection
 from tests.test_ribbon_branch_recovery import _construction
 
 
-@pytest.mark.parametrize("fractions, expected", (((0.07, 1.0), 1), ((1.0, 1.0), 0)))
-def test_prediction_fraction_precedes_length_and_priority_breaks_ties(
+@pytest.mark.parametrize(
+    "fractions, expected",
+    (((0.07, 1.0), 1), ((1.0, 1.0), 0), ((0.814, 0.879), 0), ((0.26, 0.5), 1)),
+)
+def test_initial_trust_steps_precede_length_and_priority_breaks_ties(
     monkeypatch: pytest.MonkeyPatch, fractions: tuple[float, float], expected: int
 ) -> None:
     """
-    Choose the less clipped correction, keeping original material priority for equal predictions.
+    Prefer fewer initial trust steps, keeping material priority when the required count ties.
     """
     source, frames, compact = _construction()
     assert source.route is not None

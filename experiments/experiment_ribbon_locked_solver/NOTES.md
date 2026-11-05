@@ -1,5 +1,102 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Confirmed straight evidence and moving separation plane698–709 — 2026-11-04
+
+After restart the user-started range2289fb... completes114accepted iterations
+without warning, then stops at115/N10/seed884004928. Numerical.4295CPU finds no
+accepted route; the separately built rejected inspection body is NOTACCEPTED.
+This is a route failure, not evidence of a Fusion application crash. Original
+roots0/0and1/0close at209.746/82.305mm. Compact1/0first reports depth uncertainty
+on fold4/terminal straight6. An exact existing straight_witness confirms that
+fold's adjoining main straight3also crosses straight6 before any correction.
+
+698probes initial bounds.699freezes19distinct gym inputs before repair: the
+15retained controls, current-run101/107/114collaterals and triggering115. Cold
+baseline18accepted/1unresolved,19.590s.700actual-witness/fixed-world-normal,
+701finite-axis,702nearest signed side and703unchanged follow-continuation do not
+recover within original allowances.704measures final already-computed proposals:
+old handoff exhausts its reserved.15CPU certificate window; compact follow still
+penetrates. All unsuccessful results remain. No increased work or source fix
+was installed from those shadow probes.
+
+705attaches the separation normal to the first intersecting straight's material
+frame. Differentiating that moving plane avoids the fixed-world support cusp
+when the long straight rotates. Two updates/.2707CPU/886pairs certify86.5925mm
+under the existing four-update/.35CPU/2wall/remaining construction-pair bounds.
+Maintained recovery_evidence only strengthens validated fold/straight depth
+evidence when a directly adjoining straight has an exact shared interior point
+with the opposing straight. A missing witness remains undecided. InitialStep
+retains exact source/measurement/plane identity for execution; other separation
+constraints retain the historical axis. Whole thick projection and final strict
+contact certificate remain mandatory; no adjacency waiver or target change.
+
+706preserves18control routes but still rejects115because raw fractional ranking
+chooses209mm/.8797over82mm/.8147. Both require two initial bounded trust steps.
+707therefore ranks the integer initial trust-step count before original material/
+guide/root priority; over-four-step predictions retain their old fractional order.
+This is not a promise of nonlinear convergence. Same19inputs all accepted;
+all18control routes ANDfirst passes exactly unchanged,20.000s. Trigger now
+87.458444mm, CPU.774745vs.423016unresolved baseline. No new roots or larger budgets.
+
+708launches one fresh ordinary solve/build/audit of115in the owned idle gym697;
+709collects its precise bounds and viewport. Numerical.938762CPU/1.016004wall;
+recovery2updates/.348002CPU/886pairs,1667of2048constructionpairs,381remaining.
+Generation1.585611s/audit1.659622s/native total5.469222s.362faces,12600surface
+points/696seams, maximum surface error1.640417e-9mm,0warnings. Whole-body box
+passes±66.25mm (extra cubicle plus10mm): min(-29.003,-17.495,-9.423),
+max(26.211,-1.917,36.770)mm. Body/current primitives shown; tester remains stopped
+at original114/115and that failed attempt stays in its ledger.
+
+Coverage:19examined development configurations,57full numerical runs across
+baseline/706/707; final19/19numerically accepted. One fresh native attempt/build/
+named-fidelity/boundary pass;18controls new-native unattempted,0fullphysical
+audits. Shadow variants are repeated measurements of115, not extra configurations.
+146focused tests pass,2known older v2length expectations deselected. Scoped Ruff
+check/format and all changed-code IDE inspections pass. Full QA unrun. Source
+lock214pins. Evidence ignored `ribbon_failure698`through709; production unchanged.
+
+## RSS checkpoint overhead693 — 2026-11-04
+
+NativeBudget starts a fresh clock for each operation; its macOS memory sampler
+previously launched `/bin/ps` on every checkpoint. The successful case72manual
+replay records656checks. In the stopped live Fusion process,12psreads cost1.367s;
+656direct `proc_pidinfo(PROC_PIDTASKINFO)` reads cost0.00930s. Settled direct RSS
+matches ps, with at most272KiB post-query difference in this probe. Approximately
+75s for656psreads is an extrapolation from this probe, not measured audit savings
+or proof that this caused every session slowdown. No new solve/native build ran.
+
+The maintained macOS sampler now reads current resident size directly through
+libproc; other platforms retain the existing ps path. Preserve every checkpoint,
+fresh memory sample, RSS metric, limits and fail-closed behavior; incomplete,
+invalid or unavailable reads cannot pass. No RSS caching, peak-memory substitute,
+timer reset, geometry change or resource-budget increase. SDK ABI checked locally
+against libproc.h and sys/proc_info.h. Frozen probe: `ribbon_overhead693`.
+
+694installs at the idle boundary and updates the exact old sampler function
+captured by already-loaded dataclass defaults, alongside fresh budget bindings.
+328existing-class checks take0.00457s;328fresh-class checks0.00496s. Source lock
+verifies213pins; body revision, gym inputs and stopped test state remain identical.
+102focused tests pass across sampler/resource, end-profile, tester and affected
+native/display consumers. Ruff check/format and new-code IDE findings are clear;
+budget's pre-existing archived-code duplication warning remains. Full QA, native
+rebuild/audit timing and long-session improvement remain unmeasured. No new batch.
+
+The photographed disconnected view is a separate unrepaired handoff issue: the
+N9draft/seed3768775038 accompanies the old N4manual body after range-b331a3f...
+case71preparation stops before gym end profiles.70cases passed; case71has no
+solver job. Incomplete pending profiles and failure logs remain for review;
+the memory-reader change neither retries that preparation nor clears its guard.
+
+## Outer allowance padding — 2026-11-04
+
+User expands the invisible stress-test box by10mm on each of its six sides.
+Current half extent is `extent_mm/2 + zone_mm +10mm`. The versioned boundary
+report and newly frozen tester plans record that fixed padding beside the one
+extra cubicle layer. Existing run plans, measurements and stopped counters retain
+their original policy; no route, profile, source targets or physical gates change.
+For the current N4case/seed667803872 the limit grows from±22.5to±32.5mm, covering
+the previously reported5.11232mm exceedance. No solver fix or new build is needed.
+
 ## Attached straight recovery and invisible outer cubicles673–686 — 2026-11-04
 
 The new PNG identifies range0b262 case20, seed2945237171,N8,D.75mm,void/zone300%,

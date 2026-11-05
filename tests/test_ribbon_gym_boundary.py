@@ -1,5 +1,5 @@
 """
-Keep the extra cubicle layer invisible, scale-dependent and separate from numerical/native acceptance.
+Keep the padded cubicle allowance invisible and separate from numerical/native acceptance.
 """
 
 from __future__ import annotations
@@ -17,18 +17,21 @@ from tests.test_ribbon_range_tester import make_tester, start
 
 
 @pytest.mark.parametrize(
-    "lines,diameter,void,zones,half", ((8, 0.75, 300, 300, 45), (3, 1.5, 600, 200, 31.5))
+    "lines,diameter,void,zones,half",
+    ((8, 0.75, 300, 300, 55), (3, 1.5, 600, 200, 41.5), (4, 0.75, 300, 300, 32.5)),
 )
-def test_boundary_adds_one_actual_zone_depth_to_every_visible_outer_face(
+def test_boundary_adds_one_zone_and_ten_mm_to_every_visible_outer_face(
     lines: int, diameter: float, void: float, zones: float, half: float
 ) -> None:
     """
-    Include complete native extents and permit touching the closed box without a fixed-size allowance.
+    Preserve zone scaling, add10mm per side and permit touching the resulting closed box.
     """
     config = Config(1, lines, diameter, void, zones)
     result = assess(config, Vector3(-half, -half, -half), Vector3(half, half, half))
     assert result.half_extent_mm == half and result.problem is None
     assert result.payload()["status"] == "passed" and result.excess_mm == 0
+    assert result.payload()["extra_allowance_mm"] == 10
+    assert result.payload()["policy"] == "one-extra-cubicle-layer-plus-10mm-v2"
 
 
 @pytest.mark.parametrize("axis", range(3))
@@ -38,7 +41,7 @@ def test_crossing_any_face_is_a_failure(axis: int, positive: bool) -> None:
     Reject even when the rest of the entire body remains inside the extra layer.
     """
     low, high = [-1.0] * 3, [1.0] * 3
-    (high if positive else low)[axis] = 45.25 if positive else -45.25
+    (high if positive else low)[axis] = 55.25 if positive else -55.25
     report = assess(Config(1, 8, 0.75, 300, 300), Vector3(*low), Vector3(*high))
     assert report.excess_mm == 0.25 and report.problem is not None
     assert report.payload()["status"] == "failed"
@@ -75,6 +78,8 @@ def test_tester_halts_after_successful_native_work_when_boundary_fails(tmp_path:
     assert tester.journal is not None
     plan = json.loads((tester.journal.directory / "plan.json").read_text())
     assert plan["gym_boundary"]["extra_layers"] == 1
+    assert plan["gym_boundary"]["extra_allowance_mm"] == 10
+    assert plan["gym_boundary"]["policy"] == "one-extra-cubicle-layer-plus-10mm-v2"
     assert plan["gym_boundary"]["graphics"] is False
     assert plan["gym_boundary"]["solver_feedback"] is False
     tester.poll()
