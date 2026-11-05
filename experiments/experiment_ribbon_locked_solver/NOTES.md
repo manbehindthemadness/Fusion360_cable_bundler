@@ -1,5 +1,53 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Unaccepted-branch recovery cap proof740–746 — 2026-11-05
+
+User-started range532fc4...stops at147after146passes/1warning. Trigger N4,
+seed1607811975, A zone22/face11/roll5°, B zone4/face2/roll32° (one-based labels).
+Original selected-d66965d130ca40bda51141462ebc3697 is numerically unresolved;
+its separately built rejected inspection body remains NOT ACCEPTED. Original
+tester journal, failed route, input and screenshot are preserved without rewrite.
+
+Recovery already makes one usable joint correction, but its unaccepted-branch
+queue still uses the older MONOTONE cap proof. Initial branches consume1601of2048
+construction pairs; the corrected79.8343097mm route exhausts the remaining447
+near adjacent pieces0/1. This is unresolved proof, not demonstrated penetration
+there.741certifies that exact saved correction with the existing ANALYTIC_SUPPORT
+policy in332pairs/.092656CPU. No geometry motion or new candidate in that probe.
+
+The queue now explicitly shares the analytic full-cap support proof already used
+by v2 construction and accepted-fallback recovery. This retains adjacent-interior
+checks, branch selection, joint motion, target accuracy, contact gates and every
+time/pair/RSS allowance. It records the proof policy in recovery evidence. Once
+certified, ordinary contraction and1%smoothing produce32.62526204546683mm.
+
+742freezes30distinct pre-fix baselines; current138aliases an existing138and is
+retained but not counted twice.743adds one distinct144baseline.744replays all31:
+trigger now accepted; all30control final routes AND first passes exactly unchanged.
+Controls include27prior configurations plus newly captured142/N6,144/N3,146/N1.
+62complete cold numerical executions across31independent
+configurations, plus one fresh live execution below;741is only a partial contact
+diagnostic. Baseline phase30.181528s plus extra144.783706s; current phase31.465159s.
+No regression, skipped or unattempted numerical configuration in the final set.
+
+745fresh normal solve/build: selected-f59087cde7134977a4911f6a0ca31d19. Accepted,
+separated; numerical.854209CPU/.926176wall. Recovery1update/332pairs/.133100CPU
+including selection, construction1933/2048pairs with115unused. Contraction4steps/
+.247540CPU. Native generation1.331876s, named fidelity audit1.043845s;158faces,
+5460points/300seams, maximum7.618983e-10mm,0accuracy warnings. Peak sampled
+RSS1061152KiB.746precise body bounds pass the unchanged±32.5mm allowance, excess0;
+viewport captured and inspected. One new complete native construction and named
+audit;30control native builds unattempted in this change,0full physical audits.
+This bounded result does not establish universal success or the1000case goal.
+
+163focused/affected tests pass;2pre-existing v2 length expectations remain
+explicitly deselected. Scoped Ruff check/format pass and changed-code IDE reports
+no findings. Final diff reviewed; source lock216pins. An earlier QA tool response
+was unavailable after context compaction, so the focused suite was rerun once;
+no geometry repeat was made for that reason. FullQA/long-run unrun. Tester remains
+stopped with its original146/147ledger; no automatic batch restart or production
+integration change.
+
 ## Explicit per-test preview cap and stage evidence737–739 — 2026-11-05
 
 Rangec742250...passes62/62complete solver/native/fidelity/boundary cases without

@@ -19,6 +19,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 from experiments.experiment_ribbon_feature_insertion.selection import Branch
 from experiments.experiment_ribbon_feature_insertion.solve import Result
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_locked_solver import recovery_queue, solver_v2
 from experiments.experiment_ribbon_locked_solver.recovery_selection import Selection
 from experiments.experiment_ribbon_locked_solver.settings import Settings
@@ -68,6 +69,7 @@ def test_new_collision_yields_only_unused_updates_pairs_and_time(
     assert second.kwargs["maximum_cpu_seconds"] == pytest.approx(0.20)
     assert first.kwargs["continuation"] is ContactContinuation.YIELD_ON_NEW_PAIR
     assert second.kwargs["continuation"] is ContactContinuation.FOLLOW
+    assert first.kwargs["cap_policy"] is second.kwargs["cap_policy"] is CapPolicy.ANALYTIC_SUPPORT
     assert result.route is other.route and result.contact is certificate
     assert (
         result.pairs == 579
@@ -76,6 +78,37 @@ def test_new_collision_yields_only_unused_updates_pairs_and_time(
     )
     assert result.detail["iterations"] == 4 and result.detail["remaining_pair_budget"] == 602
     assert result.detail["cpu_seconds"] == pytest.approx(0.30)
+    assert result.detail["cap_support_policy"] == "analytic_support"
+
+
+def test_reversed_gym_recovery_certifies_the_existing_correction_inside_remaining_work() -> None:
+    """
+    Finish the four-conductor gym correction without exhausting the original construction pair pool.
+    """
+    scene = Scene(
+        Config(1607811975, 4, 0.75, 300, 300),
+        Goal.from_degrees(21, 10, 5),
+        Goal.from_degrees(3, 1, 32),
+    )
+    events: list[dict[str, Any]] = []
+    result = solver_v2.solve(scene.targets, Settings(1, False, True), lambda: None, events.append)
+    assert result.route is not None and result.detail["contact"] == "separated"
+    detail = result.detail["construction"]
+    assert 0 < detail["contact_pairs"] < 2048
+    recovery = detail["recovery"]
+    assert (
+        recovery["status"] == "separated" and recovery["cap_support_policy"] == "analytic_support"
+    )
+    assert recovery["iterations"] == recovery["contacts"] == 1
+    assert 0 < recovery["pairs"] <= 447 and recovery["remaining_pair_budget"] > 0
+    initial = sum(
+        e["contact"]["pairs_checked"]
+        for e in events
+        if e.get("stage") == "feature_contact" and "contact" in e
+    )
+    assert initial + recovery["pairs"] == detail["contact_pairs"]
+    assert result.route.targets == scene.targets
+    assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
 
 
 @pytest.mark.parametrize(

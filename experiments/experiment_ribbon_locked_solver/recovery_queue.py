@@ -16,6 +16,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 )
 from experiments.experiment_ribbon_feature_insertion.selection import Branch
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 
 from .recovery_selection import select_recovery
 
@@ -36,6 +37,8 @@ def recover_failed(
     collision. The last branch follows the original local contact policy.
     Selection and handoff overhead count toward the same time allowance.
     Reuse each exact source/witness prediction on its first update only.
+    Use the same existing analytic cap support proof as v2 construction and
+    accepted-fallback recovery, without exempting adjacent material interiors.
     """
     started, cpu = perf_counter(), process_time()
     selection = select_recovery(candidates, checkpoint, record)
@@ -85,6 +88,7 @@ def recover_failed(
                 ),
                 None,
             ),
+            cap_policy=CapPolicy.ANALYTIC_SUPPORT,
         )
         pairs += result.pairs
         contacts += result.contacts
@@ -108,6 +112,7 @@ def recover_failed(
         "elapsed_seconds": perf_counter() - started,
         "selection": selection.detail,
         "attempts": attempts,
+        "cap_support_policy": CapPolicy.ANALYTIC_SUPPORT.value,
     }
     if selected is None:
         detail["stop_reason"] = stop
