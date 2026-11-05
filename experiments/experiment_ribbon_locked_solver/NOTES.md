@@ -1,5 +1,52 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Explicit per-test preview cap and stage evidence737–739 — 2026-11-05
+
+Rangec742250...passes62/62complete solver/native/fidelity/boundary cases without
+warnings, then prepares63/N8/seed3594523284without launching a worker. Preview
+hits the10s cap at11.959s/885040KiB. Keep-awake was enabled in this run, so the
+reported halt is still a setup scheduling stop, not a lost wake helper or accepted
+route failure.737finds one closed start profile with a valid checkpoint marker;
+end profile unattempted. Native owner has no current body after normal preceding
+case cleanup; no previous body is to be mistaken for a new63output. Host log read.
+
+Added "Preview setup limit (seconds)" to the test form. Integer10..120, default10;
+old plans missing the field retain10. The selected value is frozen in specification
+and plan limits, then passed only to ordinary gym preparation. The user can choose
+30before a NEW Start request instead of needing another source-level budget change.
+No larger allowance is activated by this repair. Numerical/native120s and4GiB/
+3.8GiB headroom gates, physical rules and layout sequences remain unchanged.
+
+Preview measurements now separate graphics, profile-container creation, joined
+end profiles, retiring old profiles/graphics and viewport refresh. Checkpoint
+samples and total elapsed are retained with seed and chosen cap. A scheduling stop
+writes a unique preparation-stop-*.json under the draft directory; its path and
+setup time appear in tester status. A later incomplete-prefix inspection guard
+preserves the original useful report. Logging failure cannot mask the scheduling
+error. A pre-container checkpoint avoids allocating a misleading empty partial
+profile when drawing has already spent the allowance. No checkpoint is removed.
+
+738actual maintained JS checks default10, chosen30serialization, status evidence,
+unchanged edits and45sreconnect.100focused/affected tests pass, including a fully
+mocked11.959sclock:10stops/logs and selected30permits the same operation. No real
+30sbudget or geometry acceptance is claimed by that test. Scoped Ruff check/format
+pass; changed-code IDE clear except existing archived view duplication and HTML's
+unchanged missing-await weak warning. Initial HTML inspection timeout resolves on
+the focused retry. Complete diff/new test reviewed; fullQA unrun.
+
+739installs classes/callbacks and refreshes the owned stopped palette. Reviewed
+checkpoint prefix is archived intact;62/62journal/state and selected scene remain
+unchanged. Four frozen PREVIEW configurations: trigger63plus pre-fix passed60/61/62.
+All use unchanged10s allowance. Prepared times.761434/.459403/.348611/.815509s,
+two closed joined cap profiles each. Trigger: graphics.166258s, profiles.377206s,
+container.009210s, refresh.165846s. Three controls' prior test records establish
+completed preparation, not matched baseline stage timings.0route solves,0native
+BODY attempts or new full physical audits. This is preview/control evidence, not
+new solver generalization coverage or proof that the intermittent stall is fixed.
+Final sampled RSS138272KiB; source lock216pins. No automatic test restart, retry,
+skipped case, historical rewrite or production change. The former30sapproval
+question is superseded by the explicit per-run form control; default remains10s.
+
 ## Test-scoped Mac/display wake protection733–736 — 2026-11-05
 
 User requests preventing monitor-off/automatic logout while diagnosing intermittent

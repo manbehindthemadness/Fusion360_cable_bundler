@@ -32,6 +32,7 @@ class Specification:
     screenshots: ScreenshotSettings = ScreenshotSettings()
     avoid_adjacent_zones: bool | None = None
     keep_awake: bool = False
+    preview_seconds: int = 10
 
     @classmethod
     def parse(cls, payload: Any) -> Specification:
@@ -42,6 +43,7 @@ class Specification:
             "screenshots",
             "avoid_adjacent_zones",
             "keep_awake",
+            "preview_seconds",
         } != {
             "ranges",
             "mode",
@@ -66,6 +68,9 @@ class Specification:
             raise ValueError("Choose explicitly whether to avoid adjacent cubicles.")
         if "keep_awake" in payload and type(payload["keep_awake"]) is not bool:
             raise ValueError("Choose explicitly whether to keep the Mac awake during testing.")
+        preview_seconds = payload.get("preview_seconds", 10)
+        if type(preview_seconds) is not int or not 10 <= preview_seconds <= 120:
+            raise ValueError("Preview setup limit must be an integer from 10 to 120 seconds.")
         if (
             type(payload["maximum_cases"]) is not int
             or not 0 <= payload["maximum_cases"] <= 1_000_000
@@ -82,6 +87,7 @@ class Specification:
             ScreenshotSettings.parse(payload.get("screenshots")),
             payload.get("avoid_adjacent_zones"),
             payload.get("keep_awake", False),
+            preview_seconds,
         )
         if not result.zone_pairs:
             if result.avoid_adjacent_zones:
@@ -172,6 +178,7 @@ class Specification:
             "maximum_cases": self.maximum_cases,
             "screenshots": self.screenshots.payload(),
             "keep_awake": self.keep_awake,
+            "preview_seconds": self.preview_seconds,
         }
         if self.avoid_adjacent_zones is not None:
             result["avoid_adjacent_zones"] = self.avoid_adjacent_zones
@@ -204,6 +211,7 @@ def defaults(scene: Scene) -> dict[str, Any]:
         "seed": scene.config.seed,
         "stop_on_warnings": True,
         "maximum_cases": 0,
+        "preview_seconds": 10,
         "keep_awake": sys.platform == "darwin",
         "screenshots": ScreenshotSettings().payload(),
         "avoid_adjacent_zones": True,

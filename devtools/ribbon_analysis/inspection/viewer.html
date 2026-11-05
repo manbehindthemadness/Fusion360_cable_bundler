@@ -82,6 +82,8 @@
   <label>Order<select id="testerMode"><option value="systematic">Systematic range sweep</option><option value="random">Seeded random sampling</option></select></label>
   <label>Test seed<input id="testerSeed" type="number" min="0" max="4294967295" step="1" required></label>
   <label>Case limit (0 = keep going until a problem)<input id="testerLimit" type="number" min="0" max="1000000" step="1" value="0" required></label>
+  <label>Preview setup limit (seconds)<input id="testerPreviewSeconds" type="number" min="10" max="120" step="1" value="10" required></label>
+  <p class="muted">Caps gym drawing and end-profile preparation before the solver starts. Choose a larger allowance here if Fusion occasionally stalls; numerical and native-build limits stay unchanged.</p>
   <label><input id="testerAvoidAdjacent" type="checkbox" checked> Avoid adjacent cubicles (face, edge or corner contact)</label>
   <label><input id="testerWarnings" type="checkbox" checked> Stop on native accuracy warnings</label>
   <label><input id="testerKeepAwake" type="checkbox" checked> Keep Mac and display awake while testing</label>

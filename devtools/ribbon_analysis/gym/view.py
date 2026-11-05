@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Callable
+from uuid import uuid4
 
 # noinspection PyUnresolvedReferences
 import adsk.core
@@ -89,6 +90,7 @@ class GymView:
         self.group: Any = None
         self._profiles: Any = None
         self._pending_profiles: Any = None
+        self.last_preparation: dict[str, Any] | None = None
         self.handler: Incoming | None = None
         self._record(self.scene)
         self._draw(self.scene)
@@ -99,38 +101,64 @@ class GymView:
         """
         write_document(self.directory / f"layout-{self.revision:04}.json", scene.payload())
 
-    def _draw(self, scene: Scene) -> None:
+    def _draw(self, scene: Scene, *, maximum_seconds: int = 10) -> None:
         """
-        Build replacement graphics before removing the prior owned scene.
+        Apply the chosen setup cap and retain stage measurements on an interrupted preparation.
         """
-        budget = NativeBudget(maximum_seconds=10, maximum_rss_kib=4 * 1024 * 1024)
+        if self._pending_profiles is not None:
+            raise RuntimeError("Incomplete gym end profiles require review before redrawing.")
+        budget = NativeBudget(maximum_seconds=maximum_seconds, maximum_rss_kib=4 * 1024 * 1024)
         budget.check("gym drawing launch")
         if budget.memory() >= int(3.8 * 1024 * 1024):
             raise RuntimeError("Gym drawing lacks launch headroom.")
-        if self._pending_profiles is not None:
-            raise RuntimeError("Incomplete gym end profiles require review before redrawing.")
-        group = draw(
+        try:
+            self._replace(scene, budget)
+        finally:
+            report = {
+                "seed": scene.config.seed,
+                "maximum_seconds": maximum_seconds,
+                "elapsed_seconds": budget.clock() - budget.started,
+                "timings": dict(budget.timings),
+                "samples": list(budget.samples),
+                "stop_reason": budget.stopped,
+            }
+            self.last_preparation = report
+            if budget.stopped is not None:
+                path = self.directory / f"preparation-stop-{uuid4().hex}.json"
+                report["log"] = str(path)
+                try:
+                    write_document(path, report)
+                except OSError as error:
+                    # Preserve the scheduling error even if its optional detailed log cannot be written.
+                    report["log_error"] = str(error)
+
+    def _replace(self, scene: Scene, budget: NativeBudget) -> None:
+        """
+        Measure replacement graphics, cap profiles, old-scene retirement and viewport refresh separately.
+        """
+        group = budget.measure("graphics", draw)(
             self.component,
             scene.payload()["drawing"],
             lambda: budget.check("gym drawing"),
             prepath=prepath_drawing(scene.targets),
         )
-        self._pending_profiles = self.component.occurrences.addNewComponent(
-            adsk.core.Matrix3D.create()
-        )
+        budget.check("gym profile container")
+        self._pending_profiles = budget.measure(
+            "profile_container", self.component.occurrences.addNewComponent
+        )(adsk.core.Matrix3D.create())
         self._pending_profiles.component.name = "Sweep profiles - current gym targets"
-        retain_end_profiles(
+        budget.measure("end_profiles", retain_end_profiles)(
             self._pending_profiles.component,
             scene.targets,
             lambda: budget.check("gym end profiles"),
         )
         if self._profiles is not None and self._profiles.isValid:
-            self._profiles.deleteMe()
+            budget.measure("retire_profiles", self._profiles.deleteMe)()
         self._profiles, self._pending_profiles = self._pending_profiles, None
         if self.group is not None and self.group.isValid:
-            self.group.deleteMe()
+            budget.measure("retire_graphics", self.group.deleteMe)()
         self.group = group
-        adsk.core.Application.get().activeViewport.refresh()
+        budget.measure("viewport_refresh", adsk.core.Application.get().activeViewport.refresh)()
 
     def dispatch(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
         """
@@ -181,16 +209,18 @@ class GymView:
             self.palette.sendInfoToHTML("gym_state", json.dumps(state, allow_nan=False))
         return state
 
-    def set_scene(self, scene: Scene) -> None:
+    def set_scene(self, scene: Scene, *, maximum_seconds: int = 10) -> None:
         """
         Replace the owned preview with one validated complete scene, preserving selected goals.
         """
         if not isinstance(scene, Scene):
             raise ValueError("Supply a validated gym scene.")
+        if type(maximum_seconds) is not int or not 10 <= maximum_seconds <= 120:
+            raise ValueError("Preview setup limit must be an integer from 10 to 120 seconds.")
         if scene != self.scene:
             self.revision += 1
             self._record(scene)
-            self._draw(scene)
+            self._draw(scene, maximum_seconds=maximum_seconds)
             self.scene = scene
 
     def rebind_component(self, component: Any) -> None:

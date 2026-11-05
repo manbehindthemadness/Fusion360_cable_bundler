@@ -105,6 +105,7 @@ class Tester:
                 "limits": {
                     "numerical_seconds_per_case": 120,
                     "native_seconds_per_case": 120,
+                    "preview_seconds_per_case": spec.preview_seconds,
                     "rss_kib": 4194304,
                     "launch_rss_kib": 3984588,
                     "maximum_cases": spec.maximum_cases,

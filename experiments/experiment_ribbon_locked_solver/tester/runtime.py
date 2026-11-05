@@ -119,7 +119,11 @@ class Runtime:
         """
         workspace = self.workspace
         workspace.ensure_views()
-        workspace.gym.set_scene(scene)
+        specification = self.engine.specification
+        workspace.gym.set_scene(
+            scene,
+            maximum_seconds=specification.preview_seconds if specification is not None else 10,
+        )
         workspace.gym_occurrence.isLightBulbOn = True
         workspace.diagnostic_occurrence.isLightBulbOn = False
         workspace.gym.palette.isVisible = False
@@ -262,6 +266,7 @@ class Runtime:
             **self.engine.state(),
             "available": True,
             "keep_awake": self.awake.state(),
+            "preview_setup": getattr(self.workspace.gym, "last_preparation", None),
             "defaults": defaults(self.workspace.gym.scene),
             "fields": [asdict(field) for field in FIELDS],
         }
