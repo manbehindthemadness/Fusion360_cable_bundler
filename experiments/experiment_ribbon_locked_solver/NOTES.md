@@ -1,5 +1,73 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Thickness-contact evidence for excursion recovery747–756 — 2026-11-05
+
+User-started rangea8bfb65...stops at154after153passes/1warning. Trigger N7,
+seed2976634137, A zone9/face8/roll65°, B zone13/face2/roll81° (one-based labels).
+Original selected-13a8a2b8ec054188a31f844b60ea05df passes numerical contact and
+named native fidelity, but its187.470027mm body exceeds±49.375mmby14.478526mm.
+Original tester journal, accepted numerical route, boundary failure, input and
+screenshot remain unchanged. No false timeout or missing native body in this case.
+
+Three closed branches:109.359313mm root0/0penetrates in188pairs;77.873429mm root1/0
+exhausts1024pairs on straight pieces2/6;187.470027mm root0/1certifies353pairs.
+Remaining483pairs attempt the109mm branch, then fail after321+162pairs. Recovery
+never considers the shorter77mm branch because its contact remains unresolved.
+Contraction proposals56.94/57.95mm respectively penetrate/reach depth resolution;
+they are not usable alternatives. Preserve those rejected proposals and fallback.
+
+748midplane straight witnesses miss both saved pair-limited pairs.749complete
+straight-envelope cross axes cannot separate the77mm pair; they can separate the
+later130.727979mm correction's4/6pair, but that is only one pair, not a complete
+certificate.750finds a common strict point in77mm pieces2/6by clipping the24edges
+of two inscribed material cores. Both actual joined-profile inverse maps verify
+the point; the sheets overlap through thickness despite missing midplanes. The
+other saved pair has no core witness. These are three bounded partial diagnostics,
+not complete-case coverage.749/750did not retain RSS samples; their resource audits
+are incomplete. All full comparison workers and live work retain RSS guards.
+
+New contact_core helper clips the nominal-width/valley-height rectangular cores,
+averages intersection vertices, and requires both actual strict inverse maps.
+A missed witness never means clearance. Only accepted-fallback recovery can strengthen its
+existing pair-limited straight evidence this way; the original unresolved event
+stays in trials. Existing branch priority then selects root1/0; its existing joint
+correction separates in one update/386of483pairs. No new roots, search candidates,
+radius relaxation or acceptance/budget changes. Evidence/filtering work is charged
+to the same.35CPU/2wall recovery allowance. Shared straight_pair validation avoids
+duplicating material-index/type invariants; the old midplane arithmetic is intact.
+
+751freezes35distinct pre-fix gym baselines with no aliases: prior31plus new149/N5,
+151/N3,153/N8controls and154/N7trigger. All35are numerically accepted; the trigger
+still has an excursion. Its cold baseline ends189.344727mm rather than the saved
+187.470027mm: optional1%smoothing has time-dependent progress, raw fallback is
+identical.752one trigger probe produces85.6972618267025mm.753runs34controls and
+reuses that exact source-pinned trigger result;35/35pass, all34control final routes
+AND first passes exactly unchanged. IDE duplication required extracting shared
+straight-pair validation.754therefore repeats the same35under final217source pins:
+again35/35accepted and all34control routes/first passes exactly unchanged. No
+representative regression, skipped or unattempted numerical case in either set.
+Baseline34.243365s,7521.183723s,75332.797658s,75433.632329s.106controlled complete
+numerical executions including the fresh live solve below, across35independent
+configurations; analytical unit-test replays are separate QA, not added coverage.
+
+755fresh normal solve/build selected-f75830e8a33f4957b2fe534e9098c47f:85.697262mm,
+separated,1.270420CPU/1.411317wall. Recovery1update/.151850CPU/386pairs including
+evidence/filtering, construction1951/2048pairs with97unused. Native generation
+.983358s, named fidelity audit.989935s;254faces,8820points/486seams, maximum
+3.567546e-9mm,0accuracy warnings. Peak sampled RSS1430864KiB. Solve exceeds the
+matched native generation timing GOAL; no budget increase.756precise body bounds
+pass unchanged±49.375mm,excess0; viewport captured and inspected. One new native
+construction and named audit;34controls' new native builds unattempted,0full
+physical audits. This does not prove shortest routing or universal success.
+
+174distinct focused/affected unit tests pass (19new/branch plus155others); the
+shared-helper refactor's25affected tests pass afterward.2pre-existing v2 length
+expectations remain explicitly deselected. Scoped Ruff check/format and all five
+changed-code IDE inspections pass; early helper inspection timeouts resolved with
+an explicit30s allowance. Complete diff/new files reviewed; fullQA/long-run unrun.
+Original153/154ledger retained, tester stopped and1000goal remains paused. No
+automatic restart, historical rewrite, production or standards change.
+
 ## Unaccepted-branch recovery cap proof740–746 — 2026-11-05
 
 User-started range532fc4...stops at147after146passes/1warning. Trigger N4,

@@ -4,15 +4,21 @@ Spend remaining construction work on measured failures that dominate a poor safe
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, replace
+from time import perf_counter, process_time
 from typing import Any, Callable
 
 from experiments.experiment_ribbon_feature_insertion.attached_regions import RegionPolicy
-from experiments.experiment_ribbon_feature_insertion.contact_recovery import recover
+from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
+    MAXIMUM_CPU_SECONDS,
+    MAXIMUM_WALL_SECONDS,
+    recover,
+)
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, Policy, improves
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_fold_route.contact_core import core_witness
 
 from .recovery_queue import recover_failed
 
@@ -36,6 +42,8 @@ def recover_construction(
     otherwise preserve the original witness correction.
     Accepted-fallback recovery uses the existing analytic full-cap support proof
     to reduce certificate work within the same allowance.
+    Pair-limited straight evidence may be strengthened only by a verified common
+    interior point in the existing material cores; a missed witness stays unresolved.
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
@@ -48,6 +56,7 @@ def recover_construction(
         return result, None
     baseline = None
     candidates = result.rejected
+    started, cpu = perf_counter(), process_time()
     if result.route is not None:
         if (
             selection_policy is not Policy.MONOTONIC
@@ -56,9 +65,34 @@ def recover_construction(
         ):
             return result, None
         baseline = Branch.measure((), result.route, frames.guide)
+        strengthened = []
+        for branch, measurement in candidates:
+            checkpoint()
+            pair = measurement.unresolved_pieces
+            if measurement.status == "unresolved" and measurement.limit == "pairs" and pair:
+                witness = core_witness(branch.route, *pair)
+                if witness is not None:
+                    measurement = replace(
+                        measurement,
+                        status="penetration",
+                        witness=witness,
+                        unresolved_pieces=None,
+                        unresolved_regions=None,
+                        limit=None,
+                        reason="Confirmed straight material-core intersection replaces pair-limited evidence.",
+                    )
+                    record(
+                        {
+                            "stage": "recovery_contact_evidence",
+                            "status": "confirmed_straight_core",
+                            "roots": branch.roots,
+                            "witness": asdict(witness),
+                        }
+                    )
+            strengthened.append((branch, measurement))
         candidates = tuple(
             (branch, measurement)
-            for branch, measurement in candidates
+            for branch, measurement in strengthened
             if measurement.status == "penetration"
             and measurement.witness is not None
             and improves(branch, baseline)
@@ -75,6 +109,10 @@ def recover_construction(
             record,
         )
     else:
+        cpu_left = MAXIMUM_CPU_SECONDS - (process_time() - cpu)
+        wall_left = MAXIMUM_WALL_SECONDS - (perf_counter() - started)
+        if cpu_left <= 0 or wall_left <= 0:
+            return result, None
         branch, measurement = min(candidates, key=lambda item: item[0].priority)
         fallback_branch = branch
         record(
@@ -96,6 +134,8 @@ def recover_construction(
             record,
             region_policy=RegionPolicy.ATTACHED_STRAIGHTS,
             cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+            maximum_cpu_seconds=cpu_left,
+            maximum_seconds=wall_left,
         )
     selected = recovery.route
     if selected is not None and (
@@ -115,6 +155,8 @@ def recover_construction(
             baseline_length_mm=baseline.route.material_length_mm,
             accepted_improvement=selected is not None,
             cap_support_policy=CapPolicy.ANALYTIC_SUPPORT.value,
+            cpu_seconds=process_time() - cpu,
+            elapsed_seconds=perf_counter() - started,
         )
         record(
             {

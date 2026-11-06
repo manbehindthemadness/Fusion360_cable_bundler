@@ -10,7 +10,7 @@ from cable_bundler.routing.geometry import cross, difference, dot, unit
 
 from .contact import Penetration
 from .contact_inverse import occupied_coordinates
-from .geometry import FoldRoute, Straight
+from .geometry import FoldRoute, PlacedPiece, Straight
 
 
 def straight_witness(route: FoldRoute, first: int, second: int) -> Penetration | None:
@@ -21,11 +21,10 @@ def straight_witness(route: FoldRoute, first: int, second: int) -> Penetration |
     strict occupied interiors. Parallel planes, degenerate intervals and missed
     thickness-only contacts return None, which never implies separation.
     """
-    if not 0 <= first < second < len(route.pieces):
-        raise ValueError("Supply two distinct ordered route-piece indices")
-    a, b = route.pieces[first], route.pieces[second]
-    if not isinstance(a.geometry, Straight) or not isinstance(b.geometry, Straight):
+    pair = straight_pair(route, first, second)
+    if pair is None:
         return None
+    a, b = pair
     n1, n2 = cross(a.pose.tangent, a.pose.width), cross(b.pose.tangent, b.pose.width)
     line = cross(n1, n2)
     square = dot(line, line)
@@ -54,3 +53,18 @@ def straight_witness(route: FoldRoute, first: int, second: int) -> Penetration |
     left = occupied_coordinates(a, point, route.targets.lines, route.targets.diameter_mm)
     right = occupied_coordinates(b, point, route.targets.lines, route.targets.diameter_mm)
     return Penetration((first, second), left, right, point) if left and right else None
+
+
+def straight_pair(
+    route: FoldRoute, first: int, second: int
+) -> tuple[PlacedPiece, PlacedPiece] | None:
+    """
+    Validate ordered piece identities and return only a pair of straight material regions.
+
+    Invalid indices raise; a fold is unsupported by either analytic straight
+    witness and returns None without implying a contact outcome.
+    """
+    if not 0 <= first < second < len(route.pieces):
+        raise ValueError("Supply two distinct ordered route-piece indices")
+    a, b = route.pieces[first], route.pieces[second]
+    return (a, b) if isinstance(a.geometry, Straight) and isinstance(b.geometry, Straight) else None
