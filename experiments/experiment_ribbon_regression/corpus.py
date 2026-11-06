@@ -13,7 +13,7 @@ from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 
-CORPUS = Path(__file__).with_name("gym-v1.json")
+CORPUS = Path(__file__).with_name("gym-v2.json")
 
 
 def signature(target: dict[str, Any]) -> str:

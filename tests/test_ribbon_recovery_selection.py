@@ -16,6 +16,7 @@ from experiments.experiment_ribbon_feature_insertion.separation import Side
 from experiments.experiment_ribbon_feature_insertion.separation_step import SeparationStep
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_locked_solver import recovery_selection
+from experiments.experiment_ribbon_locked_solver.recovery_prediction import PredictionPolicy
 from tests.test_ribbon_branch_recovery import _construction
 
 
@@ -127,3 +128,68 @@ def test_explicit_sublimits_cannot_enlarge_original_recovery_caps(field: str, va
             lambda event: None,
             **{field: value},
         )
+
+
+@pytest.mark.parametrize("gap, expected", ((0.01, False), (0.0, True), (-0.1, True), (None, True)))
+def test_verified_selection_intervenes_only_after_a_failed_full_prediction(
+    monkeypatch: pytest.MonkeyPatch,
+    gap: float | None,
+    expected: bool,
+) -> None:
+    """
+    Preserve working initial choices and retain the original if no verified sheet replacement exists.
+    """
+    source, _, _ = _construction()
+    monkeypatch.setitem(
+        vars(recovery_selection),
+        "plan_step",
+        Mock(return_value=SeparationStep(Side.BEFORE, -0.1, (), 1.0)),
+    )
+    monkeypatch.setitem(
+        vars(recovery_selection),
+        "Separation",
+        SimpleNamespace(from_measurement=Mock(return_value=object())),
+    )
+    check = Mock(return_value=gap)
+    prepare = Mock(return_value=None)
+    monkeypatch.setitem(vars(recovery_selection), "first_gap", check)
+    monkeypatch.setitem(vars(recovery_selection), "verified_sheets", prepare)
+    result = recovery_selection.select_recovery(
+        source.rejected,
+        lambda: None,
+        lambda event: None,
+        prediction_policy=PredictionPolicy.VERIFIED_SHEETS,
+    )
+    assert result.choice == source.rejected[0]
+    check.assert_called_once()
+    assert prepare.called is expected
+    assert 0 < result.maximum_cpu_seconds <= 0.35
+
+
+def test_clipped_prediction_never_authorizes_the_optional_sheet_preparation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    A planned partial motion makes no one-step promise and retains its historical execution.
+    """
+    source, _, _ = _construction()
+    monkeypatch.setitem(
+        vars(recovery_selection),
+        "plan_step",
+        Mock(return_value=SeparationStep(Side.BEFORE, -0.1, (), 0.5)),
+    )
+    monkeypatch.setitem(
+        vars(recovery_selection),
+        "Separation",
+        SimpleNamespace(from_measurement=Mock(return_value=object())),
+    )
+    check = Mock(side_effect=AssertionError("No full-step prediction"))
+    monkeypatch.setitem(vars(recovery_selection), "first_gap", check)
+    result = recovery_selection.select_recovery(
+        source.rejected,
+        lambda: None,
+        lambda event: None,
+        prediction_policy=PredictionPolicy.VERIFIED_SHEETS,
+    )
+    assert result.choice == source.rejected[0]
+    check.assert_not_called()

@@ -1,0 +1,4890 @@
+{
+  "schema": "ribbon-gym-regression-v1",
+  "scope": "Examined development corpus. Historical failed outcomes retain their original versions/policies; no known-feasibility or holdout claim. Exact targets are authoritative; gym seeds are provenance only.",
+  "origin": {
+    "range_journals": 43,
+    "completed_records": 1886,
+    "unique_targets": 276,
+    "historical_problem_targets": 21,
+    "retained_controls": 43,
+    "archive": "artifacts/verification/ribbon_failure783/result.json",
+    "archive_sha256": "95055eeb78a625a75e4cba7622bacccfb6f619140c2a485a2e53e1b37a8f5907"
+  },
+  "cases": [
+    {
+      "id": "prior-case-01",
+      "signature": "69f8e81c3cba5e0c7ef7ec59c99f7d8b6dd8a856872375332208fcd31d473243",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 10.718298356749662,
+          "y": 0.6319709735935174,
+          "z": 15.21686185753337
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": -0.5257311121191335,
+          "z": 3.358981997462637e-16
+        },
+        "end_width": {
+          "x": 0.5177440752146533,
+          "y": 0.8377275111711908,
+          "z": 0.17364817766693058
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -5.1588749598132955,
+          "y": -15.403302686867466,
+          "z": -20.036776039135468
+        },
+        "start_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "start_width": {
+          "x": 0.6610798403208954,
+          "y": -0.6293203910498375,
+          "z": -0.40856981059566666
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 2355999392,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll_degrees": 75,
+          "zone": 9
+        },
+        "b": {
+          "face": 5,
+          "roll_degrees": 62,
+          "zone": 22
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-96cc1c1a41f449f48dae2b5ba12f3e0b",
+          "plan_sha256": "00f1cfd63e9dbf24c31d3ea14c642eccaf4f0d5ef9350a36116976fbd62f73f9",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "prior-case-30",
+      "signature": "113ab0665835acc6969862dbd47019eac2a691a8fff72745b28d32254b58e993",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 18.400020459285045,
+          "y": 24.387881515143857,
+          "z": 14.699318806852466
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520398,
+          "z": 0.5257311121191337
+        },
+        "end_width": {
+          "x": 0.8746197071393959,
+          "y": -0.25487950081816185,
+          "z": -0.4124036953593917
+        },
+        "lines": 9,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -17.39250226245948,
+          "y": -22.65131630223851,
+          "z": 2.8101097225178706
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": -0.10452846326765333,
+          "y": 0.522851102078791,
+          "z": 0.8459908542188245
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 9,
+          "seed": 2469379198,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 78,
+          "zone": 1
+        },
+        "b": {
+          "face": 6,
+          "roll_degrees": 11,
+          "zone": 25
+        },
+        "side_mm": 20.25,
+        "zone_mm": 20.25,
+        "extent_mm": 60.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-8e5586a8fe8f4546b7ebe30229cdc67d",
+          "plan_sha256": "8f1a64adef5950d89f871c19633ec0e9fadabb881c3eda0a8bf9b65d10d0126e",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "prior-case-37",
+      "signature": "f286dc0a8bf6329dcdaf8e896a00b222819d3e46ec197e8f6270a1316342b16e",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 1.1589138843646332,
+          "y": -6.369759491626721,
+          "z": -16.24762182814777
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": -0.5257311121191335
+        },
+        "end_width": {
+          "x": -0.2588190451025207,
+          "y": 0.5078172588795448,
+          "z": 0.821665584940908
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 5.914907502311893,
+          "y": -1.5326274331555718,
+          "z": 25.47012725928651
+        },
+        "start_tangent": {
+          "x": 0.5257311121191335,
+          "y": 0.0,
+          "z": 0.8506508083520399
+        },
+        "start_width": {
+          "x": -0.6321567465149811,
+          "y": -0.6691306063588581,
+          "z": 0.3906943555638099
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 3916787982,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 10,
+          "roll_degrees": 78,
+          "zone": 13
+        },
+        "b": {
+          "face": 4,
+          "roll_degrees": 87,
+          "zone": 12
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-7389e0da133c4070b3ca95046ebcad34",
+          "plan_sha256": "bb490ad74bc57a97b7b4cf953591401b76374c6d305070426472a8e5464a671e",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "prior-case-71",
+      "signature": "96a3d6555e35c3bbcff1f6f376fdf8944b55d53a025ed72b1ad4a70ccd105363",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 12.267684854502274,
+          "y": 14.911297434056243,
+          "z": -10.633842427251137
+        },
+        "end_tangent": {
+          "x": 0.5257311121191337,
+          "y": 3.5326131518707186e-16,
+          "z": -0.8506508083520398
+        },
+        "end_width": {
+          "x": -0.6419943144875293,
+          "y": 0.6560590289905075,
+          "z": -0.3967743069374826
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -15.554612103960505,
+          "y": -7.049612481860061,
+          "z": -4.363139848398933
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520399,
+          "z": -0.5257311121191336
+        },
+        "start_width": {
+          "x": 0.48480962024633695,
+          "y": -0.45981479131570563,
+          "z": 0.7439959608787515
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 995783115,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 2,
+          "roll_degrees": 7,
+          "zone": 4
+        },
+        "b": {
+          "face": 3,
+          "roll_degrees": 31,
+          "zone": 23
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-4ed6f7281729460a93647202cd940aea",
+          "plan_sha256": "ab1e1ba1df09d59164e55b32145d7f6d8281cd2d332efd621b7bb4f07c3d491f",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "prior-case-72",
+      "signature": "c8213a5b50588bcc592e3aee097b47e4f5f1f72b7391aedcf3b70bb612f5b504",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -27.526329287239083,
+          "y": 16.47006153427619,
+          "z": 1.6296908355688906
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.49708853227912797,
+          "y": 0.8043061406454283,
+          "z": -0.32556815445715664
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 16.461132860337347,
+          "y": 20.677027904295986,
+          "z": 27.4984893784233
+        },
+        "start_tangent": {
+          "x": -0.5257311121191334,
+          "y": 0.0,
+          "z": 0.8506508083520401
+        },
+        "start_width": {
+          "x": -0.6968123486376572,
+          "y": 0.5735764363510458,
+          "z": -0.43065371523871343
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 1507900231,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 3,
+          "roll_degrees": 37,
+          "zone": 25
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 55,
+          "zone": 7
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-9d1d4f47236e412b923842eb51971880",
+          "plan_sha256": "16fc3e97d176c5e201b7dc4fe35ab1aae010fa97adcb61eef12d3da6835534dc",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-a565125bfa974b8b9538fdac81b1cf46",
+          "plan_sha256": "d335aebca23e7b113fb008ba5a7f86a77faa8f2024a33bc1c145467357fc3fd2",
+          "source_digest": "396ad44c09c0b4c17067a6e623a4648753b3d91707e008f1d58eb01c4edf8da2",
+          "disposition": "native_or_fidelity",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "prior-case-73",
+      "signature": "737a0d9f74235b46fed208c33a4dd1c7dd9d4c6da7cc2bce02f43b702f9816c0",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -10.418759658470643,
+          "y": -9.4696424134653,
+          "z": -0.9006300717243804
+        },
+        "end_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191336,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.525651040724322,
+          "y": 0.8505212501137082,
+          "z": -0.017452406437283463
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 10.219491818020268,
+          "y": 6.334326321860708,
+          "z": 7.818327489475311
+        },
+        "start_tangent": {
+          "x": 0.8506508083520399,
+          "y": -0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.5160719508403132,
+          "y": -0.8350219571000914,
+          "z": 0.190808995376545
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 667803872,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 8,
+          "roll_degrees": 61,
+          "zone": 25
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 37,
+          "zone": 1
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-639ebc4f1c984f628104c5dffdc2ad96",
+          "plan_sha256": "a1f63752e8191eaa32ad9ac2acda6c404252f50937f3a41cb48564e93a3e5508",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-639ebc4f1c984f628104c5dffdc2ad96",
+          "plan_sha256": "a1f63752e8191eaa32ad9ac2acda6c404252f50937f3a41cb48564e93a3e5508",
+          "source_digest": "4218b24f41bcee5b828f8386c280100e9ba3611886ff7c67c608879ffb94de2f",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-f8e2994f838f44019aa71664c14f45c6",
+          "plan_sha256": "b9a60a3bf66438ea63bd968d28a31a2ad994ef8cebefd78334ac3e60bba77bbe",
+          "source_digest": "396ad44c09c0b4c17067a6e623a4648753b3d91707e008f1d58eb01c4edf8da2",
+          "disposition": "boundary",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "current-case-51",
+      "signature": "4c676af12d0856663f99c7c42e3c99f27857a7828203f6d5398a6786dbeec3cb",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -1.4054330172277962,
+          "y": -2.9673407548361896,
+          "z": 15.618978401894784
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.85065080835204,
+          "z": 0.5257311121191336
+        },
+        "end_width": {
+          "x": 0.5150380749100543,
+          "y": -0.4506395182702774,
+          "z": 0.7291500572351879
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -4.459393138217828,
+          "y": -16.100430821343075,
+          "z": -20.02451178584966
+        },
+        "start_tangent": {
+          "x": -0.8506508083520398,
+          "y": 0.5257311121191339,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.5122566577751344,
+          "y": 0.8288486832435896,
+          "z": 0.22495105434386542
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 1429692096,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 59,
+          "zone": 9
+        },
+        "b": {
+          "face": 2,
+          "roll_degrees": 5,
+          "zone": 13
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-ec7cf1d54fde46a99428d4d8e35fdf2f",
+          "plan_sha256": "1a8007d955585f5a8a233f4bf294ec36a7afb574b3bdfda95db13d07418d065b",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "current-case-102",
+      "signature": "969ce0435d40f29cdfbd53e5e80a39b28ec245f553de228e7437984fabf222d7",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -4.030100201799888,
+          "y": 15.806789957135493,
+          "z": 10.881350473295962
+        },
+        "end_tangent": {
+          "x": 0.5257311121191336,
+          "y": 0.0,
+          "z": 0.85065080835204
+        },
+        "end_width": {
+          "x": 0.8253828438972062,
+          "y": -0.2419218955996678,
+          "z": -0.510114651259522
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 20.482250067719175,
+          "y": -12.68252883360092,
+          "z": -15.661757242259819
+        },
+        "start_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191336,
+          "z": -3.1346574636038483e-16
+        },
+        "start_width": {
+          "x": 0.45981479131570524,
+          "y": -0.7439959608787513,
+          "z": 0.48480962024633734
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 1424725202,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 7,
+          "zone": 17
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 50,
+          "zone": 16
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-565853e35ba743c1acbbf0e89755a009",
+          "plan_sha256": "200e7463185797b948586872134aa232a49206a68d6deb429bdc8e69e6246dc1",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "current-case-103",
+      "signature": "2f142a67d29997924761732955de519551568aeafce714785fe8f7a108def432",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -1.9120875906224915,
+          "y": -9.82116514297357,
+          "z": -6.784791521036382
+        },
+        "end_tangent": {
+          "x": 0.5257311121191337,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "end_width": {
+          "x": -0.6321567465149811,
+          "y": 0.6691306063588585,
+          "z": -0.3906943555638097
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 13.195922691483423,
+          "y": 8.053107813705655,
+          "z": -10.017488299168125
+        },
+        "start_tangent": {
+          "x": 0.8506508083520401,
+          "y": -0.5257311121191334,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.1711613079133348,
+          "y": -0.2769448137626625,
+          "z": 0.9455185755993167
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 2433123344,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 8,
+          "roll_degrees": 1,
+          "zone": 23
+        },
+        "b": {
+          "face": 3,
+          "roll_degrees": 30,
+          "zone": 9
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-18721fae619045f6a10a96879c46e212",
+          "plan_sha256": "0b63f9a285358d82686460ef547d3bae37bf491e52b317c9513e2c8d7cc8beca",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-18721fae619045f6a10a96879c46e212",
+          "plan_sha256": "0b63f9a285358d82686460ef547d3bae37bf491e52b317c9513e2c8d7cc8beca",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "current-case-77",
+      "signature": "30fe24436042e04603e65bb7273e1c8ac6de3a7e79a5766d5cfe32561f7f4233",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -26.593652609969592,
+          "y": -24.133183502620106,
+          "z": -0.699225710056874
+        },
+        "end_tangent": {
+          "x": 0.8506508083520402,
+          "y": 0.5257311121191333,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.5122566577751337,
+          "y": 0.82884868324359,
+          "z": 0.22495105434386536
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 19.54552588090545,
+          "y": -25.548224799239517,
+          "z": 5.96651867558931
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.85065080835204,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": -0.08715574274765825,
+          "y": 0.523730546514958,
+          "z": 0.8474138252077599
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 3313950845,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 77,
+          "zone": 18
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 23,
+          "zone": 1
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-3feda4853a67407ebc9510491717c199",
+          "plan_sha256": "d406b8e18eb8427d8d0e37d6dd5040423ce19cb84131f52c1282afd4b1fab931",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "image-case-80",
+      "signature": "06a107b784ea604f7a11c26f2964466b9ab453efc44bbf6f9eea0eec551f049a",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 1.4888696828023158,
+          "y": 10.976035957501725,
+          "z": -12.952071915003447
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": -0.5257311121191337
+        },
+        "end_width": {
+          "x": 0.40673664307580043,
+          "y": 0.4802792694178275,
+          "z": 0.7771081820100129
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -6.023614482798569,
+          "y": -12.73232213653751,
+          "z": -1.9335406898019436
+        },
+        "start_tangent": {
+          "x": -0.85065080835204,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.41986753487499484,
+          "y": 0.6793599422003733,
+          "z": 0.6018150231520483
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 2986789582,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 35,
+          "zone": 10
+        },
+        "b": {
+          "face": 4,
+          "roll_degrees": 48,
+          "zone": 14
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-41e562b146c444d384b29f5f23756e15",
+          "plan_sha256": "705aa19372a9bf95d949c7dfd046ae4647157432762cf901f84a91ee8756fb8b",
+          "source_digest": "0c1e4c8c4b029400b11cf6eea9408ae23d76b171b579ac1bc4ed9fde475b19f0",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "new-case-10",
+      "signature": "1f672f951e831a5478b52296c4baf11b73f63c577441f9129d6bd9898389018e",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -11.434486700525854,
+          "y": 4.2082329318047735,
+          "z": 13.529452840939758
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520397,
+          "z": -0.525731112119134
+        },
+        "end_width": {
+          "x": 0.4999999999999998,
+          "y": 0.4552964986550144,
+          "z": -0.7366852097826349
+        },
+        "lines": 6,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 11.837997033339832,
+          "y": 8.156287793083402,
+          "z": -9.562575586166805
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520398,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": 0.8386705679454242,
+          "y": 0.28633368558194205,
+          "z": 0.4632976353956074
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 6,
+          "seed": 2504979862,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 15,
+          "zone": 23
+        },
+        "b": {
+          "face": 7,
+          "roll_degrees": 6,
+          "zone": 5
+        },
+        "side_mm": 13.5,
+        "zone_mm": 13.5,
+        "extent_mm": 40.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-24917186e194454b9cab94adb247dea6",
+          "plan_sha256": "6600c468467398c2d624fa57dfd011fb5b5318dc64c32616d799f02ad27811d8",
+          "source_digest": "a4980d7bb89c63325a1cac6b6cc38000649d68e98ad5d2d3cd01e8a8839b8d8d",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "new-case-21",
+      "signature": "2d5a34fa0c6fc86c27cc2d4ff5f3dff97b24d27d39e61e46f2766c95ff1157a0",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 4.16088523296982,
+          "y": -1.2197965284759855,
+          "z": -0.3562439426283219
+        },
+        "end_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191336,
+          "z": -2.2950763850644674e-17
+        },
+        "end_width": {
+          "x": -0.41986753487499473,
+          "y": 0.6793599422003733,
+          "z": -0.601815023152048
+        },
+        "lines": 3,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -5.756092205195423,
+          "y": 4.033117699446527,
+          "z": 6.820949011497791
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520402,
+          "z": 0.5257311121191333
+        },
+        "start_width": {
+          "x": 0.8660254037844385,
+          "y": 0.26286555605956685,
+          "z": 0.4253254041760205
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 3,
+          "seed": 240828600,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 12,
+          "zone": 8
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 73,
+          "zone": 21
+        },
+        "side_mm": 6.75,
+        "zone_mm": 6.75,
+        "extent_mm": 20.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-ddf8d2d9cc1c4feaac7948429dd019e7",
+          "plan_sha256": "41d3be523a4050b40d4366e08234bffae9d122304dc8d8346d2e4132dbfc2188",
+          "source_digest": "a4980d7bb89c63325a1cac6b6cc38000649d68e98ad5d2d3cd01e8a8839b8d8d",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "new-case-11",
+      "signature": "d6b06f43014f14b0805b4f7551b17407a1f7dce88488a9796bef7121a7e17297",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -6.83362525400199,
+          "y": -1.0118466455497135,
+          "z": -0.6668270848016893
+        },
+        "end_tangent": {
+          "x": -0.85065080835204,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.5250106159015351,
+          "y": -0.8494850209831999,
+          "z": 0.05233595624294379
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 9.980027863228724,
+          "y": 13.131355629451594,
+          "z": 2.824190076624383
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": -0.5446390350150271,
+          "y": 0.44091521038753323,
+          "z": -0.7134157965638394
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 1517160563,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 7,
+          "roll_degrees": 69,
+          "zone": 24
+        },
+        "b": {
+          "face": 8,
+          "roll_degrees": 69,
+          "zone": 4
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-aef9d23649504cb1a42f5bff1f7fd678",
+          "plan_sha256": "66bcc78daa959c5846692548ee281f7acc42c69c19c4b2e4bcdf9889c8ac871c",
+          "source_digest": "a4980d7bb89c63325a1cac6b6cc38000649d68e98ad5d2d3cd01e8a8839b8d8d",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "image-case-20",
+      "signature": "2e2d24b9a83b9f680dc42bcac41f69d849e39a401f55484148abfbfa5043e95f",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -3.0451810741603103,
+          "y": 15.164924617304285,
+          "z": -1.966778338725335
+        },
+        "end_tangent": {
+          "x": 0.5257311121191335,
+          "y": 3.3872801950493056e-16,
+          "z": 0.8506508083520401
+        },
+        "end_width": {
+          "x": 0.8134814136908566,
+          "y": -0.2923717047227366,
+          "z": -0.5027591628772631
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -19.653894272731772,
+          "y": -16.361659886183734,
+          "z": 21.688607022549622
+        },
+        "start_tangent": {
+          "x": -0.5257311121191335,
+          "y": 0.0,
+          "z": 0.85065080835204
+        },
+        "start_width": {
+          "x": -0.42532540417602027,
+          "y": 0.8660254037844386,
+          "z": -0.26286555605956685
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 2945237171,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 3,
+          "roll_degrees": 12,
+          "zone": 2
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 53,
+          "zone": 15
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-9d5a00755d2f488cbfa04d271c0e7c97",
+          "plan_sha256": "34034747c830800d659d4c6013d6388c9603f5e35270c0c753a2209bc91a7cd1",
+          "source_digest": "a4980d7bb89c63325a1cac6b6cc38000649d68e98ad5d2d3cd01e8a8839b8d8d",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-101",
+      "signature": "054141ce8d24f6b71ab227a8ee358c5aa9d461b1454c5084422cb32abd7d32c8",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 14.082565202868917,
+          "y": 9.590728824596741,
+          "z": -1.7111963998689277
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": 0.5257311121191336
+        },
+        "end_width": {
+          "x": -0.6691306063588578,
+          "y": -0.39069435556381,
+          "z": 0.6321567465149812
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 6.02565022647155,
+          "y": -15.826804158101481,
+          "z": -13.369561537306751
+        },
+        "start_tangent": {
+          "x": 0.8506508083520398,
+          "y": -0.5257311121191339,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.25487950081816174,
+          "y": -0.4124036953593919,
+          "z": 0.874619707139396
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 3087694083,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 8,
+          "roll_degrees": 11,
+          "zone": 9
+        },
+        "b": {
+          "face": 2,
+          "roll_degrees": 78,
+          "zone": 24
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-b85cd0b2fe5745098c0afeea71f956f2",
+          "plan_sha256": "d884a1e502b76dd0d39fe63a1ee49c78fac78a90f3d199a41c5717e3b9dbb78b",
+          "source_digest": "c5bf84506f998937b85e4db37ee858a5b0a805f897e5c9d1f950843e2641d712",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-107",
+      "signature": "863ac4816986114872bc60006b4f64537d2f5f72882a232c77f1816d9eb88c1d",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 23.38054927906907,
+          "y": 19.63200340073396,
+          "z": 8.41709969091524
+        },
+        "end_tangent": {
+          "x": -0.5257311121191335,
+          "y": 0.0,
+          "z": -0.85065080835204
+        },
+        "end_width": {
+          "x": -0.8350219571000914,
+          "y": 0.19080899537654467,
+          "z": 0.5160719508403133
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 1.3505611250752776,
+          "y": -26.639106318825117,
+          "z": 16.185515896988356
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.85065080835204,
+          "z": -0.5257311121191336
+        },
+        "start_width": {
+          "x": 0.3255681544571565,
+          "y": -0.49708853227912797,
+          "z": 0.8043061406454283
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 3986606565,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 2,
+          "roll_degrees": 17,
+          "zone": 11
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 25,
+          "zone": 24
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-b9e59d84811544a6b7be79cd5a500ad2",
+          "plan_sha256": "b832a262364447a1d73d6c81b36a399ff69efe18454a8df2674bcdefd5726355",
+          "source_digest": "c5bf84506f998937b85e4db37ee858a5b0a805f897e5c9d1f950843e2641d712",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-114",
+      "signature": "33297394d0724cb0ed9c43746339640c9d175070cb864f300311d72d120ac73e",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 17.510536283843713,
+          "y": -12.166312023825284,
+          "z": -14.207624047650569
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520399,
+          "z": -0.5257311121191335
+        },
+        "end_width": {
+          "x": 0.12186934340514771,
+          "y": 0.5218123921319584,
+          "z": -0.8443101862203968
+        },
+        "lines": 9,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -3.9339360145794218,
+          "y": 17.920515436206884,
+          "z": -7.8483753123509725
+        },
+        "start_tangent": {
+          "x": -0.5257311121191337,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "start_width": {
+          "x": 0.6968123486376568,
+          "y": 0.5735764363510462,
+          "z": -0.4306537152387136
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 9,
+          "seed": 1536964983,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll_degrees": 1,
+          "zone": 15
+        },
+        "b": {
+          "face": 7,
+          "roll_degrees": 29,
+          "zone": 17
+        },
+        "side_mm": 20.25,
+        "zone_mm": 20.25,
+        "extent_mm": 60.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-63dfb09d4f51425f914bfd38e57ef112",
+          "plan_sha256": "70ac650893b2ce5679e321b4d1612b65722cd9ef2d5009e5a533800ee47605cb",
+          "source_digest": "c5bf84506f998937b85e4db37ee858a5b0a805f897e5c9d1f950843e2641d712",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-115",
+      "signature": "f7f960d8492b7a61dd69c92a1d9285c5e123b101f8e4a5602283266a043d39ab",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -20.51408839864604,
+          "y": -13.81053105842905,
+          "z": -3.4295005432396253
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.85065080835204,
+          "z": 0.5257311121191337
+        },
+        "end_width": {
+          "x": 0.34202014332566877,
+          "y": -0.4940256465759191,
+          "z": -0.79935028747398
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 22.49825210945206,
+          "y": -3.286008688826068,
+          "z": 24.646477105343553
+        },
+        "start_tangent": {
+          "x": 0.5257311121191336,
+          "y": 6.71686305860683e-17,
+          "z": 0.8506508083520399
+        },
+        "start_width": {
+          "x": -0.8134814136908564,
+          "y": 0.29237170472273666,
+          "z": 0.5027591628772634
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 884004928,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 10,
+          "roll_degrees": 19,
+          "zone": 22
+        },
+        "b": {
+          "face": 6,
+          "roll_degrees": 52,
+          "zone": 1
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-0ca67ee50dfc4bfb975d564f10b54777",
+          "plan_sha256": "9ba2edcaf4e5ddcffec9496d71439ec6274193c6971d05fafde26729c6f3a642",
+          "source_digest": "c5bf84506f998937b85e4db37ee858a5b0a805f897e5c9d1f950843e2641d712",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-0ca67ee50dfc4bfb975d564f10b54777",
+          "plan_sha256": "9ba2edcaf4e5ddcffec9496d71439ec6274193c6971d05fafde26729c6f3a642",
+          "source_digest": "c5bf84506f998937b85e4db37ee858a5b0a805f897e5c9d1f950843e2641d712",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-104",
+      "signature": "9cc8a04a22bc3a515f5cd4788b99aabf768a58da2983c00c2b3f328f3877eb87",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -13.218356332680978,
+          "y": -9.351867367552625,
+          "z": 15.607977930256709
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520398,
+          "z": -0.525731112119134
+        },
+        "end_width": {
+          "x": 0.22495105434386464,
+          "y": 0.5122566577751342,
+          "z": -0.82884868324359
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 15.544917603245073,
+          "y": 2.433187168030857,
+          "z": 17.009741520009317
+        },
+        "start_tangent": {
+          "x": 0.5257311121191336,
+          "y": 0.0,
+          "z": 0.8506508083520399
+        },
+        "start_width": {
+          "x": -0.8494850209832,
+          "y": 0.05233595624294379,
+          "z": 0.5250106159015349
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 1852897763,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 10,
+          "roll_degrees": 33,
+          "zone": 22
+        },
+        "b": {
+          "face": 7,
+          "roll_degrees": 23,
+          "zone": 2
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-4c25202fde8e46b0825dbba220381227",
+          "plan_sha256": "ddcac24549ea45607ce749b945666e6f11f8a02e25f8d337320213c4c4e0dffc",
+          "source_digest": "b01c4b150acb4527f21a6a716a3ff5171a00bbfd0b6bee916709b4fbab406f00",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-110",
+      "signature": "2bcb92112725c33afc4d0fa9d3f3dd5efd6093aedf86aaa0150a8bb27548af8f",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 0.03529066639485436,
+          "y": 12.492146236116326,
+          "z": -11.390948131654747
+        },
+        "end_tangent": {
+          "x": 2.661608549279093e-17,
+          "y": -0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "end_width": {
+          "x": 0.788010753606722,
+          "y": -0.3236723921118648,
+          "z": -0.5237129316569804
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -2.295119617490802,
+          "y": -8.032931696827003,
+          "z": 1.087601974742539
+        },
+        "start_tangent": {
+          "x": -0.8506508083520399,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.4506395182702774,
+          "y": 0.7291500572351876,
+          "z": 0.5150380749100544
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 2240056727,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 41,
+          "zone": 10
+        },
+        "b": {
+          "face": 6,
+          "roll_degrees": 20,
+          "zone": 14
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-dd6458396e114b0ba4fd0b6c064f360b",
+          "plan_sha256": "e5392da4a5da09595a344170be671e744fad1d3f50cbfca1e7362f3ec125e7dd",
+          "source_digest": "b01c4b150acb4527f21a6a716a3ff5171a00bbfd0b6bee916709b4fbab406f00",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-112",
+      "signature": "693754cec003981419cc18e3fba6e1ad81641fea492205ff16033b8f1e28119f",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -15.78003991334547,
+          "y": -20.68612288365843,
+          "z": -12.74791388606502
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": -0.5257311121191337
+        },
+        "end_width": {
+          "x": 0.017452406437283574,
+          "y": 0.5256510407243222,
+          "z": 0.8505212501137083
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 15.091665357755328,
+          "y": 19.49963582024514,
+          "z": -17.81594092497963
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520397,
+          "z": -0.5257311121191341
+        },
+        "start_width": {
+          "x": 0.6946583704589978,
+          "y": -0.37817931322359394,
+          "z": -0.6119069826378685
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 3518531665,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 6,
+          "roll_degrees": 28,
+          "zone": 23
+        },
+        "b": {
+          "face": 4,
+          "roll_degrees": 71,
+          "zone": 0
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-2c9d6323f15e48569b0b6a4596733ec3",
+          "plan_sha256": "125b59fa2a2543d97d03a968be2c630d16bdec41e461edf41b633b08bee8215d",
+          "source_digest": "b01c4b150acb4527f21a6a716a3ff5171a00bbfd0b6bee916709b4fbab406f00",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-116",
+      "signature": "fc5fca9926b5b5ccf2fa562c4c537c5c7413e04c8668868da5e3c7f0851d0af0",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 2.636639039872911,
+          "y": -25.044165472493056,
+          "z": -6.739399488621873
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520398,
+          "z": 0.5257311121191337
+        },
+        "end_width": {
+          "x": -0.24192189559966798,
+          "y": -0.5101146512595224,
+          "z": 0.825382843897206
+        },
+        "lines": 10,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -19.52038253447634,
+          "y": 25.50488755641612,
+          "z": 5.317619618972239
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": 0.5257311121191336
+        },
+        "start_width": {
+          "x": -0.6293203910498376,
+          "y": 0.4085698105956666,
+          "z": -0.6610798403208953
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 10,
+          "seed": 2993953655,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 7,
+          "roll_degrees": 75,
+          "zone": 7
+        },
+        "b": {
+          "face": 2,
+          "roll_degrees": 50,
+          "zone": 10
+        },
+        "side_mm": 22.5,
+        "zone_mm": 22.5,
+        "extent_mm": 67.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-fe1b77c7134c45b4b01cb2eb0b9a7f2c",
+          "plan_sha256": "ee1bc4bddc10c809233e2dd2c5a2a5d5bc502286e265a529881841151df03d68",
+          "source_digest": "b01c4b150acb4527f21a6a716a3ff5171a00bbfd0b6bee916709b4fbab406f00",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-fe1b77c7134c45b4b01cb2eb0b9a7f2c",
+          "plan_sha256": "ee1bc4bddc10c809233e2dd2c5a2a5d5bc502286e265a529881841151df03d68",
+          "source_digest": "b01c4b150acb4527f21a6a716a3ff5171a00bbfd0b6bee916709b4fbab406f00",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-130",
+      "signature": "7264bce779de15c06b018c403714e5d6b7cbe03cf6685adfb2b9612e75da0436",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -11.503060464021782,
+          "y": -14.438223036035264,
+          "z": -4.842736241323846
+        },
+        "end_tangent": {
+          "x": -0.5257311121191338,
+          "y": 0.0,
+          "z": 0.8506508083520398
+        },
+        "end_width": {
+          "x": 0.3048459859681725,
+          "y": 0.9335804264972017,
+          "z": 0.18840518066230427
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 9.646153956529057,
+          "y": -2.353277907963867,
+          "z": 14.283095214030975
+        },
+        "start_tangent": {
+          "x": -0.85065080835204,
+          "y": -0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.476474200801009,
+          "y": 0.7709514516584748,
+          "z": -0.4226182617406996
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 2412883056,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll_degrees": 61,
+          "zone": 22
+        },
+        "b": {
+          "face": 9,
+          "roll_degrees": 3,
+          "zone": 1
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-16d00180838849588557bcaa10681674",
+          "plan_sha256": "2c48feca12d5c8f7ff8eace3f594aa2d6d7cbd6b15222bbfa66a983e7720cd55",
+          "source_digest": "fcba3d03ea087f99c4e9e8fce609723ee78dd3e394c90e834afc7d4f4163c081",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-134",
+      "signature": "f8f4e6302e31455813b856c0ab98e13af2e91340d06e4e828726f732d56d7ffe",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -20.8788717763242,
+          "y": -18.97400611110309,
+          "z": -1.5476052641961497
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.3449106429269784,
+          "y": 0.5580771433374293,
+          "z": -0.7547095802227722
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 10.816565020998612,
+          "y": -18.511657935497063,
+          "z": 2.3632963562326967
+        },
+        "start_tangent": {
+          "x": -0.8506508083520398,
+          "y": -0.525731112119134,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.4458452687228317,
+          "y": 0.7213927985168725,
+          "z": 0.5299192642332045
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 2015058315,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll_degrees": 4,
+          "zone": 18
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 85,
+          "zone": 1
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-164defec1f0e4c308fb61d93b99fd55c",
+          "plan_sha256": "49ca9b3881e6b18fc1e64533251a70a42d481925095da3ad3afd8353037b68b1",
+          "source_digest": "fcba3d03ea087f99c4e9e8fce609723ee78dd3e394c90e834afc7d4f4163c081",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-138",
+      "signature": "ece689fe4383130191c8beeefbb1c3f6d0a829928976fafbe250225d724eaec0",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 0.8420600524866604,
+          "y": 7.550812450380297,
+          "z": -5.343223822624844
+        },
+        "end_tangent": {
+          "x": -0.5257311121191335,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "end_width": {
+          "x": -0.7941509444614869,
+          "y": 0.35836794954530027,
+          "z": 0.49081227587502907
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 8.098856143743166,
+          "y": -10.703012913479999,
+          "z": -0.9797963915296645
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.85065080835204,
+          "z": -0.5257311121191334
+        },
+        "start_width": {
+          "x": -0.7431448254773942,
+          "y": -0.3517827778339925,
+          "z": 0.5691964911922534
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 2431203662,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 2,
+          "roll_degrees": 84,
+          "zone": 18
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 15,
+          "zone": 14
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-2cd137e125654f46977ffb3fda2eff12",
+          "plan_sha256": "8c9a75a755a3204e29b0f463a36c954b5d55f3f2f8f9d42564bd6a2c329e6e38",
+          "source_digest": "fcba3d03ea087f99c4e9e8fce609723ee78dd3e394c90e834afc7d4f4163c081",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range697-case-139",
+      "signature": "efa39d7f73da0e1fe148067b17d7716f57acacb4f14e28e3e667d1d9ddbfc2f7",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 14.158907270847886,
+          "y": 17.422406806696486,
+          "z": -4.119827472601398
+        },
+        "end_tangent": {
+          "x": 0.5257311121191334,
+          "y": 0.0,
+          "z": 0.8506508083520401
+        },
+        "end_width": {
+          "x": 0.6881909602355866,
+          "y": 0.5877852522924731,
+          "z": -0.42532540417602005
+        },
+        "lines": 9,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -17.735855953409427,
+          "y": -12.228588848826469,
+          "z": 21.139534209165916
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.85065080835204,
+          "z": 0.5257311121191335
+        },
+        "start_width": {
+          "x": -0.6018150231520483,
+          "y": 0.41986753487499473,
+          "z": -0.6793599422003733
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 9,
+          "seed": 284829440,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 7,
+          "roll_degrees": 73,
+          "zone": 2
+        },
+        "b": {
+          "face": 1,
+          "roll": 0,
+          "zone": 24
+        },
+        "side_mm": 20.25,
+        "zone_mm": 20.25,
+        "extent_mm": 60.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-7afe49657d1144d3958fc0afcdef317b",
+          "plan_sha256": "a5a01adfebc33d220c257d12f3728d19060d3b0f4d01a11ca6beaa0007fab657",
+          "source_digest": "fcba3d03ea087f99c4e9e8fce609723ee78dd3e394c90e834afc7d4f4163c081",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-7afe49657d1144d3958fc0afcdef317b",
+          "plan_sha256": "a5a01adfebc33d220c257d12f3728d19060d3b0f4d01a11ca6beaa0007fab657",
+          "source_digest": "fcba3d03ea087f99c4e9e8fce609723ee78dd3e394c90e834afc7d4f4163c081",
+          "disposition": "boundary",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range532-case-142",
+      "signature": "2327223e92e4e22651e61ad0314da60bcf8c50c5b5aeb8ca015bd0ff046ad9ab",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 16.1882171472326,
+          "y": 1.2894351354048113,
+          "z": -12.225852821857853
+        },
+        "end_tangent": {
+          "x": -0.8506508083520399,
+          "y": -0.5257311121191338,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": 0.5142426259504459,
+          "y": -0.8320620472518201,
+          "z": 0.20791169081775934
+        },
+        "lines": 6,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -14.847630967223745,
+          "y": -9.347031012631877,
+          "z": -11.448073236769842
+        },
+        "start_tangent": {
+          "x": -0.8506508083520401,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.3015469777681647,
+          "y": 0.4879132592337002,
+          "z": 0.8191520442889917
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 6,
+          "seed": 3126190145,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 17,
+          "zone": 0
+        },
+        "b": {
+          "face": 11,
+          "roll_degrees": 24,
+          "zone": 20
+        },
+        "side_mm": 13.5,
+        "zone_mm": 13.5,
+        "extent_mm": 40.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-4526fb33c5664b24bb414a6c539155ea",
+          "plan_sha256": "994fa4b91ac6c3e2d1bb9110a0156501c214331d1848ee2a6729de4224cd3f70",
+          "source_digest": "19239e44951da9548f303f05b3ee73236d32c19416470c53099633b37dfee88c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range532-case-146",
+      "signature": "49e9d3b2fb0cce822757a45e4cfde7aa2e0cdd6c45e16952e40141f7d3789ec4",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 1.3359688747661735,
+          "y": -0.6551189690325387,
+          "z": 0.17603417402745647
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191336,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.5101146512595223,
+          "y": 0.825382843897206,
+          "z": 0.2419218955996677
+        },
+        "lines": 1,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -2.0070152616060177,
+          "y": 1.3687830225886775,
+          "z": 1.6125660451773545
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520399,
+          "z": -0.5257311121191338
+        },
+        "start_width": {
+          "x": -0.629320391049838,
+          "y": -0.40856981059566666,
+          "z": 0.6610798403208953
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 1,
+          "seed": 3875417403,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 2,
+          "roll_degrees": 75,
+          "zone": 8
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 22,
+          "zone": 21
+        },
+        "side_mm": 2.25,
+        "zone_mm": 2.25,
+        "extent_mm": 6.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-6b4a71f3bc514399a2ec634b0f3687c8",
+          "plan_sha256": "2af580fb92bb02ffaa9ed148c13540890736bddbb8e2fe52bf951a9b01ab9ce9",
+          "source_digest": "19239e44951da9548f303f05b3ee73236d32c19416470c53099633b37dfee88c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range532-case-144",
+      "signature": "b4122767170dc7b3683db2f5a5d6f37d4b8d292cb34c6bf33c0c3faf07e8c8d1",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 4.6238874006976705,
+          "y": 5.634258531922839,
+          "z": 3.9994437003488352
+        },
+        "end_tangent": {
+          "x": 0.5257311121191335,
+          "y": 0.0,
+          "z": 0.8506508083520401
+        },
+        "end_width": {
+          "x": 0.8501326148634075,
+          "y": 0.03489949670250109,
+          "z": -0.5254108509304101
+        },
+        "lines": 3,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -0.7014656327888332,
+          "y": 4.023471781130687,
+          "z": -4.671943562261374
+        },
+        "start_tangent": {
+          "x": -5.562822290940758e-17,
+          "y": -0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": 0.40673664307580026,
+          "y": 0.48027926941782767,
+          "z": 0.7771081820100123
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 3,
+          "seed": 460868017,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 48,
+          "zone": 14
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 34,
+          "zone": 25
+        },
+        "side_mm": 6.75,
+        "zone_mm": 6.75,
+        "extent_mm": 20.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-1734ee09ed524ca69b3406fddd13181b",
+          "plan_sha256": "86a735559ad1d7bcf04e02272fe3a3b94fadf9bc07570dab57d2404bb3c81010",
+          "source_digest": "19239e44951da9548f303f05b3ee73236d32c19416470c53099633b37dfee88c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range532-case-147",
+      "signature": "6bb37a99869f17684d6ad6df9e3b9aa355fe4390fb68018b7d62fd1fe4aceeab",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -9.066311138222591,
+          "y": 1.1891075814493703,
+          "z": -9.938398964019498
+        },
+        "end_tangent": {
+          "x": 0.5257311121191333,
+          "y": 0.0,
+          "z": 0.8506508083520402
+        },
+        "end_width": {
+          "x": 0.8485786657364545,
+          "y": 0.06975647374412547,
+          "z": -0.5244504575531647
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 9.782228478746942,
+          "y": -0.5725794290338749,
+          "z": 2.5516194213430747
+        },
+        "start_tangent": {
+          "x": 0.5257311121191335,
+          "y": 0.0,
+          "z": 0.85065080835204
+        },
+        "start_width": {
+          "x": -0.7291500572351878,
+          "y": 0.5150380749100542,
+          "z": 0.4506395182702774
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 1607811975,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 10,
+          "roll_degrees": 5,
+          "zone": 21
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 32,
+          "zone": 3
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-d66965d130ca40bda51141462ebc3697",
+          "plan_sha256": "75a26d0df564960250f1132988b05f89db9ff9c54577fcf094a47b06311d98a4",
+          "source_digest": "19239e44951da9548f303f05b3ee73236d32c19416470c53099633b37dfee88c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-d66965d130ca40bda51141462ebc3697",
+          "plan_sha256": "75a26d0df564960250f1132988b05f89db9ff9c54577fcf094a47b06311d98a4",
+          "source_digest": "19239e44951da9548f303f05b3ee73236d32c19416470c53099633b37dfee88c",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangea8b-case-149",
+      "signature": "a6cb56e93158090564660017a1e63bafda8e1bae186d1edcba1eddd3bec175fb",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 1.5345510862140355,
+          "y": -7.6649400294162096,
+          "z": -9.315286180719651
+        },
+        "end_tangent": {
+          "x": -0.8506508083520401,
+          "y": -0.5257311121191333,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": 0.49402564657591885,
+          "y": -0.79935028747398,
+          "z": -0.3420201433256686
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 11.977227241011175,
+          "y": 10.958600236955013,
+          "z": 0.5986231358822054
+        },
+        "start_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191334,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.5228511020787908,
+          "y": -0.8459908542188246,
+          "z": -0.1045284632676533
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 1004974287,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 42,
+          "zone": 24
+        },
+        "b": {
+          "face": 11,
+          "roll_degrees": 56,
+          "zone": 9
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-3a76d8c9d14e45d8b9aaf1a966133baf",
+          "plan_sha256": "9d2e3d6e10df5a3200e8bc9822723506a99ad2069b550e3f05dffe09bad03315",
+          "source_digest": "a2a3c30c50520d75f5c1c589489bab4d8242951ca1aa5d9b69361d5db1c05883",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangea8b-case-151",
+      "signature": "9fd917aade327e93275f749fafe77c9854ac20166bee8a5288d0da3d603443e6",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 0.5456587366320294,
+          "y": 6.053896481772971,
+          "z": 7.992364186452394
+        },
+        "end_tangent": {
+          "x": -0.5257311121191337,
+          "y": 0.0,
+          "z": -0.8506508083520398
+        },
+        "end_width": {
+          "x": -0.6516363247727467,
+          "y": -0.6427876096865395,
+          "z": 0.4027333970136228
+        },
+        "lines": 3,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -4.068518412614304,
+          "y": 1.1005203956655205,
+          "z": -5.884173188662424
+        },
+        "start_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.522851102078791,
+          "y": -0.8459908542188246,
+          "z": 0.10452846326765347
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 3,
+          "seed": 1876751410,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 30,
+          "zone": 3
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 76,
+          "zone": 16
+        },
+        "side_mm": 6.75,
+        "zone_mm": 6.75,
+        "extent_mm": 20.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-ccbbf3e1432144d2872069d7780ce82a",
+          "plan_sha256": "112248d3225770991fa9a5c7f2b5e801c0d7e8ab663cd50ebe21cc56d7e707eb",
+          "source_digest": "a2a3c30c50520d75f5c1c589489bab4d8242951ca1aa5d9b69361d5db1c05883",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangea8b-case-153",
+      "signature": "c8baeef3dc1976315fe8cd4da1cd9ee50a0ee26a098c5671251f2b609fef82d8",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 21.30520470219375,
+          "y": 19.331973373319226,
+          "z": 16.139218015534134
+        },
+        "end_tangent": {
+          "x": -0.8506508083520401,
+          "y": -0.5257311121191333,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": 0.43065371523871343,
+          "y": -0.6968123486376573,
+          "z": -0.5735764363510457
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 15.38685042486479,
+          "y": 5.652843656016193,
+          "z": -18.24313676728901
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520398,
+          "z": -0.5257311121191339
+        },
+        "start_width": {
+          "x": 0.4539904997395472,
+          "y": -0.4684298508669549,
+          "z": -0.7579354200477761
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 121166697,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 6,
+          "roll_degrees": 45,
+          "zone": 20
+        },
+        "b": {
+          "face": 11,
+          "roll_degrees": 71,
+          "zone": 25
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-face2efbf3944d27ab25b113f7c9e50c",
+          "plan_sha256": "13622dc15ea68b105bbbcb6e778cb3c84e1deb80ad4123db4d0affd9bfb73bdd",
+          "source_digest": "a2a3c30c50520d75f5c1c589489bab4d8242951ca1aa5d9b69361d5db1c05883",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangea8b-case-154",
+      "signature": "6eec75e53fcf178554aba16104571c1ff2c8761d50a9c308fe0e4b307afc08fc",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -3.2336443636583603,
+          "y": -0.6036750776606179,
+          "z": -18.853530767038905
+        },
+        "end_tangent": {
+          "x": 0.5257311121191337,
+          "y": -2.0490515555713115e-17,
+          "z": 0.8506508083520399
+        },
+        "end_width": {
+          "x": 0.6015009550075455,
+          "y": -0.7071067811865476,
+          "z": -0.3717480344601845
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -14.08031283746181,
+          "y": 18.570519388814386,
+          "z": 16.855413102705153
+        },
+        "start_tangent": {
+          "x": 3.3652335679353653e-16,
+          "y": 0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "start_width": {
+          "x": -0.48480962024633734,
+          "y": 0.45981479131570574,
+          "z": -0.743995960878751
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 2976634137,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 7,
+          "roll_degrees": 65,
+          "zone": 8
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 81,
+          "zone": 12
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-13a8a2b8ec054188a31f844b60ea05df",
+          "plan_sha256": "cf9cd42f8f7d32f11d1734a11c482d4bc58252eef55d8a64fa2af5eea075d212",
+          "source_digest": "a2a3c30c50520d75f5c1c589489bab4d8242951ca1aa5d9b69361d5db1c05883",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-13a8a2b8ec054188a31f844b60ea05df",
+          "plan_sha256": "cf9cd42f8f7d32f11d1734a11c482d4bc58252eef55d8a64fa2af5eea075d212",
+          "source_digest": "a2a3c30c50520d75f5c1c589489bab4d8242951ca1aa5d9b69361d5db1c05883",
+          "disposition": "boundary",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range5fe-case-156",
+      "signature": "b53686f717f52cbab17a6f7792cb947c9f7c1e286c95737e1ba9e29963d0ce3e",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 1.1963157469048935,
+          "y": 0.1377299425519011,
+          "z": -2.6881983072821543
+        },
+        "end_tangent": {
+          "x": -0.5257311121191335,
+          "y": -2.0580483876658917e-17,
+          "z": -0.8506508083520401
+        },
+        "end_width": {
+          "x": -0.79935028747398,
+          "y": 0.3420201433256687,
+          "z": 0.49402564657591885
+        },
+        "lines": 2,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -1.1466646018645474,
+          "y": 3.2079501266725927,
+          "z": 3.9829480589143538
+        },
+        "start_tangent": {
+          "x": -0.85065080835204,
+          "y": -0.5257311121191336,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.4940256465759189,
+          "y": 0.79935028747398,
+          "z": -0.3420201433256687
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 2,
+          "seed": 3294378590,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll_degrees": 56,
+          "zone": 16
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 16,
+          "zone": 12
+        },
+        "side_mm": 4.5,
+        "zone_mm": 4.5,
+        "extent_mm": 13.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-1534a827e218460a875d291fa88d034c",
+          "plan_sha256": "a1e3b0aa1f887000fe87bff98a05496d304de68b6413ea5be11ffcbc35cc20eb",
+          "source_digest": "9b4a8f4c594a5dc9f9d9287f0bfc34e2cc521f44923377317aa86b5641e89cab",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range5fe-case-158",
+      "signature": "f99f2a6f0fea1e3ac7277fd521c016ffd035d7b31176c6422a19394b4cfb5ce1",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -18.658967082083294,
+          "y": -16.929677548840125,
+          "z": -14.131628307663231
+        },
+        "end_tangent": {
+          "x": 0.8506508083520398,
+          "y": 0.5257311121191339,
+          "z": -3.3376326726313074e-16
+        },
+        "end_width": {
+          "x": -0.5228511020787914,
+          "y": 0.8459908542188245,
+          "z": 0.1045284632676528
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 9.334056122888288,
+          "y": -15.514717042430352,
+          "z": 13.153914644103462
+        },
+        "start_tangent": {
+          "x": -0.8506508083520399,
+          "y": -0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.5160719508403135,
+          "y": 0.8350219571000913,
+          "z": 0.1908089953765445
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 2337151038,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll_degrees": 25,
+          "zone": 19
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 30,
+          "zone": 0
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-5f58eca5199c4094a81e5ffdac299ae7",
+          "plan_sha256": "e423e6deee11dee11e52982683b325659d3b13e0a658b1d43fe1eebc97d0818d",
+          "source_digest": "9b4a8f4c594a5dc9f9d9287f0bfc34e2cc521f44923377317aa86b5641e89cab",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range5fe-case-160",
+      "signature": "d414f4d457a2d1ec398310a5aeda1e318b25df968ab8bf6dd6adc387b73dad47",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -2.1043110061994446,
+          "y": -14.369726170852278,
+          "z": -4.185467744173868
+        },
+        "end_tangent": {
+          "x": 0.5257311121191336,
+          "y": 3.215274441266617e-16,
+          "z": 0.8506508083520399
+        },
+        "end_width": {
+          "x": 0.729150057235188,
+          "y": -0.5150380749100538,
+          "z": -0.45063951827027715
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 18.59957311319193,
+          "y": 16.87980784573702,
+          "z": -14.097169190323422
+        },
+        "start_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191337,
+          "z": -3.356116881656394e-16
+        },
+        "start_width": {
+          "x": 0.3781793132235945,
+          "y": -0.6119069826378689,
+          "z": -0.6946583704589974
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 1332822977,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 80,
+          "zone": 23
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 67,
+          "zone": 10
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-e98f8e9383614fe488ec3bec5600707f",
+          "plan_sha256": "929205b126d691b14cd453ec4bc3a296de18b301bf094fa0bf357c3834bd4194",
+          "source_digest": "9b4a8f4c594a5dc9f9d9287f0bfc34e2cc521f44923377317aa86b5641e89cab",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range5fe-case-161",
+      "signature": "7eda4b0e40c53d8d528b058721cbf03dff4ab0b075fb31efb20712b2d29b78df",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -11.132649534775979,
+          "y": -9.430692229468928,
+          "z": -12.184516996856917
+        },
+        "end_tangent": {
+          "x": 0.5257311121191337,
+          "y": 0.0,
+          "z": 0.8506508083520399
+        },
+        "end_width": {
+          "x": 0.8043061406454282,
+          "y": -0.3255681544571571,
+          "z": -0.49708853227912786
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -1.434879437577529,
+          "y": -9.91346351351466,
+          "z": 6.810302163232693
+        },
+        "start_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": -0.85065080835204
+        },
+        "start_width": {
+          "x": 0.7771081820100129,
+          "y": 0.40673664307580015,
+          "z": -0.48027926941782745
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 3871626163,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll_degrees": 12,
+          "zone": 11
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 55,
+          "zone": 0
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-f3ea51b83854451283550d39e876b173",
+          "plan_sha256": "9150c45a3f42f0040354d70feb88c9de558e6fed84dbad2b823a161b4d7f925a",
+          "source_digest": "9b4a8f4c594a5dc9f9d9287f0bfc34e2cc521f44923377317aa86b5641e89cab",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-f3ea51b83854451283550d39e876b173",
+          "plan_sha256": "9150c45a3f42f0040354d70feb88c9de558e6fed84dbad2b823a161b4d7f925a",
+          "source_digest": "9b4a8f4c594a5dc9f9d9287f0bfc34e2cc521f44923377317aa86b5641e89cab",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-a2022ec37f074d5da07d6bc6a099bf77",
+          "plan_sha256": "baa27f91430d467953aff25949bef7475da9410a49999e3364993cb5b65779ea",
+          "source_digest": "07ee4bd2278aa5a691307a45f2a6aa81f3e9072b1d82af218af873bcd45534c9",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangec59-case-60",
+      "signature": "54313cf5078b4bae2dcde75a37063a23955570127415c3fffa859dab35bc86d1",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -13.744540695589887,
+          "y": 11.583108752805447,
+          "z": 8.085838405010502
+        },
+        "end_tangent": {
+          "x": 0.5257311121191331,
+          "y": 0.0,
+          "z": 0.8506508083520402
+        },
+        "end_width": {
+          "x": 0.5237129316569812,
+          "y": -0.7880107536067218,
+          "z": -0.3236723921118648
+        },
+        "lines": 6,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -4.663837665163418,
+          "y": -14.039770180142387,
+          "z": 11.787107309390667
+        },
+        "start_tangent": {
+          "x": -0.8506508083520397,
+          "y": -0.5257311121191339,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.514242625950446,
+          "y": 0.8320620472518201,
+          "z": -0.2079116908177595
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 6,
+          "seed": 2201162917,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll_degrees": 48,
+          "zone": 11
+        },
+        "b": {
+          "face": 1,
+          "roll_degrees": 88,
+          "zone": 8
+        },
+        "side_mm": 13.5,
+        "zone_mm": 13.5,
+        "extent_mm": 40.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-179a7ab0b75045ef8842b84f2ac7e3ab",
+          "plan_sha256": "4f09482eb93a63b7547927a78d24b7c11b3044f633c95a3e5420982b67f70a5d",
+          "source_digest": "0f453fd304da3ef9825a0c10e93edd75fb36440f9d44e0cf62f9b3ad3e8c6e0c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangec59-case-61",
+      "signature": "5b1721e5f1caa29bd58254ce5661d1842470fa5c67ab4fcf180f72bba416a7d9",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -6.336042477089239,
+          "y": 7.821432043448709,
+          "z": 2.900732202811317
+        },
+        "end_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "end_width": {
+          "x": -0.8043061406454284,
+          "y": 0.32556815445715653,
+          "z": 0.49708853227912786
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 10.399613406546603,
+          "y": 2.598484067717758,
+          "z": -0.5624545043167928
+        },
+        "start_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.5244504575531646,
+          "y": -0.8485786657364545,
+          "z": -0.0697564737441253
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 1594908176,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 40,
+          "zone": 21
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 17,
+          "zone": 7
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-d3a452addbb14e42b7d7f8a05589fda4",
+          "plan_sha256": "519d83df1f897bfceced628bdd806985b78e918e9e8e9252026e7a534b57ef9b",
+          "source_digest": "0f453fd304da3ef9825a0c10e93edd75fb36440f9d44e0cf62f9b3ad3e8c6e0c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangec59-case-62",
+      "signature": "6430f952b3f78995ed83f876c81974c83ae4c0707fd6b7981bab8c55f17c715e",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 12.44600179634159,
+          "y": 0.17605047653421746,
+          "z": 6.9276954244392
+        },
+        "end_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": 0.8506508083520401
+        },
+        "end_width": {
+          "x": 0.8443101862203972,
+          "y": 0.12186934340514732,
+          "z": 0.5218123921319583
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 3.376415737248648,
+          "y": 11.617908958759646,
+          "z": -9.765998244761045
+        },
+        "start_tangent": {
+          "x": 0.8506508083520401,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.490812275875029,
+          "y": -0.794150944461487,
+          "z": -0.35836794954530005
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 238092954,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 57,
+          "zone": 14
+        },
+        "b": {
+          "face": 9,
+          "roll_degrees": 65,
+          "zone": 22
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-111a84e871b142c0924d7d7a66114c83",
+          "plan_sha256": "b61741f9f387267502f2a3ee19d9ce774aa8255a09bcf609e4313c4ac34fbde8",
+          "source_digest": "0f453fd304da3ef9825a0c10e93edd75fb36440f9d44e0cf62f9b3ad3e8c6e0c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "rangec59-case-63",
+      "signature": "99ac29bc2d047b46112224372baea3ec745a1a7c8312ff73515cbd763e2dd4df",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 10.898723053094283,
+          "y": 12.797446106188564,
+          "z": -15.869644541318085
+        },
+        "end_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.46842985086695443,
+          "y": 0.7579354200477765,
+          "z": 0.45399049973954686
+        },
+        "lines": 8,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 1.2218011119725563,
+          "y": -10.964888430110628,
+          "z": -2.6201526550428547
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": -0.5257311121191336
+        },
+        "start_width": {
+          "x": 0.5877852522924731,
+          "y": -0.4253254041760201,
+          "z": -0.6881909602355869
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 8,
+          "seed": 3594523284,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 6,
+          "roll_degrees": 36,
+          "zone": 10
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 9,
+          "zone": 23
+        },
+        "side_mm": 18.0,
+        "zone_mm": 18.0,
+        "extent_mm": 54.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-fe1054d4cd924d2a83d3964668ec86e6",
+          "plan_sha256": "8f4c3ec9863d9d649dbdff06661142b0ac5ba1f13829d7c07e3fc83e00067be5",
+          "source_digest": "0f453fd304da3ef9825a0c10e93edd75fb36440f9d44e0cf62f9b3ad3e8c6e0c",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        },
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-fe1054d4cd924d2a83d3964668ec86e6",
+          "plan_sha256": "8f4c3ec9863d9d649dbdff06661142b0ac5ba1f13829d7c07e3fc83e00067be5",
+          "source_digest": "0f453fd304da3ef9825a0c10e93edd75fb36440f9d44e0cf62f9b3ad3e8c6e0c",
+          "disposition": "boundary",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-18a674a18788",
+      "signature": "18a674a18788ac9d918fcf1d68ea786e3fe099eef23d36879c7899838eee2993",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 9.637662702188686,
+          "y": -0.17082225627188324,
+          "z": 15.75383045346969
+        },
+        "end_tangent": {
+          "x": 0.5257311121191335,
+          "y": -1.249222520478478e-17,
+          "z": -0.85065080835204
+        },
+        "end_width": {
+          "x": -0.8090169943749473,
+          "y": -0.30901699437494756,
+          "z": -0.4999999999999998
+        },
+        "lines": 6,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -2.539199806871347,
+          "y": 12.40405489652603,
+          "z": -3.2092106354100474
+        },
+        "start_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "start_width": {
+          "x": 0.5,
+          "y": -0.8090169943749473,
+          "z": -0.3090169943749474
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 6,
+          "seed": 1483650491,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll": 1,
+          "zone": 15
+        },
+        "b": {
+          "face": 3,
+          "roll": 1,
+          "zone": 22
+        },
+        "side_mm": 13.5,
+        "zone_mm": 13.5,
+        "extent_mm": 40.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-062153cb633540dfae447701262f655b",
+          "plan_sha256": "eeea0c7e742b314f54f141743dfa917e728e6b74453502144c6150c77ec6aadc",
+          "source_digest": "b626e25954876844e0e7006277a6e566748afd37fe5ea3e79e3873c674945776",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-208c6aa74e2e",
+      "signature": "208c6aa74e2ea8569230fe8f21907d47eb2f88665ee925fa132336f90b670d4f",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 16.77077957322757,
+          "y": 21.579710848762993,
+          "z": -19.74286255107085
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520398,
+          "z": 0.5257311121191339
+        },
+        "end_width": {
+          "x": 0.3746065934159125,
+          "y": -0.4874493990003024,
+          "z": -0.7887096953781976
+        },
+        "lines": 9,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -17.02139514446383,
+          "y": -3.846804001370965,
+          "z": 5.676689355365961
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": -0.85065080835204,
+          "z": 0.5257311121191336
+        },
+        "start_width": {
+          "x": 0.6946583704589973,
+          "y": 0.37817931322359455,
+          "z": 0.6119069826378688
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 9,
+          "seed": 2520867837,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 4,
+          "roll_degrees": 28,
+          "zone": 4
+        },
+        "b": {
+          "face": 6,
+          "roll_degrees": 50,
+          "zone": 23
+        },
+        "side_mm": 20.25,
+        "zone_mm": 20.25,
+        "extent_mm": 60.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-ac9732fbd8974efa885318d879aae458",
+          "plan_sha256": "2cdc195ddfbfcbc0a33d2b49ba3d1daf4956d3d95ccff121eeb6c6835d0670a1",
+          "source_digest": "dae2adcb5e5700cf4925adf490bb336f9141bee236a1660d4dc22ee66b26ab9f",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-28058398a1cd",
+      "signature": "28058398a1cd0f26fa7d04500537f735d90a904196bfdf2920cff372f8f5e435",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -5.333371208347966,
+          "y": -4.838929643651589,
+          "z": 0.1333757980882472
+        },
+        "end_tangent": {
+          "x": 0.8506508083520399,
+          "y": 0.5257311121191336,
+          "z": -1.8239431798856803e-17
+        },
+        "end_width": {
+          "x": -0.42532540417602005,
+          "y": 0.6881909602355868,
+          "z": 0.5877852522924731
+        },
+        "lines": 2,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -4.494995425059644,
+          "y": -3.801253686422205,
+          "z": -4.923751398952026
+        },
+        "start_tangent": {
+          "x": -0.5257311121191339,
+          "y": 0.0,
+          "z": -0.8506508083520397
+        },
+        "start_width": {
+          "x": 0.688190960235587,
+          "y": 0.5877852522924728,
+          "z": -0.42532540417602005
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 2,
+          "seed": 2633163145,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll": 0,
+          "zone": 0
+        },
+        "b": {
+          "face": 0,
+          "roll": 0,
+          "zone": 1
+        },
+        "side_mm": 4.5,
+        "zone_mm": 4.5,
+        "extent_mm": 13.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym596/jobs/selected-3535473fc62e42e1a6aed4f7825db61f",
+          "plan_sha256": "7dd7a1272f1f7fa5fb4d2199e086cba2a7c9a6b413616e2d35750d064c3cf808",
+          "source_digest": "e222276233c5ced19964c8896f68a0fe1dc9383f0050a205e0de65671feffd3c",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-2d260813f967",
+      "signature": "2d260813f967b0f94d060f794fe8c5d0df11901380829420b91461df01a42aa9",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 2.5003323606084047,
+          "y": -0.6956397495942375,
+          "z": -16.249783137870317
+        },
+        "end_tangent": {
+          "x": -0.5257311121191337,
+          "y": 0.0,
+          "z": 0.8506508083520398
+        },
+        "end_width": {
+          "x": 0.8090169943749473,
+          "y": -0.30901699437494723,
+          "z": 0.5000000000000001
+        },
+        "lines": 6,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -9.597411755468178,
+          "y": 11.901016255624935,
+          "z": 15.62832663351578
+        },
+        "start_tangent": {
+          "x": 0.5257311121191336,
+          "y": 0.0,
+          "z": 0.8506508083520399
+        },
+        "start_width": {
+          "x": -0.4999999999999998,
+          "y": -0.8090169943749475,
+          "z": 0.3090169943749473
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 6,
+          "seed": 3889213147,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 10,
+          "roll": 1,
+          "zone": 8
+        },
+        "b": {
+          "face": 9,
+          "roll": 1,
+          "zone": 12
+        },
+        "side_mm": 13.5,
+        "zone_mm": 13.5,
+        "extent_mm": 40.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-c9e987718be24034abdab6fc7d47510d",
+          "plan_sha256": "6b0170a2fe138795551e842e7bde34923d5d8f14b1dc350ac32087534976b110",
+          "source_digest": "c7e60676ae8ad6371d69a15df132ae0b967870af10dcb75651073f45e7918363",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-32e26c5c88b5",
+      "signature": "32e26c5c88b58be5933d0f55eeca59d36015bb3a1479deff5944dccc5a1ae545",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 9.706694748955634,
+          "y": 17.46587821956112,
+          "z": -14.502133858736196
+        },
+        "end_tangent": {
+          "x": 0.8506508083520398,
+          "y": -0.5257311121191338,
+          "z": 3.15103444494918e-16
+        },
+        "end_width": {
+          "x": 0.46842985086695454,
+          "y": 0.7579354200477764,
+          "z": 0.4539904997395472
+        },
+        "lines": 7,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 3.1540976357651638,
+          "y": 16.643754441606184,
+          "z": -13.93406029964907
+        },
+        "start_tangent": {
+          "x": 0.8506508083520397,
+          "y": 0.525731112119134,
+          "z": -3.4464629872351983e-16
+        },
+        "start_width": {
+          "x": 0.4506395182702772,
+          "y": -0.7291500572351881,
+          "z": -0.5150380749100542
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 7,
+          "seed": 3079315550,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll_degrees": 67,
+          "zone": 14
+        },
+        "b": {
+          "face": 5,
+          "roll_degrees": 45,
+          "zone": 23
+        },
+        "side_mm": 15.75,
+        "zone_mm": 15.75,
+        "extent_mm": 47.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym610/jobs/selected-d29fcefc37744c0382901fb1933c69c1",
+          "plan_sha256": "b8c249d4f719b26710516af827d7133a64cdf793c6ddc0b92b746f2c3ac1296d",
+          "source_digest": "d150536b91d1eb769a8420d0de64349a133ce791029af16b6df97cdb6f93cacf",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-5c2c039a9c4e",
+      "signature": "5c2c039a9c4ed2eb5bcb5b48958f21a0edebaf997db88b6353c54ac9efcbdc74",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -9.481652010382353,
+          "y": 6.69095239911356,
+          "z": -11.206399222537588
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520397,
+          "z": 0.5257311121191339
+        },
+        "end_width": {
+          "x": -0.8090169943749476,
+          "y": -0.30901699437494756,
+          "z": 0.4999999999999997
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 13.647419766527491,
+          "y": -8.197909658930273,
+          "z": -0.2485755570515308
+        },
+        "start_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191335,
+          "z": -7.010221417217671e-18
+        },
+        "start_width": {
+          "x": 0.3090169943749474,
+          "y": -0.5000000000000001,
+          "z": -0.8090169943749473
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 1041927501,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 11,
+          "roll": 1,
+          "zone": 18
+        },
+        "b": {
+          "face": 2,
+          "roll": 1,
+          "zone": 6
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-cbb68120afe044d9b9a435f065fced80",
+          "plan_sha256": "5e3c7f11b507b163d5a6422b19f1be0192172e61c0681c17d4e0b508be30c6b8",
+          "source_digest": "5e876e6df75d3f470da9af015456e3a131c9aab41dbbcfb30acd855fb101e275",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-967d15e32a3e",
+      "signature": "967d15e32a3e71deb99bc96421d1eca87a52d4d6777c33529799bb7e2c10f25b",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -0.1346501837199392,
+          "y": -2.6743233506206976,
+          "z": -4.471785908290451
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": -0.8506508083520399,
+          "z": 0.5257311121191337
+        },
+        "end_width": {
+          "x": -0.30901699437494723,
+          "y": -0.5000000000000001,
+          "z": -0.8090169943749475
+        },
+        "lines": 2,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -3.261176390672793,
+          "y": -0.2690898383592826,
+          "z": -5.4028823547392095
+        },
+        "start_tangent": {
+          "x": 0.5257311121191334,
+          "y": 0.0,
+          "z": -0.8506508083520401
+        },
+        "start_width": {
+          "x": 0.8090169943749475,
+          "y": -0.3090169943749478,
+          "z": 0.4999999999999997
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 2,
+          "seed": 1689995010,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 9,
+          "roll": 1,
+          "zone": 3
+        },
+        "b": {
+          "face": 6,
+          "roll": 1,
+          "zone": 9
+        },
+        "side_mm": 4.5,
+        "zone_mm": 4.5,
+        "extent_mm": 13.5
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-13ef501c13974d4baced3e68bfead188",
+          "plan_sha256": "344c6f7155740e52835b8e9e1324ea9d444e88fb08e25e3ca68639ca896e4402",
+          "source_digest": "3d983bef7988d79f234ab7e21facf706e7a2f20fef7cd08cb80f830c475b12f4",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-a63da6403dab",
+      "signature": "a63da6403dab33167ce41bc0cfd8827fa8d3ca774892f051fcdd62b022bb8250",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -12.098531341868917,
+          "y": -11.060452320725158,
+          "z": 0.7634029225448948
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191335,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.42532540417602016,
+          "y": 0.6881909602355866,
+          "z": 0.5877852522924732
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -12.607337003768865,
+          "y": -11.487667200783767,
+          "z": -9.676003403376981
+        },
+        "start_tangent": {
+          "x": -0.8506508083520401,
+          "y": -0.5257311121191334,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.42532540417602,
+          "y": 0.6881909602355867,
+          "z": 0.5877852522924732
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 2633163138,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll": 0,
+          "zone": 0
+        },
+        "b": {
+          "face": 0,
+          "roll": 0,
+          "zone": 1
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym596/jobs/selected-ece7dbe7f3e04a478031f882e49ea5e0",
+          "plan_sha256": "b224da6e18d1938eead13802fcfc88a7ea72695700ab405b748a3c9305d6b5a4",
+          "source_digest": "fbbf83acf92faa965cd7eb12d2ea8252cf148c18c663748b5edc130938bc19b3",
+          "disposition": "native_or_fidelity",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-bab2ad4bcc21",
+      "signature": "bab2ad4bcc21b63b1eb4fdca9f7eb1b2a60570ac89ae7482d00eb16392fb11c9",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -11.973349265962492,
+          "y": -10.95534412412186,
+          "z": -0.7889171592324571
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191334,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.30901699437494734,
+          "y": 0.5000000000000001,
+          "z": -0.8090169943749472
+        },
+        "lines": 5,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -12.249903039802536,
+          "y": -11.187550438178294,
+          "z": -9.46862782071339
+        },
+        "start_tangent": {
+          "x": -0.8506508083520399,
+          "y": -0.5257311121191338,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.3090169943749475,
+          "y": 0.4999999999999999,
+          "z": -0.8090169943749475
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 5,
+          "seed": 2901896185,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll": 1,
+          "zone": 0
+        },
+        "b": {
+          "face": 0,
+          "roll": 1,
+          "zone": 1
+        },
+        "side_mm": 11.25,
+        "zone_mm": 11.25,
+        "extent_mm": 33.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-6253776ee65d497a8f0e5c8d540453ec",
+          "plan_sha256": "bd222ecad7c46b38c1a84d42dc43a463d41295a4502a61592cf602c9adfefc72",
+          "source_digest": "f9c5cbfaba2afed209e5164a9dff52df528d85184594b83e2653a156d2df7ac2",
+          "disposition": "other_problem",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-e03a89e210af",
+      "signature": "e03a89e210af125cb873cc0509733441041cf396dd5c98c5978ccd0913a09401",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": 0.3272692997673772,
+          "y": -2.320501961831126,
+          "z": -7.006652453955669
+        },
+        "end_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520401,
+          "z": 0.5257311121191333
+        },
+        "end_width": {
+          "x": -0.8090169943749472,
+          "y": -0.3090169943749473,
+          "z": 0.5000000000000002
+        },
+        "lines": 3,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 5.862371921727231,
+          "y": -4.062492690632978,
+          "z": 1.0081337113995956
+        },
+        "start_tangent": {
+          "x": 0.0,
+          "y": 0.8506508083520399,
+          "z": 0.5257311121191335
+        },
+        "start_width": {
+          "x": -0.8090169943749472,
+          "y": 0.3090169943749473,
+          "z": -0.4999999999999999
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 3,
+          "seed": 1281098652,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 7,
+          "roll": 1,
+          "zone": 18
+        },
+        "b": {
+          "face": 2,
+          "roll": 1,
+          "zone": 12
+        },
+        "side_mm": 6.75,
+        "zone_mm": 6.75,
+        "extent_mm": 20.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-8188a10cfebc4df49aa200775a3361f5",
+          "plan_sha256": "af36f1d410e2f0f3c09159224dd4a4cd31075724e572301f37bd0531404a4c6f",
+          "source_digest": "0cab41d6d8900108d504c19b25f0c47df23871ba57a4f6eb2a6af3e4df839958",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "historical-fd38c9581cf6",
+      "signature": "fd38c9581cf6bac9766e0f367e93beffd23bfcf7a8df7157f4455570ed3fb287",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -9.651876748983392,
+          "y": -8.825734896846475,
+          "z": -0.04496441245862992
+        },
+        "end_tangent": {
+          "x": 0.85065080835204,
+          "y": 0.5257311121191334,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.30901699437494734,
+          "y": 0.5000000000000001,
+          "z": -0.8090169943749472
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -9.96376475264115,
+          "y": -9.087609333496454,
+          "z": -7.669960085892924
+        },
+        "start_tangent": {
+          "x": -0.8506508083520399,
+          "y": -0.5257311121191336,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": -0.30901699437494734,
+          "y": 0.4999999999999999,
+          "z": -0.8090169943749475
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 2901896184,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 0,
+          "roll": 1,
+          "zone": 0
+        },
+        "b": {
+          "face": 0,
+          "roll": 1,
+          "zone": 1
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym433/jobs/selected-bd32bf09f8874344983c08b3cb2296f4",
+          "plan_sha256": "a39b96d02231fc75b946e91f643aa4f2e7ee19e89ad19a5a46e983b3d7e79712",
+          "source_digest": "e182b9251fb4bf9d01a04d8743a56ada89e48eb6c72a9de004a66e717bd441b7",
+          "disposition": "native_or_fidelity",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ]
+    },
+    {
+      "id": "range-fe65-case-162",
+      "signature": "0bae479c8924290e213a45f41b163d071e0635fc06db9d8ec710b2c0e6ebc353",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -4.580267598302436,
+          "y": -14.33089289843368,
+          "z": 17.733531729787433
+        },
+        "end_tangent": {
+          "x": 0.8506508083520399,
+          "y": -0.5257311121191336,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": 0.510114651259522,
+          "y": 0.8253828438972062,
+          "z": 0.24192189559966765
+        },
+        "lines": 9,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": -6.927169340248558,
+          "y": -14.57371687598391,
+          "z": -18.17280443181752
+        },
+        "start_tangent": {
+          "x": -0.8506508083520398,
+          "y": 0.5257311121191337,
+          "z": 0.0
+        },
+        "start_width": {
+          "x": 0.42532540417602016,
+          "y": 0.6881909602355865,
+          "z": 0.5877852522924734
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 9,
+          "seed": 3612322146,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 36,
+          "zone": 9
+        },
+        "b": {
+          "face": 5,
+          "roll_degrees": 58,
+          "zone": 11
+        },
+        "side_mm": 20.25,
+        "zone_mm": 20.25,
+        "extent_mm": 60.75
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-0f181a792f1148318fa17ba04c266383",
+          "plan_sha256": "1963b38d774015fb30ce5794f9e149616967bcb07048ef0214a17eb25b1067c1",
+          "source_digest": "07ee4bd2278aa5a691307a45f2a6aa81f3e9072b1d82af218af873bcd45534c9",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ],
+      "purpose": "Passed collateral: preserve different conductor count and fixed spatial endpoint/roll geometry before changing initial contact-plane evidence"
+    },
+    {
+      "id": "range-fe65-case-163",
+      "signature": "acafd442248e8f8e0d9d46d4719f0d7e819d2e76d15af66c246c1ade4a3ca6de",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -7.833146727156044,
+          "y": -7.1182496568801295,
+          "z": -5.961521898715979
+        },
+        "end_tangent": {
+          "x": 0.8506508083520401,
+          "y": 0.5257311121191334,
+          "z": 0.0
+        },
+        "end_width": {
+          "x": -0.5078172588795452,
+          "y": 0.8216655849409077,
+          "z": 0.2588190451025208
+        },
+        "lines": 3,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 4.752331301213998,
+          "y": -5.866615730780682,
+          "z": -7.6695658109543645
+        },
+        "start_tangent": {
+          "x": -0.5257311121191336,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "start_width": {
+          "x": 0.7941509444614869,
+          "y": -0.3583679495453,
+          "z": -0.4908122758750289
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 3,
+          "seed": 283926064,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 1,
+          "roll_degrees": 57,
+          "zone": 17
+        },
+        "b": {
+          "face": 0,
+          "roll_degrees": 21,
+          "zone": 0
+        },
+        "side_mm": 6.75,
+        "zone_mm": 6.75,
+        "extent_mm": 20.25
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-03614ffc5ba24f678362cc9fb32bc3bd",
+          "plan_sha256": "54db3dbacde02fb59ebdd3062805ac519ddf7537c94a8bb74cecf0f484a33bcb",
+          "source_digest": "07ee4bd2278aa5a691307a45f2a6aa81f3e9072b1d82af218af873bcd45534c9",
+          "disposition": "retained_control",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ],
+      "purpose": "Passed collateral: preserve different conductor count and fixed spatial endpoint/roll geometry before changing initial contact-plane evidence"
+    },
+    {
+      "id": "range-fe65-case-164",
+      "signature": "0d76d5ca8dce4cd0d3ef677334f284f82af5a915e6f83260d8e236adbe5806f1",
+      "targets": {
+        "diameter_mm": 0.75,
+        "end": {
+          "x": -6.325133221013495,
+          "y": -7.801697013811699,
+          "z": 1.6982247066308584
+        },
+        "end_tangent": {
+          "x": -0.5257311121191337,
+          "y": 0.0,
+          "z": -0.8506508083520399
+        },
+        "end_width": {
+          "x": -0.8501326148634077,
+          "y": 0.0348994967025007,
+          "z": 0.52541085093041
+        },
+        "lines": 4,
+        "name": "Rubik gym preview",
+        "start": {
+          "x": 5.384510554407294,
+          "y": 9.131357389692614,
+          "z": -7.7001892492536
+        },
+        "start_tangent": {
+          "x": -0.8506508083520401,
+          "y": 0.5257311121191334,
+          "z": 3.2626706475308053e-16
+        },
+        "start_width": {
+          "x": 0.5250106159015347,
+          "y": 0.8494850209832001,
+          "z": -0.052335956242943904
+        }
+      },
+      "settings": {
+        "first_pass_optimization": true,
+        "material_uv": false,
+        "smoothing_percent": 1
+      },
+      "native_point_tolerance_mm": 9.999999999999999e-06,
+      "gym": {
+        "config": {
+          "diameter_mm": 0.75,
+          "lines": 4,
+          "seed": 321914440,
+          "void_percent": 300.0,
+          "zone_percent": 300.0
+        },
+        "a": {
+          "face": 5,
+          "roll_degrees": 75,
+          "zone": 23
+        },
+        "b": {
+          "face": 10,
+          "roll_degrees": 34,
+          "zone": 1
+        },
+        "side_mm": 9.0,
+        "zone_mm": 9.0,
+        "extent_mm": 27.0
+      },
+      "history": [
+        {
+          "job": "artifacts/verification/solver_v2_promotion/gym697/jobs/selected-a64b571a8cb74a359b3f2cb4eb0ad503",
+          "plan_sha256": "b90a39002abe161e3becaac0b6f274709f2d0baad58e830e89226310b70d5a53",
+          "source_digest": "07ee4bd2278aa5a691307a45f2a6aa81f3e9072b1d82af218af873bcd45534c9",
+          "disposition": "numerical_unresolved",
+          "settings": {
+            "first_pass_optimization": true,
+            "material_uv": false,
+            "smoothing_percent": 1
+          },
+          "version": "guide-material-v2",
+          "native_point_tolerance_mm": 9.999999999999999e-06
+        }
+      ],
+      "purpose": "Current N4intersection trigger"
+    }
+  ],
+  "revision": 2,
+  "parent": {
+    "file": "gym-v1.json",
+    "sha256": "d81bc0bd6cbb0b41a3f2d593612438470be2650f5b776e0fca729f2d2f069421"
+  },
+  "enrollment": {
+    "source_ledger": "artifacts/verification/solver_v2_promotion/gym697/workspace/range-tests/range-fe65c9e2dd4e445da05fb87bd1fd27bc/cases.jsonl",
+    "cases": [
+      {
+        "range_case": 161,
+        "corpus_id": "range5fe-case-161",
+        "lines": 5,
+        "disposition": "retained_control"
+      },
+      {
+        "range_case": 162,
+        "corpus_id": "range-fe65-case-162",
+        "lines": 9,
+        "disposition": "retained_control"
+      },
+      {
+        "range_case": 163,
+        "corpus_id": "range-fe65-case-163",
+        "lines": 3,
+        "disposition": "retained_control"
+      },
+      {
+        "range_case": 164,
+        "corpus_id": "range-fe65-case-164",
+        "lines": 4,
+        "disposition": "numerical_unresolved"
+      }
+    ],
+    "aliases_not_independent": [
+      {
+        "case": 161,
+        "retained_id": "range5fe-case-161",
+        "signature": "7eda4b0e40c53d8d528b058721cbf03dff4ab0b075fb31efb20712b2d29b78df"
+      }
+    ],
+    "scope": "163passes followed by one numerical rejection; rejected native inspection is not accepted construction. Exact target payloads retained without regeneration or outcome filtering."
+  }
+}

@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_feature_insertion.separation_step import Init
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 
 from .recovery_evidence import adjacent_straight_contact
+from .recovery_prediction import PredictionPolicy, first_gap, verified_sheets
 
 
 class _Exhausted(RuntimeError):
@@ -46,6 +47,8 @@ def select_recovery(
     candidates: tuple[tuple[Branch, ContactResult], ...],
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    prediction_policy: PredictionPolicy = PredictionPolicy.LINEAR,
 ) -> Selection:
     """
     Rank failed branches by the initial number of bounded trust steps they require.
@@ -60,10 +63,13 @@ def select_recovery(
     Unsupported predictions are logged; caller errors propagate.
     """
     started, cpu = perf_counter(), process_time()
+    if not isinstance(prediction_policy, PredictionPolicy):
+        raise ValueError("Supply an explicit recovery prediction policy")
     choices: list[tuple[int, float, tuple[Any, ...], Branch, ContactResult]] = []
     rows: list[dict[str, Any]] = []
     initial_steps: list[InitialStep] = []
     stopped = None
+    verified: tuple[Branch, ContactResult] | None = None
 
     def bounded() -> None:
         """
@@ -107,6 +113,38 @@ def select_recovery(
                 choices.append((steps, overflow_priority, branch.priority, branch, measurement))
                 initial_steps.append(InitialStep(branch.route, measurement, planned, plane))
             rows.append(row)
+        if choices and prediction_policy is PredictionPolicy.VERIFIED_SHEETS:
+            original = min(choices, key=lambda item: item[:3])
+            cached = next(item for item in initial_steps if item.source is original[3].route)
+            if cached.step.fraction == 1.0:
+                actual_gap = first_gap(cached, bounded)
+                record(
+                    {
+                        "stage": "recovery_prediction_check",
+                        "roots": original[3].roots,
+                        "actual_gap_mm": actual_gap,
+                        "status": "verified"
+                        if actual_gap is not None and actual_gap > 0
+                        else "inconsistent",
+                    }
+                )
+                if actual_gap is None or actual_gap <= 0:
+                    prepared = verified_sheets(candidates, bounded, record)
+                    if prepared is not None:
+                        branch, measurement, initial, gap = prepared
+                        choices = [item for item in choices if item[3].roots != branch.roots]
+                        choices.append((1, 0.0, branch.priority, branch, measurement))
+                        verified = branch, measurement
+                        initial_steps.append(initial)
+                        record(
+                            {
+                                "stage": "recovery_prediction_replaced",
+                                "roots": branch.roots,
+                                "original_roots": original[3].roots,
+                                "actual_gap_mm": gap,
+                                "status": "verified_first_gap",
+                            }
+                        )
         bounded()
     except _Exhausted:
         stopped = "selection_budget"
@@ -117,6 +155,12 @@ def select_recovery(
     alternatives: tuple[tuple[Branch, ContactResult], ...] = ()
     if choices and stopped is None and remaining_cpu > 0 and remaining_wall > 0:
         ordered = sorted(choices, key=lambda item: item[:3])
+        if verified is not None:
+            ordered = [
+                item for item in ordered if item[3] is verified[0] and item[4] is verified[1]
+            ] + [
+                item for item in ordered if item[3] is not verified[0] or item[4] is not verified[1]
+            ]
         _, _, _, branch, measurement = ordered[0]
         choice = branch, measurement
         alternatives = tuple((branch, measurement) for _, _, _, branch, measurement in ordered[1:])

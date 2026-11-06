@@ -15,13 +15,14 @@ import pytest
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.gym import generate
-from devtools.ribbon_analysis.inspection.archive import SCHEMA, write_document
+from devtools.ribbon_analysis.inspection.archive import SCHEMA, canonical, write_document
 from devtools.ribbon_analysis.inspection.session import Session
 from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
 from experiments.experiment_ribbon_locked_solver import controller, worker
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 from experiments.experiment_ribbon_locked_solver.rejected_display import retain
+from experiments.experiment_ribbon_locked_solver.rejected_selection import select
 from experiments.experiment_ribbon_locked_solver.solver import Result
 from experiments.experiment_ribbon_locked_solver.versions import V2
 
@@ -144,9 +145,78 @@ def test_wrong_targets_and_cancelled_display_preserve_failure(tmp_path: Path) ->
     assert "snapshot" not in method
 
 
+def test_actual_rejected_result_overrides_shorter_early_branch_in_both_views(
+    tmp_path: Path,
+) -> None:
+    """
+    Keep raw history while selecting the actual longer failed candidate, including a missed cap.
+    """
+    early, method = _route(), _method()
+    final = replace(early, pieces=(replace(early.pieces[0], geometry=Straight(12)),))
+    trials = tmp_path / "trials.jsonl"
+    _ledger(
+        trials,
+        [
+            *_events(early),
+            {
+                "stage": "rejected_result",
+                "status": "not_accepted",
+                "reason": "Final candidate failed",
+                "route": snapshot(final),
+            },
+        ],
+    )
+    assert retain(method, trials, tmp_path, early.targets, lambda: None) == 5
+    payload = json.loads((tmp_path / "rejected-geometry.json").read_text())
+    selected, record = select(payload, asdict(early.targets))
+    assert snapshot(selected) == snapshot(final) and record["accepted"] is False
+    assert len(payload["branches"]) == 4
+    history = [
+        json.loads(line) for line in (tmp_path / "rejected-history.jsonl").read_text().splitlines()
+    ]
+    assert canonical(method["snapshot"]) == canonical(history[-1]["snapshot"])
+    assert "final solver candidate" in method["detail"]
+    assert not (tmp_path / "route.json").exists()
+
+
+@pytest.mark.parametrize(
+    "selection", (None, {}, {"kind": "final_solver_candidate", "accepted": True})
+)
+def test_malformed_explicit_selection_cannot_silently_fall_back(selection: Any) -> None:
+    """
+    Unknown or incomplete result provenance stops inspection rather than showing a different branch.
+    """
+    payload = {
+        "branches": [{"route": snapshot(_route()), "disposition": "penetration"}],
+        "selected_result": selection,
+    }
+    with pytest.raises(ValueError, match="provenance"):
+        select(payload, asdict(_route().targets))
+
+
+def test_explicit_result_cannot_cross_fixed_target_identity() -> None:
+    """
+    A valid early branch cannot hide an explicit final result from another layout.
+    """
+    route = _route()
+    wrong = snapshot(replace(route, targets=replace(route.targets, name="another layout")))
+    payload = {
+        "branches": [{"route": snapshot(route), "disposition": "penetration"}],
+        "selected_result": {
+            "kind": "final_solver_candidate",
+            "accepted": False,
+            "route": wrong,
+            "disposition": "Rejected final candidate",
+        },
+    }
+    with pytest.raises(ValueError, match="fixed targets"):
+        select(payload, asdict(route.targets))
+
+
 @pytest.mark.parametrize("display_error", (False, True))
+@pytest.mark.parametrize("final_candidate", (False, True))
 def test_worker_failure_attaches_geometry_but_controller_skips_native(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, display_error: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, display_error: bool, final_candidate: bool
 ) -> None:
     """
     Exercise the real worker/archive/controller boundary without solving or building solids.
@@ -174,13 +244,21 @@ def test_worker_failure_attaches_geometry_but_controller_skips_native(
         """
         for event in _events(route):
             args[3](event)
-        return Result(None, None, {"status": "unresolved"}, None)
+        return Result(
+            None,
+            None,
+            {"status": "unresolved"},
+            None,
+            inspection_route=route if final_candidate else None,
+        )
 
     monkeypatch.setattr(worker, "solve_v2", rejected)
     manifest = worker.run(tmp_path)
     session = Session(manifest)
     assert (session.snapshot is None) == display_error
     assert session.methods[0]["status"] == "unresolved"
+    if not display_error:
+        assert session.methods[0]["history_count"] == (5 if final_candidate else 4)
     native = Mock()
     runner = controller.Controller(ROOT / ".venv/bin/python", tmp_path, "owned", native)
     runner._job = tmp_path

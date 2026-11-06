@@ -18,7 +18,6 @@ import adsk.fusion
 from devtools.ribbon_analysis.budget import NativeBudget
 from devtools.ribbon_analysis.end_profiles import retain_end_profiles
 from devtools.ribbon_analysis.inspection.archive import write_document
-from experiments.experiment_ribbon_contraction.runner import restore, snapshot
 from experiments.experiment_ribbon_fold_route.material_cylinder import FlatSurfaces
 from experiments.experiment_ribbon_fold_route.material_native import (
     circular_flat_surface,
@@ -30,13 +29,14 @@ from experiments.experiment_ribbon_fold_route.material_surfaces import material_
 
 from .lock import verify
 from .progress import append
+from .rejected_selection import describe, select
 
 
 def build(
     directory: Path, document_id: str, display_x_cm: float, flat_surfaces: FlatSurfaces
 ) -> tuple[Any, dict[str, Any]]:
     """
-    Build the shortest recorded closed branch once, returning an occurrence or scaffold fallback.
+    Build the shared selected rejected result once, returning an occurrence or scaffold fallback.
 
     Contact and numerical failure remain authoritative. No fidelity audit, healing,
     appearance, UV work, route search or native-ready route file is introduced.
@@ -74,19 +74,14 @@ def build(
         if ledger.stat().st_size > 32 * 1024 * 1024:
             raise ValueError("Rejected geometry exceeds32MiB")
         payload = json.loads(ledger.read_text())
-        branches = payload.get("branches") if isinstance(payload, dict) else None
-        if not isinstance(branches, list) or not 1 <= len(branches) <= 8:
-            raise ValueError("Rejected inspection needs one to eight recorded branches")
-        if any(
-            not isinstance(branch, dict) or not isinstance(branch.get("route"), dict)
-            for branch in branches
-        ):
-            raise ValueError("Rejected inspection lacks exact recorded routes")
-        routes = [(restore(branch["route"]), branch) for branch in branches]
-        if any(snapshot(route)["case"] != plan["targets"] for route, _ in routes):
-            raise ValueError("Rejected native targets differ from the frozen job")
-        route, branch = min(routes, key=lambda item: item[0].material_length_mm)
-        result.update(roots=branch["roots"], contact_disposition=branch["disposition"])
+        if not isinstance(payload, dict):
+            raise ValueError("Rejected inspection needs a structured ledger")
+        route, branch = select(payload, plan["targets"])
+        result.update(
+            roots=branch.get("roots"),
+            inspection_origin=branch.get("kind", "shortest_closed_branch"),
+            contact_disposition=branch["disposition"],
+        )
         write_document(
             directory / "rejected-native-plan.json",
             {
@@ -109,7 +104,9 @@ def build(
                 raise RuntimeError("Rejected inspection cancellation/source drift")
 
         append(
-            directory, "inspection", "Trying native inspection of rejected geometry; NOT ACCEPTED."
+            directory,
+            "inspection",
+            f"Trying native inspection of {describe(branch)} ({route.material_length_mm:.6f} mm); NOT ACCEPTED.",
         )
         started = perf_counter()
         patches = material_patches(

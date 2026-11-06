@@ -1,5 +1,137 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Coupled terminal correction 848–860 — 2026-11-06
+
+V2's opt-in hardware trial can substitute one witness-incident fold reversal for
+ordinary contraction under the same0.35CPU/2wall/four-update budget. All other fold
+signs and every radius stay fixed; other joint angles/banks/runways close the exact
+endpoint frame together. Strict shortening, full self-contact and both finite boxes
+are required. Failed action retains baseline smoothing, without renewed contraction.
+An incomplete32cell early probe cannot poison the final cache or spend512cells
+needed for final certification. 855retains that caught regression at17/57.
+
+Revised857completes57/57:35accepted/22unresolved; all34previous accepted final
+routes exact. One new repaired configuration, seven actions attempted/six declined;
+not a universal reversal fix or1000case streak. Current164tight route39.084683057→
+30.203884958mm, same4folds/radii. Native jobselected-3c2e7e40...builds and passes
+named fidelity/boundary,0warnings/0fullphysicalaudits; gen.584982s/audit1.074664s,
+7140points/396seams/max7.473313531e-10mm. Live correction.145313CPU; whole
+numerical1.463707CPU exceeds native generation, recorded timing goal missed.
+Current cleared body/proxies visible; prior bodies and stopped tester retained.
+227pins;46focused tests pass. Detailed method, scope and all failed variants:
+[terminal correction notes](../experiment_ribbon_terminal_hardware/COUPLED_REVERSAL.md).
+
+## Actual rejected-result inspection 839–846 — 2026-11-06
+
+User observed a reversed bend after enabling hardware. Latest selected-40f9...had
+the exact same39.47552988777585mm smoothed candidate as the previous native route;
+terminal rejection then displayed/built the shortest early penetrating branch,
+roots0,1at35.4043144013813mm. This was misleading inspection selection, not a newly
+computed bend reversal. Old failing records/body remain retained.
+
+Result.inspection_route now explicitly carries a rejected final candidate; worker
+records it without writing accepted route.json. Shared rejected_selection selects
+that explicit candidate for both diagnostics and native inspection, even when an
+early branch is shorter. Raw branch order/contact/history remain; legacy jobs
+without a final candidate keep their former fallback. Invalid explicit provenance
+or target mismatch fails rather than silently selecting another shape.
+
+Four archive/presentation replays (trigger+N5/N9/N3)pass, not new routing coverage.
+75focused tests pass;225source pins. One fresh current solve remains terminal-
+rejected with the exact prior39.475530mm candidate;1/1native inspection built in
+.810578s,0native fidelity/fullphysical audits. New selected-d47df16...shows that
+actual final body/witness, with old wrong inspection hidden and all3raw branches
+plus final candidate retained. Native callbacks restored; tester/history preserved.
+No routing/geometry/rule/search-budget change or automatic bend repair. See terminal
+trial NOTES for complete evidence and remaining collision.
+
+## Optional terminal hardware gate — 2026-11-06
+
+V2 now exposes `terminal_hardware` / **Terminal hardware clearance (trial)**.
+Current gym checked; old settings default off; v1 rejects explicit enablement.
+Temporary work proposals retain ordinary optimization/smoothing, followed by strict
+full-material terminal acceptance and a certified first-pass fallback where available.
+Early proposal rejection regressed a clear control and was reverted before activation.
+Retained policy preserves all32old proxy-clear routes exactly;34/57development
+inputs accepted,23stop. Current164is correctly rejected; prior native output is
+labelled inspection. One changed N7native/named-fidelity/boundary pass;0fullphysical
+audits. Tester/journal remain stopped/preserved,224source pins; no production change.
+See [terminal trial notes](../experiment_ribbon_terminal_hardware/NOTES.md) for
+dimensions, resource caps, retained failures, cached-runtime limits and full evidence.
+
+## Verified first-motion recovery794–813 — 2026-11-05
+
+Rangefe65...stops at164after163passes: N4seed321914440, A zone24/face6/roll75°,
+B zone2/face11/roll34° (UI one-based). Original selected-a64b571...has3closed
+penetrating branches and no accepted route. The intersecting visible solid was
+explicitly REJECTED native inspection, not a false contact acceptance. Preserve
+its input, all3witnesses, inspection body and original163/164journal.
+
+Legacy selection predicts1step for roots0,1and chooses its shorter35.404mmplan.
+Actual endpoint retraction clears only.509of the initial gap;3updates expose an
+attached-straight crossing, exhausting4updates.795–799bounded partial diagnostics
+retain failures:796other-branch initial-gap clearance and797original attached-sheet
+correction remain unresolved; neither is complete-case coverage.799existing1,0
+uses a confirmed straight sheet's moving material plane and separates whole contact
+in1update/344pairs. Blindly preparing every initial confirmed sheet regresses older
+repaired N4seed1607811975, so804proposal is rejected and its patch/JUnit retained.
+
+New PredictionPolicy.VERIFIED_SHEETS is used only by the unaccepted branch queue.
+Keep legacy linear prediction and its original evidence by default. If its chosen
+full predicted first motion opens the actual endpoint-retracted gap, keep it. A
+clipped motion also stays unchanged. Only a failed full-step prediction authorizes
+confirmed-sheet preparation of already-derived branches; a replacement must open
+its own actual gap in a full first correction. This predicts motion, not clearance.
+Recovery repeats the normal correction and strict whole-contact certificate.
+Raw predictions/witnesses stay in trials, with separate verification/replacement
+events. New recovery_prediction module keeps this preparation separate from queue
+scheduling. Explicit EvidencePolicy preserves historical depth-only behavior.
+No new roots/features/headings/radii or changed targets/material/contact rules.
+All preparation counts inside original.35CPU/2wall/4updates/shared2048pairs;
+there is no restarted allowance or speculative contact pass.
+
+800enrollment stops on an exact alias, before writing/solving;801launches0workers
+because v2didnotexist.802deduplicates current161/N5against range5fe-case-161and
+retains its new provenance. New v2corpus57exact inputs preserves v1unchanged,
+adding162/N9,163/N3passed collateral and164/N4trigger. All3preceding controls are
+explicit; alias not counted twice.803cold baseline57/57:55accepted, current164
+and retained legacy adjacent-cell N7 unresolved. No outcome-filtered regeneration.
+
+807new policy stops44/57: all44numerically accepted, but historical-18a674...N6
+contraction hits.35CPU checkpoint at.377967CPU, keeping67.715682instead39.735708mm.
+Exact raw geometry/recovery choice/certificate equal baseline. IDE inspections
+ran concurrently, so this timed result is confounded; preserve failure and13
+unattempted.808renewed failed control+13unattempted, with IDE idle/same caps,
+14/14evaluated/no regression. Control exactly matches original route at.213327
+contractionCPU. Final combined57inputs:56accepted/same legacy N7unresolved;
+54accepted routes exactly unchanged,103shortens52.785090→50.999106mm,164accepted
+39.475530mm. This is two candidate phases with a retained timing failure, not an
+uninterrupted57casepass. Timing under load remains a limitation. Keep IDE/lint/test
+work idle during timed geometry comparisons. No timer/work limit was increased.
+
+809–810predict/build/named-audit/boundary-check both changed configurations,2/2,
+0warnings/0fullphysical audits. Other54accepted native replays unattempted;
+legacy N7unbuilt. Control103reuses exact807snapshot; original historical document
+identity explicitly binds current owned document.164gets one fresh ordinary solve/
+build, selected-3b30102c88594eca95ad0b2db501e9dc, visible with matching gym primitives
+and prepath; both viewports inspected. Original rejected body is retained hidden.
+Fresh164recovery1update/344pairs/.226105CPU including.133906preparation; total
+construction645/2048,1403left. Total numerical1.317405CPU/1.353458wall, generation
+2.853187s/audit3.703505s; both matched timing goals pass.170faces/5880points/324seams,
+maximum1.7287507e-9mm,±32.5stressboxpass/excess0. Control103max2.2278844e-9mm,
+generation4.268933s/audit4.740409s,±38.125pass. Peak sampled nativeRSS1483216KiB.
+
+Final import-only Ruff cleanup in812retains import sets/non-import AST exactly;
+one cold final-source replay matches final AND first-pass snapshots exactly.
+Old807–810source pins remain with their evidence. In total117complete numerical
+executions across57exact inputs (57baseline/44firstphase/14renewal/1freshlive/
+1postlint), not117independent geometries. Partial probes and unit tests separate.
+185focused/affected tests pass,51affected checks pass after import cleanup;
+Ruff/format/changed-code IDE verified with813. Snapshot812source copies are retained
+as.py.frozenwith byte-hash relocation manifest to avoid false whole-file duplicate
+warnings.219solver pins; fullQA/1000rununrun. Tester stopped, original163/164ledger
+unchanged, no production/standards change. Regression package NOTES has replay scope.
+
 ## Consolidation and complete failure corpus785–792 — 2026-11-05
 
 User requested stopping range testing and consolidating shared failure causes,

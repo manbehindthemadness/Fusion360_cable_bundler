@@ -99,6 +99,8 @@ class Controller(ProcedureController):
             raise ValueError("Selected solver requests require id and settings only")
         settings = Settings.parse(choices[0]["settings"])
         selected = solver_method(choices[0]["id"])
+        if settings.terminal_hardware and selected.identifier != V2:
+            raise ValueError("Terminal hardware clearance requires material solver v2")
         targets = Targets.capture(targets)
         context = validate(gym, targets)
         if context is None:

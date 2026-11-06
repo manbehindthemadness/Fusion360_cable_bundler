@@ -20,6 +20,7 @@ from devtools.ribbon_analysis.inspection.archive import (
 from experiments.experiment_ribbon_contraction.runner import restore
 
 from .inspection import freeze
+from .rejected_selection import describe, select
 
 
 def retain(
@@ -30,11 +31,12 @@ def retain(
     checkpoint: Callable[[], None],
 ) -> int:
     """
-    Freeze up to eight recorded closed branches and their original contact dispositions.
+    Freeze original branches plus an explicitly rejected final candidate when supplied.
 
     No solve, contact retry or native-ready route is produced. Missing closed geometry
-    stays unavailable. The shortest recorded branch is the initial display; history
-    retains original branch order, including branches whose contact was unattempted.
+    stays unavailable. Final solver provenance takes priority over an earlier short
+    branch; legacy records retain their shortest-branch choice. Original branch
+    order/dispositions remain in history, followed by the optional final candidate.
     """
     started = perf_counter()
     if not trials.exists():
@@ -42,6 +44,7 @@ def retain(
     if trials.stat().st_size > 256 * 1024 * 1024:
         raise ValueError("Rejected-route ledger exceeds256MiB")
     branches: dict[str, dict[str, Any]] = {}
+    final_result: dict[str, Any] | None = None
     with trials.open("rb") as stream:
         while line := stream.readline(4 * 1024 * 1024 + 1):
             checkpoint()
@@ -78,12 +81,31 @@ def retain(
                 and key in branches
             ):
                 branches[key].update(disposition=event["status"], contact=event.get("contact"))
-    if not branches:
+            elif event.get("stage") == "rejected_result":
+                if (
+                    final_result is not None
+                    or event.get("status") != "not_accepted"
+                    or not isinstance(event.get("route"), dict)
+                    or not isinstance(event.get("reason"), str)
+                    or not event["reason"].strip()
+                ):
+                    raise ValueError("Rejected final result needs one complete explicit record")
+                final_result = {
+                    "kind": "final_solver_candidate",
+                    "accepted": False,
+                    "route": event["route"],
+                    "disposition": event["reason"],
+                }
+    if not branches and final_result is None:
         return 0
-    selected = min(branches, key=lambda branch_key: branches[branch_key]["length_mm"])
+    payload: dict[str, Any] = {"branches": list(branches.values())}
+    if final_result is not None:
+        payload["selected_result"] = final_result
+    _, selected = select(payload, asdict(targets))
+    records = [*branches.values(), *([final_result] if final_result is not None else [])]
     selected_snapshot = None
     with (destination / "rejected-history.jsonl").open("x") as history:
-        for sequence, (key, branch) in enumerate(branches.items()):
+        for sequence, branch in enumerate(records):
             checkpoint()
             frozen = snapshot_payload(freeze(restore(branch["route"]), method["id"]))
             history.write(
@@ -92,20 +114,19 @@ def retain(
                         "kind": "path",
                         "sequence": sequence,
                         "solver": method["id"],
-                        "stage": f"NOT ACCEPTED: roots {branch['roots']} · {branch['disposition']}",
+                        "stage": "NOT ACCEPTED: " + describe(branch),
                         "snapshot": frozen,
                     }
                 )
                 + "\n"
             )
-            if key == selected:
+            if branch is selected:
                 selected_snapshot = frozen
-    write_document(destination / "rejected-geometry.json", {"branches": list(branches.values())})
-    branch = branches[selected]
+    write_document(destination / "rejected-geometry.json", payload)
     method.update(
         label=method["label"] + " — rejected geometry",
         detail=method["detail"]
-        + f" NOT ACCEPTED. Default diagnostic branch: roots {branch['roots']}, {branch['disposition']}. All {len(branches)} recorded branches are available in history; native inspection does not imply acceptance.",
+        + f" NOT ACCEPTED. Default inspection: {describe(selected)}. All {len(records)} recorded paths are available in history; native inspection does not imply acceptance.",
         history="rejected-history.jsonl",
         snapshot=selected_snapshot,
         diagnostic_geometry_seconds=perf_counter() - started,
@@ -115,8 +136,8 @@ def retain(
             RuleObservation(
                 "Rejected diagnostic geometry",
                 "warning",
-                "Display interpolation of recorded closed branches only; contact failures and incomplete measurements remain unresolved. No acceptance or physical compliance is implied.",
+                "Display interpolation of recorded rejected paths only; failures and incomplete measurements remain unresolved. No acceptance or physical compliance is implied.",
             )
         )
     )
-    return len(branches)
+    return len(records)

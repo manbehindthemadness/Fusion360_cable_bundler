@@ -5,7 +5,7 @@ Keep branch handoffs within one shared recovery allowance and require fresh sepa
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
+from typing import Any, Callable
 from unittest.mock import Mock
 
 import pytest
@@ -21,6 +21,7 @@ from experiments.experiment_ribbon_feature_insertion.solve import Result
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_locked_solver import recovery_queue, solver_v2
+from experiments.experiment_ribbon_locked_solver.recovery_prediction import PredictionPolicy
 from experiments.experiment_ribbon_locked_solver.recovery_selection import Selection
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 from tests.test_ribbon_branch_recovery import _construction
@@ -164,6 +165,24 @@ def test_gym_reversal_continues_an_attached_feature_within_four_total_updates(
     Keep the attached-straight correction on its current branch with exact caps and strict contact.
     """
     # Check geometry deterministically; clock-stop contracts have separate tests.
+    original_selection = recovery_queue.select_recovery
+
+    def legacy_selection(
+        candidates: tuple[tuple[Branch, ContactResult], ...],
+        checkpoint: Callable[[], None],
+        record: Callable[[dict[str, Any]], None],
+        *,
+        prediction_policy: PredictionPolicy,
+    ) -> Selection:
+        """
+        Exercise the retained attached-feature handoff when verified selection would avoid that crossing.
+        """
+        del prediction_policy
+        return original_selection(
+            candidates, checkpoint, record, prediction_policy=PredictionPolicy.LINEAR
+        )
+
+    monkeypatch.setitem(vars(recovery_queue), "select_recovery", legacy_selection)
     monkeypatch.setitem(vars(recovery_queue), "process_time", lambda: 0.0)
     monkeypatch.setitem(vars(contact_recovery), "process_time", lambda: 0.0)
     scene = Scene(

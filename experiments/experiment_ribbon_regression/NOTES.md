@@ -1,6 +1,23 @@
 # Frozen gym regression corpus
 
-`gym-v1.json` is the development inventory assembled during the November 5
+Latest terminal-correction comparison857(2026-11-06):57/57exact inputs evaluated,
+35accepted/22unresolved under the enabled hardware trial. All34previous accepted
+final routes are byte-for-byte unchanged; current164is newly repaired. Six of seven
+witness-directed reversal actions are declined by unchanged acceptance rules.
+855stopped17/57on a caught measurement-budget regression, with40unattempted; its
+sources/failure are retained. The revised32cell early probe preserves the original
+final-check budget. One changed configuration is natively built/named-fidelity/
+boundary checked, with0fullphysicalaudits; no other native replays or1000case streak.
+See [coupled correction evidence](../experiment_ribbon_terminal_hardware/COUPLED_REVERSAL.md).
+
+`gym-v2.json` is the current 57-input development corpus. It retains the entire
+54-input v1 inventory and adds this run's cases 162/N9, 163/N3 and intersection
+164/N4. Preceding passed case 161/N5 is an exact alias of `range5fe-case-161`;
+its new provenance is attached without counting another input. Version 1 remains
+unchanged. The three preceding passed controls and failure were frozen before
+changing recovery selection. This is development coverage, not a fresh holdout.
+
+`gym-v1.json` is the original inventory assembled during the November 5
 consolidation. It contains the union of all 21 distinct non-cancelled problem
 inputs in the 43 saved range journals and the 43 retained numerical controls:
 54 exact target payloads. Original job paths, plan hashes, source digests,
@@ -22,7 +39,7 @@ uv run --python .venv/bin/python -m experiments.experiment_ribbon_regression.run
 
 Read the project experiment safeguards first. Each invocation freezes its corpus
 and implementation hashes before launching one isolated worker per input. Limits
-are 54 executions, 15 seconds per execution, a 17-second subprocess guard, 120
+are 57 executions, 15 seconds per execution, a 17-second subprocess guard, 120
 seconds per phase, no launch after 103 seconds, and 4 GiB sampled peak RSS. The
 solver's existing four-second first-pass, contact, contraction and recovery limits
 remain independent. No native construction or range tester starts here.
@@ -80,3 +97,64 @@ named fidelity or full physical compliance.
 Evidence is under `artifacts/verification/ribbon_consolidation785` through `792`,
 including the separately named `787-rejected` directory. The 1,000-case goal is
 not established. The range tester remains stopped; no production promotion occurs.
+
+## Intersection 164, evidence 794–813
+
+Run `range-fe65c9e2dd4e445da05fb87bd1fd27bc` stopped after 163 passes. N4,
+seed 321914440, A zone24/face6/roll75°, B zone2/face11/roll34° (one-based UI).
+The visible intersecting body was already a **rejected native inspection**, not a
+false accepted route. All three closed branches had strict penetration witnesses.
+The legacy selector predicted one step on roots `(0,1)`, but the first
+endpoint-retracted motion cleared only about half the measured gap. Three updates
+then exposed the attached straight's crossing, exhausting the four-update allowance.
+
+795–799 are bounded partial diagnostics, not independent complete-case coverage.
+Clearing only the first gap on another branch (796) and correcting the original
+branch's attached straight (797) both failed whole-route recovery. 799 found the
+existing `(1,0)` branch separates in one update using its confirmed straight sheet
+as a moving material plane, rather than its old fixed-world prediction axis.
+
+Unconditionally changing initial evidence preparation regressed an older repaired
+control, so that proposal was rejected (804 patch/JUnit retained). The retained
+rule preserves legacy selection whenever its full predicted first motion opens
+the actual gap, and leaves clipped predictions alone. Only an inconsistent full
+prediction authorizes bounded preparation of confirmed straight-sheet evidence on
+existing branches. A replacement must itself open its measured gap in one full
+endpoint-retracted motion. This predicts motion only; actual recovery still needs
+strict complete contact certification. All preparation remains charged to the
+original 0.35 CPU/2 wall seconds, four updates and shared contact pool. No roots,
+headings, radii, physical limits or contact acceptance rules were expanded.
+
+803 freezes 57 pre-fix baselines: 55 accepted, current164 and legacy adjacent-cell
+N7 unresolved. 807 stops after 44 evaluated/accepted because an unchanged N6 raw
+route hits its contraction CPU cap, retaining 67.72 rather than 39.74 mm. Thirteen
+cases remain unattempted. IDE inspections were running concurrently; the timing
+is confounded. Preserve that failed outcome. 808 renews only that control and the
+13 unattempted cases, with inspections idle and unchanged caps: 14/14 evaluated,
+no regression; the control exactly matches baseline again. Avoid concurrent IDE,
+lint or test work during timing comparisons.
+
+Final combined evidence covers all 57 inputs, with 56 accepted, the same legacy
+adjacent-cell input unresolved, 54 accepted controls exactly unchanged, and one
+older control shorter (52.785090 → 50.999106 mm). Current164 is now accepted at
+39.475530 mm. This is two bounded candidate phases with one retained timing
+failure/re-evaluation, not an uninterrupted 57-case run. Including the 57 baselines,
+44 first-phase, 14 renewal, one fresh live solve and one post-lint replay gives
+117 numerical executions across 57 exact inputs; partial diagnostics and unit
+tests are separate. It establishes no global optimum or 1,000-case streak.
+
+809–810 natively attempt/build/named-fidelity-audit both changed configurations,
+2/2 with zero warnings and unchanged gym stress bounds passed. Other 54 accepted
+routes have no new native builds; the legacy unresolved input is unbuilt. Full
+physical audits: zero. Fresh current164 recovery is 1 update/344 pairs/0.226105 CPU
+seconds including preparation; construction uses 645/2048 pairs. Total numerical
+CPU 1.317405/wall 1.353458 seconds; generation 2.853187, audit 3.703505 seconds.
+170 faces, 5,880 points, 324 seams, maximum error 1.7287507e-9 mm; ±32.5 mm box
+passes with zero excess. Both matched timing goals pass. The corrected body is
+visible; original rejected inspection and 163/164 ledger remain preserved.
+
+Final import-order cleanup is separately source-pinned in812: identical import
+sets/non-import syntax and exact final/first-pass route equality after one cold
+replay. Runtime policy is unchanged; old numerical/native source pins are retained.
+Final focused QA is recorded in813. Tester stays stopped; no automatic range
+restart or production promotion follows.

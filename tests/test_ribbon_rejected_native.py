@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from time import perf_counter
 from types import SimpleNamespace
@@ -16,6 +16,7 @@ from unittest.mock import Mock
 import pytest
 
 from experiments.experiment_ribbon_contraction.runner import snapshot
+from experiments.experiment_ribbon_fold_route.geometry import Straight
 from experiments.experiment_ribbon_fold_route.material_cylinder import FlatSurfaces
 from tests.fusion_ui_support import _PaletteLifecycleModule
 from tests.test_ribbon_rejected_display import _route
@@ -145,3 +146,31 @@ def test_inspection_guards_prevent_kernel_work(
     occurrence, result = module.build(tmp_path, "owned", 610, FlatSurfaces.CYLINDERS)
     assert occurrence is None and result["built"] == result["native_attempts"] == 0
     kernel.assert_not_called()
+
+
+def test_native_inspection_uses_the_same_explicit_final_candidate_as_diagnostics(
+    rejected_host: tuple[Any, Mock, Any], tmp_path: Path
+) -> None:
+    """
+    A longer final result takes priority without creating an accepted route or extra kernel attempt.
+    """
+    module, kernel, occurrence = rejected_host
+    early = _route()
+    final = replace(early, pieces=(replace(early.pieces[0], geometry=Straight(12)),))
+    path = tmp_path / "rejected-geometry.json"
+    payload = json.loads(path.read_text())
+    payload["selected_result"] = {
+        "kind": "final_solver_candidate",
+        "accepted": False,
+        "route": snapshot(final),
+        "disposition": "Final candidate failed",
+    }
+    path.write_text(json.dumps(payload))
+    displayed, result = module.build(tmp_path, "owned", 610, FlatSurfaces.CYLINDERS)
+    assert displayed is occurrence and result["accepted"] is False
+    assert result["inspection_origin"] == "final_solver_candidate" and result["roots"] is None
+    assert json.loads((tmp_path / "rejected-native-plan.json").read_text())["route"] == snapshot(
+        final
+    )
+    kernel.assert_called_once_with()
+    assert not (tmp_path / "route.json").exists()

@@ -58,6 +58,7 @@
   <p id="selectedSolverScope" class="muted"></p>
   <p id="contactMeasurementNotice" hidden style="color:#895000">Temporary v2 diagnostic: reaching the contact pair limit stops measurement and logs it. Geometry can build with contact unmeasured. This is not a contact pass.</p>
   <label><input id="firstPassOptimization" type="checkbox" checked> Enable first-pass optimization</label>
+  <label id="terminalHardwareControl" title="Finite connector proxies behind the mating faces, scaled from cable width and diameter."><input id="terminalHardware" type="checkbox"> Terminal hardware clearance (trial)</label>
   <p id="optimizationScope" class="muted"></p>
   <label for="smoothingPercent">Smoothing allowance (% extra material length)</label>
   <input id="smoothingPercent" type="number" min="0" max="10" step="0.5" value="5">
@@ -160,7 +161,7 @@ const element = id => document.getElementById(id);
 /** @typedef {{stage:string, score:?number, accepted:?boolean}} Proposal */
 /** @typedef {{identifier:string,label:string,detail:string,unavailable:string}} Procedure */
 /** @typedef {{time:string,stage:string,message:string}} BuildEntry */
-/** @typedef {{id:string,label:string,scope:string,optimization_detail:string,contact_measurement_policy?:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean}}} SolverChoice */
+/** @typedef {{id:string,label:string,scope:string,optimization_detail:string,contact_measurement_policy?:string,settings:{smoothing_percent:number,material_uv:boolean,first_pass_optimization?:boolean,terminal_hardware?:boolean}}} SolverChoice */
 /** @typedef {{catalog:Procedure[],examples:{id:string,label:string}[],example:string,discovery_available:boolean,ablation_controls:Object<string,RuleControl[]>, status:string, detail:string, result_ids?:string[], procedure?:string, completed?:number, total?:number, paths?:number, elapsed_seconds?:number,phase?:string,job?:string,build_log?:BuildEntry[],active_solver?:SolverChoice,available_solvers?:SolverChoice[]}} Execution */
 /** @typedef {{u:number,radii_mm:{centre:?number,edge_a:?number,edge_b:?number},utilization:{centre:number,edge_a:number,edge_b:number},centre_edge_ratio:?number}} BendSample */
 /** @typedef {{reference_radius_mm:number,has_edges:boolean,selected:BendSample,samples:BendSample[],scope:string,bend_model?:string,allowed_percent?:number,maximum_percent?:number,order_failures?:number}} BendInspection */
@@ -212,7 +213,7 @@ function controls() {
   element("reconnect").disabled = pending;
   element("example").disabled = blocked || ["running", "cancelling"].includes(state?.execution?.status);
   const jobBusy = ["running", "cancelling"].includes(state?.execution?.status);
-  for (const id of ["runSelected", "solverVersion", "firstPassOptimization", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
+  for (const id of ["runSelected", "solverVersion", "firstPassOptimization", "terminalHardware", "smoothingPercent", "materialUV"]) element(id).disabled = blocked || jobBusy || !state?.gym;
   element("cancelSelected").disabled = blocked || !jobBusy || state?.execution?.phase === "native";
   element("clearGeometry").disabled = blocked || jobBusy || !state?.geometry_clear_available;
   comparisonControls();
@@ -278,6 +279,8 @@ function renderSolverChoice(choice) {
   element("smoothingPercent").value = choice.settings.smoothing_percent;
   element("materialUV").checked = choice.settings.material_uv;
   element("firstPassOptimization").checked = choice.settings.first_pass_optimization ?? true;
+  element("terminalHardwareControl").hidden = choice.id !== "guide-material-v2";
+  element("terminalHardware").checked = choice.id === "guide-material-v2" && (choice.settings.terminal_hardware ?? false);
 }
 function renderBuildLog() {
   element("buildLog").textContent = [...controlLog, ...stageLog].slice(-100)
@@ -568,7 +571,7 @@ element("solverVersion").onchange = () => {
 function selectedProcedure() {
   const active = state?.execution?.active_solver;
   if (!active) return null;
-  return {id: element("solverVersion").value || active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked}};
+  return {id: element("solverVersion").value || active.id, settings: {smoothing_percent: Number(element("smoothingPercent").value), material_uv: element("materialUV").checked, first_pass_optimization: element("firstPassOptimization").checked, terminal_hardware: element("solverVersion").value === "guide-material-v2" && element("terminalHardware").checked}};
 }
 element("runSelected").onclick = () => { const selection = selectedProcedure(); if (selection) request("run", {procedures: [selection]}); };
 function stopTester() {

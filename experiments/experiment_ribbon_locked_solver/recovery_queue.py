@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_feature_insertion.selection import Branch
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 
+from .recovery_prediction import PredictionPolicy
 from .recovery_selection import select_recovery
 
 
@@ -43,7 +44,9 @@ def recover_failed(
     accepted-fallback recovery, without exempting adjacent material interiors.
     """
     started, cpu = perf_counter(), process_time()
-    selection = select_recovery(candidates, checkpoint, record)
+    selection = select_recovery(
+        candidates, checkpoint, record, prediction_policy=PredictionPolicy.VERIFIED_SHEETS
+    )
     choices = (selection.choice, *selection.alternatives) if selection.choice else ()
     selected, certificate = None, None
     pairs, contacts, updates, contact_seconds = 0, 0, 0, 0.0

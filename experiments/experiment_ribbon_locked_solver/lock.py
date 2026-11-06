@@ -36,6 +36,7 @@ def sources() -> dict[str, str]:
         "experiment_ribbon_contraction",
         "experiment_ribbon_diagnostic_viewer",
         "experiment_ribbon_feature_insertion",
+        "experiment_ribbon_terminal_hardware",
     ):
         paths.update((ROOT / "experiments" / package).glob("*.py"))
     paths.update(

@@ -12,14 +12,14 @@ from typing import Any
 import pytest
 
 from experiments.experiment_ribbon_regression import runner
-from experiments.experiment_ribbon_regression.corpus import load
+from experiments.experiment_ribbon_regression.corpus import CORPUS, load
 
 
 def test_corpus_keeps_every_archived_problem_and_retained_control() -> None:
     """
     Keep all21unique problem inputs in the54case union with43retained controls.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v1.json"))
     cases = corpus["cases"]
     assert len(cases) == 54
     controls = [
@@ -36,6 +36,29 @@ def test_corpus_keeps_every_archived_problem_and_retained_control() -> None:
         "boundary",
         "other_problem",
     }
+
+
+def test_current_corpus_preserves_v1_and_enrolls_trigger_with_three_passed_controls() -> None:
+    """
+    Keep every earlier case unchanged while retaining the current intersection and pre-fix collateral inputs.
+    """
+    original = load(CORPUS.with_name("gym-v1.json"))
+    current = load()
+    for earlier, retained in zip(original["cases"], current["cases"][:54]):
+        assert {k: v for k, v in earlier.items() if k != "history"} == {
+            k: v for k, v in retained.items() if k != "history"
+        }
+        assert retained["history"][: len(earlier["history"])] == earlier["history"]
+    added = current["cases"][54:]
+    assert len(added) == 3 and [case["targets"]["lines"] for case in added] == [9, 3, 4]
+    assert [case["history"][0]["disposition"] for case in added] == [
+        "retained_control",
+        "retained_control",
+        "numerical_unresolved",
+    ]
+    assert added[-1]["gym"]["config"]["seed"] == 321914440
+    assert [case["lines"] for case in current["enrollment"]["cases"]] == [5, 9, 3, 4]
+    assert current["enrollment"]["aliases_not_independent"][0]["retained_id"] == "range5fe-case-161"
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))

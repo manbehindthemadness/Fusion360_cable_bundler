@@ -22,11 +22,13 @@ class Settings:
     visible smoothing under finite contact bounds. Default5preserves the selected
     policy. UV metadata never creates or assigns an appearance or bitmap.
     First-pass optimization defaults on and is independent of aesthetic smoothing.
+    Terminal hardware is an opt-in v2 trial; older records keep it disabled.
     """
 
     smoothing_percent: float = 5.0
     material_uv: bool = False
     first_pass_optimization: bool = True
+    terminal_hardware: bool = False
 
     def __post_init__(self) -> None:
         """
@@ -43,17 +45,20 @@ class Settings:
             raise ValueError("Material UV coordinates require an explicit boolean")
         if type(self.first_pass_optimization) is not bool:
             raise ValueError("First-pass optimization requires an explicit boolean")
+        if type(self.terminal_hardware) is not bool:
+            raise ValueError("Terminal hardware clearance requires an explicit boolean")
 
     @classmethod
     def parse(cls, payload: Any) -> Settings:
         """
-        Read public controls, defaulting older two-control records to optimization enabled.
+        Preserve legacy optimization defaults and require an explicit opt-in for terminal hardware.
         """
         required = {"smoothing_percent", "material_uv"}
         if not isinstance(payload, dict) or not required <= set(payload) <= required | {
-            "first_pass_optimization"
+            "first_pass_optimization",
+            "terminal_hardware",
         }:
             raise ValueError(
-                "Supply smoothing_percent, material_uv and optional first_pass_optimization only"
+                "Supply smoothing_percent, material_uv and optional first_pass_optimization/terminal_hardware only"
             )
         return cls(**payload)

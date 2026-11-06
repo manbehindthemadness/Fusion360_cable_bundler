@@ -26,6 +26,8 @@ from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
+from experiments.experiment_ribbon_terminal_hardware.gate import Gate
+from experiments.experiment_ribbon_terminal_hardware.reversal import correct as correct_terminal
 
 from .branch_recovery import recover_construction
 from .contraction_recovery import recover_contracted
@@ -62,6 +64,12 @@ def solve(
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
+    With terminal hardware enabled, a demonstrated intrusion may substitute one
+    witness-incident fold reversal for that contraction, using the same work
+    allowance. It couples all other angles/banks/runways to the unchanged endpoint
+    frame, preserves their signs and all radii, and accepts only a shorter route
+    certified against full self-contact and both terminal boxes. Failed correction
+    retains the baseline for ordinary smoothing; it does not start another contraction.
     If feasibility recovery was unused, a measured shorter contraction may use
     that same four-update/.35CPU allowance and original remaining construction
     pairs. Its analytic cap support certificate grants no contact exemption.
@@ -80,6 +88,12 @@ def solve(
     counts, physical rules or the first-construction work limits.
     An explicitly configured temporary gym policy may retain pair-limit exhaustion
     with contact unmeasured; ordinary calls retain strict contact acceptance.
+    Optional terminal hardware eligibility is strict independently of that override.
+    Temporary work proposals may need contraction or smoothing to clear hardware;
+    do not reject their coarse initializer prematurely. Measure the completed first
+    pass and final smoothed route. Blocked smoothing retains a cleared first pass
+    with its own contact certificate; otherwise return no accepted output. All checks
+    share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
     if (
         type(native_point_tolerance_mm) not in (int, float)
@@ -89,6 +103,7 @@ def solve(
         raise ValueError("Native point tolerance must be finite and positive")
     started, cpu_started = perf_counter(), process_time()
     targets = Targets.capture(source)
+    terminal = Gate(targets, checkpoint, record) if settings.terminal_hardware else None
     frames = Frames.create(targets)
     radius = targets.diameter_mm / 2 / PinchLimit().fraction * (1 + 1e-9)
 
@@ -152,6 +167,7 @@ def solve(
         "native_construction": "unattempted",
         "native_fidelity": "unmeasured",
         "full_physical_audit": "unmeasured",
+        "terminal_hardware": terminal.detail() if terminal is not None else {"enabled": False},
     }
     if result.route is None:
         detail.update(
@@ -166,13 +182,27 @@ def solve(
     detail["contraction"] = {"status": "disabled"}
     remaining = 4 - (perf_counter() - started)
     if settings.first_pass_optimization and measurement.status == "separated" and remaining > 0:
-        contraction = contract(
-            first,
-            checkpoint,
-            record,
-            minimum_straight_mm=native_point_tolerance_mm,
-            maximum_seconds=min(2.0, remaining),
+        contraction = (
+            correct_terminal(
+                first,
+                terminal,
+                first_checkpoint,
+                record,
+                minimum_straight_mm=native_point_tolerance_mm,
+                maximum_seconds=min(2.0, remaining),
+            )
+            if terminal is not None
+            else None
         )
+        if contraction is None:
+            first_checkpoint()
+            contraction = contract(
+                first,
+                checkpoint,
+                record,
+                minimum_straight_mm=native_point_tolerance_mm,
+                maximum_seconds=min(2.0, 4 - (perf_counter() - started)),
+            )
         first = contraction.route
         measurement = contraction.contact or measurement
         detail["contraction"] = contraction.detail
@@ -216,11 +246,18 @@ def solve(
             else "first_pass_deadline"
         }
     detail["first_pass_seconds"] = perf_counter() - started
+    if terminal is not None:
+        terminal.permits(first, "first_pass")
     smoothing_started = perf_counter()
     smoothed = smooth_with_contact(first, settings.smoothing_percent, checkpoint, record)
     final = smoothed.route
     detail.update(stages=smoothed.stages, smoothing_seconds=perf_counter() - smoothing_started)
-    if smoothed.contact is not None:
+    retained = terminal is not None and not terminal.permits(final, "smoothing")
+    if retained:
+        final = first
+        detail["stages"]["terminal_hardware"] = "first_pass_retained"
+        detail["final_contact_source"] = "hardware_safe_first_pass"
+    elif smoothed.contact is not None:
         measurement = smoothed.contact
         detail["final_contact_source"] = "identical_accepted_smoothing_geometry"
     elif final is not first:
@@ -228,6 +265,20 @@ def solve(
         detail["final_contact_source"] = "final_geometry_audit"
     else:
         detail["final_contact_source"] = "unchanged_first_pass"
+    if terminal is not None:
+        permitted = terminal.permits(final, "final")
+        detail["terminal_hardware"] = terminal.detail()
+        detail["terminal_hardware"]["final_status"] = "clear" if permitted else "unresolved"
+        if not permitted:
+            detail["stages"]["terminal_hardware"] = "unresolved"
+            detail["final_contact_source"] = "first_pass_rejected_by_terminal_hardware"
+            detail.update(
+                status="unresolved",
+                rejection_reason="Terminal hardware clearance was not established for the final candidate",
+                elapsed_seconds=perf_counter() - started,
+                cpu_seconds=process_time() - cpu_started,
+            )
+            return Result(None, first, detail, None, inspection_route=smoothed.route)
     contact = measurement.status
     warning = contact != "separated" and contact_policy.permits_geometry(measurement)
     detail.update(contact=contact, contact_measurement=asdict(measurement), contact_warning=warning)
@@ -239,7 +290,7 @@ def solve(
             elapsed_seconds=perf_counter() - started,
             cpu_seconds=process_time() - cpu_started,
         )
-        return Result(None, first, detail, None)
+        return Result(None, first, detail, None, inspection_route=final)
     if (
         final.targets != targets
         or caps > 1e-7

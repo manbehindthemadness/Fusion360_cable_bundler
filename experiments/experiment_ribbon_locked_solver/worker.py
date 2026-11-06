@@ -64,7 +64,7 @@ def run(directory: Path) -> Path:
     append(
         directory,
         "numerical",
-        f"Inputs validated; first-pass optimization {'on' if settings.first_pass_optimization else 'off'}, smoothing {settings.smoothing_percent:g}%.",
+        f"Inputs validated; first-pass optimization {'on' if settings.first_pass_optimization else 'off'}, smoothing {settings.smoothing_percent:g}%, terminal hardware {'on' if settings.terminal_hardware else 'off'}.",
     )
 
     def checkpoint() -> None:
@@ -102,7 +102,8 @@ def run(directory: Path) -> Path:
         "settings": {
             **asdict(settings),
             "solver_version": selected.identifier,
-            "path_rules": "material-fold equal lengths + pinch + no lateral bending + thick contact",
+            "path_rules": "material-fold equal lengths + pinch + no lateral bending + thick contact"
+            + (" + finite terminal hardware" if settings.terminal_hardware else ""),
             "contact_measurement_policy": contact_policy.value,
         },
         "status": "unresolved",
@@ -124,6 +125,31 @@ def run(directory: Path) -> Path:
         else:
             result = solve(targets, settings, checkpoint, record)
         write_document(directory / "numerical-result.json", result.detail)
+        if result.route is None and result.inspection_route is not None:
+            checkpoint()
+            record(
+                {
+                    "stage": "rejected_result",
+                    "status": "not_accepted",
+                    "reason": result.detail.get(
+                        "rejection_reason", "Final solver candidate was not accepted"
+                    ),
+                    "route": snapshot(result.inspection_route),
+                }
+            )
+        if settings.terminal_hardware:
+            hardware = result.detail["terminal_hardware"]
+            append(
+                directory,
+                "terminal_hardware",
+                f"Terminal checks: {hardware['checks']}; outcomes {hardware['outcomes']}; "
+                f"CPU {hardware['cpu_seconds']:.4f}s. "
+                + (
+                    "Final route clears both proxies."
+                    if result.route is not None
+                    else "No route accepted with terminal hardware clearance."
+                ),
+            )
         append(
             directory,
             "numerical",
@@ -185,7 +211,7 @@ def run(directory: Path) -> Path:
                 append(
                     directory,
                     "diagnostic",
-                    f"Retained {count} rejected branches for visual inspection; no native build.",
+                    f"Retained {count} rejected paths for visual inspection; no accepted native build.",
                 )
         except (
             ArithmeticError,

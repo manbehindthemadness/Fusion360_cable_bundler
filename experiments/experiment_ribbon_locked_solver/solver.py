@@ -28,12 +28,17 @@ from .smoothing import smooth
 class Result:
     """
     Keep numerical acceptance distinct from unattempted native construction/fidelity.
+
+    inspection_route is an explicitly rejected final candidate, never an accepted
+    fallback. It preserves the actual failed geometry instead of asking viewers
+    to infer it from earlier branches. Historical callers may omit it.
     """
 
     route: FoldRoute | None
     first_pass: FoldRoute | None
     detail: dict[str, Any]
     material_uv: dict[str, Any] | None
+    inspection_route: FoldRoute | None = None
 
 
 def solve(
@@ -54,6 +59,10 @@ def solve(
     Numerical slivers undergo bounded fixed-direction reclosure before final
     validation and optional coordinate metadata, independently of smoothing.
     """
+    if settings.terminal_hardware:
+        raise ValueError(
+            "Terminal hardware clearance is currently supported by material solver v2 only"
+        )
     started, cpu_started = perf_counter(), process_time()
     targets = Targets.capture(source)
     radius = targets.diameter_mm / 2 / PinchLimit().fraction * (1 + 1e-9)
@@ -121,6 +130,7 @@ def solve(
                 "cpu_seconds": process_time() - cpu_started,
             },
             None,
+            inspection_route=final,
         )
     final = cleaned.route
     contact = inspect_contact(final, checkpoint=checkpoint)
