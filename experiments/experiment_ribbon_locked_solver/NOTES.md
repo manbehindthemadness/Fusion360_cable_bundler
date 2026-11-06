@@ -1,5 +1,76 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Preparation-charged recovery deferral773–780 — 2026-11-05
+
+User-started rangec596271...stops at63after62passes/0warnings. N8,
+seed3594523284, A zone11/face7/roll36°, B zone24/face1/roll9° (one-based labels).
+This input previously stopped in preview preparation737and was only previewed739;
+those records are not a prior accepted route baseline. Original selected-
+fe1054d4cd924d2a83d3964668ec86e6 passes numerical/native named fidelity, but its
+854.374209mm body exceeds±55mmby188.099042mm. Preserve original62/63ledger,
+boundary failure, routes, source, screenshot and native result unchanged.
+
+Latest placement rule does apply: midpoint flat runway65.761481mm exceeds its
+30.315962mm guide, selecting parameter.7295227666202995. Two closed branches:
+108.640390mm penetrates in489pairs,854.374209mm separates949pairs;610remain.
+Optional fallback recovery spends4updates on108mm, stalls, and leaves no recovery
+for contraction. Contraction already generates37.386752/37.467914mm, but their
+contacts are depth-unresolved, so the854mmfallback survives.774existing analytic
+cap support alone still leaves BOTH exact contractions depth-unresolved (241/308
+pairs); no proof relaxation is installed.775alternative existing depth recovery
+of the saved37.386752mm proposal separates in2updates/504of610pairs/.197281CPU,
+length49.136406mm.776measures the108mmbranch's original initial fraction.209046:
+its linear trust prediction needs5steps, exceeding the existing four-update cap.
+These bounded partial diagnostics are not new complete-case coverage.
+
+New explicit InitialPolicy.DEFER_OVERFLOW is used only for optional improvement
+of an already separated fallback. If the actual first planned fraction is less
+than1/allowed_updates, defer BEFORE motion or certificates and report zero updates,
+contacts and pairs, while retaining preparation CPU/wall. Historical default
+initial behavior and unaccepted-branch recovery remain unchanged. This is a
+scheduling preference from a linear prediction, not a proof of nonlinear failure.
+After the existing contraction, recover_contracted can receive ONLY the original
+unused.35CPU less preparation, remaining2s wall span including contraction,
+four updates and shared construction pairs. Positive explicit CPU sublimits
+cannot exceed.35s. Aggregate evidence retains the deferred record and combined
+CPU/wall. Nonzero prior geometry work or consumed/exhausted recovery never restarts.
+No additional roots, route candidates, radii, physical tolerances, contact acceptance or work caps.
+
+777freezes43distinct pre-fix gym baselines, all numerically accepted, no aliases:
+prior39plus current60/N5,61/N6,62/N7controls and63/N8trigger. Its cold baseline
+862.917951mm includes optional1%smoothing beyond original854.374209mm; raw
+fallback unchanged.778all43numerically accepted; all42control final routes AND
+first passes EXACTLY unchanged, trigger49.62777016465619mm. No rejected, skipped
+or unattempted numerical case in final comparison. Baseline41.088851s, current
+41.816336s.87controlled complete numerical executions across43independent
+configurations including one fresh live execution;774–776partials and analytical
+unit-test replays are separate QA, not additional independent coverage.
+
+779fresh selected-841387ff4c7344f8ae3d26455faaa4e5 builds and passes named fidelity
+with0warnings:302faces,10500points/580seams, maximum1.662243e-9mm. Native prediction
+built/fidelity-pass matches1/1observed;42controls' new native builds unattempted,
+0full physical audits. Native generation1.560598s, audit1.557325s. Numerical
+1.423648CPU/1.628398wall; CPU below generation but elapsed timing GOAL slightly
+missed. Total optional recovery.312688CPU including.023110deferred preparation,
+2updates/1certificate/504pairs; construction1942/2048,106unused. Recovery wall
+.782843s includes contraction. Existing contraction checkpoint hits phase_budget
+at.375247CPU/.447152wall: measured.025247CPU overshoot of its.35checkpoint limit.
+It retains its completed rejected proposal and safe baseline; no retry or limit
+increase. Record this checkpoint granularity rather than claiming a strict
+measured.35CPU pass. Native work does not depend on extending that phase.
+
+780precise body bounds pass unchanged±55mm,excess0; viewport captured/inspected.
+Peak sampled Fusion RSS1738768KiB, final899680KiB. One complete native build/named
+audit/boundary pass in this change, not a full physical or universal routing proof.
+202focused/affected tests pass;2pre-existing v2 length expectations remain
+explicitly deselected. Initial new test assumed exactly2updates, while its
+regenerated Scene needed3but passed all gates; test now verifies the actual
+four-update/shared-budget contract. Frozen input/live both use2. Scoped Ruff
+check/format pass; changed IDE clear except3pre-existing archived-v2 duplication
+weak warnings. Complete diff/new test reviewed;218source pins. FullQA/long-run
+unrun, original62/63journal kept, tester stopped,1000goal paused. No automatic
+range restart, production integration, standards change or historical rewrite.
+
 ## Conditioned feature placement and attached-contact continuation757–772 — 2026-11-05
 
 User-started range5fe021...stops at161after160passes/1warning. Trigger N5,

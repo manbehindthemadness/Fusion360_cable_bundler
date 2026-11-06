@@ -4,6 +4,7 @@ Use measured contraction failures without discarding a safe route or replenishin
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -77,3 +78,39 @@ def test_no_speculative_work_without_improvement_evidence_or_unused_pairs(
     )
     assert result is None
     attempt.assert_not_called()
+
+
+def test_explicit_cpu_reservation_is_not_replenished(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Subtract preparation from a reduced caller allowance before invoking the strict correction.
+    """
+    source, frames, compact = _construction()
+    assert source.route is not None
+    contraction = Contraction(source.route, None, {}, ((compact.route, source.rejected[0][1]),))
+    clock = iter((0.0, 0.05, 0.06))
+    monkeypatch.setitem(vars(contraction_recovery), "process_time", lambda: next(clock))
+    attempt = Mock(return_value=Recovery(None, None, 0, 0, 0, {"iterations": 0}))
+    monkeypatch.setitem(vars(contraction_recovery), "recover", attempt)
+    contraction_recovery.recover_contracted(
+        contraction, frames, 610, 1e-5, lambda: None, lambda e: None, maximum_cpu_seconds=0.2
+    )
+    assert attempt.call_args.kwargs["maximum_cpu_seconds"] == pytest.approx(0.15)
+
+
+@pytest.mark.parametrize("allowance", (0.0, 0.36, True, float("nan")))
+def test_cpu_sublimits_cannot_expand_or_disable_the_original_cap(allowance: Any) -> None:
+    """
+    Reject malformed or enlarged scheduling allowances before optional work.
+    """
+    source, frames, _ = _construction()
+    assert source.route is not None
+    with pytest.raises(ValueError, match="remaining CPU"):
+        contraction_recovery.recover_contracted(
+            Contraction(source.route, None, {}),
+            frames,
+            610,
+            1e-5,
+            lambda: None,
+            lambda e: None,
+            maximum_cpu_seconds=allowance,
+        )

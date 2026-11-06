@@ -59,6 +59,8 @@ def solve(
     If feasibility recovery was unused, a measured shorter contraction may use
     that same four-update/.35CPU allowance and original remaining construction
     pairs. Its analytic cap support certificate grants no contact exemption.
+    A fallback correction deferred before its first motion leaves only its unused
+    preparation-adjusted CPU and remaining wall span for that contraction recovery.
     No v1 fallback, extra features or radius relaxation occurs in that phase.
     Unchanged routes retain their separation certificate, including an exact
     final geometry match to an accepted aesthetic proposal. Otherwise the final
@@ -107,6 +109,7 @@ def solve(
         contact_policy=contact_policy,
         cap_policy=CapPolicy.ANALYTIC_SUPPORT,
     )
+    recovery_started = perf_counter()
     result, recovery_detail = recover_construction(
         result,
         frames,
@@ -165,7 +168,9 @@ def solve(
         measurement = contraction.contact or measurement
         detail["contraction"] = contraction.detail
         remaining = 4 - (perf_counter() - started)
-        if recovery_detail is None and result.contact_pairs < CONTACT_PAIR_BUDGET and remaining > 0:
+        allowance = _remaining_recovery(recovery_detail, recovery_started, remaining)
+        if allowance is not None and result.contact_pairs < CONTACT_PAIR_BUDGET:
+            cpu_left, wall_left = allowance
             recovered = recover_contracted(
                 contraction,
                 frames,
@@ -173,10 +178,20 @@ def solve(
                 native_point_tolerance_mm,
                 checkpoint,
                 record,
-                maximum_seconds=min(2.0, remaining),
+                maximum_seconds=wall_left,
+                maximum_cpu_seconds=cpu_left,
             )
             if recovered is not None:
-                detail["construction"]["recovery"] = recovered.detail
+                recovered_detail = dict(recovered.detail)
+                if recovery_detail is not None:
+                    recovered_detail.update(
+                        deferred_before_contraction=recovery_detail,
+                        cpu_seconds=recovery_detail["cpu_seconds"]
+                        + recovered.detail["cpu_seconds"],
+                        elapsed_seconds=perf_counter() - recovery_started,
+                    )
+                    record({"stage": "deferred_recovery_complete", "detail": recovered_detail})
+                detail["construction"]["recovery"] = recovered_detail
                 detail["construction"]["contacts"] += recovered.contacts
                 detail["construction"]["contact_pairs"] += recovered.pairs
                 detail["construction"]["contact_seconds"] += recovered.contact_seconds
@@ -236,3 +251,26 @@ def solve(
         cpu_seconds=process_time() - cpu_started,
     )
     return Result(final, first, detail, material_uv)
+
+
+def _remaining_recovery(
+    detail: dict[str, Any] | None, started: float, first_pass_remaining: float
+) -> tuple[float, float] | None:
+    """
+    Reserve only unused optional recovery work, including preparation and intervening wall time.
+
+    Deferral must have executed zero updates and certificates. Its CPU cost is
+    subtracted from0.35seconds; the wall span includes intervening contraction.
+    Any consumed recovery keeps its existing outcome without another attempt.
+    """
+    if first_pass_remaining <= 0:
+        return None
+    if detail is None:
+        return 0.35, min(2.0, first_pass_remaining)
+    if detail.get("status") != "deferred":
+        return None
+    if any(detail.get(field) != 0 for field in ("iterations", "contacts", "pairs")):
+        raise ArithmeticError("Deferred recovery already consumed geometry work")
+    cpu_left = 0.35 - detail["cpu_seconds"]
+    wall_left = min(first_pass_remaining, 2.0 - (perf_counter() - started))
+    return (cpu_left, wall_left) if cpu_left > 0 and wall_left > 0 else None

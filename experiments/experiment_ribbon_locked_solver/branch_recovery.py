@@ -12,6 +12,7 @@ from experiments.experiment_ribbon_feature_insertion.attached_regions import Reg
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     MAXIMUM_CPU_SECONDS,
     MAXIMUM_WALL_SECONDS,
+    InitialPolicy,
     recover,
 )
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
@@ -47,6 +48,9 @@ def recover_construction(
     With monotonic optimization enabled, a separated fallback also permits recovery
     of one measured penetration that is shorter and no worse on both whole-guide
     measures. Recovered geometry must satisfy those preferences again before use.
+    An accepted fallback's first correction may defer without motion when its
+    trust demand exceeds four updates, retaining preparation cost for the caller's
+    optional contraction recovery. Other recovery policies retain their behavior.
     No new roots or pair allowance are added: recovery shares the original2048pool
     and caller's four-second deadline, with its existing four-update/.35CPU cap.
     Unsupported failures, exhausted work and unsuccessful improvement retain the
@@ -136,6 +140,7 @@ def recover_construction(
             cap_policy=CapPolicy.ANALYTIC_SUPPORT,
             maximum_cpu_seconds=cpu_left,
             maximum_seconds=wall_left,
+            initial_policy=InitialPolicy.DEFER_OVERFLOW,
         )
     selected = recovery.route
     if selected is not None and (

@@ -42,6 +42,15 @@ class _Exhausted(RuntimeError):
     """
 
 
+class InitialPolicy(Enum):
+    """
+    Follow the original first correction or reserve work when its linear trust demand exceeds the allowance.
+    """
+
+    FOLLOW = "follow"
+    DEFER_OVERFLOW = "defer_overflow"
+
+
 @dataclass(frozen=True)
 class Recovery:
     """
@@ -71,6 +80,7 @@ def recover(
     initial_step: InitialStep | None = None,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
     region_policy: RegionPolicy = RegionPolicy.WITNESS,
+    initial_policy: InitialPolicy = InitialPolicy.FOLLOW,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
@@ -88,6 +98,9 @@ def recover(
     against an unchanged opposing region; no other new pair gains that exception.
     A cached first motion requires the identical immutable source and measurement;
     subsequent updates always recompute their derivatives on the changed geometry.
+    An optional initial-overflow policy may defer before any motion or certificate
+    when the first prediction exceeds the supplied update count. Preparation time
+    remains measured; deferral grants no clearance or renewed work allowance.
     """
     if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
         raise ValueError("Supply positive remaining first-pass work, at most2048pairs")
@@ -101,6 +114,8 @@ def recover(
         raise ValueError("Supply an explicit cap separation policy")
     if not isinstance(region_policy, RegionPolicy):
         raise ValueError("Supply an explicit separation-region policy")
+    if not isinstance(initial_policy, InitialPolicy):
+        raise ValueError("Supply an explicit initial recovery policy")
     if initial_step is not None and (
         initial_step.source is not source
         or initial_step.measurement is not measurement
@@ -188,6 +203,18 @@ def recover(
                 )
             if planned is None:
                 detail["stop_reason"] = "no_projected_separation"
+                break
+            if (
+                iteration == 0
+                and initial_policy is InitialPolicy.DEFER_OVERFLOW
+                and planned.fraction < 1 / maximum_updates
+            ):
+                detail.update(
+                    status="deferred",
+                    iterations=0,
+                    stop_reason="initial_prediction_exceeds_update_budget",
+                    initial_fraction=planned.fraction,
+                )
                 break
             chosen_side, gap, delta = planned.side, planned.gap, planned.delta
             side = chosen_side

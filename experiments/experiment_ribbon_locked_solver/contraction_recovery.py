@@ -30,6 +30,7 @@ def recover_contracted(
     record: Callable[[dict[str, Any]], None],
     *,
     maximum_seconds: float = MAXIMUM_WALL_SECONDS,
+    maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
 ) -> Recovery | None:
     """
     Recover one measured improving contraction only when the caller reserves unused feasibility work.
@@ -40,6 +41,8 @@ def recover_contracted(
     certificates use only the original remaining construction pairs and at most
     1024per call. The extra analytic cap support proof changes neither contact
     policy nor geometry. A failed/worse correction returns no replacement.
+    A caller may reserve earlier preparation CPU by reducing the CPU sublimit;
+    neither explicit time sublimit can replenish the original allowance.
     """
     if (
         type(maximum_seconds) not in (int, float)
@@ -47,6 +50,12 @@ def recover_contracted(
         or not 0 < maximum_seconds <= MAXIMUM_WALL_SECONDS
     ):
         raise ValueError("Use a positive remaining wall allowance within the original two seconds")
+    if (
+        type(maximum_cpu_seconds) not in (int, float)
+        or not math.isfinite(maximum_cpu_seconds)
+        or not 0 < maximum_cpu_seconds <= MAXIMUM_CPU_SECONDS
+    ):
+        raise ValueError("Use a positive remaining CPU allowance within the original0.35seconds")
     if not contraction.rejected or remaining_pairs <= 0:
         return None
     started, cpu = perf_counter(), process_time()
@@ -68,7 +77,7 @@ def recover_contracted(
     if not choices:
         return None
     branch, contact = min(choices, key=lambda item: item[0].priority)
-    cpu_left = MAXIMUM_CPU_SECONDS - (process_time() - cpu)
+    cpu_left = maximum_cpu_seconds - (process_time() - cpu)
     wall_left = maximum_seconds - (perf_counter() - started)
     if cpu_left <= 0 or wall_left <= 0:
         return None
