@@ -265,3 +265,14 @@ The initial new snapshot test failed on tuple-versus-JSON-list equality; canonic
 serialization fixed that assertion, with its old XML retained. Full/repository-wide
 QA was not requested. Source lock now has 225 files; evidence is retained under
 `artifacts/verification/ribbon_terminal839*` through `846` and adjacent XML files.
+
+# Coupled feature clearance — 2026-11-06
+
+Current N4 failure clears by moving existing signed joints, with both measured
+finite-feature constraints and ordered endpoint closure active together. The old
+straight-witness reflection policy remains. Same feasibility/pair/hardware limits;
+no guessed angles or added fold events. Final sub-native runway cleanup recloses
+all equations before strict contact/native checks. Saved corpus: 63 evaluated,
+49 accepted / 14 unresolved, all 48 previous accepted final/first-pass routes exact.
+One current native build/fidelity/boundary pass; tester journal remains 6/7, stopped.
+[Method, retained failures, limits and timings](FEATURE_CLEARANCE.md).

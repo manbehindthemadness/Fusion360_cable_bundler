@@ -66,8 +66,7 @@ def test_late_terminal_failure_keeps_three_preceding_controls_without_alias_infl
     Retain the new N2/N10 controls and N7 failure; N8 remains the existing exact prior-case01.
     """
     corpus = load()
-    assert len(corpus["cases"]) == 60
-    added = corpus["cases"][57:]
+    added = corpus["cases"][57:60]
     assert [c["targets"]["lines"] for c in added] == [2, 10, 7]
     assert [c["history"][0]["disposition"] for c in added] == [
         "retained_control",
@@ -75,6 +74,22 @@ def test_late_terminal_failure_keeps_three_preceding_controls_without_alias_infl
         "numerical_unresolved",
     ]
     assert added[-1]["gym"]["config"]["seed"] == 3079315550
+
+
+def test_fold_clearance_failure_retains_three_passed_controls_and_existing_alias() -> None:
+    """
+    Keep prior60inputs and add only the two genuinely new passed layouts plus current N4 failure.
+    """
+    corpus = load()
+    assert len(corpus["cases"]) == 63
+    added = corpus["cases"][60:]
+    assert [c["id"] for c in added] == ["rangebec-case-5", "rangebec-case-6", "rangebec-case-7"]
+    assert [c["history"][0]["disposition"] for c in added] == [
+        "retained_control",
+        "retained_control",
+        "numerical_unresolved",
+    ]
+    assert added[-1]["gym"]["config"]["seed"] == 251693499
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))

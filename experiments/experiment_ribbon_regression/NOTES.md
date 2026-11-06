@@ -1,6 +1,15 @@
 # Frozen gym regression corpus
 
-Current inventory grows to60exact development inputs after next range run: N8alias
+Current inventory: **63 exact development inputs**. Latest run adds two genuinely
+new passed controls and the N4 seed 251693499 failure; its preceding N7 pass is an
+existing alias with appended provenance. Prior 60 inputs/history prefixes remain.
+Reviewed capacity is 63 with the same 120 s phase, 103 s cutoff and 15 s case limits.
+902 evaluates all 63: **49 accepted / 14 unresolved**, all **48 previous accepted
+final and first-pass snapshots exact**. One current native/fidelity/boundary pass;
+no other native attempt or full physical audit. See
+[coupled feature clearance](../experiment_ribbon_terminal_hardware/FEATURE_CLEARANCE.md).
+
+Earlier inventory grew to60exact development inputs after the range run: N8alias
 prior-case01plus newN2/N10preceding passed controls and N7trigger with newrolls.
 Prior57inputs/settings/historyprefixes retained. Replay capacity60uses original120s
 phase/103scutoff/15scasebudget. Final880:60/60evaluated,46numerically accepted/

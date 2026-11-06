@@ -17,6 +17,7 @@ from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
+from .fold_recovery import recover as recover_fold
 from .gate import Gate
 from .reversal import _same_folds, close_update
 from .reversal_model import ReversalModel, incident_fold
@@ -67,6 +68,28 @@ def recover(
     evidence = terminal.measure(original, "deferred_recovery_source")
     if evidence.status != "blocked" or evidence.witness is None:
         return None
+    if not isinstance(original.pieces[evidence.witness.piece].geometry, Straight):
+        cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+        wall_left = maximum_seconds - (perf_counter() - started)
+        if cpu_left <= 0 or wall_left <= 0:
+            return None
+        recovered = recover_fold(
+            original,
+            evidence,
+            terminal,
+            checkpoint,
+            record,
+            maximum_length_mm=maximum_length_mm,
+            minimum_straight_mm=minimum_straight_mm,
+            remaining_pairs=remaining_pairs,
+            maximum_cpu_seconds=cpu_left,
+            maximum_seconds=wall_left,
+        )
+        if recovered is not None:
+            recovered.detail.update(
+                cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - started
+            )
+        return recovered
     selected = incident_fold(original, evidence.witness)
     if selected is None:
         return None

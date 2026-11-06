@@ -1,5 +1,20 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Coupled feature clearance 887–906 — 2026-11-06
+
+Current N4 seed 251693499 cannot clear hardware by forced reflection without an
+excursion. Actual fold evidence now uses the idle feasibility allowance to move
+signed joints and solve exact caps with up to two complete bend/runway separation
+constraints together. All signs/radii stay fixed; straight-evidence recovery keeps
+its previous rule. Exact-zero native-slot cleanup recloses and certifies the final
+geometry. Same CPU/pair/hardware limits, no additional fold events or angle search.
+63/63 saved inputs: 49 accepted / 14 unresolved; all 48 prior accepted final AND
+first-pass snapshots exact. Current 26.386845873 mm build/fidelity/boundary passes;
+recovery 0.261909 CPU s, generation 0.819233 s, audit 1.233077 s, whole native
+11.163458 s. Numerical 0.831221 CPU s narrowly misses generation timing goal.
+Tester stays stopped with original 6/7 journal and failed body preserved.
+[Detailed rule and evidence](../experiment_ribbon_terminal_hardware/FEATURE_CLEARANCE.md).
+
 ## Deferred terminal feasibility 872–885 — 2026-11-06
 
 Next N7seed3079315550/newrollcase stops after3passes; neither first/final/raw clears

@@ -131,9 +131,16 @@ class ReversalModel(MovableBends):
         """
         Couple layout-normalized endpoint position with the full ordered-frame rotation.
         """
-        end = self.pieces(values)[-1].end_pose()
-        target = self.original.targets
-        displacement = difference(end.origin, target.end)
-        expected = Pose(target.end, target.end_tangent, target.end_width)
-        position = tuple(getattr(displacement, axis) / self.scale for axis in "xyz")
-        return position + frame_rotation(end, expected)
+        return ordered_residual(self, values)
+
+
+def ordered_residual(model: MovableBends, values: tuple[float, ...]) -> tuple[float, ...]:
+    """
+    Share exact ordered-cap residuals across reflected and sign-preserving joint models.
+    """
+    end = model.pieces(values)[-1].end_pose()
+    target = model.original.targets
+    displacement = difference(end.origin, target.end)
+    expected = Pose(target.end, target.end_tangent, target.end_width)
+    position = tuple(getattr(displacement, axis) / model.scale for axis in "xyz")
+    return position + frame_rotation(end, expected)

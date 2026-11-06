@@ -98,9 +98,13 @@ def solve(
     separation and terminal clearance. This declines the unsafe optimization;
     it never moves geometry, repeats smoothing or borrows a different certificate.
     If all three routes fail hardware, actual first-pass evidence may use only
-    genuinely unused feasibility work: one incident reflection and at most one
-    complete straight/finite-box separation plane. This operates on the unsmoothed
-    route, preserves radii/other signs and may grow only to the construction length.
+    genuinely unused feasibility work. Straight evidence retains one incident
+    reflection and at most one complete straight/finite-box separation plane.
+    Fold evidence instead preserves every sign and radius while solving ordered
+    caps with at most two measured bend/runway feature planes simultaneously.
+    Its growth ceiling is construction length plus the initial complete-feature
+    projected penetration. Sub-native runway slots become exact zero, with all
+    constraints reclosed and final contact rechecked inside the same allowance.
     Prior recovery consultation cannot renew that allowance. Otherwise return no
     accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
