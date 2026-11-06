@@ -1,5 +1,16 @@
 # Finite terminal hardware trial
 
+Latest: [deferred terminal feasibility](DEFERRED_RECOVERY.md) fixes the next N7 stop
+using actual late evidence and unused original recovery work. Current inventory:
+60inputs,46numerical acceptances/14unresolved;45previous accepted routes exact.
+Current native fidelity/boundary pass is visible. Whole native operation115s remains
+an expensive host-stage timing concern, separate from4.83sconstruction/8.80saudit.
+
+Latest: [certified construction fallback](CONSTRUCTION_FALLBACK.md) records the
+next stopped N8 run, its corrected selection, 43/57 numerical outcomes and current
+native fidelity/boundary pass. All 35 previously accepted routes remain exact;
+14 inputs remain unresolved and seven other newly retained baselines are unbuilt.
+
 User-directed prototype, 2026-11-05. This package measures a combined connector
 and mounting-object proxy behind each fixed mating face. It is independent of
 the constructor and does not treat the other gym primitives as obstacles.

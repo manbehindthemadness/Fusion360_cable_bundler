@@ -128,13 +128,13 @@ def run(directory: Path, baseline: Path | None = None) -> dict[str, Any]:
     """
     Freeze all cases before execution; stop on the first regression, hard error or phase limit.
 
-    Each phase permits57executions,120wall seconds, with no launch after103seconds.
+    Each phase permits60executions,120wall seconds, with no launch after103seconds.
     Baseline numerical rejections are retained while later cases are measured.
     Candidate acceptance loss or increased length above1e-7mm stops the phase;
     unsuccessful and unattempted cases remain in the result. No automatic retry occurs.
     """
     corpus = load()
-    if len(corpus["cases"]) > 57:
+    if len(corpus["cases"]) > 60:
         raise ValueError("A larger corpus requires a newly reviewed execution budget")
     pins = _pins()
     baseline_pins = None

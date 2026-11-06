@@ -13,7 +13,7 @@ from devtools.ribbon_analysis.contracts import TargetPose, Targets
 from devtools.ribbon_analysis.pinch import PinchLimit
 from experiments.experiment_ribbon_bend_relocation.solve import contract
 from experiments.experiment_ribbon_contraction.contract import cap_error
-from experiments.experiment_ribbon_contraction.runner import material_error
+from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     MAXIMUM_CPU_SECONDS,
@@ -27,6 +27,7 @@ from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPoli
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
+from experiments.experiment_ribbon_terminal_hardware.recovery import recover as recover_terminal
 from experiments.experiment_ribbon_terminal_hardware.reversal import correct as correct_terminal
 
 from .branch_recovery import recover_construction
@@ -92,7 +93,16 @@ def solve(
     Temporary work proposals may need contraction or smoothing to clear hardware;
     do not reject their coarse initializer prematurely. Measure the completed first
     pass and final smoothed route. Blocked smoothing retains a cleared first pass
-    with its own contact certificate; otherwise return no accepted output. All checks
+    with its own contact certificate. If both fail hardware clearance, retain the
+    original construction only when its exact route still has strict self-contact
+    separation and terminal clearance. This declines the unsafe optimization;
+    it never moves geometry, repeats smoothing or borrows a different certificate.
+    If all three routes fail hardware, actual first-pass evidence may use only
+    genuinely unused feasibility work: one incident reflection and at most one
+    complete straight/finite-box separation plane. This operates on the unsmoothed
+    route, preserves radii/other signs and may grow only to the construction length.
+    Prior recovery consultation cannot renew that allowance. Otherwise return no
+    accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
     if (
@@ -180,6 +190,7 @@ def solve(
         raise ArithmeticError("V2 geometry lacks its contact measurement provenance")
     detail["construction"]["raw_length_mm"] = first.material_length_mm
     detail["contraction"] = {"status": "disabled"}
+    contraction_recovery_consulted = False
     remaining = 4 - (perf_counter() - started)
     if settings.first_pass_optimization and measurement.status == "separated" and remaining > 0:
         contraction = (
@@ -208,8 +219,13 @@ def solve(
         detail["contraction"] = contraction.detail
         remaining = 4 - (perf_counter() - started)
         allowance = _remaining_recovery(recovery_detail, recovery_started, remaining)
-        if allowance is not None and result.contact_pairs < CONTACT_PAIR_BUDGET:
+        if (
+            allowance is not None
+            and result.contact_pairs < CONTACT_PAIR_BUDGET
+            and contraction.rejected
+        ):
             cpu_left, wall_left = allowance
+            contraction_recovery_consulted = True
             recovered = recover_contracted(
                 contraction,
                 frames,
@@ -267,6 +283,70 @@ def solve(
         detail["final_contact_source"] = "unchanged_first_pass"
     if terminal is not None:
         permitted = terminal.permits(final, "final")
+        if (
+            not permitted
+            and final is not result.route
+            and result.contact is not None
+            and result.contact.status == "separated"
+            and terminal.permits(result.route, "construction_fallback")
+        ):
+            record(
+                {
+                    "stage": "terminal_hardware_fallback",
+                    "status": "construction_retained",
+                    "discarded_first_pass": snapshot(first),
+                    "discarded_smoothed": snapshot(smoothed.route),
+                    "route": snapshot(result.route),
+                    "contact": asdict(result.contact),
+                }
+            )
+            first = final = result.route
+            measurement = result.contact
+            permitted = True
+            detail["stages"]["terminal_hardware"] = "construction_retained"
+            detail["contraction"]["selection"] = "declined_for_terminal_clearance"
+            detail["final_contact_source"] = "hardware_safe_construction"
+        if (
+            not permitted
+            and settings.first_pass_optimization
+            and not contraction_recovery_consulted
+        ):
+            prior_recovery = detail["construction"]["recovery"]
+            allowance = _remaining_recovery(
+                prior_recovery, recovery_started, 4 - (perf_counter() - started)
+            )
+            pairs_left = CONTACT_PAIR_BUDGET - detail["construction"]["contact_pairs"]
+            if allowance is not None and pairs_left > 0:
+                recovered = recover_terminal(
+                    first,
+                    terminal,
+                    first_checkpoint,
+                    record,
+                    maximum_length_mm=result.route.material_length_mm,
+                    minimum_straight_mm=native_point_tolerance_mm,
+                    remaining_pairs=pairs_left,
+                    maximum_cpu_seconds=allowance[0],
+                    maximum_seconds=allowance[1],
+                )
+                if recovered is not None:
+                    recovery = dict(recovered.detail)
+                    if prior_recovery is not None:
+                        recovery.update(
+                            deferred_before_terminal=prior_recovery,
+                            cpu_seconds=prior_recovery["cpu_seconds"] + recovery["cpu_seconds"],
+                            elapsed_seconds=perf_counter() - recovery_started,
+                        )
+                    detail["construction"]["recovery"] = recovery
+                    detail["construction"]["contacts"] += recovered.detail["contacts"]
+                    detail["construction"]["contact_pairs"] += recovered.detail["contact_pairs"]
+                    detail["construction"]["contact_seconds"] += recovered.detail["contact_seconds"]
+                    detail["first_pass_seconds"] += recovered.detail["elapsed_seconds"]
+                    if recovered.contact is not None:
+                        first = final = recovered.route
+                        measurement = recovered.contact
+                        permitted = True
+                        detail["stages"]["terminal_hardware"] = "recovered_first_pass"
+                        detail["final_contact_source"] = "deferred_terminal_recovery"
         detail["terminal_hardware"] = terminal.detail()
         detail["terminal_hardware"]["final_status"] = "clear" if permitted else "unresolved"
         if not permitted:

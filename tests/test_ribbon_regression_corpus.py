@@ -49,7 +49,7 @@ def test_current_corpus_preserves_v1_and_enrolls_trigger_with_three_passed_contr
             k: v for k, v in retained.items() if k != "history"
         }
         assert retained["history"][: len(earlier["history"])] == earlier["history"]
-    added = current["cases"][54:]
+    added = current["cases"][54:57]
     assert len(added) == 3 and [case["targets"]["lines"] for case in added] == [9, 3, 4]
     assert [case["history"][0]["disposition"] for case in added] == [
         "retained_control",
@@ -59,6 +59,22 @@ def test_current_corpus_preserves_v1_and_enrolls_trigger_with_three_passed_contr
     assert added[-1]["gym"]["config"]["seed"] == 321914440
     assert [case["lines"] for case in current["enrollment"]["cases"]] == [5, 9, 3, 4]
     assert current["enrollment"]["aliases_not_independent"][0]["retained_id"] == "range5fe-case-161"
+
+
+def test_late_terminal_failure_keeps_three_preceding_controls_without_alias_inflation() -> None:
+    """
+    Retain the new N2/N10 controls and N7 failure; N8 remains the existing exact prior-case01.
+    """
+    corpus = load()
+    assert len(corpus["cases"]) == 60
+    added = corpus["cases"][57:]
+    assert [c["targets"]["lines"] for c in added] == [2, 10, 7]
+    assert [c["history"][0]["disposition"] for c in added] == [
+        "retained_control",
+        "retained_control",
+        "numerical_unresolved",
+    ]
+    assert added[-1]["gym"]["config"]["seed"] == 3079315550
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))

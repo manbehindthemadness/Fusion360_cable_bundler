@@ -101,40 +101,14 @@ def correct(
         emit(
             "started", selected_fold=selected, source=snapshot(original), evidence=asdict(evidence)
         )
-        closed = False
         for update in range(4):
             detail["iterations"] += 1
-            for _ in range(6):
-                bounded()
-                residual = model.residual(values)
-                error = max(map(abs, residual))
-                if error < 1e-13:
-                    closed = True
-                    break
-                delta = projected(
-                    model,
-                    values,
-                    model.jacobian(values),
-                    [-v for v in residual],
-                    [0.0] * len(values),
-                )
-                if delta is None:
-                    detail["stop_reason"] = "linear_closure_infeasible"
-                    break
-                step = step_limit(model, values, delta, 1.0)
-                for _ in range(4):
-                    bounded()
-                    trial = advance(model, values, delta, step)
-                    if max(map(abs, model.residual(trial))) < error:
-                        values = trial
-                        detail["newton_steps"] += 1
-                        break
-                    step /= 2
-                else:
-                    detail["stop_reason"] = "closure_no_descent"
-                    break
+            values, steps, reason = close_update(model, values, bounded)
+            detail["newton_steps"] += steps
+            if reason is not None:
+                detail["stop_reason"] = reason
             emit("closure_update", update=update, values=values, residual=model.residual(values))
-            if closed or "stop_reason" in detail:
+            if max(map(abs, model.residual(values))) < 1e-13 or "stop_reason" in detail:
                 break
         candidate = model.route(values)
         assert candidate is not None
@@ -182,6 +156,41 @@ def correct(
     )
     emit(detail["status"], detail=detail, candidate=snapshot(candidate) if candidate else None)
     return Result(result, measurement if accepted else None, detail)
+
+
+def close_update(
+    model: ReversalModel, initial: tuple[float, ...], checkpoint: Callable[[], None]
+) -> tuple[tuple[float, ...], int, str | None]:
+    """
+    Perform one shared six-Newton/four-halving ordered-cap correction without fixing zero runways.
+
+    Return the last bounded coordinates, motion count and any nonconvergence cause.
+    A missing cause does not itself certify closure; callers test the residual.
+    """
+    values, steps = initial, 0
+    for _ in range(6):
+        checkpoint()
+        residual = model.residual(values)
+        error = max(map(abs, residual))
+        if error < 1e-13:
+            return values, steps, None
+        delta = projected(
+            model, values, model.jacobian(values), [-v for v in residual], [0.0] * len(values)
+        )
+        if delta is None:
+            return values, steps, "linear_closure_infeasible"
+        step = step_limit(model, values, delta, 1.0)
+        for _ in range(4):
+            checkpoint()
+            trial = advance(model, values, delta, step)
+            if max(map(abs, model.residual(trial))) < error:
+                values = trial
+                steps += 1
+                break
+            step /= 2
+        else:
+            return values, steps, "closure_no_descent"
+    return values, steps, None
 
 
 def _same_folds(model: ReversalModel, route: FoldRoute) -> bool:

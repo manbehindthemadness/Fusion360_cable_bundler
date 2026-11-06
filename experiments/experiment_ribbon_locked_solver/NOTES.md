@@ -1,5 +1,46 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Deferred terminal feasibility 872–885 — 2026-11-06
+
+Next N7seed3079315550/newrollcase stops after3passes; neither first/final/raw clears
+hardware.32cellearlyprobe missed intrusion, so early reversal did not run. Required
+later evidence can now use genuinely idle original feasibility allowance: one
+incident reflection, then at most one measured straight/finite-box SAT plane with
+coupled endpoint closure. Same4updates/.35CPU/2wall/shared2048pairs/.1CPUhardware;
+no renewal after recovery consultation, no extraangles/radii/targets/features or
+second smoothing. Feasibility may grow invalid contracted input up to raw length.
+Priority-probe prototype872failed and was not adopted; partial873–875evidence kept.
+
+Three new inputs plus one alias yield60unique configurations.880completes60/60:
+46accepted/14unresolved; all45prior accepted final+firstpass routes exact. Current
+43.374947766mmrecovery uses3updates/830pairs/.254308CPU; whole numerical1.356872CPU.
+Visible selected-f7ba4b1f...passes native fidelity/boundary(±49.375mm),10710points/
+594seams/max7.606723717e-10mm,0warnings/0fullphysicalaudits. Generation4.834289s/
+audit8.802271s; whole native115.277607sclose120cap. Late checkpoints point to manual
+cap-profile/display overhead, exact attribution unmeasured; no new native attempt.
+60focusedtests/Ruff/IDE(2pre-existingdup hints);229pins. Tester3/4journal preserved,
+stopped. [Full policy/limits/timing evidence](../experiment_ribbon_terminal_hardware/DEFERRED_RECOVERY.md).
+
+## Certified construction fallback 862–870 — 2026-11-06
+
+Next stopped N8seed2355999392is exact prior-case01, not another independent input.
+Raw66.236324947mmclears hardware/self-contact; contraction53.053567577and smoothing
+53.584101774enter the start box. Final selection had discarded the earlier safe
+construction. Now retain that exact route and its own strict contact certificate
+only after both later hardware checks fail. UV/first-pass provenance follow the
+retained route; no new geometry search, radius/target change, budget or smoothing.
+Contraction's unsafe proposal is explicitly declined in the result ledger.
+
+Four-case865passes;866completes57/57:43numerically accepted/14unresolved; all35prior
+accepted final/first-pass routes exact. Eight retained existing constructions are
+not eight bend repairs or complete builds; seven lack new native/boundary coverage,
+including one854.374mmraw route. Current native selected-f912c6a0...passes named
+fidelity/boundary(±55mm):9800points/540seams/max7.5417694e-10mm,0warnings/0fullphysical
+audits. Numerical1.224075CPU; generation2.116763s/audit2.055890s; timing goal passes.
+Correct current gym context/body visible, original stopped tester/history retained.
+52focused checks/Ruff/diff pass;227pins; two pre-existing solver duplication hints.
+[Detailed policy, limitations and evidence](../experiment_ribbon_terminal_hardware/CONSTRUCTION_FALLBACK.md).
+
 ## Coupled terminal correction 848–860 — 2026-11-06
 
 V2's opt-in hardware trial can substitute one witness-incident fold reversal for

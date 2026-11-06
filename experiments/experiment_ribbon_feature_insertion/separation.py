@@ -83,6 +83,13 @@ def _located(source: FoldRoute, pieces: tuple[PlacedPiece, ...], region: Region)
     raise TopologyChanged("Original material region is unavailable")
 
 
+def locate(source: FoldRoute, pieces: tuple[PlacedPiece, ...], region: Region) -> PlacedPiece:
+    """
+    Resolve a stable material slot with the shared fold-count and absent-runway rules.
+    """
+    return _located(source, pieces, region)
+
+
 @dataclass(frozen=True)
 class Separation:
     """

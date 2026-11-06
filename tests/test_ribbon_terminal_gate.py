@@ -202,3 +202,63 @@ def test_unresolved_work_geometry_can_finish_before_strict_final_acceptance(
     assert result.detail["terminal_hardware"]["final_status"] == (
         "clear" if final_clear else "unresolved"
     )
+
+
+@pytest.mark.parametrize("construction_clear", (True, False))
+@pytest.mark.parametrize("construction_separated", (True, False))
+def test_unsafe_optimization_cannot_lose_an_existing_certified_clear_construction(
+    monkeypatch: pytest.MonkeyPatch,
+    construction_clear: bool,
+    construction_separated: bool,
+) -> None:
+    """
+    Restore matching route/certificate/UV provenance only when the original clears both hard gates.
+    """
+    original = _route((Straight(10),))
+    contracted = replace(original, pieces=(replace(original.pieces[0], geometry=Straight(8)),))
+    final = replace(original, pieces=(replace(original.pieces[0], geometry=Straight(8.1)),))
+    constructor = _constructor(original)
+    if not construction_separated:
+        constructor.return_value.contact = ContactResult("unresolved", 749, limit="pairs")
+    monkeypatch.setitem(vars(solver_v2), "construct", constructor)
+    correction = Mock(return_value=None)
+    monkeypatch.setitem(vars(solver_v2), "correct_terminal", correction)
+    contraction = Mock(
+        return_value=SimpleNamespace(
+            route=contracted,
+            contact=ContactResult("separated", 1563, reason="contracted only"),
+            detail={"status": "shortened"},
+            rejected=(),
+        )
+    )
+    monkeypatch.setitem(vars(solver_v2), "contract", contraction)
+    monkeypatch.setitem(
+        vars(solver_v2),
+        "smooth_with_contact",
+        Mock(return_value=SimpleNamespace(route=final, stages={}, contact=None)),
+    )
+    terminal = Mock(spec=gate.Gate)
+    terminal.permits.side_effect = lambda route, stage: construction_clear and route is original
+    terminal.detail.return_value = {"enabled": True}
+    monkeypatch.setitem(vars(solver_v2), "Gate", Mock(return_value=terminal))
+    audit = Mock(side_effect=AssertionError("Use only the retained route's existing certificate"))
+    monkeypatch.setitem(vars(solver_v2), "inspect_contact", audit)
+    events: list[dict[str, Any]] = []
+    result = solver_v2.solve(
+        original.targets, Settings(1, True, True, True), lambda: None, events.append
+    )
+    if construction_clear and construction_separated:
+        assert result.route is result.first_pass is original
+        assert result.detail["contact_measurement"]["pairs_checked"] == 749
+        assert result.detail["final_contact_source"] == "hardware_safe_construction"
+        assert result.detail["contraction"]["selection"] == "declined_for_terminal_clearance"
+        assert result.detail["quality"]["first_pass_outcome"] == "construction_retained"
+        assert result.material_uv is not None
+        assert result.material_uv["route"] == snapshot(original)
+        retained = next(e for e in events if e.get("stage") == "terminal_hardware_fallback")
+        assert retained["discarded_first_pass"] == snapshot(contracted)
+        assert retained["discarded_smoothed"] == snapshot(final)
+    else:
+        assert result.route is None and result.material_uv is None
+        assert not any(e.get("stage") == "terminal_hardware_fallback" for e in events)
+    audit.assert_not_called()

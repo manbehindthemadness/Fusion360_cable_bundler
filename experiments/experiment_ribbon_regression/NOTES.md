@@ -1,5 +1,21 @@
 # Frozen gym regression corpus
 
+Current inventory grows to60exact development inputs after next range run: N8alias
+prior-case01plus newN2/N10preceding passed controls and N7trigger with newrolls.
+Prior57inputs/settings/historyprefixes retained. Replay capacity60uses original120s
+phase/103scutoff/15scasebudget. Final880:60/60evaluated,46numerically accepted/
+14unresolved, all45prior accepted final+firstpass snapshots exact. OnlynewN7trigger
+is natively rebuilt/fidelity/boundary checked;0fullphysicalaudits. See
+[deferred terminal evidence](../experiment_ribbon_terminal_hardware/DEFERRED_RECOVERY.md).
+
+Latest866comparison(2026-11-06):57/57evaluated,43numerically accepted/14unresolved;
+all35previous accepted final/first-pass routes exactly unchanged. Eight former
+rejections retain an existing fully self-separated/hardware-clear construction
+when later optimization fails; seven changed cases lack new native/stress validation.
+Current N8run is an exact prior-case01alias, with appended provenance and no new
+configuration count. Only that trigger is built/named-fidelity/boundary checked.
+See [construction fallback evidence](../experiment_ribbon_terminal_hardware/CONSTRUCTION_FALLBACK.md).
+
 Latest terminal-correction comparison857(2026-11-06):57/57exact inputs evaluated,
 35accepted/22unresolved under the enabled hardware trial. All34previous accepted
 final routes are byte-for-byte unchanged; current164is newly repaired. Six of seven

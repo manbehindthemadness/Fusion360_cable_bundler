@@ -1,5 +1,9 @@
 # Coupled incident-fold correction — 2026-11-06
 
+The subsequent [construction fallback](CONSTRUCTION_FALLBACK.md) preserves an
+earlier certified clear route when later optimization collides. Its current
+comparison is 43/57 numerical acceptances; the 35/57 figures below describe 857.
+
 The user-authorized 848–860 investigation changes first-pass geometry, following
 the earlier inspection-only correction. It is included in v2's opt-in **Terminal
 hardware clearance (trial)** when first-pass optimization is enabled. Other gym
