@@ -25,6 +25,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from .branch_recovery import recover_construction
 from .contraction_recovery import recover_contracted
 from .coordinates import metadata
+from .placement import guide_parameters
 from .settings import Settings
 from .smoothing_contact import smooth_with_contact
 from .solver import Result
@@ -63,6 +64,10 @@ def solve(
     final geometry match to an accepted aesthetic proposal. Otherwise the final
     route requires the normal bounded contact check.
     Native point tolerance rejects tiny explicit straights; it is not a bend rule.
+    Enabled optimization replaces the single midpoint frame by the guide's turn
+    midpoint only if every exact midpoint factorization already requires more
+    flat runway material than the whole guide. This changes placement, not feature/root
+    counts, physical rules or the first-construction work limits.
     An explicitly configured temporary gym policy may retain pair-limit exhaustion
     with contact unmeasured; ordinary calls retain strict contact acceptance.
     """
@@ -85,10 +90,16 @@ def solve(
         if perf_counter() - started > 4:
             raise TimeoutError("V2 first construction exceeded four seconds")
 
+    boundary = Boundary(targets, radius)
+    parameters = (
+        guide_parameters(boundary, frames, first_checkpoint, record)
+        if settings.first_pass_optimization
+        else (0.5,)
+    )
     result = construct(
-        Boundary(targets, radius),
+        boundary,
         frames,
-        (0.5,),
+        parameters,
         native_point_tolerance_mm,
         first_checkpoint,
         record,
@@ -118,6 +129,7 @@ def solve(
             "closed_branches": result.closed_branches,
             "unattempted_contacts": result.unattempted_contacts,
             "selection": "monotonic" if settings.first_pass_optimization else "midpoint",
+            "guide_parameters": parameters,
             "recovery": recovery_detail,
         },
         "first_pass_seconds": first_seconds,

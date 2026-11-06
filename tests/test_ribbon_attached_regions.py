@@ -12,8 +12,11 @@ from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_contraction.runner import restore
-from experiments.experiment_ribbon_feature_insertion.attached_regions import with_attached_straights
-from experiments.experiment_ribbon_feature_insertion.separation import Separation
+from experiments.experiment_ribbon_feature_insertion.attached_regions import (
+    continues_feature,
+    with_attached_straights,
+)
+from experiments.experiment_ribbon_feature_insertion.separation import Region, Separation
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_inverse import occupied_coordinates
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, Straight
@@ -76,3 +79,33 @@ def test_confirmed_attached_straight_changes_the_whole_feature_correction() -> N
     expanded = with_attached_straights(bound, route, measurement)
     assert expanded.extra_regions and expanded.pair == bound.pair
     assert expanded.model.original is route
+
+
+@pytest.mark.parametrize("side", (0, 1))
+@pytest.mark.parametrize("slot", (2, 3))
+def test_fold_contact_can_continue_to_either_attached_slot(side: int, slot: int) -> None:
+    """
+    Match stable material regions in either contact order without changing the opposing identity.
+    """
+    before = (Region(2, False), Region(5, True))
+    after = (Region(slot, True), before[1])
+    if side:
+        before, after = (before[1], before[0]), (after[1], after[0])
+    assert continues_feature(before, after) and continues_feature(after, before)
+
+
+@pytest.mark.parametrize(
+    "after",
+    (
+        (Region(4, True), Region(5, True)),
+        (Region(2, True), Region(6, True)),
+        (Region(3, False), Region(5, True)),
+    ),
+)
+def test_unrelated_contact_regions_still_require_handoff(after: tuple[Region, Region]) -> None:
+    """
+    Reject separate straight slots, distinct folds and changes to both interacting material sides.
+    """
+    before = (Region(2, False), Region(5, True))
+    assert not continues_feature(before, after)
+    assert continues_feature(before, before)

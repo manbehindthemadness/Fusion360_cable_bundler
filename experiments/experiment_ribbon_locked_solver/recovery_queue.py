@@ -31,8 +31,10 @@ def recover_failed(
     """
     Spend at most four total updates,.35CPU/2wall and the original remaining pair pool.
 
-    Preserve prediction order. Only an explicitly different penetrating material
-    pair permits handing unused updates to the next already-derived branch. Do
+    Preserve prediction order. Only a different penetrating material feature
+    permits handing unused updates to the next already-derived branch. A fold
+    and its attached straight retain the correction against the same opposing
+    region. Do
     not retry a branch, extend exhausted work or install a partially corrected
     collision. The last branch follows the original local contact policy.
     Selection and handoff overhead count toward the same time allowance.
@@ -78,7 +80,7 @@ def recover_failed(
             maximum_seconds=wall_left,
             maximum_updates=4 - updates,
             continuation=(
-                ContactContinuation.YIELD_ON_NEW_PAIR if has_next else ContactContinuation.FOLLOW
+                ContactContinuation.YIELD_ON_NEW_FEATURE if has_next else ContactContinuation.FOLLOW
             ),
             initial_step=next(
                 (

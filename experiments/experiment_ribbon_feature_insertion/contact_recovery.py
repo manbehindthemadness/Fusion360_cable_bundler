@@ -18,7 +18,7 @@ from experiments.experiment_ribbon_fold_route.contact import ContactResult, insp
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
-from .attached_regions import RegionPolicy, with_attached_straights
+from .attached_regions import RegionPolicy, continues_feature, with_attached_straights
 from .separation import Separation, Side, TopologyChanged, regions
 from .separation_step import InitialStep, plan_step
 
@@ -33,6 +33,7 @@ class ContactContinuation(Enum):
 
     FOLLOW = "follow"
     YIELD_ON_NEW_PAIR = "yield_on_new_pair"
+    YIELD_ON_NEW_FEATURE = "yield_on_new_feature"
 
 
 class _Exhausted(RuntimeError):
@@ -83,6 +84,8 @@ def recover(
     ambiguity and failed improvement remain unresolved; caller hard errors propagate.
     A scheduler can reserve updates and request a yield after a different stable
     material pair penetrates. This returns no accepted geometry or certificate.
+    Feature-aware yielding may retain a fold-to-attached-straight transition
+    against an unchanged opposing region; no other new pair gains that exception.
     A cached first motion requires the identical immutable source and measurement;
     subsequent updates always recompute their derivatives on the changed geometry.
     """
@@ -254,13 +257,26 @@ def recover(
                 detail["status"] = "separated"
                 break
             if (
-                continuation is ContactContinuation.YIELD_ON_NEW_PAIR
+                continuation is not ContactContinuation.FOLLOW
                 and measurement.status == "penetration"
             ):
                 next_bound = Separation.from_measurement(model, route, measurement)
                 if next_bound is not None and next_bound.pair != bound.pair:
-                    detail["stop_reason"] = "different_contact_pair"
-                    break
+                    attached = (
+                        continuation is ContactContinuation.YIELD_ON_NEW_FEATURE
+                        and continues_feature(bound.pair, next_bound.pair)
+                    )
+                    if not attached:
+                        detail["stop_reason"] = "different_contact_pair"
+                        break
+                    record(
+                        {
+                            "stage": "contact_feature_continuation",
+                            "status": "attached_straight",
+                            "before": tuple(asdict(region) for region in bound.pair),
+                            "after": tuple(asdict(region) for region in next_bound.pair),
+                        }
+                    )
             bound, side = None, None
     except _Exhausted:
         detail["stop_reason"] = "local_budget"

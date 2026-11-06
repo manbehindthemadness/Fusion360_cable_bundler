@@ -102,12 +102,25 @@ class Frames:
         if max(first, last) <= 1e-12:
             return None
         begin, end = (0, 128) if first >= last - 1e-12 else (128, 256)
-        wanted = (self.turns[begin] + self.turns[end]) / 2
+        parameter = self.turn_parameter((self.turns[begin] + self.turns[end]) / 2, begin, end)
+        ordered = sorted((parameter, 0.5))
+        return ordered[0], ordered[1]
+
+    def turn_parameter(self, wanted: float, begin: int = 0, end: int = 256) -> float:
+        """
+        Interpolate one ordered cumulative-turn value within the specified sampled guide interval.
+
+        The supplied turn must lie within that interval. Flat sampled intervals
+        retain their earlier parameter, without inventing an additional direction.
+        """
+        if (
+            not 0 <= begin < end < len(self.turns)
+            or not self.turns[begin] <= wanted <= self.turns[end]
+        ):
+            raise ValueError("Supply a cumulative turn within an ordered guide interval")
         index = max(begin + 1, min(bisect_left(self.turns, wanted, begin, end + 1), end))
         a, b = self.turns[index - 1 : index + 1]
         fraction = (wanted - a) / (b - a) if b > a else 0.0
-        parameter = self.guide.parameters[index - 1] + fraction * (
+        return self.guide.parameters[index - 1] + fraction * (
             self.guide.parameters[index] - self.guide.parameters[index - 1]
         )
-        ordered = sorted((parameter, 0.5))
-        return ordered[0], ordered[1]

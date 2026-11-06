@@ -1,5 +1,86 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Conditioned feature placement and attached-contact continuation757–772 — 2026-11-05
+
+User-started range5fe021...stops at161after160passes/1warning. Trigger N5,
+seed3871626163, A zone12/face2/roll12°, B zone1/face2/roll55° (one-based labels).
+Original selected-f3ea51b83854451283550d39e876b173 has3closed self-intersecting
+branches574.283035/343.045107/191.076282mm. Recovery spends4updates but clears
+no witness,743/2048pairs used; no accepted native construction. The separately
+built inspection body remains NOT ACCEPTED. Original tester ledger and geometry
+evidence remain unchanged. This is a solver rejection, not a setup or kernel stop.
+
+758moving-first-sheet prediction improves its linear fraction.119523→.457235,
+but760cold correction still fails after4updates/0certificates. Reverted that
+selection change completely; no moving-axis fallback is installed.759freezes39
+distinct pre-fix inputs: prior35plus new156/N2,158/N7,160/N7and161/N5trigger.
+38controls accepted,161unresolved; no aliases. Baseline phase36.664427s.
+
+761finds only.084600rad of the guide's pi total turn before parameter1/2, despite
+large interpolated roll. Every exact midpoint factorization therefore demands
+nonlocal flat runways: minimum84.363065mm before/after material for24.236185mm
+guide, minimum whole-fold material92.868576mm. The one cumulative-turn midpoint
+is parameter.8599760376305021; its minimum whole-fold material is13.580649mm.
+No heading grid or new feature/root is needed. Enabled first-pass optimization now
+uses that single turn-derived reference only when the minimum FLAT runway demand
+over exact midpoint roots exceeds the entire guide length. Required curved arc
+material is excluded. Other layouts and disabled optimization keep parameter1/2.
+This is a placement preference, not a hard route-length or physical acceptance rule.
+
+763placement-only cold solve remains unresolved: after clearing a fold contact,
+the witness moves to its attached straight against the SAME opposing region, but
+the scheduler hands the remaining3updates to another branch.764continuation of
+the frozen compact branch clears both in2updates/296pairs/.141442CPU. New explicit
+YIELD_ON_NEW_FEATURE policy follows only a fold/directly attached straight change
+with an identical opposing stable region. Distinct folds, separate straight slots
+or two changed sides still hand off. Historical FOLLOW/YIELD_ON_NEW_PAIR defaults
+remain; v2 queue opts in. Every continued route still needs strict whole-contact
+certification. No increase to roots, radii, four updates,.35CPU/2wall recovery,
+2048shared pairs/1024per certificate, four-second first pass or native/RSS limits.
+Shared Frames.turn_parameter preserves old inserted-station interpolation.
+
+766first combined comparison stops after29/39: short146becomes unresolved and10
+cases remain unattempted. Its whole-fold criterion wrongly included necessary
+curved material.767preserves that failed source and measures flat before/after
+runways separately across the SAME39inputs;146keeps its original midpoint while
+134and161remain conditioned. No numerical threshold or input was tuned.768final
+39/39numerical pass:36of38control final routes AND first passes exactly unchanged;
+103shortens60.191505→52.785090mm,134shortens92.211628→83.970360mm. Trigger becomes
+29.311219900483305mm. Final phase37.905075s.110controlled complete numerical
+executions across39independent configurations (39baseline,760/763one each,76629,
+76839,771one fresh). Partial758/761/762/764/767diagnostics and analytical unit
+replays are separate, not new complete-case coverage. All failed/unattempted rows
+are retained; no claim of universal or shortest-route success.
+
+769–772native prediction/observation:3changed configurations planned/attempted/
+built/named-fidelity-audited/boundary-passed,3/3with0warnings;0full physical audits.
+Two controls reuse exact accepted768snapshots without new solves, in the same
+owned document.103's historical document identity is recorded separately from
+its new native replay context; exact target payloads are equal.36unchanged
+controls' new native builds are unattempted. All3viewport captures inspected.
+
+| Case | Length mm | Numerical CPU s | Generation s | Audit s | Faces / points / seams | Max error mm | Outer half extent mm |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| 103 | 52.785090 | 1.235668 | 4.189658 | 3.793521 | 212 / 7350 / 406 | 2.171414e-9 | 38.125 |
+| 134 | 83.970360 | .741071 | 1.180535 | .948858 | 282 / 9800 / 540 | 6.657469e-9 | 55 |
+| 161 fresh | 29.311220 | .703904 | .759042 | .786887 | 198 / 6860 / 378 | 1.325855e-9 | 38.125 |
+
+Trigger selected-157fdf3468db453cb0073addab99cbb9 is visible in gym697. Recovery
+2updates/.265220CPU including prediction,296pairs; total construction502/2048,
+1546unused. Contract35.643570→29.021010mm, then1%smoothing. Live numerical wall
+.835791s slightly exceeds.759042s generation, so elapsed timing GOAL remains
+missed even though CPU is lower. Peak sampled Fusion RSS1706032KiB across3builds;
+final capture402976KiB. All bounds excess0. No new full physical/long-run audit.
+
+187focused/affected tests pass;9attached-region tests pass after tuple typing fix.
+2pre-existing v2 length expectations remain explicitly deselected. Old queue
+specimen now follows its attached feature in3updates/one branch, improving103;
+unrelated-contact handoff/shared-budget tests remain. Scoped Ruff check/format
+pass; changed-code IDE clear apart from3pre-existing archived-v2 duplication weak
+warnings. Complete diff/new files reviewed; source lock218pins. FullQA unrun.
+Original160/161ledger kept, tester stopped,1000goal paused. No automatic restart,
+production integration, standards change or historical rewrite.
+
 ## Thickness-contact evidence for excursion recovery747–756 — 2026-11-05
 
 User-started rangea8bfb65...stops at154after153passes/1warning. Trigger N7,

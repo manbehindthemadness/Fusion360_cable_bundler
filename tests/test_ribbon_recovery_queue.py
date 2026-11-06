@@ -67,7 +67,7 @@ def test_new_collision_yields_only_unused_updates_pairs_and_time(
     assert first.args[2] == 1181 and second.args[2] == 1073
     assert first.kwargs["maximum_cpu_seconds"] == pytest.approx(0.30)
     assert second.kwargs["maximum_cpu_seconds"] == pytest.approx(0.20)
-    assert first.kwargs["continuation"] is ContactContinuation.YIELD_ON_NEW_PAIR
+    assert first.kwargs["continuation"] is ContactContinuation.YIELD_ON_NEW_FEATURE
     assert second.kwargs["continuation"] is ContactContinuation.FOLLOW
     assert first.kwargs["cap_policy"] is second.kwargs["cap_policy"] is CapPolicy.ANALYTIC_SUPPORT
     assert result.route is other.route and result.contact is certificate
@@ -157,11 +157,11 @@ def test_elapsed_cpu_blocks_a_handoff(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.route is None and result.detail["stop_reason"] == "local_budget"
 
 
-def test_gym_reversal_uses_two_existing_branches_within_four_total_updates(
+def test_gym_reversal_continues_an_attached_feature_within_four_total_updates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Resolve the changed collision while retaining exact caps, material rules and strict contact.
+    Keep the attached-straight correction on its current branch with exact caps and strict contact.
     """
     # Check geometry deterministically; clock-stop contracts have separate tests.
     monkeypatch.setitem(vars(recovery_queue), "process_time", lambda: 0.0)
@@ -176,7 +176,7 @@ def test_gym_reversal_uses_two_existing_branches_within_four_total_updates(
     assert result.route is not None and result.detail["contact"] == "separated"
     assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
     recovery = result.detail["construction"]["recovery"]
-    assert recovery["iterations"] == 4 and recovery["contacts"] == 2
-    assert [row["roots"] for row in recovery["attempts"]] == [(0, 1), (0, 0)]
-    assert recovery["attempts"][0]["stop_reason"] == "different_contact_pair"
+    assert recovery["iterations"] == 3 and recovery["contacts"] == 2
+    assert [row["roots"] for row in recovery["attempts"]] == [(0, 1)]
+    assert any(event.get("stage") == "contact_feature_continuation" for event in events)
     assert result.detail["construction"]["contact_pairs"] <= 2048

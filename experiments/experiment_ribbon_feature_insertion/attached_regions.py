@@ -51,3 +51,25 @@ def with_attached_straights(
             if straight_witness(route, first, second) is not None:
                 extras.append((side, tags[neighbor]))
     return replace(bound, extra_regions=tuple(extras)) if extras else bound
+
+
+def continues_feature(before: tuple[Region, Region], after: tuple[Region, Region]) -> bool:
+    """
+    Recognize one fold/attached-straight transition against an unchanged opposing material region.
+
+    This schedules continued recovery only; both contacts must already have
+    strict witnesses and the whole route still needs separation certification.
+    Distinct folds, two changed sides and separate straight slots remain unrelated.
+    """
+    if before == after:
+        return True
+    for side in (0, 1):
+        if before[1 - side] != after[1 - side]:
+            continue
+        a, b = before[side], after[side]
+        if a.straight == b.straight:
+            continue
+        fold, straight = (b, a) if a.straight else (a, b)
+        if straight.fold in (fold.fold, fold.fold + 1):
+            return True
+    return False
