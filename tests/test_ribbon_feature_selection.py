@@ -10,7 +10,11 @@ import pytest
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
-from experiments.experiment_ribbon_feature_insertion.selection import Branch, select
+from experiments.experiment_ribbon_feature_insertion.selection import (
+    Branch,
+    ImprovementPolicy,
+    select,
+)
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
 from experiments.experiment_ribbon_spline_guide.guide import Agreement
 
@@ -112,3 +116,35 @@ def test_source_or_resource_failure_is_not_masked_by_safe_baseline() -> None:
     with pytest.raises(TimeoutError, match="source stop"):
         select((baseline, improved), certify)
     assert select((replace(baseline, site_error_mm2=0),), lambda branch: False) is None
+
+
+@pytest.mark.parametrize("guide_dimension", ("position", "direction"))
+def test_completed_improvement_uses_length_without_changing_construction_policy(
+    guide_dimension: str,
+) -> None:
+    """
+    A shorter completed route may worsen a guide preference while initialization retains its old rule.
+    """
+    baseline = _branch(0, 40, 1, 0.1, 1)
+    shorter = _branch(
+        1,
+        20,
+        6 if guide_dimension == "position" else 0.5,
+        0.4 if guide_dimension == "direction" else 0.05,
+        9,
+    )
+    assert ImprovementPolicy.MATERIAL_LENGTH.accepts(shorter, baseline)
+    assert not ImprovementPolicy.GUIDE_DOMINANCE.accepts(shorter, baseline)
+    assert not ImprovementPolicy.MATERIAL_LENGTH.accepts(baseline, shorter)
+    assert not ImprovementPolicy.MATERIAL_LENGTH.accepts(baseline, baseline)
+    calls: list[Branch] = []
+
+    def certify(branch: Branch) -> bool:
+        """
+        Record the original safe construction without authorizing optional guide-worsening work.
+        """
+        calls.append(branch)
+        return True
+
+    assert select((shorter, baseline), certify) is baseline
+    assert calls == [baseline]

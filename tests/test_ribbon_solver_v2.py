@@ -14,6 +14,7 @@ import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_locked_solver import controller, solver_v2, worker
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 from experiments.experiment_ribbon_locked_solver.settings import VERSION, Settings
@@ -92,11 +93,8 @@ def test_worker_dispatches_one_explicit_version_without_cross_version_fallback(
     assert not (tmp_path / "route.json").exists()
 
 
-@pytest.mark.parametrize(
-    "optimization, length", ((False, 42.37883889691975), (True, 33.15038581896378))
-)
 def test_v2_reproduces_measured_gym_branch_and_toggle_without_hidden_postpass(
-    monkeypatch: pytest.MonkeyPatch, optimization: bool, length: float
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
     Preserve the actual examined gym regression and avoid repeating its accepted contact certificate.
@@ -111,16 +109,30 @@ def test_v2_reproduces_measured_gym_branch_and_toggle_without_hidden_postpass(
         raise AssertionError("Unchanged first pass already certified")
 
     monkeypatch.setitem(vars(solver_v2), "inspect_contact", forbidden)
-    result = solver_v2.solve(
-        scene.targets, Settings(0, False, optimization), lambda: None, lambda event: None
-    )
-    route = result.route
-    assert route is not None
-    assert route.material_length_mm == pytest.approx(length, abs=1e-10)
-    assert route is result.first_pass
-    assert result.detail["version"] == V2 and result.detail["construction"]["contacts"] <= 2
-    assert result.detail["stages"] == {"smoothing": "disabled"}
-    assert result.material_uv is None
+    lengths: list[float] = []
+    for optimization in (False, True):
+        result = solver_v2.solve(
+            scene.targets, Settings(0, False, optimization), lambda: None, lambda event: None
+        )
+        route = result.route
+        if route is None:
+            raise AssertionError("Measured gym control must retain an accepted route")
+        accepted_route: FoldRoute = route
+        assert accepted_route is result.first_pass
+        assert accepted_route.targets == scene.targets
+        assert result.detail["contact"] == "separated"
+        assert result.detail["cap_error_mm"] < 1e-7
+        assert result.detail["material_metric_error"] < 1e-10
+        assert result.detail["version"] == V2
+        assert result.detail["construction"]["contact_pairs"] <= 2048
+        assert result.detail["construction"]["selection"] == (
+            "monotonic" if optimization else "midpoint"
+        )
+        assert result.detail["stages"] == {"smoothing": "disabled"}
+        assert result.material_uv is None
+        assert result.detail["quality"]["final_length_mm"] == accepted_route.material_length_mm
+        lengths.append(accepted_route.material_length_mm)
+    assert lengths[1] < lengths[0]
 
 
 def test_v2_uv_metadata_retains_material_coordinates_without_appearance_work() -> None:

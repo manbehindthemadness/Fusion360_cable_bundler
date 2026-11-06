@@ -17,7 +17,7 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     recover,
 )
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
-from experiments.experiment_ribbon_feature_insertion.selection import Branch, improves
+from experiments.experiment_ribbon_feature_insertion.selection import Branch, ImprovementPolicy
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 
 
@@ -31,12 +31,15 @@ def recover_contracted(
     *,
     maximum_seconds: float = MAXIMUM_WALL_SECONDS,
     maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
+    improvement_policy: ImprovementPolicy = ImprovementPolicy.GUIDE_DOMINANCE,
 ) -> Recovery | None:
     """
     Recover one measured improving contraction only when the caller reserves unused feasibility work.
 
-    Select the shortest measured penetration or supported depth result that also
-    improves both whole-guide measures. Recheck those preferences after recovery.
+    Select the shortest measured penetration or supported depth result that
+    improves the declared policy. Length policy uses strict shortening without
+    guide vetoes; historical monotonic policy retains both whole-guide measures.
+    Recheck the same preferences after recovery.
     Selection, correction and acceptance share the original.35CPU/2wall allowance;
     certificates use only the original remaining construction pairs and at most
     1024per call. The extra analytic cap support proof changes neither contact
@@ -72,7 +75,7 @@ def recover_contracted(
         )
         if supported:
             branch = Branch.measure((index,), route, frames.guide)
-            if improves(branch, baseline):
+            if improvement_policy.accepts(branch, baseline):
                 choices.append((branch, contact))
     if not choices:
         return None
@@ -105,7 +108,9 @@ def recover_contracted(
     if selected is not None:
         if result.contact is None or result.contact.status != "separated":
             raise ArithmeticError("Recovered contraction lacks a separated contact certificate")
-        if not improves(Branch.measure(branch.roots, selected, frames.guide), baseline):
+        if not improvement_policy.accepts(
+            Branch.measure(branch.roots, selected, frames.guide), baseline
+        ):
             selected = None
     detail = {
         **result.detail,

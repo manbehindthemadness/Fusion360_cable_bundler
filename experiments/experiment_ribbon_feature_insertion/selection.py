@@ -62,6 +62,32 @@ class Branch:
         )
 
 
+class ImprovementPolicy(Enum):
+    """
+    Distinguish historical construction preferences from completed first-pass quality.
+    """
+
+    GUIDE_DOMINANCE = "guide_dominance"
+    MATERIAL_LENGTH = "material_length"
+
+    def accepts(self, candidate: Branch, baseline: Branch) -> bool:
+        """
+        Require strict shortening; apply guide vetoes only to historical initialization.
+
+        Material-length policy belongs after baseline contraction. Choosing a
+        shorter coarse route before that work can worsen the completed route.
+        Neither preference replaces contact or fixed-target certification.
+        """
+        shorter = candidate.route.material_length_mm < baseline.route.material_length_mm
+        return shorter and (
+            self is ImprovementPolicy.MATERIAL_LENGTH
+            or (
+                candidate.guide.rms_mm <= baseline.guide.rms_mm
+                and candidate.guide.mean_direction_loss <= baseline.guide.mean_direction_loss
+            )
+        )
+
+
 def improves(candidate: Branch, baseline: Branch) -> bool:
     """
     Require strictly shorter material and non-increasing ordered guide position/direction.
@@ -69,11 +95,7 @@ def improves(candidate: Branch, baseline: Branch) -> bool:
     No weighted tradeoff or tolerance allowance can buy a worsening in another
     measure. These are sampled routing preferences, not physical certificates.
     """
-    return (
-        candidate.route.material_length_mm < baseline.route.material_length_mm
-        and candidate.guide.rms_mm <= baseline.guide.rms_mm
-        and candidate.guide.mean_direction_loss <= baseline.guide.mean_direction_loss
-    )
+    return ImprovementPolicy.GUIDE_DOMINANCE.accepts(candidate, baseline)
 
 
 def select(

@@ -4,6 +4,7 @@ Use measured contraction failures without discarding a safe route or replenishin
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 from unittest.mock import Mock
 
@@ -11,6 +12,7 @@ import pytest
 
 from experiments.experiment_ribbon_bend_relocation.solve import Result as Contraction
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import Recovery
+from experiments.experiment_ribbon_feature_insertion.selection import Branch, ImprovementPolicy
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_locked_solver import contraction_recovery
@@ -114,3 +116,42 @@ def test_cpu_sublimits_cannot_expand_or_disable_the_original_cap(allowance: Any)
             lambda e: None,
             maximum_cpu_seconds=allowance,
         )
+
+
+@pytest.mark.parametrize("policy", tuple(ImprovementPolicy))
+def test_terminal_length_policy_can_accept_worse_guide_with_a_strict_certificate(
+    monkeypatch: pytest.MonkeyPatch, policy: ImprovementPolicy
+) -> None:
+    """
+    Compare against completed baseline geometry before and after correction without replenishing work.
+    """
+    source, frames, compact = _construction()
+    assert source.route is not None
+    baseline = Branch.measure((), source.route, frames.guide)
+    worse_guide = replace(compact, guide=replace(compact.guide, rms_mm=1e6))
+    measurement = Mock(side_effect=[baseline, worse_guide, worse_guide])
+    monkeypatch.setattr(Branch, "measure", measurement)
+    certificate = ContactResult("separated", 245)
+    attempt = Mock(
+        return_value=Recovery(compact.route, certificate, 245, 1, 0.03, {"iterations": 2})
+    )
+    monkeypatch.setitem(vars(contraction_recovery), "recover", attempt)
+    contraction = Contraction(source.route, None, {}, ((compact.route, source.rejected[0][1]),))
+    result = contraction_recovery.recover_contracted(
+        contraction,
+        frames,
+        447,
+        1e-5,
+        lambda: None,
+        lambda event: None,
+        improvement_policy=policy,
+    )
+    if policy is ImprovementPolicy.MATERIAL_LENGTH:
+        assert (
+            result is not None and result.route is compact.route and result.contact is certificate
+        )
+        assert result.pairs == 245 and attempt.call_args.args[2] == 447
+        assert measurement.call_count == 3
+    else:
+        assert result is None
+        attempt.assert_not_called()

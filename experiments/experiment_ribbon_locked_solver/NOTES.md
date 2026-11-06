@@ -1,5 +1,77 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Consolidation and complete failure corpus785–792 — 2026-11-05
+
+User requested stopping range testing and consolidating shared failure causes,
+selection rules and regression evidence.781confirms tester stopped: latest range
+has13passes plus one cancelled attempt, not a new solver rejection. No range
+restart or production promotion occurs in this consolidation.
+
+782–784read43saved range journals:1886completed records,276exact target payloads,
+31full source snapshots (including harness/UI differences). These totals are not
+a frozen-version success rate. Of21distinct non-cancelled problem inputs,11were
+missing from the43case numerical corpus, even after near-payload/layout checks.
+785creates versioned experiments/experiment_ribbon_regression/gym-v1.json:
+54distinct exact inputs, union of all21problems and43retained controls. Original
+targets/settings/job/plan hashes/source digests and dispositions remain attached.
+The maintained bounded replay runner never regenerates targets or starts Fusion.
+
+786baseline54/54evaluated,53accepted/one unresolved. Raw length-first allocation
+and selection fails the existing63excursion test (about49.63→109.02mm), so787
+preserves its patch/test failure and reverts it before the planned geometry batch.
+788then tests length-only early branch replacement:13/54numerically accepted,
+but new-case-21grows15.845070→16.129798mmaftercontraction.41unattempted; proposal
+reverted. Both show that a shorter coarse route can contract to a worse final
+route. Neither rejected policy is installed or hidden behind aggregate passes.
+
+Final789retains established guide-driven construction/branch initialization.
+Explicit ImprovementPolicy distinguishes that historical guide dominance from
+MATERIAL_LENGTH eligibility used ONLY by terminal contraction recovery. At that
+point compare against the already-contracted safe baseline; require strict
+shortening before AND after recovery and a completed strict contact certificate.
+Guide fit cannot veto this terminal improvement. No guessed headings, added roots,
+features/radii, physical tolerance changes or increased work budgets. Existing
+recovery preparation/wall span/shared pairs remain charged; remaining allowance
+now reads the same recovery constants rather than repeating numeric literals.
+Numerical quality records construction/first-pass/final lengths and guide agreement,
+separately from physical acceptance. Its small measurement cost is included in
+overall numerical time and separated from optional UV metadata timing.
+
+789all54evaluated:53accepted, same one unresolved, zero measured acceptance/length
+regressions;52accepted routes exactly unchanged. historical-208c6aa74e2e shortens
+84.210531→82.807388mm. Baseline53.279653wall/46.348474aggregateCPU; candidate
+52.647320wall/45.531925aggregateCPU.108complete numerical executions across54
+inputs for this final comparison, plus13from rejected788; analytical unit tests
+and787test failure are separate QA, not extra independent geometry coverage.
+These are examined development inputs, not untouched validation or global optima.
+
+790retains every case and separately measures placement eligibility:46/46current
+non-adjacent-cubicle inputs accepted. Seven of eight legacy adjacent-cell inputs
+also accepted. historical-32e26c5c88b5(seed3079315550/N7) remains no_fixed_radius_closure
+under original finite corrections. Its cells(0,1,-1)/(1,1,-1)are adjacent and would
+not be authored with the current Avoid adjacent cubicles setting. This does not
+establish physical impossibility and is not grounds to drop it from the corpus.
+
+791predicts one changed accepted route will build/pass named fidelity, then replays
+its exact789snapshot once in the owned current document, with historical document
+identity explicit and no new solve.1/1attempted/built/named-audited,0warnings:
+354faces,12320points,682seams,max1.7730553e-9mm. Generation6.285068s/audit5.283457s;
+numerical1.409755CPU/1.413080wall meets matched timing goal. Precise±60.625mm
+stress box passes/excess0. Peak sampled nativeRSS811280KiB. Other52accepted
+inputs' new native builds unattempted; unresolved input unbuilt;0full physical
+audits.792captures the body alone, then hides it while preserving current gym
+draft/settings/overlay visibility/test ledger. Both viewport captures inspected;
+791's original screenshot includes the unrelated current draft, so use792for
+the verified body view. Tester remains stopped;1,000consecutive passes unproved.
+
+147focused/affected tests pass with no deselections. The two obsolete exact v2
+length parameters are replaced by a two-mode control checking actual shortening,
+fixed targets, cap/material/contact bounds, shared pairs and certificate reuse.
+Historical measured lengths remain in old notes. Scoped Ruff/IDE/final source
+checks are recorded with793QA;3pre-existing v2 duplicate-fragment weak warnings
+remain. FullQA/long-run/fullphysical audits unrun. See the regression package
+NOTES.md for the replay commands, fixed limits and preserved outcome inventory.
+
 ## Preparation-charged recovery deferral773–780 — 2026-11-05
 
 User-started rangec596271...stops at63after62passes/0warnings. N8,

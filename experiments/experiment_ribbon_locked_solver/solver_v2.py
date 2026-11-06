@@ -15,12 +15,17 @@ from experiments.experiment_ribbon_bend_relocation.solve import contract
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
+from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
+    MAXIMUM_CPU_SECONDS,
+    MAXIMUM_WALL_SECONDS,
+)
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
-from experiments.experiment_ribbon_feature_insertion.selection import Policy
+from experiments.experiment_ribbon_feature_insertion.selection import ImprovementPolicy, Policy
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
+from experiments.experiment_ribbon_spline_guide.guide import agreement
 
 from .branch_recovery import recover_construction
 from .contraction_recovery import recover_contracted
@@ -50,8 +55,9 @@ def solve(
     receive four joint-separation updates using remaining pair work and at most
     0.35CPU/2wall seconds within that deadline. If a different pair then penetrates,
     unused updates may pass to the next derived branch within those same totals.
-    Monotonic optimization may instead use that same unused work on one measured
+    Monotonic construction may instead use that same unused work on one measured
     penetrating branch that is shorter and better-guided than a separated fallback.
+    Initial guide allocation and branch selection remain feasibility initializers.
     Failed recovery retains the separated fallback and counts all work performed.
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
@@ -59,6 +65,8 @@ def solve(
     If feasibility recovery was unused, a measured shorter contraction may use
     that same four-update/.35CPU allowance and original remaining construction
     pairs. Its analytic cap support certificate grants no contact exemption.
+    This terminal improvement compares against the already-contracted baseline;
+    guide preferences cannot veto shortening after that work is complete.
     A fallback correction deferred before its first motion leaves only its unused
     preparation-adjusted CPU and remaining wall span for that contraction recovery.
     No v1 fallback, extra features or radius relaxation occurs in that phase.
@@ -132,6 +140,7 @@ def solve(
             "closed_branches": result.closed_branches,
             "unattempted_contacts": result.unattempted_contacts,
             "selection": "monotonic" if settings.first_pass_optimization else "midpoint",
+            "initialization": "guide_site_error_then_length",
             "guide_parameters": parameters,
             "recovery": recovery_detail,
         },
@@ -180,6 +189,7 @@ def solve(
                 record,
                 maximum_seconds=wall_left,
                 maximum_cpu_seconds=cpu_left,
+                improvement_policy=ImprovementPolicy.MATERIAL_LENGTH,
             )
             if recovered is not None:
                 recovered_detail = dict(recovered.detail)
@@ -241,12 +251,30 @@ def solve(
         raise ArithmeticError("V2 lost its material/cap/length contract")
     uv_started = perf_counter()
     material_uv = metadata(final) if settings.material_uv else None
+    uv_seconds = perf_counter() - uv_started
+    quality_started = perf_counter()
+    guide_agreement = agreement(final, frames.guide)
     detail.update(
         status="geometry_ready_contact_unmeasured" if warning else "numerically_accepted",
-        material_uv_seconds=perf_counter() - uv_started,
+        material_uv_seconds=uv_seconds,
+        quality_measurement_seconds=perf_counter() - quality_started,
         cap_error_mm=caps,
         material_metric_error=metric,
         contact=contact,
+        quality={
+            "objective": "strict_material_shortening_then_guide_ties",
+            "construction_length_mm": result.route.material_length_mm,
+            "first_pass_length_mm": first.material_length_mm,
+            "final_length_mm": final.material_length_mm,
+            "guide_length_mm": frames.guide.distances[-1],
+            "final_guide_agreement": asdict(guide_agreement),
+            "first_pass_outcome": "disabled"
+            if not settings.first_pass_optimization
+            else "shortened"
+            if first.material_length_mm < result.route.material_length_mm
+            else "construction_retained",
+            "optimality": "unproved; guide agreement and compactness are preferences, not physical certificates",
+        },
         elapsed_seconds=perf_counter() - started,
         cpu_seconds=process_time() - cpu_started,
     )
@@ -266,11 +294,11 @@ def _remaining_recovery(
     if first_pass_remaining <= 0:
         return None
     if detail is None:
-        return 0.35, min(2.0, first_pass_remaining)
+        return MAXIMUM_CPU_SECONDS, min(MAXIMUM_WALL_SECONDS, first_pass_remaining)
     if detail.get("status") != "deferred":
         return None
     if any(detail.get(field) != 0 for field in ("iterations", "contacts", "pairs")):
         raise ArithmeticError("Deferred recovery already consumed geometry work")
-    cpu_left = 0.35 - detail["cpu_seconds"]
-    wall_left = min(first_pass_remaining, 2.0 - (perf_counter() - started))
+    cpu_left = MAXIMUM_CPU_SECONDS - detail["cpu_seconds"]
+    wall_left = min(first_pass_remaining, MAXIMUM_WALL_SECONDS - (perf_counter() - started))
     return (cpu_left, wall_left) if cpu_left > 0 and wall_left > 0 else None
