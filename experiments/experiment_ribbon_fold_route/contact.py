@@ -5,12 +5,13 @@ Reject thick ribbon self-intersection using analytic envelopes and volume witnes
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable, Literal
 
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
-from .contact_bounds import Cell, Span, projection
+from .contact_bounds import Cell, Span, prepare_projection
 from .contact_cap_support import CapPolicy, cap_region
 from .contact_caps import straight_bridge_pairs
 from .contact_inverse import occupied_coordinates, profile_height
@@ -67,6 +68,9 @@ def inspect_contact(
     the centerline. Positive separation uses outward floating interval envelopes;
     it is not a formal exact-arithmetic proof or native-solid validation.
     Joined-profile bounds remove only empty space outside the actual lobed section.
+    Each call reuses at most 64 immutable piece/axis preparations and each fixed
+    adjacent-frame comparison. Every material cell still receives its own cap
+    proof and unchanged analytic projection; no route or result cache is global.
     Optional analytic cap support strengthens the same halfspace certificate;
     historical calls retain their original monotonicity proof and traversal.
     """
@@ -92,6 +96,8 @@ def inspect_contact(
         for i in range(len(route.pieces))
     ]
     axes = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
+    prepared = lru_cache(maxsize=64)(prepare_projection)
+    joined: dict[tuple[int, int], bool] = {}
     cache: dict[Cell, tuple[Span, ...]] = {}
 
     def bounds(region: Cell) -> tuple[Span, ...]:
@@ -100,7 +106,7 @@ def inspect_contact(
         """
         if region not in cache:
             cache[region] = tuple(
-                projection(route.pieces[region.piece], region, direction) for direction in axes
+                prepared(route.pieces[region.piece], direction)(region) for direction in axes
             )
         return cache[region]
 
@@ -125,11 +131,13 @@ def inspect_contact(
         if first is None or second is None:
             continue
         a, b = route.pieces[first.piece], route.pieces[second.piece]
+        pair = first.piece, second.piece
+        if pair not in joined:
+            joined[pair] = (
+                second.piece == first.piece + 1 and max(pose_error(a.end_pose(), b.pose)) < 1e-10
+            ) or pair in bridges
         if (
-            (
-                (second.piece == first.piece + 1 and max(pose_error(a.end_pose(), b.pose)) < 1e-10)
-                or (first.piece, second.piece) in bridges
-            )
+            joined[pair]
             and cap_region(a, first, True, cap_policy)
             and cap_region(b, second, False, cap_policy)
         ):
@@ -171,7 +179,7 @@ def inspect_contact(
                 (cell.u.low + cell.u.high) / 2, (cell.q.low + cell.q.high) / 2
             )
             for axis in (unit(v), w, unit(cross(v, w))):
-                x, y = projection(a, first, axis), projection(b, second, axis)
+                x, y = prepared(a, axis)(first), prepared(b, axis)(second)
                 if x.high < y.low or y.high < x.low:
                     separating = True
                     break

@@ -1,6 +1,24 @@
 # Frozen gym regression corpus
 
-Current inventory: **72 exact development inputs**. Monitored cases 53–55 and N10
+Run999 encounters existing alias`rangec59-case-63` again: numerical/native-fidelity
+pass, actual native boundary failure on854mmfallback. Its history already contains
+both retained-control and boundary dispositions. Numerical replay acceptance and
+exact geometry preservation do not establish overall success or native bounds.
+Future improvement comparisons must allow this known failed output to change
+while preserving its real history. Corpus remains73inputs; frozen trigger plus
+actual preceding controls are in1000/plan.json. See
+[excursion63 review](../experiment_ribbon_terminal_hardware/EXCURSION_63.md).
+
+Current inventory: **73 exact development inputs**. New N1 case57 joins the prior
+72; preceding54–56 are existing aliases with appended histories. All prior input
+fields/history prefixes remain. Capacity73 retains120sphase/103scutoff/15scase.
+Final994 evaluates73/73: **60 accepted / 13 unresolved**, all60 accepted final and
+first-pass routes exact against987. Current57 is the sole new acceptance relative
+to the pre-repair corpus. Only current has one new native/fidelity/boundary pass;
+other72 new native builds and all full physical audits are unperformed. See
+[completed recovery and reuse](../experiment_ribbon_terminal_hardware/COMPLETED_RECOVERY.md).
+
+Earlier inventory: **72 exact development inputs**. Monitored cases 53–55 and N10
 failure 56 are all new signatures; prior 68 inputs/settings/history prefixes remain.
 Capacity 72 retains 120 s phase / 103 s cutoff / 15 s case limits. 971 evaluates
 72/72: **59 accepted / 13 unresolved**, all **58 previous final AND first-pass

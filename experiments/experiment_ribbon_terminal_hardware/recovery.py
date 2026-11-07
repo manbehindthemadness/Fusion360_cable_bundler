@@ -42,6 +42,7 @@ def recover(
     remaining_pairs: int,
     maximum_cpu_seconds: float,
     maximum_seconds: float,
+    maximum_updates: int = 4,
 ) -> Result | None:
     """
     Use only idle feasibility work to clear an actual first-pass terminal intrusion.
@@ -59,10 +60,14 @@ def recover(
     Fold evidence retains the separate overlap-bounded feature-recovery policy.
     Accept only full strict self-contact and both terminal boxes. Failed action
     retains the unresolved source; no certificate or accepted status transfers.
+    A caller may supply fewer genuinely unused original updates after completed
+    self-contact recovery; CPU, wall and pair sublimits must also be reduced.
     """
     for value, ceiling in ((maximum_cpu_seconds, 0.35), (maximum_seconds, 2.0)):
         if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= ceiling:
             raise ValueError("Use only the original remaining feasibility allowance")
+    if type(maximum_updates) is not int or not 1 <= maximum_updates <= 4:
+        raise ValueError("Use one to four remaining original updates")
     if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
         raise ValueError("Supply the remaining original construction pair budget")
     if any(
@@ -90,6 +95,7 @@ def recover(
             remaining_pairs=remaining_pairs,
             maximum_cpu_seconds=cpu_left,
             maximum_seconds=wall_left,
+            maximum_updates=maximum_updates,
         )
         if recovered is not None:
             recovered.detail.update(
@@ -144,7 +150,7 @@ def recover(
                 "pairs": remaining_pairs,
             },
         )
-        for update in range(4):
+        for update in range(maximum_updates):
             bounded()
             detail["iterations"] += 1
             if sheet is not None:
@@ -241,7 +247,7 @@ def recover(
     if (
         not accepted
         and detail.get("stop_reason") == "construction_length_ceiling"
-        and detail["iterations"] < 4
+        and detail["iterations"] < maximum_updates
     ):
         cpu_left = maximum_cpu_seconds - (process_time() - cpu)
         wall_left = maximum_seconds - (perf_counter() - started)
@@ -259,7 +265,8 @@ def recover(
                 remaining_pairs=pairs_left,
                 maximum_cpu_seconds=cpu_left,
                 maximum_seconds=wall_left,
-                quality=StraightQuality(maximum_length_mm, 4 - detail["iterations"]),
+                quality=StraightQuality(maximum_length_mm, maximum_updates - detail["iterations"]),
+                maximum_updates=maximum_updates - detail["iterations"],
             )
             if recovered is not None:
                 recovered.detail["fixed_reversal_declined"] = dict(detail)

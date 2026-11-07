@@ -129,8 +129,7 @@ def test_fold_quality_failure_keeps_all_three_preceding_passes() -> None:
     Preserve the prior 68 inputs and retain all four distinct monitored boundary configurations.
     """
     corpus = load()
-    assert len(corpus["cases"]) == 72
-    added = corpus["cases"][68:]
+    added = corpus["cases"][68:72]
     assert [c["id"] for c in added] == [f"ranged9c-case-{i}" for i in range(53, 57)]
     assert [c["history"][0]["disposition"] for c in added] == [
         "retained_control",
@@ -139,6 +138,21 @@ def test_fold_quality_failure_keeps_all_three_preceding_passes() -> None:
         "numerical_unresolved",
     ]
     assert added[-1]["gym"]["config"]["seed"] == 975394730
+
+
+def test_completed_recovery_failure_keeps_three_alias_controls_and_one_new_input() -> None:
+    """
+    Retain the N1 stop without inflating the three preceding, already enrolled boundary inputs.
+    """
+    corpus = load()
+    assert len(corpus["cases"]) == 73
+    case = corpus["cases"][-1]
+    assert case["id"] == "range4c57-case-57"
+    assert case["gym"]["config"]["seed"] == 2580358241
+    assert case["history"][0]["disposition"] == "numerical_unresolved"
+    for retained in corpus["cases"][69:72]:
+        assert len(retained["history"]) == 2
+        assert retained["history"][-1]["disposition"] == "retained_control"
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))

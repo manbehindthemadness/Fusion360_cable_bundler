@@ -37,6 +37,7 @@ from .placement import guide_parameters
 from .settings import Settings
 from .smoothing_contact import smooth_with_contact
 from .solver import Result
+from .terminal_allowance import remaining_completed
 from .versions import V2
 
 
@@ -109,8 +110,12 @@ def solve(
     Its growth ceiling is construction length plus the initial complete-feature
     projected penetration. Sub-native runway slots become exact zero, with all
     constraints reclosed and final contact rechecked inside the same allowance.
-    Prior recovery consultation cannot renew that allowance. Otherwise return no
-    accepted output. All checks
+    Prior failed recovery consultation cannot renew that allowance.
+    A completed separated self-contact recovery may pass only
+    its unused updates, CPU, wall span and construction pairs to late terminal
+    recovery, with all counters combined; a consulted contraction recovery still
+    prevents another action. No failed/prepared history grants a fresh allowance.
+    Otherwise return no accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
     if (
@@ -320,11 +325,28 @@ def solve(
             and not contraction_recovery_consulted
         ):
             prior_recovery = detail["construction"]["recovery"]
+            reservation_cpu = process_time()
             allowance = _remaining_recovery(
                 prior_recovery, recovery_started, 4 - (perf_counter() - started)
             )
+            partial = (
+                remaining_completed(
+                    prior_recovery, recovery_started, 4 - (perf_counter() - started)
+                )
+                if allowance is None
+                else None
+            )
+            if partial is not None:
+                allowance = partial.cpu_seconds, partial.wall_seconds
             pairs_left = CONTACT_PAIR_BUDGET - detail["construction"]["contact_pairs"]
-            if allowance is not None and pairs_left > 0:
+            terminal_cpu_left = (
+                allowance[0] - (process_time() - reservation_cpu)
+                if partial is not None and allowance is not None
+                else allowance[0]
+                if allowance is not None
+                else 0.0
+            )
+            if allowance is not None and pairs_left > 0 and terminal_cpu_left > 0:
                 recovered = recover_terminal(
                     first,
                     terminal,
@@ -333,8 +355,9 @@ def solve(
                     maximum_length_mm=result.route.material_length_mm,
                     minimum_straight_mm=native_point_tolerance_mm,
                     remaining_pairs=pairs_left,
-                    maximum_cpu_seconds=allowance[0],
+                    maximum_cpu_seconds=terminal_cpu_left,
                     maximum_seconds=allowance[1],
+                    maximum_updates=partial.updates if partial is not None else 4,
                 )
                 if recovered is not None:
                     recovery = dict(recovered.detail)
@@ -344,6 +367,17 @@ def solve(
                             cpu_seconds=prior_recovery["cpu_seconds"] + recovery["cpu_seconds"],
                             elapsed_seconds=perf_counter() - recovery_started,
                         )
+                        if partial is not None:
+                            recovery.update(
+                                iterations=prior_recovery["iterations"] + recovery["iterations"],
+                                contacts=prior_recovery["contacts"] + recovery["contacts"],
+                                contact_pairs=prior_recovery["pairs"] + recovery["contact_pairs"],
+                                cpu_seconds=prior_recovery["cpu_seconds"]
+                                + process_time()
+                                - reservation_cpu,
+                                newton_steps_scope="terminal_reclosure_only",
+                                contact_seconds_scope="terminal_certificate_only",
+                            )
                     detail["construction"]["recovery"] = recovery
                     detail["construction"]["contacts"] += recovered.detail["contacts"]
                     detail["construction"]["contact_pairs"] += recovered.detail["contact_pairs"]

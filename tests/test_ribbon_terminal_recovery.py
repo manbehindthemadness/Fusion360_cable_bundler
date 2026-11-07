@@ -84,6 +84,9 @@ def test_sheet_uses_whole_straight_bounds_and_rejects_unsupported_evidence() -> 
         ("remaining_pairs", 0),
         ("maximum_cpu_seconds", 0.36),
         ("maximum_seconds", 2.1),
+        ("maximum_updates", 0),
+        ("maximum_updates", 5),
+        ("maximum_updates", True),
     ),
 )
 def test_deferred_recovery_cannot_enlarge_existing_allowances(field: str, value: Any) -> None:

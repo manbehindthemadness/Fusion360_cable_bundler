@@ -1,5 +1,34 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Autonomous breaking-failure stop1000–1006 — 2026-11-06
+
+Run999 stops63attempts/62passes/0warnings after repaired56and57pass normally.
+N8seed3594523284 is existing boundary alias`rangec59-case-63`: compact49.136mm
+route is self-separated but enters endproxy; raw854.374mm fallback clears hardware
+and is installed, then native boundary exceeds±55mmby186.415mm.63native/fidelity
+passes are62overall boundary passes,0fullphysicalaudits. Four bounded attempts
+remain unresolved; no new source or native attempt for this failure.235pins/last
+validated repair retained, testerstopped/bodyvisible/wakeoff. Campaign2problems
+encountered/1repaired;1,000goal unmet. Next shared first-pass review must keep
+known native boundary failures distinct from numerically accepted working controls.
+[Detailed evidence and next investigation](../experiment_ribbon_terminal_hardware/EXCURSION_63.md).
+
+## Completed recovery and exact reuse 978–998 — 2026-11-06
+
+Autonomous run977 stops at56passes/57attempts, zero warnings; repaired case56
+passes normally. New N1case57 spends three feasibility updates on self-contact,
+then old eligibility discards its remaining original terminal work. Carry only
+that remaining update/CPU/wall/pairs, with exact native-slot linear projection.
+Actual worker988 still exhausts CPU before native; bounded immutable placement/
+contact preparation reuse fixes overhead without changing geometry or checks.
+Final73/73:60accepted/13unresolved; all60 previous final/first-pass routes exact.
+Current selected-c0182...6.603003588mm passes native/fidelity/±15.625mmbounds,
+zero warnings/full physical audits. Recovery0.277720CPU; solve0.856357CPU exceeds
+generation0.297507s (goal miss); audit0.408429s/whole native8.647003s.
+179affected tests/Ruff70/IDE no new findings/235pins. User authorizes tester
+restarts and further bounded fixes; preserve original56/57 failure statistics.
+[Method, failed attempts and full evidence](../experiment_ribbon_terminal_hardware/COMPLETED_RECOVERY.md).
+
 ## Fold-feature quality inequalities 962–974 — 2026-11-06
 
 Monitored N10 case56 rejects an otherwise closed fold correction above its

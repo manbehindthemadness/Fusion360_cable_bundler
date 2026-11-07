@@ -26,19 +26,6 @@ class SignedJoints(MovableBends):
     Move existing angles/banks/runways while preserving every fold sign and radius.
     """
 
-    @cached_property
-    def _placements(self) -> Callable[[tuple[float, ...]], tuple[PlacedPiece, ...]]:
-        """
-        Own a bounded cache with this model's lifetime instead of retaining models globally.
-        """
-        return lru_cache(maxsize=64)(super().pieces)
-
-    def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
-        """
-        Reuse at most 64 immutable placements during simultaneous constraint differentiation.
-        """
-        return self._placements(values)
-
     def bounds(self, index: int) -> tuple[float, float]:
         """
         Keep all original turn directions alongside the shared bank and runway bounds.

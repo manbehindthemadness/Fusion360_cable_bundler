@@ -5,7 +5,7 @@ Expose movable existing bends and straight slots while keeping original radii fi
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import Callable
 
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
@@ -62,11 +62,24 @@ class MovableBends(FlexibleModel):
             result[index] = value
         return tuple(result)
 
-    def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
+    @cached_property
+    def _placements(self) -> Callable[[tuple[float, ...]], tuple[PlacedPiece, ...]]:
+        """
+        Own at most 64 immutable coordinate placements for repeated closure and gap probes.
+        """
+        return lru_cache(maxsize=64)(self._place)
+
+    def _place(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
         """
         Place the original ordered folds using their current angles, banks and runways.
         """
         return self.full.pieces(self.expanded(values))
+
+    def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
+        """
+        Reuse exact pure placements within this model, without holding other models globally.
+        """
+        return self._placements(values)
 
     def length_gradient(self, values: tuple[float, ...]) -> list[float]:
         """

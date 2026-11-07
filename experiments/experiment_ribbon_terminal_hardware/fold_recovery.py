@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straigh
 from .check import Report
 from .feature_plane import FeaturePlane, SignedJoints
 from .gate import Gate
+from .native_projection import native_slot_step
 from .quality_projection import quality_step
 from .straight_quality import StraightQuality
 
@@ -43,6 +44,7 @@ def recover(
     maximum_cpu_seconds: float,
     maximum_seconds: float,
     quality: StraightQuality | None = None,
+    maximum_updates: int = 4,
 ) -> Result | None:
     """
     Preserve all signs/radii while solving caps and at most two measured feature planes.
@@ -62,7 +64,14 @@ def recover(
     exceeds that ceiling, use the same coordinates and genuinely remaining work
     to solve clearance/length inequalities alongside the cap equalities. No
     successful legacy proposal enters that additional action.
+    A reduced caller allocation retains six corrections per remaining update;
+    absent sub-native slots are excluded from each linear correction before
+    cap reclosure, rather than creating numerical dust and cleaning it afterward.
     """
+    if type(maximum_updates) is not int or not 1 <= maximum_updates <= 4:
+        raise ValueError("Use one to four remaining original updates")
+    if quality is not None and quality.remaining_updates > maximum_updates:
+        raise ValueError("Quality policy cannot renew the remaining update allocation")
     if quality is not None and quality.ceiling_mm != maximum_length_mm:
         raise ValueError("Straight recovery must retain the caller's original quality ceiling")
     started, cpu = perf_counter(), process_time()
@@ -76,7 +85,7 @@ def recover(
     planes = [initial]
     allowance = max(0.0, -initial.gap(values) * model.scale)
     ceiling = quality.ceiling_mm if quality is not None else maximum_length_mm + allowance
-    maximum_newton_steps = quality.newton_steps if quality is not None else 24
+    maximum_newton_steps = quality.newton_steps if quality is not None else 6 * maximum_updates
     candidate, accepted, measurement = original, False, None
     detail: dict[str, Any] = {
         "status": "unresolved",
@@ -161,7 +170,7 @@ def recover(
                     detail["stop_reason"] = "fold_identity"
                     break
                 if candidate.material_length_mm > ceiling:
-                    remaining_updates = 4 - math.ceil(detail["newton_steps"] / 6)
+                    remaining_updates = maximum_updates - math.ceil(detail["newton_steps"] / 6)
                     if quality is None and remaining_updates > 0:
                         quality = StraightQuality(ceiling, remaining_updates)
                         growth_quality = True
@@ -261,6 +270,13 @@ def recover(
             if delta is None:
                 detail["stop_reason"] = "joint_projection_infeasible"
                 break
+            if maximum_updates < 4 and quality is None:
+                delta = native_slot_step(
+                    model, values, jacobian, equation, delta, minimum_straight_mm
+                )
+                if delta is None:
+                    detail["stop_reason"] = "native_active_projection_infeasible"
+                    break
             blocked = {
                 i
                 for i in model.straight_indices

@@ -1,5 +1,23 @@
 # Finite terminal hardware trial
 
+Current stop: [case63 excursion review](EXCURSION_63.md). Run999 reaches62clean
+passes; case63 builds/fidelity-passes but exceeds±55mmby186.415mm. Compact49mm
+contact-certified route fails end hardware, so selection restores854mm raw route.
+Four fixed-budget local/earlier-recovery trials remain unresolved; no second-failure
+solver change or new native build adopted. Exact input is existing boundary alias
+`rangec59-case-63`. Tester stopped, body visible, wakeoff;235pins unchanged.
+Campaign:2encountered problems/1repaired;120attempts over63unique inputs, not120
+independent cases.1,000-pass goal unmet. Broader first-pass review is next.
+
+Latest: [completed recovery and exact reuse](COMPLETED_RECOVERY.md) repairs the
+autonomous N1 case57 stop after56 clean passes. Share only the recorded remaining
+original update/time/pairs; native zero-slot linear projection avoids precision
+dust. Bounded placement/contact preparation reuse brings the actual worker inside
+the unchanged0.35CPU cap. 73/73:60 accepted/13 unresolved; all60 prior SDK successes
+exact. One current native/fidelity/±15.625 mm boundary pass, zero warnings/full
+physical audits. Recovery0.277720CPU; whole solve0.856357CPU exceeds0.297507s
+generation (timing-goal miss). Original56/57 journal and failed preflight remain.
+
 Latest: [fold-feature quality inequalities](FOLD_QUALITY.md) resolves monitored
 N10 case56 using the unchanged overlap-derived ceiling in the same remaining
 joint solve. Raw derivatives and at most eight scalar active projections enforce
