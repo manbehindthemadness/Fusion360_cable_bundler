@@ -10,7 +10,7 @@ from typing import Callable
 
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
-from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece
+from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, pose_error
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,11 @@ def retract_active(
     Restore external caps with six Newton steps and four scalar halvings per step.
 
     Preserve the descent step's exact zero-runway active set. The local rotation
-    residual is not a final frame certificate; acceptance checks actual cap poses.
+    residual is not a final frame certificate. Stop only when both actual ordered
+    cap frames also meet the existing 1e-10 mating-frame proof criterion. A small
+    normalized residual can otherwise retain a positional mismatch on a long
+    route and exhaust terminal subdivision at its intended mating face. This
+    spends only the same six Newton steps and caller allowance; no cap is snapped.
     """
     fixed = tuple(i for i in model.straight_indices if initial[i] == 0.0)
     values = initial
@@ -104,7 +108,7 @@ def retract_active(
         checkpoint()
         residual = model.residual(values)
         error = max(abs(v) for v in residual)
-        if error < 1e-10:
+        if error < 1e-10 and _caps_closed(model, values):
             return values
         rows = model.jacobian(values)
         right = [-v for v in residual]
@@ -124,4 +128,26 @@ def retract_active(
             step /= 2
         else:
             return None
-    return values if max(abs(v) for v in model.residual(values)) < 1e-10 else None
+    return (
+        values
+        if max(abs(v) for v in model.residual(values)) < 1e-10 and _caps_closed(model, values)
+        else None
+    )
+
+
+def _caps_closed(model: MovableBends, values: tuple[float, ...]) -> bool:
+    """
+    Require actual fixed cap poses at the accuracy used by analytic mating proofs.
+
+    Position is measured in millimeters, while the ordered tangent and width use
+    their vector residuals. Do not replace this with the model's length-normalized
+    Newton residual or local rotation vector, which can also vanish at a half-turn.
+    """
+    pieces = model.pieces(values)
+    if not pieces:
+        return False
+    target = model.original.targets
+    start = Pose(target.start, target.start_tangent, target.start_width)
+    end = Pose(target.end, target.end_tangent, target.end_width)
+    errors = pose_error(pieces[0].pose, start) + pose_error(pieces[-1].end_pose(), end)
+    return max(errors) < 1e-10
