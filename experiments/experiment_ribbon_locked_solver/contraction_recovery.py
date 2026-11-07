@@ -9,6 +9,7 @@ from dataclasses import replace
 from time import perf_counter, process_time
 from typing import Any, Callable
 
+from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.solve import Result as Contraction
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     MAXIMUM_CPU_SECONDS,
@@ -19,6 +20,10 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, ImprovementPolicy
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_terminal_hardware.gate import Gate
+from experiments.experiment_ribbon_terminal_hardware.incident_recovery import (
+    recover as recover_incident,
+)
 
 
 def recover_contracted(
@@ -32,6 +37,7 @@ def recover_contracted(
     maximum_seconds: float = MAXIMUM_WALL_SECONDS,
     maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
     improvement_policy: ImprovementPolicy = ImprovementPolicy.GUIDE_DOMINANCE,
+    terminal: Gate | None = None,
 ) -> Recovery | None:
     """
     Recover one measured improving contraction only when the caller reserves unused feasibility work.
@@ -46,6 +52,11 @@ def recover_contracted(
     policy nor geometry. A failed/worse correction returns no replacement.
     A caller may reserve earlier preparation CPU by reducing the CPU sublimit;
     neither explicit time sublimit can replenish the original allowance.
+    With the same finite-hardware gate, a selected unresolved depth contact may
+    prioritize a demonstrated fold/connector intrusion through one incident joint
+    reversal. Known self-penetration retains the established contact-first action.
+    Strategy selection, evidence and correction share the original time/pair pool;
+    a failed chosen strategy does not start another full allocation.
     """
     if (
         type(maximum_seconds) not in (int, float)
@@ -80,6 +91,62 @@ def recover_contracted(
     if not choices:
         return None
     branch, contact = min(choices, key=lambda item: item[0].priority)
+    if terminal is not None and contact.status == "unresolved" and contact.limit == "depth":
+        evidence = terminal.measure(branch.route, "contraction_recovery_hardware_precheck")
+        if (
+            evidence.status == "blocked"
+            and evidence.witness is not None
+            and isinstance(branch.route.pieces[evidence.witness.piece].geometry, CylindricalFold)
+        ):
+            cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+            wall_left = maximum_seconds - (perf_counter() - started)
+            if min(cpu_left, wall_left) <= 0:
+                return None
+            repaired = recover_incident(
+                branch.route,
+                evidence,
+                terminal,
+                checkpoint,
+                record,
+                maximum_length_mm=baseline.route.material_length_mm,
+                minimum_straight_mm=threshold_mm,
+                remaining_pairs=remaining_pairs,
+                maximum_cpu_seconds=cpu_left,
+                maximum_seconds=wall_left,
+            )
+            if repaired is not None:
+                selected = repaired.route
+                if selected is not None:
+                    if repaired.contact is None or repaired.contact.status != "separated":
+                        raise ArithmeticError(
+                            "Incident contraction recovery lacks full contact clearance"
+                        )
+                    if not improvement_policy.accepts(
+                        Branch.measure(branch.roots, selected, frames.guide), baseline
+                    ):
+                        selected = None
+                if (
+                    process_time() - cpu >= maximum_cpu_seconds
+                    or perf_counter() - started >= maximum_seconds
+                ):
+                    selected = None
+                    repaired.detail["stop_reason"] = "phase_budget"
+                detail = {
+                    **repaired.detail,
+                    "purpose": "recover_contraction",
+                    "source_length_mm": branch.route.material_length_mm,
+                    "baseline_length_mm": baseline.route.material_length_mm,
+                    "accepted_improvement": selected is not None,
+                    "cpu_seconds": process_time() - cpu,
+                    "elapsed_seconds": perf_counter() - started,
+                }
+                return replace(
+                    repaired,
+                    route=selected,
+                    contact=repaired.contact if selected is not None else None,
+                    detail=detail,
+                )
+            return None
     cpu_left = maximum_cpu_seconds - (process_time() - cpu)
     wall_left = maximum_seconds - (perf_counter() - started)
     if cpu_left <= 0 or wall_left <= 0:

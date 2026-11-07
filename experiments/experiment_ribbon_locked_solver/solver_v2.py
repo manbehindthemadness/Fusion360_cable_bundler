@@ -79,6 +79,13 @@ def solve(
     guide preferences cannot veto shortening after that work is complete.
     A fallback correction deferred before its first motion leaves only its unused
     preparation-adjusted CPU and remaining wall span for that contraction recovery.
+    A selected depth-unresolved contraction may prioritize an actual fold/connector
+    intrusion using one free incident reversal and coupled complete-flat contact
+    constraints. Proven self-penetration retains the established contact-first
+    strategy. This action shares all original work and requires strict parent
+    shortening, exact caps/material and full contact/proxy checks. Its optional
+    convex witness probes never establish clearance; identical cell projections
+    may be reused within one complete certificate.
     No v1 fallback, extra features or radius relaxation occurs in that phase.
     Unchanged routes retain their separation certificate, including an exact
     final geometry match to an accepted aesthetic proposal. Otherwise the final
@@ -249,6 +256,7 @@ def solve(
                 maximum_seconds=wall_left,
                 maximum_cpu_seconds=cpu_left,
                 improvement_policy=ImprovementPolicy.MATERIAL_LENGTH,
+                terminal=terminal,
             )
             if recovered is not None:
                 recovered_detail = dict(recovered.detail)

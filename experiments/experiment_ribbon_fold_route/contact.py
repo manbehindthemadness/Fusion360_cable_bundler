@@ -5,8 +5,9 @@ Reject thick ribbon self-intersection using analytic envelopes and volume witnes
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
-from typing import Callable, Literal
+from typing import Callable, Literal, Protocol
 
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
@@ -50,6 +51,45 @@ class ContactResult:
     unresolved_regions: tuple[Cell, Cell] | None = None
 
 
+class ProjectionReuse(Enum):
+    """
+    Keep historical evaluation available beside bounded identical cell-projection reuse.
+    """
+
+    PREPARATIONS = "preparations"
+    CELLS = "cells"
+
+
+@dataclass(frozen=True)
+class ProbeResult:
+    """
+    Account optional negative-only work without treating a missed witness as clearance.
+    """
+
+    pairs_checked: int
+    witness: Penetration | None = None
+    limit: Literal["pairs", "supports"] | None = None
+
+
+class WitnessProbe(Protocol):
+    """
+    Propose a strict interior witness while sharing the caller's remaining pair allowance.
+    """
+
+    def __call__(
+        self,
+        route: FoldRoute,
+        first: int,
+        second: int,
+        remaining_pairs: int,
+        checkpoint: Callable[[], None] | None,
+    ) -> ProbeResult:
+        """
+        Return all compared probe pairs; a miss leaves the complete interval proof mandatory.
+        """
+        ...
+
+
 def inspect_contact(
     route: FoldRoute,
     *,
@@ -57,6 +97,8 @@ def inspect_contact(
     maximum_depth: int = 36,
     checkpoint: Callable[[], None] | None = None,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
+    witness_probe: WitnessProbe | None = None,
+    projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
 ) -> ContactResult:
     """
     Enclose every pair of original pieces through bounded material-box subdivision.
@@ -73,9 +115,17 @@ def inspect_contact(
     proof and unchanged analytic projection; no route or result cache is global.
     Optional analytic cap support strengthens the same halfspace certificate;
     historical calls retain their original monotonicity proof and traversal.
+    An optional negative-only probe screens nonmating original pairs before any
+    subdivision, in the historical stack order. Every compared probe pair shares
+    the same allowance; missed probes omit no material cells. Probe support-query
+    exhaustion disables only the accelerator, leaving the full proof mandatory.
+    Cell reuse caches at most512identical projections within this call, changing
+    neither arithmetic nor the mandatory pair count or acceptance criteria.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
+    if not isinstance(projection_reuse, ProjectionReuse):
+        raise ValueError("Supply an explicit contact projection reuse policy")
     if (
         isinstance(maximum_pairs, bool)
         or not isinstance(maximum_pairs, int)
@@ -97,6 +147,16 @@ def inspect_contact(
     ]
     axes = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
     prepared = lru_cache(maxsize=64)(prepare_projection)
+
+    def project(region: Cell, direction: Vector3) -> Span:
+        """
+        Evaluate one immutable material-cell projection through the original analytic bound.
+        """
+        return prepared(route.pieces[region.piece], direction)(region)
+
+    evaluated = (
+        lru_cache(maxsize=512)(project) if projection_reuse is ProjectionReuse.CELLS else project
+    )
     joined: dict[tuple[int, int], bool] = {}
     cache: dict[Cell, tuple[Span, ...]] = {}
 
@@ -105,18 +165,20 @@ def inspect_contact(
         Cache only the three world-coordinate broad-phase bounds.
         """
         if region not in cache:
-            cache[region] = tuple(
-                prepared(route.pieces[region.piece], direction)(region) for direction in axes
-            )
+            cache[region] = tuple(evaluated(region, direction) for direction in axes)
         return cache[region]
 
     pending = [(a, b) for i, a in enumerate(cells) for b in cells[i + 1 :]]
+    original_pending = pending if witness_probe is not None else []
+    if witness_probe is not None:
+        pending = []
+    probe_enabled = witness_probe is not None
     bridges = straight_bridge_pairs(route)
     checked = 0
-    while pending:
+    while pending or original_pending:
         if checkpoint is not None and checked % 64 == 0:
             checkpoint()
-        first, second = pending.pop()
+        first, second = original_pending.pop() if original_pending else pending.pop()
         if checked >= maximum_pairs:
             return ContactResult(
                 "unresolved",
@@ -179,7 +241,7 @@ def inspect_contact(
                 (cell.u.low + cell.u.high) / 2, (cell.q.low + cell.q.high) / 2
             )
             for axis in (unit(v), w, unit(cross(v, w))):
-                x, y = prepared(a, axis)(first), prepared(b, axis)(second)
+                x, y = evaluated(first, axis), evaluated(second, axis)
                 if x.high < y.low or y.high < x.low:
                     separating = True
                     break
@@ -187,6 +249,47 @@ def inspect_contact(
                 break
         if separating:
             continue
+        if probe_enabled and first.depth == second.depth == 0 and not joined[pair]:
+            assert witness_probe is not None
+            allowance = maximum_pairs - checked
+            probe = witness_probe(route, first.piece, second.piece, allowance, checkpoint)
+            if type(probe.pairs_checked) is not int or not 0 <= probe.pairs_checked <= allowance:
+                raise ArithmeticError("Optional contact probe exceeded its shared pair allowance")
+            checked += probe.pairs_checked
+            if probe.witness is not None:
+                if probe.witness.pieces != pair:
+                    raise ArithmeticError(
+                        "Optional contact witness changed original piece identities"
+                    )
+                first_coordinates = occupied_coordinates(
+                    a, probe.witness.point, route.targets.lines, route.targets.diameter_mm
+                )
+                second_coordinates = occupied_coordinates(
+                    b, probe.witness.point, route.targets.lines, route.targets.diameter_mm
+                )
+                if first_coordinates is None or second_coordinates is None:
+                    raise ArithmeticError(
+                        "Optional contact probe returned no strict material witness"
+                    )
+                witness = Penetration(
+                    pair, first_coordinates, second_coordinates, probe.witness.point
+                )
+                return ContactResult(
+                    "penetration",
+                    checked,
+                    witness=witness,
+                    reason="Both original strict inverse maps verify an optional flat-region witness.",
+                )
+            if probe.limit == "pairs":
+                return ContactResult(
+                    "unresolved",
+                    checked,
+                    unresolved_pieces=pair,
+                    reason="Shared witness/certificate comparison budget exhausted.",
+                    limit="pairs",
+                )
+            if probe.limit == "supports":
+                probe_enabled = False
         if max(first.depth, second.depth) >= maximum_depth:
             return ContactResult(
                 "unresolved",

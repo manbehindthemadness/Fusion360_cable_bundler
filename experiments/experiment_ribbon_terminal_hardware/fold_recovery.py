@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straigh
 from .check import Report
 from .feature_plane import FeaturePlane, SignedJoints
 from .gate import Gate
+from .joint_derivatives import jacobian as joint_jacobian
 from .native_projection import native_slot_step
 from .quality_projection import quality_step
 from .straight_quality import StraightQuality
@@ -250,18 +251,7 @@ def recover(
             if detail["newton_steps"] >= maximum_newton_steps:
                 detail["stop_reason"] = "joint_update_limit"
                 break
-            columns = []
-            for index, value in enumerate(values):
-                bounded()
-                if index in fixed_zero:
-                    columns.append([0.0] * len(equation))
-                    continue
-                low, high = model.bounds(index)
-                a, b = list(values), list(values)
-                a[index], b[index] = max(low, value - 1e-5), min(high, value + 1e-5)
-                first, last = equations(tuple(a)), equations(tuple(b))
-                columns.append([(y - x) / (b[index] - a[index]) for x, y in zip(first, last)])
-            jacobian = [[column[row] for column in columns] for row in range(len(equation))]
+            jacobian = joint_jacobian(model, values, equations, len(equation), fixed_zero, bounded)
             delta = (
                 quality_step(model, values, jacobian, equations(values), bounded)
                 if growth_quality

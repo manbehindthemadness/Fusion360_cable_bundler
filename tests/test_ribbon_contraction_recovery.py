@@ -10,13 +10,19 @@ from unittest.mock import Mock
 
 import pytest
 
+from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.solve import Result as Contraction
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import Recovery
+from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import Branch, ImprovementPolicy
-from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
+from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_locked_solver import contraction_recovery
+from experiments.experiment_ribbon_terminal_hardware.check import Report, Witness
+from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from tests.test_ribbon_branch_recovery import _construction
+from tests.test_ribbon_flat_contact import load_routes
 
 
 @pytest.mark.parametrize("outcome", ("improved", "failed", "not_better"))
@@ -155,3 +161,65 @@ def test_terminal_length_policy_can_accept_worse_guide_with_a_strict_certificate
     else:
         assert result is None
         attempt.assert_not_called()
+
+
+@pytest.mark.parametrize("proven_contact", (False, True))
+def test_proven_contact_preserves_legacy_repair_but_uncertain_contact_can_prioritize_hardware(
+    monkeypatch: pytest.MonkeyPatch,
+    proven_contact: bool,
+) -> None:
+    """
+    Use evidence certainty rather than case identity, and never renew work after a chosen strategy fails.
+    """
+    fixture = load_routes()
+    baseline, compact_route = fixture["separated"], fixture["incident_source"]
+    frames = Frames.create(baseline.targets)
+    fold_index = next(
+        i for i, p in enumerate(compact_route.pieces) if isinstance(p.geometry, CylindricalFold)
+    )
+    point = compact_route.pieces[fold_index].pose.origin
+    cell = Cell(0, Span(0, 1), Span(-1, 1), Span(-0.1, 0.1))
+    measured = (
+        ContactResult(
+            "penetration", 1, witness=Penetration((0, 1), (0.5, 0, 0), (0.5, 0, 0), point)
+        )
+        if proven_contact
+        else ContactResult(
+            "unresolved",
+            1,
+            unresolved_pieces=(0, 1),
+            limit="depth",
+            unresolved_regions=(cell, cell),
+        )
+    )
+    contraction = Contraction(baseline, None, {}, ((compact_route, measured),))
+    terminal = Mock(spec=Gate)
+    terminal.measure.return_value = Report(
+        "blocked", 1, Witness("end", fold_index, (0.5, 0, 0), point, (0, 0, 0))
+    )
+    failure = Recovery(None, None, 12, 1, 0.01, {"iterations": 2})
+    legacy, incident = Mock(return_value=failure), Mock(return_value=failure)
+    monkeypatch.setitem(vars(contraction_recovery), "recover", legacy)
+    monkeypatch.setitem(vars(contraction_recovery), "recover_incident", incident)
+    result = contraction_recovery.recover_contracted(
+        contraction,
+        frames,
+        447,
+        1e-5,
+        lambda: None,
+        lambda e: None,
+        maximum_cpu_seconds=0.2,
+        improvement_policy=ImprovementPolicy.MATERIAL_LENGTH,
+        terminal=terminal,
+    )
+    assert result is not None and result.route is None and result.pairs == 12
+    if proven_contact:
+        terminal.measure.assert_not_called()
+        incident.assert_not_called()
+        legacy.assert_called_once()
+    else:
+        legacy.assert_not_called()
+        incident.assert_called_once()
+        assert incident.call_args.args[0] is compact_route
+        assert 0 < incident.call_args.kwargs["maximum_cpu_seconds"] < 0.2
+        assert incident.call_args.kwargs["remaining_pairs"] == 447

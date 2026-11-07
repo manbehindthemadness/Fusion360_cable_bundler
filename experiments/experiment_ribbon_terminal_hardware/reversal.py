@@ -10,6 +10,7 @@ from time import perf_counter, process_time
 from typing import Any, Callable
 
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
+from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
@@ -159,7 +160,7 @@ def correct(
 
 
 def close_update(
-    model: ReversalModel, initial: tuple[float, ...], checkpoint: Callable[[], None]
+    model: MovableBends, initial: tuple[float, ...], checkpoint: Callable[[], None]
 ) -> tuple[tuple[float, ...], int, str | None]:
     """
     Perform one shared six-Newton/four-halving ordered-cap correction without fixing zero runways.
