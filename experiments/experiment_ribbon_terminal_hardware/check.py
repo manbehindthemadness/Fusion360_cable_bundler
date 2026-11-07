@@ -6,11 +6,12 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable, Literal
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
-from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, projection
+from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, prepare_projection
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy, cap_region
 from experiments.experiment_ribbon_fold_route.contact_inverse import profile_height
 from experiments.experiment_ribbon_fold_route.contact_profile import clip_profile
@@ -44,24 +45,22 @@ class Report:
     reason: str = ""
 
 
-def _mating_side(route: FoldRoute, box: Box, cell: Cell) -> bool:
+def _mating_frame(route: FoldRoute, box: Box) -> bool:
     """
-    Exclude only a certified local cap halfspace at that hardware's own mating interface.
+    Compare immutable mating frames once; each material cell still needs its cap-side proof.
     """
     at_end = box.terminal is Terminal.END
     target = route.targets
-    if cell.piece != (len(route.pieces) - 1 if at_end else 0):
+    if not route.pieces:
         return False
     expected = (
         Pose(target.end, target.end_tangent, target.end_width)
         if at_end
         else Pose(target.start, target.start_tangent, target.start_width)
     )
-    piece = route.pieces[cell.piece]
+    piece = route.pieces[-1 if at_end else 0]
     actual = piece.end_pose() if at_end else piece.pose
-    return max(pose_error(actual, expected)) < 1e-10 and cap_region(
-        piece, cell, at_end, CapPolicy.ANALYTIC_SUPPORT
-    )
+    return max(pose_error(actual, expected)) < 1e-10
 
 
 def inspect(
@@ -92,7 +91,11 @@ def inspect(
     ):
         return Report("unresolved", 0, reason="Material thickness map is not regular")
     checked = 0
+    prepared = lru_cache(maxsize=64)(prepare_projection)
     for box in hardware.boxes:
+        matching = _mating_frame(route, box)
+        at_end = box.terminal is Terminal.END
+        mating_index = len(route.pieces) - 1 if at_end else 0
         axes, limits = box.axes, box.bounds
         origins = tuple(dot(box.pose.origin, axis) for axis in axes)
         pending = deque(
@@ -114,14 +117,22 @@ def inspect(
             cell = pending.popleft()
             checked += 1
             cell = clip_profile(cell, route.targets.lines, route.targets.diameter_mm)
-            if cell is None or _mating_side(route, box, cell):
+            if cell is None:
                 continue
             piece = route.pieces[cell.piece]
-            spans = tuple(projection(piece, cell, axis) for axis in axes)
-            if any(
-                span.high < origin + limit.low or span.low > origin + limit.high
-                for span, origin, limit in zip(spans, origins, limits)
+            if (
+                matching
+                and cell.piece == mating_index
+                and cap_region(piece, cell, at_end, CapPolicy.ANALYTIC_SUPPORT)
             ):
+                continue
+            separated = False
+            for axis, origin, limit in zip(axes, origins, limits):
+                span = prepared(piece, axis)(cell)
+                if span.high < origin + limit.low or span.low > origin + limit.high:
+                    separated = True
+                    break
+            if separated:
                 continue
             u, q, height = ((span.low + span.high) / 2 for span in (cell.u, cell.q, cell.height))
             guard = 1e-9 * max(1.0, route.targets.diameter_mm)

@@ -81,8 +81,7 @@ def test_fold_clearance_failure_retains_three_passed_controls_and_existing_alias
     Keep prior60inputs and add only the two genuinely new passed layouts plus current N4 failure.
     """
     corpus = load()
-    assert len(corpus["cases"]) == 63
-    added = corpus["cases"][60:]
+    added = corpus["cases"][60:63]
     assert [c["id"] for c in added] == ["rangebec-case-5", "rangebec-case-6", "rangebec-case-7"]
     assert [c["history"][0]["disposition"] for c in added] == [
         "retained_control",
@@ -90,6 +89,21 @@ def test_fold_clearance_failure_retains_three_passed_controls_and_existing_alias
         "numerical_unresolved",
     ]
     assert added[-1]["gym"]["config"]["seed"] == 251693499
+
+
+def test_measurement_failure_keeps_new_control_and_two_existing_aliases() -> None:
+    """
+    Preserve the prior 63 inputs, adding only a new passed N8 control and the N6 stop.
+    """
+    corpus = load()
+    assert len(corpus["cases"]) == 65
+    added = corpus["cases"][63:]
+    assert [c["id"] for c in added] == ["range3887-case-9", "range3887-case-12"]
+    assert [c["history"][0]["disposition"] for c in added] == [
+        "retained_control",
+        "numerical_unresolved",
+    ]
+    assert added[-1]["gym"]["config"]["seed"] == 626433965
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))
