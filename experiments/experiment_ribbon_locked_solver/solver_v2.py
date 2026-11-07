@@ -100,6 +100,10 @@ def solve(
     If all three routes fail hardware, actual first-pass evidence may use only
     genuinely unused feasibility work. Straight evidence retains one incident
     reflection and at most one complete straight/finite-box separation plane.
+    A closed reflection exceeding construction length may spend only its unused
+    updates/time/pairs on original signed joints with caps, measured feature gaps
+    and the original quality ceiling solved together. No new sign/event search,
+    length allowance or renewed budget follows that rejection.
     Fold evidence instead preserves every sign and radius while solving ordered
     caps with at most two measured bend/runway feature planes simultaneously.
     Its growth ceiling is construction length plus the initial complete-feature

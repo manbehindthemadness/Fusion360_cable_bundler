@@ -96,14 +96,33 @@ def test_measurement_failure_keeps_new_control_and_two_existing_aliases() -> Non
     Preserve the prior 63 inputs, adding only a new passed N8 control and the N6 stop.
     """
     corpus = load()
-    assert len(corpus["cases"]) == 65
-    added = corpus["cases"][63:]
+    added = corpus["cases"][63:65]
     assert [c["id"] for c in added] == ["range3887-case-9", "range3887-case-12"]
     assert [c["history"][0]["disposition"] for c in added] == [
         "retained_control",
         "numerical_unresolved",
     ]
     assert added[-1]["gym"]["config"]["seed"] == 626433965
+
+
+def test_straight_quality_failure_keeps_preceding_controls_and_existing_alias() -> None:
+    """
+    Preserve prior 65 inputs and add only two new passed controls plus the N3 stop.
+    """
+    corpus = load()
+    assert len(corpus["cases"]) == 68
+    added = corpus["cases"][65:]
+    assert [c["id"] for c in added] == [
+        "range510-case-14",
+        "range510-case-15",
+        "range510-case-16",
+    ]
+    assert [c["history"][0]["disposition"] for c in added] == [
+        "retained_control",
+        "retained_control",
+        "numerical_unresolved",
+    ]
+    assert added[-1]["gym"]["config"]["seed"] == 1104480256
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))

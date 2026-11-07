@@ -22,6 +22,7 @@ from .gate import Gate
 from .reversal import _same_folds, close_update
 from .reversal_model import ReversalModel, incident_fold
 from .sheet import Sheet
+from .straight_quality import StraightQuality
 
 
 class _Exhausted(RuntimeError):
@@ -43,7 +44,7 @@ def recover(
     maximum_seconds: float,
 ) -> Result | None:
     """
-    Correct one unresolved first pass with one reflection and at most one straight/box plane.
+    Use only idle feasibility work to clear an actual first-pass terminal intrusion.
 
     Caller must reserve unused feasibility work, never a second contraction budget.
     Four total updates include reflection closure and subsequent sheet separation;
@@ -51,6 +52,11 @@ def recover(
     Actual late evidence drives the event and plane; no alternative angles/events
     are searched. Radii, other fold signs, profile/order and exact poses stay fixed.
     Feasibility may grow the invalid input up to the original construction length.
+    If a straight-witness fixed reversal closes above that ceiling, only its
+    unused updates/time/pairs may move the original signed joints instead. Solve
+    ordered caps, complete-feature clearance and the original length ceiling
+    together; no reflected candidate or extra work is inherited by that action.
+    Fold evidence retains the separate overlap-bounded feature-recovery policy.
     Accept only full strict self-contact and both terminal boxes. Failed action
     retains the unresolved source; no certificate or accepted status transfers.
     """
@@ -232,5 +238,48 @@ def recover(
         elapsed_seconds=perf_counter() - started,
         length_mm=candidate.material_length_mm if accepted else original.material_length_mm,
     )
+    if (
+        not accepted
+        and detail.get("stop_reason") == "construction_length_ceiling"
+        and detail["iterations"] < 4
+    ):
+        cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+        wall_left = maximum_seconds - (perf_counter() - started)
+        pairs_left = remaining_pairs - detail["contact_pairs"]
+        if cpu_left > 0 and wall_left > 0 and pairs_left > 0:
+            emit("fixed_reversal_declined", detail=dict(detail), candidate=snapshot(candidate))
+            recovered = recover_fold(
+                original,
+                evidence,
+                terminal,
+                checkpoint,
+                record,
+                maximum_length_mm=maximum_length_mm,
+                minimum_straight_mm=minimum_straight_mm,
+                remaining_pairs=pairs_left,
+                maximum_cpu_seconds=cpu_left,
+                maximum_seconds=wall_left,
+                quality=StraightQuality(maximum_length_mm, 4 - detail["iterations"]),
+            )
+            if recovered is not None:
+                recovered.detail["fixed_reversal_declined"] = dict(detail)
+                for field in (
+                    "iterations",
+                    "newton_steps",
+                    "contacts",
+                    "contact_pairs",
+                    "contact_seconds",
+                ):
+                    recovered.detail[field] += detail[field]
+                recovered.detail.update(
+                    cpu_seconds=process_time() - cpu,
+                    elapsed_seconds=perf_counter() - started,
+                )
+                return recovered
+            detail.update(
+                cpu_seconds=process_time() - cpu,
+                elapsed_seconds=perf_counter() - started,
+                straight_preparation_declined=True,
+            )
     emit(detail["status"], detail=detail, candidate=snapshot(candidate))
     return Result(candidate if accepted else original, measurement if accepted else None, detail)

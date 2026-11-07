@@ -1,6 +1,14 @@
 # Frozen gym regression corpus
 
-Current inventory: **65 exact development inputs**. N8 passed case 9 and N6 failure
+Current inventory: **68 exact development inputs**. Monitored cases 14/15 and N3
+failure 16 are new; case 13 is existing `historical-208c6aa74e2e`, with appended
+history. All prior 65 inputs/history prefixes remain. Capacity 68 retains the
+120 s phase / 103 s cutoff / 15 s case limits. 944 evaluates 68/68: **55 accepted /
+13 unresolved**, all **53 previous final AND first-pass routes exact**. Current and
+older case138 improve; only current has a new native/fidelity/boundary pass.
+[Constrained straight-feature evidence](../experiment_ribbon_terminal_hardware/STRAIGHT_QUALITY.md).
+
+Earlier inventory: **65 exact development inputs**. N8 passed case 9 and N6 failure
 case 12 are new; cases 10/11 are existing aliases with appended provenance. All prior
 63 inputs/history prefixes remain. Capacity 65 uses the same 120 s phase / 103 s cutoff /
 15 s case limits. 924 evaluates 65/65: **51 accepted / 14 unresolved**, all **50 prior

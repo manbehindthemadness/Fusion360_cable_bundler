@@ -122,3 +122,30 @@ work; it stops on the expected inventory mismatch. 930 instead uses the original
 frozen 63-case snapshot, with no geometry rerun or source retuning. Required focused
 checks are available; repository-wide QA, broader native and full physical audits
 were not run.
+
+## User-requested monitored follow-up 931–934
+
+The user asks the agent to start and watch the next run. Preserve the current ranges,
+seed, solver/settings, screenshots and wake protection; cap the original unlimited
+specification at the established 1,000-case goal. The ordinary palette polls and
+schedules cases. An initial direct engine start did not publish state to HTML;
+932 reconnects its ordinary polling loop without another start or case retry.
+
+`range-510e35ecc5864a33821a5a0f1982c791` stops automatically at **16 attempted / 15
+passed / 0 warning passes**, after 403.895 s. The previous N6 failure (case 12) passes
+through the ordinary tester. All 16 boundary-condition snapshots are distinct in
+this run, although its earlier cases repeat the preceding run's settings. Fifteen
+accepted native attempts/builds/named-fidelity passes and boundary passes; one
+rejected native inspection, with no named fidelity or acceptance; zero full physical
+audits. Maximum sampled accepted-native RSS is 2,283,120 KiB, below the unchanged
+4 GiB ceiling. No solver source change, retry, tolerance change or restart occurs.
+
+New stop: N3 seed 1104480256, A zone 3/face 5/roll 9°, B zone 24/face 4/roll 78°
+(stored zero-based). Job `selected-722ca30937de431383159613e8489682`. A real straight
+material region enters the end proxy. Existing incident reversal closes at
+34.259482245 mm versus the 27.152196424 mm construction and fails its quality
+ceiling. Terminal checking uses only 0.003172 CPU s / 42 cells: this is unrelated
+to the previous checking timeout. Rejected current geometry is retained for
+inspection, with its input/logs and per-case screenshot in `~/Pictures/test4`.
+The tester remains stopped. `ribbon_terminal931/result.json` records all case
+outcomes and counters; `stopped-state.json` confirms runtime wake protection release.

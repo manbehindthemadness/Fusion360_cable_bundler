@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straigh
 from .check import Report
 from .feature_plane import FeaturePlane, SignedJoints
 from .gate import Gate
+from .straight_quality import StraightQuality
 
 
 class _Exhausted(RuntimeError):
@@ -40,9 +41,10 @@ def recover(
     remaining_pairs: int,
     maximum_cpu_seconds: float,
     maximum_seconds: float,
+    quality: StraightQuality | None = None,
 ) -> Result | None:
     """
-    Preserve all signs/radii while simultaneously solving caps and at most two measured feature planes.
+    Preserve all signs/radii while solving caps and at most two measured feature planes.
 
     Caller validates and reserves the same idle feasibility allowance. Up to 24
     Newton steps represent four six-correction updates, with 0.2 radian trust and
@@ -53,7 +55,12 @@ def recover(
     initial complete-feature projected penetration; it is not a physical tolerance.
     Hardware-clear proposals with sub-native runways fix those slots at zero and
     reclose all equations before final self-contact, without renewing any allowance.
+    Straight-quality recovery additionally closes the original length ceiling as
+    an active equation and uses only the caller's remaining update count. Ordinary
+    fold recovery retains its existing overlap-based feasibility preference.
     """
+    if quality is not None and quality.ceiling_mm != maximum_length_mm:
+        raise ValueError("Straight recovery must retain the caller's original quality ceiling")
     started, cpu = perf_counter(), process_time()
     model = SignedJoints(original)
     values = model.initial
@@ -63,19 +70,22 @@ def recover(
         return None
     planes = [initial]
     allowance = max(0.0, -initial.gap(values) * model.scale)
-    ceiling = maximum_length_mm + allowance
+    ceiling = quality.ceiling_mm if quality is not None else maximum_length_mm + allowance
+    maximum_newton_steps = quality.newton_steps if quality is not None else 24
     candidate, accepted, measurement = original, False, None
     detail: dict[str, Any] = {
         "status": "unresolved",
         "purpose": "terminal_clearance",
-        "method": "coupled_feature_planes",
+        "method": "constrained_straight_feature"
+        if quality is not None
+        else "coupled_feature_planes",
         "iterations": 0,
         "newton_steps": 0,
         "contacts": 0,
         "contact_pairs": 0,
         "contact_seconds": 0.0,
         "maximum_length_mm": ceiling,
-        "local_growth_allowance_mm": allowance,
+        "local_growth_allowance_mm": allowance if quality is None else 0.0,
     }
     active_pairs: int | None = None
     contact_started = 0.0
@@ -101,9 +111,16 @@ def recover(
         """
         Close the ordered caps and all selected feature gaps together.
         """
-        return model.residual(coordinates) + tuple(
+        residual_terms = model.residual(coordinates) + tuple(
             p.gap(coordinates) - 1e-7 / model.scale for p in planes
         )
+        if quality is not None:
+            evaluated_route = model.route(coordinates)
+            assert evaluated_route is not None
+            residual_terms += (
+                (evaluated_route.material_length_mm - quality.target_mm) / model.scale,
+            )
+        return residual_terms
 
     try:
         emit(
@@ -186,7 +203,7 @@ def recover(
                     axis_family=extra.family,
                 )
                 continue
-            if detail["newton_steps"] >= 24:
+            if detail["newton_steps"] >= maximum_newton_steps:
                 detail["stop_reason"] = "joint_update_limit"
                 break
             columns = []

@@ -1,5 +1,19 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Constrained straight-feature recovery 935–949 — 2026-11-06
+
+Monitored N3 case16 has a real end-proxy straight intrusion. Freeing reflected
+angle/bank alone still lengthens it; instead use original signed joints and solve
+caps, measured complete-feature gaps and original construction length together.
+Only unused work after fixed-reversal quality rejection is available; all existing
+working paths, radii, rules and budgets remain. 68/68 saved inputs: 55 accepted /
+13 unresolved; all 53 prior final/first-pass snapshots exact. Current and older
+case138 improve numerically; only current has a new native/fidelity/boundary pass.
+Visible selected-d07f0706...27.152196324 mm; recovery 0.225864 CPU s; complete solve
+0.711291 CPU s below generation 1.772226 s. Audit 0.970502 s / whole native 11.390341 s;
+0 warnings / 0 full physical audits. Tester stopped with original 15/16 journal.
+79 focused tests / affected Ruff / 232 pins. [Method and failed trials](../experiment_ribbon_terminal_hardware/STRAIGHT_QUALITY.md).
+
 ## Exact terminal-bound reuse 910–928 — 2026-11-06
 
 N6 seed 626433965 stops after 11 passes: shared terminal CPU expires before the

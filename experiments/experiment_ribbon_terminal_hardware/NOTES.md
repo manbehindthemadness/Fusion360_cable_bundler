@@ -1,6 +1,14 @@
 # Finite terminal hardware trial
 
-Latest: [exact terminal-bound reuse](MEASUREMENT_REUSE.md) resolves the N6 stop
+Latest: [constrained straight-feature recovery](STRAIGHT_QUALITY.md) resolves the
+monitored N3 stop. Free reflected-angle/bank experiments still exceeded quality;
+original signed joints instead close caps, actual feature clearance and original
+length together, using only unused work after the fixed reversal fails its ceiling.
+68/68 saved inputs: 55 accepted / 13 unresolved; all 53 previous final/first-pass
+routes exact. One current native/fidelity/boundary pass; older case 138 improves
+numerically only. Recovery 0.225864 CPU s; tester remains stopped with 15/16 journal.
+
+Earlier: [exact terminal-bound reuse](MEASUREMENT_REUSE.md) resolves the N6 stop
 without changing the correction or increasing its work limits. Reuse immutable
 projection coefficients and mating-frame comparisons, retaining all cell proofs.
 65 saved inputs: 51 accepted / 14 unresolved; all 50 prior final/first-pass routes
