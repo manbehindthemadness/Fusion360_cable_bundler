@@ -1,5 +1,18 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Exact terminal-bound reuse 910–928 — 2026-11-06
+
+N6 seed 626433965 stops after 11 passes: shared terminal CPU expires before the
+existing correction can verify another real start-fold intrusion. Reuse immutable
+projection transforms and mating-frame comparisons, with exact original extrema,
+rounding and per-cell proofs. Same correction, geometry rules and work limits.
+65/65 saved inputs: 51 accepted / 14 unresolved, all 50 prior final/first-pass routes
+exact. Current 41.722852532 mm body passes native fidelity and ±43.75 mm boundary;
+terminal 0.088627 CPU s / 1,021 cells. Recovery 0.216155 CPU s; numerical 1.854487 CPU s
+exceeds generation 0.809359 s, so timing goal misses. Audit 1.679038 s; whole native
+13.150395 s. 155 focused tests / affected lint / 231 pins; tester stopped, 11/12 journal
+preserved. [Method and retained failures](../experiment_ribbon_terminal_hardware/MEASUREMENT_REUSE.md).
+
 ## Coupled feature clearance 887–906 — 2026-11-06
 
 Current N4 seed 251693499 cannot clear hardware by forced reflection without an

@@ -1,6 +1,13 @@
 # Finite terminal hardware trial
 
-Latest: [deferred terminal feasibility](DEFERRED_RECOVERY.md) fixes the next N7 stop
+Latest: [exact terminal-bound reuse](MEASUREMENT_REUSE.md) resolves the N6 stop
+without changing the correction or increasing its work limits. Reuse immutable
+projection coefficients and mating-frame comparisons, retaining all cell proofs.
+65 saved inputs: 51 accepted / 14 unresolved; all 50 prior final/first-pass routes
+exact. One current native/fidelity/boundary pass; original 11/12 journal preserved,
+tester stopped. Terminal checks 0.088627 CPU s within the unchanged 0.1 s allowance.
+
+Earlier: [deferred terminal feasibility](DEFERRED_RECOVERY.md) fixes the next N7 stop
 using actual late evidence and unused original recovery work. Current inventory:
 60inputs,46numerical acceptances/14unresolved;45previous accepted routes exact.
 Current native fidelity/boundary pass is visible. Whole native operation115s remains

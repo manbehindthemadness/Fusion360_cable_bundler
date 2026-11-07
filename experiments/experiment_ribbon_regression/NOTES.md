@@ -1,6 +1,14 @@
 # Frozen gym regression corpus
 
-Current inventory: **63 exact development inputs**. Latest run adds two genuinely
+Current inventory: **65 exact development inputs**. N8 passed case 9 and N6 failure
+case 12 are new; cases 10/11 are existing aliases with appended provenance. All prior
+63 inputs/history prefixes remain. Capacity 65 uses the same 120 s phase / 103 s cutoff /
+15 s case limits. 924 evaluates 65/65: **51 accepted / 14 unresolved**, all **50 prior
+accepted final AND first-pass routes exact**. One current native/fidelity/boundary
+pass; no other new native coverage or full physical audit. See
+[exact measurement reuse](../experiment_ribbon_terminal_hardware/MEASUREMENT_REUSE.md).
+
+Earlier inventory: **63 exact development inputs**. That run adds two genuinely
 new passed controls and the N4 seed 251693499 failure; its preceding N7 pass is an
 existing alias with appended provenance. Prior 60 inputs/history prefixes remain.
 Reviewed capacity is 63 with the same 120 s phase, 103 s cutoff and 15 s case limits.
