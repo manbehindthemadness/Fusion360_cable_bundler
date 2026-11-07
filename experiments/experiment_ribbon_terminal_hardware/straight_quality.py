@@ -1,5 +1,5 @@
 """
-Keep straight-feature recovery inside the original construction length and unused joint work.
+Keep feature recovery inside its unchanged length ceiling and unused joint work.
 """
 
 from __future__ import annotations
@@ -14,8 +14,10 @@ class StraightQuality:
     Activate the original length ceiling during endpoint and feature-gap closure.
 
     A small existing shortening margin places the equality inside the quality
-    ceiling instead of relying on rounded equality at acceptance. It grants no
-    physical tolerance and cannot enlarge the caller's remaining update allowance.
+    ceiling instead of relying on rounded equality at acceptance. Fold growth
+    recovery also uses this policy with its existing overlap-derived ceiling.
+    It grants no physical tolerance and cannot enlarge the caller's remaining
+    update allowance. The historical class name remains compatible with callers.
     """
 
     ceiling_mm: float

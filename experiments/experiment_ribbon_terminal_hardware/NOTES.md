@@ -1,6 +1,14 @@
 # Finite terminal hardware trial
 
-Latest: [constrained straight-feature recovery](STRAIGHT_QUALITY.md) resolves the
+Latest: [fold-feature quality inequalities](FOLD_QUALITY.md) resolves monitored
+N10 case56 using the unchanged overlap-derived ceiling in the same remaining
+joint solve. Raw derivatives and at most eight scalar active projections enforce
+caps, clearance and length together; no angle/event search or budget increase.
+72/72 saved inputs: 59 accepted / 13 unresolved; all 58 prior final/first-pass
+routes exact. One current native/fidelity/±66.25 mm boundary pass, zero warnings;
+recovery 0.336537 CPU s. Tester stopped; original 55/56 journal preserved.
+
+Earlier: [constrained straight-feature recovery](STRAIGHT_QUALITY.md) resolves the
 monitored N3 stop. Free reflected-angle/bank experiments still exceeded quality;
 original signed joints instead close caps, actual feature clearance and original
 length together, using only unused work after the fixed reversal fails its ceiling.

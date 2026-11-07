@@ -1,5 +1,10 @@
 # Constrained straight-feature recovery — 2026-11-06
 
+Later [fold-feature quality recovery](FOLD_QUALITY.md) retains this straight
+fallback unchanged and adds inequality handling only where ordinary fold recovery
+would reject its existing overlap-derived length ceiling. It resolves case56;
+the monitored follow-up below remains the original failure record.
+
 Trigger: monitored case 16, N3 seed 1104480256, A zone 3/face 5/roll 9°, B zone
 24/face 4/roll 78° (stored zero-based). Original failed job
 `selected-722ca30937de431383159613e8489682` and its native inspection remain.
@@ -135,3 +140,38 @@ AST normalization. No numerical expressions or control flow changed. Earlier sou
 bytes/fingerprints remain in their plans; final source lock verifies **232 files**.
 Complete source diff and append-only corpus audit pass. No required focused check
 is unavailable; repository-wide QA and broader native/full physical audits were not run.
+
+## Monitored follow-up 952–961
+
+The unchanged solver runs with the user's current ranges and a 1,000-total-case cap.
+The user pauses at **52/52 passes, zero warnings**, then explicitly resumes. A newer
+manual build of the same paused input changed the controller job, so the first
+resume guard stops before mutation. Read-only inspection confirms the same source,
+gym/settings and idle owned design. 957 preserves the newer manual body, gives the
+tester a fresh ordinary output handle and continues the **same** journal at case 53.
+No prefix is replayed and no counters/settings are reset; paused wall time is excluded.
+
+`range-d9c76a019e394fbfadd8c5b9389d2500` then stops automatically on case 56:
+**55 passes / 56 attempts / 0 warning passes**, 1,387.498 active seconds. The previous
+case 16 repair passes in the normal tester. All 56 complete boundary configurations
+are distinct in this run, with earlier known cases still developmental replays.
+55 accepted native builds/named-fidelity passes/boundary passes; one rejected native
+inspection and zero full physical audits. Maximum sampled accepted-native RSS is
+2,372,512 KiB. Source, tolerances and rules remain unchanged; zero case retries.
+
+New N10 seed 975394730, A zone 9/face 8/roll 14°, B zone 19/face 1/roll 24° (stored
+zero-based), has a modeled start-proxy intrusion on a fold. Original construction
+138.780118133 mm; ordinary reversal fails shortening. Existing fold-feature recovery
+closes at 140.308662146 mm, above its 139.785199235 mm quality ceiling. Terminal work
+is only 0.013605 CPU s / 55 cells: not another timeout or memory stop. That failed
+repair has no contact certificate or native attempt. The retained final smoothed
+139.539702921 mm route builds for inspection only, with no named fidelity or acceptance.
+Current job: `selected-21b7d893e206439282bd0abff2cce757`.
+
+Tester is stopped, its rejected inspection visible and wake protection released.
+Inputs, screenshots and the entire pause/resume ledger remain; no solver repair or
+restart occurs in this monitored continuation. 958/959 initially assume a start
+record instead of the resume record during summary collection; 960/961 correct
+only those read-only collection paths. These are harness observations, not case
+failures or geometry retries. Final ledger and resource summary are retained in
+`artifacts/verification/ribbon_terminal957/result.json` and `stopped-state.json`.

@@ -228,14 +228,15 @@
     "experiments/experiment_ribbon_terminal_hardware/__init__.py": "bb95f4dec6e328272f98a944c5491ed7ee82bcde0470495bcb0829ccc2682061",
     "experiments/experiment_ribbon_terminal_hardware/check.py": "6873012cb1fad0b008e980c40580ddecd8bea04609749c4b9553492cb0d74dc5",
     "experiments/experiment_ribbon_terminal_hardware/feature_plane.py": "0d600a365eecf5b923d5c7668341f8aa64ef103c1392bd7e02b3535d6d8a0fab",
-    "experiments/experiment_ribbon_terminal_hardware/fold_recovery.py": "9944ccd714514a4a2432badc1cab38e4f7ff9679b7b2b34472562b2d0d35a1e7",
+    "experiments/experiment_ribbon_terminal_hardware/fold_recovery.py": "15be8d61a2691a7f9c27deabe6d22b8530ee9f14c6760a23009d050d397e4391",
     "experiments/experiment_ribbon_terminal_hardware/gate.py": "5d44f6e3d6de8b7f26e487739b6fecd440ede0a1422e35ea75e7eb306f37aaff",
     "experiments/experiment_ribbon_terminal_hardware/model.py": "427151f5eb59ed3ffa4770917fb2d2f11e7ffae12a041f3fb588b2fa8be5d863",
+    "experiments/experiment_ribbon_terminal_hardware/quality_projection.py": "e36e44783adb8336d3427a16d9d01d0fac03646c83529ab6f2302a58801027d5",
     "experiments/experiment_ribbon_terminal_hardware/recovery.py": "6db5625383ad91b8bc9b2184bc3f44220deb04e9e2baaaf7c1f367931b41fa18",
     "experiments/experiment_ribbon_terminal_hardware/reversal.py": "f9128567df88714e9e1636f15dee4b4461f26c52205df3c28ccd368a36137e48",
     "experiments/experiment_ribbon_terminal_hardware/reversal_model.py": "ff707391ca8c1f5b5662018a421c8cb0be43735b91cf99815f61ad3c576d209a",
     "experiments/experiment_ribbon_terminal_hardware/sheet.py": "e0f586dbfcb53ba1defd2dbab4fd093e996fb45f3581de6c1e328debdaa2c903",
-    "experiments/experiment_ribbon_terminal_hardware/straight_quality.py": "1da2911e46f4fc480f4e42458d4a3e6795179c1ca1491a5671f09533f3a86b2e",
+    "experiments/experiment_ribbon_terminal_hardware/straight_quality.py": "831a342334f86ecb33752972caecbb4a54808b763316328b96e21c6ae54258b3",
     "experiments/experiment_ribbon_terminal_hardware/view.py": "2c4d00e3a6cf48e07e4e7a121faf1765b2207da2355f0f1014c855c4f83c04f9",
     "experiments/experiment_ribbon_test_gym/workspace.py": "dd47d06b8bdc2eec5fe3d737e96fcbb53b9c758271c78f3fadf32e0bc23fe39f"
   }

@@ -1,6 +1,14 @@
 # Frozen gym regression corpus
 
-Current inventory: **68 exact development inputs**. Monitored cases 14/15 and N3
+Current inventory: **72 exact development inputs**. Monitored cases 53–55 and N10
+failure 56 are all new signatures; prior 68 inputs/settings/history prefixes remain.
+Capacity 72 retains 120 s phase / 103 s cutoff / 15 s case limits. 971 evaluates
+72/72: **59 accepted / 13 unresolved**, all **58 previous final AND first-pass
+routes exact**. Only current case newly accepts and receives one new native/
+fidelity/boundary pass; all other new native coverage/full physical audits remain
+unattempted. [Fold-feature quality evidence](../experiment_ribbon_terminal_hardware/FOLD_QUALITY.md).
+
+Earlier inventory: **68 exact development inputs**. Monitored cases 14/15 and N3
 failure 16 are new; case 13 is existing `historical-208c6aa74e2e`, with appended
 history. All prior 65 inputs/history prefixes remain. Capacity 68 retains the
 120 s phase / 103 s cutoff / 15 s case limits. 944 evaluates 68/68: **55 accepted /

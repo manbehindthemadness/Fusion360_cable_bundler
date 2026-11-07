@@ -1,5 +1,18 @@
 # Selected material solver and gym integration — 2026-11-01
 
+## Fold-feature quality inequalities 962–974 — 2026-11-06
+
+Monitored N10 case56 rejects an otherwise closed fold correction above its
+existing overlap-derived ceiling. Activate that unchanged bound in the same
+remaining solve; raw constraint derivatives and scalar active projections handle
+clearance/length inequalities alongside exact caps. No signs/radii/rules/budget
+changes. 72/72 saved inputs: 59 accepted / 13 unresolved, all 58 prior accepted
+final/first-pass routes exact. One exact current native/fidelity/boundary pass;
+recovery 0.336537 CPU s, complete solve 0.998664 CPU s versus generation 2.715459 s.
+Zero precision warnings/full physical audits. Tester remains stopped, original
+55/56 journal kept. 85 focused tests, affected Ruff/IDE, 233 source pins.
+[Method and all failed diagnostics](../experiment_ribbon_terminal_hardware/FOLD_QUALITY.md).
+
 ## Constrained straight-feature recovery 935–949 — 2026-11-06
 
 Monitored N3 case16 has a real end-proxy straight intrusion. Freeing reflected
