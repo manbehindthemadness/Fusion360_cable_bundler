@@ -1,0 +1,904 @@
+{
+    "version": "0.1.0",
+    "id": "b05aa836-3f5b-4ead-a0f2-f1f08f390ba7",
+    "timestamp": "2026-11-08T23:12:24.174792Z",
+    "vcs": {
+        "type": "git",
+        "revision": "ec7e6c032d51472d305d63e097fe1a715e8cb386",
+        "origin": "github",
+        "repository": "git@github.com:manbehindthemadness/Fusion360_cable_bundler.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "experiments/experiment_ribbon_feature_insertion/contact_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:f866a999ae39f435f0b7233d2941b8813c171aee",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 24,
+                            "end_line": 24
+                        },
+                        {
+                            "start_line": 99,
+                            "end_line": 99
+                        },
+                        {
+                            "start_line": 122,
+                            "end_line": 127
+                        },
+                        {
+                            "start_line": 243,
+                            "end_line": 259
+                        },
+                        {
+                            "start_line": 266,
+                            "end_line": 266
+                        },
+                        {
+                            "start_line": 270,
+                            "end_line": 270
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_locked_solver/branch_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:f866a999ae39f435f0b7233d2941b8813c171aee",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 24,
+                            "end_line": 24
+                        },
+                        {
+                            "start_line": 26,
+                            "end_line": 26
+                        },
+                        {
+                            "start_line": 38,
+                            "end_line": 38
+                        },
+                        {
+                            "start_line": 58,
+                            "end_line": 61
+                        },
+                        {
+                            "start_line": 157,
+                            "end_line": 157
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_locked_solver/fallback_feasibility.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:f866a999ae39f435f0b7233d2941b8813c171aee",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 58,
+                            "end_line": 62
+                        },
+                        {
+                            "start_line": 80,
+                            "end_line": 80
+                        },
+                        {
+                            "start_line": 120,
+                            "end_line": 120
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_locked_solver/solver_v2.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:7df53d0ff360c6a388446e414e9c5b18b1f1de65",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 134,
+                            "end_line": 138
+                        }
+                    ]
+                },
+                {
+                    "url": "git+CODEX_CLI:blob:f866a999ae39f435f0b7233d2941b8813c171aee",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 66,
+                            "end_line": 68
+                        },
+                        {
+                            "start_line": 71,
+                            "end_line": 71
+                        },
+                        {
+                            "start_line": 187,
+                            "end_line": 187
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_regression/RULES.md",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 189,
+                            "end_line": 191
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/INCIDENT_FEATURES.md",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 27
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/NATIVE_ZERO_RECOVERY.md",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 32
+                        },
+                        {
+                            "start_line": 34,
+                            "end_line": 38
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/feature_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 13
+                        },
+                        {
+                            "start_line": 15,
+                            "end_line": 49
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 54,
+                            "end_line": 54
+                        },
+                        {
+                            "start_line": 56,
+                            "end_line": 63
+                        },
+                        {
+                            "start_line": 75,
+                            "end_line": 75
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 88
+                        },
+                        {
+                            "start_line": 217,
+                            "end_line": 217
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/fold_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 39,
+                            "end_line": 39
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/joint_contact.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 29,
+                            "end_line": 29
+                        },
+                        {
+                            "start_line": 31,
+                            "end_line": 32
+                        },
+                        {
+                            "start_line": 35,
+                            "end_line": 35
+                        },
+                        {
+                            "start_line": 73,
+                            "end_line": 73
+                        },
+                        {
+                            "start_line": 96,
+                            "end_line": 99
+                        },
+                        {
+                            "start_line": 101,
+                            "end_line": 101
+                        },
+                        {
+                            "start_line": 114,
+                            "end_line": 117
+                        },
+                        {
+                            "start_line": 123,
+                            "end_line": 123
+                        },
+                        {
+                            "start_line": 126,
+                            "end_line": 126
+                        },
+                        {
+                            "start_line": 133,
+                            "end_line": 138
+                        },
+                        {
+                            "start_line": 141,
+                            "end_line": 141
+                        },
+                        {
+                            "start_line": 146,
+                            "end_line": 146
+                        },
+                        {
+                            "start_line": 156,
+                            "end_line": 156
+                        },
+                        {
+                            "start_line": 278,
+                            "end_line": 278
+                        },
+                        {
+                            "start_line": 295,
+                            "end_line": 295
+                        },
+                        {
+                            "start_line": 297,
+                            "end_line": 301
+                        },
+                        {
+                            "start_line": 355,
+                            "end_line": 357
+                        },
+                        {
+                            "start_line": 384,
+                            "end_line": 384
+                        },
+                        {
+                            "start_line": 398,
+                            "end_line": 398
+                        },
+                        {
+                            "start_line": 437,
+                            "end_line": 437
+                        },
+                        {
+                            "start_line": 439,
+                            "end_line": 439
+                        },
+                        {
+                            "start_line": 444,
+                            "end_line": 450
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/joint_derivatives.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:7df53d0ff360c6a388446e414e9c5b18b1f1de65",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 31,
+                            "end_line": 34
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/radius_model.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:7df53d0ff360c6a388446e414e9c5b18b1f1de65",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 40
+                        },
+                        {
+                            "start_line": 44,
+                            "end_line": 48
+                        },
+                        {
+                            "start_line": 54,
+                            "end_line": 54
+                        },
+                        {
+                            "start_line": 56,
+                            "end_line": 56
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/radius_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:7df53d0ff360c6a388446e414e9c5b18b1f1de65",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 5,
+                            "end_line": 5
+                        },
+                        {
+                            "start_line": 8,
+                            "end_line": 8
+                        },
+                        {
+                            "start_line": 11,
+                            "end_line": 16
+                        },
+                        {
+                            "start_line": 29,
+                            "end_line": 44
+                        },
+                        {
+                            "start_line": 46,
+                            "end_line": 46
+                        },
+                        {
+                            "start_line": 50,
+                            "end_line": 55
+                        },
+                        {
+                            "start_line": 67,
+                            "end_line": 67
+                        },
+                        {
+                            "start_line": 95,
+                            "end_line": 105
+                        },
+                        {
+                            "start_line": 110,
+                            "end_line": 134
+                        }
+                    ]
+                },
+                {
+                    "url": "git+CODEX_CLI:blob:c8dbe6a8fd4e617b9e36382a5856e0fe8e285e8a",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 9,
+                            "end_line": 9
+                        },
+                        {
+                            "start_line": 62,
+                            "end_line": 64
+                        },
+                        {
+                            "start_line": 68,
+                            "end_line": 73
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 19,
+                            "end_line": 19
+                        },
+                        {
+                            "start_line": 235,
+                            "end_line": 235
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/reversal_model.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 137,
+                            "end_line": 140
+                        },
+                        {
+                            "start_line": 142,
+                            "end_line": 144
+                        },
+                        {
+                            "start_line": 146,
+                            "end_line": 146
+                        },
+                        {
+                            "start_line": 148,
+                            "end_line": 156
+                        },
+                        {
+                            "start_line": 158,
+                            "end_line": 158
+                        },
+                        {
+                            "start_line": 160,
+                            "end_line": 164
+                        },
+                        {
+                            "start_line": 166,
+                            "end_line": 168
+                        },
+                        {
+                            "start_line": 170,
+                            "end_line": 174
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_active_projection.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 70,
+                            "end_line": 70
+                        },
+                        {
+                            "start_line": 72,
+                            "end_line": 72
+                        },
+                        {
+                            "start_line": 91,
+                            "end_line": 91
+                        },
+                        {
+                            "start_line": 93,
+                            "end_line": 94
+                        },
+                        {
+                            "start_line": 109,
+                            "end_line": 109
+                        },
+                        {
+                            "start_line": 111,
+                            "end_line": 111
+                        },
+                        {
+                            "start_line": 119,
+                            "end_line": 119
+                        },
+                        {
+                            "start_line": 121,
+                            "end_line": 121
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_fallback_feasibility.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:f866a999ae39f435f0b7233d2941b8813c171aee",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 7
+                        },
+                        {
+                            "start_line": 9,
+                            "end_line": 16
+                        },
+                        {
+                            "start_line": 22,
+                            "end_line": 26
+                        },
+                        {
+                            "start_line": 38,
+                            "end_line": 38
+                        },
+                        {
+                            "start_line": 40,
+                            "end_line": 40
+                        },
+                        {
+                            "start_line": 50,
+                            "end_line": 50
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 71,
+                            "end_line": 71
+                        },
+                        {
+                            "start_line": 73,
+                            "end_line": 74
+                        },
+                        {
+                            "start_line": 85,
+                            "end_line": 86
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 89
+                        },
+                        {
+                            "start_line": 113,
+                            "end_line": 116
+                        },
+                        {
+                            "start_line": 118,
+                            "end_line": 120
+                        },
+                        {
+                            "start_line": 124,
+                            "end_line": 124
+                        },
+                        {
+                            "start_line": 141,
+                            "end_line": 142
+                        },
+                        {
+                            "start_line": 144,
+                            "end_line": 145
+                        },
+                        {
+                            "start_line": 154,
+                            "end_line": 154
+                        },
+                        {
+                            "start_line": 167,
+                            "end_line": 168
+                        },
+                        {
+                            "start_line": 170,
+                            "end_line": 171
+                        },
+                        {
+                            "start_line": 175,
+                            "end_line": 175
+                        },
+                        {
+                            "start_line": 177,
+                            "end_line": 177
+                        },
+                        {
+                            "start_line": 185,
+                            "end_line": 185
+                        },
+                        {
+                            "start_line": 205,
+                            "end_line": 206
+                        },
+                        {
+                            "start_line": 208,
+                            "end_line": 209
+                        },
+                        {
+                            "start_line": 223,
+                            "end_line": 225
+                        },
+                        {
+                            "start_line": 227,
+                            "end_line": 228
+                        },
+                        {
+                            "start_line": 247,
+                            "end_line": 247
+                        },
+                        {
+                            "start_line": 249,
+                            "end_line": 249
+                        },
+                        {
+                            "start_line": 268,
+                            "end_line": 268
+                        },
+                        {
+                            "start_line": 270,
+                            "end_line": 270
+                        },
+                        {
+                            "start_line": 279,
+                            "end_line": 279
+                        },
+                        {
+                            "start_line": 291,
+                            "end_line": 291
+                        },
+                        {
+                            "start_line": 293,
+                            "end_line": 293
+                        },
+                        {
+                            "start_line": 303,
+                            "end_line": 303
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_native_zero_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 8
+                        },
+                        {
+                            "start_line": 11,
+                            "end_line": 20
+                        },
+                        {
+                            "start_line": 22,
+                            "end_line": 30
+                        },
+                        {
+                            "start_line": 32,
+                            "end_line": 32
+                        },
+                        {
+                            "start_line": 43,
+                            "end_line": 43
+                        },
+                        {
+                            "start_line": 49,
+                            "end_line": 49
+                        },
+                        {
+                            "start_line": 51,
+                            "end_line": 51
+                        },
+                        {
+                            "start_line": 53,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 62,
+                            "end_line": 62
+                        },
+                        {
+                            "start_line": 64,
+                            "end_line": 64
+                        },
+                        {
+                            "start_line": 67,
+                            "end_line": 72
+                        },
+                        {
+                            "start_line": 74,
+                            "end_line": 104
+                        },
+                        {
+                            "start_line": 111,
+                            "end_line": 111
+                        },
+                        {
+                            "start_line": 113,
+                            "end_line": 113
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_radius_restoration.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:7df53d0ff360c6a388446e414e9c5b18b1f1de65",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 2,
+                            "end_line": 5
+                        },
+                        {
+                            "start_line": 8,
+                            "end_line": 31
+                        },
+                        {
+                            "start_line": 259,
+                            "end_line": 284
+                        },
+                        {
+                            "start_line": 288,
+                            "end_line": 290
+                        },
+                        {
+                            "start_line": 292,
+                            "end_line": 295
+                        },
+                        {
+                            "start_line": 297,
+                            "end_line": 300
+                        },
+                        {
+                            "start_line": 302,
+                            "end_line": 315
+                        },
+                        {
+                            "start_line": 331,
+                            "end_line": 338
+                        }
+                    ]
+                },
+                {
+                    "url": "git+CODEX_CLI:blob:c8dbe6a8fd4e617b9e36382a5856e0fe8e285e8a",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 7,
+                            "end_line": 7
+                        },
+                        {
+                            "start_line": 223,
+                            "end_line": 223
+                        },
+                        {
+                            "start_line": 301,
+                            "end_line": 301
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_straight_quality.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 79,
+                            "end_line": 80
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
