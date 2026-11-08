@@ -2,6 +2,13 @@ Ribbon experiment restart — retained requirements and findings
 Recorded 2026-10-05 before rollback. These are requirements and diagnostic
 observations, not a claim of a durable solver or generalized certification.
 
+2026-11-08 user-directed input triage: exclude demonstrably inadmissible test
+inputs from active QA/failure work, with rule/reason recorded and old evidence
+unchanged. Recheck eligible historical problems under current solver/settings;
+solve those that still fail, keeping numerical/native/post-build outcomes separate.
+Do not treat a failed output or exhausted solver as proof of invalid input.
+See the current explicit exception in experiment_testing_rules.txt.
+
 2026-11-02 user-directed native dimensional warning revision: retain original
 accuracy goals; native dimensional goal misses strictly below0.01mm warn and
 continue, while0.01mm or greater fails. Preserve raw errors and complete audits.

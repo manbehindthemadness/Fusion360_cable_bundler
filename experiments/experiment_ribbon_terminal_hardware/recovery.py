@@ -4,7 +4,6 @@ Use idle feasibility work on actual late terminal evidence without renewing any 
 
 from __future__ import annotations
 
-import math
 from dataclasses import asdict
 from time import perf_counter, process_time
 from typing import Any, Callable
@@ -17,10 +16,14 @@ from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
-from .fold_recovery import recover as recover_fold
+from .feature_recovery import recover as recover_fold
 from .gate import Gate
+from .joint_contact import recover as recover_joints
+from .radius_recovery import RadiusTrigger, continue_after_boundary
+from .recovery_limits import Work, validate
 from .reversal import _same_folds, close_update
-from .reversal_model import ReversalModel, incident_fold
+from .reversal_model import NativeReversal, ReversalModel, incident_fold
+from .reversal_quality import decline_initial_length
 from .sheet import Sheet
 from .straight_quality import StraightQuality
 
@@ -62,19 +65,30 @@ def recover(
     retains the unresolved source; no certificate or accepted status transfers.
     A caller may supply fewer genuinely unused original updates after completed
     self-contact recovery; CPU, wall and pair sublimits must also be reduced.
+    A fixed reflection whose linear angular correction exceeds all remaining
+    trust travel may yield to the same existing signed-joint fallback. Its
+    completed counters and original clocks still reduce every child allowance.
+    A demonstrated sub-native runway may become an exact mathematical zero
+    before cap reclosure. Newly measured terminal intrusion then enters coupled
+    joint work using only the remaining allocation; no independent sheet
+    correction may discard that new clearance constraint.
+    If fixed reflected closure is linearly infeasible, the same unused work may
+    instead grow the actual witness-incident radius on the original signed route.
+    Every other radius and the material floor remain fixed; this continuation
+    uses the existing physical-restoration policy and reports source-length excess.
+    Initial bounded cap motion with a declined length projection may hand off
+    before reflection updates; this local prediction retains the same clocks
+    and does not assert global nonlinear infeasibility.
     """
-    for value, ceiling in ((maximum_cpu_seconds, 0.35), (maximum_seconds, 2.0)):
-        if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= ceiling:
-            raise ValueError("Use only the original remaining feasibility allowance")
-    if type(maximum_updates) is not int or not 1 <= maximum_updates <= 4:
-        raise ValueError("Use one to four remaining original updates")
-    if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
-        raise ValueError("Supply the remaining original construction pair budget")
-    if any(
-        type(v) not in (int, float) or not math.isfinite(v) or v <= 0
-        for v in (maximum_length_mm, minimum_straight_mm)
-    ):
-        raise ValueError("Positive finite construction ceiling and native threshold required")
+    validate(
+        remaining_pairs=remaining_pairs,
+        maximum_cpu_seconds=maximum_cpu_seconds,
+        maximum_seconds=maximum_seconds,
+        maximum_updates=maximum_updates,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+    )
+    work = Work(maximum_updates, remaining_pairs, maximum_cpu_seconds, maximum_seconds)
     started, cpu = perf_counter(), process_time()
     evidence = terminal.measure(original, "deferred_recovery_source")
     if evidence.status != "blocked" or evidence.witness is None:
@@ -101,6 +115,24 @@ def recover(
             recovered.detail.update(
                 cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - started
             )
+            continued = continue_after_boundary(
+                original,
+                evidence,
+                terminal,
+                checkpoint,
+                record,
+                recovered,
+                maximum_length_mm=maximum_length_mm,
+                minimum_straight_mm=minimum_straight_mm,
+                remaining_pairs=remaining_pairs,
+                maximum_cpu_seconds=maximum_cpu_seconds,
+                maximum_seconds=maximum_seconds,
+                maximum_updates=maximum_updates,
+                cpu_started=cpu,
+                started=started,
+            )
+            if continued is not None:
+                recovered = continued
         return recovered
     selected = incident_fold(original, evidence.witness)
     if selected is None:
@@ -150,7 +182,11 @@ def recover(
                 "pairs": remaining_pairs,
             },
         )
-        for update in range(maximum_updates):
+        early_decline = decline_initial_length(model, maximum_length_mm, bounded)
+        if early_decline:
+            detail["stop_reason"] = "initial_linear_length_declined"
+            emit("initial_linear_length_declined", detail=dict(detail))
+        for update in range(0 if early_decline else maximum_updates):
             bounded()
             detail["iterations"] += 1
             if sheet is not None:
@@ -162,7 +198,13 @@ def recover(
                     detail["stop_reason"] = "sheet_projection_infeasible"
                     break
                 values = advance(model, values, delta, step_limit(model, values, delta, 1.0))
-            values, steps, reason = close_update(model, values, bounded)
+            values, steps, reason = close_update(
+                model,
+                values,
+                bounded,
+                remaining_steps=6 * maximum_updates - detail["newton_steps"],
+                minimum_straight_mm=minimum_straight_mm,
+            )
             detail["newton_steps"] += steps
             proposed = model.route(values)
             assert proposed is not None
@@ -183,6 +225,24 @@ def recover(
                 continue
             if cap_error(candidate) > 1e-7 or material_error(candidate) > 1e-10:
                 raise ArithmeticError("Deferred terminal recovery lost its cap/material contract")
+            tiny_slots = frozenset(
+                i
+                for i in model.straight_indices
+                if 0 < values[i] * model.scale <= minimum_straight_mm
+            )
+            if (
+                tiny_slots
+                and sheet is None
+                and _same_folds(model, candidate)
+                and detail["iterations"] < maximum_updates
+                and detail["newton_steps"] < 6 * maximum_updates
+            ):
+                fixed = model.fixed_slots if isinstance(model, NativeReversal) else frozenset()
+                fixed = fixed | tiny_slots
+                model = NativeReversal(original, selected, fixed)
+                values = tuple(0.0 if i in fixed else value for i, value in enumerate(values))
+                emit("native_slots_zeroed", indices=sorted(tiny_slots))
+                continue
             if not _same_folds(model, candidate) or any(
                 isinstance(p.geometry, Straight)
                 and p.geometry.material_length_mm <= minimum_straight_mm
@@ -219,6 +279,44 @@ def recover(
                 accepted = True
                 detail["status"] = "separated"
                 break
+            if isinstance(model, NativeReversal):
+                left = work.remaining(
+                    updates=detail["iterations"],
+                    pairs=detail["contact_pairs"],
+                    cpu_seconds=process_time() - cpu,
+                    wall_seconds=perf_counter() - started,
+                )
+                if left is not None:
+                    continued = recover_joints(
+                        candidate,
+                        report,
+                        terminal,
+                        checkpoint,
+                        record,
+                        maximum_length_mm=maximum_length_mm,
+                        minimum_straight_mm=minimum_straight_mm,
+                        remaining_pairs=left.pairs,
+                        maximum_cpu_seconds=left.cpu_seconds,
+                        maximum_seconds=left.wall_seconds,
+                        maximum_updates=left.updates,
+                    )
+                    if continued is not None:
+                        continued.detail["native_zero_before_joint"] = dict(detail)
+                        for field in (
+                            "iterations",
+                            "newton_steps",
+                            "contacts",
+                            "contact_pairs",
+                            "contact_seconds",
+                        ):
+                            continued.detail[field] += detail[field]
+                        continued.detail.update(
+                            cpu_seconds=process_time() - cpu,
+                            elapsed_seconds=perf_counter() - started,
+                        )
+                        return continued
+                detail["stop_reason"] = "native_zero_joint_unavailable"
+                break
             if sheet is not None:
                 detail["stop_reason"] = "new_terminal_constraint"
                 break
@@ -244,15 +342,39 @@ def recover(
         elapsed_seconds=perf_counter() - started,
         length_mm=candidate.material_length_mm if accepted else original.material_length_mm,
     )
+    if not accepted and detail.get("stop_reason") == "linear_closure_infeasible":
+        continued = continue_after_boundary(
+            original,
+            evidence,
+            terminal,
+            checkpoint,
+            record,
+            Result(original, None, detail),
+            maximum_length_mm=maximum_length_mm,
+            minimum_straight_mm=minimum_straight_mm,
+            remaining_pairs=remaining_pairs,
+            maximum_cpu_seconds=maximum_cpu_seconds,
+            maximum_seconds=maximum_seconds,
+            maximum_updates=maximum_updates,
+            cpu_started=cpu,
+            started=started,
+            trigger=RadiusTrigger.REFLECTED_CLOSURE,
+        )
+        if continued is not None:
+            return continued
     if (
         not accepted
-        and detail.get("stop_reason") == "construction_length_ceiling"
+        and detail.get("stop_reason")
+        in ("construction_length_ceiling", "linear_trust_budget", "initial_linear_length_declined")
         and detail["iterations"] < maximum_updates
     ):
-        cpu_left = maximum_cpu_seconds - (process_time() - cpu)
-        wall_left = maximum_seconds - (perf_counter() - started)
-        pairs_left = remaining_pairs - detail["contact_pairs"]
-        if cpu_left > 0 and wall_left > 0 and pairs_left > 0:
+        left = work.remaining(
+            updates=detail["iterations"],
+            pairs=detail["contact_pairs"],
+            cpu_seconds=process_time() - cpu,
+            wall_seconds=perf_counter() - started,
+        )
+        if left is not None:
             emit("fixed_reversal_declined", detail=dict(detail), candidate=snapshot(candidate))
             recovered = recover_fold(
                 original,
@@ -262,11 +384,11 @@ def recover(
                 record,
                 maximum_length_mm=maximum_length_mm,
                 minimum_straight_mm=minimum_straight_mm,
-                remaining_pairs=pairs_left,
-                maximum_cpu_seconds=cpu_left,
-                maximum_seconds=wall_left,
-                quality=StraightQuality(maximum_length_mm, maximum_updates - detail["iterations"]),
-                maximum_updates=maximum_updates - detail["iterations"],
+                remaining_pairs=left.pairs,
+                maximum_cpu_seconds=left.cpu_seconds,
+                maximum_seconds=left.wall_seconds,
+                quality=StraightQuality(maximum_length_mm, left.updates),
+                maximum_updates=left.updates,
             )
             if recovered is not None:
                 recovered.detail["fixed_reversal_declined"] = dict(detail)
@@ -282,7 +404,23 @@ def recover(
                     cpu_seconds=process_time() - cpu,
                     elapsed_seconds=perf_counter() - started,
                 )
-                return recovered
+                continued = continue_after_boundary(
+                    original,
+                    evidence,
+                    terminal,
+                    checkpoint,
+                    record,
+                    recovered,
+                    maximum_length_mm=maximum_length_mm,
+                    minimum_straight_mm=minimum_straight_mm,
+                    remaining_pairs=remaining_pairs,
+                    maximum_cpu_seconds=maximum_cpu_seconds,
+                    maximum_seconds=maximum_seconds,
+                    maximum_updates=maximum_updates,
+                    cpu_started=cpu,
+                    started=started,
+                )
+                return continued if continued is not None else recovered
             detail.update(
                 cpu_seconds=process_time() - cpu,
                 elapsed_seconds=perf_counter() - started,

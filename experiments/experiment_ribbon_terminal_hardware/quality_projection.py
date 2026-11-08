@@ -1,5 +1,5 @@
 """
-Project one joint correction onto caps and at most three scalar quality/clearance inequalities.
+Project one joint correction onto caps and at most four scalar quality/clearance inequalities.
 """
 
 from __future__ import annotations
@@ -22,19 +22,19 @@ def quality_step(
     """
     Find the least-norm feasible linear correction without forcing cleared bounds to equality.
 
-    The first six rows are ordered cap equalities; the remaining one to three
+    The first six rows are ordered cap equalities; the remaining one to four
     rows are signed violations, nonpositive when satisfied. Enumerate at most
-    eight scalar active subsets, retaining the shared coordinate-bound projection.
+    sixteen scalar active subsets, retaining the shared coordinate-bound projection.
     These are algebraic projections of one Jacobian, not geometry candidates.
     Return None if no projection meets every linearized bound. Final nonlinear
     closure and physical certificates remain the caller's responsibility.
     """
     if (
-        not 7 <= len(residual) <= 9
+        not 7 <= len(residual) <= 10
         or len(jacobian) != len(residual)
         or any(len(row) != len(values) for row in jacobian)
     ):
-        raise ValueError("Use six cap equations and one to three matching scalar inequalities")
+        raise ValueError("Use six cap equations and one to four matching scalar inequalities")
     best, best_cost = None, math.inf
     for mask in range(1 << (len(residual) - 6)):
         checkpoint()

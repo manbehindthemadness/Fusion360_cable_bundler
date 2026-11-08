@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Callable
 
@@ -19,6 +20,15 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedP
 from .check import Report
 from .model import Box, Hardware
 from .reversal_model import ordered_residual
+
+
+class FeatureCoverage(Enum):
+    """
+    Distinguish legacy terminalward material from complete occupied internal fold neighborhoods.
+    """
+
+    TERMINAL_RUNWAY = "terminal_runway"
+    ADJOINING_INTERNAL = "adjoining_internal"
 
 
 class SignedJoints(MovableBends):
@@ -55,6 +65,17 @@ class SignedJoints(MovableBends):
             and math.copysign(1, a.angle_radians) == math.copysign(1, b.angle_radians)
             for a, b in zip(folds, self.folds)
         )
+
+    def admissible(self, values: tuple[float, ...]) -> bool:
+        """
+        Keep constraint probes and trial steps inside their ordered material-region domain.
+
+        Off-target cap poses are permitted while differentiating and solving.
+        Vanished folds are not: their original region identities no longer exist.
+        Specialized joint models retain their own explicit radius/sign policy.
+        """
+        route = self.route(values)
+        return route is not None and self.preserves(route)
 
 
 @dataclass(frozen=True)
@@ -112,6 +133,8 @@ class FeaturePlane:
         report: Report,
         hardware: Hardware,
         values: tuple[float, ...],
+        *,
+        coverage: FeatureCoverage = FeatureCoverage.TERMINAL_RUNWAY,
     ) -> FeaturePlane | None:
         """
         Derive one moving plane from demonstrated intrusion, retaining actual adjacent feature material.
@@ -119,7 +142,14 @@ class FeaturePlane:
         A fold includes an existing terminalward runway, not an absent synthetic
         slab. A straight includes its neighboring fold away from that terminal.
         The mating fold remains separate. No axis family or event is searched later.
+        Explicit complete coverage includes both currently occupied internal
+        adjoining runways, excluding absent slots and mating terminal straights.
+        An added own-mating straight never joins the corrective group: its fixed
+        cap must touch the connector face. Actual witnessed material is retained,
+        and final hardware certification still checks the entire route.
         """
+        if not isinstance(coverage, FeatureCoverage):
+            raise ValueError("Supply an explicit feature coverage policy")
         witness = report.witness
         if report.status != "blocked" or witness is None:
             return None
@@ -146,7 +176,23 @@ class FeaturePlane:
                 route.pieces[neighbor].geometry, Straight
             ):
                 members.append(tags[neighbor])
+        if coverage is FeatureCoverage.ADJOINING_INTERNAL:
+            placed = model.route(values)
+            if placed is None:
+                return None
+            occupied = regions(placed)
+            for member in tuple(members):
+                if not member.straight:
+                    for adjacent in (Region(member.fold, True), Region(member.fold + 1, True)):
+                        if (
+                            0 < adjacent.fold < len(model.folds)
+                            and adjacent in occupied
+                            and adjacent not in members
+                        ):
+                            members.append(adjacent)
         box = next(b for b in hardware.boxes if b.terminal.value == witness.terminal)
+        mating = Region(0 if witness.terminal == "start" else len(model.folds), True)
+        members = [member for member in members if member != mating or member == reference]
         prototype = cls(model, reference, tuple(members), box, 0, Side.BEFORE)
         choices: list[tuple[float, FeaturePlane]] = []
         pieces = model.pieces(values)

@@ -11,7 +11,11 @@ import pytest
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
-from experiments.experiment_ribbon_bend_relocation.model import MovableBends, retract_active
+from experiments.experiment_ribbon_bend_relocation.model import (
+    ClosurePolicy,
+    MovableBends,
+    retract_active,
+)
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_fold_relaxation.model import Model as ClosureModel
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
@@ -53,7 +57,9 @@ def test_small_normalized_error_is_reclosed_to_actual_mating_accuracy(
     initial = model.initial
     assert max(map(abs, model.residual(initial))) < 1e-10
     assert 1e-10 < cap_error(source) < 1e-7
-    corrected = retract_active(model, initial, lambda: None)
+    corrected = retract_active(
+        model, initial, lambda: None, closure_policy=ClosurePolicy.ORDERED_CAPS
+    )
     assert corrected is not None
     assert corrected != initial
     route = model.route(cast(tuple[float, ...], corrected))
@@ -73,7 +79,12 @@ def test_closed_frames_need_no_derivatives(monkeypatch: pytest.MonkeyPatch) -> N
     model = MovableBends(_straight(100.0))
     forbidden = Mock(side_effect=AssertionError("Closed caps need no Newton derivative"))
     monkeypatch.setattr(ClosureModel, "jacobian", forbidden)
-    assert retract_active(model, model.initial, lambda: None) is model.initial
+    assert (
+        retract_active(
+            model, model.initial, lambda: None, closure_policy=ClosurePolicy.ORDERED_CAPS
+        )
+        is model.initial
+    )
     forbidden.assert_not_called()
 
 
@@ -83,7 +94,35 @@ def test_zero_local_rotation_is_not_an_ordered_frame_certificate() -> None:
     """
     model = MovableBends(_straight(100.0, reversed_end=True))
     assert max(map(abs, model.residual(model.initial))) == 0.0
-    assert retract_active(model, model.initial, lambda: None) is None
+    assert (
+        retract_active(
+            model, model.initial, lambda: None, closure_policy=ClosurePolicy.ORDERED_CAPS
+        )
+        is None
+    )
+
+
+def test_exploratory_default_preserves_the_original_normalized_stop() -> None:
+    """
+    Keep existing contraction and prediction iterates until a caller requests actual cap certification.
+    """
+    model = MovableBends(_straight(100.0, 5e-9))
+    assert 1e-10 < cap_error(model.original) < 1e-7
+    assert retract_active(model, model.initial, lambda: None) is model.initial
+
+
+def test_invalid_closure_policy_is_rejected() -> None:
+    """
+    Decline an untyped external policy rather than silently selecting weaker closure.
+    """
+    model = MovableBends(_straight(100.0))
+    with pytest.raises(ValueError, match="closure policy"):
+        retract_active(
+            model,
+            model.initial,
+            lambda: None,
+            closure_policy=cast(ClosurePolicy, cast(object, "bad")),
+        )
 
 
 def test_hard_caller_stop_is_not_masked_by_closure() -> None:
@@ -99,4 +138,4 @@ def test_hard_caller_stop_is_not_masked_by_closure() -> None:
         raise TimeoutError("caller stop")
 
     with pytest.raises(TimeoutError, match="caller stop"):
-        retract_active(model, model.initial, stopped)
+        retract_active(model, model.initial, stopped, closure_policy=ClosurePolicy.ORDERED_CAPS)

@@ -1,6 +1,29 @@
 EXPERIMENT INTEGRITY AND RESOURCE SAFEGUARDS
 Effective 2026-10-05. Read before experimental solver work or reporting.
 
+USER-DIRECTED TEST-INPUT ELIGIBILITY / STALE-FAILURE TRIAGE — 2026-11-08
+-------------------------------------------------------------------
+Before treating a test stop as solver work, check the frozen input against the
+declared current test rules and recheck its outcome under current solver/settings.
+Remove inputs that demonstrably violate the test-input rules from the active
+failure queue and current QA scope; record the case, violated rule and reason.
+Do not spend solver refinement/native-build work rescuing inadmissible fixtures.
+Current separated-cubicle testing excludes endpoints sharing a face, edge or
+corner, using the existing dimension-independent placement rule.
+
+This explicitly permits input-policy exclusions after a failure is discovered,
+superseding the no-post-result-case-deletion rule only for active inadmissible
+test inputs. Keep existing historical receipts and exclusion provenance; do not
+rewrite old counts or turn an exclusion into a solver pass or streak credit.
+Valid inputs that still fail current checks must be investigated individually.
+An old failure label alone is not a current failure; numerical, native/fidelity
+and post-build test outcomes remain separate. Finite solver exhaustion, an
+unresolved certificate or a real output-rule violation is not evidence of bad
+input. Do not weaken solver/physical checks or silently discard valid failures.
+Source corruption, unknown provenance and resource/harness errors retain their
+existing stop/review requirements. Aggressive future testing may expose recurring
+real defects; no stale or inadmissible fixture should block that testing.
+
 USER-DIRECTED NATIVE DIMENSIONAL WARNING BAND — 2026-11-02
 -------------------------------------------------------
 Keep the original native dimensional accuracy goals (currently1e-6mm), but treat

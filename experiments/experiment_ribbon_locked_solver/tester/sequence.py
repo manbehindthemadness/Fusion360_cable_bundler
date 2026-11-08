@@ -136,6 +136,8 @@ class Specification:
         Systematic mode advances conductor count fastest and repeats its grid with
         continuing gym seeds. Random mode independently samples reachable stepped
         values using a per-case seeded generator. Neither mode retries failed cases.
+        Signed roll inputs remain in the frozen ranges; endpoint orientations use
+        equivalent canonical degrees so historical gym/replay identities stay valid.
         """
         if type(index) is not int or index < 0:
             raise ValueError("Case index must be a nonnegative integer.")
@@ -162,8 +164,8 @@ class Specification:
         )
         return Scene(
             config,
-            Goal.from_degrees(a_zone - 1, int(values["a_face"]) - 1, int(values["a_roll"])),
-            Goal.from_degrees(b_zone - 1, int(values["b_face"]) - 1, int(values["b_roll"])),
+            Goal.from_degrees(a_zone - 1, int(values["a_face"]) - 1, int(values["a_roll"]) % 360),
+            Goal.from_degrees(b_zone - 1, int(values["b_face"]) - 1, int(values["b_roll"]) % 360),
         )
 
     def payload(self) -> dict[str, Any]:
@@ -187,27 +189,25 @@ class Specification:
 
 def defaults(scene: Scene) -> dict[str, Any]:
     """
-    Start from current dimensions/selections, varying only conductor count until edited.
+    Randomize all endpoint selections with signed quarter-turn ranges and current dimensions.
     """
     values = {
         "lines": scene.config.lines,
         "diameter_mm": scene.config.diameter_mm,
         "void_percent": scene.config.void_percent,
         "zone_percent": scene.config.zone_percent,
-        "a_zone": scene.a.zone + 1,
-        "a_face": scene.a.face + 1,
-        "a_roll": scene.a.degrees,
-        "b_zone": scene.b.zone + 1,
-        "b_face": scene.b.face + 1,
-        "b_roll": scene.b.degrees,
     }
     ranges = {
         name: {"min": str(value), "max": str(value), "step": "1"} for name, value in values.items()
     }
     ranges["lines"] = {"min": "1", "max": str(max(6, scene.config.lines)), "step": "1"}
+    for end in ("a", "b"):
+        ranges[f"{end}_zone"] = {"min": "1", "max": "26", "step": "1"}
+        ranges[f"{end}_face"] = {"min": "1", "max": "12", "step": "1"}
+        ranges[f"{end}_roll"] = {"min": "-90", "max": "90", "step": "1"}
     return {
         "ranges": ranges,
-        "mode": "systematic",
+        "mode": "random",
         "seed": scene.config.seed,
         "stop_on_warnings": True,
         "maximum_cases": 0,

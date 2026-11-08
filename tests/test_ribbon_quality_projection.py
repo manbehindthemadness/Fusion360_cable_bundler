@@ -49,6 +49,21 @@ def test_coordinate_bound_cannot_be_ignored_by_feature_projection() -> None:
     assert quality_step(model, (0.0,), rows, (0.0,) * 6 + (1.0,), lambda: None) is None
 
 
+def test_four_simultaneous_bounds_preserve_nonbinding_margins_and_detect_conflicts() -> None:
+    """
+    Keep two contact/connector bounds alongside a lower and upper quality bound.
+    """
+    model = Mock(spec=SignedJoints)
+    model.bounds.return_value = (-10.0, 10.0)
+    rows = [[0.0, 0.0]] * 6 + [[-1.0, 0.0], [0.0, -1.0], [1.0, 1.0], [1.0, 0.0]]
+    residual = (0.0,) * 6 + (1.0, 2.0, -4.0, -2.0)
+    assert quality_step(model, (0.0, 0.0), rows, residual, lambda: None) == pytest.approx(
+        (1.0, 2.0)
+    )
+    conflict = (0.0,) * 6 + (1.0, 2.0, -2.5, -2.0)
+    assert quality_step(model, (0.0, 0.0), rows, conflict, lambda: None) is None
+
+
 def test_projection_checkpoint_failure_propagates() -> None:
     """
     Source, cancellation and resource errors cannot become optional quality rejections.
@@ -67,10 +82,13 @@ def test_growth_constraint_does_not_accept_an_uncertified_route(
     source = _route((Straight(10),))
     model = SignedJoints(source)
     monkeypatch.setattr(
-        FeaturePlane, "create", Mock(return_value=SimpleNamespace(gap=lambda _: 1e-7 / model.scale))
+        FeaturePlane,
+        "create",
+        Mock(side_effect=(SimpleNamespace(gap=lambda _: 1e-7 / model.scale), None)),
     )
     terminal = Mock(spec=Gate)
     terminal.hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
+    terminal.certify.return_value = Report("unresolved", 1)
     projection = Mock(return_value=None)
     monkeypatch.setitem(vars(fold_recovery), "quality_step", projection)
     contact = Mock(side_effect=AssertionError("No certificate before feasible closure"))
@@ -90,9 +108,11 @@ def test_growth_constraint_does_not_accept_an_uncertified_route(
     )
     assert result is not None and result.route is source and result.contact is None
     assert result.detail["maximum_length_mm"] == 9.9
-    assert result.detail["stop_reason"] == "joint_projection_infeasible"
+    assert result.detail["stop_reason"] == "unsupported_terminal_evidence"
+    assert result.detail["length_ceiling_released"]
     assert result.detail["newton_steps"] == 0
     assert [e["remaining_updates"] for e in events if e["status"] == "quality_activated"] == [4]
     projection.assert_called_once()
     contact.assert_not_called()
     terminal.measure.assert_not_called()
+    terminal.certify.assert_called_once()

@@ -12,6 +12,7 @@ from experiments.experiment_ribbon_feature_insertion.attached_regions import Reg
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     MAXIMUM_CPU_SECONDS,
     MAXIMUM_WALL_SECONDS,
+    BaselinePolicy,
     InitialPolicy,
     recover,
 )
@@ -20,7 +21,9 @@ from experiments.experiment_ribbon_feature_insertion.selection import Branch, Po
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.contact_core import core_witness
+from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 
+from .fallback_feasibility import before_optional_motion
 from .recovery_queue import recover_failed
 
 
@@ -32,6 +35,7 @@ def recover_construction(
     record: Callable[[dict[str, Any]], None],
     *,
     selection_policy: Policy,
+    terminal: Gate | None = None,
 ) -> tuple[Result, dict[str, Any] | None]:
     """
     Correct existing failed branches without losing an already separated baseline.
@@ -51,6 +55,15 @@ def recover_construction(
     An accepted fallback's first correction may defer without motion when its
     trust demand exceeds four updates, retaining preparation cost for the caller's
     optional contraction recovery. Other recovery policies retain their behavior.
+    If actual fallback hardware eligibility is blocked, a supported first-motion
+    action may instead couple the selected shorter branch's physical constraints.
+    It runs after overflow deferral, retains every original work debit and must
+    satisfy the same guide/shortening selection before replacing the fallback.
+    A witnessed mating-runway crossing may instead carry explicit blocked-baseline
+    restoration policy after coupled self/hardware certification. That policy
+    retains the baseline length ceiling but permits a guide tradeoff to recover
+    physical feasibility. Report restoration separately from guide improvement;
+    internal crossings and the existing paired-fold policy remain unchanged.
     No new roots or pair allowance are added: recovery shares the original2048pool
     and caller's four-second deadline, with its existing four-update/.35CPU cap.
     Unsupported failures, exhausted work and unsuccessful improvement retain the
@@ -141,6 +154,15 @@ def recover_construction(
             maximum_cpu_seconds=cpu_left,
             maximum_seconds=wall_left,
             initial_policy=InitialPolicy.DEFER_OVERFLOW,
+            before_first_motion=before_optional_motion(
+                baseline.route,
+                branch.route,
+                measurement,
+                terminal,
+                threshold_mm,
+                checkpoint,
+                record,
+            ),
         )
     selected = recovery.route
     if selected is not None and (
@@ -150,23 +172,37 @@ def recover_construction(
     detail = dict(recovery.detail)
     if baseline is not None:
         assert fallback_branch is not None
+        guide_improvement = False
         if selected is not None:
             candidate = Branch.measure(fallback_branch.roots, selected, frames.guide)
-            if not improves(candidate, baseline):
+            guide_improvement = improves(candidate, baseline)
+            restoring = recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED
+            if (
+                selected.material_length_mm > baseline.route.material_length_mm
+                if restoring
+                else not guide_improvement
+            ):
                 selected = None
+        restoring = recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED
         detail.update(
-            purpose="improve_separated_fallback",
+            purpose="restore_blocked_fallback" if restoring else "improve_separated_fallback",
             roots=fallback_branch.roots,
             baseline_length_mm=baseline.route.material_length_mm,
-            accepted_improvement=selected is not None,
+            accepted_improvement=selected is not None and guide_improvement,
             cap_support_policy=CapPolicy.ANALYTIC_SUPPORT.value,
             cpu_seconds=process_time() - cpu,
             elapsed_seconds=perf_counter() - started,
         )
+        if restoring:
+            detail["accepted_feasibility_restoration"] = selected is not None
         record(
             {
                 "stage": "fallback_branch_recovery",
-                "status": "improved" if selected is not None else "baseline_retained",
+                "status": "restored"
+                if selected is not None and restoring
+                else "improved"
+                if selected is not None
+                else "baseline_retained",
                 "detail": detail,
             }
         )

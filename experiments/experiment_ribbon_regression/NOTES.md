@@ -1,5 +1,70 @@
 # Frozen gym regression corpus
 
+Current failure triage, Nov8 /1598–1602: 65/65 eligible inputs accepted in a fresh
+cold numerical replay; zero unattempted and every first/final route pair exactly
+matches1506. Current saved tester selection was frozen explicitly: first-pass
+optimization on, smoothing1%, UV off, terminal hardware on. Historical omitted
+hardware settings are provenance, not current acceptance policy. All65 pass the
+current input ranges and spacing policy; conservative exact-material enclosures
+also lie inside the current stress box. These enclosures are not native bounding
+box measurements. The65-input replay took54.306830s wall, with no native attempts.
+
+The21eligible inputs carrying past problem records have no current numerical
+rejection. The sole eligible historical native/fidelity problem, `prior-case-72`,
+was also rechecked once through ordinary Fusion solve/build/audit. The old result
+built a body but exceeded120s during ordered-seam auditing. Current1600/1601:
+one exact accepted body, named fidelity/precise gym boundary/hardware checks pass,
+zero warnings;10,920points/600seams, maximum error1.543225e-9mm. Generation0.765614s,
+audit1.602133s; solve1.021663CPU exceeds the construction timing goal, recorded
+without a budget or acceptance change. Other64inputs were not rebuilt natively;
+full physical audits remain unattempted. The timeout did not reproduce with the
+current source/settings/session; its original cause has not been isolated.
+
+No further solver fix is indicated by this saved set. The active failure queue
+has no reproduced eligible problem; eight input-policy exclusions remain separate
+from passes. The tester stays stopped with its existing counters unchanged. The
+user's standing eligibility/current-policy triage rule is now explicit in
+`experiment_testing_rules.txt`. Plans, per-case dispositions and qualification:
+`artifacts/verification/resume1598/`, `resume1599/`, `resume1600/`, `resume1601/`
+and `resume1602-triage-closure/`. No solve under historical hardware-off settings
+should be described as the current hardware-enabled test.
+
+Current active corpus: `gym-v3.json`, 65 inputs. Its `separated_cubicles` policy
+uses the same face/edge/corner adjacency rule as the tester defaults and rejects
+inadmissible or unidentified placement before a worker starts. Eight adjacent
+legacy cases remain intact in `gym-v2.json`; v3 records their identities and the
+parent digest. All 65 retained cases are exact unchanged v2 records. Historical
+enrollment and outcome counts below describe their original corpus revisions.
+
+The spacing audit checked all 73 v2 cases, all 77 recent replay inputs and63test
+journals containing2,832finished records. The journals identify the same eight
+adjacent problem inputs (nine stop records, including a cancellation); none were
+unknown. Other seven besides `historical-32e26c5c88b5`: `historical-18a674a18788`,
+`historical-28058398a1cd`, `historical-967d15e32a3e`, `historical-a63da6403dab`,
+`historical-bab2ad4bcc21`, `historical-e03a89e210af`, `historical-fd38c9581cf6`.
+Of the original eight backlog cases, only historical32 and e03 violate this
+spacing policy; the other six were separated and qualified. e03's solver repair
+and native qualification remain valid historical evidence. A spacing exclusion
+does not establish the cause of a native/fidelity/runtime error or remove its bug
+record. No solver changes or new solves/native builds accompanied this audit.
+25 focused tests, scoped Ruff/format and IDE inspections pass. Evidence:
+`artifacts/verification/resume1594-spacing-audit/`, `resume1595-journal-spacing/`,
+and `resume1596-corpus-spacing/` under the same verification directory.
+
+Nov8 user review: after viewing the original native inspection body in1589/1590,
+the user classified `historical-32e26c5c88b5` as an invalid spacing scenario.
+Its zero-based zones14/23 are cubicles `(0,1,-1)` / `(1,1,-1)`, which share a face.
+This legacy input is outside the intended separated-cubicle test policy. Both the
+current code default and saved tester specification already enable
+`avoid_adjacent_zones`; no default or solver code was changed for this decision.
+Keep the original input, failed numerical receipts and inspection-only body.
+Seven of the original eight failures have qualified solver repairs; the eighth
+is excluded by the user's input-policy decision, not repaired or counted as a
+successful geometry configuration. Existing corpus outcomes stay immutable.
+Future work must distinguish an empty cubicle between endpoints from a physical
+gap between every cubicle; the latter has not been implemented by this decision.
+Evidence: `artifacts/verification/resume1592-spacing-decision/`.
+
 Run999 encounters existing alias`rangec59-case-63` again: numerical/native-fidelity
 pass, actual native boundary failure on854mmfallback. Its history already contains
 both retained-control and boundary dispositions. Numerical replay acceptance and
@@ -77,7 +142,7 @@ final-check budget. One changed configuration is natively built/named-fidelity/
 boundary checked, with0fullphysicalaudits; no other native replays or1000case streak.
 See [coupled correction evidence](../experiment_ribbon_terminal_hardware/COUPLED_REVERSAL.md).
 
-`gym-v2.json` is the current 57-input development corpus. It retains the entire
+`gym-v2.json` began as a 57-input development corpus and later grew to73. It retains the entire
 54-input v1 inventory and adds this run's cases 162/N9, 163/N3 and intersection
 164/N4. Preceding passed case 161/N5 is an exact alias of `range5fe-case-161`;
 its new provenance is attached without counting another input. Version 1 remains
@@ -92,10 +157,12 @@ settings and dispositions remain attached to each input. Replays use saved
 coordinates and frames directly; seeds never regenerate targets. These are
 examined development inputs, not untouched validation families.
 
-All cases remain in the denominator. Eight have adjacent cubicles under the
-current placement definition; they remain useful legacy stress inputs. Placement
-eligibility is separate from physical feasibility. An older unresolved input must
-not be silently removed or relabelled physically impossible.
+All cases remain in their original historical denominators. The eight adjacent
+inputs remain available as legacy stress cases in explicit v1/v2 replay. The
+user-requested v3 active scope excludes them by the existing placement policy,
+with exclusion identities and parent digest recorded. Placement eligibility is
+separate from physical feasibility; these inputs are not relabelled solver passes
+or proven physically impossible.
 
 Run an explicit numerical baseline, then compare an unchanged candidate:
 

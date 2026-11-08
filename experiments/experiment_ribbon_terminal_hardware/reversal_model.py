@@ -134,6 +134,48 @@ class ReversalModel(MovableBends):
         return ordered_residual(self, values)
 
 
+@dataclass(frozen=True)
+class NativeReversal(ReversalModel):
+    """
+    Reclose a reflected chain with demonstrated sub-native runway slots fixed at exact zero.
+
+    Targets, radii and the selected reflection retain the parent contract.
+    Fixed slots are mathematical coordinates, never repaired output geometry.
+    """
+
+    fixed_slots: frozenset[int]
+
+    def __post_init__(self) -> None:
+        """
+        Permit only existing runway coordinates to become immutable zero slots.
+        """
+        super().__post_init__()
+        if (
+            not isinstance(self.fixed_slots, frozenset)
+            or any(type(index) is not int for index in self.fixed_slots)
+            or not self.fixed_slots.issubset(self.straight_indices)
+        ):
+            raise ValueError("Freeze only existing reflected runway coordinates")
+
+    def bounds(self, index: int) -> tuple[float, float]:
+        """
+        Retain parent bounds except for explicitly fixed mathematical zero slots.
+        """
+        return (0.0, 0.0) if index in self.fixed_slots else super().bounds(index)
+
+    def jacobian(self, values: tuple[float, ...]) -> list[list[float]]:
+        """
+        Omit fixed columns while differentiating free coordinates in the original domain.
+
+        A zero-width coordinate domain has no finite-difference separation.
+        The ordinary reflected model supplies identical free-column derivatives.
+        """
+        rows = ReversalModel(self.original, self.selected).jacobian(values)
+        return [
+            [0.0 if i in self.fixed_slots else value for i, value in enumerate(row)] for row in rows
+        ]
+
+
 def ordered_residual(model: MovableBends, values: tuple[float, ...]) -> tuple[float, ...]:
     """
     Share exact ordered-cap residuals across reflected and sign-preserving joint models.

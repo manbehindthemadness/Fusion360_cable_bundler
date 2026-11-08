@@ -98,5 +98,5 @@ def test_tester_uses_actual_degrees_without_quarter_turn_truncation(step: int) -
     scenes = [spec.scene(i) for i in range(spec.combinations)]
     assert [scene.a.degrees for scene in scenes] == list(range(0, 91, step))
     assert all(scene.b.degrees == 359 for scene in scenes)
-    assert defaults(scenes[-1])["ranges"]["b_roll"] == {"min": "359", "max": "359", "step": "1"}
+    assert defaults(scenes[-1])["ranges"]["b_roll"] == {"min": "-90", "max": "90", "step": "1"}
     assert Specification.parse(spec.payload()).scene(1) == scenes[1]

@@ -11,9 +11,25 @@ from typing import Any
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
+from devtools.ribbon_analysis.gym.placement import adjacent
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 
-CORPUS = Path(__file__).with_name("gym-v2.json")
+CORPUS = Path(__file__).with_name("gym-v3.json")
+
+
+def _require_separated_cubicles(case: dict[str, Any]) -> None:
+    """
+    Reject missing placement metadata or adjacent endpoints before scheduling a solver.
+
+    This enforces test-input scope, not physical feasibility. Historical corpora
+    without the separated-cubicle policy remain replayable without modification.
+    """
+    gym = case.get("gym")
+    if not isinstance(gym, dict) or any(not isinstance(gym.get(end), dict) for end in ("a", "b")):
+        raise ValueError("Separated-cubicle corpus needs frozen gym endpoints")
+    first, second = gym["a"].get("zone"), gym["b"].get("zone")
+    if adjacent(first, second):
+        raise ValueError("Separated-cubicle corpus contains adjacent endpoint cubicles")
 
 
 def signature(target: dict[str, Any]) -> str:
@@ -49,6 +65,9 @@ def load(path: Path = CORPUS) -> dict[str, Any]:
     payload = json.loads(path.read_text())
     if not isinstance(payload, dict) or payload.get("schema") != "ribbon-gym-regression-v1":
         raise ValueError("Unsupported gym regression corpus")
+    placement_policy = payload.get("placement_policy")
+    if placement_policy not in (None, "separated_cubicles"):
+        raise ValueError("Unsupported gym regression placement policy")
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("Regression corpus needs complete cases")
@@ -62,6 +81,8 @@ def load(path: Path = CORPUS) -> dict[str, Any]:
             raise ValueError("Regression case needs frozen targets")
         targets(target)
         Settings.parse(case.get("settings"))
+        if placement_policy == "separated_cubicles":
+            _require_separated_cubicles(case)
         digest = signature(target)
         if digest != case.get("signature") or digest in inputs or case["id"] in identities:
             raise ValueError("Regression case identity or target digest mismatch")

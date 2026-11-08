@@ -17,7 +17,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straigh
 from experiments.experiment_ribbon_locked_solver import solver_v2
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 from experiments.experiment_ribbon_terminal_hardware import gate
-from experiments.experiment_ribbon_terminal_hardware.check import Report
+from experiments.experiment_ribbon_terminal_hardware.check import ProjectionPolicy, Report
 from tests.test_ribbon_aesthetic import _route
 from tests.test_ribbon_smoothing_contact import _sequence
 
@@ -137,6 +137,52 @@ def test_incomplete_initializer_probe_preserves_final_measurement_and_shared_bud
     assert measure.detail()["cells"] == 39
     assert measure.detail()["checks"] == 2 and measure.cache_hits == 1
     assert measure.detail()["outcomes"] == {"clear": 1, "blocked": 0, "unresolved": 1}
+
+
+def test_refined_candidate_certificate_keeps_guidance_and_one_shared_allowance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Recheck incomplete guidance with refined axes, then reuse its actual clearance without renewal.
+    """
+    route = _route((Straight(10),))
+    policies: list[ProjectionPolicy] = []
+
+    def inspect(*args: Any, **kwargs: Any) -> Report:
+        """
+        Model a cell enclosure resolved only by the explicit refinement policy.
+        """
+        del args
+        policies.append(kwargs["projection_policy"])
+        return (
+            Report("unresolved", 512)
+            if policies[-1] is ProjectionPolicy.BOX_AXES
+            else Report("clear", 18)
+        )
+
+    monkeypatch.setitem(vars(gate), "inspect", inspect)
+    measure = gate.Gate(route.targets, lambda: None, lambda event: None)
+    assert measure.measure(route, "guidance").status == "unresolved"
+    assert measure.certify(route, "candidate").status == "clear"
+    assert measure.permits(route, "final")
+    assert policies == [ProjectionPolicy.BOX_AXES, ProjectionPolicy.PIECE_AXES]
+    assert measure.cells == 530 and measure.cache_hits == 1
+    assert measure.detail()["limits"]["cells"] == 1024
+
+
+def test_incomplete_refinement_does_not_replace_guidance_measurement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep incomplete policies distinct while charging both calls to the same cell allocation.
+    """
+    route = _route((Straight(10),))
+    inspect = Mock(side_effect=(Report("unresolved", 17), Report("blocked", 3)))
+    monkeypatch.setitem(vars(gate), "inspect", inspect)
+    measure = gate.Gate(route.targets, lambda: None, lambda event: None)
+    assert measure.certify(route, "candidate").status == "unresolved"
+    assert measure.measure(route, "guidance").status == "blocked"
+    assert inspect.call_count == 2 and measure.cells == 20
 
 
 def test_hardware_blocked_smoothing_keeps_first_pass_and_its_contact_certificate(

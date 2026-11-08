@@ -115,8 +115,8 @@ FIELDS = (
     Field("zone_percent", "Zone depth (%)", 0, integer=False, positive=True),
     Field("a_zone", "A zone (1–26)", 1, 26),
     Field("a_face", "A face (1–12)", 1, 12),
-    Field("a_roll", "A roll (degrees)", 0, 359),
+    Field("a_roll", "A roll (degrees)", -359, 359),
     Field("b_zone", "B zone (1–26)", 1, 26),
     Field("b_face", "B face (1–12)", 1, 12),
-    Field("b_roll", "B roll (degrees)", 0, 359),
+    Field("b_roll", "B roll (degrees)", -359, 359),
 )

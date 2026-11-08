@@ -88,7 +88,13 @@ case identifier. Source pins remain193; tester idle and option unchecked.
 The selected material-solver diagnostics expose **Gym range tester**. Set Min,
 Max and Step for conductor count, diameter, central void percentage, zone depth,
 and both endpoints' zone, face and roll. Zones/faces use the gym's one-based
-labels; roll now supports integer0..359degrees (see the degree-control update below).
+labels; tester roll ranges support integer−359..359degrees, including a signed
+−90..90 sweep. Signed limits/steps remain in the frozen plan; generated gym goals
+use equivalent canonical0..359degrees (for example,−90 becomes270). Existing
+nonnegative plans and historical goal serialization are unchanged.
+Fresh panels default both endpoints to all26cubicles/all12faces,−90..90roll in
+one-degree steps and seeded random scheduling. Dimension ranges still follow the
+current gym; existing saved specifications keep their own ranges and ordering.
 Equal endpoint zones are always excluded; the optional adjacency rule above also
 filters neighboring cubicles before scheduling. Max is included only when reached
 by the step. Decimal stepping uses

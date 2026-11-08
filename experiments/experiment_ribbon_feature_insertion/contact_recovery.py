@@ -10,13 +10,18 @@ from enum import Enum
 from time import perf_counter, process_time
 from typing import Any, Callable
 
-from experiments.experiment_ribbon_bend_relocation.model import MovableBends, retract_active
+from experiments.experiment_ribbon_bend_relocation.model import (
+    ClosurePolicy,
+    MovableBends,
+    retract_active,
+)
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_relaxation.steps import advance
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
+from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
 
 from .attached_regions import RegionPolicy, continues_feature, with_attached_straights
 from .separation import Separation, Side, TopologyChanged, regions
@@ -51,6 +56,15 @@ class InitialPolicy(Enum):
     DEFER_OVERFLOW = "defer_overflow"
 
 
+class BaselinePolicy(Enum):
+    """
+    Distinguish guide improvement from restoring an actually hardware-blocked baseline within its length.
+    """
+
+    GUIDE_IMPROVEMENT = "guide_improvement"
+    RESTORE_BLOCKED = "restore_blocked"
+
+
 @dataclass(frozen=True)
 class Recovery:
     """
@@ -63,6 +77,7 @@ class Recovery:
     contacts: int
     contact_seconds: float
     detail: dict[str, Any]
+    baseline_policy: BaselinePolicy = BaselinePolicy.GUIDE_IMPROVEMENT
 
 
 def recover(
@@ -81,13 +96,16 @@ def recover(
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
     region_policy: RegionPolicy = RegionPolicy.WITNESS,
     initial_policy: InitialPolicy = InitialPolicy.FOLLOW,
+    before_first_motion: Callable[[Work], Recovery | None] | None = None,
 ) -> Recovery:
     """
     Apply at most four gap-increasing joint updates and strict contact certificates.
 
     Keep radii, profile, fold count/order and both caps. Use a minimum-norm
     linearized separation constraint, bounded joint steps and existing nonlinear
-    cap retraction. Local limits are0.35CPU/2wall seconds, subordinate to caller
+    cap retraction with actual ordered mating frames before certification. The
+    stronger stopping rule uses the same six Newton steps, not output snapping.
+    Local limits are0.35CPU/2wall seconds, subordinate to caller
     limits. Callers may reserve part of those allowances for selection; explicit
     sublimits may only reduce the defaults. Never return the rejected source as
     an accepted fallback. Pair/depth
@@ -101,6 +119,12 @@ def recover(
     An optional initial-overflow policy may defer before any motion or certificate
     when the first prediction exceeds the supplied update count. Preparation time
     remains measured; deferral grants no clearance or renewed work allowance.
+    A first-motion callback runs only after the existing overflow decision and
+    before any motion or certificate. It receives genuinely remaining work and
+    may replace this action with a fully accounted recovery. None permits the
+    original action and must mean no motion or contact certificate was attempted.
+    Callback preparation, including eligibility checks, shares the original
+    clocks; returned work cannot exceed the supplied update/pair allocation.
     """
     if type(remaining_pairs) is not int or not 0 < remaining_pairs <= 2048:
         raise ValueError("Supply positive remaining first-pass work, at most2048pairs")
@@ -216,13 +240,52 @@ def recover(
                     initial_fraction=planned.fraction,
                 )
                 break
+            if iteration == 0 and before_first_motion is not None:
+                bounded()
+                cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+                wall_left = maximum_seconds - (perf_counter() - started)
+                if cpu_left <= 0 or wall_left <= 0:
+                    raise _Exhausted("No first-motion preparation allowance remains")
+                replacement = before_first_motion(
+                    Work(maximum_updates, remaining_pairs, cpu_left, wall_left)
+                )
+                if replacement is not None:
+                    used = replacement.detail.get("iterations")
+                    newton = replacement.detail.get("newton_steps", 0)
+                    if (
+                        type(used) is not int
+                        or not 0 <= used <= maximum_updates
+                        or type(newton) is not int
+                        or not 0 <= newton <= 6 * maximum_updates
+                        or type(replacement.pairs) is not int
+                        or not 0 <= replacement.pairs <= remaining_pairs
+                    ):
+                        raise ArithmeticError("First-motion continuation exceeded its shared work")
+                    summary = dict(replacement.detail)
+                    summary.update(
+                        cpu_seconds=process_time() - cpu,
+                        elapsed_seconds=perf_counter() - started,
+                        pairs=replacement.pairs,
+                    )
+                    if (
+                        summary["cpu_seconds"] >= maximum_cpu_seconds
+                        or summary["elapsed_seconds"] >= maximum_seconds
+                    ):
+                        summary.update(status="unresolved", stop_reason="local_budget")
+                        return replace(replacement, route=None, contact=None, detail=summary)
+                    return replace(replacement, detail=summary)
             chosen_side, gap, delta = planned.side, planned.gap, planned.delta
             side = chosen_side
             step = planned.fraction
             changed = None
             for _ in range(2):
                 bounded()
-                candidate = retract_active(model, advance(model, values, delta, step), bounded)
+                candidate = retract_active(
+                    model,
+                    advance(model, values, delta, step),
+                    bounded,
+                    closure_policy=ClosurePolicy.ORDERED_CAPS,
+                )
                 if candidate is not None and bound.gap(candidate, chosen_side) > gap:
                     changed = candidate
                     break

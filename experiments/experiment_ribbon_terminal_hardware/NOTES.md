@@ -1,5 +1,292 @@
 # Finite terminal hardware trial
 
+LATEST original-eight goal: SEVEN qualified, ONE unresolved historical-32e26c5c88b5.
+1506all77:76accepted/1unresolved/0unattempted; all76matched routepairs EXACT against
+1505 (all75previous successes also exact).258-source lock SHA256
+3cd2420006231c1cc8c6281f66506d1f759576e523538d00913f684195e7e41c.
+156 restored by coupling actual mating-straight crossing with hardware BEFORE
+separate self/contact correction spends work. Actual blocked fallback required;
+ordinary selected first motion that opens its measured gap keeps its old path.
+Typed BaselinePolicy.RESTORE_BLOCKED accepts full physical restoration inside
+the original baseline length ceiling even without guide dominance. Internal
+crossings and paired-fold/default improvement policy retain their old behavior.
+JointMode.MATING_CEILING targets the existing StraightQuality margin inside the
+STRICT ceiling: regenerated156 exposed a7e-15mm quality overshoot, not a physical
+failure. No radius, signs, physical tolerance, target or budget change.
+Committed156work:3updates/16Newton/358pairs/.202888CPU, first33.940531465988mm.
+One preparatory selected-first-motion retraction (upper bound6Newton) is recorded
+SEPARATELY from committed counters; at most2such retractions, sharing original
+CPU/wall limits as existing first-gap verification. No certificate is inferred.
+137focusedtests across affected profiles pass; latest14 after helper changes,
+Ruff/format/IDE6clean. 1507/1508ONEexact acceptednative156 qualification:
+3640points/200seams,max5.196439384e-9mm,0warnings,hardware/preciseboundsPASS.
+Whole solve.763959CPU/gen.478002s TIMINGGOALMISS; audit.394178s separate.
+Worker absent, callbacks/tester preserved. Ordinary counters unchanged; tester
+STOPPED. Full physical audit/production promotion remain unattempted.
+
+Negative156evidence retained:1489earlytrustreserve15/all13controlsEXACT/0gains;
+1490lateactualselfconstraint uses last2Newton but no closure.1491retained original
+selfplane0gains/161geometrychange;1492inequalities regressed161,stopped7/15 with
+8unattempted.1493oneincidentradius stops on second hardware report;1494allows
+second report within existing capacity but still exhausts12Newton; all13controls
+exact,0gains. NONE of those prototypes installed.1495historical straight-only
+candidate798mm STILLpenetrates/hardwareblocked;3controls noaction,0native.
+1496discarded156baseline33.940532mm is also hardwareblocked;cannotacceptit.
+1497earlycoupled156 produced physical success but guide veto discarded it and
+internal71regressed;12/15 thenstop,3unattempted.1498mating-only+physical-selection
+15adds156/all13controlsEXACT.1499fullplanunattempted after unit caught rounding;
+1500two exact target inputs isolated7e-15quality edge;1501prepare wrapper error,
+0workers.1502typed/interior-goal fullphase stopped31/77 on134growth83.139->87.595,
+46unattempted.1505first-gap eligibility preserves all75old routes and adds156;
+1506clean typed/logged helper preserves all76 routepairs. No regressing version
+was qualified.1509static historical bound-aware contact improves original tiny
+fraction4.16e-5->.4833 and opens first pair in2updates; another actual pair remains
+after4updates/.114125CPU/206pairs. Three controls noaction; no pipeline/native
+success claimed and no reclosure/bound-aware strategy installed.
+
+Current goal: SIX original failures qualified, TWO remain (range5fe-case-156 and
+historical-32e26c5c88b5). 1485all77:75accepted/2unresolved/0unattempted; all74prior
+first/final snapshots EXACT. 257-source lock SHA256
+1ea105caa83c910c8e37f8353fe0dcbe19f95143df3b5fd73a31547e3a4e80c8.
+1484isolated15 added139,13accepted/all12controlsEXACT. After an actual closed,
+self-separated reflected candidate still hits hardware, ONE unused contraction
+update redistributes ORIGINAL straight lengths with every bend parameter fixed.
+Existing16-step active projection plus a2D cap-nullspace polygon minimum selects
+one vector before any new body check. Unsupported nullity/arithmetic keeps the
+least-norm vector; no universal shortest-route claim. Length may grow to restore
+invalid hardware geometry and excess is explicit. No physical gate weakened.
+Actual139 contraction/restoration combined:3updates/12Newton/392of1024pairs,
+.129174CPU,96.886065->124.456974mm first-pass; smoothing final125.701544mm.
+Interrupted contact work charges remaining requested pairs as an upper bound.
+38focusedtests/Ruff/format/IDE4clean. 1486/1487ONEexact acceptednative139 qualifies:
+10780points/594seams,max8.031396837e-9mm,0warnings,hardwareclear and precise
+boundaryPASS (±60.625mm, body x[-19.9503,28.8570], y[-13.7168,27.5503],
+z[-25.6621,25.5338]). Solve.763149CPU/gen1.046246s TIMINGGOALPASS;
+audit1.046033s separate. Workerabsent/callbacks/testerpreserved. No ordinary
+campaign changes; randomtesterSTOPPED. Fullphysicalaudit/productionunattempted.
+
+Current goal: FIVE of original eight qualified; three remain (range697-case-139,
+range5fe-case-156, historical-32e26c5c88b5). 1480 replays all 77: 74 accepted,
+3 unresolved, 0 unattempted; all 73 prior first-pass/final snapshots EXACT.
+255-source lock SHA256 68c8fec60aee200ff64e340add04de7622e07973447dcc5565bfe3a4993624bb.
+1478 measures initial bounded reflection matrices across all77 recorded cases:
+10 applicable,67 explicitly unattempted. Only161 has bounded cap motion while
+the same length-constrained projection declines. This is a LOCAL strategy
+prediction, not global nonlinear infeasibility. 1479 isolated15 adds161 with
+all11 controls EXACT. Existing signed-joint recovery receives unused original
+Work before unsuccessful reflection spends updates; preparation stays on the
+same clocks, no additional updates/Newton/contact/hardware budgets. 53 focused
+tests pass; test-only IDE binding fix rechecked4 tests; Ruff/format/IDE4 clean.
+1481/1482 ONE exact accepted native161 qualifies: 7840points/434seams,
+max7.523207553e-10mm,0warnings, hardware/precise boundary pass. Solve .523630CPU,
+generation .600972s TIMING GOAL PASS; audit1.273014s separate. Worker absent,
+callbacks/tester state preserved. Ordinary statistics unchanged, tester STOPPED.
+Full physical audit/production promotion remain unattempted.
+1477 common-axis motion ranking was worse than1476 and NOT adopted. Its
+feature_members metadata repeats the axis-bearing reference; actual constraints
+used each physical member, so that metadata must not be read as group membership.
+
+Goal progress: FOUR of original8now qualified;4remain.1470all77:73accepted/
+4unresolved/0unattempted,all72previousfirst/finalEXACT.254source lockSHA256
+3d10773bd75fcc68b7ceb05146234ca697ea637933cb9a7a78f2c907090d9dab.
+70affectedtests/Ruff/format/IDE3clean. Explicit RadiusTrigger.REFLECTED_CLOSURE
+lets failed fixed linear reflection use existing one-incident-radius restoration
+on ORIGINALsignedroute with unused Work. Default fold-domain trigger unchanged;
+other radii/signs/profile/materialfloor stay fixed.1468all15:103newaccept58.319584mm,
+all10controlsEXACT. Restoration itself1update/4Newton/282pairs/.069313CPU; with
+failed fixed action3terminalupdates/11Newton/.092831CPU, plus earlier allocated
+self-contact work remains within original4updates/.35CPU/2wall/pair budgets.
+
+1473/1474ONEfresh exact worker/native build qualifies103:8330points462seams,
+max2.493447898e-9mm,0warnings, finitehardware/precise outerbounds pass. Whole solve
+1.021785CPU/generation.818694s TIMINGGOALMISS; audit1.420803s separate. Workerabsent,
+callbacks/tester state preserved. Ordinary686/674/12solverfailures+1setup,longest82,
+counter13/20unchanged;0newordinarypasses/randomtesterSTOPPED. Remaining:range697139,
+range5fe156/161,historical32e26c5c88b5. Fullphysicalaudit/productionunattempted.
+
+Retained non-promoted156investigations:1461list-to-tuple diagnostic harness error
+before4case observations;1462corrected4configs/10relatedstates findsENDintrusion
+byNewton2,0solves/native/.017166s.1463early32point probes plus samebudget15case
+run retains10controlsEXACT but all5failures remain.1464frozenlast156state has
+small caperror1.209e-8mm yet REALselfpenetration and unresolvedhardware512cells;
+three immutable controls clear,4measured/.293439s/0solves/native.1465unconditional
+last-update free length grows11284.676->87.083and stops1/15,14unattempted;rejected.
+1466releaseslengthonlyafteractualearlyoppositewitness,15evaluated/10controlsEXACT/
+0gains;finalnewly occupiedrunway introduces anothercollision.1467preflight finds
+the missing-membership hypothesis unsupported for the maintained initial plane:
+it belonged to the observation prototype; assertion prevents any workerlaunch.
+An erroneous driver call then also stopped on absentplan. No sampler, dynamic
+membership, convergence relaxation or unconditionalquality change was installed.
+
+1475static straight-only diagnostic: freeze ALLangles/banks/radii; one bounded
+linear cap/member-clearance projection. Fourremaining+3safecontrols planned,
+historicalno-closedroute explicitlyunattempted.139candidate125.505mm(+28.619)
+strict self/hardware clear in.053706CPU;156/161notcertified;safecontrolsnoaction.
+1476convexpolygon min-total-straight algebra on same constraint problem reduces
+139to124.457mm,stillclears in.095329CPU; othersstillnotcertified. No pipeline
+integration/native/outerbounds coverage claimed; these are static strategy cost
+measurements, not retroactively renewed solverupdates. Explicit active-zero
+coordinates solve model constraints; no welding. No route bank evaluated.
+
+Goal progress: THREE of the original eight now qualified, FIVE remain. Latest
+1455full77:72accepted/5unresolved/0unattempted,all71priorfirst/finalEXACT; common
+refined checker clears all72outputs.254sources lockSHA256
+cd454ac32a8fa3bad7008fb5a00a1578ce5d152f60055b856c95ced41619575c.
+91affectedtests/Ruff/format/IDE6clean.1458/1459ONEexact fresh worker/native build
+qualifies116:13440points744seams,max7.524282245e-10mm,0warnings,precise outerbounds
+and finitehardware pass. Solve1.699871CPU/generation1.205981s TIMINGGOALMISS;
+audit2.646980s separate. No hard CPU/update/Newton/pair/hardware limit increased.
+
+116had two different problems: an added own-mating straight cannot attain a
+positive gap from its connector face, so it is excluded from the bend correction
+group only. Actual witnessed material and full-route physical certification stay
+intact. Then a third observed feature exceeded the ordinary two-feature handoff.
+Global expansion to three displaced case2's successful reflection:1452stopped
+76/77,one unattempted; rejected, not installed. Keep that legacy action. Only a
+reflection that fails linear_projection_infeasible withZEROupdates/ZERONewton
+may yield to RetainedFeatures on the latest measured closedroute. Rebind all
+three actual reports without changing signs; previous actions debit the SAME
+Work. No original coordinates are repaired, no guessed candidate/feature, no
+new overlap allowance or renewed budget.1453all15:10accepted/5unresolved,
+all9controlsEXACT,including previously regressed2and unattempted83. Refactored
+shared feature binding retains explicit material-coverage policies.1450mating
+group alone produced0gains/13evaluated/7controlsEXACT and is retained as evidence.
+Native worker absent, callbacks/tester state preserved.0ordinarypasses/incidents;
+686/674/12solverfailures+1setup,longest82,counter13/20unchanged,randomtesterSTOPPED.
+Open:current103,range697139,range5fe156/161,historical32e26c5c88b5. No case exclusions.
+
+Goal progress: TWO of the eight original unresolved inputs are now qualified;
+six remain.1445full77:71accepted/6unresolved/0unattempted,all70previousfirst/final
+EXACT; same refined checker clears every accepted route.1443prototype13inputs
+already retained all6controls EXACT and added range697115. Its native zero-slot
+cap reclosure previously recreated1.6e-7mmrunways after removing a4.8e-7mmslot.
+Reuse existing native_slot_step on the same reflected Jacobian before retraction,
+only during NativeReversal reclosure. Absent-slot sub-native motion is excluded
+and cap equations reprojected; larger absent-slot growth remains free. Caller
+supplies ORIGINALnative minimum; no geometric welding, new tolerance, extra
+correction, candidate search or budget. Default closure callers remain unchanged.
+The shared helper now accepts its existing MovableBends base type.66affectedtests,
+Ruff/format/IDE4clean; source count254.1448/1449one fresh exact worker/native build
+qualifies115:11760points648seams,max7.572620157e-10mm,0warnings, precise outerbounds
+and finitehardware pass. Solve.595284CPU/generation1.493297s goalPASS, audit2.851042s
+separate. Final77.031819mm; worker absent, callbacks/tester state restored/preserved.
+No ordinarypasses or campaign incidents added. Remaining:current103,range697116/
+139,range5fe156/161,historical32e26c5c88b5. Earlier records below retain previous
+counts; the first qualified growth repair is historicale03a89e210af.
+
+2026-11-08 resumed goal: work through the eight remaining saved layouts. One is
+now qualified, leaving seven.1434all77numerical inputs:70accepted/7unresolved,
+all69prior first/final snapshots EXACT,0unattempted; same refined checker clears
+all70outputs.73focusedtests/Ruff/format/IDE3clean.254sources, lockSHA256
+ac14b79d40beaf35d07488ef57fd000f60802fc461ca4f384914dc3796c06075.
+
+Historical e03a89e210af establishes a length-restriction failure in the recorded
+recovery, not a global minimum-length theorem. Its source20.590062mm cannot finish
+the existing constrained action. Release the quality length restriction ONCE
+after projection/no-descent failure, retaining the same coordinates and original
+unused work. Caps, full material, fold signs/radii/order, clearance planes, native
+minimum slots, self-contact and connector proofs remain mandatory. The old length
+becomes a reported goal/excess. No new candidate bank, target or increased budget.
+1430isolated continuation uses7corrections before release and8after,244contact
+pairs/.138194CPU; whole final30.957585mm. All5controls EXACT. Broad1428removal
+regressed112by skipping its working length-triggered fallback:1evaluated12unattempted,
+rejected.1429narrow always-unconstrained fold recovery fixes e03but grows control112;
+13evaluated/6accepted/7unresolved,not adopted. The stalled continuation preserves
+that control and all69previous successes in full1434replay64.044582s.
+
+1438/1439ONEfresh exact worker and accepted native build on e03:5950points,
+330seams/max7.548485738e-10mm,0warnings, strictcontact/finitehardware and precise
+outer±26.875mmbounds pass with0excess. Solve.549012CPU/generation.558726s meets
+timing goal; fidelity audit.980581s separate. Worker absent/callbacks restored/
+tester state preserved. No new ordinarypasses/incidents or random restart;
+686attempts674passes12solverfailures+1setup,longest82,counter13/20unchanged.
+Fullphysicalaudit and native coverage of other inputs in this phase unattempted.
+
+1440retained-state diagnostic stopped before measurements on a heterogeneous
+ledger entry missing stage;4unattempted.1441corrects the parser without changing
+geometry: the59.906802mm closed fixed-reflection candidate for range5fe161 has
+actual self-penetration and connector intrusion. Three immutable controls clear.
+4measured/.223146wall/0solves/0native. Length-only rejection was its first stop,
+not its only problem; this is NOT a newly solved case. Initial1432/1435test commands
+named absent test files and collected0tests;1433had62pass/1mock-contract failure;
+all retained, updated certificate-boundary mock and final1436passes73tests.
+
+Open:current103,range697115/116/139,range5fe156/161,historical32e26c5c88b5.
+The separate hardware-offimage20contraction sensitivity remains open. Goal API
+still exposes old paused metadata and rejects creation of another unfinished goal;
+the user explicitly resumed work with /goal, and work is continuing. Its tool
+cannot set active; do not falsely mark the unfinished objective complete.
+
+Earlier qualification history follows; newer counts above supersede older ones.
+
+2026-11-08 current: saved range697 case112 now passes numerical, native named
+fidelity, independent finite-hardware clearance and precise outer bounds. The
+77-input replay1416 accepts69, leaves8unresolved, skips none, and retains all68
+previous first-pass/final snapshots EXACT. These examined saved configurations
+are development coverage; only case112 receives a new native build. Ordinary
+testing remains STOPPED pending the backlog; the1,000-pass goal is unmet.
+
+The failed case's closed candidate was geometrically clear but exhausted512cells
+with projections on only the three box axes. The explicit PIECE_AXES certificate
+also tests three piece axes and nine box/piece cross products on whole cells
+before subdivision. Existing analytic projections retain the complete thick
+profile. `sat.BoxProjection` outward-encloses the coordinate-defined box slabs,
+including stored-frame nonorthogonality through an inverse-Gram error bound.
+Strict separation, mating-cap support, witnesses and physical tolerances stay
+unchanged. Uncertain/nonfinite projections supply no proof. Preparation is local
+to one check, cached for at most two boxes; no accumulating global geometry cache.
+
+Guidance and certification must remain explicit. Global activation1415 resolved
+case112 but regressed image80: stronger exclusion reached another real intrusion
+earlier and changed the planner's recovery choice. The replay stopped20/77,
+57unattempted; that global activation was rejected. `Gate.measure`/`probe` retain
+BOX_AXES traversal. Only completed coupled fold candidates call `Gate.certify`.
+Both use the same0.1CPU/0.25wall/1024cell allocation and512cell per-call ceiling;
+incomplete caches are policy-specific, actual clear/blocked evidence is reusable.
+No case IDs, target movements, bend candidates or renewed budgets are involved.
+
+266affected tests pass10.89s; scoped Ruff/format and9IDE inspections are clean.
+254sources lockSHA2568f54a4eabc1bd73a1bd2309333eda8cddf6f9dbc48ead8da8bce4d83a4d7d878.
+1416numerical phase64.479988s/0native; independent immutable-route replay clears
+all69using the same refined checker, not an independent physical audit method.
+Case112final84.675782150mm; total shared hardware551cells/.021347CPU in replay.
+1421/1422one fresh worker, ONE native attempt: first/final EXACT,11900surface
+points/660seams/max7.546479957e-10mm,0warnings, precise±55mmbounds/0excess.
+Freshsolve1.332874CPU versus generation4.283896s meets timing goal; fidelity audit
+2.365377s is separate. Full physical audit and native coverage of76other cases
+remain unattempted. Actual worker absent, native body present, callbacks restored,
+tester state preserved. Qualifications add no ordinary passes or incidents.
+
+Retained investigation failures:1408missing reflected-model constructor data,
+1409missing preserves interface,1410limited state inspection,1415global regression.
+1419native preflight attempted no solve/build: compact gym summary lacked the
+full environment and regenerated endpoints differed at roughly1e-15.1421uses
+the original full archived gym and EXACT saved endpoints through the existing
+handoff validation; reviewed geometry equality remains strict. No tolerance was
+changed. Initial1416unit run had111passes/2mock-contract failures; mocks now
+explicitly supply candidate certification and the final266-test run passes.
+
+Subsequent isolated prototypes were not adopted.1423allows physical inequality
+slack only after an equality-based fold recovery stalls. All13inputs evaluated:
+five controls retain first/final EXACT, all eight failures remain,0unattempted/
+0native,11.574872s.1424lets an infeasible fixed-reflection linear closure use the
+existing signed-joint fallback with genuinely remaining work. Same13inputs,
+five controls EXACT/eight unresolved/0unattempted/0native,12.303151s. This adds no
+proven gain, so the maintained handoff remains unchanged.1425purely reprojects
+the retained failed six-cap linear system using the existing16step active-set
+solver and the same coordinate bounds: no feasible correction is established.
+Ten other retained systems do not match that six-cap failure contract and are
+explicitly unattempted;0new solves/native,0.013275CPU. None of these diagnostic
+outcomes proves geometric infeasibility or justifies expanding work limits.
+
+Open saved inputs: current103,range697115/116/139,range5fe156/161,
+historical32e26c5c88b5/e03a89e210af. The separate hardware-off image20contraction
+sensitivity also remains unresolved. Ordinary686attempts/674passes/12solver
+failures plus1setupstop,longest82,counter13/20,next consolidation20unchanged.
+
+The entries below retain earlier campaign states and are superseded by this
+current qualification where their counts or backlog differ.
+
 Current stop: [case63 excursion review](EXCURSION_63.md). Run999 reaches62clean
 passes; case63 builds/fidelity-passes but exceeds±55mmby186.415mm. Compact49mm
 contact-certified route fails end hardware, so selection restores854mm raw route.

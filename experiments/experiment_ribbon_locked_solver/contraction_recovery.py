@@ -24,6 +24,9 @@ from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.incident_recovery import (
     recover as recover_incident,
 )
+from experiments.experiment_ribbon_terminal_hardware.return_recovery import (
+    recover as recover_return,
+)
 
 
 def recover_contracted(
@@ -160,17 +163,31 @@ def recover_contracted(
             "remaining_pair_budget": remaining_pairs,
         }
     )
-    result = recover(
-        branch.route,
-        contact,
-        remaining_pairs,
-        threshold_mm,
-        checkpoint,
-        record,
-        maximum_cpu_seconds=cpu_left,
-        maximum_seconds=wall_left,
-        cap_policy=CapPolicy.ANALYTIC_SUPPORT,
-    )
+    if terminal is not None and contact.status == "unresolved" and contact.limit == "depth":
+        result = recover_return(
+            branch.route,
+            contact,
+            terminal,
+            checkpoint,
+            record,
+            maximum_length_mm=baseline.route.material_length_mm,
+            minimum_straight_mm=threshold_mm,
+            remaining_pairs=remaining_pairs,
+            maximum_cpu_seconds=cpu_left,
+            maximum_seconds=wall_left,
+        )
+    else:
+        result = recover(
+            branch.route,
+            contact,
+            remaining_pairs,
+            threshold_mm,
+            checkpoint,
+            record,
+            maximum_cpu_seconds=cpu_left,
+            maximum_seconds=wall_left,
+            cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+        )
     selected = result.route
     if selected is not None:
         if result.contact is None or result.contact.status != "separated":

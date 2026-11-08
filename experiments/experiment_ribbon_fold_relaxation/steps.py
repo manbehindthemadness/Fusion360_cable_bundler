@@ -11,6 +11,8 @@ from experiments.experiment_ribbon_bend_reduction.closure import affine_projecti
 
 from .model import Model
 
+MAXIMUM_ANGULAR_STEP_RADIANS = 0.2
+
 
 def projected(
     model: Model,
@@ -60,7 +62,7 @@ def step_limit(
         elif change < -1e-12:
             step = min(step, (low - value) / change)
         if i not in straights and abs(change) > 1e-12:
-            step = min(step, 0.2 / abs(change))
+            step = min(step, MAXIMUM_ANGULAR_STEP_RADIANS / abs(change))
     return max(0.0, step)
 
 

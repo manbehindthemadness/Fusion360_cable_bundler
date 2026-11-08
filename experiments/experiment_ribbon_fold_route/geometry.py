@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from bisect import bisect_right
 from dataclasses import dataclass, field
+from functools import cached_property
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.contracts import Targets
@@ -27,13 +28,21 @@ class Pose:
 
     def direction(self, local: Vector3) -> Vector3:
         """
-        Rotate a vector without applying translation.
+        Rotate without translation or temporary vectors, retaining the zero-first addition order.
         """
-        return (
-            ZERO.translated(self.tangent, local.x)
-            .translated(self.width, local.y)
-            .translated(cross(self.tangent, self.width), local.z)
+        forward, across, normal = self.tangent, self.width, self._normal
+        return Vector3(
+            0 + forward.x * local.x + across.x * local.y + normal.x * local.z,
+            0 + forward.y * local.x + across.y * local.y + normal.y * local.z,
+            0 + forward.z * local.x + across.z * local.y + normal.z * local.z,
         )
+
+    @cached_property
+    def _normal(self) -> Vector3:
+        """
+        Reuse the exact cross product for this immutable frame without retaining other frames.
+        """
+        return cross(self.tangent, self.width)
 
     def point(self, local: Vector3) -> Vector3:
         """
@@ -92,6 +101,16 @@ class PlacedPiece:
         )
 
     def end_pose(self) -> Pose:
+        """
+        Reuse the immutable terminal frame within this placed piece's lifetime.
+
+        Placement and material geometry are frozen. Regenerated or replaced pieces
+        own separate frames; no global cache retains routes or derivative probes.
+        """
+        return self._end_pose
+
+    @cached_property
+    def _end_pose(self) -> Pose:
         """
         Carry a flat terminal frame forward, removing accumulated floating roundoff.
         """

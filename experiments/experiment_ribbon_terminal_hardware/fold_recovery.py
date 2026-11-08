@@ -13,16 +13,17 @@ from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
-from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import ProjectionReuse, inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .check import Report
+from .feature_guidance import FeatureGate, RetainedFeatures
 from .feature_plane import FeaturePlane, SignedJoints
-from .gate import Gate
 from .joint_derivatives import jacobian as joint_jacobian
 from .native_projection import native_slot_step
 from .quality_projection import quality_step
+from .recovery_limits import validate
 from .straight_quality import StraightQuality
 
 
@@ -35,7 +36,7 @@ class _Exhausted(RuntimeError):
 def recover(
     original: FoldRoute,
     evidence: Report,
-    terminal: Gate,
+    terminal: FeatureGate,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
     *,
@@ -46,9 +47,10 @@ def recover(
     maximum_seconds: float,
     quality: StraightQuality | None = None,
     maximum_updates: int = 4,
+    continuation: RetainedFeatures | None = None,
 ) -> Result | None:
     """
-    Preserve all signs/radii while solving caps and at most two measured feature planes.
+    Preserve signs/radii while solving caps and measured feature planes inside original work limits.
 
     Caller validates and reserves the same idle feasibility allowance. Up to 24
     Newton steps represent four six-correction updates, with 0.2 radian trust and
@@ -68,24 +70,59 @@ def recover(
     A reduced caller allocation retains six corrections per remaining update;
     absent sub-native slots are excluded from each linear correction before
     cap reclosure, rather than creating numerical dust and cleaning it afterward.
+    A trial that would erase a fold ends this action with a measured domain
+    boundary and completed counters. It cannot be evaluated as the original
+    material region or consume a fresh recovery allowance.
+    Final contact certificates reuse at most512identical cell projections;
+    arithmetic, material traversal, comparison counts and limits stay unchanged.
+    If a length-constrained correction stalls, release that quality restriction
+    once and continue from the same coordinates with unused corrections only.
+    Physical caps, material, feature clearance and contact remain mandatory.
+    A typed continuation may rebind three earlier actual reports after an
+    incident reflection failed without motion. Ordinary entry retains its
+    two-feature handoff. This continuation receives only genuinely unused work
+    and the preceding ceiling, without adding a new overlap allowance.
     """
-    if type(maximum_updates) is not int or not 1 <= maximum_updates <= 4:
-        raise ValueError("Use one to four remaining original updates")
+    validate(
+        remaining_pairs=remaining_pairs,
+        maximum_cpu_seconds=maximum_cpu_seconds,
+        maximum_seconds=maximum_seconds,
+        maximum_updates=maximum_updates,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+    )
     if quality is not None and quality.remaining_updates > maximum_updates:
         raise ValueError("Quality policy cannot renew the remaining update allocation")
     if quality is not None and quality.ceiling_mm != maximum_length_mm:
         raise ValueError("Straight recovery must retain the caller's original quality ceiling")
+    if continuation is not None and (
+        not isinstance(continuation, RetainedFeatures) or quality is not None
+    ):
+        raise ValueError("Use retained evidence with its preceding ceiling and unused allocation")
     started, cpu = perf_counter(), process_time()
     model = SignedJoints(original)
     values = model.initial
     fixed_zero: set[int] = set()
     growth_quality = False
-    initial = FeaturePlane.create(model, original, evidence, terminal.hardware, values)
-    if initial is None:
-        return None
-    planes = [initial]
+    length_released = False
+    if continuation is None:
+        initial = FeaturePlane.create(model, original, evidence, terminal.hardware, values)
+        if initial is None:
+            return None
+        planes = [initial]
+    else:
+        prepared = continuation.planes(model, terminal.hardware, values)
+        if not prepared:
+            return None
+        planes, initial = prepared, prepared[0]
     allowance = max(0.0, -initial.gap(values) * model.scale)
-    ceiling = quality.ceiling_mm if quality is not None else maximum_length_mm + allowance
+    ceiling = (
+        maximum_length_mm
+        if continuation is not None
+        else quality.ceiling_mm
+        if quality is not None
+        else maximum_length_mm + allowance
+    )
     maximum_newton_steps = quality.newton_steps if quality is not None else 6 * maximum_updates
     candidate, accepted, measurement = original, False, None
     detail: dict[str, Any] = {
@@ -100,7 +137,7 @@ def recover(
         "contact_pairs": 0,
         "contact_seconds": 0.0,
         "maximum_length_mm": ceiling,
-        "local_growth_allowance_mm": allowance if quality is None else 0.0,
+        "local_growth_allowance_mm": allowance if quality is None and continuation is None else 0.0,
     }
     active_pairs: int | None = None
     contact_started = 0.0
@@ -122,6 +159,25 @@ def recover(
         """
         record({"stage": "coupled_feature_recovery", "status": status, **data})
 
+    def release_length(trigger: str) -> bool:
+        """
+        Release a stalled quality limit once without resetting coordinates or the work allocation.
+        """
+        nonlocal length_released
+        if quality is None or length_released or detail["newton_steps"] >= maximum_newton_steps:
+            return False
+        length_released = True
+        detail["length_ceiling_released"] = True
+        detail["length_release_trigger"] = trigger
+        emit(
+            "length_released",
+            trigger=trigger,
+            values=values,
+            newton_steps=detail["newton_steps"],
+            remaining_newton=maximum_newton_steps - detail["newton_steps"],
+        )
+        return True
+
     def equations(coordinates: tuple[float, ...]) -> tuple[float, ...]:
         """
         Retain raw derivatives at cleared inequality boundaries instead of differentiating a clip.
@@ -130,12 +186,13 @@ def recover(
             limits = tuple(1e-7 / model.scale - p.gap(coordinates) for p in planes)
             route_for_limits = model.route(coordinates)
             assert route_for_limits is not None and quality is not None
-            limits += ((route_for_limits.material_length_mm - quality.target_mm) / model.scale,)
+            if not length_released:
+                limits += ((route_for_limits.material_length_mm - quality.target_mm) / model.scale,)
             return model.residual(coordinates) + limits
         residual_terms = model.residual(coordinates) + tuple(
             p.gap(coordinates) - 1e-7 / model.scale for p in planes
         )
-        if quality is not None:
+        if quality is not None and not length_released:
             evaluated_route = model.route(coordinates)
             assert evaluated_route is not None
             residual_terms += (
@@ -170,7 +227,7 @@ def recover(
                 if not model.preserves(candidate):
                     detail["stop_reason"] = "fold_identity"
                     break
-                if candidate.material_length_mm > ceiling:
+                if not length_released and candidate.material_length_mm > ceiling:
                     remaining_updates = maximum_updates - math.ceil(detail["newton_steps"] / 6)
                     if quality is None and remaining_updates > 0:
                         quality = StraightQuality(ceiling, remaining_updates)
@@ -188,7 +245,7 @@ def recover(
                         continue
                     detail["stop_reason"] = "local_growth_ceiling"
                     break
-                report = terminal.measure(candidate, "coupled_feature_candidate")
+                report = terminal.certify(candidate, "coupled_feature_candidate")
                 if report.status == "clear":
                     slivers = {
                         i
@@ -218,6 +275,7 @@ def recover(
                         maximum_pairs=pairs,
                         cap_policy=CapPolicy.ANALYTIC_SUPPORT,
                         checkpoint=bounded,
+                        projection_reuse=ProjectionReuse.CELLS,
                     )
                     detail["contact_pairs"] += measurement.pairs_checked
                     detail["contact_seconds"] += perf_counter() - contact_started
@@ -230,7 +288,7 @@ def recover(
                     accepted = True
                     detail["status"] = "separated"
                     break
-                if len(planes) >= 2:
+                if len(planes) >= (3 if continuation is not None else 2):
                     detail["stop_reason"] = "feature_constraint_limit"
                     break
                 extra = FeaturePlane.create(model, candidate, report, terminal.hardware, values)
@@ -251,13 +309,23 @@ def recover(
             if detail["newton_steps"] >= maximum_newton_steps:
                 detail["stop_reason"] = "joint_update_limit"
                 break
-            jacobian = joint_jacobian(model, values, equations, len(equation), fixed_zero, bounded)
+            jacobian = joint_jacobian(
+                model,
+                values,
+                equations,
+                len(equation),
+                fixed_zero,
+                bounded,
+                admissible=model.admissible,
+            )
             delta = (
                 quality_step(model, values, jacobian, equations(values), bounded)
                 if growth_quality
                 else projected(model, values, jacobian, [-v for v in equation], [0.0] * len(values))
             )
             if delta is None:
+                if release_length("joint_projection_infeasible"):
+                    continue
                 detail["stop_reason"] = "joint_projection_infeasible"
                 break
             if maximum_updates < 4 and quality is None:
@@ -283,6 +351,10 @@ def recover(
             for _ in range(4):
                 bounded()
                 trial = advance(model, values, delta, step)
+                if not model.admissible(trial):
+                    detail["stop_reason"] = "fold_boundary"
+                    emit("fold_boundary", values=values, trial=trial)
+                    break
                 if max(map(abs, residual(trial))) < error:
                     values = trial
                     detail["newton_steps"] += 1
@@ -290,7 +362,11 @@ def recover(
                     break
                 step /= 2
             else:
+                if release_length("joint_no_descent"):
+                    continue
                 detail["stop_reason"] = "joint_no_descent"
+                break
+            if detail.get("stop_reason") == "fold_boundary":
                 break
             emit("joint_update", values=values, residual=residual(values), constraints=len(planes))
     except _Exhausted:
@@ -304,6 +380,10 @@ def recover(
         elapsed_seconds=perf_counter() - started,
         length_mm=candidate.material_length_mm if accepted else original.material_length_mm,
         constraints=len(planes),
+        length_goal_mm=ceiling,
+        length_goal_excess_mm=max(0.0, candidate.material_length_mm - ceiling)
+        if accepted
+        else None,
     )
     emit(detail["status"], detail=detail, candidate=snapshot(candidate))
     return Result(candidate if accepted else original, measurement if accepted else None, detail)

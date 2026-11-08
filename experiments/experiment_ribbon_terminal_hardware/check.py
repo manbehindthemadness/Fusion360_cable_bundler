@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 from typing import Callable, Literal
 
@@ -18,6 +19,16 @@ from experiments.experiment_ribbon_fold_route.contact_profile import clip_profil
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose, pose_error
 
 from .model import Box, Hardware, Terminal
+from .sat import BoxProjection, separated_on_piece_axes
+
+
+class ProjectionPolicy(Enum):
+    """
+    Preserve guidance traversal or refine whole-cell separation for candidate certification.
+    """
+
+    BOX_AXES = "box_axes"
+    PIECE_AXES = "piece_axes"
 
 
 @dataclass(frozen=True)
@@ -70,6 +81,7 @@ def inspect(
     maximum_cells: int = 512,
     maximum_depth: int = 36,
     checkpoint: Callable[[], None] | None = None,
+    projection_policy: ProjectionPolicy = ProjectionPolicy.BOX_AXES,
 ) -> Report:
     """
     Enclose every material region against both boxes; test strict interior witnesses before subdivision.
@@ -79,9 +91,14 @@ def inspect(
     proof; later pieces can still collide with either box. Exhaustion stays
     unresolved. This is floating interval evidence, not a formal exact-arithmetic
     proof, actual-hardware fit certification or a native-body collision audit.
+    Certification may explicitly allow whole cells unresolved by the three box axes to use fifteen
+    box/piece SAT directions before subdivision. Additional axes use outward
+    box enclosures, retain all material and share the same caller work limits.
     """
     if hardware.targets != route.targets:
         raise ValueError("Hardware and route must retain the same exact targets")
+    if not isinstance(projection_policy, ProjectionPolicy):
+        raise ValueError("An explicit terminal projection policy is required")
     if any(type(value) is not int or value < 1 for value in (maximum_cells, maximum_depth)):
         raise ValueError("Positive finite terminal-check budgets are required")
     thickness = route.targets.diameter_mm / 2
@@ -92,6 +109,7 @@ def inspect(
         return Report("unresolved", 0, reason="Material thickness map is not regular")
     checked = 0
     prepared = lru_cache(maxsize=64)(prepare_projection)
+    prepared_boxes = lru_cache(maxsize=2)(BoxProjection.create)
     for box in hardware.boxes:
         matching = _mating_frame(route, box)
         at_end = box.terminal is Terminal.END
@@ -132,6 +150,14 @@ def inspect(
                 if span.high < origin + limit.low or span.low > origin + limit.high:
                     separated = True
                     break
+            if (
+                not separated
+                and cell.depth == 0
+                and projection_policy is ProjectionPolicy.PIECE_AXES
+            ):
+                box_projection = prepared_boxes(box)
+                if box_projection is not None:
+                    separated = separated_on_piece_axes(piece, cell, box_projection, checkpoint)
             if separated:
                 continue
             u, q, height = ((span.low + span.high) / 2 for span in (cell.u, cell.q, cell.height))

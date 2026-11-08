@@ -76,8 +76,11 @@ def test_only_failed_length_gate_uses_original_source_and_remaining_phase(
     witness = Witness("end", 1, (0.5, 0, 0), Vector3(0, 0, 0), (-1, 0, 0))
     terminal = Mock(spec=Gate)
     terminal.measure.side_effect = (Report("blocked", 1, witness), Report("clear", 1))
-    model = SimpleNamespace(initial=(), residual=lambda _: (0.0,) * 6, route=lambda _: source)
+    model = SimpleNamespace(
+        initial=(), straight_indices=(), residual=lambda _: (0.0,) * 6, route=lambda _: source
+    )
     monkeypatch.setitem(vars(recovery), "ReversalModel", Mock(return_value=model))
+    monkeypatch.setitem(vars(recovery), "decline_initial_length", Mock(return_value=False))
     monkeypatch.setitem(vars(recovery), "close_update", Mock(return_value=((), 2, None)))
     monkeypatch.setitem(vars(recovery), "_same_folds", Mock(return_value=True))
     contact = ContactResult("separated", 13)

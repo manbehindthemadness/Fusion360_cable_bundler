@@ -63,6 +63,12 @@ def solve(
     penetrating branch that is shorter and better-guided than a separated fallback.
     Initial guide allocation and branch selection remain feasibility initializers.
     Failed recovery retains the separated fallback and counts all work performed.
+    Before an optional first motion that fits its original work demand, actual
+    fallback hardware intrusion may prioritize the already selected shorter
+    branch's physical feasibility. A measured adjacent-fold BEFORE-to-AFTER
+    return bracket selects its entry fold for one coupled reflection; other
+    contact topologies retain their original contact recovery. Eligibility and all correction
+    work share the original allocation and unchanged guide/shortening selection.
     Enabled first-pass optimization then contracts existing bends with four steps,
     at most0.35CPU seconds and two additional strict certificates, within the same
     four-second deadline. Failed improvement retains the accepted baseline.
@@ -112,6 +118,9 @@ def solve(
     updates/time/pairs on original signed joints with caps, measured feature gaps
     and the original quality ceiling solved together. No new sign/event search,
     length allowance or renewed budget follows that rejection.
+    A fixed reflection may also yield when its actual linear angular correction
+    exceeds the total remaining trust travel. Only unused original work passes
+    to that same signed-joint fallback; no new model or root is introduced.
     Fold evidence instead preserves every sign and radius while solving ordered
     caps with at most two measured bend/runway feature planes simultaneously.
     Its growth ceiling is construction length plus the initial complete-feature
@@ -122,6 +131,11 @@ def solve(
     its unused updates, CPU, wall span and construction pairs to late terminal
     recovery, with all counters combined; a consulted contraction recovery still
     prevents another action. No failed/prepared history grants a fresh allowance.
+    If an actual terminal-recovery trial would erase a fold, only its genuinely
+    unused work may instead grow the evidence-incident bend radius. The material
+    floor, all other radii, signs, profile and poses remain fixed. During this
+    physical restoration the invalid source length is a reported quality goal,
+    not a physical veto; full self-contact and both terminal boxes remain strict.
     Otherwise return no accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
@@ -170,6 +184,7 @@ def solve(
         first_checkpoint,
         record,
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
+        terminal=terminal,
     )
     first_seconds = perf_counter() - started
     detail: dict[str, Any] = {
@@ -443,7 +458,10 @@ def solve(
         material_metric_error=metric,
         contact=contact,
         quality={
-            "objective": "strict_material_shortening_then_guide_ties",
+            "objective": "physical_restoration_then_compactness"
+            if detail["construction"]["recovery"] is not None
+            and detail["construction"]["recovery"].get("radius_restoration")
+            else "strict_material_shortening_then_guide_ties",
             "construction_length_mm": result.route.material_length_mm,
             "first_pass_length_mm": first.material_length_mm,
             "final_length_mm": final.material_length_mm,
@@ -453,6 +471,8 @@ def solve(
             if not settings.first_pass_optimization
             else "shortened"
             if first.material_length_mm < result.route.material_length_mm
+            else "feasibility_repaired"
+            if first.material_length_mm > result.route.material_length_mm
             else "construction_retained",
             "optimality": "unproved; guide agreement and compactness are preferences, not physical certificates",
         },

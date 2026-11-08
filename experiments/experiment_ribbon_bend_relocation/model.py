@@ -5,12 +5,22 @@ Expose movable existing bends and straight slots while keeping original radii fi
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Callable
 
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, pose_error
+
+
+class ClosurePolicy(Enum):
+    """
+    Distinguish normalized exploratory retraction from actual ordered-cap certification.
+    """
+
+    NORMALIZED = "normalized"
+    ORDERED_CAPS = "ordered_caps"
 
 
 @dataclass(frozen=True)
@@ -90,25 +100,34 @@ class MovableBends(FlexibleModel):
 
 
 def retract_active(
-    model: MovableBends, initial: tuple[float, ...], checkpoint: Callable[[], None]
+    model: MovableBends,
+    initial: tuple[float, ...],
+    checkpoint: Callable[[], None],
+    *,
+    closure_policy: ClosurePolicy = ClosurePolicy.NORMALIZED,
 ) -> tuple[float, ...] | None:
     """
     Restore external caps with six Newton steps and four scalar halvings per step.
 
     Preserve the descent step's exact zero-runway active set. The local rotation
-    residual is not a final frame certificate. Stop only when both actual ordered
-    cap frames also meet the existing 1e-10 mating-frame proof criterion. A small
-    normalized residual can otherwise retain a positional mismatch on a long
-    route and exhaust terminal subdivision at its intended mating face. This
-    spends only the same six Newton steps and caller allowance; no cap is snapped.
+    residual is not a final frame certificate. The default preserves exploratory
+    contraction and prediction steps. Certified self-contact recovery requests
+    actual ordered caps at the existing 1e-10 mating-frame proof criterion: a small
+    normalized residual can otherwise retain a positional mismatch on a long route
+    and exhaust terminal subdivision at its intended mating face. Both policies
+    share the same six Newton steps and caller allowance; no cap is snapped.
     """
+    if not isinstance(closure_policy, ClosurePolicy):
+        raise ValueError("Supply an explicit joint closure policy")
     fixed = tuple(i for i in model.straight_indices if initial[i] == 0.0)
     values = initial
     for _ in range(6):
         checkpoint()
         residual = model.residual(values)
         error = max(abs(v) for v in residual)
-        if error < 1e-10 and _caps_closed(model, values):
+        if error < 1e-10 and (
+            closure_policy is ClosurePolicy.NORMALIZED or _caps_closed(model, values)
+        ):
             return values
         rows = model.jacobian(values)
         right = [-v for v in residual]
@@ -130,7 +149,8 @@ def retract_active(
             return None
     return (
         values
-        if max(abs(v) for v in model.residual(values)) < 1e-10 and _caps_closed(model, values)
+        if max(abs(v) for v in model.residual(values)) < 1e-10
+        and (closure_policy is ClosurePolicy.NORMALIZED or _caps_closed(model, values))
         else None
     )
 

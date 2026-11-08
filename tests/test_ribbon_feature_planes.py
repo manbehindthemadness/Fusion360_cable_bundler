@@ -5,6 +5,7 @@ Verify finite feature grouping, fixed turn directions and route-bound fold-recov
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, Literal
 from unittest.mock import Mock
 
 import pytest
@@ -12,7 +13,7 @@ import pytest
 from cable_bundler.routing.geometry import Vector3
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
-from experiments.experiment_ribbon_feature_insertion.separation import regions
+from experiments.experiment_ribbon_feature_insertion.separation import Region, regions
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
@@ -21,6 +22,7 @@ from experiments.experiment_ribbon_terminal_hardware.check import Report, Witnes
 from experiments.experiment_ribbon_terminal_hardware.feature_plane import FeaturePlane, SignedJoints
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
+from experiments.experiment_ribbon_terminal_hardware.straight_quality import StraightQuality
 from tests.test_ribbon_aesthetic import _route
 
 
@@ -125,7 +127,7 @@ def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certifica
     monkeypatch.setattr(FeaturePlane, "create", Mock(return_value=plane))
     terminal = Mock(spec=Gate)
     terminal.hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
-    terminal.measure.return_value = Report("clear", 1)
+    terminal.certify.return_value = Report("clear", 1)
 
     def certificate(candidate: FoldRoute, **options: object) -> ContactResult:
         """
@@ -164,3 +166,107 @@ def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certifica
         assert result.detail["status"] == "separated" and result.route is not source
     else:
         assert result.route is source and result.contact is None
+
+
+@pytest.mark.parametrize(
+    "hardware_status,contact_status,accepted",
+    (
+        ("clear", "separated", True),
+        ("clear", "penetrating", False),
+        ("unresolved", "separated", False),
+    ),
+)
+def test_stalled_length_quality_can_yield_but_physical_certificates_remain_mandatory(
+    monkeypatch: pytest.MonkeyPatch,
+    hardware_status: Literal["clear", "unresolved"],
+    contact_status: Literal["separated", "penetrating"],
+    accepted: bool,
+) -> None:
+    """
+    Allow a longer closed route after a failed quality projection without bypassing hardware or contact.
+    """
+    source = _route((Straight(3), fold(2, 1.2, 1, 0.2, 0), Straight(4)))
+    model = SignedJoints(source)
+    plane = SimpleNamespace(gap=lambda values: 1e-7 / model.scale)
+    monkeypatch.setattr(FeaturePlane, "create", Mock(side_effect=(plane, None)))
+    monkeypatch.setitem(vars(fold_recovery), "projected", Mock(return_value=None))
+    contact = Mock(return_value=ContactResult(contact_status, 1))
+    monkeypatch.setitem(vars(fold_recovery), "inspect_contact", contact)
+    terminal = Mock(spec=Gate)
+    terminal.hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
+    terminal.certify.return_value = Report(hardware_status, 1)
+    events: list[dict[str, Any]] = []
+    ceiling = source.material_length_mm - 0.1
+    result = fold_recovery.recover(
+        source,
+        Report("blocked", 1),
+        terminal,
+        lambda: None,
+        events.append,
+        maximum_length_mm=ceiling,
+        minimum_straight_mm=1e-5,
+        remaining_pairs=700,
+        maximum_cpu_seconds=0.35,
+        maximum_seconds=2,
+        quality=StraightQuality(ceiling, 1),
+        maximum_updates=1,
+    )
+    assert result is not None and (result.contact is not None) is accepted
+    releases = [event for event in events if event["status"] == "length_released"]
+    assert len(releases) == 1 and releases[0]["remaining_newton"] == 6
+    assert result.detail["length_ceiling_released"]
+    assert result.detail["iterations"] <= 1 and result.detail["newton_steps"] <= 6
+    terminal.certify.assert_called_once()
+    assert contact.call_count == int(hardware_status == "clear")
+    if accepted:
+        assert result.route.targets == source.targets
+        assert cap_error(result.route) < 1e-7 and model.preserves(result.route)
+        assert result.detail["length_goal_excess_mm"] == pytest.approx(0.1)
+    else:
+        assert result.route is source
+
+
+@pytest.mark.parametrize("terminal,index", (("start", 1), ("end", 3)))
+def test_fold_correction_does_not_demand_positive_gap_from_its_attached_mating_runway(
+    terminal: str, index: int
+) -> None:
+    """
+    Preserve the witnessed fold while leaving its intentionally attached cap straight to final certification.
+    """
+    source = _route(
+        (Straight(3), fold(2, 1.2, 1, 0.2, 0), Straight(2), fold(2, 1.2, -1, -0.3, 0), Straight(4))
+    )
+    model = SignedJoints(source)
+    witness = Witness(terminal, index, (0.5, 0, 0), Vector3(0, 0, 0), (-1, 0, 0))
+    plane = FeaturePlane.create(
+        model,
+        source,
+        Report("blocked", 1, witness),
+        Hardware.create(source.targets, Dimensions.scaled(source.targets)),
+        model.initial,
+    )
+    assert plane is not None and plane.members == (regions(source)[index],)
+    assert len(source.pieces) == 5 and model.original is source
+
+
+@pytest.mark.parametrize("terminal,index,slot", (("start", 0, 0), ("end", 4, 2)))
+def test_an_actual_witnessed_terminal_straight_is_never_discarded(
+    terminal: str, index: int, slot: int
+) -> None:
+    """
+    An explicit intrusion report remains authoritative even for the special mating slot.
+    """
+    source = _route(
+        (Straight(3), fold(2, 1.2, 1, 0.2, 0), Straight(2), fold(2, 1.2, -1, -0.3, 0), Straight(4))
+    )
+    model = SignedJoints(source)
+    witness = Witness(terminal, index, (0.5, 0, 0), Vector3(0, 0, 0), (-1, 0, 0))
+    plane = FeaturePlane.create(
+        model,
+        source,
+        Report("blocked", 1, witness),
+        Hardware.create(source.targets, Dimensions.scaled(source.targets)),
+        model.initial,
+    )
+    assert plane is not None and plane.reference == Region(slot, True)
+    assert plane.reference in plane.members

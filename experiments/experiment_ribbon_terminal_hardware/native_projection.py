@@ -4,13 +4,12 @@ Keep absent native runway slots out of a sub-native linear correction before exa
 
 from __future__ import annotations
 
+from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_fold_relaxation.steps import projected
-
-from .feature_plane import SignedJoints
 
 
 def native_slot_step(
-    model: SignedJoints,
+    model: MovableBends,
     values: tuple[float, ...],
     jacobian: list[list[float]],
     equation: tuple[float, ...],

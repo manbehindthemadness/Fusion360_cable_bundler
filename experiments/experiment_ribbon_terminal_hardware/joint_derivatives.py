@@ -16,13 +16,22 @@ def jacobian(
     row_count: int,
     fixed: AbstractSet[int],
     checkpoint: Callable[[], None],
+    *,
+    admissible: Callable[[tuple[float, ...]], bool] | None = None,
 ) -> list[list[float]]:
     """
     Preserve1e-5coordinate probes, bound clipping and exact zero columns for fixed native slots.
 
     Differentiate the raw equations supplied by the caller, including active
     inequalities. The caller retains ownership of all CPU/update allocations.
+    With a supplied material domain, replace an inadmissible endpoint probe by
+    the current valid base coordinate. This gives a one-sided derivative without
+    extra equation evaluations or altered geometry. Hard caller errors propagate.
     """
+    if admissible is not None:
+        checkpoint()
+        if not admissible(values):
+            raise ArithmeticError("Joint derivative base is outside its material domain")
     columns = []
     for index, value in enumerate(values):
         checkpoint()
@@ -32,6 +41,10 @@ def jacobian(
         low, high = model.bounds(index)
         a, b = list(values), list(values)
         a[index], b[index] = max(low, value - 1e-5), min(high, value + 1e-5)
+        if admissible is not None:
+            for probe in (a, b):
+                if not admissible(tuple(probe)):
+                    probe[index] = value
         first, last = evaluate(tuple(a)), evaluate(tuple(b))
         if len(first) != row_count or len(last) != row_count or a[index] == b[index]:
             raise ArithmeticError(

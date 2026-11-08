@@ -12,7 +12,7 @@ from devtools.ribbon_analysis.contracts import TargetPose
 from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
-from .check import Report, inspect
+from .check import ProjectionPolicy, Report, inspect
 from .model import Dimensions, Hardware
 
 
@@ -46,6 +46,7 @@ class Gate:
         self.cpu_seconds, self.wall_seconds = 0.0, 0.0
         self.cells, self.cache_hits = 0, 0
         self._cache: dict[int, tuple[FoldRoute, Report]] = {}
+        self._refined_unresolved: dict[int, tuple[FoldRoute, Report]] = {}
         self._outcomes = {status: 0 for status in ("clear", "blocked", "unresolved")}
 
     def permits(
@@ -62,7 +63,16 @@ class Gate:
         """
         Return evidence bound to this immutable route under the same shared check allowance.
         """
-        return self._measure(route, stage, 512)
+        return self._measure(route, stage, 512, ProjectionPolicy.BOX_AXES)
+
+    def certify(self, route: FoldRoute, stage: str) -> Report:
+        """
+        Refine a completed candidate under the original shared allowance without changing guidance.
+
+        Both policies prove the same material clearance. Incomplete guidance
+        evidence cannot substitute for this refined check, or vice versa.
+        """
+        return self._measure(route, stage, 512, ProjectionPolicy.PIECE_AXES)
 
     def probe(self, route: FoldRoute, stage: str) -> Report:
         """
@@ -72,9 +82,15 @@ class Gate:
         reserves the existing allowance for first-pass/final certification rather
         than spending512cells on an initializer that may change afterward.
         """
-        return self._measure(route, stage, 32)
+        return self._measure(route, stage, 32, ProjectionPolicy.BOX_AXES)
 
-    def _measure(self, route: FoldRoute, stage: str, maximum_cells: int) -> Report:
+    def _measure(
+        self,
+        route: FoldRoute,
+        stage: str,
+        maximum_cells: int,
+        projection_policy: ProjectionPolicy,
+    ) -> Report:
         """
         Share route-bound evidence, accumulated work and logging between probe and full checks.
         """
@@ -82,6 +98,10 @@ class Gate:
         if route.targets != self.hardware.targets:
             raise ValueError("Terminal gate cannot change its fixed target inputs")
         cached = self._cache.get(id(route))
+        if projection_policy is ProjectionPolicy.PIECE_AXES and (
+            cached is None or cached[1].status == "unresolved"
+        ):
+            cached = self._refined_unresolved.get(id(route))
         if cached is not None:
             assert cached[0] is route
             self.cache_hits += 1
@@ -112,6 +132,7 @@ class Gate:
                 self.hardware,
                 maximum_cells=min(maximum_cells, 1024 - self.cells),
                 checkpoint=bounded,
+                projection_policy=projection_policy,
             )
             measured_cells = report.cells_checked
         except _Exhausted:
@@ -124,12 +145,19 @@ class Gate:
             self.wall_seconds += perf_counter() - wall
             self.cells += calls if measured_cells is None else measured_cells
         if maximum_cells == 512 or report.status != "unresolved":
-            self._cache[id(route)] = route, report
+            cache = (
+                self._refined_unresolved
+                if report.status == "unresolved"
+                and projection_policy is ProjectionPolicy.PIECE_AXES
+                else self._cache
+            )
+            cache[id(route)] = route, report
         self._outcomes[report.status] += 1
         self.record(
             {
                 "stage": "terminal_hardware",
                 "phase": stage,
+                "projection_policy": projection_policy.value,
                 "status": report.status,
                 "report": asdict(report),
                 "route": snapshot(route),

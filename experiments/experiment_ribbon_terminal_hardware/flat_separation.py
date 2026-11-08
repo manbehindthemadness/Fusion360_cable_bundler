@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Callable
 
@@ -23,10 +24,19 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedP
 from .feature_plane import SignedJoints
 
 
+class ProfileExtent(Enum):
+    """
+    Enclose a witnessed profile arc or the complete occupied width during motion guidance.
+    """
+
+    ARC = "arc"
+    COMPLETE = "complete"
+
+
 @dataclass(frozen=True)
 class FlatPart:
     """
-    Identify one complete flat phase and one unchanged conductor/profile-arc interval.
+    Identify one complete flat phase and an unchanged occupied profile interval.
     """
 
     phase: FlatPhase
@@ -61,6 +71,39 @@ def _identify(
         if arc.low_q <= q <= arc.high_q:
             return FlatPart(phase, arc.low_q, arc.high_q, arc.maximum_height() + 1e-11)
     return None
+
+
+def paired_return_fold(route: FoldRoute, witness: Penetration) -> int | None:
+    """
+    Select the material-entry fold of a strict BEFORE-to-AFTER adjacent-fold return bracket.
+
+    Both pieces must be existing adjacent folds. Their measured flat phases
+    bracket the entire pair, instead of its legitimate shared cap. Unsupported
+    curved phases or other contact topologies grant no reflected action.
+    """
+    first, second = witness.pieces
+    if not 0 <= first < second < len(route.pieces):
+        raise ValueError("A return witness must identify ordered existing material pieces")
+    if second != first + 1 or not all(
+        isinstance(route.pieces[i].geometry, CylindricalFold) for i in (first, second)
+    ):
+        return None
+    parts = (
+        _identify(
+            route.pieces[first], witness.first, route.targets.lines, route.targets.diameter_mm
+        ),
+        _identify(
+            route.pieces[second], witness.second, route.targets.lines, route.targets.diameter_mm
+        ),
+    )
+    if (
+        parts[0] is None
+        or parts[1] is None
+        or parts[0].phase is not FlatPhase.BEFORE
+        or parts[1].phase is not FlatPhase.AFTER
+    ):
+        return None
+    return sum(isinstance(piece.geometry, CylindricalFold) for piece in route.pieces[:first])
 
 
 def flat_prism(
@@ -123,17 +166,37 @@ class FlatSeparation:
 
     @classmethod
     def create(
-        cls, model: SignedJoints, route: FoldRoute, witness: Penetration
+        cls,
+        model: SignedJoints,
+        route: FoldRoute,
+        witness: Penetration,
+        *,
+        extent: ProfileExtent = ProfileExtent.ARC,
     ) -> FlatSeparation | None:
         """
         Derive complete regions and the nearest signed convex-envelope SAT direction.
+
+        Complete-profile guidance covers all conductors in both witnessed flat
+        phases. It changes no curved-region proof or final contact requirement.
         """
+        if not isinstance(extent, ProfileExtent):
+            raise ValueError("Supply an explicit flat profile extent")
         first, second = witness.pieces
         target = route.targets
         a = _identify(route.pieces[first], witness.first, target.lines, target.diameter_mm)
         b = _identify(route.pieces[second], witness.second, target.lines, target.diameter_mm)
         if a is None or b is None:
             return None
+        if extent is ProfileExtent.COMPLETE:
+            a, b = (
+                FlatPart(
+                    part.phase,
+                    -route.half_width_mm,
+                    route.half_width_mm,
+                    target.diameter_mm / 2 + 1e-11,
+                )
+                for part in (a, b)
+            )
         first_shape = flat_prism(route.pieces[first], a)
         second_shape = flat_prism(route.pieces[second], b)
         candidates = (

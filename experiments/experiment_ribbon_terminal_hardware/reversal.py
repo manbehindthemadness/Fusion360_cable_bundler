@@ -14,13 +14,20 @@ from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
-from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
+from experiments.experiment_ribbon_fold_relaxation.steps import (
+    MAXIMUM_ANGULAR_STEP_RADIANS,
+    advance,
+    projected,
+    step_limit,
+)
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
 from .gate import Gate
-from .reversal_model import ReversalModel, incident_fold
+from .native_projection import native_slot_step
+from .reversal_model import NativeReversal, ReversalModel, incident_fold
+from .run_translation import translate
 
 
 class _Exhausted(RuntimeError):
@@ -51,6 +58,12 @@ def correct(
     Every unsuccessful action retains the original route for ordinary smoothing.
     None means no demonstrated supported action, so ordinary contraction may run.
     Caller checkpoint failures propagate; optional phase exhaustion stays recorded.
+    A closed self-separated reflection that still hits hardware may spend one
+    unused update on original straight lengths with every bend fixed. This
+    restoration can grow the invalid source; length excess is reported rather
+    than called shortening. All preceding work and certificates debit the same
+    four-update/.35CPU/2wall/1024pair allowance. No new nonlinear Newton step,
+    reflected source, target or route-candidate bank enters the translation.
     """
     if (
         type(minimum_straight_mm) not in (int, float)
@@ -83,6 +96,7 @@ def correct(
     }
     candidate = None
     measurement = None
+    active_pairs = 0
 
     def bounded() -> None:
         """
@@ -130,6 +144,7 @@ def correct(
         else:
             bounded()
             detail["contacts"] += 1
+            active_pairs = 1024
             measurement = inspect_contact(
                 candidate,
                 maximum_pairs=1024,
@@ -137,6 +152,7 @@ def correct(
                 checkpoint=bounded,
             )
             detail["contact_pairs"] = measurement.pairs_checked
+            active_pairs = 0
             emit("contact", route=snapshot(candidate), contact=asdict(measurement))
             if measurement.status != "separated":
                 detail["stop_reason"] = "self_contact_not_separated"
@@ -145,9 +161,58 @@ def correct(
             else:
                 bounded()
                 detail["status"] = "shortened"
+        if (
+            detail.get("stop_reason") == "terminal_clearance_not_established"
+            and detail["iterations"] < 4
+        ):
+            bounded()
+            detail["before_translation"] = dict(detail)
+            detail["iterations"] += 1
+            proposal = translate(original, evidence, terminal.hardware, bounded)
+            detail["straight_translation_attempted"] = True
+            if (
+                proposal is not None
+                and cap_error(proposal) <= 1e-7
+                and material_error(proposal) <= 1e-10
+                and all(
+                    not isinstance(piece.geometry, Straight)
+                    or piece.geometry.material_length_mm > minimum_straight_mm
+                    for piece in proposal.pieces
+                )
+            ):
+                pairs = 1024 - detail["contact_pairs"]
+                if pairs > 0:
+                    detail["contacts"] += 1
+                    active_pairs = pairs
+                    measurement = inspect_contact(
+                        proposal,
+                        maximum_pairs=pairs,
+                        cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+                        checkpoint=bounded,
+                    )
+                    detail["contact_pairs"] += measurement.pairs_checked
+                    active_pairs = 0
+                    emit(
+                        "straight_translation_contact",
+                        route=snapshot(proposal),
+                        contact=asdict(measurement),
+                    )
+                    if measurement.status == "separated" and terminal.permits(
+                        proposal, "straight_translation"
+                    ):
+                        bounded()
+                        candidate = proposal
+                        detail.pop("stop_reason")
+                        detail["status"] = "restored"
+                        detail["length_goal_excess_mm"] = max(
+                            0.0, proposal.material_length_mm - original.material_length_mm
+                        )
     except _Exhausted:
         detail["stop_reason"] = "phase_budget"
-    accepted = detail["status"] == "shortened"
+        if active_pairs:
+            detail["contact_pairs"] += active_pairs
+            detail["interrupted_pairs_charged_as_upper_bound"] = active_pairs
+    accepted = detail["status"] in ("shortened", "restored")
     result = candidate if accepted else original
     assert result is not None
     detail.update(
@@ -160,14 +225,36 @@ def correct(
 
 
 def close_update(
-    model: MovableBends, initial: tuple[float, ...], checkpoint: Callable[[], None]
+    model: MovableBends,
+    initial: tuple[float, ...],
+    checkpoint: Callable[[], None],
+    *,
+    remaining_steps: int | None = None,
+    minimum_straight_mm: float | None = None,
 ) -> tuple[tuple[float, ...], int, str | None]:
     """
-    Perform one shared six-Newton/four-halving ordered-cap correction without fixing zero runways.
+    Perform one shared six-Newton/four-halving ordered-cap correction with declared native-slot handling.
 
     Return the last bounded coordinates, motion count and any nonconvergence cause.
     A missing cause does not itself certify closure; callers test the residual.
+    With an explicit remaining original allocation, decline a linear angular
+    correction exceeding its total trust travel before applying that step. This
+    predicts excessive local work, not global infeasibility. Default callers keep
+    their existing behavior; no steps or physical acceptance limits are renewed.
+    Native zero-slot reclosure may reuse the declared native minimum to exclude
+    sub-minimum motion in absent runways before reprojection of these same caps.
+    Larger growth remains free; no completed geometry is clamped or welded.
     """
+    if remaining_steps is not None and (
+        type(remaining_steps) is not int or not 1 <= remaining_steps <= 24
+    ):
+        raise ValueError("Supply one to24genuinely remaining original Newton steps")
+    if minimum_straight_mm is not None and (
+        type(minimum_straight_mm) not in (int, float)
+        or not math.isfinite(minimum_straight_mm)
+        or minimum_straight_mm <= 0
+    ):
+        raise ValueError("Supply the original positive finite native minimum")
     values, steps = initial, 0
     for _ in range(6):
         checkpoint()
@@ -175,11 +262,25 @@ def close_update(
         error = max(map(abs, residual))
         if error < 1e-13:
             return values, steps, None
-        delta = projected(
-            model, values, model.jacobian(values), [-v for v in residual], [0.0] * len(values)
-        )
+        if remaining_steps is not None and steps >= remaining_steps:
+            return values, steps, "closure_step_budget"
+        rows = model.jacobian(values)
+        delta = projected(model, values, rows, [-v for v in residual], [0.0] * len(values))
+        if (
+            delta is not None
+            and minimum_straight_mm is not None
+            and isinstance(model, NativeReversal)
+        ):
+            delta = native_slot_step(model, values, rows, residual, delta, minimum_straight_mm)
         if delta is None:
             return values, steps, "linear_closure_infeasible"
+        if remaining_steps is not None:
+            angular = max(
+                (abs(value) for i, value in enumerate(delta) if i not in model.straight_indices),
+                default=0.0,
+            )
+            if angular > MAXIMUM_ANGULAR_STEP_RADIANS * (remaining_steps - steps):
+                return values, steps, "linear_trust_budget"
         step = step_limit(model, values, delta, 1.0)
         for _ in range(4):
             checkpoint()

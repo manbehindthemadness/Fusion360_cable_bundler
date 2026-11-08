@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from devtools.ribbon_analysis.gym.placement import adjacent
 from experiments.experiment_ribbon_regression import runner
 from experiments.experiment_ribbon_regression.corpus import CORPUS, load
 
@@ -38,12 +39,12 @@ def test_corpus_keeps_every_archived_problem_and_retained_control() -> None:
     }
 
 
-def test_current_corpus_preserves_v1_and_enrolls_trigger_with_three_passed_controls() -> None:
+def test_v2_corpus_preserves_v1_and_enrolls_trigger_with_three_passed_controls() -> None:
     """
     Keep every earlier case unchanged while retaining the current intersection and pre-fix collateral inputs.
     """
     original = load(CORPUS.with_name("gym-v1.json"))
-    current = load()
+    current = load(CORPUS.with_name("gym-v2.json"))
     for earlier, retained in zip(original["cases"], current["cases"][:54]):
         assert {k: v for k, v in earlier.items() if k != "history"} == {
             k: v for k, v in retained.items() if k != "history"
@@ -65,7 +66,7 @@ def test_late_terminal_failure_keeps_three_preceding_controls_without_alias_infl
     """
     Retain the new N2/N10 controls and N7 failure; N8 remains the existing exact prior-case01.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     added = corpus["cases"][57:60]
     assert [c["targets"]["lines"] for c in added] == [2, 10, 7]
     assert [c["history"][0]["disposition"] for c in added] == [
@@ -80,7 +81,7 @@ def test_fold_clearance_failure_retains_three_passed_controls_and_existing_alias
     """
     Keep prior60inputs and add only the two genuinely new passed layouts plus current N4 failure.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     added = corpus["cases"][60:63]
     assert [c["id"] for c in added] == ["rangebec-case-5", "rangebec-case-6", "rangebec-case-7"]
     assert [c["history"][0]["disposition"] for c in added] == [
@@ -95,7 +96,7 @@ def test_measurement_failure_keeps_new_control_and_two_existing_aliases() -> Non
     """
     Preserve the prior 63 inputs, adding only a new passed N8 control and the N6 stop.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     added = corpus["cases"][63:65]
     assert [c["id"] for c in added] == ["range3887-case-9", "range3887-case-12"]
     assert [c["history"][0]["disposition"] for c in added] == [
@@ -109,7 +110,7 @@ def test_straight_quality_failure_keeps_preceding_controls_and_existing_alias() 
     """
     Preserve prior 65 inputs and add only two new passed controls plus the N3 stop.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     added = corpus["cases"][65:68]
     assert [c["id"] for c in added] == [
         "range510-case-14",
@@ -128,7 +129,7 @@ def test_fold_quality_failure_keeps_all_three_preceding_passes() -> None:
     """
     Preserve the prior 68 inputs and retain all four distinct monitored boundary configurations.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     added = corpus["cases"][68:72]
     assert [c["id"] for c in added] == [f"ranged9c-case-{i}" for i in range(53, 57)]
     assert [c["history"][0]["disposition"] for c in added] == [
@@ -144,7 +145,7 @@ def test_completed_recovery_failure_keeps_three_alias_controls_and_one_new_input
     """
     Retain the N1 stop without inflating the three preceding, already enrolled boundary inputs.
     """
-    corpus = load()
+    corpus = load(CORPUS.with_name("gym-v2.json"))
     assert len(corpus["cases"]) == 73
     case = corpus["cases"][-1]
     assert case["id"] == "range4c57-case-57"
@@ -153,6 +154,52 @@ def test_completed_recovery_failure_keeps_three_alias_controls_and_one_new_input
     for retained in corpus["cases"][69:72]:
         assert len(retained["history"]) == 2
         assert retained["history"][-1]["disposition"] == "retained_control"
+
+
+def test_active_corpus_excludes_adjacent_inputs_without_changing_archived_cases() -> None:
+    """
+    Scope current QA to separated cells while preserving every retained record and historical failure.
+    """
+    archived = load(CORPUS.with_name("gym-v2.json"))
+    current = load()
+    expected = [
+        case
+        for case in archived["cases"]
+        if not adjacent(case["gym"]["a"]["zone"], case["gym"]["b"]["zone"])
+    ]
+    assert current["revision"] == 3 and current["placement_policy"] == "separated_cubicles"
+    assert len(current["cases"]) == 65 and current["cases"] == expected
+    excluded = {case["id"] for case in current["exclusions"]}
+    assert len(excluded) == 8
+    assert excluded == {case["id"] for case in archived["cases"]} - {
+        case["id"] for case in current["cases"]
+    }
+    assert {"historical-32e26c5c88b5", "historical-e03a89e210af"} <= excluded
+
+
+@pytest.mark.parametrize("corruption", ("adjacent", "missing_gym", "zone", "policy"))
+def test_active_placement_policy_rejects_invalid_enrollment(
+    tmp_path: Path, corruption: str
+) -> None:
+    """
+    Stop inadmissible or unidentified placement before it can create another false solver failure.
+    """
+    corpus = load()
+    if corruption == "adjacent":
+        archived = load(CORPUS.with_name("gym-v2.json"))
+        corpus["cases"].append(
+            next(case for case in archived["cases"] if case["id"] == "historical-32e26c5c88b5")
+        )
+    elif corruption == "missing_gym":
+        corpus["cases"][0].pop("gym")
+    elif corruption == "zone":
+        corpus["cases"][0]["gym"]["a"]["zone"] = True
+    else:
+        corpus["placement_policy"] = "seperated_cubicles"
+    path = tmp_path / "corpus.json"
+    path.write_text(json.dumps(corpus))
+    with pytest.raises(ValueError, match="cubicle|placement"):
+        load(path)
 
 
 @pytest.mark.parametrize("corruption", ("duplicate", "target", "provenance", "settings"))
