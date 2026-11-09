@@ -1,0 +1,53 @@
+{
+    "version": "0.1.0",
+    "id": "2c1275d7-01ce-4313-b469-47ad08b9ef48",
+    "timestamp": "2026-11-09T02:44:36.841686Z",
+    "vcs": {
+        "type": "git",
+        "revision": "9b4b6cd88cb47a62838d9ea36ff40f6fcff92b9a",
+        "origin": "github",
+        "repository": "git@github.com:manbehindthemadness/Fusion360_cable_bundler.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/feature_recovery.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 263,
+                            "end_line": 263
+                        },
+                        {
+                            "start_line": 271,
+                            "end_line": 271
+                        },
+                        {
+                            "start_line": 278,
+                            "end_line": 278
+                        },
+                        {
+                            "start_line": 344,
+                            "end_line": 344
+                        },
+                        {
+                            "start_line": 352,
+                            "end_line": 352
+                        },
+                        {
+                            "start_line": 354,
+                            "end_line": 354
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
