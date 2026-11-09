@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
+from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from devtools.ribbon_analysis.pinch import PinchLimit
 from experiments.experiment_ribbon_feature_insertion import contact_recovery
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
@@ -223,12 +224,22 @@ def test_unsupported_contact_does_not_probe_or_replace_original_recovery(
     monkeypatch: pytest.MonkeyPatch, branches: Construction
 ) -> None:
     """
-    A contact without the return bracket cannot consume hardware work or select a joint fallback.
+    Curved contact without a return bracket or mating lead cannot consume hardware work.
     """
     branch, contact = branches.rejected[0]
     assert contact.witness is not None and branches.route is not None
+    first, second = (branch.route.pieces[i].geometry for i in contact.witness.pieces)
+    assert isinstance(first, CylindricalFold) and isinstance(second, CylindricalFold)
+    first_low, first_high = first.bend_interval(contact.witness.first[1])
+    second_low, second_high = second.bend_interval(contact.witness.second[1])
     witness = replace(
-        contact.witness, first=(1.0, contact.witness.first[1], contact.witness.first[2])
+        contact.witness,
+        first=((first_low + first_high) / 2, contact.witness.first[1], contact.witness.first[2]),
+        second=(
+            (second_low + second_high) / 2,
+            contact.witness.second[1],
+            contact.witness.second[2],
+        ),
     )
     assert paired_return_fold(branch.route, witness) is None
     unsupported = replace(contact, witness=witness)

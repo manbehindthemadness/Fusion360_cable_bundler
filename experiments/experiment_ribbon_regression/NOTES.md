@@ -499,3 +499,86 @@ plus1separate setup stop;longest82,incident22,reviewed20,next40.1,000goal UNMET.
 Latest shared change preserved110earlier routepairs across111numerical inputs and
 passed one42native qualification; this finite transfer does not establish universal
 reliability. Stop-on-break honored; no new65refinement or restart is scheduled.
+
+## Trust-clipped mating crossings with a clear fallback, Nov8 case65
+
+1655retains64/65ordinary passes;65is eligible and numerically/hardware/native-
+fidelity accepted, but precise stress bounds exceed the gym allowance10.622094mm.
+All four earlier shortening iterates really self-intersect. The shorter92.778mm
+construction's straight/straight crossing spends all4ordinary recovery updates
+on a fixed world-plane gap; the165.216mm safe fallback survives. Gym bounds remain
+an output stress test and never enter solver guidance, coordinates or acceptance.
+The existing coupled flat engine can retain actual subsequent crossings instead
+of undoing earlier separation. A clear baseline still requires strict length and
+whole-guide dominance; only actual blocked-baseline restoration has its old waiver.
+Broad flat activation changed139, then straight-only activation changed42; both
+were rejected with unattempted cases retained. Existing first-motion trust demand
+separates clipped65from full-step42. Only a confirmed straight/straight mating
+crossing whose existing trust-clipped first gap stays closed now enters coupling.
+MatingSupport carries that already-computed geometry/prediction; all other motions
+retain their sequence. No fixture IDs, changed radius, roots, tolerances, budgets,
+output repair or native-builder changes.1664prototype134/134accepted,133earlier
+routepairs exact,65matches1660; native validation remains a separate gate.
+50focused behaviors/Ruff/format/IDE3pass. A locally regenerated floating-point
+variant remains optimization-unresolved; the exact frozen Fusion input is the
+regression contract. Neither finite transfer nor native construction proves full
+physical compliance. Evidence:artifacts/verification/resume1656..1666/.
+
+1666final134accepted,133earlier pairs exact,65prototypeexact.1667one65native
+qualification passes named fidelity/hardware/precise bounds,7840points434seams,
+max4.456481e-9mm,0warnings. CPU1.195781/native.858500s timing-goal miss; audit
+.712317s separate.1668unchanged1000campaign resumes at new streak0,incident22,
+next40. Original failure and all rejected/missing outcomes remain.
+
+## Retain actual subsequent hardware evidence during radius restoration, case66
+
+Original66stops after the first radius constraint clears and a distinct internal
+straight/fold enters the connector. The caller still owns unused updates/time/pairs.
+The shared coupled engine now lets this existing radius mode retain a second
+actual report using its existing bounded plane machinery. It releases no other
+radius, moves no target, changes no sign and renews no allocation. A single-source
+length goal excess remains reported; restoration already treats that invalid
+source length as a quality goal. Full contact/hardware/cap/material checks stay
+strict. Other legacy hardware modes retain their original stopping policy.
+1669baseline66fails,radius103/clipped65/member38controls pass.1670candidate66
+accepts20.933976750mm with3total updates13Newton/.092681CPU/124recoverypairs,
+all3control pairs exact.1671prototype135allaccepted,134earlier pairs exact,
+66prototypeexact; examined development inputs, not holdouts.45focused checks/
+Ruff/format/IDE2pass. Actual1673and native1674remain separate gates.
+
+1673ACTUAL135/135accepted,134earlier first/final routepairs EXACT,66prototype
+EXACT,0unattempted,95.674382s.1674ONE66native attempted/built/named fidelity/
+hardware/precise boundsPASS:3570points198seams,max1.228979e-9mm,0warnings,
+0boundary excess. Solve.346050CPU/native.389136s TIMINGGOALPASS; audit.550248s
+separate. Original source-length quality excess4.321881mm remains. No retry;
+failed66rejected inspection retained.1675restarts unchanged1000spec/seed/settings,
+fresh streak0,ordinarybase1054attempts1032passes/18numerical/3boundary/1native-
+audit failure+1setup,longest82,incident23,reviewed20,next40. Source260,45focused
+checks/Ruff/format/IDE2clean; earlier unaffected50checks retained. Same physical/
+resource gates and20minute autonomous reviews. Full physical audit unmeasured.
+
+## Actual mating flats rather than separate-piece labels, case71
+
+A first-fold BEFOREflat can be the actual entry lead even when stored inside
+a cylindrical-fold piece. The old eligibility check recognizes only separate
+end straights, so71spends its original remaining1170pairs on self-contact alone
+then cannot restore hardware. New shared classification includes first BEFORE/
+last AFTERactual phases, alongside legacy end straights. It grants no clearance
+or work: failed first-gap prediction and actual blocked-baseline evidence still
+select existing coupled full-profile correction. Curved/internal/opposite phases
+remain unsupported.1677accepts71with2updates8Newton/.149600CPU/408pairs; all
+three collateral pairs exact.1680full140accepted,139CURRENT-baseline pairs exact.
+69historical ordinary contraction hit.35CPU; fresh unmodified baseline1679matches
+prototype exactly, while the new helper never runs. Both timing-dependent valid
+outputs remain.54focused behaviors/Ruff/format/IDE4clean; native1683pending.
+
+1682ACTUAL140/140accepted,139CURRENT-baseline routepairs EXACT,71prototype
+EXACT,0unattempted,99.130410s.69historical timing variant and fresh1679baseline
+remain separately retained.1683ONE71native attempted/built/named fidelity/
+hardware/precise boundsPASS:11200points620seams,max7.530591e-10mm,0warnings,
+0boundary excess. Solve1.428224CPU/native1.219536s TIMINGGOALMISS; audit2.134746s
+separate. No retry; original failed71inspection remains.1684restarts unchanged
+1000spec/seed/settings,fresh streak0,ordinarybase1125attempts1102passes/19numerical/
+3boundary/1native-audit failure+1setup,longest82,incident24,reviewed20,next40.
+Source260,54focused checks/Ruff/format/IDE4clean. Same physical/resource gates and
+20minute autonomous reviews. Full physical audit unmeasured.

@@ -62,7 +62,9 @@ def recover_construction(
     A witnessed mating-runway crossing may instead carry explicit blocked-baseline
     restoration policy after coupled self/hardware certification. That policy
     retains the baseline length ceiling but permits a guide tradeoff to recover
-    physical feasibility. Report restoration separately from guide improvement;
+    physical feasibility. Explicit released-quality restoration may exceed that
+    blocked baseline's length after its constrained projection failed; every
+    physical certificate remains required. Report restoration separately from guide improvement;
     internal crossings and the existing paired-fold policy remain unchanged.
     No new roots or pair allowance are added: recovery shares the original2048pool
     and caller's four-second deadline, with its existing four-update/.35CPU cap.
@@ -173,17 +175,21 @@ def recover_construction(
     if baseline is not None:
         assert fallback_branch is not None
         guide_improvement = False
+        restoring = recovery.baseline_policy in (
+            BaselinePolicy.RESTORE_BLOCKED,
+            BaselinePolicy.RESTORE_BLOCKED_GOAL,
+        )
         if selected is not None:
             candidate = Branch.measure(fallback_branch.roots, selected, frames.guide)
             guide_improvement = improves(candidate, baseline)
-            restoring = recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED
-            if (
-                selected.material_length_mm > baseline.route.material_length_mm
-                if restoring
-                else not guide_improvement
-            ):
+            if recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED:
+                permitted = selected.material_length_mm <= baseline.route.material_length_mm
+            elif recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED_GOAL:
+                permitted = True
+            else:
+                permitted = guide_improvement
+            if not permitted:
                 selected = None
-        restoring = recovery.baseline_policy is BaselinePolicy.RESTORE_BLOCKED
         detail.update(
             purpose="restore_blocked_fallback" if restoring else "improve_separated_fallback",
             roots=fallback_branch.roots,

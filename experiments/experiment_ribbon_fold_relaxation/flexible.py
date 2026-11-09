@@ -85,12 +85,21 @@ class FlexibleModel(ClosureModel):
 
     def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
         """
-        Recompose isometric folds with bank-dependent flat caps and fixed extra runway.
+        Validate and place every original material segment with the shared immutable append kernel.
 
-        A zero-angle fold becomes its flat leads; adjacent flats merge. The
-        necessary staggered flat leads change with the bank angle. Their
-        original extra margins are retained; this is part of the mathematical
-        candidate, never a native geometry repair or independently fitted lane.
+        Zero-angle folds retain their flat leads and adjacent straights merge.
+        Bank-dependent leads, radius anchors, labels and ordered poses use the
+        same arithmetic as prefix placement; no output fitting is performed.
+        """
+        self._validate_values(values)
+        output: list[PlacedPiece] = []
+        for index in range(len(self.folds) + 1):
+            self._append_segment(output, index, values)
+        return tuple(output)
+
+    def _validate_values(self, values: tuple[float, ...]) -> None:
+        """
+        Reject incomplete, nonfinite or out-of-bound full coordinates before placing any prefix.
         """
         if len(values) != 4 * len(self.folds) + 1:
             raise ValueError("Supply four coordinates per fold and one final runway slot")
@@ -99,50 +108,62 @@ class FlexibleModel(ClosureModel):
             for i, v in enumerate(values)
         ):
             raise ValueError("Flexible material coordinate outside its declared bounds")
+
+    def _append_segment(
+        self, output: list[PlacedPiece], index: int, values: tuple[float, ...]
+    ) -> None:
+        """
+        Append one validated runway/fold segment, preserving exact merge arithmetic and material order.
+
+        Internal prefix callers supply the original coordinate prefix through
+        this segment. Earlier immutable pieces may be shared; this mutates only
+        the caller's list and replaces a terminal straight when merging it.
+        """
         target = self.original.targets
-        pose = Pose(target.start, target.start_tangent, target.start_width)
-        output = []
-        for index in range(len(self.folds) + 1):
-            geometries: list[Piece] = []
-            length = values[4 * index] * self.scale
-            if length > 1e-12:
-                geometries.append(Straight(length))
-            if index < len(self.folds):
-                original = self.folds[index]
-                angle, bank, radius = values[4 * index + 1 : 4 * index + 4]
-                old_lead = original.width_mm / 2 * abs(math.tan(original.bank_radians))
-                lead = original.width_mm / 2 * abs(math.tan(bank))
-                before = lead + max(0.0, original.before_mm - old_lead)
-                after = lead + max(0.0, original.after_mm - old_lead)
-                if angle == 0.0:
-                    if before + after > 1e-12:
-                        geometries.append(Straight(before + after))
-                else:
-                    geometries.append(
-                        CylindricalFold(
-                            self._radius_mm(index, radius),
-                            angle,
-                            bank,
-                            original.width_mm,
-                            before,
-                            after,
-                        )
+        pose = (
+            output[-1].end_pose()
+            if output
+            else Pose(target.start, target.start_tangent, target.start_width)
+        )
+        geometries: list[Piece] = []
+        length = values[4 * index] * self.scale
+        if length > 1e-12:
+            geometries.append(Straight(length))
+        if index < len(self.folds):
+            original = self.folds[index]
+            angle, bank, radius = values[4 * index + 1 : 4 * index + 4]
+            old_lead = original.width_mm / 2 * abs(math.tan(original.bank_radians))
+            lead = original.width_mm / 2 * abs(math.tan(bank))
+            before = lead + max(0.0, original.before_mm - old_lead)
+            after = lead + max(0.0, original.after_mm - old_lead)
+            if angle == 0.0:
+                if before + after > 1e-12:
+                    geometries.append(Straight(before + after))
+            else:
+                geometries.append(
+                    CylindricalFold(
+                        self._radius_mm(index, radius),
+                        angle,
+                        bank,
+                        original.width_mm,
+                        before,
+                        after,
                     )
-            for geometry in geometries:
-                if (
-                    isinstance(geometry, Straight)
-                    and output
-                    and isinstance(output[-1].geometry, Straight)
-                ):
-                    previous = output.pop()
-                    pose = previous.pose
-                    geometry = Straight(
-                        previous.geometry.material_length_mm + geometry.material_length_mm
-                    )
-                placed = PlacedPiece(pose, geometry, f"{self.label_prefix}{len(output) + 1}")
-                output.append(placed)
-                pose = placed.end_pose()
-        return tuple(output)
+                )
+        for geometry in geometries:
+            if (
+                isinstance(geometry, Straight)
+                and output
+                and isinstance(output[-1].geometry, Straight)
+            ):
+                previous = output.pop()
+                pose = previous.pose
+                geometry = Straight(
+                    previous.geometry.material_length_mm + geometry.material_length_mm
+                )
+            placed = PlacedPiece(pose, geometry, f"{self.label_prefix}{len(output) + 1}")
+            output.append(placed)
+            pose = placed.end_pose()
 
     def _radius_mm(self, fold_index: int, coordinate: float) -> float:
         """

@@ -58,11 +58,12 @@ class InitialPolicy(Enum):
 
 class BaselinePolicy(Enum):
     """
-    Distinguish guide improvement from restoring an actually hardware-blocked baseline within its length.
+    Distinguish guide improvement, length-bounded restoration and explicitly released blocked quality.
     """
 
     GUIDE_IMPROVEMENT = "guide_improvement"
     RESTORE_BLOCKED = "restore_blocked"
+    RESTORE_BLOCKED_GOAL = "restore_blocked_goal"
 
 
 @dataclass(frozen=True)

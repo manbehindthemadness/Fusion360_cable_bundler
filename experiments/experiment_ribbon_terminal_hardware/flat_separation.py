@@ -19,7 +19,7 @@ from experiments.experiment_ribbon_fold_route.contact_flat_geometry import (
     profile_arcs,
     region,
 )
-from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Straight
 
 from .feature_plane import SignedJoints
 
@@ -71,6 +71,39 @@ def _identify(
         if arc.low_q <= q <= arc.high_q:
             return FlatPart(phase, arc.low_q, arc.high_q, arc.maximum_height() + 1e-11)
     return None
+
+
+def mating_lead_crossing(route: FoldRoute, witness: Penetration) -> bool:
+    """
+    Classify a strict crossing involving an occupied terminal lead, without certifying clearance.
+
+    A lead can be a separate end straight or the BEFORE flat of the first fold
+    or AFTER flat of the last fold. Curved portions, opposite fold phases and
+    internal flat slots are not mating leads. Phase identification uses the
+    same actual material coordinates as full-profile correction guidance.
+    Invalid or unordered material indices raise ValueError. The caller must
+    still establish motion eligibility and certify the complete changed route.
+    """
+    first, second = witness.pieces
+    if any(type(i) is not int for i in witness.pieces) or not 0 <= first < second < len(
+        route.pieces
+    ):
+        raise ValueError("A mating witness must identify ordered existing material pieces")
+    folds = tuple(
+        i for i, piece in enumerate(route.pieces) if isinstance(piece.geometry, CylindricalFold)
+    )
+    for index, coordinates in zip(witness.pieces, (witness.first, witness.second)):
+        piece = route.pieces[index]
+        if index in (0, len(route.pieces) - 1) and isinstance(piece.geometry, Straight):
+            return True
+        if folds and index in (folds[0], folds[-1]) and isinstance(piece.geometry, CylindricalFold):
+            part = _identify(piece, coordinates, route.targets.lines, route.targets.diameter_mm)
+            if part is not None and (
+                (index == folds[0] and part.phase is FlatPhase.BEFORE)
+                or (index == folds[-1] and part.phase is FlatPhase.AFTER)
+            ):
+                return True
+    return False
 
 
 def paired_return_fold(route: FoldRoute, witness: Penetration) -> int | None:

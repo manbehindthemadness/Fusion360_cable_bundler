@@ -604,3 +604,21 @@ all equations before strict contact/native checks. Saved corpus: 63 evaluated,
 49 accepted / 14 unresolved, all 48 previous accepted final/first-pass routes exact.
 One current native build/fidelity/boundary pass; tester journal remains 6/7, stopped.
 [Method, retained failures, limits and timings](FEATURE_CLEARANCE.md).
+
+One-radius restoration now uses independent occupied-member box halfspaces,
+reusing existing member_planes and bounded active projection (case74). Shared
+RELEASED_QUALITY continuation additionally recognizes an actual declined fixed
+reflection followed by length-released straight-quality joint_no_descent (case78).
+Only unused original work and the witness-incident radius are released; generic
+stalls and malformed history are ineligible. All physical/native gates remain.
+147saved numerical inputs pass;146earlier pairs exact for the78change. Five affected
+complete configurations natively built and passed named fidelity/hardware/precise
+bounds across1705and1713,zero warnings. Full physical audit remains unmeasured.
+
+Blocked-mating restoration now retains its initial length ceiling until bounded
+linear projection declines. Only measured blocked eligibility may then continue
+at the same coordinates with independent occupied-member hardware halfspaces
+and an explicit inherited length goal. Clear entries retain original length/guide
+dominance. BLOCKED_MATING/RESTORE_BLOCKED_GOAL carry this policy without changing
+physical gates or renewing work.157saved pairs preserved by prefix optimization;
+88native qualification passes in1734. Failed CPU qualification1724stays separate.

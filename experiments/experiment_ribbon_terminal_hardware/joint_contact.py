@@ -43,11 +43,12 @@ from .straight_quality import StraightQuality
 
 class JointMode(Enum):
     """
-    Distinguish parent improvement, bounded mating restoration and one-radius physical restoration.
+    Distinguish parent improvement, mating quality policies and one-radius physical restoration.
     """
 
     PARENT_CEILING = "parent_ceiling"
     MATING_CEILING = "mating_ceiling"
+    BLOCKED_MATING = "blocked_mating"
     RADIUS_RESTORATION = "radius_restoration"
 
 
@@ -94,13 +95,24 @@ def recover(
     sixteen-step active projection; constraint, update, time and pair limits stay
     unchanged. Other modes retain their original aggregated profile-arc guidance.
     A strict material crossing can initialize complete-profile flat guidance
-    without inventing hardware intrusion. Only that entry can subsequently add
-    up to two demonstrated connector planes; legacy hardware entries retain
-    their original single-plane stopping behavior and profile-arc guidance.
+    without inventing hardware intrusion. That entry can subsequently add
+    up to two demonstrated connector planes. One-radius restoration can also
+    retain a second actually witnessed hardware feature after clearing its
+    initial constraint. Each occupied member gets its own closest box halfspace;
+    adjoining members need not clear the same box face. Up to thirteen physical
+    inequalities use the existing sixteen-step projection when needed. Both
+    features share the same remaining updates, clocks and pair pool; no additional
+    radius is released. Other legacy hardware entries retain their single-plane
+    stopping behavior and profile-arc guidance.
     Incident guidance retains actual prior reports, reflects their one witnessed
     event and gives occupied members independent separating planes. At most four
     features/thirteen physical inequalities use sixteen dual active-set steps,
     replacing scalar subset enumeration under the same caller work allocation.
+    Explicit blocked-mating entry initially retains the same mating ceiling.
+    Only after linear projection failure may its inherited quality ceiling become
+    a reported length goal, with independent occupied hardware-member halfspaces
+    rebound at the same coordinates. Every existing physical constraint and spent
+    update remains; clear mating improvement never enters that release.
     """
     if not isinstance(mode, (JointMode, IncidentGuidance)):
         raise ValueError("Supply an explicit joint recovery mode")
@@ -113,6 +125,7 @@ def recover(
         minimum_straight_mm=minimum_straight_mm,
     )
     cpu, wall = process_time(), perf_counter()
+    mating_mode = mode in (JointMode.MATING_CEILING, JointMode.BLOCKED_MATING)
     selected: int | None = None
     model: SignedJoints
     if isinstance(mode, IncidentGuidance):
@@ -153,16 +166,16 @@ def recover(
         raise ValueError(
             "Initialize joint work from measured hardware or material crossing evidence"
         )
-    scalar_planes = (
-        member_planes(planes, model, values) if isinstance(mode, IncidentGuidance) else planes
-    )
-    if isinstance(mode, IncidentGuidance) and len(scalar_planes) + 1 > 13:
+    independent_members = isinstance(mode, IncidentGuidance) or mode is JointMode.RADIUS_RESTORATION
+    scalar_planes = member_planes(planes, model, values) if independent_members else planes
+    if independent_members and len(scalar_planes) + 1 > 13:
         return None
     project = active_step if isinstance(mode, IncidentGuidance) else quality_step
+    length_released = False
     bounded_length = mode is not JointMode.RADIUS_RESTORATION
     length_target = (
         StraightQuality(maximum_length_mm, maximum_updates).target_mm
-        if mode is JointMode.MATING_CEILING
+        if mating_mode
         else maximum_length_mm - 1e-7
         if isinstance(mode, IncidentGuidance)
         else maximum_length_mm
@@ -214,7 +227,7 @@ def recover(
                 1e-8 / model.scale - constraint.gap(coordinates, chosen_side)
                 for constraint, chosen_side in constraints
             )
-            equation_terms += flat_terms if mode is JointMode.MATING_CEILING else (max(flat_terms),)
+            equation_terms += flat_terms if mating_mode else (max(flat_terms),)
         return equation_terms
 
     evaluation = JointEvaluation(raw_equations, model.admissible)
@@ -275,8 +288,10 @@ def recover(
                     break
                 hardware_report = terminal.measure(candidate, "joint_flat_contact_final")
                 if hardware_report.status != "clear":
-                    if not isinstance(evidence, Penetration) and not isinstance(
-                        mode, IncidentGuidance
+                    if (
+                        not isinstance(evidence, Penetration)
+                        and not isinstance(mode, IncidentGuidance)
+                        and mode is not JointMode.RADIUS_RESTORATION
                     ):
                         stop = "hardware_not_clear"
                         break
@@ -298,9 +313,14 @@ def recover(
                         stop = "hardware_not_clear"
                         break
                     planes.append(extra)
-                    if isinstance(mode, IncidentGuidance):
+                    if independent_members:
                         scalar_planes = member_planes(planes, model, values)
-                        if len(scalar_planes) + 1 + bool(constraints) > 13:
+                        inequalities = len(scalar_planes) + (
+                            len(constraints) + int(bounded_length)
+                            if mating_mode
+                            else 1 + bool(constraints)
+                        )
+                        if inequalities > 13:
                             stop = "physical_inequality_capacity"
                             break
                     evaluation.constraints_changed()
@@ -342,9 +362,7 @@ def recover(
                     model,
                     candidate,
                     measured_contact.witness,
-                    extent=ProfileExtent.COMPLETE
-                    if mode is JointMode.MATING_CEILING
-                    else ProfileExtent.ARC,
+                    extent=ProfileExtent.COMPLETE if mating_mode else ProfileExtent.ARC,
                 )
                 if created_bound is None or len(constraints) >= 4:
                     stop = "unsupported_or_exhausted_flat_constraints"
@@ -363,7 +381,10 @@ def recover(
                     Side, key=lambda chosen: (bound.gap(model.initial, chosen), -chosen.value)
                 )
                 keys.add(key)
-                if isinstance(mode, IncidentGuidance) and len(scalar_planes) + 2 > 13:
+                inequalities = len(scalar_planes) + (
+                    len(constraints) + 1 + int(bounded_length) if mating_mode else 2
+                )
+                if independent_members and inequalities > 13:
                     stop = "physical_inequality_capacity"
                     break
                 constraints.append((bound, side))
@@ -393,10 +414,24 @@ def recover(
                 admissible=admissible,
             )
             project_step = (
-                active_step if mode is JointMode.MATING_CEILING and len(terms) > 10 else project
+                active_step if (mating_mode or independent_members) and len(terms) > 10 else project
             )
             delta = project_step(model, values, jacobian, terms, bounded)
             if delta is None:
+                if mode is JointMode.BLOCKED_MATING and not length_released:
+                    parts = member_planes(planes, model, values)
+                    if len(parts) + len(constraints) > 13:
+                        stop = "physical_inequality_capacity"
+                        break
+                    length_released, bounded_length, independent_members = True, False, True
+                    scalar_planes = parts
+                    evaluation.constraints_changed()
+                    emit(
+                        "blocked_length_goal_released",
+                        newton_steps=newton,
+                        length_goal_mm=maximum_length_mm,
+                    )
+                    continue
                 stop = "linear_projection_infeasible"
                 break
             native_zero = {
@@ -447,9 +482,17 @@ def recover(
         "flat_constraints": len(constraints),
         "probe": asdict(probe),
     }
+    if length_released:
+        detail.update(
+            length_ceiling_released=True,
+            length_goal_mm=maximum_length_mm,
+            length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
+        )
     if mode is JointMode.RADIUS_RESTORATION:
         detail.update(
             radius_restoration=True,
+            feature_constraints=len(planes),
+            scalar_feature_constraints=len(scalar_planes),
             selected_fold=selected,
             length_goal_mm=maximum_length_mm,
             length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),

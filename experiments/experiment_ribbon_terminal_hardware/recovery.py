@@ -79,6 +79,9 @@ def recover(
     Initial bounded cap motion with a declined length projection may hand off
     before reflection updates; this local prediction retains the same clocks
     and does not assert global nonlinear infeasibility.
+    If the declined reflection's signed-quality fallback also stalls after
+    releasing its length ceiling, only unused work may restore the original
+    witness-incident radius. Both failed actions remain charged and recorded.
     """
     validate(
         remaining_pairs=remaining_pairs,
@@ -419,6 +422,9 @@ def recover(
                     maximum_updates=maximum_updates,
                     cpu_started=cpu,
                     started=started,
+                    trigger=RadiusTrigger.RELEASED_QUALITY
+                    if recovered.detail.get("stop_reason") == "joint_no_descent"
+                    else RadiusTrigger.FOLD_DOMAIN,
                 )
                 return continued if continued is not None else recovered
             detail.update(

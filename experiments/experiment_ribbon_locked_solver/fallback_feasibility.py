@@ -1,5 +1,5 @@
 """
-Reserve the selected shorter branch's existing work for physical feasibility when its fallback hits hardware.
+Couple measured mating crossings within the selected shorter branch's existing recovery work.
 """
 
 from __future__ import annotations
@@ -8,7 +8,10 @@ from dataclasses import replace
 from time import perf_counter, process_time
 from typing import Any, Callable
 
-from experiments.experiment_ribbon_feature_insertion.contact_recovery import Recovery
+from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
+    BaselinePolicy,
+    Recovery,
+)
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_terminal_hardware.flat_separation import paired_return_fold
@@ -36,8 +39,12 @@ def before_optional_motion(
     a different first motion. Other contact topologies retain their original
     action without measuring baseline hardware. A blocked baseline prioritizes
     its selected physical correction
-    using the remaining original work. Cleared or unresolved eligibility also
-    preserves the original contact action.
+    using the remaining original work. A clear fallback permits coupling only
+    for a confirmed straight-pair crossing whose trust-clipped first motion
+    fails to open its gap. That improvement must still dominate the original
+    fallback's length and guide measures; it gets no restoration waiver.
+    Full-step motions, curved contacts and unresolved eligibility preserve the
+    original action. Every strategy shares the same original work allowance.
     """
     if terminal is None:
         return None
@@ -50,10 +57,15 @@ def before_optional_motion(
         if measurement.status != "penetration" or measurement.witness is None:
             return None
         paired = paired_return_fold(source, measurement.witness)
-        if paired is None and not mating_supported(source, measurement, checkpoint, record):
+        support = (
+            mating_supported(source, measurement, checkpoint, record) if paired is None else None
+        )
+        if paired is None and support is None:
             return None
         report = terminal.measure(baseline, "fallback_feasibility")
-        if report.status != "blocked":
+        if report.status != "blocked" and not (
+            report.status == "clear" and support is not None and support.clipped_straights
+        ):
             return None
         left = work.remaining(
             updates=0,
@@ -69,7 +81,17 @@ def before_optional_motion(
         ):
             if paired is None:
                 child = recover_mating(
-                    baseline, source, measurement, terminal, threshold_mm, left, checkpoint, record
+                    baseline,
+                    source,
+                    measurement,
+                    terminal,
+                    threshold_mm,
+                    left,
+                    checkpoint,
+                    record,
+                    baseline_policy=BaselinePolicy.GUIDE_IMPROVEMENT
+                    if report.status == "clear"
+                    else BaselinePolicy.RESTORE_BLOCKED,
                 )
                 if child is None:
                     return None
@@ -80,7 +102,13 @@ def before_optional_motion(
                     cpu_seconds=process_time() - cpu,
                     elapsed_seconds=perf_counter() - wall,
                 )
-                return replace(child, detail=detail)
+                return replace(
+                    child,
+                    detail=detail,
+                    baseline_policy=BaselinePolicy.GUIDE_IMPROVEMENT
+                    if report.status == "clear"
+                    else child.baseline_policy,
+                )
             child = recover_paired_return(
                 source,
                 measurement.witness,

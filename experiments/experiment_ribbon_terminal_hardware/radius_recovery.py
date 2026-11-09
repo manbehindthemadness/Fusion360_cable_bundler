@@ -19,11 +19,12 @@ from .recovery_limits import Work
 
 class RadiusTrigger(Enum):
     """
-    Distinguish a signed fold-domain boundary from an infeasible fixed reflected closure.
+    Identify measured limits of fixed-radius correction before releasing one incident radius.
     """
 
     FOLD_DOMAIN = "fold_boundary"
     REFLECTED_CLOSURE = "linear_closure_infeasible"
+    RELEASED_QUALITY = "joint_no_descent"
 
 
 def continue_after_boundary(
@@ -56,6 +57,9 @@ def continue_after_boundary(
     Default callers retain the signed fold-domain trigger. Reflected-closure
     callers must identify their separate linear infeasibility explicitly; the
     unchanged source signs and only its witnessed radius are then free to move.
+    A released-quality trigger additionally requires an actual declined fixed
+    reflection and a stalled straight-quality correction whose length ceiling
+    was already released. A generic no-descent stop grants no radius action.
     """
     if not isinstance(trigger, RadiusTrigger):
         raise ValueError("Supply an explicit radius continuation trigger")
@@ -65,6 +69,20 @@ def continue_after_boundary(
         or previous.detail.get("stop_reason") != trigger.value
     ):
         return None
+    if trigger is RadiusTrigger.RELEASED_QUALITY:
+        declined = previous.detail.get("fixed_reversal_declined")
+        if (
+            previous.detail.get("method") != "constrained_straight_feature"
+            or previous.detail.get("length_ceiling_released") is not True
+            or not isinstance(declined, dict)
+            or declined.get("stop_reason")
+            not in (
+                "construction_length_ceiling",
+                "linear_trust_budget",
+                "initial_linear_length_declined",
+            )
+        ):
+            return None
     raw_updates = previous.detail.get("iterations")
     raw_pairs = previous.detail.get("contact_pairs")
     if type(raw_updates) is not int or type(raw_pairs) is not int:

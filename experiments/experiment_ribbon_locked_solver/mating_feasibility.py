@@ -4,6 +4,7 @@ Couple an actual mating-runway crossing with hardware before separate correction
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from experiments.experiment_ribbon_bend_relocation.model import (
@@ -25,6 +26,7 @@ from experiments.experiment_ribbon_terminal_hardware.feature_plane import Signed
 from experiments.experiment_ribbon_terminal_hardware.flat_separation import (
     FlatSeparation,
     ProfileExtent,
+    mating_lead_crossing,
 )
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.joint_contact import JointMode
@@ -32,11 +34,33 @@ from experiments.experiment_ribbon_terminal_hardware.joint_contact import recove
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
 
 
+@dataclass(frozen=True)
+class MatingSupport:
+    """
+    Retain the original failed first-motion prediction and its actual contact topology.
+
+    This schedules correction only; neither trust clipping nor a failed gap
+    prediction establishes clearance or grants more recovery work.
+    """
+
+    first_fraction: float | None
+    straight_pair: bool
+
+    @property
+    def clipped_straights(self) -> bool:
+        """
+        Identify a confirmed straight crossing whose original correction exceeds one trust step.
+        """
+        return (
+            self.straight_pair and self.first_fraction is not None and 0 < self.first_fraction < 1
+        )
+
+
 def _ordinary_first_gap(
     source: FoldRoute,
     measurement: ContactResult,
     checkpoint: Callable[[], None],
-) -> tuple[float | None, int]:
+) -> tuple[float | None, int, float | None]:
     """
     Predict the existing selected first correction with identical attachment, trust and ordered-cap rules.
 
@@ -44,11 +68,13 @@ def _ordinary_first_gap(
     allowance, as in existing first-gap verification. They are recorded apart
     from committed recovery updates; this prediction grants no contact proof.
     Stop at the first improving retraction, even if its gap remains negative.
+    Return its gap, attempted retraction count and original trust fraction so
+    the caller can schedule without repeating preparation.
     """
     model = MovableBends(source)
     bound = Separation.from_measurement(model, source, measurement)
     if bound is None:
-        return None, 0
+        return None, 0, None
     expanded = with_attached_straights(bound, source, measurement)
     if expanded.extra_regions:
         trial = plan_step(model, model.initial, expanded, None, checkpoint)
@@ -56,7 +82,7 @@ def _ordinary_first_gap(
             bound = expanded
     planned = plan_step(model, model.initial, bound, None, checkpoint)
     if planned is None:
-        return None, 0
+        return None, 0, None
     for number, fraction in enumerate((planned.fraction, planned.fraction / 2), 1):
         checkpoint()
         values = retract_active(
@@ -68,8 +94,8 @@ def _ordinary_first_gap(
         if values is not None:
             gap = bound.gap(values, planned.side)
             if gap > planned.gap:
-                return gap * model.scale, number
-    return None, 2
+                return gap * model.scale, number, planned.fraction
+    return None, 2, planned.fraction
 
 
 def supported(
@@ -77,41 +103,50 @@ def supported(
     measurement: ContactResult,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
-) -> bool:
+) -> MatingSupport | None:
     """
-    Require an actual witnessed crossing involving the original first or last straight and flat support.
+    Describe a witnessed mating crossing only when its existing first correction fails to open the gap.
 
-    Internal crossings and an ordinary first correction that already opens its
+    Crossings outside the mating leads and an ordinary first correction that already opens its
     gap retain their established sequence. Preparation shares the caller's
     clocks; no contact certificate, committed update or clearance is granted.
+    Separate end straights and actual outward flats of the first/last folds
+    describe the same entry/exit material; curved fold interiors stay excluded.
+    Retain the already-computed trust fraction and whether both witnessed pieces
+    are straight. Full-step and curved contacts need no repeated prediction.
     """
     witness = measurement.witness
     if measurement.status != "penetration" or witness is None:
-        return False
-    if not any(
-        i in (0, len(source.pieces) - 1) and isinstance(source.pieces[i].geometry, Straight)
-        for i in witness.pieces
-    ):
-        return False
+        return None
+    if not mating_lead_crossing(source, witness):
+        return None
     if (
         FlatSeparation.create(SignedJoints(source), source, witness, extent=ProfileExtent.COMPLETE)
         is None
     ):
-        return False
-    gap, retractions = _ordinary_first_gap(source, measurement, checkpoint)
+        return None
+    gap, retractions, fraction = _ordinary_first_gap(source, measurement, checkpoint)
     opens = gap is not None and gap > 0
     record(
         {
             "stage": "mating_feasibility_prediction",
             "status": "ordinary_gap_opened" if opens else "coupling_required",
             "gap_mm": gap,
+            "first_fraction": fraction,
             "preparation_retractions": retractions,
             "preparation_newton_upper_bound": 6 * retractions,
             "committed_updates": 0,
             "contact_certificates": 0,
         }
     )
-    return not opens
+    return (
+        MatingSupport(
+            fraction,
+            all(isinstance(source.pieces[i].geometry, Straight) for i in witness.pieces),
+        )
+        if not opens
+        else None
+    )
 
 
 def recover(
@@ -123,17 +158,26 @@ def recover(
     work: Work,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    baseline_policy: BaselinePolicy = BaselinePolicy.RESTORE_BLOCKED,
 ) -> Recovery | None:
     """
-    Use the existing coupled engine inside unused original work after actual blocked-baseline eligibility.
+    Use the existing coupled engine inside unused original work after caller-owned eligibility.
 
-    The caller owns the measured blocked-baseline proof and charges eligibility
+    The caller measures baseline hardware and first-motion support, charging
     preparation to its original clocks. Return None only without motion or a
-    contact certificate. A returned restoration preserves the baseline length
-    ceiling and requires strict caps/material/native/self/hardware certification;
-    guide preferences cannot veto restored physical feasibility. No guessed
+    contact certificate. Every returned restoration requires strict
+    caps/material/native/self/hardware certification;
+    guide preferences cannot veto restored physical feasibility. A caller using
+    this for clear-baseline improvement must replace the restoration policy with
+    ordinary guide dominance before selection. Only an explicitly blocked entry
+    may release its inherited length quality ceiling after linear projection
+    failure. That restoration carries a separate policy through final selection;
+    a clear entry always retains its hard length/guide requirements. No guessed
     frame, radius, candidate bank or renewed work allowance is introduced.
     """
+    if baseline_policy not in (BaselinePolicy.GUIDE_IMPROVEMENT, BaselinePolicy.RESTORE_BLOCKED):
+        raise ValueError("Enter mating recovery with measured baseline eligibility")
     if measurement.status != "penetration" or measurement.witness is None:
         return None
     child = recover_joints(
@@ -148,7 +192,9 @@ def recover(
         maximum_cpu_seconds=work.cpu_seconds,
         maximum_seconds=work.wall_seconds,
         maximum_updates=work.updates,
-        mode=JointMode.MATING_CEILING,
+        mode=JointMode.MATING_CEILING
+        if baseline_policy is BaselinePolicy.GUIDE_IMPROVEMENT
+        else JointMode.BLOCKED_MATING,
     )
     if child is None:
         return None
@@ -159,5 +205,8 @@ def recover(
         child.detail["contacts"],
         child.detail["contact_seconds"],
         child.detail,
-        BaselinePolicy.RESTORE_BLOCKED,
+        BaselinePolicy.RESTORE_BLOCKED_GOAL
+        if baseline_policy is BaselinePolicy.RESTORE_BLOCKED
+        and child.detail.get("length_ceiling_released") is True
+        else baseline_policy,
     )

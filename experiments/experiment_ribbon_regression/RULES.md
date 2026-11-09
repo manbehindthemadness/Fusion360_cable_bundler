@@ -288,3 +288,23 @@ and changed targets reject. Previously successful flows retain their choices.
 Report original baseline retention separately from optional shortening; source
 and resource checkpoints remain authoritative. This is shared transactional
 baseline preservation, not a fixture-ID repair or post-built geometry editing.
+
+User-directed ordinal continuation (Nov8,2026): resolve the retained current case74,
+then continue the SAME frozen random sequence at75through100 WITHOUT restarting
+or replaying1..74. Keep every first-attempt failure and its original source/job;
+record repaired qualification separately, with source epochs and unchanged target
+signatures. A repair is not a retroactive first-pass success or ordinary streak
+credit. Keep source/input/resource/native/physical gates; freeze a continuation
+plan before resuming. This diagnostic100-case checkpoint supersedes prefix-restart
+requirements for this leg only; do not claim a same-source100/100or1,000-case streak.
+
+Blocked-mating quality policy (Nov9,2026): after measured hardware-blocked fallback
+eligibility and a bounded coupled projection returning no step, explicit blocked
+restoration may rebind the same occupied hardware members and release its inherited
+length QUALITY ceiling at the same coordinates. Report original goal/excess and
+carry typed released-quality policy through final selection. Clear-baseline
+improvement retains strict length/guide dominance. Preserve all prior work, original
+updates/Newton/CPU/wall/pair limits, exact targets/signs/radius anchors, caps, material,
+native minimum, strict full contact, finite hardware and native fidelity/bounds.
+A declined local projection establishes no global infeasibility. Prefix placement
+reuse is bounded permodel at64entries and retains original validation/arithmetic.

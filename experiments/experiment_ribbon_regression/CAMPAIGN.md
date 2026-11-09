@@ -1014,3 +1014,235 @@ plus1separate setup stop;longest82,incident22,reviewed20,next40.1,000goal UNMET.
 Latest shared change preserved110earlier routepairs across111numerical inputs and
 passed one42native qualification; this finite transfer does not establish universal
 reliability. Stop-on-break honored; no new65refinement or restart is scheduled.
+
+Nov8/1665 user directs continuation after the retained64/65boundary stop.
+1656four baselines reproduce65and16/21/38controls. All four previously generated
+shortening iterates have demonstrated penetration; none is accepted by inspection.
+1657prototype harness recreated enum identities:0complete,1incomplete,3unattempted,
+0native; corrected artifact execution retains the real runtime classes/defaults.
+1658moving straight-plane guidance and1659nearest SAT guidance remain unresolved
+within original4updates. No proposal adopted or allocation enlarged.1660existing
+coupled full-profile engine clears65with4retained contact inequalities,3updates/
+18Newton/1219pairs/.281319CPU; analytic material box lies inside±38.125mm. Native
+unattempted. The three collateral pairs stay exact. Clear-baseline acceptance
+keeps strict guide/length dominance; it cannot borrow blocked restoration policy.
+1661broader flat scope changes earlier139at27/134;107unattempted,rejected even
+though its final length improves.1662straight-only scope changes42at107/134;
+27unattempted,rejected.1663original predictions distinguish65trust-clipped.568457
+from42full1and139curved/straight.1664requires confirmed straight/straight mating
+contact plus an actual failed trust-clipped first gap.134/134accepted,133earlier
+first/final routepairs EXACT,65prototypeEXACT,0unattempted,93.709554s. Examined
+regression evidence, not new holdouts or ordinary streak credit.
+Maintained MatingSupport reuses the already computed first fraction/topology;
+no duplicated projection, new guessed roots, physical waiver or gym feedback.
+50distinct focused behaviors pass; Ruff/format/IDE3clean. Initial local seed-
+regenerated unit input differs in endpoint floats and remains optimization-
+unresolved (self/hardware accepted; native/bounds unmeasured); exact frozen Fusion
+poses now define the regression. This sensitivity limits generality claims.
+1666ACTUAL134replay is separate from1664prototype and one planned1667native65
+qualification; both must pass before unchanged1000campaign restart. No native
+work has run during1656..1666local comparisons. Full physical audit unmeasured.
+
+1666ACTUAL134/134accepted,133earlier first/final pairs EXACT,65prototypeEXACT,
+0unattempted,93.813422s.1667ONE65native attempted/built/named fidelity/hardware/
+precise boundsPASS:7840points434seams,max4.456481e-9mm,0warnings,0boundary excess.
+Solve1.195781CPU/native.858500s TIMINGGOALMISS;audit.712317s separate. No retry;
+original failed65body retained.1668restarts unchanged1000specification/seed/settings
+with fresh streak0,ordinarybase988attempts967passes/17numerical/3boundary/1native-
+audit failure+1setup,longest82,incident22,reviewed20,next40. Same physical/resource
+gates and20minute autonomous reviews; no qualification streak credit. Full physical
+audit unmeasured. Source260,50focused behaviors/Ruff/format/IDE3clean.
+
+1668STOPPED65passes/66attempts,0warnings; all65receipts pass strict contact,
+hardware,named native fidelity and precise bounds.503020native points,max
+1.808111458e-8mm,0receipt/source errors.65ordinary now passes. Eligible66N1D.75,
+seed4056488310,A4face9roll311/B19face2roll2(zero-based),void/zones300%,separated
+cubicles: numerical unresolved terminal hardware; accepted native unattempted,
+rejected inspection retained. Radius continuation clears its first feature but
+stops on a second actual hardware intrusion, with original work still unused.
+Ordinary cumulative1054attempts1032passes/18numerical/3boundary/1native-audit
+failure+1separate setup stop,longest82,incident23,reviewed20,next40. Goal unmet.
+User continuation is in force: preserve/review failure, investigate shared cause,
+qualify then restart; do not stop merely to ask permission again.
+1669four baselines reproduce66and preserve distinct radius103/clipped65/member38
+controls.1670prototype allows the existing radius-restoration engine to retain a
+second actual hardware constraint within its unchanged two-plane capacity. It
+still grows only the evidence-incident radius and preserves signs/other radii.
+66accepted,20.933976750mm,3total updates13Newton/.092681CPU/124recovery pairs;
+existing source-length quality excess4.321881mm remains, not a new physical waiver.
+All3control first/final pairs exact. No native builds or boundary feedback.
+1671frozen135prototype transfer pending;134earlier pairs must stay exact and66
+match1670before maintained code or one native qualification. All unsuccessful
+and unattempted outcomes remain. Full physical audit unmeasured.
+
+1671prototype135/135accepted,134earlier first/final routepairs EXACT,66prototype
+EXACT,0unattempted,94.619407s. Analytic full-material bounds inside±15.625mm;
+native bounds remain unmeasured. Maintained guard allows second actual hardware
+feature only in existing one-radius restoration, retaining prior cleared flows,
+original2plane engine capacity,one selected radius and all4update24Newton/.35CPU/
+2wall/pair limits.45focused radius/recovery/joint/evaluation checks pass,Ruff/format/
+IDE2clean. Actual1673replay and one1674native qualification pending separately.
+No production, native-builder or physical-rule change.
+
+1673ACTUAL135/135accepted,134earlier first/final routepairs EXACT,66prototype
+EXACT,0unattempted,95.674382s.1674ONE66native attempted/built/named fidelity/
+hardware/precise boundsPASS:3570points198seams,max1.228979e-9mm,0warnings,
+0boundary excess. Solve.346050CPU/native.389136s TIMINGGOALPASS; audit.550248s
+separate. Original source-length quality excess4.321881mm remains. No retry;
+failed66rejected inspection retained.1675restarts unchanged1000spec/seed/settings,
+fresh streak0,ordinarybase1054attempts1032passes/18numerical/3boundary/1native-
+audit failure+1setup,longest82,incident23,reviewed20,next40. Source260,45focused
+checks/Ruff/format/IDE2clean; earlier unaffected50checks retained. Same physical/
+resource gates and20minute autonomous reviews. Full physical audit unmeasured.
+
+1675STOPPED70passes/71attempts,0warnings. All70receipts pass named physical/
+native/stress checks:547540points,max1.808111458e-8mm,0receipt/source errors.
+65and66ordinary now pass. Eligible71N8seed995783115,A4face2roll284/B23face3
+roll333(zero-based),separated cubicles, remains terminal-hardware unresolved;
+accepted native unattempted,rejected inspection retained. Shared recovery spent
+4updates and all1170remaining contact pairs, then shorter contraction and original
+fallback both hit hardware. Its initial crossing involves first-fold BEFOREflat,
+which current eligibility omits because it recognizes only separate end straights.
+Ordinary totals1125attempts1102passes/19numerical/3boundary/1native-audit failure
+plus1setup,longest82,incident24,reviewed20,next40.1,000goal unmet; continue work.
+1676four baselines reproduce71with distinct full-profile16/clipped65/radius66
+controls.1677recognizes actual first-fold BEFORE/last-fold AFTER mating leads.
+Existing failed first-gap and actual blocked-fallback checks still govern; clear
+curved contacts retain legacy action.71accepts90.205007709mm,2updates8Newton,
+.149600CPU/408recoverypairs; all3control pairs exact. No native/bound feedback.
+1678stops at138/140on69final-pair difference;2unattempted,not a source regression:
+69has no rejected construction/recovery and the changed helper is never called.
+Original ordinary contraction hit.35CPU (.374604CPU), leaving a71.219241mm smoothed
+route; fresh contraction finishes (.170540CPU), then unsafe optimization is declined
+for hardware, leaving the original70.514100mm safe construction.1679fresh
+UNMODIFIED69baseline matches1678first/final pairs EXACT,.171414contractionCPU.
+Preserve both valid timing-dependent outputs and original receipt.1680freezes
+140comparison with that current baseline; no physical/budget/tolerance change.
+
+1680prototype140/140accepted,139CURRENT-baseline routepairs EXACT,71prototype
+EXACT,0unattempted,99.345648s.69baseline refresh1679is explicit; original timed
+variant/receipt stays. Analytic material bounds for71inside±55mm; native bounds
+unmeasured. Shared mating_lead_crossing uses actual first-fold BEFORE/last-fold
+AFTER regions, not inferred piece-end labels. Curves/opposite phases/internal
+slots stay excluded. Caller still requires original failed first-gap and actual
+blocked fallback; clear curved contacts do not select new correction.54focused
+checks/Ruff/format/IDE4clean. Earlier negative fixture moved to two curved
+regions, preserving unsupported-contact rejection intent. Actual1682and one native
+1683qualification pending separately; no production/native-builder change.
+
+1682ACTUAL140/140accepted,139CURRENT-baseline routepairs EXACT,71prototype
+EXACT,0unattempted,99.130410s.69historical timing variant and fresh1679baseline
+remain separately retained.1683ONE71native attempted/built/named fidelity/
+hardware/precise boundsPASS:11200points620seams,max7.530591e-10mm,0warnings,
+0boundary excess. Solve1.428224CPU/native1.219536s TIMINGGOALMISS; audit2.134746s
+separate. No retry; original failed71inspection remains.1684restarts unchanged
+1000spec/seed/settings,fresh streak0,ordinarybase1125attempts1102passes/19numerical/
+3boundary/1native-audit failure+1setup,longest82,incident24,reviewed20,next40.
+Source260,54focused checks/Ruff/format/IDE4clean. Same physical/resource gates and
+20minute autonomous reviews. Full physical audit unmeasured.
+
+Nov9/case74:1684stopped73passes/74attempts,0warnings. Eligible74remained numerical
+hardware/contact unresolved; accepted native unattempted, rejected inspection kept.
+1697fixed-bend translation regressed66and was rejected.1698/1699contact-guidance
+variants failed74.1700/1701isolate the shared cause: grouped hardware members need
+independent closest box halfspaces, already implemented for incident guidance.
+One-radius restoration now reuses those member planes, preserving one incident
+radius, other anchors/signs/targets, strict caps/material/contact/hardware, original
+4updates24Newton/.35CPU/2wall/pairs and thirteen-scalar/sixteen-step projection cap.
+No new contact-guidance policy or physical waiver.74accepts39.806524412mm with
+4radius Newton steps,274recoverypairs,.059CPU; source-length excess7.064626mm
+remains a reported existing restoration quality goal.1702prototype143accepted:
+139earlier pairs exact,3earlier changed(103,incident04,66),74matchesprototype.
+1704ACTUAL143/143accepted and all143prototype pairs EXACT,0unattempted,102.806s.
+61focused tests,Ruff/format/IDE2clean.1705FOUR native attempts/builds/named fidelity/
+hardware/precise boundsPASS,0warnings,25900points1436seams,max3.198774e-9mm.
+74alone9520points528seams,max2.853888e-9mm,0bounds excess; solve.497049CPU vs
+.732422native seconds timingGOALPASS,audit1.398013s separate.103andincident04miss
+timing goal;66passes. All original failures remain. Full physical audit unmeasured.
+User explicitly revises this leg: resolve74then SAME sequence75..100without replay.
+1706appends separate case_repaired74(no first-pass credit) and source_epoch75events
+in the original range-a1d2754a02784ba1a8ca554e098f7e3c journal; original header and
+failed74row unchanged. Frozen next-input signature is checked before resumption.
+Runtime74attempts/73passes continues at75with maximum100, same seed/ranges/physical/
+resource checks, first-failure stop and20minute review. No same-source100/100claim;
+1000goal UNMET. See artifacts/verification/resume1706/ for current receipts/status.
+
+Nov9/case78:1706same-journal continuation passed75..77then stopped76passes/78
+attempts,0warnings. Original74and78failed rows remain; no prefix replay occurred.
+Eligible78N3seed1080035090,A6face1roll341/B8face8roll311. Fixed reflection reaches
+linear_trust_budget after2updates10Newton. Its signed-quality fallback releases
+length then stalls after another1update5Newton, leaving1update unused.1707/1708
+inequality/member variants fail and are rejected.1709existing incident-radius
+restoration uses only that remaining allocation:78accepts31.977324993mm with
+4totalupdates20Newton/200recoverypairs/.127885CPU; source-length quality excess
+5.512864mm remains explicit. Three controls74/66/71exact.1710prototype147accepted,
+146earlier pairs EXACT,78prototypeEXACT. New typed RELEASED_QUALITY trigger requires
+actual constrained_straight_feature joint_no_descent, an already released ceiling,
+and the actual declined fixed-reflection history. Generic/malformed stalls cannot
+release a radius. All previous counters/clocks/pairs remain charged; other radii,
+signs/targets/profile/physical gates unchanged.60focused tests,Ruff/format/IDE4clean.
+1712ACTUAL147/147accepted,all147prototype pairs EXACT,0unattempted,102.341s.
+1713ONE78native attempted/built/named fidelity/hardware/precise boundsPASS,
+5950points330seams,max1.748618e-9mm,0warnings,0boundary excess. Solve.555221CPU/
+native.645086s timingGOALPASS;audit.850835s separate. Failed78inspection retained.
+1714continues SAME original sequence79..100without replay. Append case_repaired78
+with no first-pass credit and source_epoch79; frozen next signature checked. Initial
+78attempts76passes,0warnings; same native/resource checks and20minute reviews.
+Original74/78failures and earlier65/66/71first-exposure failures remain distinct.
+Goal1000UNMET; no same-source100pass claim. Full physical audit unmeasured.
+
+Nov9/case88:1714same-journal continuation passed79..87then stopped85passes/88
+attempts,0warnings; accepted88native unattempted, rejected inspection retained.
+Eligible88N4seed2986633526,A3face6roll315/B16face0roll271. Existing full-profile
+mating correction clears hardware then adds actual features; its bounded linear
+projection declines after15Newton under the inherited invalid-fallback length.
+1715..1719variants remain unsuccessful.1720releases that QUALITY ceiling only for
+actual blocked-baseline restoration, rebinding existing hardware members at the
+same coordinates with unused work. Clear fallback length/guide dominance stays.
+Firstpass46.706990759mm,final47.174060667mm,4updates19Newton/430recoverypairs;
+source-length goal excess8.308137mm retained. Typed BLOCKED_MATING and
+RESTORE_BLOCKED_GOAL carry measured eligibility and released quality through
+selection. Caps/material/contact/hardware/radii/signs/targets/native gates stay.
+1721prototype157accepted,156earlier pairs exact,88prototypeexact;1723ACTUAL157/
+157accepted,all157prototype pairs exact,109.233s.76focused checks/Ruff/format/IDE7.
+1724qualification hits unchanged.35CPU recovery allowance(.351275),0accepted
+native attempts; separate rejected inspection and collector error retained.
+1726profiling charges its overhead to original budgets, without acceptance/speed
+claims. Exact per-model64entry coordinate-prefix reuse avoids rebuilding unchanged
+leading bends during derivative probes. Common validation and one-segment append
+kernel serve FlexibleModel and PrefixModel; MovableBends.full uses the latter.
+No global cache, extra solver correction, bound/step/tolerance change. Projection
+and128entry variants add insufficient benefit and are not adopted.1731prototype
+and1733ACTUAL157/157accepted,all157preoptimization pairs EXACT; actual106.833s.
+70focused placement/relaxation/radius/restoration tests,Ruff/format/IDE4pass;
+previous76policychecks retained. Source261.1734ONE new88native attempted/built/
+named fidelity/hardware/precise boundsPASS:6300points348seams,max3.760314e-9mm,
+0warnings,0boundary excess within±32.5mm. Cold recovery.329969CPU remains inside
+.35; total solve.999536CPU vs.609341native seconds TIMINGGOALMISS; audit.612792s
+separate. Failed1724qualification stays.1735appends case_repaired88(no first-pass
+credit) and source_epoch89 in the SAME original journal, then continues89..100.
+Initial88attempts85passes,0warnings; no prefix replay. All74/78/88first-attempt
+failures and earlier65/66/71first-exposure history remain. Goal1000UNMET; full
+physical audit unmeasured. Same4GiB/120s/20minute review requirements remain.
+
+Nov9/1735CHECKPOINT100COMPLETE in the SAME range-a1d2754a02784ba1a8ca554e098f7e3c
+journal, without replaying a prefix. Exactly100prepared/started/finished ordinals,
+100distinct ordinary jobs,97ordinary successes,3original numerical failures74/78/88
+and3separate successful repair qualifications with NO first-attempt pass credit.
+Cases75..100:24/26ordinary first-attempt successes;78/88repaired separately.
+Latest unchanged261source89..100:12/12ordinary successes,0accuracy warnings.
+All97ordinary receipts and3repair provenance/fidelity/hardware/boundary reports
+verify;0source/input/receipt errors.775530named native points across100independent
+layouts including repairs,max1.808111458e-8mm. Full physical audit unmeasured.
+57/97ordinary solves miss solveCPU<=nativegeneration performance goal; all timings
+remain, separate from physical/accuracy success. Original1000header retained;
+source_epoch75/79/89events and continuation plans record every policy transition.
+Original74/78/88rows,earlier65/66/71first-exposure failures and1724CPU-limited
+qualification remain. This is a repaired mixed-source checkpoint,not a100pass
+same-source streak.1000goal remains UNMET; no case beyond100scheduled. Testeridle,
+workerabsent,observer34691terminal;case100geometry/screenshot retained. Sampled
+FusionRSS415008KiB at completion; physical footprint lastsample19GiB, independently
+monitored rather than inferred from RSS. Final artifact:resume1735/final-result.json.
+Ordinary cumulative1225attempts1199passes/22numerical/3boundary/1native-audit failure
+plus1separate setup,longest82,incident27,reviewedthrough20,next40. Current-source
+streak12. No production changes or agent commit. All failed outcomes preserved.

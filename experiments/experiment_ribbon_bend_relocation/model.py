@@ -10,6 +10,7 @@ from functools import cached_property, lru_cache
 from typing import Callable
 
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
+from experiments.experiment_ribbon_fold_relaxation.prefixes import PrefixModel
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, pose_error
 
@@ -34,7 +35,7 @@ class MovableBends(FlexibleModel):
         """
         Reuse the established bank-dependent flat leads and complete material map.
         """
-        return FlexibleModel(self.original)
+        return PrefixModel(self.original)
 
     @cached_property
     def indices(self) -> tuple[int, ...]:

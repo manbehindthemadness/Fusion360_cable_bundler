@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import pytest
 
 from cable_bundler.routing.geometry import Vector3
+from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.solve import Result
@@ -203,7 +204,16 @@ def test_boundary_continuation_deducts_and_combines_all_work(
     )
     called = Mock(return_value=answer)
     monkeypatch.setitem(vars(radius_recovery), "recover", called)
-    previous = _previous(source, stop_reason=trigger.value)
+    quality_fields = (
+        {
+            "method": "constrained_straight_feature",
+            "length_ceiling_released": True,
+            "fixed_reversal_declined": {"stop_reason": "linear_trust_budget"},
+        }
+        if trigger is radius_recovery.RadiusTrigger.RELEASED_QUALITY
+        else {}
+    )
+    previous = _previous(source, stop_reason=trigger.value, **quality_fields)
     result = _continue(source, previous, trigger=trigger)
     assert result is not None and result.contact is answer.contact
     options = called.call_args.kwargs
@@ -215,6 +225,42 @@ def test_boundary_continuation_deducts_and_combines_all_work(
     assert result.detail["contact_pairs"] == 105 and result.detail["contacts"] == 2
     assert result.detail["before_radius"] == previous.detail
     assert previous.detail["iterations"] == 3
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"length_ceiling_released": False},
+        {"length_ceiling_released": None},
+        {"fixed_reversal_declined": None},
+        {"fixed_reversal_declined": {"stop_reason": "phase_budget"}},
+        {"method": "coupled_feature_planes"},
+    ),
+)
+def test_radius_quality_handoff_requires_both_actual_failed_actions(
+    source: FoldRoute, monkeypatch: pytest.MonkeyPatch, changes: dict[str, Any]
+) -> None:
+    """
+    A generic stall or malformed history cannot release an incident radius through this trigger.
+    """
+    forbidden = Mock(side_effect=AssertionError("Missing actual released-quality history"))
+    monkeypatch.setitem(vars(radius_recovery), "recover", forbidden)
+    detail = {
+        "stop_reason": "joint_no_descent",
+        "method": "constrained_straight_feature",
+        "length_ceiling_released": True,
+        "fixed_reversal_declined": {"stop_reason": "linear_trust_budget"},
+        **changes,
+    }
+    assert (
+        _continue(
+            source,
+            _previous(source, **detail),
+            trigger=radius_recovery.RadiusTrigger.RELEASED_QUALITY,
+        )
+        is None
+    )
+    forbidden.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -366,3 +412,53 @@ def test_infeasible_fixed_reflection_can_grow_only_its_incident_radius_with_unus
     ]
     assert all(radius >= result.route.radius_mm for radius in radii)
     assert sum(radius > result.route.radius_mm for radius in radii) == 1
+
+
+def _second_feature_targets() -> Targets:
+    """
+    Replay exact Fusion-authored N1/4056488310 poses, A4/9/311 and B19/2/2.
+    """
+    return Targets(
+        name="Rubik gym preview",
+        start=Vector3(-1.6051988706373195, -0.00609697964386321, -0.5975880092851172),
+        end=Vector3(2.046971344925264, -2.7141160774438755, 1.6346532248133048),
+        start_tangent=Vector3(0.5257311121191336, -3.051817141297008e-17, -0.8506508083520399),
+        end_tangent=Vector3(0.0, 0.8506508083520399, 0.5257311121191337),
+        start_width=Vector3(-0.43811755475431635, 0.8571673007021122, -0.27077153990616054),
+        end_width=Vector3(0.5591929034707469, -0.43585084500790916, 0.7052214812481591),
+        lines=1,
+        diameter_mm=0.75,
+    )
+
+
+def test_radius_restoration_retains_a_second_measured_hardware_feature() -> None:
+    """
+    Keep both actual intrusions active without renewing work or releasing another radius.
+    """
+    targets = _second_feature_targets()
+    events: list[dict[str, Any]] = []
+    result = solver_v2.solve(targets, Settings(1, False, True, True), lambda: None, events.append)
+    assert result.route is not None and result.route.targets == targets
+    assert result.detail["contact"] == "separated"
+    assert result.detail["terminal_hardware"]["final_status"] == "clear"
+    recovery = result.detail["construction"]["recovery"]
+    assert recovery["radius_restoration"] and recovery["selected_fold"] == 0
+    assert recovery["before_radius"]["stop_reason"] == "linear_closure_infeasible"
+    assert recovery["iterations"] <= 4 and recovery["newton_steps"] <= 24
+    assert recovery["cpu_seconds"] < 0.35 and recovery["elapsed_seconds"] < 2
+    assert result.detail["construction"]["contact_pairs"] <= 2048
+    assert recovery["length_goal_excess_mm"] > 0
+    assert cap_error(result.route) < 1e-7 and material_error(result.route) < 1e-10
+    assert _radii(result.route)[0] > result.route.radius_mm
+    assert all(radius == result.route.radius_mm for radius in _radii(result.route)[1:])
+    added = [event for event in events if event.get("status") == "hardware_constraint_added"]
+    assert len(added) == 1 and added[0]["reference"]["straight"]
+    hardware_reports = [
+        event
+        for event in events
+        if event.get("stage") == "terminal_hardware"
+        and event.get("phase") == "joint_flat_contact_final"
+    ]
+    assert [event["status"] for event in hardware_reports] == ["blocked", "clear"]
+    hardware = Hardware.create(targets, Dimensions.scaled(targets))
+    assert inspect(result.route, hardware).status == "clear"
