@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict
+from enum import Enum
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -17,14 +18,25 @@ from experiments.experiment_ribbon_fold_route.contact import ProjectionReuse, in
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
+from .active_projection import active_step
 from .check import Report
-from .feature_guidance import FeatureGate, RetainedFeatures
+from .feature_guidance import FeatureGate, RetainedFeatures, member_planes
 from .feature_plane import FeaturePlane, SignedJoints
 from .joint_derivatives import jacobian as joint_jacobian
+from .joint_evaluation import JointEvaluation
 from .native_projection import native_slot_step
 from .quality_projection import quality_step
 from .recovery_limits import validate
 from .straight_quality import StraightQuality
+
+
+class FeatureProjection(Enum):
+    """
+    Preserve grouped legacy closure or continue measured failure with independent member bounds.
+    """
+
+    GROUPED = "grouped"
+    MEMBERS = "members"
 
 
 class _Exhausted(RuntimeError):
@@ -48,6 +60,7 @@ def recover(
     quality: StraightQuality | None = None,
     maximum_updates: int = 4,
     continuation: RetainedFeatures | None = None,
+    projection: FeatureProjection = FeatureProjection.GROUPED,
 ) -> Result | None:
     """
     Preserve signs/radii while solving caps and measured feature planes inside original work limits.
@@ -78,6 +91,12 @@ def recover(
     If a length-constrained correction stalls, release that quality restriction
     once and continue from the same coordinates with unused corrections only.
     Physical caps, material, feature clearance and contact remain mandatory.
+    Member projection uses independent complete-member clearance inequalities only
+    for a measured failed continuation; grouped legacy successes remain unchanged.
+    The same bounded active projection handles more than four scalar inequalities.
+    An explicit quality policy with retained member projection activates its
+    unchanged ceiling inequality immediately. Other quality entries retain their
+    original grouped equations; no allocation or preceding ceiling is renewed.
     A typed continuation may rebind three earlier actual reports after an
     incident reflection failed without motion. Ordinary entry retains its
     two-feature handoff. This continuation receives only genuinely unused work
@@ -96,14 +115,22 @@ def recover(
     if quality is not None and quality.ceiling_mm != maximum_length_mm:
         raise ValueError("Straight recovery must retain the caller's original quality ceiling")
     if continuation is not None and (
-        not isinstance(continuation, RetainedFeatures) or quality is not None
+        not isinstance(continuation, RetainedFeatures)
+        or quality is not None
+        and projection is not FeatureProjection.MEMBERS
     ):
         raise ValueError("Use retained evidence with its preceding ceiling and unused allocation")
+    if not isinstance(projection, FeatureProjection):
+        raise ValueError("Use an explicit feature projection policy")
+    if projection is FeatureProjection.MEMBERS and continuation is None:
+        raise ValueError(
+            "Member projection requires measured continuation and unused physical work"
+        )
     started, cpu = perf_counter(), process_time()
     model = SignedJoints(original)
     values = model.initial
     fixed_zero: set[int] = set()
-    growth_quality = False
+    growth_quality = projection is FeatureProjection.MEMBERS and quality is not None
     length_released = False
     if continuation is None:
         initial = FeaturePlane.create(model, original, evidence, terminal.hardware, values)
@@ -115,6 +142,8 @@ def recover(
         if not prepared:
             return None
         planes, initial = prepared, prepared[0]
+    member_guidance = projection is FeatureProjection.MEMBERS
+    scalar_planes = member_planes(planes, model, values) if member_guidance else planes
     allowance = max(0.0, -initial.gap(values) * model.scale)
     ceiling = (
         maximum_length_mm
@@ -167,6 +196,7 @@ def recover(
         if quality is None or length_released or detail["newton_steps"] >= maximum_newton_steps:
             return False
         length_released = True
+        evaluation.constraints_changed()
         detail["length_ceiling_released"] = True
         detail["length_release_trigger"] = trigger
         emit(
@@ -178,19 +208,19 @@ def recover(
         )
         return True
 
-    def equations(coordinates: tuple[float, ...]) -> tuple[float, ...]:
+    def raw_equations(coordinates: tuple[float, ...]) -> tuple[float, ...]:
         """
         Retain raw derivatives at cleared inequality boundaries instead of differentiating a clip.
         """
-        if growth_quality:
-            limits = tuple(1e-7 / model.scale - p.gap(coordinates) for p in planes)
-            route_for_limits = model.route(coordinates)
-            assert route_for_limits is not None and quality is not None
-            if not length_released:
+        if growth_quality or member_guidance:
+            limits = tuple(1e-7 / model.scale - p.gap(coordinates) for p in scalar_planes)
+            if quality is not None and not length_released:
+                route_for_limits = model.route(coordinates)
+                assert route_for_limits is not None
                 limits += ((route_for_limits.material_length_mm - quality.target_mm) / model.scale,)
             return model.residual(coordinates) + limits
         residual_terms = model.residual(coordinates) + tuple(
-            p.gap(coordinates) - 1e-7 / model.scale for p in planes
+            p.gap(coordinates) - 1e-7 / model.scale for p in scalar_planes
         )
         if quality is not None and not length_released:
             evaluated_route = model.route(coordinates)
@@ -200,12 +230,19 @@ def recover(
             )
         return residual_terms
 
+    evaluation = JointEvaluation(raw_equations, model.admissible)
+    equations, admissible = evaluation.equations, evaluation.admissible
+
     def residual(coordinates: tuple[float, ...]) -> tuple[float, ...]:
         """
         Measure cap errors and only violated bounds during growth-constrained closure.
         """
         terms = equations(coordinates)
-        return terms[:6] + tuple(max(0.0, term) for term in terms[6:]) if growth_quality else terms
+        return (
+            terms[:6] + tuple(max(0.0, term) for term in terms[6:])
+            if growth_quality or member_guidance
+            else terms
+        )
 
     try:
         emit(
@@ -232,6 +269,7 @@ def recover(
                     if quality is None and remaining_updates > 0:
                         quality = StraightQuality(ceiling, remaining_updates)
                         growth_quality = True
+                        evaluation.constraints_changed()
                         maximum_newton_steps = min(
                             maximum_newton_steps, detail["newton_steps"] + quality.newton_steps
                         )
@@ -296,7 +334,10 @@ def recover(
                     detail["stop_reason"] = "unsupported_terminal_evidence"
                     break
                 planes.append(extra)
-                if growth_quality:
+                evaluation.constraints_changed()
+                if member_guidance:
+                    scalar_planes = member_planes(planes, model, values)
+                if growth_quality or member_guidance:
                     fixed_zero.clear()
                 emit(
                     "constraint_added",
@@ -316,11 +357,13 @@ def recover(
                 len(equation),
                 fixed_zero,
                 bounded,
-                admissible=model.admissible,
+                admissible=admissible,
             )
             delta = (
-                quality_step(model, values, jacobian, equations(values), bounded)
-                if growth_quality
+                (active_step if len(equations(values)) > 10 else quality_step)(
+                    model, values, jacobian, equations(values), bounded
+                )
+                if growth_quality or member_guidance
                 else projected(model, values, jacobian, [-v for v in equation], [0.0] * len(values))
             )
             if delta is None:
@@ -351,7 +394,7 @@ def recover(
             for _ in range(4):
                 bounded()
                 trial = advance(model, values, delta, step)
-                if not model.admissible(trial):
+                if not admissible(trial):
                     detail["stop_reason"] = "fold_boundary"
                     emit("fold_boundary", values=values, trial=trial)
                     break

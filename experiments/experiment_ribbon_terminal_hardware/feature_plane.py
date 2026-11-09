@@ -109,17 +109,44 @@ class FeaturePlane:
         )
         return self.box.axes + local + tuple(cross(a, b) for a in self.box.axes for b in local)
 
-    def _span(self, pieces: tuple[PlacedPiece, ...], axis: Vector3) -> Span:
+    def _selected_axis(self, piece: PlacedPiece) -> Vector3:
         """
-        Enclose every occupied width/thickness coordinate of all actual grouped material regions.
+        Evaluate the fixed selected family with identical arithmetic, omitting unused directions.
+        """
+        family = self.family
+        if not 0 <= family < 15:
+            return self._axes(piece)[family]
+        if family < 3:
+            return self.box.axes[family]
+        index = family - 3 if family < 6 else (family - 6) % 3
+        local = (
+            piece.pose.tangent
+            if index == 0
+            else piece.pose.width
+            if index == 1
+            else unit(cross(piece.pose.tangent, piece.pose.width))
+        )
+        return local if family < 6 else cross(self.box.axes[(family - 6) // 3], local)
+
+    @cached_property
+    def _material_cell(self) -> Cell:
+        """
+        Retain the same immutable full-width/thickness material cell for this fixed source model.
         """
         source = self.model.original
-        cell = Cell(
+        return Cell(
             0,
             Span(0, 1),
             Span(-source.half_width_mm, source.half_width_mm),
             Span(-source.targets.diameter_mm / 2, source.targets.diameter_mm / 2),
         )
+
+    def _span(self, pieces: tuple[PlacedPiece, ...], axis: Vector3) -> Span:
+        """
+        Enclose every occupied width/thickness coordinate of all actual grouped material regions.
+        """
+        source = self.model.original
+        cell = self._material_cell
         spans = tuple(
             projection(locate(source, pieces, member), cell, axis) for member in self.members
         )
@@ -229,7 +256,7 @@ class FeaturePlane:
         """
         pieces = self.model.pieces(values)
         piece = locate(self.model.original, pieces, self.reference)
-        raw = self._axes(piece)[self.family]
+        raw = self._selected_axis(piece)
         if magnitude(raw) < 1e-10:
             raise ValueError("Selected feature-plane axis family became degenerate")
         axis = unit(raw)

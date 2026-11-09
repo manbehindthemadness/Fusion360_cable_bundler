@@ -12,6 +12,7 @@ import pytest
 
 from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 from experiments.experiment_ribbon_feature_insertion import contact_recovery
+from experiments.experiment_ribbon_feature_insertion.attached_regions import RegionPolicy
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     ContactContinuation,
     Recovery,
@@ -71,6 +72,7 @@ def test_new_collision_yields_only_unused_updates_pairs_and_time(
     assert first.kwargs["continuation"] is ContactContinuation.YIELD_ON_NEW_FEATURE
     assert second.kwargs["continuation"] is ContactContinuation.FOLLOW
     assert first.kwargs["cap_policy"] is second.kwargs["cap_policy"] is CapPolicy.ANALYTIC_SUPPORT
+    assert first.kwargs["region_policy"] is second.kwargs["region_policy"] is RegionPolicy.WITNESS
     assert result.route is other.route and result.contact is certificate
     assert (
         result.pairs == 579
@@ -80,6 +82,38 @@ def test_new_collision_yields_only_unused_updates_pairs_and_time(
     assert result.detail["iterations"] == 4 and result.detail["remaining_pair_budget"] == 602
     assert result.detail["cpu_seconds"] == pytest.approx(0.30)
     assert result.detail["cap_support_policy"] == "analytic_support"
+
+
+def test_sole_supported_branch_groups_confirmed_attached_material(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Clear the fold and crossing runway together without extra updates or a new branch.
+    """
+    monkeypatch.setitem(vars(recovery_queue), "process_time", lambda: 0.0)
+    monkeypatch.setitem(vars(contact_recovery), "process_time", lambda: 0.0)
+    scene = Scene(
+        Config(1517160563, 5, 0.75, 300, 300),
+        Goal.from_degrees(24, 7, 48),
+        Goal.from_degrees(4, 8, 48),
+    )
+    events: list[dict[str, Any]] = []
+    result = solver_v2.solve(
+        scene.targets, Settings(1, False, True, True), lambda: None, events.append
+    )
+    assert result.route is not None and result.detail["contact"] == "separated"
+    assert result.detail["terminal_hardware"]["final_status"] == "clear"
+    assert result.route.targets == scene.targets
+    assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
+    construction = result.detail["construction"]
+    assert construction["contact_pairs"] <= 2048
+    initial = next(event for event in events if event.get("stage") == "branch_recovery_complete")
+    assert initial["status"] == "separated" and initial["iterations"] == 2
+    assert len(initial["attempts"]) == 1
+    assert any(
+        event.get("stage") == "attached_region_selection" and event.get("status") == "used"
+        for event in events
+    )
 
 
 def test_reversed_gym_recovery_certifies_the_existing_correction_inside_remaining_work() -> None:

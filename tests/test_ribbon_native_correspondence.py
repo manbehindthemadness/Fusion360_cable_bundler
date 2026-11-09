@@ -320,3 +320,46 @@ def test_warning_distance_does_not_relax_face_identity_or_coverage() -> None:
     assert not collection.item(2).getParameterAtPoint(Point(1, 0.5, 0.0005))[0]
     with pytest.raises(RuntimeError, match="Uncovered native faces"):
         collection.seal_surfaces()
+
+
+def test_verified_region_member_avoids_repeated_search_without_reusing_old_measurement() -> None:
+    """
+    Query each new point on the actual previously covered face and preserve exact-point caching.
+    """
+    collection, _ = _collection()
+    collection.boxes[1] = collection.boxes[0]
+    first = collection.select(0, Point(1, 0.5))
+    assert first is not None and first.index == 0
+    before = collection.queries
+    second = collection.select(0, Point(2, 0.5))
+    assert second is not None and second.index == 0 and second.error_mm == 0
+    assert second.uv != first.uv
+    assert collection.queries == before + 1
+    assert collection.select(0, Point(2, 0.5)) is second
+    assert collection.queries == before + 1
+
+
+def test_member_warning_retains_full_search_for_an_original_goal_witness() -> None:
+    """
+    A known face meeting only display tolerance cannot displace an available strict native witness.
+    """
+    collection, _ = _collection(accuracy=DISPLAY_ACCURACY)
+    assert collection.select(0, Point(1, 0.5)) is not None
+    alternative = _face(0, 4, 0, 1)
+    alternative.evaluator.getPointAtParameter = lambda uv: (True, Point(*uv, 0.0005))
+    collection.native[1] = alternative
+    collection.boxes[1] = ((0, 4), (0, 1), (0, 0.0005))
+    selected = collection.select(0, Point(2, 0.5, 0.0005))
+    assert selected is not None and selected.index == 1 and selected.error_mm == 0
+    assert collection.owners[0] == collection.owners[1] == 0
+
+
+def test_known_member_still_debits_the_original_native_query_budget() -> None:
+    """
+    Earlier verified ownership never grants a new point a free inverse or a renewed allowance.
+    """
+    collection, _ = _collection()
+    assert collection.select(0, Point(1, 0.5)) is not None
+    collection.queries = 30000
+    with pytest.raises(RuntimeError, match="face-query budget"):
+        collection.select(0, Point(2, 0.5))

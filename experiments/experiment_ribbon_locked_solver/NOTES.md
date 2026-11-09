@@ -4303,3 +4303,43 @@ diff/new-file review done. No full repository QA or standalone type checker.
 Evidence: `inspect393.json`, `log394.cjs`, repair395/396 responses,
 `ribbon_dispatch397`, stopped398response, `inspect399.json`, `retain400.json`, plus
 the original selected-job directories. Production harness/profile code unchanged.
+
+## Reuse verified material-region faces, Nov8 case37
+
+Ordinary1628stopped36/37after an eligible N10native solid built314faces versus
+338authored regions. The unchanged correspondence audit exhausted30000inverse
+queries after10365surface points/296patches,with no dimensional failures. Full
+seam/guide/cap fidelity and stress bounds were not completed. Preserve original
+body, job and failure: this is audit exhaustion, not a kernel construction failure.
+Fusion application logs were inspected before changing code; the stored traceback
+locates the explicit application query cap, with no corresponding kernel failure.
+
+1629freezes baseline/candidate read-only full audits of four existing native gym
+configurations: trigger37, member-clearance34, contact-traversal21 and attached-
+region11. Same30000face/512distance calls,120seconds/4GiB per audit,600seconds for
+8audits; zero solves/builds/geometry changes. Original37exhaustion reproduced;
+other three baseline audits pass. Previously verified members of the same authored
+material region are now queried first. A new point still requires an actual
+inverse, dimensional-goal pass and raw trimmed membership. Other findings retain
+full search/distance fallback. Sealing still requires complete native lateral
+coverage, unique profile ownership and distinct caps. No face is synthesized or
+output repaired; this is witness reuse, not nearest-face optimization.
+
+Candidate all4pass complete named audits and every native revision is unchanged:
+37=13179face/207distance queries,11760points648seams,max3.801924e-9mm;34=10323/0
+versus26681/27baseline;21=5437/0versus14267/9;11=8432/0versus19597/18. All0warnings.
+Three control surface/seam counts and goal-level fidelity remain intact. Different
+valid face-family memberships may be recorded; numerical routes/bodies do not change.
+Examined4configuration transfer is bounded evidence, not universal audit reliability.
+66focused correspondence/accuracy/precision tests,Ruff/format/IDE2clean.
+Final-source audits1630and normal native qualification1631are recorded separately.
+
+1630actual-source4read-only audits pass with identical candidate counts and all
+native revisions unchanged. Only correspondence source changed from1626/1627;
+solver/builder hashes remain identical, so unaffected numerical corpus not rerun.
+1631normal37qualification passes exact original first/final route and all named
+native/hardware/precise-bound checks:314faces338regions,11760points648seams,
+max3.801924e-9mm,zero warnings,13179face/207distance queries. One new native build
+on the same trigger is not another independent configuration. Solve.888145CPU vs
+.707679native seconds misses timing goal; audit1.231102s separately. Original
+exhausted audit remains.1632unchanged1000campaign restarts; goal remains unmet.

@@ -12,6 +12,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .check import Report
 from .feature_guidance import FeatureEvidence, IncidentGuidance, RetainedFeatures
+from .fold_recovery import FeatureProjection
 from .fold_recovery import recover as recover_fold
 from .gate import Gate
 from .joint_contact import recover as recover_joints
@@ -73,7 +74,7 @@ def recover(
     maximum_updates: int = 4,
 ) -> Result | None:
     """
-    Preserve legacy successes and continue only an actual feature-capacity failure.
+    Preserve legacy successes and continue only measured feature closure failures.
 
     Keep all prior reports, then reflect exactly the fold incident to the latest
     intrusion and solve its caps, complete feature members and length together.
@@ -85,6 +86,12 @@ def recover(
     yield to the same three measured features without another sign change.
     Both preceding actions debit preparation, updates, contact and clocks before
     that continuation; successful legacy reflection is never displaced.
+    A physical no-descent stop may instead continue its actual blocked proposals
+    with independent occupied-member inequalities, preserving signs, radii, the
+    preceding ceiling and only unused work. No successful result is displaced.
+    Retained grouped projection infeasibility may use the same member model with
+    its original quality ceiling active from the first correction, after all
+    preceding failed work is debited. Existing successful retained actions stay.
     """
     allocation = Work(maximum_updates, remaining_pairs, maximum_cpu_seconds, maximum_seconds)
     cpu, wall = process_time(), perf_counter()
@@ -103,6 +110,54 @@ def recover(
         quality=quality,
         maximum_updates=maximum_updates,
     )
+    if (
+        quality is None
+        and prior is not None
+        and prior.contact is None
+        and prior.detail.get("stop_reason") == "joint_no_descent"
+    ):
+        blocked = tuple(
+            e
+            for e in observed.evidence
+            if e.report.status == "blocked" and e.report.witness is not None
+        )
+        left = allocation.remaining(
+            updates=prior.detail["iterations"],
+            pairs=prior.detail["contact_pairs"],
+            cpu_seconds=process_time() - cpu,
+            wall_seconds=perf_counter() - wall,
+        )
+        if blocked and len(blocked) <= 2 and left is not None:
+            latest = blocked[-1]
+            record(
+                {
+                    "stage": "member_feature_handoff",
+                    "status": "started",
+                    "before": dict(prior.detail),
+                    "remaining_updates": left.updates,
+                    "remaining_pairs": left.pairs,
+                    "feature_reports": len(blocked) + 1,
+                }
+            )
+            child = recover_fold(
+                latest.route,
+                latest.report,
+                terminal,
+                checkpoint,
+                record,
+                maximum_length_mm=prior.detail["maximum_length_mm"],
+                minimum_straight_mm=minimum_straight_mm,
+                remaining_pairs=left.pairs,
+                maximum_cpu_seconds=left.cpu_seconds,
+                maximum_seconds=left.wall_seconds,
+                maximum_updates=left.updates,
+                continuation=RetainedFeatures((FeatureEvidence(original, evidence), *blocked)),
+                projection=FeatureProjection.MEMBERS,
+            )
+            if child is not None:
+                return _combined_result(
+                    original, prior, child, allocation, cpu, wall, "before_member_inequalities"
+                )
     if (
         quality is not None
         or prior is None
@@ -176,19 +231,15 @@ def recover(
                     "remaining_pairs": remaining.pairs,
                 }
             )
-            continued = recover_fold(
-                latest.route,
-                latest.report,
+            continued = _recover_retained(
+                latest,
+                RetainedFeatures(guidance.evidence),
                 terminal,
                 checkpoint,
                 record,
                 maximum_length_mm=prior.detail["maximum_length_mm"],
                 minimum_straight_mm=minimum_straight_mm,
-                remaining_pairs=remaining.pairs,
-                maximum_cpu_seconds=remaining.cpu_seconds,
-                maximum_seconds=remaining.wall_seconds,
-                maximum_updates=remaining.updates,
-                continuation=RetainedFeatures(guidance.evidence),
+                allocation=remaining,
             )
             if continued is not None:
                 continued.detail["before_unmoved_incident"] = dict(child.detail)
@@ -201,14 +252,115 @@ def recover(
                 ):
                     continued.detail[field] += child.detail[field]
                 child = continued
+    return _combined_result(
+        original, prior, child, allocation, cpu, wall, "before_coupled_incident"
+    )
+
+
+def _recover_retained(
+    latest: FeatureEvidence,
+    evidence: RetainedFeatures,
+    terminal: Gate,
+    checkpoint: Callable[[], None],
+    record: Callable[[dict[str, Any]], None],
+    *,
+    maximum_length_mm: float,
+    minimum_straight_mm: float,
+    allocation: Work,
+) -> Result | None:
+    """
+    Preserve grouped retained successes; continue infeasible closure with bounded member inequalities.
+
+    Keep the same measured cap-closed source and all actual feature reports.
+    After grouped projection failure, combine the original quality ceiling and
+    member inequalities immediately, without spending unused corrections on an
+    overlong preliminary closure. Both actions share the caller's unused work.
+    """
+    cpu, wall = process_time(), perf_counter()
+    prior = recover_fold(
+        latest.route,
+        latest.report,
+        terminal,
+        checkpoint,
+        record,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+        remaining_pairs=allocation.pairs,
+        maximum_cpu_seconds=allocation.cpu_seconds,
+        maximum_seconds=allocation.wall_seconds,
+        maximum_updates=allocation.updates,
+        continuation=evidence,
+    )
+    if (
+        prior is None
+        or prior.contact is not None
+        or prior.detail.get("stop_reason") != "joint_projection_infeasible"
+    ):
+        return prior
+    left = allocation.remaining(
+        updates=prior.detail["iterations"],
+        pairs=prior.detail["contact_pairs"],
+        cpu_seconds=process_time() - cpu,
+        wall_seconds=perf_counter() - wall,
+    )
+    if left is None:
+        return prior
+    record(
+        {
+            "stage": "member_retained_handoff",
+            "status": "started",
+            "before": dict(prior.detail),
+            "remaining_updates": left.updates,
+            "remaining_pairs": left.pairs,
+            "feature_reports": len(evidence.evidence),
+        }
+    )
+    child = recover_fold(
+        latest.route,
+        latest.report,
+        terminal,
+        checkpoint,
+        record,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+        remaining_pairs=left.pairs,
+        maximum_cpu_seconds=left.cpu_seconds,
+        maximum_seconds=left.wall_seconds,
+        maximum_updates=left.updates,
+        continuation=evidence,
+        projection=FeatureProjection.MEMBERS,
+        quality=StraightQuality(maximum_length_mm, left.updates),
+    )
+    return (
+        prior
+        if child is None
+        else _combined_result(
+            latest.route, prior, child, allocation, cpu, wall, "before_grouped_retained"
+        )
+    )
+
+
+def _combined_result(
+    original: FoldRoute,
+    prior: Result,
+    child: Result,
+    allocation: Work,
+    cpu: float,
+    wall: float,
+    history_key: str,
+) -> Result:
+    """
+    Charge all preceding actions and reject any continuation exceeding its shared allocation.
+    """
     detail = dict(child.detail)
-    detail["before_coupled_incident"] = dict(prior.detail)
+    detail[history_key] = dict(prior.detail)
     for field in ("iterations", "newton_steps", "contacts", "contact_pairs", "contact_seconds"):
         detail[field] += prior.detail[field]
     detail.update(cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - wall)
     if (
         detail["iterations"] > allocation.updates
         or detail["newton_steps"] > 6 * allocation.updates
+        or detail["contact_pairs"] > allocation.pairs
         or detail["cpu_seconds"] >= allocation.cpu_seconds
         or detail["elapsed_seconds"] >= allocation.wall_seconds
     ):

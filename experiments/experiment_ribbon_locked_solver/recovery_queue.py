@@ -7,6 +7,7 @@ from __future__ import annotations
 from time import perf_counter, process_time
 from typing import Any, Callable
 
+from experiments.experiment_ribbon_feature_insertion.attached_regions import RegionPolicy
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
     MAXIMUM_CPU_SECONDS,
     MAXIMUM_WALL_SECONDS,
@@ -40,6 +41,10 @@ def recover_failed(
     collision. The last branch follows the original local contact policy.
     Selection and handoff overhead count toward the same time allowance.
     Reuse each exact source/witness prediction on its first update only.
+    When only one branch has a supported correction, include confirmed crossing
+    attached straights under the existing full-step fit guard. Recompute its
+    first step for the expanded region rather than reuse a witness-only plan.
+    Multiple supported branches retain their original predictions and handoffs.
     Use the same existing analytic cap support proof as v2 construction and
     accepted-fallback recovery, without exempting adjacent material interiors.
     """
@@ -48,6 +53,7 @@ def recover_failed(
         candidates, checkpoint, record, prediction_policy=PredictionPolicy.VERIFIED_SHEETS
     )
     choices = (selection.choice, *selection.alternatives) if selection.choice else ()
+    region_policy = RegionPolicy.ATTACHED_STRAIGHTS if len(choices) == 1 else RegionPolicy.WITNESS
     selected, certificate = None, None
     pairs, contacts, updates, contact_seconds = 0, 0, 0, 0.0
     attempts: list[dict[str, Any]] = []
@@ -72,6 +78,18 @@ def recover_failed(
                 "remaining_pair_budget": remaining_pairs - pairs,
             }
         )
+        initial_step = (
+            next(
+                (
+                    planned
+                    for planned in selection.initial_steps
+                    if planned.source is branch.route and planned.measurement is measurement
+                ),
+                None,
+            )
+            if region_policy is RegionPolicy.WITNESS
+            else None
+        )
         result = recover(
             branch.route,
             measurement,
@@ -85,14 +103,8 @@ def recover_failed(
             continuation=(
                 ContactContinuation.YIELD_ON_NEW_FEATURE if has_next else ContactContinuation.FOLLOW
             ),
-            initial_step=next(
-                (
-                    planned
-                    for planned in selection.initial_steps
-                    if planned.source is branch.route and planned.measurement is measurement
-                ),
-                None,
-            ),
+            initial_step=initial_step,
+            region_policy=region_policy,
             cap_policy=CapPolicy.ANALYTIC_SUPPORT,
         )
         pairs += result.pairs

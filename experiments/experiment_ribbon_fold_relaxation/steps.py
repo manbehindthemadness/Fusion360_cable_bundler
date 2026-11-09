@@ -7,7 +7,7 @@ from __future__ import annotations
 import math
 from typing import Callable
 
-from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace, affine_projection
 
 from .model import Model
 
@@ -20,13 +20,19 @@ def projected(
     rows: list[list[float]],
     right: list[float],
     reference: list[float],
+    *,
+    workspace: AffineWorkspace | None = None,
 ) -> tuple[float, ...] | None:
     """
     Project onto linear closure while freezing outward motion at active bounds.
+
+    An explicit action-owned workspace reuses identical ordered row-prefix bases;
+    free-column selection, correction arithmetic and coordinate-bound checks stay unchanged.
     """
     free = list(range(len(values)))
+    project_affine = affine_projection if workspace is None else workspace.project
     for _ in range(len(values) + 1):
-        delta = affine_projection(
+        delta = project_affine(
             [[row[i] for i in free] for row in rows], right, [reference[i] for i in free]
         )
         if delta is None:

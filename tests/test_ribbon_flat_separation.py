@@ -11,11 +11,14 @@ from unittest.mock import Mock
 import pytest
 
 from cable_bundler.routing.geometry import Vector3, dot
+from devtools.ribbon_analysis.gym.scene import Config, Goal, Scene
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_feature_insertion.separation import Side, locate
 from experiments.experiment_ribbon_fold_route.contact_flat_geometry import FlatPhase
 from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_locked_solver import solver_v2
+from experiments.experiment_ribbon_locked_solver.settings import Settings
 from experiments.experiment_ribbon_terminal_hardware import joint_contact
 from experiments.experiment_ribbon_terminal_hardware.check import Report
 from experiments.experiment_ribbon_terminal_hardware.feature_plane import SignedJoints
@@ -84,6 +87,44 @@ def test_incident_reflection_frees_angle_bank_and_runways_but_preserves_other_si
     assert candidate is not None and reflected.preserves(candidate)
     assert not ordinary.preserves(candidate)
     assert all(math.isfinite(value) for value in reflected.initial)
+
+
+def test_mating_recovery_clears_all_conductors_without_retaining_the_long_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Keep two measured whole-profile gaps independent through bounded compact restoration.
+    """
+    monkeypatch.setitem(vars(joint_contact), "process_time", lambda: 0.0)
+    scene = Scene(
+        Config(1104480256, 3, 0.75, 300, 300),
+        Goal.from_degrees(3, 5, 289),
+        Goal.from_degrees(24, 4, 66),
+    )
+    events: list[dict[str, Any]] = []
+    result = solver_v2.solve(
+        scene.targets, Settings(1, False, True, True), lambda: None, events.append
+    )
+    assert result.route is not None and result.route.targets == scene.targets
+    assert result.detail["contact"] == "separated"
+    assert result.detail["terminal_hardware"]["final_status"] == "clear"
+    assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
+    recovery = result.detail["construction"]["recovery"]
+    assert recovery["accepted_feasibility_restoration"] is True
+    assert recovery["flat_constraints"] == 2
+    assert recovery["iterations"] <= 4 and recovery["newton_steps"] <= 24
+    assert result.detail["construction"]["contact_pairs"] <= 2048
+    assert result.route.material_length_mm < 50 < recovery["baseline_length_mm"]
+    added = [
+        event
+        for event in events
+        if event.get("stage") == "joint_flat_contact" and event.get("status") == "constraint_added"
+    ]
+    assert len(added) == 1
+    assert all(
+        part["q"] == (-result.route.half_width_mm, result.route.half_width_mm)
+        for part in added[0]["parts"]
+    )
 
 
 @pytest.mark.parametrize("ordinal", (-1, 4, True))

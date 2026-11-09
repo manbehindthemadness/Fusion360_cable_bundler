@@ -22,8 +22,13 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.selection import ImprovementPolicy, Policy
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, construct
-from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import (
+    ContactResult,
+    ProbeOrder,
+    inspect_contact,
+)
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
@@ -31,6 +36,7 @@ from experiments.experiment_ribbon_terminal_hardware.recovery import recover as 
 from experiments.experiment_ribbon_terminal_hardware.reversal import correct as correct_terminal
 
 from .branch_recovery import recover_construction
+from .construction_fallback import retain_original
 from .contraction_recovery import recover_contracted
 from .coordinates import metadata
 from .placement import guide_parameters
@@ -103,6 +109,9 @@ def solve(
     counts, physical rules or the first-construction work limits.
     An explicitly configured temporary gym policy may retain pair-limit exhaustion
     with contact unmeasured; ordinary calls retain strict contact acceptance.
+    Initial certificates use the existing negative-only flat probe in original
+    material-cell order. This strengthens penetration evidence without changing
+    positive proofs, pair limits or eagerly reordering original material pairs.
     Optional terminal hardware eligibility is strict independently of that override.
     Temporary work proposals may need contraction or smoothing to clear hardware;
     do not reject their coarse initializer prematurely. Measure the completed first
@@ -136,6 +145,11 @@ def solve(
     floor, all other radii, signs, profile and poses remain fixed. During this
     physical restoration the invalid source length is a reported quality goal,
     not a physical veto; full self-contact and both terminal boxes remain strict.
+    If optional construction recovery also displaced the initial separated
+    construction, retain that original route and its own strict certificate
+    only after all existing actions fail and its unchanged geometry clears the
+    same hardware gate. No motion, certificate, smoothing or work allowance is
+    renewed. Previously successful flows keep their original selection.
     Otherwise return no accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
@@ -175,7 +189,10 @@ def solve(
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
         contact_policy=contact_policy,
         cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+        probe_order=ProbeOrder.MATERIAL_CELLS,
     )
+    original_construction = result
+    restored_original: tuple[FoldRoute, ContactResult] | None = None
     recovery_started = perf_counter()
     result, recovery_detail = recover_construction(
         result,
@@ -412,6 +429,27 @@ def solve(
                         permitted = True
                         detail["stages"]["terminal_hardware"] = "recovered_first_pass"
                         detail["final_contact_source"] = "deferred_terminal_recovery"
+        if not permitted:
+            restored_original = retain_original(original_construction, result, terminal)
+            if restored_original is not None:
+                original_route, original_contact = restored_original
+                record(
+                    {
+                        "stage": "terminal_hardware_fallback",
+                        "status": "original_construction_retained",
+                        "discarded_first_pass": snapshot(first),
+                        "discarded_final": snapshot(final),
+                        "route": snapshot(original_route),
+                        "contact": asdict(original_contact),
+                    }
+                )
+                first = final = original_route
+                measurement = original_contact
+                permitted = True
+                detail["stages"]["terminal_hardware"] = "original_construction_retained"
+                detail["final_contact_source"] = "hardware_safe_original_construction"
+                detail["construction"]["original_baseline_length_mm"] = first.material_length_mm
+                detail["construction"]["optional_selection"] = "declined_for_terminal_clearance"
         detail["terminal_hardware"] = terminal.detail()
         detail["terminal_hardware"]["final_status"] = "clear" if permitted else "unresolved"
         if not permitted:
@@ -462,12 +500,16 @@ def solve(
             if detail["construction"]["recovery"] is not None
             and detail["construction"]["recovery"].get("radius_restoration")
             else "strict_material_shortening_then_guide_ties",
-            "construction_length_mm": result.route.material_length_mm,
+            "construction_length_mm": restored_original[0].material_length_mm
+            if restored_original is not None
+            else result.route.material_length_mm,
             "first_pass_length_mm": first.material_length_mm,
             "final_length_mm": final.material_length_mm,
             "guide_length_mm": frames.guide.distances[-1],
             "final_guide_agreement": asdict(guide_agreement),
-            "first_pass_outcome": "disabled"
+            "first_pass_outcome": "original_construction_retained"
+            if restored_original is not None
+            else "disabled"
             if not settings.first_pass_optimization
             else "shortened"
             if first.material_length_mm < result.route.material_length_mm

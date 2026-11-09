@@ -14,7 +14,7 @@ from devtools.ribbon_analysis.contracts import Targets
 from devtools.ribbon_analysis.gym.placement import adjacent
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 
-CORPUS = Path(__file__).with_name("gym-v3.json")
+CORPUS = Path(__file__).with_name("gym-v4.json")
 
 
 def _require_separated_cubicles(case: dict[str, Any]) -> None:

@@ -1,5 +1,46 @@
 # Consolidated recovery contracts
 
+User reasserts generalized improvement over atomic repairs. A fix must address
+a shared geometric or numerical mechanism, preserve materially different controls
+and retained accepted routes, and earn broader evidence on subsequent unfiltered
+layouts. No case-ID branches, fixture-specific settings or budget/acceptance
+relaxations. One recovered trigger plus unchanged controls is regression evidence,
+not proof that the improvement generalizes. Record the scope honestly.
+
+Initial v2 certificates explicitly use the existing negative-only flat probe in
+original depth-first material-cell order. It runs only after ordinary point and
+support checks on each original nonmating pair, with strict inverse-map witness
+validation, the same full positive proof and original pair pool. The typed
+ProbeOrder policy retains legacy no-probe constructors and eager original-pair
+screening for existing callers. Eager screening changed witness order and regressed
+case16; its prototype is rejected. Preserved traversal retains85prior route pairs
+and recovers case21, with named native qualification1620. Lower aggregate comparison
+work has mixed individual costs; neither it nor one recovered trigger establishes
+universal routing improvement. Evidence:1614..1621, including unsuccessful probes.
+
+Mating restoration retains each measured flat contact as an independent full-width
+joined-profile inequality, including later contacts on other conductors. Up to four
+contact constraints and two connector planes retain the original update/Newton,
+time and contact budgets; more than four scalar inequalities use the existing
+sixteen-step active projection. Other modes retain aggregated arc guidance.
+The gym boundary is measured afterward and never steers this correction. Numerical
+qualification1611preserves all65saved and15prior campaign route pairs, with one
+compact trigger result; native qualification1612passes named fidelity, precise
+bounds and independent hardware with zero warnings. Partial-arc and max-only
+failed probes remain in1609. No constraint relaxation or production promotion.
+
+A sole supported failed-construction branch may group a witnessed fold with
+confirmed crossing attached straights under the existing full-step fit guard.
+Recompute its first motion for that whole region; a witness-only cached plan does
+not apply. Multiple supported branches retain their original predictions and
+handoffs. The four-update/time/contact-pair allocation, fixed caps/material and
+strict full-route contact/hardware acceptance remain unchanged. Broad activation
+regressed prior-case73 and was rejected; only the sole-branch scope is qualified
+numerically across the65saved inputs plus4current campaign inputs. One retained
+native qualification1607passes named fidelity, precise bounds and independent
+hardware checks with zero warnings. Earlier1606lost its built body after a
+reporting exception; preserve that incomplete attempt. Evidence:resume1604..1607.
+
 Input eligibility precedes failure repair. Under the user's Nov8 directive,
 exclude frozen inputs that violate current test-input rules from active QA and
 record the violated rule; preserve historical outcomes without pass/streak credit.
@@ -190,3 +231,60 @@ Qualification does not count toward ordinary passes. At that qualification the
 incident count was12/20; restart1380then stopped2passes/3attempts on incident13.
 The early review does not erase incidents or move the next checkpoint at20. Keep all original
 failed journals and the nine unresolved corpus cases visible in reporting.
+
+A physical grouped-feature joint_no_descent may continue only actual blocked
+candidate reports with unused original work. TypedFeatureProjection.MEMBERS uses
+independent complete-member inequalities, allowing different separating faces of
+finite hardware boxes. Retain fixed targets/signs/radii and the preceding ceiling;
+all preparation/corrections/certificates/clocks debit the same original allocation.
+Legacy successful grouped closure and explicit straight-quality callers stay
+unchanged. Final strict self-contact and shared hardware certification are still
+required. Broad upfront activation regressed a retained successful route and is
+rejected; examined99input replay with98old routepairs exact and one native trigger
+qualification is development evidence, not proof of universal routing improvement.
+
+Native correspondence may try a region's previously verified faces first. Every
+new point still needs its own inverse, raw trimmed membership and original
+accuracy-goal pass before short-circuiting. Missing membership or a goal miss
+retains full search and distance fallback. Exact-point cache, unique profile
+ownership, complete native coverage, distinct caps, every surface/seam/guide/cap
+sample and original30000/512query limits remain authoritative. No solver/body
+change or query-budget increase follows. Four retained native configurations in
+1629show transfer; original37query exhaustion remains a failed audit, not a pass.
+
+After actual retained grouped projection infeasibility, only genuinely remaining
+work may combine independent complete-member clearance inequalities with the
+original explicit StraightQuality ceiling from entry. Preserve all actual retained
+reports, fixed cap-closed source, signs/radii, target poses and earlier allocation.
+Successful grouped retained results and ordinary member actions remain unchanged.
+Every unsuccessful action, preparation, certificate and clock debits the same
+four-update/24Newton/CPU/wall/contact/hardware caps. No new allowance is created
+by moving length closure earlier;1634overlong failure and1635changed34prototype
+remain unadopted. Case38replay plus controls does not establish universal routing.
+
+The20exception consolidation shares exact pure numerical work, not case-dependent
+acceptance. JointEvaluation owns at most64raw-equation and64fixed-model domain
+results per action. Actual measured feature addition and quality activation/release
+invalidate equations; model-domain decisions remain independent of constraint state.
+Caller source/resource checkpoints are never cached. AffineWorkspace owns at most
+64immutable complete row/right-side prefixes within one scalar projection; the same
+ordered two-pass row extension, rank gates and correction arithmetic serve default
+and reused projection. It grants no additional scalar subset or joint update.
+A fixed FeaturePlane evaluates only its selected SAT family with identical arithmetic
+and reuses the immutable full-width/thickness cell. Initial15family selection and
+final whole-route self/hardware/native checks remain unchanged. All107frozen
+prototype routepairs are exact; this is examined regression evidence, not a universal
+routing or timing proof. Every original20event and unattempted outcome remains.
+Gym-v4enrolls77eligible inputs, preserving old65records and8exclusions exactly;
+20events map to18exact cases. Current QA explicitly freezes hardware-enabled
+settings; archived stored settings must not silently redefine current coverage.
+
+Retain the initial construction result before optional branch recovery. If every
+existing later hardware/recovery action fails, its exact original route may be
+selected only with its own strict separated contact certificate and actual shared
+terminal eligibility. Do not borrow the discarded candidate's certificate, renew
+work, rerun optimization or clear any original counter. Missing/unresolved evidence
+and changed targets reject. Previously successful flows retain their choices.
+Report original baseline retention separately from optional shortening; source
+and resource checkpoints remain authoritative. This is shared transactional
+baseline preservation, not a fixture-ID repair or post-built geometry editing.

@@ -31,6 +31,7 @@ from experiments.experiment_ribbon_terminal_hardware.feature_plane import (
     FeaturePlane,
     SignedJoints,
 )
+from experiments.experiment_ribbon_terminal_hardware.fold_recovery import FeatureProjection
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from tests.test_ribbon_aesthetic import _route
@@ -195,3 +196,143 @@ def test_failed_unmoved_reflection_can_retain_three_features_without_renewing_wo
     handoffs = [event for event in records if event.get("stage") == "coupled_retained_handoff"]
     assert len(handoffs) == 1 and handoffs[0]["remaining_updates"] == 2
     assert handoffs[0]["feature_reports"] == 3
+
+
+def test_failed_grouped_clearance_continues_actual_members_inside_shared_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Preserve fixed poses and fold identity while distinct members clear different finite-box faces.
+    """
+    scene = Scene(
+        Config(3555663182, 6, 0.75, 300, 300),
+        Goal.from_degrees(0, 10, 282),
+        Goal.from_degrees(24, 11, 356),
+    )
+    original = feature_recovery.recover_fold
+    calls: list[tuple[FoldRoute, dict[str, Any]]] = []
+
+    def recorded(route: FoldRoute, *args: Any, **kwargs: Any) -> Result | None:
+        """
+        Observe continuation provenance and allocation without replacing any physical check.
+        """
+        if kwargs.get("projection") is FeatureProjection.MEMBERS:
+            calls.append((route, kwargs))
+        return original(route, *args, **kwargs)
+
+    monkeypatch.setitem(vars(feature_recovery), "recover_fold", recorded)
+    result = solver_v2.solve(
+        scene.targets, Settings(1, False, True, True), lambda: None, lambda e: None
+    )
+    assert result.route is not None and result.route.targets == scene.targets
+    assert result.detail["contact"] == "separated"
+    assert result.detail["terminal_hardware"]["final_status"] == "clear"
+    assert len(calls) == 1
+    proposed, options = calls[0]
+    retained = options["continuation"]
+    assert isinstance(retained, RetainedFeatures)
+    assert proposed is retained.evidence[-1].route
+    assert len(retained.evidence) == 2
+    assert SignedJoints(proposed).preserves(result.route)
+    detail = result.detail["construction"]["recovery"]
+    before = detail["before_member_inequalities"]
+    assert before["stop_reason"] == "joint_no_descent"
+    assert before["iterations"] == options["maximum_updates"] == 2
+    assert before["newton_steps"] == 8
+    assert options["maximum_length_mm"] == before["maximum_length_mm"]
+    assert 0 < options["maximum_cpu_seconds"] < 0.35
+    assert 0 < options["maximum_seconds"] < 2
+    assert detail["iterations"] <= 4 and detail["newton_steps"] <= 24
+    assert detail["contact_pairs"] <= options["remaining_pairs"] + before["contact_pairs"]
+    assert detail["cpu_seconds"] < 0.35
+    assert result.route.material_length_mm <= before["maximum_length_mm"]
+    assert result.detail["cap_error_mm"] < 1e-7
+    assert result.detail["material_metric_error"] < 1e-10
+
+
+@pytest.mark.parametrize(
+    ("projection", "message"),
+    (
+        ("members", "projection policy"),
+        (None, "projection policy"),
+        (FeatureProjection.MEMBERS, "measured continuation"),
+    ),
+)
+def test_feature_projection_requires_typed_measured_continuation(
+    projection: Any,
+    message: str,
+) -> None:
+    """
+    Reject implicit policies before witness preparation, clocks or numerical work.
+    """
+    from experiments.experiment_ribbon_terminal_hardware.fold_recovery import recover
+
+    source = _route((Straight(2),))
+    with pytest.raises(ValueError, match=message):
+        recover(
+            source,
+            Report("unresolved", 1),
+            Mock(spec=Gate),
+            lambda: None,
+            lambda e: None,
+            maximum_length_mm=3,
+            minimum_straight_mm=1e-5,
+            remaining_pairs=100,
+            maximum_cpu_seconds=0.35,
+            maximum_seconds=2,
+            projection=projection,
+        )
+
+
+def test_failed_retained_group_closes_member_bounds_and_original_ceiling_together(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Use only the last original update after measured retained infeasibility, preserving all features.
+    """
+    from experiments.experiment_ribbon_terminal_hardware.straight_quality import StraightQuality
+
+    scene = Scene(
+        Config(871137552, 4, 0.75, 300, 300),
+        Goal.from_degrees(23, 6, 271),
+        Goal.from_degrees(9, 4, 82),
+    )
+    original = feature_recovery.recover_fold
+    calls: list[tuple[FoldRoute, dict[str, Any]]] = []
+
+    def recorded(route: FoldRoute, *args: Any, **kwargs: Any) -> Result | None:
+        """
+        Observe actual policy and allocation without substituting physical certificates.
+        """
+        if kwargs.get("projection") is FeatureProjection.MEMBERS:
+            calls.append((route, kwargs))
+        return original(route, *args, **kwargs)
+
+    monkeypatch.setitem(vars(feature_recovery), "recover_fold", recorded)
+    records: list[dict[str, Any]] = []
+    result = solver_v2.solve(
+        scene.targets, Settings(1, False, True, True), lambda: None, records.append
+    )
+    assert result.route is not None and result.route.targets == scene.targets
+    assert result.detail["contact"] == "separated"
+    assert result.detail["terminal_hardware"]["final_status"] == "clear"
+    assert len(calls) == 1
+    source, options = calls[0]
+    assert SignedJoints(source).preserves(result.route)
+    retained = options["continuation"]
+    quality = options["quality"]
+    assert isinstance(retained, RetainedFeatures) and len(retained.evidence) == 3
+    assert isinstance(quality, StraightQuality)
+    assert options["maximum_updates"] == quality.remaining_updates == 1
+    detail = result.detail["construction"]["recovery"]
+    assert detail["before_grouped_retained"]["stop_reason"] == "joint_projection_infeasible"
+    assert detail["before_unmoved_incident"]["iterations"] == 0
+    assert detail["before_coupled_incident"]["iterations"] == 1
+    assert detail["iterations"] == 4 and detail["newton_steps"] == 24
+    assert detail["cpu_seconds"] < 0.35 and detail["contact_pairs"] <= 2048
+    assert quality.ceiling_mm == detail["before_coupled_incident"]["maximum_length_mm"]
+    assert result.route.material_length_mm <= quality.ceiling_mm
+    assert result.detail["cap_error_mm"] < 1e-7
+    assert result.detail["material_metric_error"] < 1e-10
+    handoffs = [e for e in records if e.get("stage") == "member_retained_handoff"]
+    assert len(handoffs) == 1 and handoffs[0]["remaining_updates"] == 1

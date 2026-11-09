@@ -156,12 +156,12 @@ def test_completed_recovery_failure_keeps_three_alias_controls_and_one_new_input
         assert retained["history"][-1]["disposition"] == "retained_control"
 
 
-def test_active_corpus_excludes_adjacent_inputs_without_changing_archived_cases() -> None:
+def test_v3_corpus_excludes_adjacent_inputs_without_changing_archived_cases() -> None:
     """
     Scope current QA to separated cells while preserving every retained record and historical failure.
     """
     archived = load(CORPUS.with_name("gym-v2.json"))
-    current = load()
+    current = load(CORPUS.with_name("gym-v3.json"))
     expected = [
         case
         for case in archived["cases"]
@@ -175,6 +175,38 @@ def test_active_corpus_excludes_adjacent_inputs_without_changing_archived_cases(
         case["id"] for case in current["cases"]
     }
     assert {"historical-32e26c5c88b5", "historical-e03a89e210af"} <= excluded
+
+
+def test_active_corpus_durably_covers_all_twenty_retained_ordinary_exceptions() -> None:
+    """
+    Preserve every v3 input/exclusion and enroll exact failures without counting repeated events as cases.
+    """
+    previous = load(CORPUS.with_name("gym-v3.json"))
+    current = load()
+    assert current["revision"] == 4 and current["placement_policy"] == "separated_cubicles"
+    assert len(current["cases"]) == 77
+    assert current["cases"][:65] == previous["cases"]
+    assert current["exclusions"] == previous["exclusions"]
+    enrollment = current["enrollment"]
+    events = enrollment["ordinary_incidents"]
+    assert [event["incident"] for event in events] == list(range(1, 21))
+    identities = {case["id"] for case in current["cases"]}
+    assert {event["retained_id"] for event in events} <= identities
+    assert len({event["retained_id"] for event in events}) == 18
+    added = current["cases"][65:]
+    assert [case["id"] for case in added] == enrollment["added_ids"]
+    assert len(added) == enrollment["new_complete_inputs"] == 12
+    assert all(
+        case["native_point_tolerance_mm"] == previous["cases"][0]["native_point_tolerance_mm"]
+        for case in added
+    )
+    assert all(not adjacent(case["gym"]["a"]["zone"], case["gym"]["b"]["zone"]) for case in added)
+    assert (
+        next(case for case in added if case["id"] == "ordinary-exception-08")["history"][0][
+            "disposition"
+        ]
+        == "unlaunched_gym_setup"
+    )
 
 
 @pytest.mark.parametrize("corruption", ("adjacent", "missing_gym", "zone", "policy"))

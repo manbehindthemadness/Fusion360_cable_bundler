@@ -7,7 +7,6 @@ from __future__ import annotations
 import math
 from dataclasses import asdict
 from enum import Enum
-from functools import lru_cache
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -34,6 +33,7 @@ from .flat_separation import FlatSeparation, ProfileExtent
 from .gate import Gate
 from .incident_model import IncidentJoints
 from .joint_derivatives import jacobian as joint_jacobian
+from .joint_evaluation import JointEvaluation
 from .quality_projection import quality_step
 from .radius_model import RadiusJoints
 from .recovery_limits import validate
@@ -89,6 +89,10 @@ def recover(
     ceiling, placing its length target inside that ceiling with the existing
     StraightQuality margin. It avoids rounded equality without accepting any
     excess or changing physical tolerances. Default parent targeting is unchanged.
+    Mating restoration retains each witnessed flat contact as an independent
+    full-profile inequality. More than four scalar inequalities use the existing
+    sixteen-step active projection; constraint, update, time and pair limits stay
+    unchanged. Other modes retain their original aggregated profile-arc guidance.
     A strict material crossing can initialize complete-profile flat guidance
     without inventing hardware intrusion. Only that entry can subsequently add
     up to two demonstrated connector planes; legacy hardware entries retain
@@ -175,7 +179,6 @@ def recover(
     interrupted_pairs: int | None = None
     probe = FlatProbe()
     penetration_seen = False
-    admissible = lru_cache(maxsize=64)(model.admissible)
 
     def bounded() -> None:
         """
@@ -191,8 +194,7 @@ def recover(
         """
         record({"stage": "joint_flat_contact", "status": status, **data})
 
-    @lru_cache(maxsize=64)
-    def equations(coordinates: tuple[float, ...]) -> tuple[float, ...]:
+    def raw_equations(coordinates: tuple[float, ...]) -> tuple[float, ...]:
         """
         Reuse identical raw equations only while the actual constraint set remains fixed.
         """
@@ -208,13 +210,15 @@ def recover(
                 / model.scale,
             )
         if constraints:
-            equation_terms += (
-                max(
-                    1e-8 / model.scale - constraint.gap(coordinates, chosen_side)
-                    for constraint, chosen_side in constraints
-                ),
+            flat_terms = tuple(
+                1e-8 / model.scale - constraint.gap(coordinates, chosen_side)
+                for constraint, chosen_side in constraints
             )
+            equation_terms += flat_terms if mode is JointMode.MATING_CEILING else (max(flat_terms),)
         return equation_terms
+
+    evaluation = JointEvaluation(raw_equations, model.admissible)
+    equations, admissible = evaluation.equations, evaluation.admissible
 
     def merit(coordinates: tuple[float, ...]) -> float:
         """
@@ -299,7 +303,7 @@ def recover(
                         if len(scalar_planes) + 1 + bool(constraints) > 13:
                             stop = "physical_inequality_capacity"
                             break
-                    equations.cache_clear()
+                    evaluation.constraints_changed()
                     emit(
                         "hardware_constraint_added",
                         terminal=extra.box.terminal.value,
@@ -334,7 +338,14 @@ def recover(
                     stop = "contact_unresolved"
                     break
                 penetration_seen = True
-                created_bound = FlatSeparation.create(model, candidate, measured_contact.witness)
+                created_bound = FlatSeparation.create(
+                    model,
+                    candidate,
+                    measured_contact.witness,
+                    extent=ProfileExtent.COMPLETE
+                    if mode is JointMode.MATING_CEILING
+                    else ProfileExtent.ARC,
+                )
                 if created_bound is None or len(constraints) >= 4:
                     stop = "unsupported_or_exhausted_flat_constraints"
                     break
@@ -356,7 +367,7 @@ def recover(
                     stop = "physical_inequality_capacity"
                     break
                 constraints.append((bound, side))
-                equations.cache_clear()
+                evaluation.constraints_changed()
                 emit(
                     "constraint_added",
                     witness=asdict(witness),
@@ -381,7 +392,10 @@ def recover(
                 bounded,
                 admissible=admissible,
             )
-            delta = project(model, values, jacobian, terms, bounded)
+            project_step = (
+                active_step if mode is JointMode.MATING_CEILING and len(terms) > 10 else project
+            )
+            delta = project_step(model, values, jacobian, terms, bounded)
             if delta is None:
                 stop = "linear_projection_infeasible"
                 break
@@ -395,7 +409,7 @@ def recover(
                     [0.0 if i in native_zero else value for i, value in enumerate(row)]
                     for row in jacobian
                 ]
-                delta = project(model, values, jacobian, terms, bounded)
+                delta = project_step(model, values, jacobian, terms, bounded)
                 if delta is None:
                     stop = "native_projection_infeasible"
                     break

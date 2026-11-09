@@ -270,3 +270,24 @@ def test_an_actual_witnessed_terminal_straight_is_never_discarded(
     )
     assert plane is not None and plane.reference == Region(slot, True)
     assert plane.reference in plane.members
+
+
+@pytest.mark.parametrize("family", range(15))
+def test_selected_feature_axis_matches_the_complete_sat_family_exactly(family: int) -> None:
+    """
+    Omit unused directions without changing box, local or cross-family axis arithmetic.
+    """
+    source = _route((Straight(2), fold(2, 1.2, 1, 0.2, 0), Straight(3)))
+    model = SignedJoints(source)
+    witness = Witness("end", 1, (0.5, 0, 0), Vector3(0, 0, 0), (-1, 0, 0))
+    plane = FeaturePlane.create(
+        model,
+        source,
+        Report("blocked", 1, witness),
+        Hardware.create(source.targets, Dimensions.scaled(source.targets)),
+        model.initial,
+    )
+    assert plane is not None
+    selected = FeaturePlane(model, plane.reference, plane.members, plane.box, family, plane.side)
+    piece = source.pieces[1]
+    assert selected._selected_axis(piece) == selected._axes(piece)[family]

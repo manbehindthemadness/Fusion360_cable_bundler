@@ -60,6 +60,15 @@ class ProjectionReuse(Enum):
     CELLS = "cells"
 
 
+class ProbeOrder(Enum):
+    """
+    Screen all original pairs first or retain the original depth-first material traversal.
+    """
+
+    ORIGINAL_PAIRS = "original_pairs"
+    MATERIAL_CELLS = "material_cells"
+
+
 @dataclass(frozen=True)
 class ProbeResult:
     """
@@ -98,6 +107,7 @@ def inspect_contact(
     checkpoint: Callable[[], None] | None = None,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
     witness_probe: WitnessProbe | None = None,
+    probe_order: ProbeOrder = ProbeOrder.ORIGINAL_PAIRS,
     projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
 ) -> ContactResult:
     """
@@ -121,11 +131,17 @@ def inspect_contact(
     exhaustion disables only the accelerator, leaving the full proof mandatory.
     Cell reuse caches at most512identical projections within this call, changing
     neither arithmetic nor the mandatory pair count or acceptance criteria.
+    Explicit material-cell probe order retains the original depth-first witness
+    sequence instead of screening all original pairs before subdivision. The
+    optional probe still runs only once per original nonmating pair, after its
+    ordinary point and separation checks, within the same comparison allowance.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
     if not isinstance(projection_reuse, ProjectionReuse):
         raise ValueError("Supply an explicit contact projection reuse policy")
+    if not isinstance(probe_order, ProbeOrder):
+        raise ValueError("Supply an explicit contact probe order")
     if (
         isinstance(maximum_pairs, bool)
         or not isinstance(maximum_pairs, int)
@@ -169,9 +185,9 @@ def inspect_contact(
         return cache[region]
 
     pending = [(a, b) for i, a in enumerate(cells) for b in cells[i + 1 :]]
-    original_pending = pending if witness_probe is not None else []
-    if witness_probe is not None:
-        pending = []
+    original_pending: list[tuple[Cell, Cell]] = []
+    if witness_probe is not None and probe_order is ProbeOrder.ORIGINAL_PAIRS:
+        original_pending, pending = pending, []
     probe_enabled = witness_probe is not None
     bridges = straight_bridge_pairs(route)
     checked = 0

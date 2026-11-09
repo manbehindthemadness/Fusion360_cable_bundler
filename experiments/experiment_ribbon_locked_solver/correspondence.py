@@ -113,6 +113,11 @@ class MaterialFaces:
         Evaluate cheap raw memberships first. Only their collective failure invokes
         actual trimmed-face distance. Source interior samples may claim unowned faces;
         sealed boundary queries use the established profile ownership exclusively.
+        Try previously verified members of this material region first. Their raw
+        trimmed membership within the original accuracy goal supplies a complete
+        witness; other results retain the exhaustive search and distance fallback.
+        This changes query ordering, not samples, ownership, coverage or budgets.
+        Correspondence promises a valid witness, not a globally nearest face.
         """
         profile = self.patches[index].profile_index if index < len(self.patches) else -index
         key = (profile, point.x, point.y, point.z)
@@ -120,7 +125,13 @@ class MaterialFaces:
         if selected is None:
             candidates: list[tuple[float, int, Any]] = []
             pending: list[tuple[float, int, Any]] = []
-            for j, (face, box) in enumerate(zip(self.native, self.boxes)):
+            preferred = self.members[index]
+            order = (
+                *sorted(preferred),
+                *(j for j in range(len(self.native)) if j not in preferred),
+            )
+            for j in order:
+                face, box = self.native[j], self.boxes[j]
                 if allowed is not None and j not in allowed:
                     continue
                 owner = self.owners.get(j)
@@ -147,6 +158,8 @@ class MaterialFaces:
                     continue
                 target = candidates if face.evaluator.isParameterOnFace(uv) else pending
                 target.append((error, j, uv))
+                if target is candidates and j in preferred and self.accuracy.meets_goal(error):
+                    break
             if not candidates:
                 for _, j, uv in sorted(pending, key=lambda row: (row[0], row[1])):
                     self.distance_queries += 1

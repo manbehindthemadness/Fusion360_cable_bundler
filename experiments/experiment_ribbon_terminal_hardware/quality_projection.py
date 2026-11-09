@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from typing import Callable
 
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace
 from experiments.experiment_ribbon_fold_relaxation.steps import projected
 
 from .feature_plane import SignedJoints
@@ -28,6 +29,8 @@ def quality_step(
     These are algebraic projections of one Jacobian, not geometry candidates.
     Return None if no projection meets every linearized bound. Final nonlinear
     closure and physical certificates remain the caller's responsibility.
+    Share exact common affine prefixes across these same scalar subsets, with
+    at most64immutable cache entries owned by this one correction.
     """
     if (
         not 7 <= len(residual) <= 10
@@ -36,6 +39,7 @@ def quality_step(
     ):
         raise ValueError("Use six cap equations and one to four matching scalar inequalities")
     best, best_cost = None, math.inf
+    workspace = AffineWorkspace()
     for mask in range(1 << (len(residual) - 6)):
         checkpoint()
         active = list(range(6)) + [i for i in range(6, len(residual)) if mask & (1 << (i - 6))]
@@ -45,6 +49,7 @@ def quality_step(
             [jacobian[i] for i in active],
             [-residual[i] for i in active],
             [0.0] * len(values),
+            workspace=workspace,
         )
         if proposal is None or any(
             residual[i] + math.fsum(a * b for a, b in zip(jacobian[i], proposal)) > 1e-12

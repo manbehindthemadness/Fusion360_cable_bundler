@@ -21,7 +21,7 @@ from experiments.experiment_ribbon_fold_route.contact import ContactResult, Pene
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
-from experiments.experiment_ribbon_locked_solver import branch_recovery
+from experiments.experiment_ribbon_locked_solver import branch_recovery, solver_v2
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 from experiments.experiment_ribbon_locked_solver.solver_v2 import solve
 from tests.test_ribbon_aesthetic import _route
@@ -160,10 +160,25 @@ def test_missing_recovered_certificate_is_a_hard_error(monkeypatch: pytest.Monke
         )
 
 
-def test_pair_limited_straight_overlap_can_use_existing_fallback_recovery() -> None:
+def test_pair_limited_straight_overlap_can_use_existing_fallback_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
     Retain raw uncertainty while a verified thickness witness enables one bounded compact correction.
+
+    Explicitly retain legacy initial measurement to exercise this fallback;
+    current v2's optional probe can establish the penetration earlier.
     """
+    original = solver_v2.construct
+
+    def without_probe(*args: Any, **kwargs: Any) -> Result:
+        """
+        Exercise the retained no-probe constructor policy without changing physical checks.
+        """
+        kwargs["probe_order"] = None
+        return original(*args, **kwargs)
+
+    monkeypatch.setitem(vars(solver_v2), "construct", without_probe)
     scene = Scene(
         Config(2976634137, 7, 0.75, 300, 300),
         Goal.from_degrees(8, 7, 65),

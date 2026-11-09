@@ -9,8 +9,13 @@ from time import perf_counter
 from typing import Any, Callable
 
 from experiments.experiment_ribbon_contraction.runner import snapshot
-from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import (
+    ContactResult,
+    ProbeOrder,
+    inspect_contact,
+)
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
@@ -57,6 +62,7 @@ def construct(
     selection_policy: Policy = Policy.MONOTONIC,
     contact_policy: ContactPolicy = ContactPolicy.STRICT,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
+    probe_order: ProbeOrder | None = None,
 ) -> Result:
     """
     Fit one fixed frame sequence with a shared2048pair contact-work allowance.
@@ -84,9 +90,14 @@ def construct(
     The optional analytic cap proof strengthens the same complete halfspace
     certificate without changing geometry, contact acceptance or pair limits.
     Historical callers retain their original monotone-cap proof.
+    An explicit probe order enables the existing negative-only flat witness
+    accelerator within each original certificate's pair allowance. A missed
+    probe grants no clearance, and omitted policy retains historical measurement.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
+    if probe_order is not None and not isinstance(probe_order, ProbeOrder):
+        raise ValueError("Supply an explicit contact probe order")
     candidates: list[Allocation] = []
     branches: list[Branch] = []
     unfinished: list[Unclosed] = []
@@ -121,7 +132,11 @@ def construct(
         record({"stage": "feature_contact", "status": "started", "roots": checked.chain.roots})
         started = perf_counter()
         allowance = min(1024, remaining)
-        options = {"cap_policy": cap_policy} if cap_policy is not CapPolicy.MONOTONE else {}
+        options: dict[str, Any] = (
+            {"cap_policy": cap_policy} if cap_policy is not CapPolicy.MONOTONE else {}
+        )
+        if probe_order is not None:
+            options.update(witness_probe=FlatProbe(), probe_order=probe_order)
         result = inspect_contact(
             checked.route, maximum_pairs=allowance, checkpoint=checkpoint, **options
         )
