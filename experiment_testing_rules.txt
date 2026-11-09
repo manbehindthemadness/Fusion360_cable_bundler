@@ -1,3 +1,26 @@
+USER-DIRECTED FIXED-SAMPLE FAILURE-RATE RUN — 2026-11-09
+For the explicit goal "run another 100 layouts and determine failure rate", use
+100 entirely new precommitted layouts with one unchanged solver source. Preserve
+and count each geometry failure, then continue to the next ordinal without retry
+or tuning. This supersedes first-geometry-failure stopping for this fixed sample
+only. Resource, source, cancellation, logging and host/API errors still stop the
+affected work for review. Preserve failure evidence before proceeding; keep the
+4GiB RSS cap, 3.8GiB launch headroom and twenty-minute autonomous reviews. Do not
+report a failure rate with100as denominator until all100attempts are collected.
+
+USER-DIRECTED FRESH-INPUT VALIDATION — 2026-11-08
+Future validation uses fresh random seeds and unique physical layouts per run.
+Roll existing evidence into generalized mechanisms and aggregate first-attempt
+statistics. Historical geometry/routes are retired from active reference replay;
+archived receipts remain unchanged. Preserve current-run evidence and failures.
+This supersedes historical replay/control-fixture requirements below, including
+rechecking historical inputs as a prerequisite to fresh validation. Analytical
+mechanism tests remain appropriate. All physical, native, first-failure and
+resource safeguards remain. No repairs receive first-attempt pass credit.
+Freeze one solver source per run; changes require a new seed and new layouts.
+Use experiments/experiment_ribbon_regression/GENERALIZED_RULES.md for the
+pre-solve novelty reservation and aggregate comparison protocol.
+
 EXPERIMENT INTEGRITY AND RESOURCE SAFEGUARDS
 Effective 2026-10-05. Read before experimental solver work or reporting.
 

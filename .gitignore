@@ -2,7 +2,10 @@
 /.idea
 /.venv
 /.codex
-/.agents
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/ribbon-spatial-inspection/
 /standards
 __pycache__/
 *.py[cod]

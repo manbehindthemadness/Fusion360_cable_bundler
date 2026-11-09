@@ -1,3 +1,8 @@
+> Current policy: [generalized rules and fresh-input validation](GENERALIZED_RULES.md).
+> [Historical aggregate statistics](STATISTICS.md) are the comparison baseline.
+> Historical fixture replay and restart procedures below are archived evidence;
+> they are superseded for future validation by the user's fresh-input directive.
+
 # Consolidated recovery contracts
 
 User reasserts generalized improvement over atomic repairs. A fix must address
