@@ -1,0 +1,126 @@
+{
+    "version": "0.1.0",
+    "id": "1fe356d9-3bc3-4e76-b3b8-e51395b5c0d5",
+    "timestamp": "2026-11-10T15:46:46.087752Z",
+    "vcs": {
+        "type": "git",
+        "revision": "4723765603c40992ebb883983504251b573d77fe",
+        "origin": "github",
+        "repository": "git@github.com:manbehindthemadness/Fusion360_cable_bundler.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "experiments/experiment_ribbon_terminal_hardware/joint_contact.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 241,
+                            "end_line": 241
+                        },
+                        {
+                            "start_line": 250,
+                            "end_line": 250
+                        },
+                        {
+                            "start_line": 435,
+                            "end_line": 435
+                        },
+                        {
+                            "start_line": 510,
+                            "end_line": 510
+                        },
+                        {
+                            "start_line": 601,
+                            "end_line": 601
+                        },
+                        {
+                            "start_line": 716,
+                            "end_line": 716
+                        },
+                        {
+                            "start_line": 722,
+                            "end_line": 722
+                        },
+                        {
+                            "start_line": 724,
+                            "end_line": 726
+                        },
+                        {
+                            "start_line": 736,
+                            "end_line": 736
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tests/test_ribbon_active_projection.py",
+            "conversations": [
+                {
+                    "url": "git+CODEX_CLI:blob:0136732c3d981f29ca93201621b9033af275beef",
+                    "contributor": {
+                        "type": "ai"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 38,
+                            "end_line": 38
+                        },
+                        {
+                            "start_line": 40,
+                            "end_line": 40
+                        },
+                        {
+                            "start_line": 53,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 88
+                        },
+                        {
+                            "start_line": 90,
+                            "end_line": 90
+                        },
+                        {
+                            "start_line": 193,
+                            "end_line": 193
+                        },
+                        {
+                            "start_line": 195,
+                            "end_line": 195
+                        },
+                        {
+                            "start_line": 200,
+                            "end_line": 200
+                        },
+                        {
+                            "start_line": 202,
+                            "end_line": 202
+                        },
+                        {
+                            "start_line": 212,
+                            "end_line": 213
+                        },
+                        {
+                            "start_line": 215,
+                            "end_line": 215
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
