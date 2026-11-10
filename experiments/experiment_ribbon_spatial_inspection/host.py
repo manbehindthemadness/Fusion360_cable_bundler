@@ -25,6 +25,8 @@ from devtools.ribbon_analysis.inspection.archive import parse_snapshot
 from devtools.ribbon_analysis.inspection.native_guides import retain
 
 from .ledger import Ledger, create
+from .palette_layout import LayoutIncoming
+from .palette_layout import show as show_palette
 
 VIEWS: list[Inspector] = []
 
@@ -251,12 +253,10 @@ class Inspector:
         )
         if self.palette is None:
             raise RuntimeError("Fusion could not create the inspection palette")
-        self.handler = Incoming(self)
+        self.handler = LayoutIncoming(Incoming(self), self.palette)
         if not self.palette.incomingFromHTML.add(self.handler):
             raise RuntimeError("Fusion could not register the inspection bridge")
         self.palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateFloating
-        self.palette.width = 1000
-        self.palette.height = 850
         self.palette.setPosition(60, 100)
-        self.palette.isVisible = True
+        show_palette(self.palette, 1000, 850)
         VIEWS.append(self)

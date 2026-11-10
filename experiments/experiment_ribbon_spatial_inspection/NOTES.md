@@ -63,6 +63,26 @@ All raw records belong under ignored artifacts. Active future validation still
 uses entirely new seeds and layouts, comparing aggregate statistics rather than
 replaying diagnostic specimens as holdouts.
 
+## Embedded viewport initialization — 2026-11-10
+
+Apply final floating-palette bounds after visibility. The native embedded browser
+can otherwise retain its tiny initial surface until the user collapses/reopens it.
+The viewer coalesces redraws after load, visibility and actual canvas size changes;
+zero-sized canvases wait for usable dimensions. Resize preserves section, camera
+and frozen geometry state. Presentation-only `ribbon_spatial_layout` reports record
+the viewport and four painted canvas dimensions; all original actions still pass
+through the original inspection handler and its guards. One initial tiny viewport
+report permits one one-pixel native resize, restoring final bounds without collapse.
+
+Resume1961 verifies12focused analytical tests, the exact viewer script in a Node VM,
+Ruff and changed Python IDE inspections. Six existing HTML inspection findings
+remain outside this change. An idle UI-only adapter updated the retained1954view
+without reloading geometry modules or running a solve, probe or native build. Live
+Fusion reported994x783CSS pixels with all four451x260canvases painted at902x520
+backing pixels, no layout error and the unchanged frozen baseline fingerprint.
+This verifies fresh HTML navigation in the current native palette; first creation
+in a restarted Fusion session remains unmeasured. Receipts are under resume1961.
+
 ## First live demonstration — 2026-11-09
 
 Two independent fresh N5 configurations were reserved, solved once numerically,
