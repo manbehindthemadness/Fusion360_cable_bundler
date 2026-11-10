@@ -36,8 +36,10 @@ def before_optional_motion(
     Bind one actual selected branch; no action or eligibility measurement occurs before its first motion.
 
     A measured paired-fold return or supported mating-runway crossing can select
-    a different first motion. Other contact topologies retain their original
-    action without measuring baseline hardware. A blocked baseline prioritizes
+    a different first motion. An unsupported contact topology defers before motion
+    when the actual baseline is hardware-blocked, preserving only unused work for
+    terminal feasibility. Clear or unresolved eligibility retains its original
+    action. A blocked baseline prioritizes
     its selected physical correction
     using the remaining original work. A clear fallback permits coupling only
     for a confirmed straight-pair crossing whose trust-clipped first motion
@@ -54,15 +56,17 @@ def before_optional_motion(
         Charge eligibility, preparation and every child correction to this one original allocation.
         """
         cpu, wall = process_time(), perf_counter()
+        assert terminal is not None
         if measurement.status != "penetration" or measurement.witness is None:
             return None
         paired = paired_return_fold(source, measurement.witness)
         support = (
             mating_supported(source, measurement, checkpoint, record) if paired is None else None
         )
-        if paired is None and support is None:
-            return None
+        unsupported = paired is None and support is None
         report = terminal.measure(baseline, "fallback_feasibility")
+        if unsupported and (report.status != "blocked" or report.witness is None):
+            return None
         if report.status != "blocked" and not (
             report.status == "clear" and support is not None and support.clipped_straights
         ):
@@ -78,6 +82,7 @@ def before_optional_motion(
             left is not None
             and measurement.status == "penetration"
             and measurement.witness is not None
+            and not unsupported
         ):
             if paired is None:
                 child = recover_mating(
@@ -136,7 +141,11 @@ def before_optional_motion(
                     "pairs": 0,
                     "cpu_seconds": process_time() - cpu,
                     "elapsed_seconds": perf_counter() - wall,
-                    "stop_reason": "terminal_feasibility_priority"
+                    "stop_reason": (
+                        "blocked_baseline_before_optional_motion"
+                        if unsupported
+                        else "terminal_feasibility_priority"
+                    )
                     if left is not None
                     else "priority_budget",
                 },

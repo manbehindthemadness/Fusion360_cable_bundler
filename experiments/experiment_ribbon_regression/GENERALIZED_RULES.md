@@ -1754,3 +1754,97 @@ Investigate early hardware eligibility/defer before unsupported optional fallbac
 improvement, preserving all original Gate/Work limits and fixed targets. Existing
 before_optional_motion only measures baseline hardware for paired/mating support.
 No policy change or changed-code geometry replay yet; causal benefit unproven.
+
+1952generalizes the existing first-motion optional fallback hook: unsupported
+strict material contact now measures its original separated baseline using the
+same shared hardware Gate. Only demonstrated baseline intrusion with an actual
+witness defers before geometry. Clear/unresolved/missing-witness eligibility keeps
+the original action; disabled hardware/incomplete material evidence invents none.
+Supported paired/mating coupled corrections preserve their existing strategies.
+Deferral consumes zero updates/contact certificates/pairs, but charges all original
+preparation CPU/wall; exhausted work stays unresolved. Existing caller reservation
+accepts only the genuine remainder, without renewing clocks or physical rules.
+145analytical/affected checks pass; Ruff/format clean, no IDE findings in changed
+function/new tests, four pre-existing branch-recovery clone warnings unchanged.
+Complete incremental diff, hook transfer, branch summary and solver reservation/
+terminal-consumer paths reviewed. No changed-code replay of1950case7; geometry
+qualification requires new unique layouts. This policy does not claim the archived
+open cap is repaired or that unused work guarantees closure.
+
+1953fresh seed2626408994/identifierfresh-46a444b85d9c42fc9e3bd972e0d55fa1:
+20reserved/1attempted/0accepted/1numerical failure/19unattempted;0ordinary native
+attempts/builds/fidelity audits,1separate rejected native inspection,12.053180s.
+Full physical audit unmeasured.284source files/0epochs;registry finalized ONCE,
+live tester/worker/poll/profile-command idle verified. Eligible cubicles8/18.
+1952optional-priority path not entered(no fallback_branch_recovery);0new material
+continuation uses. Neither physical improvement nor regression is established for
+those unexercised rules. New failure exhausts the shared.35CPU phase during final
+contact certification;609interrupted comparisons charged as upper bound, original
+2048construction pool exhausted. Do not enlarge either budget or call it infeasible.
+
+1954retained final109.303969792mm fold1return after4Newton: caps3.85745e-14mm,
+frame5.59051e-16, separated692pairs/hardwareclear54cells,149sections/all4CADviews
+inspected, NOT ACCEPTED. Fingerprint2481c6bf82256cfdcb17a9f68469242f39ab3572576c0da7ed7ef07a26c27f07.
+Earlier coupled stage3Newton/48pairs handed off actual penetration onpieces1/4;
+last reflected route had only609pairs remaining. Diagnostic692pairs exceeds that
+remainder by83, without establishing original run completion or renewing work.
+Original initial deviation spent584pairs on a depth-limited unresolvedpair1/4.
+0newsolve/probe/native/pass credit; separate diagnostic clearance is not the
+original budgeted certificate. Next investigate proof-work efficiency/initial
+uncertainty under unchanged checks and limits, not another geometric relaxation.
+
+1955proof-only cProfile of retained1953last candidate, unchanged source/original
+609pair ceiling/.35CPU/2wall, finishes unresolved at609pairs/.148436CPU including
+profiling;0solve/motion/native/pass credit. Probe10comparisons/1738supports/0inverse.
+Projection.070322s nested cumulative, foldbounds.050910s, edgevalues.035523s,
+FlatProbe.028958s. Final unresolved pair10/11 differs from original witnesspair1/4.
+Policy clarification: shared spatial capture uses MATERIAL_CELLS probe order;
+actual joint entry uses ORIGINAL_PAIRS with cell projection reuse.1954's692
+comparisons and83-versus-remainder arithmetic describe that diagnostic policy,
+not a measured exact original-policy completion cost. Do not conflate them.
+
+1956remembered SAT-axis prototype preserves12analytical receipts but saves0pairs;
+not retained.1957probe-direction prototype also saves0pairs; miss-exit coverage/
+axis-buffer issues retained in its review.1958separate bounded revision uses the
+last already-computed positive support-plane direction on normal GJK misses, no
+extra steps or support queries;12byte-identical analytical controls. Decisions,
+strict witnesses and support counts match; three separated pair controls reduce
+22to2,18to2,14to2comparisons. These are analytical pairs, not complete layouts or
+geometry coverage. Single-sample CPU differences are not general speed evidence.
+
+1959retains one untrusted direction per completed probe call, certified only by
+existing full thick-material outward intervals before subdivision is omitted.
+Convex miss/hull separation alone grants nothing; curved regions stay in bounds.
+Invalid/limited/no/unhelpful proposals cannot bypass full proof. Same8GJK steps,
+2048support cap, comparison/depth/CPU/wall limits and64prepared/512evaluated caches.
+No history/cross-route proof cache. Per-result axis_tests/axis_separations count
+extra full-cell tests and strict successes, never independent configurations.
+140analytical/affected checks pass, Ruff/format clean, new tests IDE empty; remaining
+IDE clone fragments are existing/resegmented checker/helper blocks. Full diff,
+consumer and serialization review complete. Fresh qualification pending; no old
+changed-code geometry/proof replay, native or full-physical claim.
+
+1960fresh seed1275871529/identifierfresh-2d3b5651ba384191a1bca91254db4f22qualifies
+1959source:20reserved/14attempted/13accepted/1numerical failure/6unattempted,
+13ordinary native builds/fidelity/strict accuracy passes,0warnings/timing misses/
+rejected native inspections,494.276484s. Max named native error2.109874436e-9mm;
+full physical audit unmeasured.284source files/0epochs,registry finalized ONCE;
+live source/tester/worker/poll/profile-command idle verification passes.
+
+New direction tests occur in three fresh case histories:4,8,10. Cases4and10record
+strict full-interval separation. Case4's accepted native result explicitly retains
+its453pair construction certificate with2axis tests/2separations; the later fallback
+log repeats that same receipt, not another measurement or configuration. Case8's
+2tests/0separations retain the full665pair proof and native acceptance, showing
+an unhelpful candidate grants no clearance. Case10feature-contact530pair receipt
+has1test/1separation; final-route retention is not inferred without lineage proof.
+These establish actual fresh mechanism use, not a whole-solver speedup or unbiased
+failure-rate reduction. Frozen analytical comparison savings remain separately
+22to2,18to2,14to2, with no extra support queries and unchanged collision/witness data.
+
+Failedcase14eligible cubicles19/5has no_fixed_radius_closure,0closed branches/
+contact checks/pairs/hardware checks/native/inspection attempts. It fails before
+proof checking, so does not exercise the new axis path; finite closure failure is
+not infeasibility. Preserve its unsolved endpoint preview and raw receipts. No
+rejected route exists for a spatial-candidate capture. Next review this separate
+closure/allocation failure without changing proof budgets or replaying old solves.

@@ -4,7 +4,8 @@ Reject thick ribbon self-intersection using analytic envelopes and volume witnes
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, replace
 from enum import Enum
 from functools import lru_cache
 from typing import Callable, Generator, Literal, Protocol
@@ -40,6 +41,8 @@ class ContactResult:
     A depth-limited result retains its undecided material boxes for diagnostic or
     constraint initialization. Those boxes are neither a penetration witness nor
     permission to accept geometry without a later separation certificate.
+    Axis counters describe additional full-cell interval tests and their strict
+    separations, never independent cases or probe-only clearance claims.
     """
 
     status: str
@@ -49,6 +52,8 @@ class ContactResult:
     reason: str = ""
     limit: Literal["pairs", "depth"] | None = None
     unresolved_regions: tuple[Cell, Cell] | None = None
+    axis_tests: int = 0
+    axis_separations: int = 0
 
 
 class ProjectionReuse(Enum):
@@ -72,17 +77,18 @@ class ProbeOrder(Enum):
 @dataclass(frozen=True)
 class ProbeResult:
     """
-    Account optional negative-only work without treating a missed witness as clearance.
+    Account optional witness and direction proposals without treating a miss as clearance.
     """
 
     pairs_checked: int
     witness: Penetration | None = None
     limit: Literal["pairs", "supports"] | None = None
+    axis_proposal: Vector3 | None = None
 
 
 class WitnessProbe(Protocol):
     """
-    Propose a strict interior witness while sharing the caller's remaining pair allowance.
+    Propose a strict interior witness or one untrusted axis within the remaining pair allowance.
     """
 
     def __call__(
@@ -94,7 +100,7 @@ class WitnessProbe(Protocol):
         checkpoint: Callable[[], None] | None,
     ) -> ProbeResult:
         """
-        Return all compared probe pairs; a miss leaves the complete interval proof mandatory.
+        Return all compared probe pairs; any axis still needs complete material interval certification.
         """
         ...
 
@@ -166,6 +172,9 @@ def _walk(
     exhaustion disables only the accelerator, leaving the full proof mandatory.
     Cell reuse caches at most512identical projections within this call, changing
     neither arithmetic nor the mandatory pair count or acceptance criteria.
+    One finite axis proposed by a completed optional probe may avoid subdivision
+    only after the same full thick-cell outward bounds strictly separate. A
+    proposal, convex-hull miss or probe limit never grants material clearance.
     Explicit material-cell probe order retains the original depth-first witness
     sequence instead of screening all original pairs before subdivision. The
     optional probe still runs only once per original nonmating pair, after its
@@ -235,17 +244,27 @@ def _walk(
     probe_enabled = witness_probe is not None
     bridges = straight_bridge_pairs(route)
     checked = 0
+    axis_tests = axis_separations = 0
+
+    def measured(result: ContactResult) -> ContactResult:
+        """
+        Freeze this walk's cumulative proposal counters on completed or suspended receipts.
+        """
+        return replace(result, axis_tests=axis_tests, axis_separations=axis_separations)
+
     while pending or original_pending:
         if checkpoint is not None and checked % 64 == 0:
             checkpoint()
         first, second = original_pending.pop() if original_pending else pending.pop()
         if checked >= maximum_pairs:
-            maximum_pairs = yield ContactResult(
-                "unresolved",
-                checked,
-                unresolved_pieces=(first.piece, second.piece),
-                reason="Contact subdivision budget exhausted.",
-                limit="pairs",
+            maximum_pairs = yield measured(
+                ContactResult(
+                    "unresolved",
+                    checked,
+                    unresolved_pieces=(first.piece, second.piece),
+                    reason="Contact subdivision budget exhausted.",
+                    limit="pairs",
+                )
             )
         checked += 1
         first = clip_profile(first, route.targets.lines, route.targets.diameter_mm)
@@ -289,11 +308,13 @@ def _walk(
                     local if reversed_pair else coordinates,
                     point,
                 )
-                return ContactResult(
-                    "penetration",
-                    checked,
-                    witness=witness,
-                    reason="A world point occupies two strict material interiors.",
+                return measured(
+                    ContactResult(
+                        "penetration",
+                        checked,
+                        witness=witness,
+                        reason="A world point occupies two strict material interiors.",
+                    )
                 )
         separating = False
         for piece, cell in ((a, first), (b, second)):
@@ -334,30 +355,56 @@ def _walk(
                 witness = Penetration(
                     pair, first_coordinates, second_coordinates, probe.witness.point
                 )
-                return ContactResult(
-                    "penetration",
-                    checked,
-                    witness=witness,
-                    reason="Both original strict inverse maps verify an optional flat-region witness.",
+                return measured(
+                    ContactResult(
+                        "penetration",
+                        checked,
+                        witness=witness,
+                        reason="Both original strict inverse maps verify an optional flat-region witness.",
+                    )
                 )
             if probe.limit == "pairs":
-                return ContactResult(
-                    "unresolved",
-                    checked,
-                    unresolved_pieces=pair,
-                    reason="Shared witness/certificate comparison budget exhausted.",
-                    limit="pairs",
+                return measured(
+                    ContactResult(
+                        "unresolved",
+                        checked,
+                        unresolved_pieces=pair,
+                        reason="Shared witness/certificate comparison budget exhausted.",
+                        limit="pairs",
+                    )
                 )
             if probe.limit == "supports":
                 probe_enabled = False
+            if probe.axis_proposal is not None and probe.limit is None:
+                axis = probe.axis_proposal
+                if not isinstance(axis, Vector3):
+                    raise ValueError("Optional axis proposal must be a finite nonzero vector")
+                coordinates = axis.x, axis.y, axis.z
+                if (
+                    any(
+                        type(value) not in (int, float) or not math.isfinite(value)
+                        for value in coordinates
+                    )
+                    or not 0 < math.hypot(*coordinates) < math.inf
+                ):
+                    raise ValueError("Optional axis proposal must be a finite nonzero vector")
+                if checkpoint is not None:
+                    checkpoint()
+                axis_tests += 1
+                x, y = evaluated(first, axis), evaluated(second, axis)
+                if x.high < y.low or y.high < x.low:
+                    axis_separations += 1
+                    continue
         if max(first.depth, second.depth) >= maximum_depth:
-            return ContactResult(
-                "unresolved",
-                checked,
-                unresolved_pieces=(first.piece, second.piece),
-                reason="Near-contact interval resolution exhausted.",
-                limit="depth",
-                unresolved_regions=(first, second),
+            return measured(
+                ContactResult(
+                    "unresolved",
+                    checked,
+                    unresolved_pieces=(first.piece, second.piece),
+                    reason="Near-contact interval resolution exhausted.",
+                    limit="depth",
+                    unresolved_regions=(first, second),
+                )
             )
         size_a = max(
             (first.u.high - first.u.low) * a.geometry.material_length_mm,
@@ -373,8 +420,10 @@ def _walk(
             pending.extend((child, second) for child in first.split(a.geometry.material_length_mm))
         else:
             pending.extend((first, child) for child in second.split(b.geometry.material_length_mm))
-    return ContactResult(
-        "separated",
-        checked,
-        reason="Thick envelopes separated; monotone shared caps and certified straight-bridge cap gaps excluded.",
+    return measured(
+        ContactResult(
+            "separated",
+            checked,
+            reason="Thick envelopes separated; monotone shared caps and certified straight-bridge cap gaps excluded.",
+        )
     )

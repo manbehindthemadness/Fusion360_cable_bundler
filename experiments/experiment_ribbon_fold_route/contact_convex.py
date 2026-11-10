@@ -128,15 +128,23 @@ def _closest(simplex: list[Vertex]) -> tuple[list[Vertex], list[float], Triple]:
 
 
 def overlap_point(
-    first: SupportShape, second: SupportShape, checkpoint: Callable[[], None]
+    first: SupportShape,
+    second: SupportShape,
+    checkpoint: Callable[[], None],
+    *,
+    on_axis_proposal: Callable[[Triple], None] | None = None,
 ) -> Vector3 | None:
     """
     Propose one point with eight GJK steps; every miss and proposed point needs actual-volume checks.
 
     Convex hulls may contain empty profile valleys. Neither convergence nor a miss
     is a ribbon contact decision. The caller must verify both strict inverse maps.
+    On a normal miss an optional callback receives the last direction with a
+    positive support-plane dot product, using only the existing queries. This is
+    an untrusted direction proposal requiring independent full-material bounds.
     """
     simplex: list[Vertex] = []
+    last_axis: Triple | None = None
     nearest = subtract(first.origin, second.origin)
     if dot(nearest, nearest) == 0:
         nearest = 1.0, 0.0, 0.0
@@ -144,7 +152,11 @@ def overlap_point(
         checkpoint()
         a, b = first.support(scaled(nearest, -1)), second.support(nearest)
         vertex = subtract(a, b)
+        if on_axis_proposal is not None and dot(vertex, nearest) > 0:
+            last_axis = nearest
         if simplex and dot(vertex, nearest) >= dot(nearest, nearest) - 1e-13:
+            if on_axis_proposal is not None and last_axis is not None:
+                on_axis_proposal(last_axis)
             return None
         simplex.append((vertex, a, b))
         simplex, weights, nearest = _closest(simplex)
@@ -155,4 +167,6 @@ def overlap_point(
                     for k in range(3)
                 )
             )
+    if on_axis_proposal is not None and last_axis is not None:
+        on_axis_proposal(last_axis)
     return None

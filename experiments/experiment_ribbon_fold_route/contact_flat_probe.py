@@ -1,9 +1,10 @@
 """
-Find only strictly verified flat-region penetration witnesses inside the original contact budget.
+Propose strictly verified flat witnesses or one untrusted axis inside the original contact budget.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Callable, Iterator
@@ -48,6 +49,8 @@ class FlatProbe:
         overlap proposal fails strict material inversion, compare constituent
         arc hulls near its affine width coordinate. Every compared pair and
         support query shares the original allowance; no miss grants clearance.
+        A normal miss may retain one already-computed direction for the full
+        material interval checker. It adds no support query or clearance receipt.
         """
         if type(remaining_pairs) is not int or remaining_pairs < 0:
             raise ValueError("Supply nonnegative remaining contact work")
@@ -55,6 +58,16 @@ class FlatProbe:
             raise ValueError("Probe two distinct ordered original pieces")
         before = self.comparisons
         limit: str | None = None
+        axis_candidate: Vector3 | None = None
+
+        def propose(direction: Triple) -> None:
+            """
+            Retain at most one finite direction without querying geometry again.
+            """
+            nonlocal axis_candidate
+            length = math.hypot(*direction)
+            if axis_candidate is None and math.isfinite(length) and length > 0:
+                axis_candidate = Vector3(*(value / length for value in direction))
 
         def bounded() -> None:
             """
@@ -110,7 +123,7 @@ class FlatProbe:
                     self.comparisons += 1
                     if any(x[1] < y[0] or y[1] < x[0] for x, y in zip(a.bounds(), b.bounds())):
                         continue
-                    point = overlap_point(a, b, bounded)
+                    point = overlap_point(a, b, bounded, on_axis_proposal=propose)
                     if point is None:
                         continue
                     witness = verify(point)
@@ -127,7 +140,7 @@ class FlatProbe:
                         )
                         witness = verify(center)
                         if witness is None:
-                            proposal = overlap_point(left, right, bounded)
+                            proposal = overlap_point(left, right, bounded, on_axis_proposal=propose)
                             if proposal is not None:
                                 witness = verify(proposal)
                         if witness is not None:
@@ -136,7 +149,7 @@ class FlatProbe:
             if limit == "pairs":
                 return ProbeResult(self.comparisons - before, limit="pairs")
             return ProbeResult(self.comparisons - before, limit="supports")
-        return ProbeResult(self.comparisons - before)
+        return ProbeResult(self.comparisons - before, axis_proposal=axis_candidate)
 
 
 def _profile_pairs(

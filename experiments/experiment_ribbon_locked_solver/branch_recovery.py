@@ -68,7 +68,9 @@ def recover_construction(
     physical feasibility. Explicit released-quality restoration may exceed that
     blocked baseline's length after its constrained projection failed; every
     physical certificate remains required. Report restoration separately from guide improvement;
-    internal crossings and the existing paired-fold policy remain unchanged.
+    Unsupported optional contact topologies defer without motion when the same
+    shared gate demonstrates baseline hardware intrusion. Eligibility/preparation
+    costs remain charged; only unused work reaches later terminal recovery.
     No new roots or pair allowance are added: recovery shares the original2048pool
     and caller's four-second deadline, with its existing four-update/.35CPU cap.
     Unsupported failures, exhausted work and unsuccessful improvement retain the
