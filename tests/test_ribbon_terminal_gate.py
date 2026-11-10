@@ -185,6 +185,57 @@ def test_incomplete_refinement_does_not_replace_guidance_measurement(
     assert inspect.call_count == 2 and measure.cells == 20
 
 
+def test_acceptance_refines_incomplete_guidance_without_renewing_or_transferring_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    All acceptance callers use the candidate certificate, retaining exact identity and original limits.
+    """
+    route = _route((Straight(10),))
+    policies: list[ProjectionPolicy] = []
+
+    def inspect(*args: Any, **kwargs: Any) -> Report:
+        """
+        Model coarse overlap separated only on the existing material-oriented axes.
+        """
+        del args
+        policies.append(kwargs["projection_policy"])
+        return (
+            Report("unresolved", 512)
+            if policies[-1] is ProjectionPolicy.BOX_AXES
+            else Report("clear", 18)
+        )
+
+    monkeypatch.setitem(vars(gate), "inspect", inspect)
+    measure = gate.Gate(route.targets, lambda: None, lambda event: None)
+    assert measure.measure(route, "guidance").status == "unresolved"
+    assert measure.permits(route, "first_pass")
+    assert measure.permits(route, "final")
+    assert policies == [ProjectionPolicy.BOX_AXES, ProjectionPolicy.PIECE_AXES]
+    assert measure.cells == 530 and measure.cache_hits == 1
+    measure.cells = 1024
+    assert not measure.permits(restore(snapshot(route)), "different_geometry")
+    assert policies == [ProjectionPolicy.BOX_AXES, ProjectionPolicy.PIECE_AXES]
+    assert measure.cells == 1024
+
+
+def test_acceptance_starts_with_candidate_axes_and_preserves_demonstrated_blocking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Do not spend a coarse certificate first or override an actual collision with another policy.
+    """
+    route = _route((Straight(10),))
+    inspect = Mock(return_value=Report("blocked", 3))
+    monkeypatch.setitem(vars(gate), "inspect", inspect)
+    measure = gate.Gate(route.targets, lambda: None, lambda event: None)
+    assert not measure.permits(route, "candidate")
+    assert not measure.permits(route, "final")
+    inspect.assert_called_once()
+    assert inspect.call_args.kwargs["projection_policy"] is ProjectionPolicy.PIECE_AXES
+    assert measure.cells == 3 and measure.cache_hits == 1
+
+
 def test_hardware_blocked_smoothing_keeps_first_pass_and_its_contact_certificate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

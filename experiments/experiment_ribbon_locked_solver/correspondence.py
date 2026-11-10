@@ -286,6 +286,10 @@ class MaterialFaces:
         entire positive-weight source control hull within the supplied kernel point
         tolerance and dimensional policy. The default remains the original goal;
         coincident unconnected vertices are insufficient.
+        Each point may stop after an actual edge distance meets the original
+        accuracy goal. That distance is a certified witness bound, not a claim
+        of the nearest edge. Warning-only or failed witnesses retain the full
+        minimum search. All original samples and the shared query cap remain.
         """
         first_edges = {edge.tempId: edge for edge in self.item(first).edges}
         second_edges = {edge.tempId for edge in self.item(second).edges}
@@ -304,9 +308,10 @@ class MaterialFaces:
                 if self.distance_queries > 512:
                     raise RuntimeError("Material boundary-distance budget exhausted")
                 self.budget.check("actual shared-edge subchain")
-                distances.append(
-                    self.distance(world, edge.createForAssemblyContext(self.occurrence))
-                )
+                distance = self.distance(world, edge.createForAssemblyContext(self.occurrence))
+                distances.append(distance)
+                if 0.0 <= distance <= self.accuracy.goal_mm:
+                    break
             errors.append(min(distances))
         maximum = max(errors)
         self.output["face_correspondence"]["native_edge_subchains"].append(
@@ -315,6 +320,7 @@ class MaterialFaces:
                 "edges": [edge.tempId for edge in shared],
                 "samples": len(points),
                 "maximum_error_mm": maximum,
+                "distance_policy": "original_goal_witness_else_full_minimum",
             }
         )
         return maximum

@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Callable
+from typing import Callable, Iterator
+
+from cable_bundler.routing.geometry import Vector3
 
 from .contact import Penetration, ProbeResult
-from .contact_convex import Triple, dot, overlap_point, scaled
+from .contact_convex import Triple, dot, overlap_point, scaled, subtract, triple
 from .contact_flat_geometry import FlatPhase, Shape, profile_arcs, shapes
 from .contact_inverse import occupied_coordinates
 from .geometry import FoldRoute
@@ -40,7 +42,12 @@ class FlatProbe:
         checkpoint: Callable[[], None] | None,
     ) -> ProbeResult:
         """
-        Probe complete phase hulls for at most eight GJK steps, never clear a missed pair.
+        Probe phase hulls, refining unoccupied proposals by exact profile arcs within the same limits.
+
+        Whole-phase convex hulls can span empty profile valleys. Only when an
+        overlap proposal fails strict material inversion, compare constituent
+        arc hulls near its affine width coordinate. Every compared pair and
+        support query shares the original allowance; no miss grants clearance.
         """
         if type(remaining_pairs) is not int or remaining_pairs < 0:
             raise ValueError("Supply nonnegative remaining contact work")
@@ -70,6 +77,25 @@ class FlatProbe:
             bounded()
             self.supports += 1
 
+        def verify(world_point: Vector3) -> Penetration | None:
+            """
+            Require the unchanged actual strict inverse maps for every proposed world point.
+            """
+            self.inverse_tests += 2
+            first_coordinates = occupied_coordinates(
+                route.pieces[first], world_point, route.targets.lines, route.targets.diameter_mm
+            )
+            second_coordinates = occupied_coordinates(
+                route.pieces[second], world_point, route.targets.lines, route.targets.diameter_mm
+            )
+            return (
+                None
+                if first_coordinates is None or second_coordinates is None
+                else Penetration(
+                    (first, second), first_coordinates, second_coordinates, world_point
+                )
+            )
+
         try:
             arcs = profile_arcs(route.targets.lines, route.targets.diameter_mm)
             hulls = []
@@ -87,23 +113,61 @@ class FlatProbe:
                     point = overlap_point(a, b, bounded)
                     if point is None:
                         continue
-                    self.inverse_tests += 2
-                    left = occupied_coordinates(
-                        route.pieces[first], point, route.targets.lines, route.targets.diameter_mm
-                    )
-                    right = occupied_coordinates(
-                        route.pieces[second], point, route.targets.lines, route.targets.diameter_mm
-                    )
-                    if left is not None and right is not None:
-                        return ProbeResult(
-                            self.comparisons - before,
-                            Penetration((first, second), left, right, point),
+                    witness = verify(point)
+                    if witness is not None:
+                        return ProbeResult(self.comparisons - before, witness)
+                    for left, right in _profile_pairs(a, b, point, query):
+                        bounded()
+                        self.comparisons += 1
+                        bounds = tuple(zip(left.bounds(), right.bounds()))
+                        if any(x[1] < y[0] or y[1] < x[0] for x, y in bounds):
+                            continue
+                        center = Vector3(
+                            *((max(x[0], y[0]) + min(x[1], y[1])) / 2 for x, y in bounds)
                         )
+                        witness = verify(center)
+                        if witness is None:
+                            proposal = overlap_point(left, right, bounded)
+                            if proposal is not None:
+                                witness = verify(proposal)
+                        if witness is not None:
+                            return ProbeResult(self.comparisons - before, witness)
         except _Limited:
             if limit == "pairs":
                 return ProbeResult(self.comparisons - before, limit="pairs")
             return ProbeResult(self.comparisons - before, limit="supports")
         return ProbeResult(self.comparisons - before)
+
+
+def _profile_pairs(
+    first: _Hull, second: _Hull, point: Vector3, query: Callable[[], None]
+) -> Iterator[tuple[_Hull, _Hull]]:
+    """
+    Visit nearby arc combinations first without allocating a quadratic candidate list.
+
+    The width coordinate only orders negative proposals. It never narrows the
+    positive interval proof or changes the actual joined-profile geometry.
+    """
+
+    def ordered(hull: _Hull) -> tuple[_Hull, ...]:
+        """
+        Rank exact profile strips by distance from the failed proposal in their affine frame.
+        """
+        placement = hull.members[0].placement
+        coordinate = dot(subtract(triple(point), placement.origin), placement.width)
+        members = sorted(
+            hull.members,
+            key=lambda shape: (
+                max(shape.arc.low_q - coordinate, 0.0, coordinate - shape.arc.high_q),
+                abs((shape.arc.low_q + shape.arc.high_q) / 2 - coordinate),
+            ),
+        )
+        return tuple(_Hull((member,), query) for member in members)
+
+    left, right = ordered(first), ordered(second)
+    for rank in range(len(left) + len(right) - 1):
+        for index in range(max(0, rank - len(right) + 1), min(rank + 1, len(left))):
+            yield left[index], right[rank - index]
 
 
 @dataclass(frozen=True)

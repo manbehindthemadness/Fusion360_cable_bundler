@@ -27,7 +27,11 @@ def projected(
     Project onto linear closure while freezing outward motion at active bounds.
 
     An explicit action-owned workspace reuses identical ordered row-prefix bases;
-    free-column selection, correction arithmetic and coordinate-bound checks stay unchanged.
+    ordered correction arithmetic and the near-bound activation heuristic stay unchanged.
+    At an exact active bound, every outward direction is forbidden, including
+    numerical dust. Otherwise the step limiter can reject the entire correction
+    even though other free coordinates can satisfy the equations. Interior
+    near-bound motion retains the existing activation heuristic.
     """
     free = list(range(len(values)))
     project_affine = affine_projection if workspace is None else workspace.project
@@ -40,8 +44,11 @@ def projected(
         blocked = []
         for i, change in zip(free, delta):
             low, high = model.bounds(i)
-            if (values[i] <= low + 1e-10 and change < -1e-10) or (
-                values[i] >= high - 1e-10 and change > 1e-10
+            if (
+                (values[i] <= low and change < 0)
+                or (values[i] >= high and change > 0)
+                or (values[i] <= low + 1e-10 and change < -1e-10)
+                or (values[i] >= high - 1e-10 and change > 1e-10)
             ):
                 blocked.append(i)
         if not blocked:

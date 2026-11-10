@@ -141,6 +141,58 @@ def start(
     )
 
 
+@pytest.mark.parametrize("boundary", ("prepare", "collect"))
+def test_nested_poll_cannot_repeat_an_inflight_case_boundary(
+    tmp_path: Path,
+    boundary: str,
+) -> None:
+    """
+    Fusion event pumping may deliver another poll while preview or native collection is still executing.
+    """
+    tester, runner, _ = make_tester(tmp_path, ["completed"])
+    start(tester, limit=1)
+    if boundary == "prepare":
+        tester.prepare = Mock(side_effect=lambda scene: tester.poll())
+    else:
+        tester.poll()
+        original = runner.poll
+
+        def nested_collection() -> Path:
+            """
+            Deliver one nested timer callback at the synchronous native boundary.
+            """
+            tester.poll()
+            return original()
+
+        runner.poll = nested_collection
+    tester.poll()
+    if boundary == "prepare":
+        tester.poll()
+    assert not tester.active and tester.phase == "completed"
+    assert tester.attempted == tester.passed == len(runner.jobs) == 1
+    assert tester.journal is not None
+    rows = [
+        json.loads(line)
+        for line in (tester.journal.directory / "cases.jsonl").read_text().splitlines()
+    ]
+    assert sum(e["event"] == "case_prepared" for e in rows) == 1
+    assert sum(e["event"] == "case_started" for e in rows) == 1
+    assert sum(e["event"] == "case_finished" for e in rows) == 1
+
+
+def test_stop_during_preview_prevents_worker_launch(tmp_path: Path) -> None:
+    """
+    A stop delivered by event pumping must remain latched when preparation returns.
+    """
+    tester, runner, _ = make_tester(tmp_path, ["completed"])
+    start(tester)
+    tester.prepare = Mock(side_effect=lambda scene: tester.stop("Preview interrupted"))
+    tester.poll()
+    assert not tester.active and tester.phase == "problem"
+    assert tester.attempted == 0 and not runner.jobs
+    assert tester.reason == "Preview interrupted"
+
+
 def test_first_problem_stops_without_retry_and_preserves_exact_case(tmp_path: Path) -> None:
     """
     Complete one pass, stop at the unresolved second case, and refuse any third launch.

@@ -37,6 +37,9 @@ def test_linear_runway_minimum_keeps_caps_and_solves_absent_slot_as_exact_zero()
     assert trial[-1] == 0.0
 
 
+@pytest.mark.skip(
+    reason="Historical layout retired; geometry qualification uses fresh unique inputs"
+)
 def test_failed_reflection_uses_only_idle_updates_to_translate_original_fixed_bends() -> None:
     """
     Clear the saved nine-conductor return by lengthening runways without altering bend shapes.

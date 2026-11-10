@@ -5,7 +5,7 @@ Spend an unused feasibility recovery on measured shorter contractions while pres
 from __future__ import annotations
 
 import math
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from time import perf_counter, process_time
 from typing import Any, Callable
 
@@ -29,6 +29,19 @@ from experiments.experiment_ribbon_terminal_hardware.return_recovery import (
 )
 
 
+@dataclass
+class RecoveryConsultation:
+    """
+    Distinguish selection-only preparation from entering a geometric recovery strategy.
+
+    A None result after strategy entry still consumes the caller's reservation.
+    Selection without entry may hand off only genuinely unused work; the caller
+    must charge all preparation CPU and retain the original wall-span origin.
+    """
+
+    entered: bool = False
+
+
 def recover_contracted(
     contraction: Contraction,
     frames: Frames,
@@ -41,6 +54,7 @@ def recover_contracted(
     maximum_cpu_seconds: float = MAXIMUM_CPU_SECONDS,
     improvement_policy: ImprovementPolicy = ImprovementPolicy.GUIDE_DOMINANCE,
     terminal: Gate | None = None,
+    consultation: RecoveryConsultation | None = None,
 ) -> Recovery | None:
     """
     Recover one measured improving contraction only when the caller reserves unused feasibility work.
@@ -60,7 +74,11 @@ def recover_contracted(
     reversal. Known self-penetration retains the established contact-first action.
     Strategy selection, evidence and correction share the original time/pair pool;
     a failed chosen strategy does not start another full allocation.
+    An optional receipt is cleared at entry and marked immediately before invoking
+    any geometric strategy. It grants no work or acceptance on its own.
     """
+    if consultation is not None:
+        consultation.entered = False
     if (
         type(maximum_seconds) not in (int, float)
         or not math.isfinite(maximum_seconds)
@@ -105,6 +123,8 @@ def recover_contracted(
             wall_left = maximum_seconds - (perf_counter() - started)
             if min(cpu_left, wall_left) <= 0:
                 return None
+            if consultation is not None:
+                consultation.entered = True
             repaired = recover_incident(
                 branch.route,
                 evidence,
@@ -163,6 +183,8 @@ def recover_contracted(
             "remaining_pair_budget": remaining_pairs,
         }
     )
+    if consultation is not None:
+        consultation.entered = True
     if terminal is not None and contact.status == "unresolved" and contact.limit == "depth":
         result = recover_return(
             branch.route,

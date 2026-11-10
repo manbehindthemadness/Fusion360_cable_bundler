@@ -80,7 +80,7 @@ def test_actual_fold_witness_dispatches_with_only_remaining_caller_allowance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Fold clearance gets measured direct constraints instead of an unconditional reflection.
+    Actual fold intrusion selects early reflection using only the caller's remaining work.
     """
     source = _route((fold(2, 1.2, 1, 0.2, 0), Straight(3)))
     evidence = Report("blocked", 1, Witness("start", 0, (0.5, 0, 0), Vector3(0, 0, 0), (-1, 0, 0)))
@@ -88,7 +88,7 @@ def test_actual_fold_witness_dispatches_with_only_remaining_caller_allowance(
     terminal.measure.return_value = evidence
     answer = Result(source, None, {})
     direct = Mock(return_value=answer)
-    monkeypatch.setitem(vars(recovery), "recover_fold", direct)
+    monkeypatch.setitem(vars(recovery), "reverse_terminal_fold", direct)
     result = recovery.recover(
         source,
         terminal,
@@ -107,11 +107,11 @@ def test_actual_fold_witness_dispatches_with_only_remaining_caller_allowance(
 
 
 @pytest.mark.parametrize("contact_status", ("separated", "penetrating"))
-def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certificate(
+def test_native_slot_cleanup_recloses_caps_before_hardware_and_contact_certificates(
     monkeypatch: pytest.MonkeyPatch, contact_status: str
 ) -> None:
     """
-    Zeroing a sub-native runway must retain exact caps and cannot bypass strict final contact.
+    Neither physical certificate should spend work on a runway that cannot be built natively.
     """
     source = _route(
         (
@@ -127,11 +127,10 @@ def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certifica
     monkeypatch.setattr(FeaturePlane, "create", Mock(return_value=plane))
     terminal = Mock(spec=Gate)
     terminal.hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
-    terminal.certify.return_value = Report("clear", 1)
 
-    def certificate(candidate: FoldRoute, **options: object) -> ContactResult:
+    def qualified(candidate: FoldRoute) -> None:
         """
-        Inspect the actual post-cleanup geometry at the physical acceptance boundary.
+        Require closed, ordered, native-sized geometry at both physical certificate boundaries.
         """
         assert candidate.targets == source.targets
         assert cap_error(candidate) < 1e-7
@@ -141,6 +140,22 @@ def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certifica
             for p in candidate.pieces
             if isinstance(p.geometry, Straight)
         )
+
+    def hardware_certificate(candidate: FoldRoute, stage: str) -> Report:
+        """
+        Inspect the actual route before allowing terminal clearance to pass.
+        """
+        qualified(candidate)
+        assert stage == "coupled_feature_candidate"
+        return Report("clear", 1)
+
+    terminal.certify.side_effect = hardware_certificate
+
+    def certificate(candidate: FoldRoute, **options: object) -> ContactResult:
+        """
+        Preserve the independent final self-contact measurement after hardware certification.
+        """
+        qualified(candidate)
         assert options["maximum_pairs"] == 700
         return ContactResult(contact_status, 1)
 
@@ -160,6 +175,7 @@ def test_native_slot_cleanup_recloses_caps_before_the_required_contact_certifica
         maximum_seconds=2,
     )
     assert result is not None
+    terminal.certify.assert_called_once()
     contact.assert_called_once()
     assert result.detail["contacts"] == 1
     if contact_status == "separated":

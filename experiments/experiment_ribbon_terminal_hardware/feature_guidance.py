@@ -5,6 +5,7 @@ Retain actual feature evidence and independent complete-member clearance inequal
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from enum import Enum
 from typing import Protocol
 
 from cable_bundler.routing.geometry import dot, magnitude, unit
@@ -70,6 +71,47 @@ def _bind_features(
             return None
         planes.append(plane)
     return planes
+
+
+class ReturnLength(Enum):
+    """
+    Keep legacy parent ceilings distinct from physical restoration of an invalid route.
+    """
+
+    PARENT_CEILING = "parent_ceiling"
+    RESTORATION_GOAL = "restoration_goal"
+
+
+@dataclass(frozen=True)
+class MaterialGuidance:
+    """
+    Reflect a contact-selected fold while retaining any earlier actual connector evidence.
+    """
+
+    selected_fold: int
+    evidence: tuple[FeatureEvidence, ...] = ()
+    length: ReturnLength = ReturnLength.PARENT_CEILING
+
+    def __post_init__(self) -> None:
+        """
+        Require an explicit material fold ordinal; the joint entry validates its crossing evidence.
+        """
+        if type(self.selected_fold) is not int or self.selected_fold < 0:
+            raise ValueError("Select an existing witnessed fold")
+        if not isinstance(self.length, ReturnLength):
+            raise ValueError("Select an explicit return length policy")
+        if self.evidence:
+            RetainedFeatures(self.evidence)
+
+    def planes(
+        self, model: SignedJoints, hardware: Hardware, values: tuple[float, ...]
+    ) -> list[FeaturePlane] | None:
+        """
+        Retain earlier actual connector features through a material-selected reflection.
+        """
+        return _bind_features(
+            self.evidence, model, hardware, values, FeatureCoverage.ADJOINING_INTERNAL
+        )
 
 
 @dataclass(frozen=True)
@@ -173,4 +215,43 @@ class RetainedFeatures:
         """
         return _bind_features(
             self.evidence, model, hardware, values, FeatureCoverage.TERMINAL_RUNWAY
+        )
+
+
+class ContactMotion(Enum):
+    """
+    Select straight redistribution, bend joints or one initial hardware-domain expansion.
+    """
+
+    STRAIGHT_SLOTS = "straight_slots"
+    BEND_JOINTS = "bend_joints"
+    ADAPTIVE_HARDWARE = "adaptive_hardware"
+
+
+@dataclass(frozen=True)
+class ContactGuidance:
+    """
+    Refine measured material contact with zero to three actual hardware reports, retaining fold signs.
+    """
+
+    evidence: tuple[FeatureEvidence, ...] = ()
+    motion: ContactMotion = ContactMotion.BEND_JOINTS
+
+    def __post_init__(self) -> None:
+        """
+        Validate retained route-bound intrusions; empty evidence invents no hardware constraint.
+        """
+        if not isinstance(self.motion, ContactMotion):
+            raise ValueError("Select an explicit material motion policy")
+        if self.evidence:
+            RetainedFeatures(self.evidence)
+
+    def planes(
+        self, model: SignedJoints, hardware: Hardware, values: tuple[float, ...]
+    ) -> list[FeaturePlane] | None:
+        """
+        Keep complete adjoining occupied members while material separation and caps move together.
+        """
+        return _bind_features(
+            self.evidence, model, hardware, values, FeatureCoverage.ADJOINING_INTERNAL
         )

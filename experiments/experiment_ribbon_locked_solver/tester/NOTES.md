@@ -1,5 +1,46 @@
 # Gym range tester — 2026-11-03
 
+## End-profile transaction boundary — 2026-11-10
+
+Gym end profiles now use `devtools.ribbon_analysis.end_profile_command` to call
+unchanged retention inside one private no-dialog command execute transaction.
+The caller's original checkpoint/clock covers registration, waiting and both cap
+operations. There is no toolbar control, source target/profile change, new setup
+allowance or module reload. Retain partial diagnostic work on callback errors;
+re-raise the original error, preserve pending leases on timeouts, and permit no
+new launch until actual destroy/collection. Never terminate a user command.
+Autodesk's transaction contract: https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/Commands_UM.htm
+
+78initial affected checks pass; final simultaneous native/cleanup-error guard has
+12command-boundary passes (79unique affected checks including retained results).
+Ruff/format/IDE new code clean. Fresh1880ran14setups without setup stops;13layouts
+passed native/named-fidelity/boundary,1failed initial closure before native work,
+6reserved inputs unattempted.13retained setup reports:.802..3.706s. This is finite
+operational evidence, not matched performance causality or solver reliability.
+See resume1877..1880 and GENERALIZED_RULES.md; full physical audits unmeasured.
+
+## Nested event callbacks — 2026-11-09
+
+Fusion event pumping during preview or native collection can deliver a second
+poll before the first returns. `Tester.poll` now owns that entire boundary and
+ignores nested polls, releasing ownership in `finally`. Stops remain available;
+setup, cleanup and preview returns check the latch before launching a worker.
+This prevents duplicate input preparation and stop-phase overwrite.
+
+Resume1756 preserves the original `FileExistsError`, the completed numerical
+result and administrative cancellation/collection with zero native attempts.
+Three synthetic callback regressions fail before the guard and pass afterward;
+all13scheduler tests pass. Live qualification awaits a clean host reload; no
+cached numerical/geometry modules or stopped campaign were reloaded or restarted.
+
+After the user's clean Fusion restart, resume1758 completed20fresh unique N8..10
+layouts:20numerical/native/named-fidelity/boundary passes,0accuracy warnings,
+exactly20preparations/starts/collections and0source changes. This is live scheduling
+evidence for that sample. No construction reversal or workspace preference ran;
+their effectiveness remains unqualified. Six CPU/native timing goals were missed;
+full physical audits remain unmeasured. Raw receipts and novelty backup are in
+`artifacts/verification/resume1758`; historical geometry was not replayed.
+
 ## Optional cubicle separation627 — 2026-11-04
 
 **Avoid adjacent cubicles** starts enabled in both the endpoint gym and range

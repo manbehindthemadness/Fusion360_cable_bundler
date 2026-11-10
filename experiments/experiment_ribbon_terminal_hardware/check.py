@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose, p
 
 from .model import Box, Hardware, Terminal
 from .sat import BoxProjection, separated_on_piece_axes
+from .witness_height import occupied_height
 
 
 class ProjectionPolicy(Enum):
@@ -160,21 +161,30 @@ def inspect(
                     separated = separated_on_piece_axes(piece, cell, box_projection, checkpoint)
             if separated:
                 continue
-            u, q, height = ((span.low + span.high) / 2 for span in (cell.u, cell.q, cell.height))
+            u, q = ((span.low + span.high) / 2 for span in (cell.u, cell.q))
             guard = 1e-9 * max(1.0, route.targets.diameter_mm)
-            if (
-                profile_height(q, route.targets.lines, route.targets.diameter_mm) - abs(height)
-                > guard
-            ):
-                point, velocity, width, _ = piece.surface(u, q)
-                point = point.translated(unit(cross(velocity, width)), height)
+            point, velocity, width, _ = piece.surface(u, q)
+            normal = unit(cross(velocity, width))
+            height = occupied_height(
+                point,
+                normal,
+                q,
+                cell.height,
+                box,
+                route.targets.lines,
+                route.targets.diameter_mm,
+            )
+            if height is not None:
+                point = point.translated(normal, height)
                 relative = difference(point, box.pose.origin)
                 coordinates = (
                     dot(relative, axes[0]),
                     dot(relative, axes[1]),
                     dot(relative, axes[2]),
                 )
-                if all(
+                if profile_height(q, route.targets.lines, route.targets.diameter_mm) - abs(
+                    height
+                ) > guard and all(
                     limit.low + guard < value < limit.high - guard
                     for value, limit in zip(coordinates, limits)
                 ):

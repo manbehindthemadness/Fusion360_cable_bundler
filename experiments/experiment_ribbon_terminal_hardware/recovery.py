@@ -26,6 +26,7 @@ from .reversal_model import NativeReversal, ReversalModel, incident_fold
 from .reversal_quality import decline_initial_length
 from .sheet import Sheet
 from .straight_quality import StraightQuality
+from .terminal_turn import recover as reverse_terminal_fold
 
 
 class _Exhausted(RuntimeError):
@@ -60,7 +61,11 @@ def recover(
     unused updates/time/pairs may move the original signed joints instead. Solve
     ordered caps, complete-feature clearance and the original length ceiling
     together; no reflected candidate or extra work is inherited by that action.
-    Fold evidence retains the separate overlap-bounded feature-recovery policy.
+    A fold witness selects one early free incident reversal, including an internal
+    fold. Caps, occupied-member clearance and the original construction ceiling
+    are solved together inside the existing allowance. Failure retains no accepted
+    output and starts no other fold/sign/radius action. Straight-witness quality
+    continuations retain their existing signed-feature policy.
     Accept only full strict self-contact and both terminal boxes. Failed action
     retains the unresolved source; no certificate or accepted status transfers.
     A caller may supply fewer genuinely unused original updates after completed
@@ -101,7 +106,7 @@ def recover(
         wall_left = maximum_seconds - (perf_counter() - started)
         if cpu_left <= 0 or wall_left <= 0:
             return None
-        recovered = recover_fold(
+        recovered = reverse_terminal_fold(
             original,
             evidence,
             terminal,
@@ -118,24 +123,6 @@ def recover(
             recovered.detail.update(
                 cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - started
             )
-            continued = continue_after_boundary(
-                original,
-                evidence,
-                terminal,
-                checkpoint,
-                record,
-                recovered,
-                maximum_length_mm=maximum_length_mm,
-                minimum_straight_mm=minimum_straight_mm,
-                remaining_pairs=remaining_pairs,
-                maximum_cpu_seconds=maximum_cpu_seconds,
-                maximum_seconds=maximum_seconds,
-                maximum_updates=maximum_updates,
-                cpu_started=cpu,
-                started=started,
-            )
-            if continued is not None:
-                recovered = continued
         return recovered
     selected = incident_fold(original, evidence.witness)
     if selected is None:

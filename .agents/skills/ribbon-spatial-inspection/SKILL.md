@@ -59,6 +59,16 @@ Inspect top/front/side/isometric views, selected material sections and actual
 witnesses. Read the same world coordinates, center frames, cap residuals and
 contact/hardware status that the user sees. Bracket width-dependent fold entry
 and exit and inspect the affected interval, not only the visible symptom.
+Check the selected landmark's actual primitive/ordered-feature kind against the
+explanation. A matched XYZ displacement does not validate an incorrect feature label.
+When a recovery candidate remains unresolved, locate where certification actually
+spent its work; that region can be at the opposite terminal from the original witness.
+Distinguish an occupied-point witness from an inconclusive enclosure there.
+Treat necessary A-to-B straight travel as spatial work area for distributing
+required bend/orientation features, while retaining reasonable total length.
+Measure the straight span and chord separately; straight percentage is not a
+spare-material allowance. Test explicit feature motion and cap compensation,
+without requiring uniform spacing or adding folds merely to fill empty travel.
 
 Before executing geometry, commit exactly one prediction containing:
 
@@ -74,6 +84,9 @@ Use ordered fold/straight-slot identity and normalized material fraction across
 appearing or merged straight primitives. Do not substitute primitive indices,
 nearest-point matching or a claim of fixed material distance when length changes.
 An open-cap baseline is inspectable but cannot be repaired by this probe.
+An earlier, already-recorded closed-cap stage of the current failed attempt may
+be inspected separately. Preserve its stage, parentage and distinct fingerprint;
+never silently substitute it for the original final candidate or award pass credit.
 
 Consume at most one geometry attempt per diagnostic. Preserve blocked, stopped,
 incomplete and unsuccessful attempts; do not edit the prediction or retry after

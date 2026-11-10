@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import Callable, Literal, Protocol
+from typing import Callable, Generator, Literal, Protocol
 
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
@@ -111,6 +111,41 @@ def inspect_contact(
     projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
 ) -> ContactResult:
     """
+    Measure one bounded traversal, discarding unfinished work when its pair allowance expires.
+
+    Stateful callers can use ContactTraversal to retain the exact pending stack
+    for the same immutable route. Both paths share the unchanged analytic proof.
+    """
+    traversal = _walk(
+        route,
+        maximum_pairs=maximum_pairs,
+        maximum_depth=maximum_depth,
+        checkpoint=checkpoint,
+        cap_policy=cap_policy,
+        witness_probe=witness_probe,
+        probe_order=probe_order,
+        projection_reuse=projection_reuse,
+    )
+    try:
+        return next(traversal)
+    except StopIteration as finished:
+        return finished.value
+    finally:
+        traversal.close()
+
+
+def _walk(
+    route: FoldRoute,
+    *,
+    maximum_pairs: int,
+    maximum_depth: int,
+    checkpoint: Callable[[], None] | None,
+    cap_policy: CapPolicy,
+    witness_probe: WitnessProbe | None,
+    probe_order: ProbeOrder,
+    projection_reuse: ProjectionReuse,
+) -> Generator[ContactResult, int, ContactResult]:
+    """
     Enclose every pair of original pieces through bounded material-box subdivision.
 
     Single regular plane-cylinder-plane folds are injective for |angle|<=pi and
@@ -162,13 +197,22 @@ def inspect_contact(
         for i in range(len(route.pieces))
     ]
     axes = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
-    prepared = lru_cache(maxsize=64)(prepare_projection)
+
+    @lru_cache(maxsize=64)
+    def prepared(piece_index: int, direction: Vector3) -> Callable[[Cell], Span]:
+        """
+        Bind the same immutable transform by local identity without hashing the entire piece payload.
+
+        This cache belongs to one walk over one fixed route, including retained
+        traversal. Another walk cannot reuse an index against different geometry.
+        """
+        return prepare_projection(route.pieces[piece_index], direction)
 
     def project(region: Cell, direction: Vector3) -> Span:
         """
         Evaluate one immutable material-cell projection through the original analytic bound.
         """
-        return prepared(route.pieces[region.piece], direction)(region)
+        return prepared(region.piece, direction)(region)
 
     evaluated = (
         lru_cache(maxsize=512)(project) if projection_reuse is ProjectionReuse.CELLS else project
@@ -196,7 +240,7 @@ def inspect_contact(
             checkpoint()
         first, second = original_pending.pop() if original_pending else pending.pop()
         if checked >= maximum_pairs:
-            return ContactResult(
+            maximum_pairs = yield ContactResult(
                 "unresolved",
                 checked,
                 unresolved_pieces=(first.piece, second.piece),

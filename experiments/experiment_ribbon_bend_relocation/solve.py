@@ -16,7 +16,7 @@ from experiments.experiment_ribbon_fold_relaxation.steps import advance, project
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 
-from .model import MovableBends, retract_active
+from .model import ClosurePolicy, MovableBends, retract_active
 
 
 class _PhaseExhausted(RuntimeError):
@@ -51,7 +51,9 @@ def contract(
     """
     Shorten an already separated baseline with four deterministic movable-bend steps.
 
-    Keep fold count/order/radii/profile and both ordered caps. Try two scalar
+    Keep fold count/order/radii/profile and both ordered caps at the existing
+    actual mating-frame accuracy before contact certification. Normalized Newton
+    residual alone cannot certify physical position on a long route. Try two scalar
     halvings per step, then certify at most the two latest iterates, newest first,
     with1024pairs each. A local0.35CPU-second exhaustion or failed contact keeps
     the original route. The wall allowance may be shortened to the caller's
@@ -112,7 +114,12 @@ def contract(
             step = step_limit(model, values, delta, 1.0)
             for halving in range(2):
                 bounded()
-                corrected = retract_active(model, advance(model, values, delta, step), bounded)
+                corrected = retract_active(
+                    model,
+                    advance(model, values, delta, step),
+                    bounded,
+                    closure_policy=ClosurePolicy.ORDERED_CAPS,
+                )
                 candidate = model.route(corrected) if corrected is not None else None
                 status = "cap_retraction_failed"
                 if candidate is not None:

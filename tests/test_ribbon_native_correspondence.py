@@ -203,6 +203,76 @@ def test_shared_edge_subsegment_requires_real_edge_distance() -> None:
     assert math.isinf(collection.edge_seam_error(0, 2, points))
 
 
+@pytest.mark.parametrize(
+    "distances,expected,queries",
+    (((5e-7, 0.0, 1.0), 5e-7, 1), ((0.005, 5e-7, 0.0), 5e-7, 2), ((0.007, 0.005, 0.006), 0.005, 3)),
+)
+def test_shared_edge_search_stops_only_at_an_actual_original_goal_witness(
+    distances: tuple[float, ...],
+    expected: float,
+    queries: int,
+) -> None:
+    """
+    Cover every seam point while preserving full minimum search for warning-only or missed goals.
+    """
+    collection, faces = _collection(accuracy=DISPLAY_ACCURACY)
+    edges = [
+        SimpleNamespace(tempId=i, createForAssemblyContext=lambda occurrence, i=i: i)
+        for i in range(len(distances))
+    ]
+    faces[0].edges = faces[1].edges = edges
+    _cover(collection)
+    collection.seal_surfaces()
+    measured: list[tuple[float, int]] = []
+
+    def distance(point: Point, entity: int) -> float:
+        """
+        Measure the supplied native-edge witness independently for each original sample.
+        """
+        measured.append((point.x, entity))
+        return distances[entity]
+
+    collection.distance = distance
+    points = (Point(0.3, 1), Point(3.7, 1))
+    residual = collection.edge_seam_error(0, 2, points)
+    assert residual == expected and collection.distance_queries == 2 * queries
+    assert {point for point, _ in measured} == {p.x for p in points}
+
+
+@pytest.mark.parametrize("spent", (510, 512))
+def test_existing_boundary_query_pool_is_not_renewed_for_strict_witness_search(spent: int) -> None:
+    """
+    Use the last two actual queries for two covered samples, or fail before an unbudgeted query.
+    """
+    collection, faces = _collection()
+    edges = [
+        SimpleNamespace(tempId=i, createForAssemblyContext=lambda occurrence, i=i: i)
+        for i in range(3)
+    ]
+    faces[0].edges = faces[1].edges = edges
+    _cover(collection)
+    collection.seal_surfaces()
+    measured: list[int] = []
+
+    def distance(_point: Point, entity: int) -> float:
+        """
+        Return one real strict witness; additional edges need no measurement for that point.
+        """
+        measured.append(entity)
+        return 5e-7
+
+    collection.distance = distance
+    collection.distance_queries = spent
+    points = (Point(0.3, 1), Point(3.7, 1))
+    if spent == 510:
+        assert collection.edge_seam_error(0, 2, points) == 5e-7
+        assert measured == [0, 0] and collection.distance_queries == 512
+    else:
+        with pytest.raises(RuntimeError, match="boundary-distance budget"):
+            collection.edge_seam_error(0, 2, points)
+        assert not measured
+
+
 def _vertex_boundary(faces: list[Any], connected: bool) -> None:
     """
     Give neighboring faces one shared vertex identity or geometrically coincident separate vertices.

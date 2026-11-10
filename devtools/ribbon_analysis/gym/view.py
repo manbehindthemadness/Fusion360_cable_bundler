@@ -16,7 +16,8 @@ import adsk.core
 import adsk.fusion
 
 from ..budget import NativeBudget
-from ..end_profiles import checkpoint_interrupted, retain_end_profiles
+from ..end_profile_command import retain_transacted_profiles
+from ..end_profiles import checkpoint_interrupted
 from ..inspection.archive import write_document
 from ..performance import for_layout
 from ..prepath import drawing as prepath_drawing
@@ -147,7 +148,7 @@ class GymView:
             "profile_container", self.component.occurrences.addNewComponent
         )(adsk.core.Matrix3D.create())
         self._pending_profiles.component.name = "Sweep profiles - current gym targets"
-        budget.measure("end_profiles", retain_end_profiles)(
+        budget.measure("end_profiles", retain_transacted_profiles)(
             self._pending_profiles.component,
             scene.targets,
             lambda: budget.check("gym end profiles"),

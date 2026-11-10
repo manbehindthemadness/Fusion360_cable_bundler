@@ -90,6 +90,8 @@ def summarize_journal(directory: Path) -> dict[str, Any]:
     within one run are counted explicitly. Active/incompletely collected runs are
     not finalized; their original journal remains the authority until collection.
     Returned statistics contain no target coordinates, routes or case/job paths.
+    The maximum native error includes separately retained dimensional warnings,
+    such as seam findings absent from the main fidelity audit's maximum.
     """
     plan, state = _object(directory / "plan.json"), _object(directory / "status.json")
     if state.get("active") is not False:
@@ -110,7 +112,7 @@ def summarize_journal(directory: Path) -> dict[str, Any]:
     counts: Counter[str] = Counter()
     timings: dict[str, list[float]] = {name: [] for name in ("solve_cpu", "native", "audit")}
     first_failure = None
-    maximum_error = 0.0
+    maximum_error: float = 0.0
     source_hashes = set()
     for row in rows:
         raw_job = row.get("job")
@@ -158,6 +160,14 @@ def summarize_journal(directory: Path) -> dict[str, Any]:
             )
         if type(error) in (int, float) and math.isfinite(error):
             maximum_error = max(maximum_error, error)
+        warning = native.get("precision_warning")
+        if native.get("status") == "built_with_precision_warning" or warning is not None:
+            warning_error = warning.get("maximum_error_mm") if isinstance(warning, dict) else None
+            if isinstance(warning_error, bool) or not isinstance(warning_error, (int, float)):
+                raise ValueError("Native warning requires its finite nonnegative measured error")
+            if not math.isfinite(warning_error) or warning_error < 0:
+                raise ValueError("Native warning requires its finite nonnegative measured error")
+            maximum_error = max(maximum_error, warning_error)
         if not okay:
             first_failure = (
                 row["case"] if first_failure is None else min(first_failure, row["case"])

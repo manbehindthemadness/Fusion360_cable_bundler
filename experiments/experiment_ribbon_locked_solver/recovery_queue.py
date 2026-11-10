@@ -18,7 +18,9 @@ from experiments.experiment_ribbon_feature_insertion.contact_recovery import (
 from experiments.experiment_ribbon_feature_insertion.selection import Branch
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 
+from .construction_reversal import before_contact_motion
 from .recovery_prediction import PredictionPolicy
 from .recovery_selection import select_recovery
 
@@ -29,6 +31,8 @@ def recover_failed(
     threshold_mm: float,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    terminal: Gate | None = None,
 ) -> Recovery:
     """
     Spend at most four total updates,.35CPU/2wall and the original remaining pair pool.
@@ -47,6 +51,12 @@ def recover_failed(
     Multiple supported branches retain their original predictions and handoffs.
     Use the same existing analytic cap support proof as v2 construction and
     accepted-fallback recovery, without exempting adjacent material interiors.
+    With hardware enabled, a strict material return may replace the first
+    separation motion with one contact-interval-selected reversal. It shares
+    this same allowance, reports invalid-source length as a quality goal and
+    follows demonstrated blockers through the shared sequence. It needs both
+    physical certificates; primitive adjacency and terminal membership do not
+    restrict selection. Unsupported curved guidance keeps ordinary separation.
     """
     started, cpu = perf_counter(), process_time()
     selection = select_recovery(
@@ -106,6 +116,9 @@ def recover_failed(
             initial_step=initial_step,
             region_policy=region_policy,
             cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+            before_first_motion=before_contact_motion(
+                branch.route, measurement, terminal, threshold_mm, checkpoint, record
+            ),
         )
         pairs += result.pairs
         contacts += result.contacts

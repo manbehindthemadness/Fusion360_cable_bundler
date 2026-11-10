@@ -1,5 +1,5 @@
 """
-Close exact caps, finite connector clearance and complete measured flat contact regions together.
+Close exact caps, finite connector clearance and complete measured material contact regions together.
 """
 
 from __future__ import annotations
@@ -7,8 +7,9 @@ from __future__ import annotations
 import math
 from dataclasses import asdict
 from enum import Enum
+from functools import partial
 from time import perf_counter, process_time
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
@@ -27,17 +28,31 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straigh
 
 from .active_projection import active_step
 from .check import Report
-from .feature_guidance import IncidentGuidance, member_planes
+from .feature_guidance import (
+    ContactGuidance,
+    ContactMotion,
+    IncidentGuidance,
+    MaterialGuidance,
+    ReturnLength,
+    member_planes,
+)
 from .feature_plane import FeatureCoverage, FeaturePlane, SignedJoints
 from .flat_separation import FlatSeparation, ProfileExtent
 from .gate import Gate
+from .hardware_motion import expand as expand_hardware
 from .incident_model import IncidentJoints
 from .joint_derivatives import jacobian as joint_jacobian
 from .joint_evaluation import JointEvaluation
+from .joint_handoff import JointHandoff
+from .line_search import contracted_fraction
+from .material_constraint import MaterialConstraint
 from .quality_projection import quality_step
 from .radius_model import RadiusJoints
 from .recovery_limits import validate
+from .redistributed_projection import ProjectionEvidence, redistributed_step
 from .reversal_model import incident_fold
+from .run_translation import StraightSlots
+from .straight_projection import RunwayEvidence, shortest_run_step
 from .straight_quality import StraightQuality
 
 
@@ -58,9 +73,12 @@ class _Exhausted(RuntimeError):
     """
 
 
+RecoveryMode = Union[JointMode, IncidentGuidance, MaterialGuidance, ContactGuidance]
+
+
 def recover(
     original: FoldRoute,
-    evidence: Report | Penetration,
+    evidence: Report | Penetration | ContactResult,
     terminal: Gate,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
@@ -71,7 +89,8 @@ def recover(
     maximum_cpu_seconds: float,
     maximum_seconds: float,
     maximum_updates: int,
-    mode: JointMode | IncidentGuidance = JointMode.PARENT_CEILING,
+    mode: RecoveryMode = JointMode.PARENT_CEILING,
+    on_blocked: Callable[[JointHandoff], None] | None = None,
 ) -> Result | None:
     """
     Use remaining original work on caps and actual connector or flat-contact evidence.
@@ -90,6 +109,14 @@ def recover(
     ceiling, placing its length target inside that ceiling with the existing
     StraightQuality margin. It avoids rounded equality without accepting any
     excess or changing physical tolerances. Default parent targeting is unchanged.
+    Contact guidance jointly retains depth-limited flat phases and actual
+    hardware members without reflecting folds. It uses the same bounded-cap
+    projector and complete independent inequalities, treating invalid-source
+    length as a reported quality goal. It does not turn uncertain contact into
+    a penetration witness or clearance. Final hardware uses refined certification.
+    A confirmed curved crossing can add the shared analytic whole-piece
+    projection while retaining earlier flat/hardware constraints. Mixed curved
+    depth uncertainty remains unsupported; no local witness patch is accepted.
     Mating restoration retains each witnessed flat contact as an independent
     full-profile inequality. More than four scalar inequalities use the existing
     sixteen-step active projection; constraint, update, time and pair limits stay
@@ -108,14 +135,63 @@ def recover(
     event and gives occupied members independent separating planes. At most four
     features/thirteen physical inequalities use sixteen dual active-set steps,
     replacing scalar subset enumeration under the same caller work allocation.
+    Angular restoration shares independent cap residuals across incident,
+    material and coupled guidance. Cap residuals may change independently
+    within the previous maximum merit, using the same single
+    bounded projector and strict predicted/nonlinear maximum-merit descent.
+    Motion regularization decays with the square of that merit; original bounds
+    receive an equivalent positive coordinate transform inside the projector.
+    A working set declined for exhaustion or raw inequalities can supply its
+    already-computed geometry after one
+    coordinate-box projection, still requiring the same predicted/nonlinear gates.
+    Exhaustion and bounded proposals are reported separately from accepted work.
+    Physical violations retain their shared restoration fraction; satisfied rows
+    cannot acquire a positive linear violation. Material guidance selects a fold
+    from an actual crossing and retains its complete regions. It allows equal
+    parent length, with no compulsory shortening, and chooses its initial
+    separating side in the reflected geometry. Confirmed curved crossings use
+    analytic whole-piece guidance. All subsequent material and hardware
+    certificates remain mandatory.
     Explicit blocked-mating entry initially retains the same mating ceiling.
     Only after linear projection failure may its inherited quality ceiling become
     a reported length goal, with independent occupied hardware-member halfspaces
     rebound at the same coordinates. Every existing physical constraint and spent
     update remains; clear mating improvement never enters that release.
+    An explicit continuation can retain a closed proposal at its first actual
+    blocker. It receives no work allocation or clearance. Unresolved evidence
+    never yields a guessed blocker; default local correction remains unchanged.
+    Material return keeps its legacy parent ceiling by default. The explicit
+    sequence restoration policy reports invalid-source length as a quality goal;
+    all material, cap, radius and contact/hardware requirements remain strict.
+    Adaptive hardware motion first uses the unchanged straight-only policy. Only
+    an initial projection returning no step, before any Newton motion and without
+    material uncertainty, may rebind the same actual hardware features to the
+    signed-joint domain. Model-bound caches are replaced, all original clocks and
+    counters continue, and no second expansion or alternative sign is tried.
+    Rejected nonlinear steps use safeguarded quadratic contraction from the
+    existing linear prediction and observed merit. Inadmissible trials halve.
+    The same four trials and strict nonlinear descent remain mandatory.
     """
-    if not isinstance(mode, (JointMode, IncidentGuidance)):
+    if not isinstance(mode, (JointMode, IncidentGuidance, MaterialGuidance, ContactGuidance)):
         raise ValueError("Supply an explicit joint recovery mode")
+    coupled_contact = isinstance(mode, ContactGuidance)
+    straight_contact = isinstance(mode, ContactGuidance) and mode.motion in (
+        ContactMotion.STRAIGHT_SLOTS,
+        ContactMotion.ADAPTIVE_HARDWARE,
+    )
+    adaptive_hardware = (
+        isinstance(mode, ContactGuidance) and mode.motion is ContactMotion.ADAPTIVE_HARDWARE
+    )
+    if adaptive_hardware and isinstance(evidence, ContactResult) and evidence.status != "separated":
+        raise ValueError(
+            "Adaptive hardware motion requires hardware-only or separated contact evidence"
+        )
+    if isinstance(evidence, ContactResult) and not coupled_contact:
+        raise ValueError("Contact guidance requires an actual material measurement")
+    if coupled_contact and not isinstance(evidence, (ContactResult, Report)):
+        raise ValueError("Contact guidance requires measured contact or retained hardware evidence")
+    if isinstance(mode, MaterialGuidance) and not isinstance(evidence, Penetration):
+        raise ValueError("Material reversal requires an actual material crossing")
     validate(
         remaining_pairs=remaining_pairs,
         maximum_cpu_seconds=maximum_cpu_seconds,
@@ -126,9 +202,10 @@ def recover(
     )
     cpu, wall = process_time(), perf_counter()
     mating_mode = mode in (JointMode.MATING_CEILING, JointMode.BLOCKED_MATING)
+    reflected = isinstance(mode, (IncidentGuidance, MaterialGuidance))
     selected: int | None = None
     model: SignedJoints
-    if isinstance(mode, IncidentGuidance):
+    if isinstance(mode, (IncidentGuidance, MaterialGuidance)):
         model = IncidentJoints(original, mode.selected_fold)
         selected = mode.selected_fold
     elif mode is JointMode.RADIUS_RESTORATION:
@@ -142,37 +219,86 @@ def recover(
         if selected is None:
             return None
         model = RadiusJoints(original, selected)
+    elif straight_contact:
+        model = StraightSlots(original)
     else:
         model = SignedJoints(original)
     values = model.initial
-    constraints: list[tuple[FlatSeparation, Side]] = []
+    constraints: list[tuple[FlatSeparation | MaterialConstraint, Side]] = []
     planes: list[FeaturePlane] = []
-    if isinstance(mode, IncidentGuidance):
+    if isinstance(mode, (IncidentGuidance, ContactGuidance)) or (
+        isinstance(mode, MaterialGuidance) and mode.evidence
+    ):
         prepared = mode.planes(model, terminal.hardware, values)
         if prepared is None:
             return None
         planes = prepared
+    if coupled_contact:
+        if isinstance(evidence, ContactResult):
+            initial = MaterialConstraint.create(model, original, evidence)
+            if initial is None:
+                if evidence.status != "separated" or not planes:
+                    return None
+            else:
+                constraints.append((initial, Side.BEFORE))
+        elif (
+            not isinstance(evidence, Report)
+            or evidence.status != "blocked"
+            or evidence.witness is None
+            or not planes
+        ):
+            return None
+    elif isinstance(mode, IncidentGuidance):
+        pass
     elif isinstance(evidence, Report):
         plane = FeaturePlane.create(model, original, evidence, terminal.hardware, values)
         if plane is None:
             return None
         planes.append(plane)
     elif isinstance(evidence, Penetration):
-        initial = FlatSeparation.create(model, original, evidence, extent=ProfileExtent.COMPLETE)
+        initial = (
+            MaterialConstraint.from_witness(model, original, evidence, axis_values=values)
+            if isinstance(mode, MaterialGuidance)
+            else FlatSeparation.create(model, original, evidence, extent=ProfileExtent.COMPLETE)
+        )
         if initial is None:
             return None
-        constraints.append((initial, Side.BEFORE))
+        side = Side.BEFORE
+        if isinstance(mode, MaterialGuidance) and initial.gap(values, Side.AFTER) > initial.gap(
+            values, Side.BEFORE
+        ):
+            side = Side.AFTER
+        constraints.append((initial, side))
     else:
         raise ValueError(
             "Initialize joint work from measured hardware or material crossing evidence"
         )
-    independent_members = isinstance(mode, IncidentGuidance) or mode is JointMode.RADIUS_RESTORATION
+    independent_members = reflected or coupled_contact or mode is JointMode.RADIUS_RESTORATION
+    independent_contacts = mating_mode or coupled_contact or isinstance(mode, MaterialGuidance)
     scalar_planes = member_planes(planes, model, values) if independent_members else planes
-    if independent_members and len(scalar_planes) + 1 > 13:
+    if (
+        independent_members
+        and len(scalar_planes) + len(constraints) + int(not coupled_contact) > 13
+    ):
         return None
-    project = active_step if isinstance(mode, IncidentGuidance) else quality_step
+    projection_evidence = ProjectionEvidence()
+    runway_evidence = RunwayEvidence()
+    project = (
+        partial(shortest_run_step, evidence=runway_evidence)
+        if straight_contact
+        else partial(redistributed_step, evidence=projection_evidence)
+        if reflected or coupled_contact
+        else quality_step
+    )
     length_released = False
-    bounded_length = mode is not JointMode.RADIUS_RESTORATION
+    hardware_expanded = False
+    bounded_length = (
+        mode is not JointMode.RADIUS_RESTORATION
+        and not coupled_contact
+        and not (
+            isinstance(mode, MaterialGuidance) and mode.length is ReturnLength.RESTORATION_GOAL
+        )
+    )
     length_target = (
         StraightQuality(maximum_length_mm, maximum_updates).target_mm
         if mating_mode
@@ -180,7 +306,9 @@ def recover(
         if isinstance(mode, IncidentGuidance)
         else maximum_length_mm
     )
-    keys: set[tuple[Any, ...]] = set()
+    keys: set[tuple[Any, ...]] = (
+        {(bound.pair, bound.parts) for bound, _ in constraints} if coupled_contact else set()
+    )
     fixed: set[int] = set()
     newton, pairs, contacts, contact_seconds = 0, 0, 0, 0.0
     candidate = original
@@ -212,7 +340,7 @@ def recover(
         Reuse identical raw equations only while the actual constraint set remains fixed.
         """
         equation_terms = model.residual(coordinates) + tuple(
-            1e-7 / model.scale - plane.gap(coordinates) for plane in scalar_planes
+            1e-7 / model.scale - feature.gap(coordinates) for feature in scalar_planes
         )
         if bounded_length:
             equation_terms += (
@@ -227,7 +355,7 @@ def recover(
                 1e-8 / model.scale - constraint.gap(coordinates, chosen_side)
                 for constraint, chosen_side in constraints
             )
-            equation_terms += flat_terms if mating_mode else (max(flat_terms),)
+            equation_terms += flat_terms if independent_contacts else (max(flat_terms),)
         return equation_terms
 
     evaluation = JointEvaluation(raw_equations, model.admissible)
@@ -249,6 +377,11 @@ def recover(
             maximum_length_mm=maximum_length_mm,
             remaining_updates=maximum_updates,
             remaining_pairs=remaining_pairs,
+            initial_flat_constraints=len(constraints),
+            initial_hardware_members=len(scalar_planes),
+            material_evidence_status=evidence.status
+            if isinstance(evidence, ContactResult)
+            else None,
         )
         while True:
             bounded()
@@ -286,11 +419,24 @@ def recover(
                 ):
                     stop = "native_sliver"
                     break
-                hardware_report = terminal.measure(candidate, "joint_flat_contact_final")
+                hardware_report = (
+                    terminal.certify(candidate, "joint_flat_contact_final")
+                    if coupled_contact or on_blocked is not None
+                    else terminal.measure(candidate, "joint_flat_contact_final")
+                )
                 if hardware_report.status != "clear":
                     if (
+                        on_blocked is not None
+                        and hardware_report.status == "blocked"
+                        and hardware_report.witness is not None
+                    ):
+                        on_blocked(JointHandoff(candidate, hardware_report))
+                        stop = "hardware_handoff"
+                        break
+                    if (
                         not isinstance(evidence, Penetration)
-                        and not isinstance(mode, IncidentGuidance)
+                        and not reflected
+                        and not coupled_contact
                         and mode is not JointMode.RADIUS_RESTORATION
                     ):
                         stop = "hardware_not_clear"
@@ -302,11 +448,11 @@ def recover(
                         terminal.hardware,
                         values,
                         coverage=FeatureCoverage.ADJOINING_INTERNAL
-                        if isinstance(mode, IncidentGuidance)
+                        if reflected or coupled_contact
                         else FeatureCoverage.TERMINAL_RUNWAY,
                     )
                     if (
-                        len(planes) >= (4 if isinstance(mode, IncidentGuidance) else 2)
+                        len(planes) >= (4 if reflected or coupled_contact else 2)
                         or extra is None
                         or extra in planes
                     ):
@@ -317,7 +463,7 @@ def recover(
                         scalar_planes = member_planes(planes, model, values)
                         inequalities = len(scalar_planes) + (
                             len(constraints) + int(bounded_length)
-                            if mating_mode
+                            if independent_contacts
                             else 1 + bool(constraints)
                         )
                         if inequalities > 13:
@@ -354,35 +500,59 @@ def recover(
                     bounded()
                     accepted, stop = True, "accepted"
                     break
-                if measured_contact.status != "penetration" or measured_contact.witness is None:
+                if (
+                    on_blocked is not None
+                    and measured_contact.status == "penetration"
+                    and measured_contact.witness is not None
+                ):
+                    on_blocked(JointHandoff(candidate, measured_contact))
+                    stop = "material_handoff"
+                    break
+                if not coupled_contact and (
+                    measured_contact.status != "penetration" or measured_contact.witness is None
+                ):
                     stop = "contact_unresolved"
                     break
-                penetration_seen = True
-                created_bound = FlatSeparation.create(
-                    model,
-                    candidate,
-                    measured_contact.witness,
-                    extent=ProfileExtent.COMPLETE if mating_mode else ProfileExtent.ARC,
-                )
+                penetration_seen = penetration_seen or measured_contact.status == "penetration"
+                witness = measured_contact.witness
+                if coupled_contact or isinstance(mode, MaterialGuidance):
+                    created_bound = MaterialConstraint.create(model, candidate, measured_contact)
+                else:
+                    assert witness is not None
+                    created_bound = FlatSeparation.create(
+                        model,
+                        candidate,
+                        witness,
+                        extent=ProfileExtent.COMPLETE
+                        if mating_mode or isinstance(mode, MaterialGuidance)
+                        else ProfileExtent.ARC,
+                    )
                 if created_bound is None or len(constraints) >= 4:
                     stop = "unsupported_or_exhausted_flat_constraints"
                     break
-                bound: FlatSeparation = created_bound
-                witness = measured_contact.witness
-                key = (
-                    bound.pair,
-                    tuple(round(v, 8) for v in witness.first[:2]),
-                    tuple(round(v, 8) for v in witness.second[:2]),
-                )
+                bound: FlatSeparation | MaterialConstraint = created_bound
+                if coupled_contact:
+                    key = (bound.pair, bound.parts)
+                else:
+                    assert witness is not None
+                    key = (
+                        bound.pair,
+                        tuple(round(v, 8) for v in witness.first[:2]),
+                        tuple(round(v, 8) for v in witness.second[:2]),
+                    )
                 if key in keys:
                     stop = "repeated_contact_witness"
                     break
                 side = max(
-                    Side, key=lambda chosen: (bound.gap(model.initial, chosen), -chosen.value)
+                    Side,
+                    key=lambda chosen: (
+                        bound.gap(values if coupled_contact else model.initial, chosen),
+                        -chosen.value,
+                    ),
                 )
                 keys.add(key)
                 inequalities = len(scalar_planes) + (
-                    len(constraints) + 1 + int(bounded_length) if mating_mode else 2
+                    len(constraints) + 1 + int(bounded_length) if independent_contacts else 2
                 )
                 if independent_members and inequalities > 13:
                     stop = "physical_inequality_capacity"
@@ -391,7 +561,7 @@ def recover(
                 evaluation.constraints_changed()
                 emit(
                     "constraint_added",
-                    witness=asdict(witness),
+                    witness=None if witness is None else asdict(witness),
                     pair=[asdict(tag) for tag in bound.pair],
                     parts=[
                         {"phase": part.phase.value, "q": (part.low_q, part.high_q)}
@@ -414,10 +584,31 @@ def recover(
                 admissible=admissible,
             )
             project_step = (
-                active_step if (mating_mode or independent_members) and len(terms) > 10 else project
+                active_step
+                if not reflected
+                and not coupled_contact
+                and (mating_mode or independent_members)
+                and len(terms) > 10
+                else project
             )
             delta = project_step(model, values, jacobian, terms, bounded)
             if delta is None:
+                if adaptive_hardware and straight_contact and newton == 0 and not constraints:
+                    assert isinstance(mode, ContactGuidance)
+                    prepared_domain = expand_hardware(original, mode, terminal.hardware, bounded)
+                    if prepared_domain is None:
+                        stop = "unsupported_hardware_domain"
+                        break
+                    model = prepared_domain.model
+                    planes, scalar_planes = prepared_domain.planes, prepared_domain.members
+                    values = model.initial
+                    fixed.clear()
+                    straight_contact, hardware_expanded = False, True
+                    project = partial(redistributed_step, evidence=projection_evidence)
+                    evaluation = JointEvaluation(raw_equations, model.admissible)
+                    equations, admissible = evaluation.equations, evaluation.admissible
+                    emit("hardware_motion_expanded", newton_steps=newton)
+                    continue
                 if mode is JointMode.BLOCKED_MATING and not length_released:
                     parts = member_planes(planes, model, values)
                     if len(parts) + len(constraints) > 13:
@@ -449,13 +640,23 @@ def recover(
                     stop = "native_projection_infeasible"
                     break
             fraction = step_limit(model, values, delta, 1.0)
+            predicted = tuple(
+                term + math.fsum(a * b for a, b in zip(row, delta))
+                for row, term in zip(jacobian, terms)
+            )
+            linear_error = max(
+                tuple(abs(term) for term in predicted[:6])
+                + tuple(max(0.0, term) for term in predicted[6:])
+            )
+            predicted_change = linear_error - error
             for _ in range(4):
                 bounded()
                 trial = advance(model, values, delta, fraction)
-                if admissible(trial) and merit(trial) < error:
+                trial_error = merit(trial) if admissible(trial) else None
+                if trial_error is not None and trial_error < error:
                     values, newton = trial, newton + 1
                     break
-                fraction /= 2
+                fraction = contracted_fraction(fraction, error, trial_error, predicted_change)
             else:
                 stop = "joint_no_descent"
                 break
@@ -488,6 +689,8 @@ def recover(
             length_goal_mm=maximum_length_mm,
             length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
         )
+    if runway_evidence.attempts:
+        detail["runway_minimization"] = asdict(runway_evidence)
     if mode is JointMode.RADIUS_RESTORATION:
         detail.update(
             radius_restoration=True,
@@ -498,13 +701,45 @@ def recover(
             length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
             radius_floor_mm=original.radius_mm,
         )
-    if isinstance(mode, IncidentGuidance):
+    if isinstance(mode, (IncidentGuidance, MaterialGuidance)):
         detail.update(
-            method="complete_incident_features",
+            method="complete_material_return"
+            if isinstance(mode, MaterialGuidance)
+            else "complete_incident_features",
             selected_fold=selected,
             feature_constraints=len(planes),
             scalar_feature_constraints=len(scalar_planes),
             maximum_linear_steps=16,
+            linear_projection="redistributed_cap_restoration",
+        )
+        if isinstance(mode, MaterialGuidance):
+            detail.update(
+                length_policy=mode.length.value,
+                length_goal_mm=maximum_length_mm,
+                length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
+            )
+    if isinstance(mode, ContactGuidance):
+        detail.update(
+            method="coupled_contact_refinement",
+            feature_constraints=len(planes),
+            scalar_feature_constraints=len(scalar_planes),
+            maximum_linear_steps=16,
+            linear_projection="fixed_bend_active_projection"
+            if straight_contact
+            else "redistributed_cap_restoration",
+            length_goal_mm=maximum_length_mm,
+            length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
+            motion_policy=mode.motion.value,
+            hardware_domain_expanded=hardware_expanded,
+        )
+    if reflected or (coupled_contact and not straight_contact):
+        detail.update(
+            motion_regularization="maximum_merit_squared",
+            working_set_exhaustions=projection_evidence.exhaustions,
+            raw_gate_rejected_vectors=projection_evidence.raw_gate_rejections,
+            bounded_projection_proposals=projection_evidence.bounded_proposals,
+            bound_clipped_proposals=projection_evidence.bound_clipped_proposals,
+            halfspace_contracted_proposals=projection_evidence.halfspace_contracted_proposals,
         )
     if interrupted_pairs is not None:
         detail["interrupted_pairs_charged_as_upper_bound"] = interrupted_pairs

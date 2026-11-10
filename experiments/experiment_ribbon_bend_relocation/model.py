@@ -5,23 +5,19 @@ Expose movable existing bends and straight slots while keeping original radii fi
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Callable
 
+from experiments.experiment_ribbon_fold_relaxation.closure_policy import (
+    ClosurePolicy as ClosurePolicy,
+)
+from experiments.experiment_ribbon_fold_relaxation.closure_policy import (
+    ordered_caps_closed,
+)
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
 from experiments.experiment_ribbon_fold_relaxation.prefixes import PrefixModel
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
-from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, pose_error
-
-
-class ClosurePolicy(Enum):
-    """
-    Distinguish normalized exploratory retraction from actual ordered-cap certification.
-    """
-
-    NORMALIZED = "normalized"
-    ORDERED_CAPS = "ordered_caps"
+from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece
 
 
 @dataclass(frozen=True)
@@ -127,7 +123,7 @@ def retract_active(
         residual = model.residual(values)
         error = max(abs(v) for v in residual)
         if error < 1e-10 and (
-            closure_policy is ClosurePolicy.NORMALIZED or _caps_closed(model, values)
+            closure_policy is ClosurePolicy.NORMALIZED or ordered_caps_closed(model, values)
         ):
             return values
         rows = model.jacobian(values)
@@ -151,24 +147,6 @@ def retract_active(
     return (
         values
         if max(abs(v) for v in model.residual(values)) < 1e-10
-        and (closure_policy is ClosurePolicy.NORMALIZED or _caps_closed(model, values))
+        and (closure_policy is ClosurePolicy.NORMALIZED or ordered_caps_closed(model, values))
         else None
     )
-
-
-def _caps_closed(model: MovableBends, values: tuple[float, ...]) -> bool:
-    """
-    Require actual fixed cap poses at the accuracy used by analytic mating proofs.
-
-    Position is measured in millimeters, while the ordered tangent and width use
-    their vector residuals. Do not replace this with the model's length-normalized
-    Newton residual or local rotation vector, which can also vanish at a half-turn.
-    """
-    pieces = model.pieces(values)
-    if not pieces:
-        return False
-    target = model.original.targets
-    start = Pose(target.start, target.start_tangent, target.start_width)
-    end = Pose(target.end, target.end_tangent, target.end_width)
-    errors = pose_error(pieces[0].pose, start) + pose_error(pieces[-1].end_pose(), end)
-    return max(errors) < 1e-10

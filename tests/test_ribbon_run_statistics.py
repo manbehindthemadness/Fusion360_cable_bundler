@@ -122,6 +122,49 @@ def test_active_or_duplicate_attempts_cannot_be_finalized(journal: Path) -> None
         summarize_journal(journal)
 
 
+def test_native_error_maximum_includes_separate_seam_warning(journal: Path) -> None:
+    """
+    Preserve accepted warning counts while including measurements outside the main audit maximum.
+    """
+    path = journal / "1" / "native-result.json"
+    native = json.loads(path.read_text())
+    native.update(
+        status="built_with_precision_warning",
+        precision_warning={"maximum_error_mm": 2e-6, "categories": ["seam"]},
+    )
+    write_object(path, native)
+    result = summarize_journal(journal)
+    assert result["maximum_native_error_mm"] == 2e-6
+    assert result["counts"]["accuracy_warnings"] == 1
+    assert (result["passed"], result["failed"], result["first_failure_ordinal"]) == (1, 2, 2)
+
+
+@pytest.mark.parametrize(
+    "warning",
+    (
+        None,
+        {},
+        {"maximum_error_mm": -1},
+        {"maximum_error_mm": float("nan")},
+        {"maximum_error_mm": float("inf")},
+        {"maximum_error_mm": True},
+    ),
+)
+def test_native_warning_cannot_hide_missing_or_invalid_error(
+    journal: Path, warning: dict[str, Any] | None
+) -> None:
+    """
+    Reject incomplete warning evidence rather than publishing an understated aggregate maximum.
+    """
+    path = journal / "1" / "native-result.json"
+    native = json.loads(path.read_text())
+    write_object(
+        path, {**native, "status": "built_with_precision_warning", "precision_warning": warning}
+    )
+    with pytest.raises(ValueError, match="warning requires its finite nonnegative"):
+        summarize_journal(journal)
+
+
 @pytest.mark.parametrize(
     "change,message",
     [

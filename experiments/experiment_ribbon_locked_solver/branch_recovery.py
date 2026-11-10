@@ -42,6 +42,9 @@ def recover_construction(
 
     Unaccepted constructions select by their initial bounded separation correction,
     yielding unused updates to the next branch only after a different pair collides.
+    With hardware enabled, a strict supported return may replace that branch's
+    first motion with one measured incident reversal inside the same allowance.
+    Failed reflection never starts another separation allocation.
     Accepted-fallback recovery may group a colliding fold with a confirmed crossing
     attached straight only if that complete correction fits one original trust step;
     otherwise preserve the original witness correction.
@@ -126,6 +129,7 @@ def recover_construction(
             threshold_mm,
             checkpoint,
             record,
+            terminal=terminal,
         )
     else:
         cpu_left = MAXIMUM_CPU_SECONDS - (process_time() - cpu)

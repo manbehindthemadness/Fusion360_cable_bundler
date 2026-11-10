@@ -13,7 +13,8 @@ from typing import Callable
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_feature_insertion.separation import Region, Side, locate, regions
-from experiments.experiment_ribbon_fold_route.contact import Penetration
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
+from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span
 from experiments.experiment_ribbon_fold_route.contact_flat_geometry import (
     FlatPhase,
     profile_arcs,
@@ -205,12 +206,16 @@ class FlatSeparation:
         witness: Penetration,
         *,
         extent: ProfileExtent = ProfileExtent.ARC,
+        axis_values: tuple[float, ...] | None = None,
     ) -> FlatSeparation | None:
         """
         Derive complete regions and the nearest signed convex-envelope SAT direction.
 
         Complete-profile guidance covers all conductors in both witnessed flat
         phases. It changes no curved-region proof or final contact requirement.
+        Witness identities and phases always come from the measured route. An
+        explicit working pose selects the same single SAT axis after a prescribed
+        joint rewrite, without rebinding the witness or trying another shape.
         """
         if not isinstance(extent, ProfileExtent):
             raise ValueError("Supply an explicit flat profile extent")
@@ -230,8 +235,101 @@ class FlatSeparation:
                 )
                 for part in (a, b)
             )
-        first_shape = flat_prism(route.pieces[first], a)
-        second_shape = flat_prism(route.pieces[second], b)
+        return cls._from_parts(model, route, (first, second), (a, b), axis_values=axis_values)
+
+    @classmethod
+    def from_measurement(
+        cls, model: SignedJoints, route: FoldRoute, measurement: ContactResult
+    ) -> FlatSeparation | None:
+        """
+        Guide complete flat phases from a crossing or depth-limited cells, without asserting penetration.
+
+        Every corner of each undecided material rectangle must belong to the
+        same flat phase. The affine fold coordinate then bounds the entire
+        rectangle. Mixed/curved, malformed or other incomplete evidence grants
+        no constraint. Guidance always encloses the complete width/thickness;
+        only a later full certificate can establish clearance.
+        """
+        if measurement.status == "penetration" and measurement.witness is not None:
+            return cls.create(model, route, measurement.witness, extent=ProfileExtent.COMPLETE)
+        if measurement.status != "unresolved" or measurement.limit != "depth":
+            return None
+        pair, cells = measurement.unresolved_pieces, measurement.unresolved_regions
+        if (
+            not isinstance(pair, tuple)
+            or len(pair) != 2
+            or any(type(i) is not int for i in pair)
+            or not 0 <= pair[0] < pair[1] < len(route.pieces)
+            or not isinstance(cells, tuple)
+            or len(cells) != 2
+            or any(not isinstance(cell, Cell) for cell in cells)
+            or tuple(cell.piece for cell in cells) != pair
+        ):
+            return None
+        parts: list[FlatPart] = []
+        target = route.targets
+        for cell in cells:
+            spans = (cell.u, cell.q, cell.height)
+            if any(
+                not isinstance(span, Span)
+                or not math.isfinite(span.low)
+                or not math.isfinite(span.high)
+                or span.low > span.high
+                for span in spans
+            ) or not (
+                0 <= cell.u.low <= cell.u.high <= 1
+                and -route.half_width_mm <= cell.q.low <= cell.q.high <= route.half_width_mm
+                and -target.diameter_mm / 2
+                <= cell.height.low
+                <= cell.height.high
+                <= target.diameter_mm / 2
+            ):
+                return None
+            identified = tuple(
+                _identify(route.pieces[cell.piece], (u, q, 0.0), target.lines, target.diameter_mm)
+                for u in (cell.u.low, cell.u.high)
+                for q in (cell.q.low, cell.q.high)
+            )
+            first = identified[0]
+            if first is None or any(
+                part is None or part.phase is not first.phase for part in identified
+            ):
+                return None
+            parts.append(
+                FlatPart(
+                    first.phase,
+                    -route.half_width_mm,
+                    route.half_width_mm,
+                    target.diameter_mm / 2 + 1e-11,
+                )
+            )
+        return cls._from_parts(model, route, pair, (parts[0], parts[1]))
+
+    @classmethod
+    def _from_parts(
+        cls,
+        model: SignedJoints,
+        route: FoldRoute,
+        pair: tuple[int, int],
+        parts: tuple[FlatPart, FlatPart],
+        *,
+        axis_values: tuple[float, ...] | None = None,
+    ) -> FlatSeparation | None:
+        """
+        Share the deterministic SAT axis selection for witnessed and unresolved flat regions.
+        """
+        first, second = pair
+        a, b = parts
+        tags = regions(route)
+        if axis_values is None:
+            first_piece, second_piece = route.pieces[first], route.pieces[second]
+        else:
+            pieces = model.pieces(axis_values)
+            first_piece, second_piece = (
+                locate(model.original, pieces, tags[index]) for index in pair
+            )
+        first_shape = flat_prism(first_piece, a)
+        second_shape = flat_prism(second_piece, b)
         candidates = (
             first_shape[2]
             + second_shape[2]
@@ -250,7 +348,6 @@ class FlatSeparation:
         if not choices:
             return None
         axis = max(choices, key=lambda item: item[0])[1]
-        tags = regions(route)
         return cls(model, (tags[first], tags[second]), (a, b), axis)
 
     @cached_property

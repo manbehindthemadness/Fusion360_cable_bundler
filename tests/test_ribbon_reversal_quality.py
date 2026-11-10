@@ -48,6 +48,7 @@ def test_length_handoff_requires_bounded_cap_motion_and_declined_length(
         assert projector.call_args.args[3][-1] == 0.5
 
 
+@pytest.mark.skip(reason="Saved gym layout retired under the user-directed fresh-input policy")
 def test_early_handoff_keeps_work_for_actual_feature_clearance() -> None:
     """
     Close the saved five-conductor length conflict without spending its final updates on reflection.

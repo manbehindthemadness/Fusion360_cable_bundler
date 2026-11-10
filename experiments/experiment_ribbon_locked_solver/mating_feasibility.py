@@ -22,6 +22,12 @@ from experiments.experiment_ribbon_feature_insertion.separation_step import plan
 from experiments.experiment_ribbon_fold_relaxation.steps import advance
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
+from experiments.experiment_ribbon_terminal_hardware.deviation_sequence import (
+    SequenceStart,
+)
+from experiments.experiment_ribbon_terminal_hardware.deviation_sequence import (
+    recover as recover_sequence,
+)
 from experiments.experiment_ribbon_terminal_hardware.feature_plane import SignedJoints
 from experiments.experiment_ribbon_terminal_hardware.flat_separation import (
     FlatSeparation,
@@ -170,9 +176,12 @@ def recover(
     caps/material/native/self/hardware certification;
     guide preferences cannot veto restored physical feasibility. A caller using
     this for clear-baseline improvement must replace the restoration policy with
-    ordinary guide dominance before selection. Only an explicitly blocked entry
-    may release its inherited length quality ceiling after linear projection
-    failure. That restoration carries a separate policy through final selection;
+    ordinary guide dominance before selection. An explicitly blocked entry uses
+    the existing mating correction as the shared sequence's first stage. Only
+    its actual closed blocker can yield remaining work to the next stage; the
+    inherited length ceiling then becomes a reported goal, as it already can
+    after explicit local projection release. That restoration carries a separate
+    policy through final selection;
     a clear entry always retains its hard length/guide requirements. No guessed
     frame, radius, candidate bank or renewed work allowance is introduced.
     """
@@ -180,22 +189,35 @@ def recover(
         raise ValueError("Enter mating recovery with measured baseline eligibility")
     if measurement.status != "penetration" or measurement.witness is None:
         return None
-    child = recover_joints(
-        source,
-        measurement.witness,
-        terminal,
-        checkpoint,
-        record,
-        maximum_length_mm=baseline.material_length_mm,
-        minimum_straight_mm=threshold_mm,
-        remaining_pairs=work.pairs,
-        maximum_cpu_seconds=work.cpu_seconds,
-        maximum_seconds=work.wall_seconds,
-        maximum_updates=work.updates,
-        mode=JointMode.MATING_CEILING
-        if baseline_policy is BaselinePolicy.GUIDE_IMPROVEMENT
-        else JointMode.BLOCKED_MATING,
-    )
+    if baseline_policy is BaselinePolicy.RESTORE_BLOCKED:
+        child = recover_sequence(
+            source,
+            measurement,
+            terminal,
+            checkpoint,
+            record,
+            work=work,
+            maximum_length_mm=baseline.material_length_mm,
+            minimum_straight_mm=threshold_mm,
+            start=SequenceStart.BLOCKED_MATING,
+        )
+        if child.detail.get("initial_mating_supported") is False:
+            return None
+    else:
+        child = recover_joints(
+            source,
+            measurement.witness,
+            terminal,
+            checkpoint,
+            record,
+            maximum_length_mm=baseline.material_length_mm,
+            minimum_straight_mm=threshold_mm,
+            remaining_pairs=work.pairs,
+            maximum_cpu_seconds=work.cpu_seconds,
+            maximum_seconds=work.wall_seconds,
+            maximum_updates=work.updates,
+            mode=JointMode.MATING_CEILING,
+        )
     if child is None:
         return None
     return Recovery(

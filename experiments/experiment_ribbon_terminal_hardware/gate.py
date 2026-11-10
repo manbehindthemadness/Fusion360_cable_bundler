@@ -55,9 +55,28 @@ class Gate:
         stage: str,
     ) -> bool:
         """
-        Check each changed full-material route once; report blocked and exhausted work without acceptance.
+        Certify acceptance with piece axes while preserving route-bound evidence and the shared budget.
+
+        Guidance still uses box axes through measure. Its incomplete enclosure
+        is not a final verdict: certify can refine it, while a demonstrated
+        intrusion or existing clearance remains authoritative for this route.
         """
-        return self.measure(route, stage).status == "clear"
+        return self.certify(route, stage).status == "clear"
+
+    def cached_clearance(self, route: FoldRoute) -> Report | None:
+        """
+        Return an existing clear certificate for this exact immutable route without new measurement.
+
+        Scheduling may prioritize a free known-safe fallback over optional work.
+        An equivalent object, incomplete report or another route grants no proof.
+        Caller cancellation remains authoritative even when clearance is cached.
+        """
+        self.checkpoint()
+        cached = self._cache.get(id(route))
+        if cached is None:
+            return None
+        assert cached[0] is route
+        return cached[1] if cached[1].status == "clear" else None
 
     def measure(self, route: FoldRoute, stage: str) -> Report:
         """

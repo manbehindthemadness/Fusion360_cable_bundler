@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import snapshot
+from experiments.experiment_ribbon_fold_relaxation.closure_policy import ClosurePolicy
 from experiments.experiment_ribbon_fold_relaxation.flexible_steps import retract, step_limit
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected
 from experiments.experiment_ribbon_fold_route.contact import inspect_contact
@@ -31,6 +32,8 @@ def ease(
     Start from the last accepted aesthetic result. The maximum length is the
     original first-pass budget, never another compounded5%allowance. Signed fold
     order stays fixed; banks/radii/angles and all available runway can redistribute.
+    Every corrected proposal must satisfy the existing absolute ordered-cap mating
+    criterion within the original retraction allowance before contact checking.
     """
     if (
         cap_error(source) > 1e-7
@@ -69,7 +72,11 @@ def ease(
         for backtrack in range(6):
             checkpoint()
             corrected = retract(
-                model, advance(model, values, delta, step), maximum_length, checkpoint
+                model,
+                advance(model, values, delta, step),
+                maximum_length,
+                checkpoint,
+                closure_policy=ClosurePolicy.ORDERED_CAPS,
             )
             candidate = model.route(corrected) if corrected is not None else None
             event: dict[str, Any] = {

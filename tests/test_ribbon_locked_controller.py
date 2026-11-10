@@ -15,6 +15,7 @@ from devtools.ribbon_analysis.gym import Config, generate
 from devtools.ribbon_analysis.gym.handoff import freeze
 from experiments.experiment_ribbon_locked_solver import VERSION, controller, lock
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
+from experiments.experiment_ribbon_locked_solver.versions import V2
 
 
 def _controller(tmp_path: Path) -> tuple[controller.Controller, Mock]:
@@ -29,8 +30,13 @@ def _controller(tmp_path: Path) -> tuple[controller.Controller, Mock]:
 
 
 @pytest.mark.parametrize("optimization", (True, False))
+@pytest.mark.parametrize("version,hardware", ((VERSION, False), (V2, False), (V2, True)))
 def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, optimization: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    optimization: bool,
+    version: str,
+    hardware: bool,
 ) -> None:
     """
     A new procedure starts only from its explicit gym context and immutable public settings.
@@ -46,11 +52,12 @@ def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
     request = {
         "procedures": [
             {
-                "id": VERSION,
+                "id": version,
                 "settings": {
                     "smoothing_percent": 2.5,
                     "material_uv": True,
                     "first_pass_optimization": optimization,
+                    "terminal_hardware": hardware,
                 },
             }
         ]
@@ -66,7 +73,7 @@ def test_selected_run_freezes_settings_targets_gym_and_version_before_launch(
         "experiments.experiment_ribbon_locked_solver.worker",
     ]
     plan = json.loads((Path(command[-1]) / "plan.json").read_text())
-    assert plan["version"] == VERSION
+    assert plan["version"] == version
     assert plan["settings"] == request["procedures"][0]["settings"]
     assert plan["gym"] == json.loads(json.dumps(scene.payload()))
     assert plan["targets"] == scene.payload()["targets"]

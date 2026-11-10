@@ -73,7 +73,15 @@ class SignedJoints(MovableBends):
         Off-target cap poses are permitted while differentiating and solving.
         Vanished folds are not: their original region identities no longer exist.
         Specialized joint models retain their own explicit radius/sign policy.
+        Invalid vector sizes, nonfinite coordinates and exact bound violations
+        return False before placement. In particular, a rounded negative runway
+        proposal is rejected, never snapped or allowed to abort the whole solve.
         """
+        if len(values) != len(self.initial) or any(
+            not math.isfinite(value) or not self.bounds(i)[0] <= value <= self.bounds(i)[1]
+            for i, value in enumerate(values)
+        ):
+            return False
         route = self.route(values)
         return route is not None and self.preserves(route)
 
@@ -250,16 +258,29 @@ class FeaturePlane:
         """
         return self._gaps(values)
 
+    def _axis(self, pieces: tuple[PlacedPiece, ...]) -> Vector3:
+        """
+        Resolve the selected nondegenerate world axis through the same actual material feature.
+        """
+        piece = locate(self.model.original, pieces, self.reference)
+        raw = self._selected_axis(piece)
+        if magnitude(raw) < 1e-10:
+            raise ValueError("Selected feature-plane axis family became degenerate")
+        return unit(raw)
+
+    def separation_direction(self, values: tuple[float, ...]) -> Vector3:
+        """
+        Return the unit rigid-translation direction that increases this complete feature's signed gap.
+        """
+        axis = self._axis(self.model.pieces(values))
+        return axis if self.side is Side.AFTER else axis.translated(axis, -2)
+
     def _gap(self, values: tuple[float, ...]) -> float:
         """
         Follow the selected family and complete feature through joint motion, including derivatives.
         """
         pieces = self.model.pieces(values)
-        piece = locate(self.model.original, pieces, self.reference)
-        raw = self._selected_axis(piece)
-        if magnitude(raw) < 1e-10:
-            raise ValueError("Selected feature-plane axis family became degenerate")
-        axis = unit(raw)
+        axis = self._axis(pieces)
         bound = self._span(pieces, axis)
         coordinates = tuple(dot(p, axis) for p in self.corners)
         value = (

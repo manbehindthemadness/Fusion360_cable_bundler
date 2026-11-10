@@ -77,6 +77,7 @@ class Tester:
         self._input: Path | None = None
         self._journal_error: str | None = None
         self._setup_done = False
+        self._polling = False
 
     def start(self, specification: Any, selection: Any) -> None:
         """
@@ -165,10 +166,24 @@ class Tester:
 
     def poll(self) -> None:
         """
-        Launch or collect one case per call, stopping on the first failed boundary.
+        Launch or collect one case, excluding nested callbacks during Fusion event pumping.
+
+        Preparation and native callbacks may service another palette/timer poll.
+        Retain exclusive ownership of the boundary until it returns, even after
+        an exception. Nested polls do no work; explicit stops remain available.
         """
-        if not self.active:
+        if not self.active or self._polling:
             return
+        self._polling = True
+        try:
+            self._poll_case()
+        finally:
+            self._polling = False
+
+    def _poll_case(self) -> None:
+        """
+        Perform one exclusively owned boundary and preserve existing failure/cancellation accounting.
+        """
         try:
             if self.phase in ("running", "stopping"):
                 if self.phase != "stopping":
@@ -213,7 +228,11 @@ class Tester:
         if not self._setup_done:
             self.setup()
             self._setup_done = True
+        if not self.active:
+            return
         self.cleanup()
+        if not self.active:
+            return
         scene = self.specification.scene(self.attempted)
         self.scene = scene
         self.boundary = None
@@ -223,6 +242,8 @@ class Tester:
         input_path = self.journal.begin(self.attempted, scene)
         self._input = input_path
         self.prepare(scene)
+        if not self.active:
+            return
         previous = self.runner.state().get("job")
         try:
             self.runner.start({"procedures": [self.selection]}, scene.targets, gym=scene.payload())

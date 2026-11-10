@@ -19,12 +19,20 @@ from .repair import Closure, StraightMotion, changed, correction, nearest, refra
 @dataclass(frozen=True)
 class Unclosed:
     """
-    Retain one existing algebraic branch and its measured positional residual.
+    Retain one algebraic branch, its measured residual and the policy that produced its progress.
     """
 
     chain: Chain
     closure: Closure
     iteration: int = 0
+    branch_policy: BranchPolicy = BranchPolicy.INDEX
+
+    def __post_init__(self) -> None:
+        """
+        Keep unfinished progress bound to an explicit physical-factor selection policy.
+        """
+        if not isinstance(self.branch_policy, BranchPolicy):
+            raise ValueError("Retain an explicit unfinished branch policy")
 
 
 def refine(
@@ -35,7 +43,8 @@ def refine(
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
     *,
-    branch_policy: BranchPolicy = BranchPolicy.INDEX,
+    branch_policy: BranchPolicy | None = None,
+    maximum_straight_mm: float | None = None,
 ) -> Allocation | Unclosed | None:
     """
     Continue the same residual-derived corrections until exact closure, stalling or a finite cap.
@@ -43,25 +52,30 @@ def refine(
     Every accepted step must reduce the actual globally reprojected residual.
     The original pi/4 angular cap and two step halvings remain. Return an
     unfinished state only after exhausting the cap while still progressing;
-    derivative failure or stalling returns None. Only the last step of a resumed
-    continuation eliminates positive straight freedom from its angular system;
-    earlier steps preserve established fixed-straight behavior. The step count,
+    derivative failure or stalling returns None. Every step of a resumed
+    continuation eliminates legal positive-straight freedom from its angular
+    system, matching the actual subsequent reallocation. Initial actions retain
+    their established fixed-straight behavior. The step count,
     targets, roots and radii stay fixed.
+    A supplied straight budget follows every nearest projection and closed fit;
+    no resumed or physical-factor continuation can drop or renew that budget.
+    Omitted policy resumes the unfinished state's recorded policy; an explicit
+    override affects this action and the policy retained by any resulting state.
     """
+    policy = unfinished.branch_policy if branch_policy is None else branch_policy
+    if not isinstance(policy, BranchPolicy):
+        raise ValueError("Select an explicit physical-factor policy")
     current, closure = unfinished.chain, unfinished.closure
     for iteration in range(unfinished.iteration, unfinished.iteration + maximum_steps):
-        motion = (
-            StraightMotion.REALLOCATABLE
-            if unfinished.iteration > 0 and iteration == unfinished.iteration + maximum_steps - 1
-            else StraightMotion.FIXED
-        )
+        motion = StraightMotion.REALLOCATABLE if unfinished.iteration > 0 else StraightMotion.FIXED
         delta = correction(
             boundary,
             current,
             closure,
             checkpoint,
             straight_motion=motion,
-            branch_policy=branch_policy,
+            branch_policy=policy,
+            maximum_straight_mm=maximum_straight_mm,
         )
         if delta is None:
             record(
@@ -82,7 +96,7 @@ def refine(
                 boundary,
                 current,
                 changed(current.targets, delta, 0.5**halving),
-                branch_policy=branch_policy,
+                branch_policy=policy,
             )
             if probe is None:
                 record(
@@ -95,7 +109,9 @@ def refine(
                     }
                 )
                 continue
-            trial = nearest(Model(boundary, probe.topology), checkpoint)
+            trial = nearest(
+                Model(boundary, probe.topology), checkpoint, maximum_straight_mm=maximum_straight_mm
+            )
             record(
                 {
                     "stage": "feature_reclosure",
@@ -107,21 +123,28 @@ def refine(
                     else "no_gain",
                     "position_error_diameters": trial.error,
                     "angular_delta": delta,
-                    "branch_policy": branch_policy.value,
+                    "branch_policy": policy.value,
                     "straight_motion": motion.value,
                 }
             )
             if trial.error < closure.error - 1e-10:
                 current, closure, progressed = probe, trial, True
                 if trial.error <= 1e-7 / boundary.targets.diameter_mm:
-                    allocation = fit(boundary, current, threshold_mm, checkpoint, record)
+                    allocation = fit(
+                        boundary,
+                        current,
+                        threshold_mm,
+                        checkpoint,
+                        record,
+                        maximum_straight_mm=maximum_straight_mm,
+                    )
                     if allocation is not None:
                         return allocation
                 break
         if not progressed:
             return None
     return (
-        Unclosed(current, closure, unfinished.iteration + maximum_steps)
+        Unclosed(current, closure, unfinished.iteration + maximum_steps, policy)
         if closure.error > 1e-7 / boundary.targets.diameter_mm
         else None
     )
@@ -134,17 +157,28 @@ def refine_preserving_legacy(
     maximum_steps: int,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    maximum_straight_mm: float | None = None,
 ) -> Allocation | Unclosed | None:
     """
     Keep closed continuous legacy results; correct detected factor jumps without losing fallback.
 
     Initial reclosure gets at most one additional equally bounded continuation
     attempt, within the caller's unchanged first-pass time/contact limits. Resumed
-    work retains the legacy policy. A continuous result replaces a closed legacy
+    work retains its recorded policy. A continuous result replaces a closed legacy
     result only with non-increasing site error and material length. Hard errors
-    propagate; unsuccessful continuation retains the original result.
+    propagate; unsuccessful continuation retains the original result. When both
+    outcomes are unfinished, keep the lower measured residual, retaining legacy
+    ties. Already computed continuous progress also survives a stalled legacy
+    action. This changes neither the two initial actions nor the one resumed
+    action's original correction limit.
     """
-    legacy = refine(boundary, unfinished, threshold_mm, maximum_steps, checkpoint, record)
+    options = (
+        {"maximum_straight_mm": maximum_straight_mm} if maximum_straight_mm is not None else {}
+    )
+    legacy = refine(
+        boundary, unfinished, threshold_mm, maximum_steps, checkpoint, record, **options
+    )
     if unfinished.iteration or (
         isinstance(legacy, Allocation) and not legacy.chain.factor_discontinuity
     ):
@@ -157,8 +191,26 @@ def refine_preserving_legacy(
         checkpoint,
         record,
         branch_policy=BranchPolicy.CONTINUOUS,
+        **options,
     )
     if not isinstance(continuous, Allocation):
+        if isinstance(continuous, Unclosed) and (
+            legacy is None
+            or (isinstance(legacy, Unclosed) and continuous.closure.error < legacy.closure.error)
+        ):
+            record(
+                {
+                    "stage": "factor_continuation",
+                    "status": "unfinished",
+                    "roots": continuous.chain.roots,
+                    "branch_policy": continuous.branch_policy.value,
+                    "position_error_diameters": continuous.closure.error,
+                    "legacy_position_error_diameters": legacy.closure.error
+                    if isinstance(legacy, Unclosed)
+                    else None,
+                }
+            )
+            return continuous
         return legacy
     if isinstance(legacy, Allocation) and (
         continuous.score > legacy.score

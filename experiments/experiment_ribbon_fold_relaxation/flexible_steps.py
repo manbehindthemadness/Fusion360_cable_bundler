@@ -8,6 +8,7 @@ import math
 from dataclasses import dataclass
 from typing import Callable
 
+from .closure_policy import ClosurePolicy, ordered_caps_closed
 from .flexible import FlexibleModel as Model
 from .steps import advance, projected
 
@@ -52,7 +53,12 @@ def step_limit(
 
 
 def retract(
-    model: Model, initial: tuple[float, ...], maximum_length: float, checkpoint: Callable[[], None]
+    model: Model,
+    initial: tuple[float, ...],
+    maximum_length: float,
+    checkpoint: Callable[[], None],
+    *,
+    closure_policy: ClosurePolicy = ClosurePolicy.NORMALIZED,
 ) -> tuple[float, ...] | None:
     """
     Restore ordered caps and any exceeded length budget before candidate acceptance.
@@ -62,7 +68,12 @@ def retract(
     acceptance gate because the local rotation residual also vanishes at a half-turn.
     Predicted zero runway slots stay exactly on their active bound during Newton
     correction; the correction cannot create new microscopic straight features.
+    Certified smoothing requests the same actual ordered1e-10cap criterion used
+    by mating proofs, rather than accepting length-normalized error alone. The
+    exploratory default and six-correction/four-halving allowance stay unchanged.
     """
+    if not isinstance(closure_policy, ClosurePolicy):
+        raise ValueError("Supply an explicit flexible closure policy")
     fixed_runway = tuple(i for i in model.straight_indices if initial[i] <= 1e-12)
     values = tuple(0.0 if i in fixed_runway else v for i, v in enumerate(initial))
     for _ in range(6):
@@ -70,7 +81,9 @@ def retract(
         residual = model.residual(values)
         excess = max(0.0, model.length(values) - maximum_length)
         error = max(excess, *(abs(v) for v in residual))
-        if error < 1e-10:
+        if error < 1e-10 and (
+            closure_policy is ClosurePolicy.NORMALIZED or ordered_caps_closed(model, values)
+        ):
             return values
         rows = model.jacobian(values)
         right = [-v for v in residual]
@@ -106,5 +119,6 @@ def retract(
             *(abs(v) for v in model.residual(values)),
         )
         < 1e-10
+        and (closure_policy is ClosurePolicy.NORMALIZED or ordered_caps_closed(model, values))
         else None
     )

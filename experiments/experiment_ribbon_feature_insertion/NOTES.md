@@ -1,5 +1,40 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+## Bounded initial straight travel — 2026-11-09
+
+The resume1764 excursion used6,486.141mm of material for a47.147mm guide. Its
+recorded compact66.771mm branch failed contact; a later reclosed root closed its
+nearly singular displacement cone using thousands of millimeters of cancelling
+straight travel. The flat-runway placement check did not constrain that travel.
+No historical layout was re-solved or awarded repaired-pass credit.
+
+Optimized selected-v2 construction now supplies the input guide length as an
+initial straight-travel budget. Fold material is separate. Allocation, nearest
+endpoint projection and every angular/factor continuation share that same domain.
+Each existing active mask/support retains its unconstrained optimum when it fits;
+otherwise one exact active-budget face is solved. Coefficients are not clipped
+to force closure. At an active budget, reallocation removes only zero-sum transfer
+directions; the remaining angular residual still needs correction. The same roots,
+stations, radii,128masks/64nearest supports, correction/halving ceilings,4second
+first pass and contact/resource limits remain. A support uses at most two tiny
+linear solves. This is an initializer quality policy, not a physical length law
+or an infeasibility certificate. Gym bounds remain a separate post-build test.
+
+64focused analytical/affected tests, scoped Ruff and IDE checks pass. The first
+test invocation had one synthetic mock-construction error before projection;
+that authoring failure was corrected without changing the numerical mechanism.
+Read-only evidence, plan and source review are resume1765.
+
+Fresh resume1766, seed2234107284:20reserved/6attempted,5passes and1self-contact
+failure,14unattempted. All13recorded initial branches stayed within the declared
+straight budget at its numerical residual allowance. Five ordinary native builds,
+named fidelity audits and gym bounds passed; no accuracy warnings;2CPU/native
+timing-goal misses. The failed input consumed four local contact updates and no
+hardware work; its separate rejected inspection body adds no acceptance credit.
+This verifies the bounded allocation mechanism on that sample, not a lower
+population failure rate or complete routing resolution. Full physical audits
+remain unmeasured. No source changed within the run; all264pins were frozen.
+
 Current614–624corrects unstable quadratic-root indexing during angular reclosure.
 Root indices can exchange physical factor rotations after a small frame change;
 the logged (1,1)trigger changed its first pair from negative to positive bends.

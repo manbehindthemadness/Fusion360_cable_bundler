@@ -63,6 +63,7 @@ def construct(
     contact_policy: ContactPolicy = ContactPolicy.STRICT,
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
     probe_order: ProbeOrder | None = None,
+    maximum_straight_mm: float | None = None,
 ) -> Result:
     """
     Fit one fixed frame sequence with a shared2048pair contact-work allowance.
@@ -93,19 +94,37 @@ def construct(
     An explicit probe order enables the existing negative-only flat witness
     accelerator within each original certificate's pair allowance. A missed
     probe grants no clearance, and omitted policy retains historical measurement.
+    An explicit guide-derived straight-travel budget bounds allocation and every
+    nearest-endpoint/reclosure stage. It is an initializer quality domain, not a
+    physical limit or a proof of infeasibility. No gym envelope enters this solve.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
     if probe_order is not None and not isinstance(probe_order, ProbeOrder):
         raise ValueError("Supply an explicit contact probe order")
+    if maximum_straight_mm is not None:
+        record(
+            {
+                "stage": "feature_straight_budget",
+                "maximum_straight_mm": maximum_straight_mm,
+                "scope": "Initializer straight travel only; fold material and physical checks separate",
+            }
+        )
     candidates: list[Allocation] = []
+    budget_options = (
+        {"maximum_straight_mm": maximum_straight_mm} if maximum_straight_mm is not None else {}
+    )
     branches: list[Branch] = []
     unfinished: list[Unclosed] = []
     for chain in chains(boundary, frames, parameters, checkpoint, record):
-        allocation = fit(boundary, chain, threshold_mm, checkpoint, record)
+        allocation = fit(boundary, chain, threshold_mm, checkpoint, record, **budget_options)
         if allocation is None:
-            pending = Unclosed(chain, nearest(Model(boundary, chain.topology), checkpoint))
-            outcome = refine(boundary, pending, threshold_mm, 2, checkpoint, record)
+            pending = Unclosed(
+                chain, nearest(Model(boundary, chain.topology), checkpoint, **budget_options)
+            )
+            outcome = refine(
+                boundary, pending, threshold_mm, 2, checkpoint, record, **budget_options
+            )
             if isinstance(outcome, Allocation):
                 allocation = outcome
             elif isinstance(outcome, Unclosed):
@@ -168,11 +187,12 @@ def construct(
                 "stage": "feature_closure_continuation",
                 "status": "continuing_closest",
                 "roots": pending.chain.roots,
+                "branch_policy": pending.branch_policy.value,
                 "position_error_diameters": pending.closure.error,
                 "maximum_additional_steps": 4,
             }
         )
-        outcome = refine(boundary, pending, threshold_mm, 4, checkpoint, record)
+        outcome = refine(boundary, pending, threshold_mm, 4, checkpoint, record, **budget_options)
         if isinstance(outcome, Allocation):
             candidates.append(outcome)
             recovered_branch = _branch(outcome, frames, record)

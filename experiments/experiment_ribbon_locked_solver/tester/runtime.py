@@ -20,6 +20,7 @@ from devtools.ribbon_analysis.gym.scene import Scene
 from .. import lock
 from ..controller import Controller
 from ..native import NativeOwner
+from ..native_presentation import finish
 from .awake import KeepAwake
 from .engine import Tester
 from .ranges import FIELDS
@@ -142,11 +143,7 @@ class Runtime:
             layout, f"Range test · case {self.engine.attempted} · seed {scene.config.seed}", result
         )
         workspace.gym_occurrence.isLightBulbOn = False
-        workspace.diagnostic_occurrence.isLightBulbOn = not (
-            result is not None
-            and workspace.native.rejected_job == result.parent.resolve()
-            and workspace.native.has_geometry()
-        )
+        finish(workspace.native, workspace.diagnostic_occurrence, result)
         workspace.diagnostics.palette.isVisible = True
         adsk.core.Application.get().activeViewport.fit()
 

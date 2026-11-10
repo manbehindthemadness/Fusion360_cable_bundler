@@ -10,7 +10,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter, process_time
-from typing import Any
+from typing import Any, TextIO
 
 from cable_bundler.routing.geometry import Vector3
 from devtools.ribbon_analysis.contracts import Targets
@@ -37,9 +37,21 @@ from .versions import method as solver_method
 
 def run(directory: Path) -> Path:
     """
-    Preserve unresolved/failed results and every proposal; never launch native construction here.
+    Preserve every flushed proposal under one owned journal; never launch native construction here.
+
+    Open the append stream once, retaining per-event flush before solver progress.
+    The original worker clocks include opening and using the stream. Context
+    ownership closes it on normal, rejected, cancelled and exceptional exits.
     """
     started, cpu_started = perf_counter(), process_time()
+    with (directory / "trials.jsonl").open("a") as trials:
+        return _run(directory, trials, started=started, cpu_started=cpu_started)
+
+
+def _run(directory: Path, trials: TextIO, *, started: float, cpu_started: float) -> Path:
+    """
+    Execute the original source-pinned worker with a caller-owned, immediately flushed event stream.
+    """
     append(directory, "numerical", "Worker started; validating frozen inputs and source lock.")
     plan = json.loads((directory / "plan.json").read_text())
     pins = verify()
@@ -86,8 +98,8 @@ def run(directory: Path) -> Path:
         Append each algebraic, contact, radius and layout proposal before advancing.
         """
         nonlocal last_stage, last_report
-        with (directory / "trials.jsonl").open("a") as stream:
-            stream.write(json.dumps(event, allow_nan=False) + "\n")
+        trials.write(json.dumps(event, allow_nan=False) + "\n")
+        trials.flush()
         stage = str(event.get("stage") or "smoothing")
         now = perf_counter()
         if stage != last_stage or now - last_report >= 0.5:

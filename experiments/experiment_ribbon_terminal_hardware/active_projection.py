@@ -5,9 +5,30 @@ Bound a dual active-set least-norm joint projection by sixteen algebraic working
 from __future__ import annotations
 
 import math
-from typing import Callable, Sequence
+from dataclasses import dataclass
+from typing import Callable, Literal, Protocol, Sequence
 
-from .feature_plane import SignedJoints
+
+@dataclass
+class UnfinishedProjection:
+    """
+    Retain a declined working-set vector and its reason without granting linear feasibility.
+    """
+
+    step: tuple[float, ...] | None = None
+    stop_reason: Literal["working_set_limit", "raw_inequality"] | None = None
+
+
+class CoordinateBounds(Protocol):
+    """
+    Supply exact bounds for each coordinate of a finite linear projection.
+    """
+
+    def bounds(self, index: int) -> tuple[float, float]:
+        """
+        Return the unchanged closed domain for the indexed coordinate.
+        """
+        ...
 
 
 def _dot(a: Sequence[float], b: Sequence[float]) -> float:
@@ -37,16 +58,52 @@ def _solve(rows: list[list[float]], right: list[float]) -> list[float] | None:
     return [row[-1] for row in matrix]
 
 
+def _checked_step(
+    base: list[float],
+    motion: list[float],
+    jacobian: list[list[float]],
+    residual: tuple[float, ...],
+    *,
+    unfinished: UnfinishedProjection | None = None,
+) -> tuple[float, ...] | None:
+    """
+    Apply the original unnormalized inequality gate to an already completed working set.
+    """
+    result = tuple(a + b for a, b in zip(base, motion))
+    if any(r + _dot(row, result) > 1e-14 for row, r in zip(jacobian[6:], residual[6:])):
+        if unfinished is not None:
+            unfinished.step = result
+            unfinished.stop_reason = "raw_inequality"
+        return None
+    return result
+
+
 def active_step(
-    model: SignedJoints,
+    model: CoordinateBounds,
     values: tuple[float, ...],
     jacobian: list[list[float]],
     residual: tuple[float, ...],
     checkpoint: Callable[[], None],
+    *,
+    unfinished: UnfinishedProjection | None = None,
 ) -> tuple[float, ...] | None:
     """
     Keep six cap equalities and every supplied inequality using at most sixteen dual updates.
+
+    A final feasibility check also examines the completed sixteenth update.
+    This grants no seventeenth working-set update or relaxed acceptance gate.
+    An optional receipt retains only an already computed vector at exhaustion
+    or completed working-set raw-inequality rejection, with distinct reasons.
+    It stays empty on early inconsistency, singular arithmetic or cancellation;
+    a receipt is never a certified return value and is cleared before each call.
+    Normalize each inequality with a stopping tolerance no larger than either
+    the original normalized 1e-14 gate or raw 1e-14 gate divided by its projected norm.
+    Pending selection and final feasibility use that same per-row tolerance;
+    the original raw return gate remains independent and unchanged.
     """
+    if unfinished is not None:
+        unfinished.step = None
+        unfinished.stop_reason = None
     if (
         not 7 <= len(residual) <= 19
         or len(jacobian) != len(residual)
@@ -77,7 +134,7 @@ def active_step(
             inequalities.append(([-float(j == i) for j in range(len(values))], value - low))
         if math.isfinite(high):
             inequalities.append(([float(j == i) for j in range(len(values))], high - value))
-    constraints: list[tuple[list[float], float]] = []
+    constraints: list[tuple[list[float], float, float]] = []
     for row, right in inequalities:
         checkpoint()
         projected = list(row)
@@ -91,7 +148,9 @@ def active_step(
             if allowance < -1e-14:
                 return None
         else:
-            constraints.append(([v / norm for v in projected], allowance / norm))
+            constraints.append(
+                ([v / norm for v in projected], allowance / norm, min(1e-14, 1e-14 / norm))
+            )
     motion = [0.0] * len(values)
     active: list[int] = []
     multipliers: list[float] = []
@@ -100,21 +159,17 @@ def active_step(
     for _ in range(16):
         checkpoint()
         if pending is None:
-            violations = [_dot(row, motion) - right for row, right in constraints]
+            violations = [
+                _dot(row, motion) - right - tolerance for row, right, tolerance in constraints
+            ]
             pending = (
                 max(range(len(violations)), key=lambda i: violations[i]) if violations else None
             )
-            if pending is None or violations[pending] <= 1e-14:
-                result = tuple(a + b for a, b in zip(base, motion))
-                if any(
-                    r + _dot(list(row), list(result)) > 1e-14
-                    for row, r in zip(jacobian[6:], residual[6:])
-                ):
-                    return None
-                return result
+            if pending is None or violations[pending] <= 0.0:
+                return _checked_step(base, motion, jacobian, residual, unfinished=unfinished)
             pending_multiplier = 0.0
         assert pending is not None
-        normal, right = constraints[pending]
+        normal, right, _tolerance = constraints[pending]
         normals = [constraints[i][0] for i in active]
         if normals:
             coefficients = _solve(
@@ -148,4 +203,12 @@ def active_step(
             active.append(pending)
             multipliers.append(pending_multiplier)
             pending = None
+    checkpoint()
+    if pending is None and all(
+        _dot(row, motion) - right <= tolerance for row, right, tolerance in constraints
+    ):
+        return _checked_step(base, motion, jacobian, residual, unfinished=unfinished)
+    if unfinished is not None:
+        unfinished.step = tuple(a + b for a, b in zip(base, motion))
+        unfinished.stop_reason = "working_set_limit"
     return None

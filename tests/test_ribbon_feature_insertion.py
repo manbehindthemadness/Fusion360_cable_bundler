@@ -5,12 +5,14 @@ Verify deterministic guide insertion, coupled interior allocation and fixed-radi
 from __future__ import annotations
 
 from dataclasses import replace
+from importlib import import_module
 from typing import Any, Callable
 
 import pytest
 
 from cable_bundler.routing.geometry import Vector3, difference, magnitude
 from devtools.ribbon_analysis.contracts import Targets
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.allocation import fit
@@ -20,6 +22,7 @@ from experiments.experiment_ribbon_feature_insertion.linear_fit import least_squ
 from experiments.experiment_ribbon_feature_insertion.repair import nearest, reframed
 from experiments.experiment_ribbon_feature_insertion.solve import construct
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_joint_route.frames import Topology
@@ -86,6 +89,39 @@ def test_spatial_fit_can_find_an_interior_allocation() -> None:
     assert least_squares([[1.0], [1.0]], [1.0, 2.0], [[1.0]], [0.0], 1) is None
 
 
+@pytest.mark.parametrize(
+    "hard,right,objective,wanted,maximum_sum",
+    (
+        ([[1.0, 1.0]], [2.0], [[1.0, 0.0]], [0.5], None),
+        ([[1.0, 1.0]], [2.0], [[1.0, 0.0]], [0.5], 1.0),
+        ([[1.0, 0.0, 0.0]], [1.0], [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [3.0, 4.0], 3.0),
+        ([[1.0, 1.0], [2.0, 2.0]], [2.0, 4.0], [[1.0, 0.0]], [0.5], None),
+        ([[1.0], [1.0]], [1.0, 2.0], [[1.0]], [0.0], None),
+        ([], [], [[1.0, 0.0], [0.0, 1.0]], [0.5, 0.25], None),
+        ([[], [], []], [0.0, 0.0, 0.0], [[]], [0.0], None),
+    ),
+)
+def test_affine_reuse_preserves_rank_nullspace_and_active_budget_results(
+    hard: list[list[float]],
+    right: list[float],
+    objective: list[list[float]],
+    wanted: list[float],
+    maximum_sum: float | None,
+) -> None:
+    """
+    Reuse exact row prefixes without changing interior optima, inconsistent systems or active sum faces.
+    """
+    workspace = AffineWorkspace()
+    size = len(objective[0])
+    for offset in (0.0, 0.25, 0.0):
+        targets = [value + offset for value in wanted]
+        original = least_squares(hard, right, objective, targets, size, maximum_sum=maximum_sum)
+        cached = least_squares(
+            hard, right, objective, targets, size, maximum_sum=maximum_sum, workspace=workspace
+        )
+        assert cached == original
+
+
 def test_fixed_radius_chain_closes_caps_and_preserves_metric() -> None:
     """
     Keep guide-derived steering orientations exact while the whole-chain straight allocation closes position.
@@ -120,6 +156,63 @@ def test_one_added_feature_supplies_two_ordered_shared_sites() -> None:
         assert len(allocation.chain.topology.folds) <= 6
         assert cap_error(allocation.route) < 1e-7
         assert all(p.radius_mm == boundary.radius_mm for p in allocation.chain.topology.folds)
+
+
+@pytest.mark.parametrize("broken_check", ("cap_error", "material_error"))
+def test_selected_allocation_requires_full_contract(
+    monkeypatch: pytest.MonkeyPatch, broken_check: str
+) -> None:
+    """
+    Reject a selected algebraic minimum when either independent material contract fails.
+    """
+    frames = Frames.create(_targets())
+    boundary = Boundary(frames.targets, 0.101)
+    chain = chains(boundary, frames, (0.5,), lambda: None, lambda event: None)[-1]
+    monkeypatch.setattr(
+        import_module("experiments.experiment_ribbon_feature_insertion.allocation"),
+        broken_check,
+        lambda route: 1.0,
+    )
+    with pytest.raises(ArithmeticError, match="lost cap/material closure"):
+        fit(boundary, chain, 1e-5, lambda: None, lambda event: None)
+
+
+def test_selected_contract_work_is_bounded_and_cannot_return_after_stop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Check the selected route once and honor resource exhaustion immediately after verification.
+    """
+    frames = Frames.create(_targets())
+    boundary = Boundary(frames.targets, 0.101)
+    chain = chains(boundary, frames, (0.5,), lambda: None, lambda event: None)[-1]
+    checked: list[FoldRoute] = []
+    events: list[dict[str, Any]] = []
+
+    def check(route: FoldRoute) -> float:
+        """
+        Retain each full-contract invocation while computing the real metric.
+        """
+        checked.append(route)
+        return material_error(route)
+
+    def checkpoint() -> None:
+        """
+        Simulate exhaustion during the final full material check.
+        """
+        if checked:
+            raise TimeoutError("selected contract stop")
+
+    monkeypatch.setattr(
+        "experiments.experiment_ribbon_feature_insertion.allocation.material_error", check
+    )
+    with pytest.raises(TimeoutError, match="selected contract stop"):
+        fit(boundary, chain, 1e-5, checkpoint, events.append)
+    assert len(checked) == 1
+    closed = [event for event in events if event["status"] == "closed"]
+    assert len(closed) > 1
+    assert all(event["contract_verification"] == "pending_selection" for event in closed)
+    assert not any(event["status"] == "selected_verified" for event in events)
 
 
 @pytest.mark.parametrize("status", ("penetration", "unresolved", "separated"))

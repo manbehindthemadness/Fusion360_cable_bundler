@@ -8,6 +8,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
+from typing import IO, Any, Callable, cast
 from unittest.mock import Mock
 
 import pytest
@@ -180,11 +181,9 @@ def test_native_collection_records_completion_or_failure_once(
     native.assert_called_once_with(tmp_path)
 
 
-def test_unresolved_worker_records_no_geometry_without_a_native_claim(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _worker_job(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """
-    Exercise actual worker serialization with an explicitly unresolved numerical boundary.
+    Author a synthetic worker boundary without invoking any solver or historical route.
     """
     scene = generate()
     pins = {"source": "digest"}
@@ -205,10 +204,22 @@ def test_unresolved_worker_records_no_geometry_without_a_native_claim(
         )
     )
     monkeypatch.setitem(vars(worker), "verify", lambda: pins)
+    return tmp_path
+
+
+def test_unresolved_worker_records_no_geometry_without_a_native_claim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Exercise actual worker serialization with an explicitly unresolved numerical boundary.
+    """
+    _worker_job(tmp_path, monkeypatch)
     monkeypatch.setitem(
         vars(worker),
         "solve",
-        lambda *args: SimpleNamespace(route=None, detail={"status": "unresolved"}),
+        lambda *args: SimpleNamespace(
+            route=None, inspection_route=None, detail={"status": "unresolved"}
+        ),
     )
     worker.run(tmp_path)
     assert not (tmp_path / "route.json").exists()
@@ -216,6 +227,54 @@ def test_unresolved_worker_records_no_geometry_without_a_native_claim(
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert manifest["solvers"][0]["status"] == "unresolved"
     assert all(rule["status"] == "unmeasured" for rule in manifest["solvers"][0]["rules"])
+
+
+@pytest.mark.parametrize("failure", (None, "solver", "nonfinite"))
+def test_worker_owns_one_flushed_trial_stream_through_every_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str | None
+) -> None:
+    """
+    Expose each complete prefix immediately and close the one append handle even after failure.
+    """
+    _worker_job(tmp_path, monkeypatch)
+    opened: list[IO[Any]] = []
+    original_open = cast(Callable[..., IO[Any]], Path.open)
+
+    def track_open(path: Path, *args: Any, **kwargs: Any) -> IO[Any]:
+        """
+        Observe actual append ownership while allowing independent readers and other worker files.
+        """
+        stream = original_open(path, *args, **kwargs)
+        mode = args[0] if args else kwargs.get("mode", "r")
+        if path == tmp_path / "trials.jsonl" and mode == "a":
+            opened.append(stream)
+        return stream
+
+    def solve_boundary(*args: Any) -> SimpleNamespace:
+        """
+        Read each event from another handle before supplying the next synthetic event or failure.
+        """
+        record = args[3]
+        for index in range(3):
+            value = float("nan") if failure == "nonfinite" and index == 2 else index
+            record({"stage": "analytical", "status": "recorded", "value": value})
+            prefix = [
+                json.loads(line) for line in (tmp_path / "trials.jsonl").read_text().splitlines()
+            ]
+            assert [entry["value"] for entry in prefix] == list(range(index + 1))
+        if failure == "solver":
+            raise RuntimeError("Controlled numerical boundary failure")
+        return SimpleNamespace(route=None, inspection_route=None, detail={"status": "unresolved"})
+
+    monkeypatch.setattr(Path, "open", track_open)
+    monkeypatch.setitem(vars(worker), "solve", solve_boundary)
+    worker.run(tmp_path)
+    assert len(opened) == 1 and opened[0].closed
+    entries = (tmp_path / "trials.jsonl").read_text().splitlines()
+    assert len(entries) == (2 if failure == "nonfinite" else 3)
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert manifest["solvers"][0]["status"] == ("stopped" if failure else "unresolved")
+    assert not (tmp_path / "route.json").exists()
 
 
 @pytest.mark.parametrize(

@@ -24,6 +24,8 @@ from experiments.experiment_ribbon_test_gym.workspace import Workspace
 from .controller import Controller
 from .lock import verify
 from .native import NativeOwner
+from .native_presentation import replay as show_replay
+from .native_presentation import show as show_native
 from .tester.runtime import Runtime as RangeTester
 from .views import restore as restore_views
 
@@ -75,23 +77,15 @@ class SelectedWorkspace(Workspace):
 
     def _prefer_native_result(self, manifest: Path) -> bool:
         """
-        Show a matching rejected body without constructing the expensive scaffold overlay.
+        Show a matching owned native result without constructing the automatic scaffold overlay.
         """
-        available = (
-            self.native.rejected_job == manifest.parent.resolve() and self.native.has_geometry()
-        )
-        if available:
-            self.native.displayed.isLightBulbOn = True
-            self.diagnostic_occurrence.isLightBulbOn = False
-        return available
+        return show_native(self.native, self.diagnostic_occurrence, manifest)
 
     def _show_replay(self) -> None:
         """
         Restore explicit diagnostic browsing after the native-first stopped-case view.
         """
-        if self.native.rejected_job is not None:
-            self.native.hide()
-        self.diagnostic_occurrence.isLightBulbOn = True
+        show_replay(self.native, self.diagnostic_occurrence)
 
     def ensure_views(self) -> None:
         """

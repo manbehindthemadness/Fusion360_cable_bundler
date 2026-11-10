@@ -8,7 +8,7 @@ import math
 from bisect import bisect_left
 from dataclasses import dataclass
 
-from cable_bundler.routing.geometry import Vector3, cross, dot, magnitude, unit
+from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.contracts import Targets
 from experiments.experiment_ribbon_fold_route.geometry import Pose
 from experiments.experiment_ribbon_reduced_joints.kinematics import rotate
@@ -51,11 +51,30 @@ class Frames:
         """
         Build257ordered tangent/width references, rejecting sampled stationary tangents.
         """
-        guide = Guide.create(targets)
+        return cls.from_guide(targets, Guide.create(targets))
+
+    @classmethod
+    def from_guide(cls, targets: Targets, guide: Guide) -> Frames:
+        """
+        Transport the same ordered frames along an explicit endpoint-preserving guide.
+
+        A spatial deviation changes the interior reference, never the fixed cap
+        positions or directed tangents. The257sample and shortest terminal-roll
+        conventions remain identical to ordinary construction.
+        """
+        if len(guide.parameters) != 257 or len(guide.distances) != 257:
+            raise ValueError("Guide frames require257ordered reference samples")
         velocities = tuple(guide.sample(u)[1] for u in guide.parameters)
         if any(magnitude(v) <= 1e-12 for v in velocities):
             raise ValueError("Stationary guide tangent leaves insertion unresolved")
         tangents = tuple(unit(v) for v in velocities)
+        if (
+            magnitude(difference(guide.sample(0)[0], targets.start)) > 1e-10
+            or magnitude(difference(guide.sample(1)[0], targets.end)) > 1e-10
+            or magnitude(difference(tangents[0], targets.start_tangent)) > 1e-10
+            or magnitude(difference(tangents[-1], targets.end_tangent)) > 1e-10
+        ):
+            raise ValueError("A deviated guide must preserve both ordered endpoint poses")
         widths, turns = [targets.start_width], [0.0]
         for before, after in zip(tangents, tangents[1:]):
             widths.append(transport(widths[-1], before, after))

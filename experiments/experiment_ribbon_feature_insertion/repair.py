@@ -43,12 +43,17 @@ class Closure:
     error: float
 
 
-def nearest(model: Model, checkpoint: Callable[[], None]) -> Closure:
+def nearest(
+    model: Model, checkpoint: Callable[[], None], *, maximum_straight_mm: float | None = None
+) -> Closure:
     """
     Project onto the three-dimensional straight-displacement cone using at most64derived supports.
 
     Supports of at most three rays suffice in XYZ. This is convex nearest-endpoint
     accounting, not guessed path initialization or an accepted material route.
+    An explicit straight budget projects onto the truncated cone using the same
+    supports. A boundary face is solved exactly instead of accepting arbitrarily
+    long near-cancelling travel as closure. Fold material is not debited here.
     """
     columns, right = model.equations()
     count = len(model.topology.folds) + 1
@@ -57,12 +62,28 @@ def nearest(model: Model, checkpoint: Callable[[], None]) -> Closure:
         for support in combinations(range(count), size):
             checkpoint()
             rows = [[columns[2 * i][a] for i in support] for a in range(3)]
-            values = least_squares([], [], rows, list(right), size)
+            values = least_squares(
+                [],
+                [],
+                rows,
+                list(right),
+                size,
+                maximum_sum=(
+                    maximum_straight_mm / model.source.targets.diameter_mm
+                    if maximum_straight_mm is not None
+                    else None
+                ),
+            )
             if values is None or min(values, default=0) < -1e-9:
                 continue
             allocation = [0.0] * model.size
             for i, value in zip(support, values):
                 allocation[2 * i] = max(0.0, value)
+            if maximum_straight_mm is not None and (
+                math.fsum(allocation[::2]) * model.source.targets.diameter_mm
+                > maximum_straight_mm + 1e-8 * model.source.targets.diameter_mm
+            ):
+                continue
             delta = difference(model.endpoint(tuple(allocation)).origin, model.source.targets.end)
             diameter = model.source.targets.diameter_mm
             residual = (delta.x / diameter, delta.y / diameter, delta.z / diameter)
@@ -157,6 +178,7 @@ def correction(
     *,
     straight_motion: StraightMotion = StraightMotion.FIXED,
     branch_policy: BranchPolicy = BranchPolicy.INDEX,
+    maximum_straight_mm: float | None = None,
 ) -> list[float] | None:
     """
     Derive a minimum-norm linearized endpoint correction from six probes per shared joint.
@@ -167,6 +189,9 @@ def correction(
     angles. Zero slots remain constrained. Actual nonnegative lengths are globally
     re-projected after every finite step. The angular norm is capped at pi/4;
     no trial orientation bank or extra correction step is introduced.
+    At an active straight-travel budget, only zero-sum transfers between positive
+    slots are eliminated. Treating all positive rays as free there would hide
+    the angular correction needed to close within the bounded domain.
     """
     columns = []
     count = len(chain.targets) * 3
@@ -194,6 +219,14 @@ def correction(
         checkpoint()
         rays, _ = Model(boundary, chain.topology).equations()
         active = [list(rays[i]) for i in range(0, len(closure.values), 2) if closure.values[i] > 0]
+        if (
+            maximum_straight_mm is not None
+            and math.fsum(closure.values[::2]) * boundary.targets.diameter_mm
+            >= maximum_straight_mm - 1e-10 * boundary.targets.diameter_mm
+            and active
+        ):
+            anchor = active[0]
+            active = [[a - b for a, b in zip(ray, anchor)] for ray in active[1:]]
         for index, column in enumerate(columns):
             projected = affine_projection(active, [0.0] * len(active), list(column))
             if projected is None:

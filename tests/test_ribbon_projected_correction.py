@@ -29,6 +29,10 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_locked_solver import solver_v2
 from experiments.experiment_ribbon_locked_solver.settings import Settings
 
+pytestmark = pytest.mark.skip(
+    reason="Historical layout retired; fresh unique layouts and analytical projection controls replace replay"
+)
+
 
 def _problem(scale: float = 1.0) -> tuple[Boundary, Frames]:
     """

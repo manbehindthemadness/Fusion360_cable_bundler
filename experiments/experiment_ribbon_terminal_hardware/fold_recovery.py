@@ -28,6 +28,7 @@ from .native_projection import native_slot_step
 from .quality_projection import quality_step
 from .recovery_limits import validate
 from .straight_quality import StraightQuality
+from .workspace import redistribution
 
 
 class FeatureProjection(Enum):
@@ -70,10 +71,18 @@ def recover(
     four scalar halvings. Every new constraint requires a demonstrated intrusion;
     previous constraints stay active. No angle/event/axis-family candidates are
     searched after selection. Full contact and both boxes remain mandatory.
+    Grouped corrections may prefer transferring existing interior straight travel
+    into a blocked terminal fold's neighbouring gap while sharing its turn. This
+    changes only the projection reference, not the cap/feature equations, quality
+    ceiling or work allowance; uniform feature spacing is not required. Apply
+    that preference once per measured feature set, then reclose without injecting
+    another nullspace displacement on every Newton correction.
     Local quality growth is bounded by original construction length plus the
     initial complete-feature projected penetration; it is not a physical tolerance.
-    Hardware-clear proposals with sub-native runways fix those slots at zero and
-    reclose all equations before final self-contact, without renewing any allowance.
+    Closed proposals with sub-native runways fix those slots at zero and reclose
+    all equations before hardware and self-contact certification, without renewing
+    any allowance. A tiny terminal runway must not strand the following fold
+    outside the analytic mating proof while consuming clearance subdivision work.
     Straight-quality recovery additionally closes the original length ceiling as
     an active equation and uses only the caller's remaining update count. Ordinary
     fold recovery retains its overlap-based ceiling. Only if its closed proposal
@@ -170,6 +179,7 @@ def recover(
     }
     active_pairs: int | None = None
     contact_started = 0.0
+    workspace_constraints = 0
 
     def bounded() -> None:
         """
@@ -283,25 +293,25 @@ def recover(
                         continue
                     detail["stop_reason"] = "local_growth_ceiling"
                     break
+                slivers = {
+                    i
+                    for i in model.straight_indices
+                    if 0 < values[i] * model.scale <= minimum_straight_mm
+                }
+                if slivers:
+                    fixed_zero.update(slivers)
+                    values = tuple(0.0 if i in fixed_zero else v for i, v in enumerate(values))
+                    emit("native_slots_zeroed", indices=sorted(slivers))
+                    continue
+                if any(
+                    isinstance(p.geometry, Straight)
+                    and p.geometry.material_length_mm <= minimum_straight_mm
+                    for p in candidate.pieces
+                ):
+                    detail["stop_reason"] = "native_sliver"
+                    break
                 report = terminal.certify(candidate, "coupled_feature_candidate")
                 if report.status == "clear":
-                    slivers = {
-                        i
-                        for i in model.straight_indices
-                        if 0 < values[i] * model.scale <= minimum_straight_mm
-                    }
-                    if slivers:
-                        fixed_zero.update(slivers)
-                        values = tuple(0.0 if i in fixed_zero else v for i, v in enumerate(values))
-                        emit("native_slots_zeroed", indices=sorted(slivers))
-                        continue
-                    if any(
-                        isinstance(p.geometry, Straight)
-                        and p.geometry.material_length_mm <= minimum_straight_mm
-                        for p in candidate.pieces
-                    ):
-                        detail["stop_reason"] = "native_sliver"
-                        break
                     pairs = min(1024, remaining_pairs - detail["contact_pairs"])
                     if pairs <= 0:
                         detail["stop_reason"] = "construction_pair_budget"
@@ -359,12 +369,30 @@ def recover(
                 bounded,
                 admissible=admissible,
             )
+            workspace = None
+            if not (growth_quality or member_guidance) and len(planes) > workspace_constraints:
+                workspace = redistribution(model, values, planes)
+                workspace_constraints = len(planes)
+            if workspace is not None:
+                emit(
+                    "workspace_direction",
+                    donor_slot=workspace.donor_slot,
+                    receiving_slots=workspace.receiving_slots,
+                    terminal_folds=workspace.terminal_folds,
+                    reference=workspace.reference,
+                )
             delta = (
                 (active_step if len(equations(values)) > 10 else quality_step)(
                     model, values, jacobian, equations(values), bounded
                 )
                 if growth_quality or member_guidance
-                else projected(model, values, jacobian, [-v for v in equation], [0.0] * len(values))
+                else projected(
+                    model,
+                    values,
+                    jacobian,
+                    [-v for v in equation],
+                    list(workspace.reference) if workspace is not None else [0.0] * len(values),
+                )
             )
             if delta is None:
                 if release_length("joint_projection_infeasible"):

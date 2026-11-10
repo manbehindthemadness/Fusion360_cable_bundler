@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace, affine_projection
 
 
 def least_squares(
@@ -15,6 +15,9 @@ def least_squares(
     objective: list[list[float]],
     wanted: list[float],
     size: int,
+    *,
+    maximum_sum: float | None = None,
+    workspace: AffineWorkspace | None = None,
 ) -> list[float] | None:
     """
     Minimize squared objective residual subject to exact affine equalities on at most seven slots.
@@ -23,16 +26,27 @@ def least_squares(
     remaining normal system has at most four dimensions for full XYZ closure.
     Rank ambiguity/inconsistency returns unresolved; physical residual gates remain
     independent. Nonnegative active masks are owned by the allocation caller.
+    An optional nonnegative-coordinate sum budget activates one exact affine
+    face only when the unconstrained optimum exceeds it. No coefficient clipping
+    or additional active masks occur; callers still reject negative coordinates.
+    An optional caller-owned bounded workspace reuses exact row-prefix bases
+    with unchanged ordered arithmetic and rank gates. No geometry or result is
+    cached; omitted workspace preserves the original independent projections.
     """
     if size > 7 or any(len(row) != size for row in (*hard, *objective)):
         raise ValueError("Use at most seven matching straight-slot coordinates")
-    base = affine_projection(hard, right, [0.0] * size)
+    if maximum_sum is not None and (
+        type(maximum_sum) not in (int, float) or not math.isfinite(maximum_sum) or maximum_sum < 0
+    ):
+        raise ValueError("Use a finite nonnegative straight-coordinate budget")
+    project = affine_projection if workspace is None else workspace.project
+    base = project(hard, right, [0.0] * size)
     if base is None:
         return None
     nullspace: list[list[float]] = []
     for index in range(size):
         reference = [float(i == index) for i in range(size)]
-        vector = affine_projection(hard, [0.0] * len(hard), reference)
+        vector = project(hard, [0.0] * len(hard), reference)
         if vector is None:
             return None
         for _ in range(2):
@@ -55,10 +69,20 @@ def least_squares(
         math.fsum(row[i] * value for row, value in zip(reduced, residual))
         for i in range(len(nullspace))
     ]
-    coefficients = affine_projection(normal, target, [0.0] * len(nullspace))
+    coefficients = project(normal, target, [0.0] * len(nullspace))
     if coefficients is None:
         return None
-    return [
+    result = [
         value + math.fsum(v[i] * c for v, c in zip(nullspace, coefficients))
         for i, value in enumerate(base)
     ]
+    if maximum_sum is not None and math.fsum(result) > maximum_sum:
+        return least_squares(
+            hard + [[1.0] * size],
+            right + [maximum_sum],
+            objective,
+            wanted,
+            size,
+            workspace=workspace,
+        )
+    return result

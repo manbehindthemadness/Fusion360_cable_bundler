@@ -1,5 +1,24 @@
 # Existing-bend contraction
 
+## Actual mating accuracy — 2026-11-09
+
+Contraction now requests the existing `ClosurePolicy.ORDERED_CAPS` retraction.
+Length-normalized closure alone can stop above the hardware checker's unchanged
+1e-10 actual cap-pose criterion. A synthetic two-fold route at three length scales
+reproduced this: the largest emitted a1.8609e-10mm cap residual before the change;
+all three satisfy actual mating accuracy afterward. No targets, radii, tolerances,
+step counts or phase budgets changed. Failed bounded improvement retains baseline.
+The three-scale regression is `tests/test_ribbon_contraction_caps.py`.
+
+Fresh first-failure runs remain unsuccessful overall: seed246677638 passed2cases
+then failed case3; after the separate native-slot ordering correction,
+seed2840520012 passed1case then failed case2. No old failed layout was re-solved.
+Measured contraction proposals retained actual cap accuracy in both runs; these
+are contract checks, not evidence of a lower population failure rate. Full physical
+audit remains unmeasured. See
+[the spatial investigation](../experiment_ribbon_spatial_inspection/NOTES.md)
+and resume1743..1745.
+
 ## Selected v2 integration530–536 — 2026-11-03
 
 The five-conductor excursion is the built ed8423layout. First-pass branches are

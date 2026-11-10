@@ -11,7 +11,7 @@ from typing import Callable
 from cable_bundler.routing.geometry import Vector3, cross, dot
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
-from .contact_extrema import extrema
+from .contact_extrema import prepare_extrema
 from .geometry import PlacedPiece, Straight
 
 
@@ -116,12 +116,19 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
     Nonfinite or underflowed extrema retain the interval-arithmetic fallback.
     """
     if isinstance(piece.geometry, Straight):
+        projected_origin = dot(piece.pose.origin, axis)
+        length = piece.geometry.material_length_mm
+        coefficients = (
+            dot(piece.pose.tangent, axis),
+            dot(piece.pose.width, axis),
+            dot(cross(piece.pose.tangent, piece.pose.width), axis),
+        )
 
         def straight_bound(cell: Cell) -> Span:
             """
             Retain the established outward-rounded straight material enclosure.
             """
-            return interval_projection(piece, cell, axis)
+            return _straight_projection(projected_origin, length, coefficients, cell)
 
         return straight_bound
     fold = piece.geometry
@@ -134,6 +141,7 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
     origin = piece.pose.origin
     translation_scale = abs(origin.x * axis.x) + abs(origin.y * axis.y) + abs(origin.z * axis.z)
     length = fold.material_length_mm
+    bound_extrema = prepare_extrema(fold, alpha, beta, gamma)
 
     def fold_bound(cell: Cell) -> Span:
         """
@@ -148,9 +156,7 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
         ):
             along = u * length - fold.before_mm
             corners.append((c * along + s * q, -s * along + c * q))
-        result = extrema(
-            fold, tuple(corners), (cell.height.low, cell.height.high), alpha, beta, gamma
-        )
+        result = bound_extrema(tuple(corners), (cell.height.low, cell.height.high))
         extent = fold.radius_mm * 2 + max(abs(x) for x, _ in corners)
         extent += max(abs(cell.height.low), abs(cell.height.high))
         scale = (
@@ -168,6 +174,19 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
     return fold_bound
 
 
+def _straight_projection(
+    origin: float, length: float, coefficients: tuple[float, float, float], cell: Cell
+) -> Span:
+    """
+    Preserve every original interval operation while reusing fixed straight transform coefficients.
+    """
+    result = Span(origin, origin)
+    for span, coefficient in zip((cell.u.scale(length), cell.q, cell.height), coefficients):
+        result = result.add(span.scale(coefficient))
+    guard = 1e-11 * (1 + max(abs(result.low), abs(result.high)))
+    return Span(result.low - guard, result.high + guard)
+
+
 def interval_projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:
     """
     Enclose all occupied points of a material cell projected onto a fixed axis.
@@ -178,13 +197,16 @@ def interval_projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:
     """
     origin = dot(piece.pose.origin, axis)
     if isinstance(piece.geometry, Straight):
-        result = Span(origin, origin)
-        for span, direction in (
-            (cell.u.scale(piece.geometry.material_length_mm), piece.pose.tangent),
-            (cell.q, piece.pose.width),
-            (cell.height, cross(piece.pose.tangent, piece.pose.width)),
-        ):
-            result = result.add(span.scale(dot(direction, axis)))
+        return _straight_projection(
+            origin,
+            piece.geometry.material_length_mm,
+            (
+                dot(piece.pose.tangent, axis),
+                dot(piece.pose.width, axis),
+                dot(cross(piece.pose.tangent, piece.pose.width), axis),
+            ),
+            cell,
+        )
     else:
         fold = piece.geometry
         c, s = math.cos(fold.bank_radians), math.sin(fold.bank_radians)

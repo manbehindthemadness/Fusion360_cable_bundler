@@ -31,19 +31,19 @@ from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPoli
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
+from experiments.experiment_ribbon_terminal_hardware.deviation import recover as recover_terminal
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
-from experiments.experiment_ribbon_terminal_hardware.recovery import recover as recover_terminal
 from experiments.experiment_ribbon_terminal_hardware.reversal import correct as correct_terminal
 
 from .branch_recovery import recover_construction
 from .construction_fallback import retain_original
-from .contraction_recovery import recover_contracted
+from .contraction_recovery import RecoveryConsultation, recover_contracted
 from .coordinates import metadata
 from .placement import guide_parameters
 from .settings import Settings
 from .smoothing_contact import smooth_with_contact
 from .solver import Result
-from .terminal_allowance import remaining_completed
+from .terminal_allowance import defer_unentered, remaining_completed
 from .versions import V2
 
 
@@ -120,36 +120,31 @@ def solve(
     original construction only when its exact route still has strict self-contact
     separation and terminal clearance. This declines the unsafe optimization;
     it never moves geometry, repeats smoothing or borrows a different certificate.
-    If all three routes fail hardware, actual first-pass evidence may use only
-    genuinely unused feasibility work. Straight evidence retains one incident
-    reflection and at most one complete straight/finite-box separation plane.
-    A closed reflection exceeding construction length may spend only its unused
-    updates/time/pairs on original signed joints with caps, measured feature gaps
-    and the original quality ceiling solved together. No new sign/event search,
-    length allowance or renewed budget follows that rejection.
-    A fixed reflection may also yield when its actual linear angular correction
-    exceeds the total remaining trust travel. Only unused original work passes
-    to that same signed-joint fallback; no new model or root is introduced.
-    Fold evidence instead preserves every sign and radius while solving ordered
-    caps with at most two measured bend/runway feature planes simultaneously.
-    Its growth ceiling is construction length plus the initial complete-feature
-    projected penetration. Sub-native runway slots become exact zero, with all
-    constraints reclosed and final contact rechecked inside the same allowance.
-    Prior failed recovery consultation cannot renew that allowance.
+    A demonstrated first-pass intrusion without a cached-clear construction
+    prioritizes its one late-recovery action
+    before another construction-fallback certificate spends the shared hardware
+    cells. Incomplete evidence retains the original fallback order. A failed
+    recovery still reaches that fallback with only remaining work; a consulted
+    contraction recovery never receives a renewed action. No proof is skipped
+    for an accepted output, and the fallback is measured at most once.
+    Actual first-pass evidence may use only
+    genuinely unused feasibility work on one actual spatial offset-and-return
+    guide. A complete witnessed feature determines its direction; one profile
+    width or the required separating translation determines its amplitude. Two
+    analytic slope-extremum stations provide three steering stages, at most six
+    folds/eight exact roots, with no angular refinement. Only one selected exact
+    allocation receives contact/hardware certification within the original work.
     A completed separated self-contact recovery may pass only
     its unused updates, CPU, wall span and construction pairs to late terminal
-    recovery, with all counters combined; a consulted contraction recovery still
-    prevents another action. No failed/prepared history grants a fresh allowance.
-    If an actual terminal-recovery trial would erase a fold, only its genuinely
-    unused work may instead grow the evidence-incident bend radius. The material
-    floor, all other radii, signs, profile and poses remain fixed. During this
-    physical restoration the invalid source length is a reported quality goal,
-    not a physical veto; full self-contact and both terminal boxes remain strict.
+    recovery, with all counters combined. An entered contraction strategy still
+    prevents another action. Selection alone may hand off unused work after all
+    its preparation CPU is charged and the original wall origin is retained;
+    failed or exhausted work never grants a fresh allowance.
     If optional construction recovery also displaced the initial separated
     construction, retain that original route and its own strict certificate
     only after all existing actions fail and its unchanged geometry clears the
     same hardware gate. No motion, certificate, smoothing or work allowance is
-    renewed. Previously successful flows keep their original selection.
+    renewed. Flows without a demonstrated first-pass intrusion retain their selection order.
     Otherwise return no accepted output. All checks
     share 0.1CPU/0.25wall seconds and1024cells within existing caller limits.
     """
@@ -190,6 +185,9 @@ def solve(
         contact_policy=contact_policy,
         cap_policy=CapPolicy.ANALYTIC_SUPPORT,
         probe_order=ProbeOrder.MATERIAL_CELLS,
+        maximum_straight_mm=frames.guide.distances[-1]
+        if settings.first_pass_optimization
+        else None,
     )
     original_construction = result
     restored_original: tuple[FoldRoute, ContactResult] | None = None
@@ -219,6 +217,9 @@ def solve(
             "selection": "monotonic" if settings.first_pass_optimization else "midpoint",
             "initialization": "guide_site_error_then_length",
             "guide_parameters": parameters,
+            "maximum_initial_straight_mm": frames.guide.distances[-1]
+            if settings.first_pass_optimization
+            else None,
             "recovery": recovery_detail,
         },
         "first_pass_seconds": first_seconds,
@@ -277,7 +278,8 @@ def solve(
             and contraction.rejected
         ):
             cpu_left, wall_left = allowance
-            contraction_recovery_consulted = True
+            consultation = RecoveryConsultation()
+            preparation_started = process_time()
             recovered = recover_contracted(
                 contraction,
                 frames,
@@ -289,7 +291,15 @@ def solve(
                 maximum_cpu_seconds=cpu_left,
                 improvement_policy=ImprovementPolicy.MATERIAL_LENGTH,
                 terminal=terminal,
+                consultation=consultation,
             )
+            contraction_recovery_consulted = consultation.entered or recovered is not None
+            if not contraction_recovery_consulted:
+                detail["construction"]["recovery"] = defer_unentered(
+                    recovery_detail,
+                    process_time() - preparation_started,
+                    perf_counter() - recovery_started,
+                )
             if recovered is not None:
                 recovered_detail = dict(recovered.detail)
                 if recovery_detail is not None:
@@ -315,8 +325,7 @@ def solve(
             else "first_pass_deadline"
         }
     detail["first_pass_seconds"] = perf_counter() - started
-    if terminal is not None:
-        terminal.permits(first, "first_pass")
+    first_hardware = terminal.certify(first, "first_pass") if terminal is not None else None
     smoothing_started = perf_counter()
     smoothed = smooth_with_contact(first, settings.smoothing_percent, checkpoint, record)
     final = smoothed.route
@@ -336,13 +345,29 @@ def solve(
         detail["final_contact_source"] = "unchanged_first_pass"
     if terminal is not None:
         permitted = terminal.permits(final, "final")
-        if (
-            not permitted
-            and final is not result.route
-            and result.contact is not None
-            and result.contact.status == "separated"
-            and terminal.permits(result.route, "construction_fallback")
-        ):
+        prioritize_recovery = (
+            settings.first_pass_optimization
+            and not contraction_recovery_consulted
+            and first_hardware is not None
+            and first_hardware.status == "blocked"
+            and first_hardware.witness is not None
+            and terminal.cached_clearance(result.route) is None
+        )
+
+        def restore_construction() -> bool:
+            """
+            Select the unchanged construction and its own certificate at most once under the shared gate.
+            """
+            nonlocal first, final, measurement
+            assert terminal is not None
+            if (
+                result.route is None
+                or final is result.route
+                or result.contact is None
+                or result.contact.status != "separated"
+                or not terminal.permits(result.route, "construction_fallback")
+            ):
+                return False
             record(
                 {
                     "stage": "terminal_hardware_fallback",
@@ -355,10 +380,13 @@ def solve(
             )
             first = final = result.route
             measurement = result.contact
-            permitted = True
             detail["stages"]["terminal_hardware"] = "construction_retained"
             detail["contraction"]["selection"] = "declined_for_terminal_clearance"
             detail["final_contact_source"] = "hardware_safe_construction"
+            return True
+
+        if not permitted and not prioritize_recovery:
+            permitted = restore_construction()
         if (
             not permitted
             and settings.first_pass_optimization
@@ -429,6 +457,8 @@ def solve(
                         permitted = True
                         detail["stages"]["terminal_hardware"] = "recovered_first_pass"
                         detail["final_contact_source"] = "deferred_terminal_recovery"
+        if not permitted and prioritize_recovery:
+            permitted = restore_construction()
         if not permitted:
             restored_original = retain_original(original_construction, result, terminal)
             if restored_original is not None:
@@ -498,7 +528,10 @@ def solve(
         quality={
             "objective": "physical_restoration_then_compactness"
             if detail["construction"]["recovery"] is not None
-            and detail["construction"]["recovery"].get("radius_restoration")
+            and (
+                detail["construction"]["recovery"].get("radius_restoration")
+                or detail["construction"]["recovery"].get("purpose") == "spatial_deviation"
+            )
             else "strict_material_shortening_then_guide_ties",
             "construction_length_mm": restored_original[0].material_length_mm
             if restored_original is not None

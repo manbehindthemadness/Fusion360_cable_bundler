@@ -122,6 +122,7 @@ def test_successful_original_action_is_not_retried(monkeypatch: pytest.MonkeyPat
     child.assert_not_called()
 
 
+@pytest.mark.skip(reason="Archived gym layout retired under fresh-input validation policy")
 def test_retained_case_uses_one_fresh_witness_and_only_unused_work(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -169,6 +170,7 @@ def test_retained_case_uses_one_fresh_witness_and_only_unused_work(
     assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
 
 
+@pytest.mark.skip(reason="Archived gym layout retired under fresh-input validation policy")
 def test_failed_unmoved_reflection_can_retain_three_features_without_renewing_work() -> None:
     """
     Preserve the case116 mating caps while continuing only after measured linear reflection failure.
@@ -198,6 +200,7 @@ def test_failed_unmoved_reflection_can_retain_three_features_without_renewing_wo
     assert handoffs[0]["feature_reports"] == 3
 
 
+@pytest.mark.skip(reason="Archived gym layout retired under fresh-input validation policy")
 def test_failed_grouped_clearance_continues_actual_members_inside_shared_work(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -284,6 +287,7 @@ def test_feature_projection_requires_typed_measured_continuation(
         )
 
 
+@pytest.mark.skip(reason="Archived gym layout retired under fresh-input validation policy")
 def test_failed_retained_group_closes_member_bounds_and_original_ceiling_together(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

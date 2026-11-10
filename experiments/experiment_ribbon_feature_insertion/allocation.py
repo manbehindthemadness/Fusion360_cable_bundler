@@ -10,9 +10,10 @@ from typing import Any, Callable
 
 from cable_bundler.routing.geometry import Vector3, difference, dot
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
-from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
@@ -37,7 +38,14 @@ def sites(model: Model, chain: Chain, values: tuple[float, ...]) -> tuple[Vector
     """
     Locate shared orientation sites at the midpoint of each complete inter-feature flat interval.
     """
-    folds = tuple(p for p in model.pieces(values) if isinstance(p.geometry, CylindricalFold))
+    return _placed_sites(model.pieces(values), chain)
+
+
+def _placed_sites(pieces: tuple[PlacedPiece, ...], chain: Chain) -> tuple[Vector3, ...]:
+    """
+    Reuse one immutable placement for material-route scoring and its shared steering sites.
+    """
+    folds = tuple(p for p in pieces if isinstance(p.geometry, CylindricalFold))
     result = []
     for boundary in chain.group_ends:
         before, after = folds[boundary - 1], folds[boundary]
@@ -54,6 +62,8 @@ def fit(
     threshold_mm: float,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    maximum_straight_mm: float | None = None,
 ) -> Allocation | None:
     """
     Enumerate at most128straight active masks, minimizing shared-site error before material length.
@@ -63,6 +73,12 @@ def fit(
     Unlike basic LP vertex ranking, each active mask solves its interior optimum.
     Positive sub-native-tolerance straights reject rather than changing targets or
     relaxing radii. A repeated sliver repair or native construction never runs here.
+    An explicit guide-derived straight budget bounds the same active-mask
+    solutions, including their active budget face; fold material stays separate.
+    Masks are algebraic candidates, not physical certificates. Their fixed fold
+    geometry and exact affine position equations determine ranking; full ordered
+    cap/material checks run once on the selected allocation before it can return.
+    Contact and hardware checks remain the caller's separate responsibility.
     """
     model = Model(boundary, chain.topology)
     count = len(chain.topology.folds) + 1
@@ -90,6 +106,7 @@ def fit(
     ]
     hard = [[columns[2 * i][axis] for i in range(count)] for axis in range(3)]
     best: Allocation | None = None
+    workspace = AffineWorkspace()
     for mask in range(1 << count):
         checkpoint()
         active = [i for i in range(count) if mask & (1 << i)]
@@ -99,6 +116,8 @@ def fit(
             [[row[i] for i in active] for row in objective],
             wanted,
             len(active),
+            maximum_sum=maximum_straight_mm / diameter if maximum_straight_mm is not None else None,
+            workspace=workspace,
         )
         event: dict[str, Any] = {
             "stage": "feature_allocation",
@@ -113,6 +132,11 @@ def fit(
             if any(0 < value * diameter <= threshold_mm for value in values):
                 event["status"] = "sub_tolerance_straight_rejected"
             elif (
+                maximum_straight_mm is not None
+                and math.fsum(values[::2]) * diameter > maximum_straight_mm + 1e-8 * diameter
+            ):
+                event["status"] = "straight_budget_residual_rejected"
+            elif (
                 max(
                     abs(math.fsum(row[i] * values[2 * i] for i in range(count)) - target)
                     for row, target in zip(hard, right)
@@ -122,11 +146,9 @@ def fit(
                 event["status"] = "closure_residual_rejected"
             else:
                 route = FoldRoute(boundary.targets, model.pieces(tuple(values)), boundary.radius_mm)
-                if cap_error(route) > 1e-7 or material_error(route) > 1e-10:
-                    raise ArithmeticError("Guide feature allocation lost cap/material closure")
                 deltas = tuple(
                     difference(point, target.origin)
-                    for point, target in zip(sites(model, chain, tuple(values)), chain.targets)
+                    for point, target in zip(_placed_sites(route.pieces, chain), chain.targets)
                 )
                 score = math.fsum(dot(delta, delta) for delta in deltas) / len(deltas)
                 event.update(
@@ -134,6 +156,7 @@ def fit(
                     score_mm2=score,
                     length_mm=route.material_length_mm,
                     values=values,
+                    contract_verification="pending_selection",
                 )
                 if best is None or (round(score, 12), route.material_length_mm) < (
                     round(best.score, 12),
@@ -141,4 +164,18 @@ def fit(
                 ):
                     best = Allocation(route, chain, tuple(values), score, 1 << count)
         record(event)
+    if best is not None:
+        checkpoint()
+        if cap_error(best.route) > 1e-7 or material_error(best.route) > 1e-10:
+            raise ArithmeticError("Guide feature allocation lost cap/material closure")
+        checkpoint()
+        record(
+            {
+                "stage": "feature_allocation",
+                "status": "selected_verified",
+                "roots": chain.roots,
+                "score_mm2": best.score,
+                "length_mm": best.route.material_length_mm,
+            }
+        )
     return best

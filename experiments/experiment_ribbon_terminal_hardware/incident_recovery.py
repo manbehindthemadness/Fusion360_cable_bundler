@@ -102,6 +102,7 @@ def recover_return(
     remaining_pairs: int,
     maximum_cpu_seconds: float,
     maximum_seconds: float,
+    maximum_updates: int = 4,
 ) -> Recovery | None:
     """
     Reverse only a nonadjacent fold proven to cross an original terminal straight.
@@ -109,6 +110,7 @@ def recover_return(
     Material incidence selects one existing fold; no alternative sign or event
     is tried. Unsupported pairs return None without correction. A supported
     attempt may finish actual flat contacts with its unused original work.
+    A construction handoff may supply fewer remaining updates; none are renewed.
     """
     first, second = witness.pieces
     if not 0 <= first < second < len(source.pieces):
@@ -136,6 +138,7 @@ def recover_return(
         remaining_pairs=remaining_pairs,
         maximum_cpu_seconds=maximum_cpu_seconds,
         maximum_seconds=maximum_seconds,
+        maximum_updates=maximum_updates,
         completion=ContactCompletion.REMAINING_JOINT,
     )
 
