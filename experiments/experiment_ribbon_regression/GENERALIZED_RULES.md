@@ -3170,3 +3170,94 @@ it separate from strict-witness adaptive refinement. No replay, tuning or retry.
 FinalizerONCE; monitor68387exit0/liveidle confirmed.111prior same-contract cohorts
 hold1009attempts/83failures; these first-failure cohorts are descriptive statistics,
 not an unbiased reliability estimate. Goal incomplete; no production promotion.
+
+2097 initial continuous-factor reclosure now includes legal bounded positive-
+straight transfers from its FIRST angular direction, matching its subsequent
+global endpoint reallocation. Initial INDEX arithmetic and successful stable
+legacy results remain unchanged. Continuous closed replacement still requires
+non-increasing site error and material length. Same original two-step actions,
+one four-step closest continuation, six derivative probes per shared frame,
+finite halvings/native floor/travel budget and all clocks/physical checks.
+This schedules an existing projection earlier, not an extra action or relaxed
+closure.170focused authored analytical/mocked checks pass, Ruff/format/IDE2clear.
+Separate authored spatial family4rootchoices x3scales x2policies checks actual
+cap/material closure,0freshcoverage/0native. Its policy comparison also changes
+factor tracking, so it cannot isolate this straight-transfer change's benefit.
+Authored affine endpoint maps separately verify the linear transfer effect;
+dispatch tests verify it is available before a first-step stall. No changed-code
+2096case11 replay. New-source/new-seed qualification follows; no causal success
+or reliability improvement claimed before that evidence. Goal incomplete.
+
+2098 fresh306-source/seed832486345/idfresh-509965fd33de405986247e4584c86c17:
+20reserved/8attempted/7numerical-native-fidelity-boundarypasses/1connector-contact
+failure/12unattempted. Three passed complete cases used initial continuous closed
+alternatives; no old-input causal comparison. Eligible case8zones3/18/job
+selected-9acc5ed475e640208388c5e0b4a8e644 produced closed branches but failed
+later deviation recovery.1separate rejectednativeinspection/noacceptancecredit.
+Recovery.295923CPU below.35cap, fold0reflection thenlinear_projection_infeasible
+after5Newton.0adaptivecontrollerentries, unsupportedpreparation reachedfixedfallback.
+SolveCPUmedian1.202991/nativegeneration1.626254/audit2.006612s;1timinggoalmiss.
+FullphysicalUNMEASURED. FinalizerONCE/monitor31259exit0/liveidleconfirmed.
+
+2099 unchanged-source inspection:142sections/4CADviews of original closed
+79.649763mm sixfold deviation; cap1.8115e-14mm/frame1.6653e-16. Original234pair
+strict0/2crossing remains; separate430pair capture stopped atdepthlimited0/3first
+and cannot erase it. Startproxyintrusionpiece2retained.0solves/probes/newnative.
+Original deferred hardware witnesses both reproduce their worldpoints withZERO
+measured forwarderror; inverse tuples differ by3.55e-15mm or1.55e-15mm+oneuulp.
+Exacttupleequality in adaptive preparation rejects both. Startup missingdirectory
+and directscriptimport errors occurred before geometry, preserved; read-only
+replacements completed once. No sourcepolicy replay or recovery renewal.
+
+2100 general correspondence correction: retain a current strict occupied inverse,
+finite/strictlyinterior recorded coordinates and forward worldpoint agreement
+within EXISTING inverseguard1e-9*max(1,D). This establishes guidance eligibility,
+not clearance. Both hardware and material witnesses use this path. Real stale,
+boundary/outside/nonfinite coordinates still reject.9newauthored translated/
+oblique controls pass,179unique affected analytical/mocked checks cumulatively;
+scoped Ruff/format/IDE clear. First testauthoring call omittedVector3distance in
+5nodes; corrected onlytestconstruction, no solverpolicychange. No saved-layout
+changed-codegeometry/plan/proofreplay. Newsourcefreeze/newuniqueseed next; event
+growth still lacks fresh success qualification and goal remains incomplete.
+
+2101 first fresh event-growth/native qualification,306-source/seed1243284267/
+idfresh-5f486dcce1114e6e9c4840a475a39df0.20reserved/5attempted/4ordinary numerical-
+native-fidelity-boundary passes/1unresolved/15unattempted; one separate rejected
+native inspection has no acceptance credit.0accuracywarnings/0matchedtiminggoal
+misses; fullphysicalUNMEASURED. FinalizerONCE/monitor57058exit0/liveidleconfirmed.
+Supplemental qualification-detail records2adaptive cases/1accepted; the existing
+finalizer recovery-use counter covers only legacy spatial_sequence, not adaptive.
+
+Case1 selected-1559d0b3a5b64a0f961c0fb0c50f0dc1: adaptive4→6→8→12,3rewrites/
+4updates/8fits/1324pairs/.264234CPU/.276468wall.1module-removal check rejected,
+2unattempted. Final postprocessed12folds/75.651616mm, cap3.2538e-12mm/material
+4.44e-16, self separated/hardware clear, original native1024/inverse construction,
+named fidelity and bounds pass.29400points/max1.23765e-9mm/0warnings. Whole solve
+CPU2.556732s/nativegeneration3.654905s/audit5.130311s. This establishes ONE fresh
+complete event-growth/native success under original resource/physical gates,
+not minimum event count, complete physical compliance or generalized reliability.
+
+Case5 selected-5a55b9cfffed4737bab7f4f3e9a2e59c eligiblezones3/24: adaptive
+4→6→8→12→14 over [0,5],[2,6],[2,6],[7,11] current-piece windows.4updates/8fits/
+248pairs/.174792CPU; work exhausted while well below CPU/pair ceilings. Last
+85.835175mm candidate still crosses and enters startproxy; NOT ACCEPTED. No
+new action, retry, larger budget or fallback family was launched after that stop.
+
+2102 unchanged-source read-only capture: accepted12fold packet258sections,
+539pairs separated/38hardwarecells clear, cap3.25017e-12mm/frame6.2481e-15.
+FourCADviews reviewed and shared readonly Fusion display. Failed14fold packet
+305sections,277pairs strict5/7crossing and startproxyblockedpiece7in22cells,
+cap1.32815e-13mm/frame3.14018e-16; captured offline, four views not yet reviewed.
+These are the same2current-run configurations, not additional validation cases.
+0newsolves/probes/nativebodies. Original native outcomes remain separate.
+
+2103/design.json is next hypothesis ONLY: when a blocker lies in an already
+rewritten region, reopen the entire surviving ancestral workspace using exact
+stable IDs/immutable piece identity. Avoid stranding available straight travel
+behind increasingly small child boundaries and accumulating bends. Initial small
+selector remains useful; replacement roots stay locally bounded even if a
+reopened parent contains more old folds. Same8fits/4updates/clocks/pairs, fixed
+boundary poses, outer identity, full recertification and bounded pruning. Needs
+authored nested/disjoint/bridging/retired-ID evidence, failed-view inspection and
+NEW inputs after any source change. No replay of2101cases or success assumption.
+Goal remains incomplete; no production promotion or commit.

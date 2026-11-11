@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from cable_bundler.routing.geometry import Vector3, difference, dot
+from cable_bundler.routing.geometry import Vector3, cross, difference, dot, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_feature_insertion.deviation_guide import DeviationGuide
@@ -75,11 +75,12 @@ def _source() -> tuple[FoldRoute, Hardware, Report]:
 
 def _bump(window: Window, angle: float = 0.3) -> FoldRoute:
     """
-    Match both straight-window boundary poses with an independently derived three-bend isometric bump.
+    Match aligned boundary poses with an independently derived three-bend isometric bump.
     """
     source = window.route
-    assert len(source.pieces) == 1 and isinstance(source.pieces[0].geometry, Straight)
-    length = source.material_length_mm
+    assert dot(source.targets.start_tangent, source.targets.end_tangent) > 1-1e-12
+    assert dot(source.targets.start_width, source.targets.end_width) > 1-1e-12
+    length = dot(difference(source.targets.end,source.targets.start),source.targets.start_tangent)
     radius = source.radius_mm
     runway = (length - 4 * radius * math.sin(angle)) / (2 * math.cos(angle))
     geometries = (
@@ -175,6 +176,65 @@ def test_planning_requires_current_occupied_geometry(stale: bool) -> None:
     assert (result is None) is stale
     if result is not None:
         assert events(result.window.route) <= 2
+
+
+@pytest.mark.parametrize("shift", (Vector3(13.7, -8.3, 2.9), Vector3(10000, 20000, -30000)))
+@pytest.mark.parametrize("stale", (False, True))
+def test_translated_material_witnesses_use_geometric_correspondence(
+    shift: Vector3,
+    stale: bool,
+) -> None:
+    """
+    Harmless inverse roundoff cannot disable recovery; a real material-coordinate change still rejects.
+    """
+    source, _, report = _source()
+    assert report.witness is not None
+    original = report.witness
+    source = replace(
+        source,
+        targets=replace(
+            source.targets,
+            start=source.targets.start.translated(shift, 1),
+            end=source.targets.end.translated(shift, 1),
+        ),
+        pieces=tuple(
+            replace(p, pose=replace(p.pose, origin=p.pose.origin.translated(shift, 1)))
+            for p in source.pieces
+        ),
+    )
+    hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
+    point = original.point.translated(shift, 1)
+    inverse = occupied_coordinates(source.pieces[original.piece], point, 1, 1)
+    assert inverse is not None and inverse != original.material
+    u, q, height = original.material
+    witness = replace(
+        original, point=point, material=(u + 0.001, q, height) if stale else original.material
+    )
+    result = planning.plan(source, replace(report, witness=witness), hardware, lambda: None)
+    assert (result is None) is stale
+
+
+@pytest.mark.parametrize("invalid", ("valid", "shifted", "boundary", "nonfinite", "outside"))
+def test_oblique_fold_witness_validation_retains_strict_interior_and_current_point(
+    invalid: str,
+) -> None:
+    """
+    Validate a real thick fold preimage without allowing boundary, stale or nonfinite guidance.
+    """
+    source = _route((CylindricalFold(1, 0.8, 0.35, 1.2, 1, 1),))
+    piece = source.pieces[0]
+    expected = (0.5, 0.1, 0.1)
+    origin, velocity, across, _ = piece.surface(expected[0], expected[1])
+    point = origin.translated(unit(cross(velocity, across)), expected[2])
+    if invalid == "shifted":
+        point = point.translated(Vector3(0.001, 0, 0), 1)
+    elif invalid == "boundary":
+        expected = (0, 0.1, 0.1)
+    elif invalid == "nonfinite":
+        expected = (0.5, math.nan, 0.1)
+    elif invalid == "outside":
+        expected = (0.5, 99, 0.1)
+    assert planning._matches_material(piece, point, expected, 1, 1) is (invalid == "valid")
 
 
 def test_uncertainty_and_missing_witness_cannot_add_events() -> None:
@@ -291,11 +351,12 @@ def test_two_local_rewrites_can_grow_then_remove_a_module_within_one_allocation(
     source, hardware, evidence = _source()
     visited = []
 
-    def propose(route: FoldRoute, observed: Any, fixed: Any, check: Any) -> Proposal:
+    def propose(route: FoldRoute, observed: Any, fixed: Any, check: Any,
+                *,select_window: planning.WindowSelector = select) -> Proposal:
         """
         Select two disjoint analytical straight windows to exercise lineage across growth.
         """
-        del observed, fixed, check
+        del observed, fixed, check, select_window
         index = 0 if not visited else len(route.pieces) - 1
         visited.append(events(route))
         return _proposal(Window(route, index, index + 1))

@@ -1,5 +1,24 @@
 # Finite terminal hardware trial
 
+Latest2101/source306/seed1243284267:20reserved/5attempted/4ordinary numerical-
+native-fidelity-boundary passes/1unresolved/15unattempted, plus one separate
+rejected native inspection without acceptance credit. Adaptive recovery ran on
+two complete configurations and accepted one:4→6→8→12bends,3rewrites/4updates/
+8fitted roots/1324pairs/.264234CPU. Final postprocessed12bend route passed native
+construction and original named audits (29400points,0warnings). Total solveCPU
+2.556732s, generation3.654905s, audit5.130311s. One module-removal check rejected;
+two remain unattempted, so necessity/minimum event count is unproven.
+
+The failed case grew4→6→8→12→14bends with4updates/8fits/248pairs/.174792CPU,
+still crossing and entering the start proxy. This exposes remaining domain/
+feature-distribution work, not CPU exhaustion. Full physical audits remain
+unmeasured. No general reliability improvement is established by this first-
+failure sample. Supplemental2101/qualification-detail.json records adaptive use;
+the legacy finalizer recovery-use field counts only spatial_sequence stages.
+2102 captures both original routes without solving or new native bodies; the
+accepted12bend packet is displayed read-only. Ancestral workspace reopening is
+a next hypothesis in2103/design.json, not an implemented or qualified repair.
+
 Current adaptive-event recovery (checkpoint2095): `deviation.recover` first
 selects one strict-witness local window containing at most two existing folds
 and adjacent straight workspaces. Its actual entry/exit positions and ordered
@@ -21,6 +40,17 @@ seed3376025099):20reserved/11attempted/10numerical-native-fidelity-boundarypasse
 entries, so event growth still lacks fresh-layout/native qualification. Failure
 occurs before any contact or terminal check; no infeasibility conclusion or retry.
 Full physical audits remain unmeasured. No historical changed-code geometry replay.
+
+Checkpoint2100 corrects adaptive witness ownership validation: exact inverse
+coordinate equality rejected valid hardware witnesses after ordinary floating-
+point roundtrip. Original2098case8 receipts show inverse differences around
+1e-15mm while recorded coordinates reproduce the world point exactly. Preparation
+now requires current strict occupied inverse, finite/interior recorded material
+coordinates and forward world reconstruction within the existing inverse guard
+1e-9*max(1,D). Strict contact/hardware certification and all budgets are unchanged.
+Nine new authored translated/oblique/stale/boundary/nonfinite tests pass; combined
+affected checks179, scoped Ruff/format and IDE inspections clear. Fresh qualification
+requires new unique inputs; the inspected failure is not replayed after this edit.
 
 LATEST original-eight goal: SEVEN qualified, ONE unresolved historical-32e26c5c88b5.
 1506all77:76accepted/1unresolved/0unattempted; all76matched routepairs EXACT against

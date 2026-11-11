@@ -1,5 +1,32 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+## Initial continuous closure uses bounded straight transfers — checkpoint2097
+
+The existing continuous-factor action now eliminates legal positive-straight
+transfers from its first angular correction, matching the endpoint projection
+performed after every trial. Previously only resumed actions used this coupling.
+Initial index-policy arithmetic and successful stable legacy results remain
+unchanged. The existing alternative still replaces closed legacy geometry only
+with non-increasing site error and material length. Native floors, total straight
+travel, factor lineage, two initial/four continuation steps, derivative probes,
+halvings and all time/contact/physical gates retain their original limits.
+
+170 focused authored analytical/mocked checks pass, including initial/resumed
+and index/continuous dispatch, constrained affine endpoint maps, native-sized
+support and all existing adaptive-event controls. Changed-file Ruff/format and
+IDE inspections pass. A separate authored spatial family across four algebraic
+roots and three scale variants checks actual cap/material closure; it is not
+fresh-layout or native coverage, nor an isolated speedup comparison. The prior
+2096 closure failure is retained without changed-code replay. New unique inputs
+are required for geometric qualification; no general reliability claim yet.
+
+Fresh2098/source306/seed832486345:20reserved/8attempted/7named numerical-native-
+fidelity-boundary passes/1connector-contact recovery failure/12unattempted. Three
+passed complete cases used an initial continuous closed alternative; this does
+not isolate a causal gain against older code. Case8 also closed candidates but
+failed later recovery. One separate rejected native inspection has no acceptance
+credit. Full physical audits remain unmeasured. Finalized once; no old-input retry.
+
 ## Bounded initial straight travel — 2026-11-09
 
 The resume1764 excursion used6,486.141mm of material for a47.147mm guide. Its

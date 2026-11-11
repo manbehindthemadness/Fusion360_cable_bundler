@@ -21,6 +21,14 @@ def events(route: FoldRoute) -> int:
     return sum(isinstance(piece.geometry, CylindricalFold) for piece in route.pieces)
 
 
+def _require_lineage(route: FoldRoute, lineage: tuple[EventId, ...]) -> None:
+    """
+    Require exactly one unique persistent label for each actual current piece.
+    """
+    if len(lineage) != len(route.pieces) or len(set(lineage)) != len(lineage):
+        raise ValueError("Require one unique identity per actual material piece")
+
+
 @dataclass(frozen=True)
 class Window:
     """
@@ -132,14 +140,14 @@ class Edit:
     original: tuple[PlacedPiece, ...]
     replacement: tuple[PlacedPiece, ...]
 
-    def undo(
-        self, route: FoldRoute, lineage: tuple[EventId, ...]
-    ) -> tuple[FoldRoute, tuple[EventId, ...]] | None:
+    def inserted_window(self, route: FoldRoute, lineage: tuple[EventId, ...]) -> Window | None:
         """
-        Decline overlapping later rewrites instead of guessing a shifted material index.
+        Locate intact inserted material using current IDs and exact immutable piece ownership.
+
+        A shifted ordinal, partial retirement or equal replacement object cannot
+        revive an old domain. Returned boundary poses come from the current route.
         """
-        if len(lineage) != len(route.pieces) or len(set(lineage)) != len(lineage):
-            raise ValueError("Require one unique identity per actual material piece")
+        _require_lineage(route, lineage)
         if not self.children or self.children[0] not in lineage:
             return None
         begin = lineage.index(self.children[0])
@@ -150,6 +158,18 @@ class Edit:
             or any(a is not b for a, b in zip(route.pieces[begin:end], self.replacement))
         ):
             return None
+        return Window(route, begin, end)
+
+    def undo(
+        self, route: FoldRoute, lineage: tuple[EventId, ...]
+    ) -> tuple[FoldRoute, tuple[EventId, ...]] | None:
+        """
+        Decline overlapping later rewrites instead of guessing a shifted material index.
+        """
+        window = self.inserted_window(route, lineage)
+        if window is None:
+            return None
+        begin, end = window.begin, window.end
         return (
             FoldRoute(
                 route.targets,
@@ -158,3 +178,30 @@ class Edit:
             ),
             lineage[:begin] + self.parents + lineage[end:],
         )
+
+
+def reopen(window: Window, lineage: tuple[EventId, ...], history: tuple[Edit, ...]) -> Window:
+    """
+    Reopen complete surviving modules touched by a selected material interval.
+
+    Merge overlapping domains to a fixed point; merely touching boundary pieces
+    does not merge disjoint workspaces. A later rewrite retires every covered ID
+    and owns one replacement domain, preventing recursive child-window narrowing.
+    Old partial or changed ranges are ignored rather than guessed. This changes
+    only boundary selection: replacement factorization, fit/update work and full
+    geometry certification remain bounded by the caller's original allocation.
+    """
+    _require_lineage(window.source, lineage)
+    remaining = [
+        current for edit in history
+        if (current := edit.inserted_window(window.source, lineage)) is not None
+    ]
+    begin, end = window.begin, window.end
+    while remaining:
+        overlapping = [current for current in remaining if current.begin < end and begin < current.end]
+        if not overlapping:
+            break
+        begin = min(begin, *(current.begin for current in overlapping))
+        end = max(end, *(current.end for current in overlapping))
+        remaining = [current for current in remaining if current not in overlapping]
+    return window if (begin, end) == (window.begin, window.end) else Window(window.source, begin, end)

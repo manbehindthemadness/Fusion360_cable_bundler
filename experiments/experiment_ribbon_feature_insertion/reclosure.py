@@ -58,8 +58,11 @@ def refine(
     unfinished state only after exhausting the cap while still progressing;
     derivative failure or stalling returns None. Every step of a resumed
     continuation eliminates legal positive-straight freedom from its angular
-    system, matching the actual subsequent reallocation. Initial actions retain
-    their established fixed-straight behavior. The step count,
+    system, matching the actual subsequent reallocation. The existing initial
+    continuous-factor action also eliminates these transfers from its first
+    direction; otherwise its derivative needlessly spends angle on motion that
+    the following straight projection can supply. Initial index-policy actions
+    retain their established fixed-straight behavior. The step count,
     targets, roots and radii stay fixed.
     A supplied straight budget follows every nearest projection and closed fit;
     no resumed or physical-factor continuation can drop or renew that budget.
@@ -93,7 +96,11 @@ def refine(
                 return measured
             precision_pending = True
     for iteration in range(unfinished.iteration, unfinished.iteration + maximum_steps):
-        motion = StraightMotion.REALLOCATABLE if unfinished.iteration > 0 else StraightMotion.FIXED
+        motion = (
+            StraightMotion.REALLOCATABLE
+            if unfinished.iteration > 0 or policy is BranchPolicy.CONTINUOUS
+            else StraightMotion.FIXED
+        )
         delta = correction(
             boundary,
             current,
@@ -221,7 +228,9 @@ def refine_preserving_legacy(
     outcomes are unfinished, keep the lower measured residual, retaining legacy
     ties. Already computed continuous progress also survives a stalled legacy
     action. This changes neither the two initial actions nor the one resumed
-    action's original correction limit.
+    action's original correction limit. The already scheduled continuous action
+    uses legal bounded straight transfers from its first direction; this adds
+    neither derivative probes nor nonlinear corrections or fallback actions.
     """
     options = (
         {"maximum_straight_mm": maximum_straight_mm} if maximum_straight_mm is not None else {}

@@ -23,7 +23,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .adaptive_event_construction import Roots, construct
 from .adaptive_event_plan import plan
-from .adaptive_event_window import Edit, events
+from .adaptive_event_window import Edit, EventId, Window, events, reopen, select
 from .check import Report
 from .gate import Gate
 from .recovery_limits import Work, validate
@@ -73,7 +73,7 @@ def recover(
     cpu, wall = process_time(), perf_counter()
     roots = Roots()
     current = source
-    lineage = tuple((0, i) for i in range(len(source.pieces)))
+    lineage: tuple[EventId, ...] = tuple((0, i) for i in range(len(source.pieces)))
     edits: list[Edit] = []
     iterations = pairs = contacts = 0
     contact_seconds = 0.0
@@ -83,6 +83,7 @@ def recover(
     detail: dict[str, Any] = {
         "purpose": "adaptive_local_events",
         "initial_event_count": events(source),
+        "reopened_windows": 0,
     }
 
     def bounded() -> None:
@@ -140,12 +141,27 @@ def recover(
         bounded()
         return proof, terminal_proof
 
+    def select_workspace(route: FoldRoute, members: tuple[int, ...]) -> Window:
+        """
+        Retain complete surviving work areas before deriving their new local reference.
+        """
+        bounded()
+        selected = select(route, members)
+        expanded = reopen(selected, lineage, tuple(edits))
+        if (expanded.begin, expanded.end) != (selected.begin, selected.end):
+            detail["reopened_windows"] += 1
+            record({"stage":"adaptive_workspace", "status":"reopened",
+                "selected":[selected.begin,selected.end], "window":[expanded.begin,expanded.end],
+                "parent_event_count":events(expanded.route)})
+        bounded()
+        return expanded
+
     try:
         bounded()
         if cap_error(source) > 1e-7 or material_error(source) > 1e-10:
             return None
         while iterations < work.updates and pairs < work.pairs and roots.attempted < 8:
-            proposed = plan(current, evidence, terminal.hardware, bounded)
+            proposed = plan(current, evidence, terminal.hardware, bounded, select_window=select_workspace)
             if proposed is None:
                 if not edits and iterations == 0:
                     return None

@@ -141,10 +141,12 @@ def test_resumed_progress_gets_one_action_and_hard_errors_do_not_start_an_altern
 
 
 @pytest.mark.parametrize("resumed", (False, True))
+@pytest.mark.parametrize("branch_policy", tuple(BranchPolicy))
 def test_legal_straight_transfers_are_available_before_the_first_possible_stall(
     pending: tuple[Boundary, reclosure.Unclosed],
     monkeypatch: pytest.MonkeyPatch,
     resumed: bool,
+    branch_policy: BranchPolicy,
 ) -> None:
     """
     An initially stalled continuation cannot defer its useful coordinate policy to an unreachable step.
@@ -154,7 +156,7 @@ def test_legal_straight_transfers_are_available_before_the_first_possible_stall(
     separate analytical endpoint-map tests verify that linear projection itself.
     """
     boundary, original = pending
-    source = replace(original, iteration=2 if resumed else 0)
+    source = replace(original, iteration=2 if resumed else 0, branch_policy=branch_policy)
     policies: list[StraightMotion] = []
 
     def correction(*args: Any, straight_motion: StraightMotion, **kwargs: Any) -> list[float]:
@@ -177,9 +179,10 @@ def test_legal_straight_transfers_are_available_before_the_first_possible_stall(
     monkeypatch.setitem(vars(reclosure), "reframed", Mock(return_value=source.chain))
     monkeypatch.setitem(vars(reclosure), "nearest", projected_trial)
     result = reclosure.refine(boundary, source, 1e-5, 4, lambda: None, lambda event: None)
-    if resumed:
+    if resumed or branch_policy is BranchPolicy.CONTINUOUS:
         assert isinstance(result, reclosure.Unclosed)
-        assert result.iteration == 6 and result.closure.error == source.closure.error / 16
+        assert result.iteration == source.iteration + 4
+        assert result.closure.error == source.closure.error / 16
         assert policies == [StraightMotion.REALLOCATABLE] * 4
     else:
         assert result is None and policies == [StraightMotion.FIXED]
