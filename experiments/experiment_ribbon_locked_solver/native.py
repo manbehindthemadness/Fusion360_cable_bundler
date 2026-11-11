@@ -1,5 +1,5 @@
 """
-Build selected gym routes in the owned Fusion design with the locked material-fidelity policy.
+Build selected gym routes with binary-conditioned construction and the original physical fidelity gates.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from experiments.experiment_ribbon_fold_route.material_native import (
     native_surface,
 )
 from experiments.experiment_ribbon_fold_route.material_profile import material_profile
+from experiments.experiment_ribbon_fold_route.material_scale import NativeScale, construction
 from experiments.experiment_ribbon_fold_route.material_surfaces import (
     MaterialPatch,
     material_patches,
@@ -45,6 +46,30 @@ from .settings import Settings
 from .versions import method
 
 
+def _physical_scale(body: Any, policy: NativeScale, checkpoint: Callable[[], None]) -> None:
+    """
+    Return one newly authored transient to physical size before persistence and all original audits.
+
+    A missing body or failed transform stops this original attempt. No repair,
+    second native creation or alternative scale follows. The caller's kernel
+    clock includes this operation and retains original physical audit inputs.
+    """
+    if not isinstance(policy, NativeScale):
+        raise ValueError("Select an explicit native construction scale")
+    if body is None:
+        raise RuntimeError("Native construction did not return a transient body")
+    if policy is NativeScale.UNIT:
+        return
+    checkpoint()
+    transform = adsk.core.Matrix3D.create()
+    for index in range(3):
+        if not transform.setCell(index, index, 1 / policy.factor):
+            raise RuntimeError("Native inverse scale matrix rejected")
+    if not adsk.fusion.TemporaryBRepManager.get().transform(body, transform):
+        raise RuntimeError("Native inverse construction scale rejected")
+    checkpoint()
+
+
 class NativeOwner:
     """
     Retain only this gym's native output visibility; preserve unrelated documents and bodies.
@@ -56,12 +81,21 @@ class NativeOwner:
         display_x_cm: float = 610,
         *,
         flat_surfaces: FlatSurfaces = FlatSurfaces.CYLINDERS,
+        construction_scale: NativeScale = NativeScale.CONDITIONED,
     ) -> None:
         """
-        Bind a fixed design identity and a display-only translation after native verification.
+        Bind a fixed design identity, one construction scale and a display translation after verification.
+
+        Conditioned construction magnifies authored inputs by 1024 and returns the
+        single transient to physical size before persistence and original audit.
+        Explicit unit scale preserves the legacy representation. Neither policy
+        changes physical targets, material constraints, acceptance or attempt limits.
         """
         self.document_id, self.display_x_cm = document_id, display_x_cm
         self.flat_surfaces = FlatSurfaces(flat_surfaces)
+        if not isinstance(construction_scale, NativeScale):
+            raise ValueError("Select an explicit native construction scale")
+        self.construction_scale = construction_scale
         self.displayed: Any = None
         self.rejected_job: Path | None = None
         self.on_progress: Callable[[dict[str, str]], None] | None = None
@@ -149,6 +183,7 @@ class NativeOwner:
             "full_physical_audit": 0,
             "accuracy_goal_mm": DISPLAY_ACCURACY.goal_mm,
             "accuracy_warning_below_mm": DISPLAY_ACCURACY.warning_below_mm,
+            "construction_scale": self.construction_scale.factor,
         }
         body = None
 
@@ -184,19 +219,20 @@ class NativeOwner:
                 raise RuntimeError("Selected material surface representation bound exceeded")
             started = time.perf_counter()
             self._progress(directory, "native", "Defining native faces, edges and seams.")
+            inputs = construction(route.pieces, patches, self.construction_scale, checkpoint)
 
             def surface_factory(patch: MaterialPatch) -> Any:
                 """
                 Choose equivalent flat supports under this owner's explicit construction policy.
                 """
                 return (
-                    circular_flat_surface(route.pieces[patch.piece_index], patch)
+                    circular_flat_surface(inputs.pieces[patch.piece_index], patch)
                     if self.flat_surfaces is FlatSurfaces.CYLINDERS
                     else native_surface(patch)
                 )
 
             authored = define_material_body(
-                route.pieces, patches, checkpoint, surface_factory=surface_factory
+                inputs.pieces, inputs.patches, checkpoint, surface_factory=surface_factory
             )
             result["flat_surface_policy"] = self.flat_surfaces.value
             result["definition_seconds"] = time.perf_counter() - started
@@ -206,6 +242,12 @@ class NativeOwner:
             destination.write_text(json.dumps(result, indent=2))
             started = time.perf_counter()
             transient = authored.definition.createBody()
+            result["create_body_seconds"] = time.perf_counter() - started
+            if transient is None or not transient.isSolid or transient.volume <= 0:
+                raise RuntimeError("Selected gym builder requires one positive-volume solid")
+            inverse_started = time.perf_counter()
+            _physical_scale(transient, self.construction_scale, checkpoint)
+            result["inverse_scale_seconds"] = time.perf_counter() - inverse_started
             result["kernel_seconds"] = time.perf_counter() - started
             if transient is None or not transient.isSolid or transient.volume <= 0:
                 raise RuntimeError("Selected gym builder requires one positive-volume solid")

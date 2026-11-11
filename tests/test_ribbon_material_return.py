@@ -20,9 +20,9 @@ from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
     MaterialGuidance,
     ReturnLength,
 )
-from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.material_constraint import MaterialConstraint
 from tests.test_ribbon_aesthetic import _route
+from tests.test_ribbon_contact_refinement import _gate
 
 
 def _witness(first: int, last: int, start: float = 0.0, end: float = 1.0) -> Penetration:
@@ -112,7 +112,7 @@ def test_reflection_keeps_self_contact_under_explicit_length_policy(
     result = joint_contact.recover(
         source,
         _witness(0, 4),
-        Mock(spec=Gate),
+        _gate(source),
         lambda: None,
         events.append,
         maximum_length_mm=source.material_length_mm,
@@ -126,12 +126,16 @@ def test_reflection_keeps_self_contact_under_explicit_length_policy(
     assert result is not None and result.contact is None and result.route is source
     bind.assert_called_once()
     assert bind.call_args.kwargs["axis_values"] == bind.call_args.args[0].initial
-    assert captured and len(captured[0]) == (8 if length is ReturnLength.PARENT_CEILING else 7)
+    protections = result.detail["terminal_protection_constraints"]
+    assert protections > 0
+    assert captured and len(captured[0]) == protections + (
+        8 if length is ReturnLength.PARENT_CEILING else 7
+    )
     if length is ReturnLength.PARENT_CEILING:
-        assert abs(captured[0][6]) < 1e-13  # Equal parent length remains allowed.
+        assert abs(captured[0][6 + protections]) < 1e-13  # Equal parent length remains allowed.
     assert result.detail["flat_constraints"] == 1
     assert result.detail["method"] == "complete_material_return"
-    assert result.detail["motion_regularization"] == "maximum_merit_squared"
+    assert result.detail["motion_regularization"] == "cap_step_normalized_merit_squared"
     assert result.detail["newton_steps"] == 0 and result.detail["contact_pairs"] == 0
 
 
@@ -148,7 +152,7 @@ def test_curved_return_guidance_keeps_complete_material_bounds_and_spent_work(
     result = material_return.recover(
         source,
         _witness(0, 2, 0.5, 0.5),
-        Mock(spec=Gate),
+        _gate(source),
         lambda: None,
         events.append,
         maximum_length_mm=source.material_length_mm,
@@ -161,4 +165,4 @@ def test_curved_return_guidance_keeps_complete_material_bounds_and_spent_work(
     assert result is not None and result.route is None and result.contact is None
     assert result.detail["flat_constraints"] == 1 and result.pairs == 0
     projection.assert_called_once()
-    assert len(projection.call_args.args[3]) == 8
+    assert len(projection.call_args.args[3]) == 8 + result.detail["terminal_protection_constraints"]

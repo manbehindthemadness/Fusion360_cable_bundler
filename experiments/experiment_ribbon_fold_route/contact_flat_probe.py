@@ -33,6 +33,7 @@ class FlatProbe:
     comparisons: int = 0
     supports: int = 0
     inverse_tests: int = 0
+    skipped_phase_pairs: int = 0
 
     def __call__(
         self,
@@ -41,6 +42,8 @@ class FlatProbe:
         second: int,
         remaining_pairs: int,
         checkpoint: Callable[[], None] | None,
+        *,
+        excluded_phases: frozenset[tuple[FlatPhase, FlatPhase]] = frozenset(),
     ) -> ProbeResult:
         """
         Probe phase hulls, refining unoccupied proposals by exact profile arcs within the same limits.
@@ -51,6 +54,9 @@ class FlatProbe:
         support query shares the original allowance; no miss grants clearance.
         A normal miss may retain one already-computed direction for the full
         material interval checker. It adds no support query or clearance receipt.
+        Per-call exclusions omit only named phase pairs from this negative probe,
+        before any hull support work. They never persist into another call or
+        change the caller's complete material interval certificate.
         """
         if type(remaining_pairs) is not int or remaining_pairs < 0:
             raise ValueError("Supply nonnegative remaining contact work")
@@ -119,6 +125,12 @@ class FlatProbe:
                 hulls.append([_Hull(tuple(members), query) for members in groups.values()])
             for a in hulls[0]:
                 for b in hulls[1]:
+                    phases = (a.members[0].placement.phase, b.members[0].placement.phase)
+                    if phases in excluded_phases:
+                        if checkpoint is not None:
+                            checkpoint()
+                        self.skipped_phase_pairs += 1
+                        continue
                     bounded()
                     self.comparisons += 1
                     if any(x[1] < y[0] or y[1] < x[0] for x, y in zip(a.bounds(), b.bounds())):

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from time import perf_counter
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_route.contact import (
@@ -30,6 +30,9 @@ from .reclosure import refine_preserving_legacy as refine
 from .repair import nearest
 from .selection import Branch, Policy, select
 
+if TYPE_CHECKING:
+    from experiments.experiment_ribbon_terminal_hardware.gate import Gate
+
 CONTACT_PAIR_BUDGET = 2048
 
 
@@ -49,6 +52,7 @@ class Result:
     contact: ContactResult | None = None
     contact_pairs: int = 0
     rejected: tuple[tuple[Branch, ContactResult], ...] = ()
+    deferred: tuple[Allocation, ...] = ()
 
 
 def construct(
@@ -64,6 +68,7 @@ def construct(
     cap_policy: CapPolicy = CapPolicy.MONOTONE,
     probe_order: ProbeOrder | None = None,
     maximum_straight_mm: float | None = None,
+    terminal: Gate | None = None,
 ) -> Result:
     """
     Fit one fixed frame sequence with a shared2048pair contact-work allowance.
@@ -97,6 +102,11 @@ def construct(
     An explicit guide-derived straight-travel budget bounds allocation and every
     nearest-endpoint/reclosure stage. It is an initializer quality domain, not a
     physical limit or a proof of infeasibility. No gym envelope enters this solve.
+    An optional shared hardware gate defers contact measurement only for an
+    actual witnessed obstruction. Such allocations remain explicitly unaccepted
+    and unmeasured, for the caller's one existing terminal-feasibility action.
+    Clear, unresolved or witness-free hardware reports retain ordinary contact
+    measurement. Deferral grants no source clearance or extra recovery allowance.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
@@ -120,7 +130,13 @@ def construct(
         allocation = fit(boundary, chain, threshold_mm, checkpoint, record, **budget_options)
         if allocation is None:
             pending = Unclosed(
-                chain, nearest(Model(boundary, chain.topology), checkpoint, **budget_options)
+                chain,
+                nearest(
+                    Model(boundary, chain.topology),
+                    checkpoint,
+                    minimum_straight_mm=threshold_mm,
+                    **budget_options,
+                ),
             )
             outcome = refine(
                 boundary, pending, threshold_mm, 2, checkpoint, record, **budget_options
@@ -137,6 +153,7 @@ def construct(
     contact_pairs = 0
     contact_seconds = 0.0
     measurements: dict[tuple[int, ...], ContactResult] = {}
+    deferred: list[Allocation] = []
 
     def measure(branch: Branch) -> bool:
         """
@@ -148,6 +165,21 @@ def construct(
             return False
         checked = allocations[branch.roots]
         checkpoint()
+        if terminal is not None:
+            hardware = terminal.measure(checked.route, "construction_before_contact")
+            if hardware.status == "blocked" and hardware.witness is not None:
+                deferred.append(checked)
+                record(
+                    {
+                        "stage": "feature_contact_deferred",
+                        "status": "hardware_blocked",
+                        "roots": checked.chain.roots,
+                        "hardware": asdict(hardware),
+                        "contact": "unmeasured",
+                        "route": snapshot(checked.route),
+                    }
+                )
+                return False
         record({"stage": "feature_contact", "status": "started", "roots": checked.chain.roots})
         started = perf_counter()
         allowance = min(1024, remaining)
@@ -230,17 +262,23 @@ def construct(
                 if branch.roots in measurements
                 and not contact_policy.permits_geometry(measurements[branch.roots])
             ),
+            deferred=tuple(deferred),
         )
     return Result(
         None,
         None,
-        "no_separated_chain" if candidates else "no_fixed_radius_closure",
+        "hardware_blocked_contact_deferred"
+        if deferred
+        else "no_separated_chain"
+        if candidates
+        else "no_fixed_radius_closure",
         contacts,
         contact_seconds,
         len(candidates),
         max(0, len(candidates) - contacts),
         contact_pairs=contact_pairs,
         rejected=tuple((b, measurements[b.roots]) for b in branches if b.roots in measurements),
+        deferred=tuple(deferred),
     )
 
 

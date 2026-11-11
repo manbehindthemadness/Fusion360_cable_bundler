@@ -14,6 +14,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .check import Report
 from .feature_plane import FeatureCoverage, FeaturePlane, SignedJoints
+from .flat_continuation import ContactContinuation
 from .model import Hardware
 
 
@@ -161,9 +162,14 @@ def member_planes(
     """
     parts: list[FeaturePlane] = []
     keys: set[tuple[object, ...]] = set()
+    prepared: set[tuple[object, ...]] = set()
     pieces = model.pieces(values)
     for whole in planes:
         for member in whole.members:
+            identity = (id(whole.model), whole.box, member)
+            if identity in prepared:
+                continue
+            prepared.add(identity)
             prototype = replace(whole, reference=member, members=(member,))
             piece = locate(model.original, pieces, member)
             choices: list[tuple[float, FeaturePlane]] = []
@@ -236,13 +242,19 @@ class ContactGuidance:
 
     evidence: tuple[FeatureEvidence, ...] = ()
     motion: ContactMotion = ContactMotion.BEND_JOINTS
+    continuation: ContactContinuation = ContactContinuation.HANDOFF
 
     def __post_init__(self) -> None:
         """
-        Validate retained route-bound intrusions; empty evidence invents no hardware constraint.
+        Validate route-bound reports and the explicit adaptive-only continuation policy.
         """
         if not isinstance(self.motion, ContactMotion):
             raise ValueError("Select an explicit material motion policy")
+        if not isinstance(self.continuation, ContactContinuation) or (
+            self.continuation is ContactContinuation.FIRST_FLAT
+            and self.motion is not ContactMotion.ADAPTIVE_HARDWARE
+        ):
+            raise ValueError("Flat continuation requires explicit adaptive hardware motion")
         if self.evidence:
             RetainedFeatures(self.evidence)
 

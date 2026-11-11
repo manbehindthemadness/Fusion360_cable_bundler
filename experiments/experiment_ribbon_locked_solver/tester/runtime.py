@@ -99,7 +99,10 @@ class Runtime:
         previous = workspace.native
         previous.hide()
         native = NativeOwner(
-            self.document_id, previous.display_x_cm, flat_surfaces=previous.flat_surfaces
+            self.document_id,
+            previous.display_x_cm,
+            flat_surfaces=previous.flat_surfaces,
+            construction_scale=previous.construction_scale,
         )
         self.native = native
         native.on_progress = workspace.diagnostics.report_progress

@@ -7,7 +7,7 @@ from __future__ import annotations
 from functools import partial
 from typing import Callable, Generator
 
-from .contact import ContactResult, ProbeOrder, ProjectionReuse, _walk
+from .contact import ContactResult, ProbeOrder, ProjectionReuse, WitnessProbe, _walk
 from .contact_cap_support import CapPolicy
 from .geometry import FoldRoute
 
@@ -18,8 +18,11 @@ class ContactTraversal:
 
     Only pair exhaustion can suspend. A completed, depth-limited or irregular
     result is final. Changed geometry needs a new traversal and a new complete
-    certificate. Optional negative-only probes are deliberately excluded: their
-    own allowance-sensitive traversal cannot be resumed by this material stack.
+    certificate. An optional negative-only probe runs once per original pair
+    within the same stack. A probe that exhausts its comparison allowance ends
+    the walk permanently; only a genuinely suspended material stack may resume.
+    The typed original-pair-first policy retains that same pending screen and
+    material stack across chunks; no original pair is screened twice.
     Exceptions permanently close this traversal; callers cannot retry cancelled
     work or recover uncharged partial comparisons. The owner must conservatively
     charge its active allowance when a check is interrupted.
@@ -34,6 +37,8 @@ class ContactTraversal:
         checkpoint: Callable[[], None] | None = None,
         cap_policy: CapPolicy = CapPolicy.MONOTONE,
         projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
+        witness_probe: WitnessProbe | None = None,
+        probe_order: ProbeOrder = ProbeOrder.MATERIAL_CELLS,
     ) -> None:
         """
         Seal the source, policy and total allowance before any material comparison.
@@ -48,8 +53,8 @@ class ContactTraversal:
             maximum_depth=maximum_depth,
             checkpoint=checkpoint,
             cap_policy=cap_policy,
-            witness_probe=None,
-            probe_order=ProbeOrder.MATERIAL_CELLS,
+            witness_probe=witness_probe,
+            probe_order=probe_order,
             projection_reuse=projection_reuse,
         )
         self._pending: Generator[ContactResult, int, ContactResult] | None = None
@@ -74,7 +79,7 @@ class ContactTraversal:
         if self._failed:
             raise RuntimeError("Interrupted contact traversal cannot resume")
         if self._result is not None and (
-            self._result.limit != "pairs" or pair_limit == self._limit
+            self._pending is None or self._result.limit != "pairs" or pair_limit == self._limit
         ):
             self._limit = pair_limit
             return self._result

@@ -10,7 +10,8 @@ from typing import Any, Callable
 from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
-from .allocation import Allocation, fit
+from .allocation import Allocation, closure_allocation, fit
+from .closure_goal import ClosureGoal
 from .continuation import BranchPolicy
 from .features import Chain
 from .repair import Closure, StraightMotion, changed, correction, nearest, reframed
@@ -26,6 +27,7 @@ class Unclosed:
     closure: Closure
     iteration: int = 0
     branch_policy: BranchPolicy = BranchPolicy.INDEX
+    goal: ClosureGoal = ClosureGoal.ROUTE
 
     def __post_init__(self) -> None:
         """
@@ -33,6 +35,8 @@ class Unclosed:
         """
         if not isinstance(self.branch_policy, BranchPolicy):
             raise ValueError("Retain an explicit unfinished branch policy")
+        if not isinstance(self.goal, ClosureGoal):
+            raise ValueError("Retain an explicit unfinished closure goal")
 
 
 def refine(
@@ -65,7 +69,29 @@ def refine(
     policy = unfinished.branch_policy if branch_policy is None else branch_policy
     if not isinstance(policy, BranchPolicy):
         raise ValueError("Select an explicit physical-factor policy")
+    checkpoint()
+    goal = unfinished.goal
+    diameter = boundary.targets.diameter_mm
+    limit = ClosureGoal.ROUTE.normalized_limit(diameter)
+    precision_pending = False
+    goal_options = {"goal": goal} if goal is ClosureGoal.MATING else {}
     current, closure = unfinished.chain, unfinished.closure
+    if closure.error <= limit:
+        measured = closure_allocation(
+            boundary,
+            current,
+            closure.values,
+            threshold_mm,
+            checkpoint,
+            record,
+            maximum_straight_mm=maximum_straight_mm,
+        )
+        if measured is not None:
+            checkpoint()
+            if goal.accepts(measured.route):
+                checkpoint()
+                return measured
+            precision_pending = True
     for iteration in range(unfinished.iteration, unfinished.iteration + maximum_steps):
         motion = StraightMotion.REALLOCATABLE if unfinished.iteration > 0 else StraightMotion.FIXED
         delta = correction(
@@ -76,6 +102,8 @@ def refine(
             straight_motion=motion,
             branch_policy=policy,
             maximum_straight_mm=maximum_straight_mm,
+            minimum_straight_mm=threshold_mm,
+            **goal_options,
         )
         if delta is None:
             record(
@@ -95,7 +123,7 @@ def refine(
             probe = reframed(
                 boundary,
                 current,
-                changed(current.targets, delta, 0.5**halving),
+                changed(current.targets, delta, 0.5**halving, **goal_options),
                 branch_policy=policy,
             )
             if probe is None:
@@ -110,26 +138,30 @@ def refine(
                 )
                 continue
             trial = nearest(
-                Model(boundary, probe.topology), checkpoint, maximum_straight_mm=maximum_straight_mm
+                Model(boundary, probe.topology),
+                checkpoint,
+                maximum_straight_mm=maximum_straight_mm,
+                minimum_straight_mm=threshold_mm,
             )
+            improved = goal.improves(closure.error, trial.error, diameter)
             record(
                 {
                     "stage": "feature_reclosure",
                     "roots": current.roots,
                     "iteration": iteration,
                     "halving": halving,
-                    "status": "residual_reduced"
-                    if trial.error < closure.error - 1e-10
-                    else "no_gain",
+                    "closure_goal": goal.value,
+                    "status": "residual_reduced" if improved else "no_gain",
                     "position_error_diameters": trial.error,
                     "angular_delta": delta,
                     "branch_policy": policy.value,
                     "straight_motion": motion.value,
                 }
             )
-            if trial.error < closure.error - 1e-10:
+            if improved:
                 current, closure, progressed = probe, trial, True
-                if trial.error <= 1e-7 / boundary.targets.diameter_mm:
+                precision_pending = False
+                if trial.error <= limit:
                     allocation = fit(
                         boundary,
                         current,
@@ -137,15 +169,33 @@ def refine(
                         checkpoint,
                         record,
                         maximum_straight_mm=maximum_straight_mm,
+                        feasible_values=trial.values,
                     )
                     if allocation is not None:
-                        return allocation
+                        checkpoint()
+                        if goal.accepts(allocation.route):
+                            checkpoint()
+                            return allocation
+                        precision_pending = True
+                        if allocation.values != trial.values:
+                            retained = closure_allocation(
+                                boundary,
+                                current,
+                                trial.values,
+                                threshold_mm,
+                                checkpoint,
+                                record,
+                                maximum_straight_mm=maximum_straight_mm,
+                            )
+                            if retained is not None and goal.accepts(retained.route):
+                                checkpoint()
+                                return retained
                 break
         if not progressed:
             return None
     return (
-        Unclosed(current, closure, unfinished.iteration + maximum_steps, policy)
-        if closure.error > 1e-7 / boundary.targets.diameter_mm
+        Unclosed(current, closure, unfinished.iteration + maximum_steps, policy, goal)
+        if closure.error > limit or precision_pending
         else None
     )
 

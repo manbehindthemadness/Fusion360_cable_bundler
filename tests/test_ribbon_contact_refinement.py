@@ -174,8 +174,14 @@ def test_initial_projection_retains_material_and_hardware_constraints_together(
     started = events[0]
     assert started["initial_flat_constraints"] == int(not material_clear)
     assert started["initial_hardware_members"] > 0
-    assert captured and len(captured[0]) == 6 + started["initial_hardware_members"] + int(
-        not material_clear
+    protections = started["terminal_protections"]
+    assert protections
+    assert {item["terminal"] for item in protections} | {report.witness.terminal} == {
+        "start",
+        "end",
+    }
+    assert captured and len(captured[0]) == (
+        6 + started["initial_hardware_members"] + len(protections) + int(not material_clear)
     )
     assert result.detail["method"] == "coupled_contact_refinement"
     assert result.detail["flat_constraints"] == int(not material_clear)
@@ -343,7 +349,8 @@ def test_new_curved_contact_retains_the_prior_flat_constraint_in_same_projection
     )
     assert result is not None and result.contact is None and result.route is source
     assert result.detail["flat_constraints"] == 2 and result.detail["contact_pairs"] == 11
-    assert captured and len(captured[0]) == 8
+    assert result.detail["terminal_protection_constraints"] > 0
+    assert captured and len(captured[0]) == 8 + result.detail["terminal_protection_constraints"]
 
 
 @pytest.mark.parametrize("incident", (False, True))
@@ -379,6 +386,6 @@ def test_angular_physical_entries_share_bounded_cap_restoration(
     assert result is not None and result.route is source and result.contact is None
     assert projector.call_count == 1
     assert result.detail["linear_projection"] == "redistributed_cap_restoration"
-    assert result.detail["motion_regularization"] == "maximum_merit_squared"
+    assert result.detail["motion_regularization"] == "cap_step_normalized_merit_squared"
     assert result.detail["newton_steps"] == result.detail["contact_pairs"] == 0
     gate.certify.assert_not_called()

@@ -415,3 +415,187 @@ no behavior change or geometry replay. Evidence: ignored ribbon_selection427,
 ribbon_selection428, ribbon_selection429, ribbon_selection430; native431and its
 capture under430. Executed integration payload is `selection429.frozen` with its
 resolved-path430renewal; native payload `selection431-native.frozen`.
+
+## Bound-aware resumed closure — 2026-11-10
+
+Resume1962 reconstructs only the original1960case14 recorded angular updates under
+identical numerical source; every retained residual matches. No new correction or
+route solve ran. The original angular system eliminated unlimited positive-straight
+transfers: one predicted leading slot was negative by.483625diameters, a later one
+by.001412diameters; intervening free-growth steps exceeded the frozen travel budget.
+Actual nearest allocation alternated between lower and total-travel faces.
+
+Resume1963 replaces that unbounded elimination in resumed corrections with
+`angular_allocation.bounded_correction`. At most three positive straight slots yield
+at most16algebraic faces, including the optional original total-travel face. Each
+face eliminates only its free span and reconstructs/verifies feasible transfers and
+linear endpoint closure. A feasible unconstrained optimum returns immediately.
+Zero slots stay fixed. The same six derivative probes per shared joint, pi/4 cap,
+two nonlinear trials,2+4closure steps and first-pass clocks remain. This is one
+linear correction, with no new geometry candidate, radius, root or tolerance.
+
+95focused analytical/affected checks pass, including exact interval/simplex answers,
+covariance, angular scale, rank/cancellation and actual correction dispatch. Ruff/
+format pass; helper/tests IDE clear, four existing repair clone findings unchanged.
+No changed-code archived-layout replay ran. Source lock grows284to285files.
+
+Resume1964fresh seed3943713479:20reserved/4attempted/3accepted/1native-boundary
+failure/16unattempted. All4numerically accepted, built and passed named fidelity/
+strict accuracy;0warnings,2timing-goal misses; full physical audit unmeasured.
+The resumed bounded projection ran on an unselected case4branch; that branch closed
+its endpoint but full allocation rejected native-scale straight slivers. Its use
+there does not establish a new accepted-route benefit or resolution of1960case14.
+The selected earlier branch underwent recovery from95.423to30018.973mm, then final
+shortening/easing to9121.289mm and failed the unchanged native gym boundary. The
+new resumed branch was not the selected source of that excursion. This first-stop
+cohort is not an unbiased reliability estimate. Registry finalized once; original
+receipts remain under1964and the owned1950workspace. All generalization claims
+remain limited to analytical contracts and explicitly observed mechanism use.
+
+## Exact preparation reuse — 2026-11-10
+
+1970profiles16allocations on two authored analytical frame systems, not saved gym
+layouts or physical coverage. The endpoint equations and guide-site columns repeat
+basis-vector placements.1971adds per-Model64-entry exact placement reuse, validating
+all coordinates before every lookup. Original composition arithmetic, order and
+model ownership remain; no recursive model hash or cross-topology cache key is used.
+Original full placements460become332with identical serialized allocation outputs.
+Hardware member preparation also skips an already prepared identical model/box/member
+before axis enumeration, retaining all distinct owners, boxes, members and stable
+first occurrence.1969original-policy profile supports that overlapping-feature cost;
+no changed-code replay of its archived failure ran.166unique affected analytical
+checks pass across two suites, with old findings recorded in1971verification.
+
+1972fresh seed3210727071:20reserved/3attempted/2accepted/1numericalfailure/
+17unattempted.2ordinary native/fidelity/strict accuracy/boundary passes,0warnings,
+1timing-goal miss;1separate rejected native inspection with no fidelity audit.
+Case1's accepted construction uses resumed roots1/1after roots1/0contact is unresolved:
+its sole resumed correction closes at8.903e-13diameters,50.018495mm route passes
+separation and native acceptance. This exercises bounded resumed closure on a fresh
+accepted route; it does not prove a causal win against an old-policy replay.
+Case3expands from initial straight-growth preference and executes3angular Newton
+updates. The resulting69.817997mm closed route clears connector certification,
+then the original shared CPU expires during self-contact proof. The run remains
+failed, registry finalized once, full physical audits unmeasured.
+
+1973adds Model.straight_equations for fixed-radius fit: exactly the old even-index
+columns and RHS, omitting unused radius-growth basis evaluations. Full equations()
+still supplies every original column to radius-growing consumers, using one shared
+ordered implementation. No masks, candidates, scoring or gate arithmetic changes.
+The same16analytical outputs remain identical, full placements460to236; profiled
+CPU.42408to.291827s is indicative, not an end-to-end speedup.172affected checks pass,
+Ruff/format clean, new methods/tests IDE clear; existing clones remain outside reuse
+logic. Fresh1974qualification uses new unique layouts, retaining all original limits.
+
+
+1995fresh seed624233928 aftercleanFusionrestart:20reserved/9attempted/8accepted/
+1numericalfailure/11unattempted.8ordinarynative/fidelity/strictaccuracy/boundary
+passes,0accuracywarnings,2timingmisses,maxnativeerror3.259698551973025e-9mm.
+1separate rejected native inspection without fidelitypass. Registry finalized
+ONCE, idle. All8accepted bodies used original one-to-one patch correspondence;
+new1994nativeedge methods loaded but0linecertificates/0parameterwitnessqueries.
+Their geometry effectiveness is still unexercised, not inferred from8passes.
+
+Case9eligible separatedcubicles9and23: earlyterminaldeviation stops original
+.35CPU budget after10Newton/3logicalupdates. Strongguards active and nativepositive
+slotprojection used twice; neither mechanism is missing. Last recorded136.470741mm
+jointcandidate differs from retained74.730614mm source/nativeinspection.1996readonly
+capture:149sections,orderedcaps8.969748573230437e-11mm/frame2.884e-14, contact
+separated678pairs/hardwareclear112cells. FourCADviews inspected. This after-stop
+diagnostic gives no acceptance/passcredit or renewed recovery. No geometryprobe.
+Capturelauncher directory omission stopped before analysis; separately recorded
+startuprecovery created artifactdirectory and executed originalcapture once.
+
+1997shared stable-region lookup removes unused preceding end_pose accesses and
+start-Pose allocations. Those endpoint results were cached; savings are traversal/
+call overhead, not repeated bend trigonometry. Occupied/internal-absent slots use
+identical existing poses. Absent trailing slot reads actuallast endpoint once;
+emptyproposal withzero sourcefolds uses originalstart. Originalfold-count validation,
+orderedregion identity,1e-12analysis-only slabs and errors unchanged. No geometry,
+tolerance, derivativeprobe, budget or recoverypolicy changes.143unique focused/
+affected analytical tests pass,Ruffformat pass,newtestIDEclear;3pre-existing
+separation cloneweakwarnings. Independent scales/slots/identity/error tests;
+7operation-count checks failed beforechange. No archivedchanged-code solver/proof
+replay, no whole-solver timing or geometric-success claim. Fresh1998qualification
+requires its own newseed/layoutschedule. Fullphysical audit unmeasured.
+
+
+2000proof-efficiency: existing ProjectionReuse.CELLS now reuses atmost512exact
+profileclips,512center-materialsamples and512cap-side booleanresults in one
+immutable route/policy traversal. KeysretainfullCell andcapside; no global/cache
+transfer acrossgeometry. Comparisonorder, pair/depth counts, outwardbounds, strict
+inversewitnesses and callercheckpoint/cancellation remain unchanged. Suspended
+traversal retainsoriginalcache/work; interruptedwalk cannotrestart. Legacy
+PREPARATIONS remains uncached for these operations. No tolerance/budget/geometry
+changes or archived1998case19changed-code proof/recovery replay.
+166focused/affected analyticalchecks/Ruffformat pass. NewtestsIDEclear;6pre-existing
+contact.pycloneweakwarnings. Frozenprechangeproof versus newproof on four authored
+analyticalcontrols,5repetitions,20complete-result dictionariesexact. Surfacecalls
+3160to810,clip1300to605,cap120to80; instrumentedCPU.072563to.067587seconds.
+This is a small diagnostic workload,not solver/native speed or geometrycoverage.
+Fresh2001qualification separately reserves20new unique N8..10layouts,firstfailure/
+20minreview,120s-case/4GiB/3.8launch; existing recovery/hardwarebudgets unchanged.
+Nativeedge-audit path efficacy and fullphysical audits remain unmeasured.
+
+
+2001fresh seed3309091509/290sources:20reserved/8attempted/7accepted/1numerical
+failure/12unattempted.7ordinarynative/fidelity/strictaccuracy/boundarypasses,
+0accuracywarnings/0timinggoal misses,maxnativeerror2.843664815219866e-9mm.
+1separate rejectedinspection, no fidelityaudit/passcredit. Registry finalized
+ONCE and tester/worker/profile idle confirmed. Native/inspection sampledRSSmax
+883824KiB; not a whole-session unobservedpeak claim. All7accepted bodies used
+one-to-oneface mapping; newnativeedge-audit methods remain unexercised.
+Case2actuallyselected hardware_safe_construction,43.41117858675979mm. Its shared
+recovery proof used CELLS with newwithin-walk workreuse:792pairs/.076143333contact
+seconds,3Newton/.130299CPU forsequence, then nativepassed. No pairedsameinput
+speedup or broad reliability inference. Prior descriptive statistics remain in
+comparison.json; firstfailure samples are not unbiased fixedsample rates.
+
+Newcase8eligiblecubicles18and1stops early_terminal_feasibility/hardware_not_clear,
+refinementlinear_projection_infeasible. Totalrecovery.180247CPU, not CPUexhaustion.
+Straight-only adaptivehardware stage3Newton,0proofcontacts/0pairs inthatstage,
+hardware_domain_expanded=False,4runwayminimizations. Completeordinarynativebuild
+unattempted; separate rejectedinspection is NOT ACCEPTED. Sourcecandidate87.930660mm
+and finalrecorded72.767658mm correction differ; no new spatialcapture/probe or
+changed-code replay performed. Nextsolverinvestigation can examine existing
+one-time expansion's newton==0 eligibility after a later straight-only/nativezero
+projection fails. This finite linearfailure does not prove global infeasibility.
+Currentproofefficiency increment is locallyverified and actuallyused inone fresh
+accepted recovery; geometricresolution and fullphysical audits remain incomplete.
+
+Allocation rejection provenance (2014): optional least-squares observation records
+hard equality, hard nullspace, guide objective, or active straight-budget-face
+failures. Negative straight optima have a distinct event status. Coefficients,
+rank gates, mask count and full cap/material acceptance remain unchanged. Fresh
+evidence must distinguish these causes before any closure or guide-fit repair.
+
+2019 native-size closure: project the original at-most64three-ray supports into
+zero-or-strict-native-sized straight coordinates. Each support uses at most8lower
+faces and its original sum face (at most16algebraic solves); no added angular or
+physical trial. Angular straight elimination retains the same native lower floor.
+Positive native minima retain the original three-ray representation heuristic,
+not a proof of complete native-feasible coverage. Exact endpoint distance remains
+the measured residual. A measured cone closure can supply allocation only after
+all guide optima fail and original native/radius/travel/affine/cap/material checks
+pass. It still requires ordinary contact/hardware/native qualification. Shared
+strict floor arithmetic moved unchanged to fold_route/native_length.py.
+144focused/affected checks pass, Ruff/formatpass, IDE only8existing clone notices;
+prior largejointIDE gate remains unavailable. No saved input proof/solver replay.
+
+2081 proof-ready deviation closure: an explicit ClosureGoal.MATING requests the
+existing strict finite ordered-pose mating criterion (1e-10), without relaxing
+hardware/contact tolerance. Legacy ROUTE stopping remains unchanged. One selected
+nonclosed topology receives the original four angular corrections; no extra root
+or action. The goal survives unfinished progress. Scale-aware strict descent and
+representable nonzero angular motion allow needed sub-1e-12 corrections only for
+this goal. Actual validated allocations must meet both ordered cap frames; an
+optional guide optimum may fall back only to already measured feasible closure
+coordinates under every original allocation guard and clock. Legacy-closed roots
+with failed nonclosure allocation guards remain ineligible. This is a proof
+precondition, not hardware clearance. 101 independently authored affected checks
+pass; Ruff/format pass. IDE reports only unchanged duplicate fragments (3 repair,
+5 hardware-check), verified against pre-change backups. No saved-layout solver,
+matrix or proof replay. Fresh cold-worker qualification remains required.
+One pre-existing affine control incorrectly enforced an upper sum bound as an
+equality; baseline failure retained. Separate inward/inactive and outward/active
+controls now exercise the actual inequality without production projection changes.

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
+from functools import cached_property, lru_cache
 from itertools import combinations
 from typing import Any, Callable
 
@@ -55,10 +56,27 @@ class Model:
 
     def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
         """
-        Recompose positive material travel and fixed ordered frames without fitting.
+        Validate every request before reusing exact placements within this immutable model.
+
+        Endpoint equations and guide-site columns often request the same basis
+        vectors. At most64 coordinate tuples are retained per model; neither
+        other topologies nor recursive model hashes participate in lookup.
         """
         if len(values) != self.size or any(not math.isfinite(v) or v < 0 for v in values):
             raise ValueError("Supply finite nonnegative joint allocation coordinates.")
+        return self._placements(tuple(values))
+
+    @cached_property
+    def _placements(self) -> Callable[[tuple[float, ...]], tuple[PlacedPiece, ...]]:
+        """
+        Bind bounded placement reuse to this model's fixed targets and fold topology.
+        """
+        return lru_cache(maxsize=64)(self._place)
+
+    def _place(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
+        """
+        Recompose an already validated vector with the original ordered placement arithmetic.
+        """
         target = self.source.targets
         pose = Pose(target.start, target.start_tangent, target.start_width)
         result = []
@@ -98,17 +116,36 @@ class Model:
         """
         Derive exact displacement columns independently of nonnegative length choices.
         """
+        return self._equations(range(self.size))
+
+    def straight_equations(
+        self,
+    ) -> tuple[tuple[tuple[float, float, float], ...], tuple[float, float, float]]:
+        """
+        Derive the identical straight columns without evaluating unused radius-growth coordinates.
+
+        Fixed-radius allocation keeps every radius coordinate zero. Full joint
+        allocation retains equations(), including all original radius columns.
+        """
+        return self._equations(range(0, self.size, 2))
+
+    def _equations(
+        self, indices: range
+    ) -> tuple[tuple[tuple[float, float, float], ...], tuple[float, float, float]]:
+        """
+        Evaluate only the requested ordered basis vectors using the shared original affine placement.
+        """
         zero = (0.0,) * self.size
         origin = self.endpoint(zero).origin
         diameter = self.source.targets.diameter_mm
-        columns = []
-        for index in range(self.size):
+        columns: list[tuple[float, float, float]] = []
+        for index in indices:
             values = list(zero)
             values[index] = 1.0
             offset = difference(self.endpoint(tuple(values)).origin, origin)
-            columns.append(tuple(getattr(offset, a) / diameter for a in "xyz"))
+            columns.append((offset.x / diameter, offset.y / diameter, offset.z / diameter))
         delta = difference(self.source.targets.end, origin)
-        return tuple(columns), tuple(getattr(delta, a) / diameter for a in "xyz")
+        return tuple(columns), (delta.x / diameter, delta.y / diameter, delta.z / diameter)
 
 
 def allocations(

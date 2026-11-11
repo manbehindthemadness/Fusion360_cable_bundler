@@ -16,7 +16,8 @@ from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, 
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy, cap_region
 from experiments.experiment_ribbon_fold_route.contact_inverse import profile_height
 from experiments.experiment_ribbon_fold_route.contact_profile import clip_profile
-from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose, pose_error
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose
+from experiments.experiment_ribbon_fold_route.mating import matching_frame
 
 from .model import Box, Hardware, Terminal
 from .sat import BoxProjection, separated_on_piece_axes
@@ -57,7 +58,7 @@ class Report:
     reason: str = ""
 
 
-def _mating_frame(route: FoldRoute, box: Box) -> bool:
+def mating_frame(route: FoldRoute, box: Box) -> bool:
     """
     Compare immutable mating frames once; each material cell still needs its cap-side proof.
     """
@@ -72,7 +73,7 @@ def _mating_frame(route: FoldRoute, box: Box) -> bool:
     )
     piece = route.pieces[-1 if at_end else 0]
     actual = piece.end_pose() if at_end else piece.pose
-    return max(pose_error(actual, expected)) < 1e-10
+    return matching_frame(actual, expected)
 
 
 def inspect(
@@ -112,7 +113,7 @@ def inspect(
     prepared = lru_cache(maxsize=64)(prepare_projection)
     prepared_boxes = lru_cache(maxsize=2)(BoxProjection.create)
     for box in hardware.boxes:
-        matching = _mating_frame(route, box)
+        matching = mating_frame(route, box)
         at_end = box.terminal is Terminal.END
         mating_index = len(route.pieces) - 1 if at_end else 0
         axes, limits = box.axes, box.bounds

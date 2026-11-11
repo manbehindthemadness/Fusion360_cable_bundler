@@ -5,7 +5,7 @@ Track authored material regions across native face merging without changing geom
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
 from devtools.ribbon_analysis.budget import NativeBudget
@@ -13,6 +13,9 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_fold_route.material_surfaces import MaterialPatch
 
 from .accuracy import STRICT_ACCURACY, DimensionalAccuracy
+from .edge_parameter import inspect as inspect_edge_parameter
+from .line_boundary import LINE_TYPE
+from .line_boundary import certify as certify_line_boundary
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,7 @@ class MaterialFaces:
         self.families = [Family(self, i) for i in range(len(patches) + 2)]
         self.sealed = False
         self.queries = self.distance_queries = 0
+        self.edge_queries = 0
         self.cache: dict[tuple[int, float, float, float], Selection] = {}
         output["face_correspondence"] = {
             "native_face_count": len(self.native),
@@ -91,6 +95,8 @@ class MaterialFaces:
             "shared_face_seams": [],
             "native_edge_subchains": [],
             "native_vertex_boundaries": [],
+            "native_line_boundaries": [],
+            "edge_parameter_queries": 0,
         }
 
     @property
@@ -147,7 +153,7 @@ class MaterialFaces:
                 ):
                     continue
                 self.queries += 1
-                if self.queries > 30000:
+                if self.queries + self.edge_queries > 30000:
                     raise RuntimeError("Material face-query budget exhausted")
                 ok, uv = face.evaluator.getParameterAtPoint(point)
                 if not ok:
@@ -268,6 +274,7 @@ class MaterialFaces:
             )
         self.output["face_correspondence"].update(
             face_queries=self.queries,
+            edge_parameter_queries=self.edge_queries,
             trim_distance_queries=self.distance_queries,
             native_faces=output,
         )
@@ -290,25 +297,87 @@ class MaterialFaces:
         accuracy goal. That distance is a certified witness bound, not a claim
         of the nearest edge. Warning-only or failed witnesses retain the full
         minimum search. All original samples and the shared query cap remain.
+        A real shared Line3D edge can instead certify the positive-weight
+        source control hull and every sample through outward distance bounds
+        to its actual trimmed endpoints. All original face memberships remain;
+        curved/unknown geometry and non-goal bounds retain the original search.
+        Other edges may supply a parameter-range-checked, independently measured
+        native goal witness for each original sample. These attempts share the
+        original raw native-query pool with faces. Misses and warning-only
+        residuals retain the complete minimum-distance search and its 512-query cap.
         """
         first_edges = {edge.tempId: edge for edge in self.item(first).edges}
         second_edges = {edge.tempId for edge in self.item(second).edges}
         shared = [edge for key, edge in first_edges.items() if key in second_edges]
         if not shared:
             return self._vertex_seam_error(first, second, points, controls)
+        linear = [
+            edge
+            for edge in shared
+            if getattr(getattr(edge, "geometry", None), "objectType", None) == LINE_TYPE
+        ]
+        if controls and linear:
+            world_controls = tuple(point.copy() for point in controls)
+            world_points = tuple(point.copy() for point in points)
+            for point in (*world_controls, *world_points):
+                if not point.transformBy(self.occurrence.transform2):
+                    raise RuntimeError("Native line-boundary assembly transform failed")
+            for edge in linear:
+                certificate = certify_line_boundary(
+                    edge.createForAssemblyContext(self.occurrence),
+                    world_controls,
+                    world_points,
+                    self.accuracy.goal_mm,
+                    lambda: self.budget.check("actual finite-line control hull"),
+                )
+                if certificate is not None:
+                    if any(
+                        self.select(first, point) is None or self.select(second, point) is None
+                        for point in points
+                    ):
+                        return math.inf
+                    self.output["face_correspondence"]["native_line_boundaries"].append(
+                        {
+                            "regions": [first, second],
+                            "native_edge": edge.tempId,
+                            **asdict(certificate),
+                        }
+                    )
+                    return certificate.maximum_error_mm
         errors = []
+        parameter_samples = 0
+
+        def parameter_checkpoint() -> None:
+            """
+            Share the original thirty-thousand raw native-query pool with face correspondence.
+            """
+            self.edge_queries += 1
+            self.output["face_correspondence"]["edge_parameter_queries"] = self.edge_queries
+            if self.queries + self.edge_queries > 30000:
+                raise RuntimeError("Material shared native-query budget exhausted")
+            self.budget.check("actual shared-edge parameter witness")
+
         for point in points:
             if self.select(first, point) is None or self.select(second, point) is None:
                 return math.inf
             world = point.copy()
-            world.transformBy(self.occurrence.transform2)
+            if not world.transformBy(self.occurrence.transform2):
+                raise RuntimeError("Native boundary assembly transform failed")
             distances = []
             for edge in shared:
+                proxy = edge.createForAssemblyContext(self.occurrence)
+                witness = inspect_edge_parameter(
+                    proxy, world, self.accuracy.goal_mm, parameter_checkpoint
+                )
+                if witness is not None:
+                    distances.append(witness.error_mm)
+                    parameter_samples += 1
+                    break
                 self.distance_queries += 1
                 if self.distance_queries > 512:
                     raise RuntimeError("Material boundary-distance budget exhausted")
                 self.budget.check("actual shared-edge subchain")
-                distance = self.distance(world, edge.createForAssemblyContext(self.occurrence))
+                distance = self.distance(world, proxy)
                 distances.append(distance)
                 if 0.0 <= distance <= self.accuracy.goal_mm:
                     break
@@ -321,6 +390,7 @@ class MaterialFaces:
                 "samples": len(points),
                 "maximum_error_mm": maximum,
                 "distance_policy": "original_goal_witness_else_full_minimum",
+                "parameter_witness_samples": parameter_samples,
             }
         )
         return maximum

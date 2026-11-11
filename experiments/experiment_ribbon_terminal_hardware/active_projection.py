@@ -6,7 +6,10 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable, Literal, Protocol, Sequence
+
+from .projection_initialization import Initialization, InitializationEvidence, coordinate_seed
 
 
 @dataclass
@@ -17,6 +20,16 @@ class UnfinishedProjection:
 
     step: tuple[float, ...] | None = None
     stop_reason: Literal["working_set_limit", "raw_inequality"] | None = None
+
+
+@dataclass
+class ActiveFaces:
+    """
+    Observe coordinate faces selected by a completed, checked working set only.
+    """
+
+    lower: frozenset[int] = frozenset()
+    upper: frozenset[int] = frozenset()
 
 
 class CoordinateBounds(Protocol):
@@ -86,6 +99,9 @@ def active_step(
     checkpoint: Callable[[], None],
     *,
     unfinished: UnfinishedProjection | None = None,
+    faces: ActiveFaces | None = None,
+    initialization: Initialization = Initialization.EMPTY,
+    initialization_evidence: InitializationEvidence | None = None,
 ) -> tuple[float, ...] | None:
     """
     Keep six cap equalities and every supplied inequality using at most sixteen dual updates.
@@ -100,10 +116,26 @@ def active_step(
     the original normalized 1e-14 gate or raw 1e-14 gate divided by its projected norm.
     Pending selection and final feasibility use that same per-row tolerance;
     the original raw return gate remains independent and unchanged.
+    Optional face evidence identifies active coordinate inequalities without
+    rounding or modifying the returned vector. Failure leaves that evidence empty.
+    Explicit coordinate initialization replaces the first update with one checked
+    dual-feasible seed of two to26initially violated coordinate faces. A declined
+    seed consumes that update too. Subsequent ordinary updates may release faces;
+    no extra solve, update allowance or acceptance tolerance is granted.
+    Normal inner products are lazy and local to this projection's immutable
+    normalized constraints. Ordered index pairs retain original dot arithmetic,
+    including initialization; no factorization or vector is cached. Every dual
+    update, checkpoint, moving-vector product and final gate remains unchanged.
     """
+    if faces is not None:
+        faces.lower = faces.upper = frozenset()
     if unfinished is not None:
         unfinished.step = None
         unfinished.stop_reason = None
+    if initialization_evidence is not None:
+        initialization_evidence.attempts = initialization_evidence.faces = 0
+    if not isinstance(initialization, Initialization):
+        raise ValueError("Use an explicit working-set initialization policy")
     if (
         not 7 <= len(residual) <= 19
         or len(jacobian) != len(residual)
@@ -127,15 +159,22 @@ def active_step(
         else:
             basis.append(([v / norm for v in row], right / norm))
     base = [math.fsum(beta * unit[i] for unit, beta in basis) for i in range(len(values))]
-    inequalities = [(list(row), -r) for row, r in zip(jacobian[6:], residual[6:])]
+    inequalities: list[tuple[list[float], float, tuple[int, str] | None]] = [
+        (list(row), -r, None) for row, r in zip(jacobian[6:], residual[6:])
+    ]
     for i, value in enumerate(values):
         low, high = model.bounds(i)
         if math.isfinite(low):
-            inequalities.append(([-float(j == i) for j in range(len(values))], value - low))
+            inequalities.append(
+                ([-float(j == i) for j in range(len(values))], value - low, (i, "lower"))
+            )
         if math.isfinite(high):
-            inequalities.append(([float(j == i) for j in range(len(values))], high - value))
+            inequalities.append(
+                ([float(j == i) for j in range(len(values))], high - value, (i, "upper"))
+            )
     constraints: list[tuple[list[float], float, float]] = []
-    for row, right in inequalities:
+    face_tags: list[tuple[int, str] | None] = []
+    for row, right, tag in inequalities:
         checkpoint()
         projected = list(row)
         for _ in range(2):
@@ -151,13 +190,61 @@ def active_step(
             constraints.append(
                 ([v / norm for v in projected], allowance / norm, min(1e-14, 1e-14 / norm))
             )
+            face_tags.append(tag)
+
+    @lru_cache(maxsize=None)
+    def products(first: int, second: int) -> float:
+        """
+        Evaluate each ordered normal pair once, bounded by this call's finite constraint square.
+        """
+        return _dot(constraints[first][0], constraints[second][0])
+
     motion = [0.0] * len(values)
     active: list[int] = []
     multipliers: list[float] = []
     pending: int | None = None
     pending_multiplier = 0.0
-    for _ in range(16):
+    initial_faces = (
+        [
+            i
+            for i, ((_, right, tolerance), tag) in enumerate(zip(constraints, face_tags))
+            if tag is not None and -right > tolerance
+        ]
+        if initialization is Initialization.COORDINATE_FACES
+        else []
+    )
+
+    def finish() -> tuple[float, ...] | None:
+        """
+        Retain active face identity only after the original raw physical-row check succeeds.
+        """
+        result = _checked_step(base, motion, jacobian, residual, unfinished=unfinished)
+        if result is not None and faces is not None:
+            lower: set[int] = set()
+            upper: set[int] = set()
+            for chosen_index in active:
+                selected_face = face_tags[chosen_index]
+                if selected_face is None:
+                    continue
+                coordinate, side = selected_face
+                (lower if side == "lower" else upper).add(coordinate)
+            faces.lower, faces.upper = frozenset(lower), frozenset(upper)
+        return result
+
+    for update in range(16):
         checkpoint()
+        if update == 0 and 2 <= len(initial_faces) <= 26:
+            if initialization_evidence is not None:
+                initialization_evidence.attempts += 1
+            seed = coordinate_seed(
+                constraints, initial_faces, _solve, _dot, checkpoint, products=products
+            )
+            if seed is not None:
+                active = initial_faces
+                motion, multipliers = list(seed.motion), list(seed.multipliers)
+                if initialization_evidence is not None:
+                    initialization_evidence.faces = len(active)
+            continue
         if pending is None:
             violations = [
                 _dot(row, motion) - right - tolerance for row, right, tolerance in constraints
@@ -166,14 +253,15 @@ def active_step(
                 max(range(len(violations)), key=lambda i: violations[i]) if violations else None
             )
             if pending is None or violations[pending] <= 0.0:
-                return _checked_step(base, motion, jacobian, residual, unfinished=unfinished)
+                return finish()
             pending_multiplier = 0.0
         assert pending is not None
         normal, right, _tolerance = constraints[pending]
         normals = [constraints[i][0] for i in active]
         if normals:
             coefficients = _solve(
-                [[_dot(a, b) for b in normals] for a in normals], [_dot(a, normal) for a in normals]
+                [[products(a, b) for b in active] for a in active],
+                [products(a, pending) for a in active],
             )
             if coefficients is None:
                 return None
@@ -207,7 +295,7 @@ def active_step(
     if pending is None and all(
         _dot(row, motion) - right <= tolerance for row, right, tolerance in constraints
     ):
-        return _checked_step(base, motion, jacobian, residual, unfinished=unfinished)
+        return finish()
     if unfinished is not None:
         unfinished.step = tuple(a + b for a, b in zip(base, motion))
         unfinished.stop_reason = "working_set_limit"

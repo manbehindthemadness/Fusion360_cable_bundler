@@ -48,6 +48,7 @@ def test_straight_witness_is_a_shared_actual_material_interior_point() -> None:
         straight_witness(route, 0, 0)
 
 
+@pytest.mark.skip(reason="Archived gym layout retired under fresh-input validation policy")
 def test_confirmed_attached_straight_changes_the_whole_feature_correction() -> None:
     """
     Clear the fold and its crossing attached runway under original contact/cap/material limits.

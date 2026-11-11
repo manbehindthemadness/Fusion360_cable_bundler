@@ -29,6 +29,10 @@ from experiments.experiment_ribbon_fold_route.contact import (
 )
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_fold_route.native_length import (
+    minimum_straight_length,
+    subminimum_straights,
+)
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
 from experiments.experiment_ribbon_terminal_hardware.deviation import recover as recover_terminal
@@ -102,7 +106,9 @@ def solve(
     Unchanged routes retain their separation certificate, including an exact
     final geometry match to an accepted aesthetic proposal. Otherwise the final
     route requires the normal bounded contact check.
-    Native point tolerance rejects tiny explicit straights; it is not a bend rule.
+    Native point tolerance is preserved as input metadata. A separate three-tolerance
+    construction floor governs positive straight slots through every stage and final
+    native-size guard; exact zero slots remain allowed. Neither is a bend rule.
     Enabled optimization replaces the single midpoint frame by the guide's turn
     midpoint only if every exact midpoint factorization already requires more
     flat runway material than the whole guide. This changes placement, not feature/root
@@ -154,6 +160,7 @@ def solve(
         or native_point_tolerance_mm <= 0
     ):
         raise ValueError("Native point tolerance must be finite and positive")
+    minimum_straight_mm = minimum_straight_length(native_point_tolerance_mm)
     started, cpu_started = perf_counter(), process_time()
     targets = Targets.capture(source)
     terminal = Gate(targets, checkpoint, record) if settings.terminal_hardware else None
@@ -178,7 +185,7 @@ def solve(
         boundary,
         frames,
         parameters,
-        native_point_tolerance_mm,
+        minimum_straight_mm,
         first_checkpoint,
         record,
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
@@ -188,6 +195,7 @@ def solve(
         maximum_straight_mm=frames.guide.distances[-1]
         if settings.first_pass_optimization
         else None,
+        terminal=terminal if settings.first_pass_optimization else None,
     )
     original_construction = result
     restored_original: tuple[FoldRoute, ContactResult] | None = None
@@ -195,7 +203,7 @@ def solve(
     result, recovery_detail = recover_construction(
         result,
         frames,
-        native_point_tolerance_mm,
+        minimum_straight_mm,
         first_checkpoint,
         record,
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
@@ -224,6 +232,7 @@ def solve(
         },
         "first_pass_seconds": first_seconds,
         "native_point_tolerance_mm": native_point_tolerance_mm,
+        "native_minimum_straight_mm": minimum_straight_mm,
         "material_uv_seconds": 0.0,
         "smoothing_seconds": 0.0,
         "contact_measurement_policy": contact_policy.value,
@@ -252,7 +261,7 @@ def solve(
                 terminal,
                 first_checkpoint,
                 record,
-                minimum_straight_mm=native_point_tolerance_mm,
+                minimum_straight_mm=minimum_straight_mm,
                 maximum_seconds=min(2.0, remaining),
             )
             if terminal is not None
@@ -264,7 +273,7 @@ def solve(
                 first,
                 checkpoint,
                 record,
-                minimum_straight_mm=native_point_tolerance_mm,
+                minimum_straight_mm=minimum_straight_mm,
                 maximum_seconds=min(2.0, 4 - (perf_counter() - started)),
             )
         first = contraction.route
@@ -284,7 +293,7 @@ def solve(
                 contraction,
                 frames,
                 CONTACT_PAIR_BUDGET - result.contact_pairs,
-                native_point_tolerance_mm,
+                minimum_straight_mm,
                 checkpoint,
                 record,
                 maximum_seconds=wall_left,
@@ -328,14 +337,25 @@ def solve(
     first_hardware = terminal.certify(first, "first_pass") if terminal is not None else None
     smoothing_started = perf_counter()
     smoothed = smooth_with_contact(first, settings.smoothing_percent, checkpoint, record)
-    final = smoothed.route
+    small_smoothing = subminimum_straights(smoothed.route, minimum_straight_mm)
+    final = first if small_smoothing else smoothed.route
     detail.update(stages=smoothed.stages, smoothing_seconds=perf_counter() - smoothing_started)
+    if small_smoothing:
+        detail["stages"]["native_resolution"] = "first_pass_retained"
+        record(
+            {
+                "stage": "native_resolution",
+                "status": "smoothing_declined",
+                "pieces": small_smoothing,
+                "minimum_straight_mm": minimum_straight_mm,
+            }
+        )
     retained = terminal is not None and not terminal.permits(final, "smoothing")
     if retained:
         final = first
         detail["stages"]["terminal_hardware"] = "first_pass_retained"
         detail["final_contact_source"] = "hardware_safe_first_pass"
-    elif smoothed.contact is not None:
+    elif not small_smoothing and smoothed.contact is not None:
         measurement = smoothed.contact
         detail["final_contact_source"] = "identical_accepted_smoothing_geometry"
     elif final is not first:
@@ -421,7 +441,7 @@ def solve(
                     first_checkpoint,
                     record,
                     maximum_length_mm=result.route.material_length_mm,
-                    minimum_straight_mm=native_point_tolerance_mm,
+                    minimum_straight_mm=minimum_straight_mm,
                     remaining_pairs=pairs_left,
                     maximum_cpu_seconds=terminal_cpu_left,
                     maximum_seconds=allowance[1],
@@ -496,6 +516,16 @@ def solve(
     warning = contact != "separated" and contact_policy.permits_geometry(measurement)
     detail.update(contact=contact, contact_measurement=asdict(measurement), contact_warning=warning)
     caps, metric = cap_error(final), material_error(final)
+    small_final = subminimum_straights(final, minimum_straight_mm)
+    if small_final:
+        detail.update(
+            status="unresolved",
+            rejection_reason="Positive straight below native construction resolution",
+            native_subminimum_straights=list(small_final),
+            elapsed_seconds=perf_counter() - started,
+            cpu_seconds=process_time() - cpu_started,
+        )
+        return Result(None, first, detail, None, inspection_route=final)
     if not contact_policy.permits_geometry(measurement):
         detail.update(
             status="unresolved",

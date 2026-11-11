@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from experiments.experiment_ribbon_feature_insertion.allocation import Allocation
+from experiments.experiment_ribbon_feature_insertion.closure_goal import ClosureGoal
 from experiments.experiment_ribbon_feature_insertion.continuation import BranchPolicy
 from experiments.experiment_ribbon_feature_insertion.features import Chain, chains
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
@@ -59,6 +60,7 @@ def test_only_one_closest_original_topology_receives_four_bounded_corrections(
     selected = action.call_args.args[1]
     assert selected.chain is attempted[1] and selected.closure is closures[1]
     assert selected.branch_policy is BranchPolicy.CONTINUOUS
+    assert selected.goal is ClosureGoal.MATING
     assert action.call_args.args[3] == 4 and action.call_args.kwargs["maximum_straight_mm"] == 25.0
     assert measure.call_count == 2
     assert all(call.kwargs["maximum_straight_mm"] == 25.0 for call in measure.call_args_list)

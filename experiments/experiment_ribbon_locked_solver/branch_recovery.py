@@ -23,6 +23,7 @@ from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPoli
 from experiments.experiment_ribbon_fold_route.contact_core import core_witness
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 
+from .deferred_construction import recover as recover_deferred
 from .fallback_feasibility import before_optional_motion
 from .recovery_queue import recover_failed
 
@@ -76,6 +77,8 @@ def recover_construction(
     Unsupported failures, exhausted work and unsuccessful improvement retain the
     baseline. Caller errors propagate; actual spent work is counted even if rejected.
     """
+    if result.route is None and result.deferred and terminal is not None:
+        return recover_deferred(result, terminal, threshold_mm, checkpoint, record)
     if not result.rejected or result.contact_pairs >= CONTACT_PAIR_BUDGET:
         return result, None
     baseline = None

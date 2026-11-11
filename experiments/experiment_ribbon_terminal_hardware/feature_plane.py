@@ -154,10 +154,15 @@ class FeaturePlane:
         Enclose every occupied width/thickness coordinate of all actual grouped material regions.
         """
         source = self.model.original
-        cell = self._material_cell
-        spans = tuple(
-            projection(locate(source, pieces, member), cell, axis) for member in self.members
+        return self._member_span(
+            tuple(locate(source, pieces, member) for member in self.members), axis
         )
+
+    def _member_span(self, members: tuple[PlacedPiece, ...], axis: Vector3) -> Span:
+        """
+        Enclose the same ordered actual pieces through the unchanged full material-cell projections.
+        """
+        spans = tuple(projection(member, self._material_cell, axis) for member in members)
         return Span(min(s.low for s in spans), max(s.high for s in spans))
 
     @classmethod
@@ -263,6 +268,12 @@ class FeaturePlane:
         Resolve the selected nondegenerate world axis through the same actual material feature.
         """
         piece = locate(self.model.original, pieces, self.reference)
+        return self._reference_axis(piece)
+
+    def _reference_axis(self, piece: PlacedPiece) -> Vector3:
+        """
+        Resolve the same selected axis from its actual immutable reference placement.
+        """
         raw = self._selected_axis(piece)
         if magnitude(raw) < 1e-10:
             raise ValueError("Selected feature-plane axis family became degenerate")
@@ -280,8 +291,28 @@ class FeaturePlane:
         Follow the selected family and complete feature through joint motion, including derivatives.
         """
         pieces = self.model.pieces(values)
-        axis = self._axis(pieces)
-        bound = self._span(pieces, axis)
+        reference = locate(self.model.original, pieces, self.reference)
+        members = tuple(locate(self.model.original, pieces, member) for member in self.members)
+        return self._placed_gaps(reference, members)
+
+    @cached_property
+    def _placed_gaps(self) -> Callable[[PlacedPiece, tuple[PlacedPiece, ...]], float]:
+        """
+        Retain at most64exact dependency results, strongly owning immutable piece keys.
+
+        Unrelated suffix changes still pass full model placement validation, but
+        cannot change this plane's measured reference/member geometry. Another
+        plane owns a separate cache, including its fixed box, axis family, side,
+        material cell and normalization. No clearance certificate is retained.
+        """
+        return lru_cache(maxsize=64)(self._placed_gap)
+
+    def _placed_gap(self, reference: PlacedPiece, members: tuple[PlacedPiece, ...]) -> float:
+        """
+        Preserve original gap arithmetic for the exact selected reference and ordered members.
+        """
+        axis = self._reference_axis(reference)
+        bound = self._member_span(members, axis)
         coordinates = tuple(dot(p, axis) for p in self.corners)
         value = (
             bound.low - max(coordinates)

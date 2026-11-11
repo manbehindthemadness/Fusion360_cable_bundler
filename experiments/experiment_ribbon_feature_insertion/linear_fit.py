@@ -5,6 +5,7 @@ Solve tiny equality-constrained least-squares systems through orthogonal nullspa
 from __future__ import annotations
 
 import math
+from typing import Callable
 
 from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace, affine_projection
 
@@ -18,6 +19,7 @@ def least_squares(
     *,
     maximum_sum: float | None = None,
     workspace: AffineWorkspace | None = None,
+    rejected: Callable[[str], None] | None = None,
 ) -> list[float] | None:
     """
     Minimize squared objective residual subject to exact affine equalities on at most seven slots.
@@ -32,6 +34,8 @@ def least_squares(
     An optional caller-owned bounded workspace reuses exact row-prefix bases
     with unchanged ordered arithmetic and rank gates. No geometry or result is
     cached; omitted workspace preserves the original independent projections.
+    An optional observer receives the failed algebraic stage, with a budget-face
+    prefix when applicable. Observation never changes coefficients or acceptance.
     """
     if size > 7 or any(len(row) != size for row in (*hard, *objective)):
         raise ValueError("Use at most seven matching straight-slot coordinates")
@@ -42,12 +46,16 @@ def least_squares(
     project = affine_projection if workspace is None else workspace.project
     base = project(hard, right, [0.0] * size)
     if base is None:
+        if rejected is not None:
+            rejected("hard_equalities_unresolved")
         return None
     nullspace: list[list[float]] = []
     for index in range(size):
         reference = [float(i == index) for i in range(size)]
         vector = project(hard, [0.0] * len(hard), reference)
         if vector is None:
+            if rejected is not None:
+                rejected("hard_nullspace_unresolved")
             return None
         for _ in range(2):
             for previous in nullspace:
@@ -71,6 +79,8 @@ def least_squares(
     ]
     coefficients = project(normal, target, [0.0] * len(nullspace))
     if coefficients is None:
+        if rejected is not None:
+            rejected("guide_objective_unresolved")
         return None
     result = [
         value + math.fsum(v[i] * c for v, c in zip(nullspace, coefficients))
@@ -84,5 +94,8 @@ def least_squares(
             wanted,
             size,
             workspace=workspace,
+            rejected=(lambda reason: rejected("straight_budget_" + reason))
+            if rejected is not None
+            else None,
         )
     return result

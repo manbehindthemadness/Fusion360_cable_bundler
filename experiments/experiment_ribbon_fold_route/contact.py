@@ -172,6 +172,14 @@ def _walk(
     exhaustion disables only the accelerator, leaving the full proof mandatory.
     Cell reuse caches at most512identical projections within this call, changing
     neither arithmetic nor the mandatory pair count or acceptance criteria.
+    It also retains at most512profile clips,512center samples and512cap-side
+    decisions for identical cells within this fixed route and cap policy.
+    At most512occupied center points and512strict inverse results avoid repeating
+    identical point work against subdivisions of the same other original piece.
+    Boundary exclusions and inverse misses apply only to that exact point; they
+    never exclude a material cell or replace its mandatory separation proof.
+    These pure intermediate results survive suspension with the same traversal;
+    they cannot certify another cell, side, route or changed material geometry.
     One finite axis proposed by a completed optional probe may avoid subdivision
     only after the same full thick-cell outward bounds strictly separate. A
     proposal, convex-hull miss or probe limit never grants material clearance.
@@ -226,6 +234,56 @@ def _walk(
     evaluated = (
         lru_cache(maxsize=512)(project) if projection_reuse is ProjectionReuse.CELLS else project
     )
+
+    def clipped(region: Cell) -> Cell | None:
+        """
+        Preserve the exact joined-profile enclosure for this material box.
+        """
+        return clip_profile(region, route.targets.lines, route.targets.diameter_mm)
+
+    def cap_supported(region: Cell, at_end: bool) -> bool:
+        """
+        Reuse only this immutable cell's proof on the explicitly selected cap side.
+        """
+        return cap_region(route.pieces[region.piece], region, at_end, cap_policy)
+
+    def center_sample(region: Cell) -> tuple[Vector3, Vector3, Vector3, Vector3]:
+        """
+        Retain unchanged position and derivatives at this exact material-cell center.
+        """
+        return route.pieces[region.piece].surface(
+            (region.u.low + region.u.high) / 2, (region.q.low + region.q.high) / 2
+        )
+
+    def center_point(region: Cell) -> Vector3 | None:
+        """
+        Prepare the original strict-profile center witness, declining boundary points.
+        """
+        center_q = (region.q.low + region.q.high) / 2
+        center_height = (region.height.low + region.height.high) / 2
+        if (
+            profile_height(center_q, route.targets.lines, route.targets.diameter_mm)
+            - abs(center_height)
+            <= 1e-8
+        ):
+            return None
+        origin, velocity, across, _ = center_sample(region)
+        return origin.translated(unit(cross(velocity, across)), center_height)
+
+    def occupied_point(piece_index: int, world_point: Vector3) -> tuple[float, float, float] | None:
+        """
+        Verify one exact world point in the selected immutable original piece.
+        """
+        return occupied_coordinates(
+            route.pieces[piece_index], world_point, route.targets.lines, route.targets.diameter_mm
+        )
+
+    if projection_reuse is ProjectionReuse.CELLS:
+        clipped = lru_cache(maxsize=512)(clipped)
+        cap_supported = lru_cache(maxsize=512)(cap_supported)
+        center_sample = lru_cache(maxsize=512)(center_sample)
+        center_point = lru_cache(maxsize=512)(center_point)
+        occupied_point = lru_cache(maxsize=512)(occupied_point)
     joined: dict[tuple[int, int], bool] = {}
     cache: dict[Cell, tuple[Span, ...]] = {}
 
@@ -267,8 +325,8 @@ def _walk(
                 )
             )
         checked += 1
-        first = clip_profile(first, route.targets.lines, route.targets.diameter_mm)
-        second = clip_profile(second, route.targets.lines, route.targets.diameter_mm)
+        first = clipped(first)
+        second = clipped(second)
         if first is None or second is None:
             continue
         a, b = route.pieces[first.piece], route.pieces[second.piece]
@@ -277,29 +335,18 @@ def _walk(
             joined[pair] = (
                 second.piece == first.piece + 1 and max(pose_error(a.end_pose(), b.pose)) < 1e-10
             ) or pair in bridges
-        if (
-            joined[pair]
-            and cap_region(a, first, True, cap_policy)
-            and cap_region(b, second, False, cap_policy)
-        ):
+        if joined[pair] and cap_supported(first, True) and cap_supported(second, False):
             continue
         if any(x.high < y.low or y.high < x.low for x, y in zip(bounds(first), bounds(second))):
             continue
         for cell, other, reversed_pair in ((first, second, False), (second, first, True)):
+            point = center_point(cell)
+            if point is None:
+                continue
             u = (cell.u.low + cell.u.high) / 2
             q = (cell.q.low + cell.q.high) / 2
             height = (cell.height.low + cell.height.high) / 2
-            if (
-                profile_height(q, route.targets.lines, route.targets.diameter_mm) - abs(height)
-                <= 1e-8
-            ):
-                continue
-            piece = route.pieces[cell.piece]
-            p, v, w, _ = piece.surface(u, q)
-            point = p.translated(unit(cross(v, w)), height)
-            coordinates = occupied_coordinates(
-                route.pieces[other.piece], point, route.targets.lines, route.targets.diameter_mm
-            )
+            coordinates = occupied_point(other.piece, point)
             if coordinates is not None:
                 local = (u, q, height)
                 witness = Penetration(
@@ -317,10 +364,8 @@ def _walk(
                     )
                 )
         separating = False
-        for piece, cell in ((a, first), (b, second)):
-            _, v, w, _ = piece.surface(
-                (cell.u.low + cell.u.high) / 2, (cell.q.low + cell.q.high) / 2
-            )
+        for cell in (first, second):
+            _, v, w, _ = center_sample(cell)
             for axis in (unit(v), w, unit(cross(v, w))):
                 x, y = evaluated(first, axis), evaluated(second, axis)
                 if x.high < y.low or y.high < x.low:

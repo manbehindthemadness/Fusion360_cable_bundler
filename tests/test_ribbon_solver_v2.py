@@ -13,13 +13,15 @@ from unittest.mock import Mock
 import pytest
 
 from devtools.ribbon_analysis.gym import Config, generate
+from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
-from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 from experiments.experiment_ribbon_locked_solver import controller, solver_v2, worker
 from experiments.experiment_ribbon_locked_solver.lock import ROOT
 from experiments.experiment_ribbon_locked_solver.settings import VERSION, Settings
 from experiments.experiment_ribbon_locked_solver.solver import Result
 from experiments.experiment_ribbon_locked_solver.versions import V2, method
+from tests.test_ribbon_aesthetic import _route
 
 
 @pytest.mark.parametrize("version", (VERSION, V2))
@@ -79,6 +81,8 @@ def test_worker_dispatches_one_explicit_version_without_cross_version_fallback(
     monkeypatch.setitem(vars(worker), "verify", lambda: pins)
     monkeypatch.setitem(vars(worker), "solve", legacy)
     monkeypatch.setitem(vars(worker), "solve_v2", current)
+    material_error(_route((Straight(2.125),)))
+    assert material_error.cache_info().currsize > 0
     destination = worker.run(tmp_path)
     selected, other = (current, legacy) if version == V2 else (legacy, current)
     selected.assert_called_once()
@@ -91,6 +95,13 @@ def test_worker_dispatches_one_explicit_version_without_cross_version_fallback(
     manifest = json.loads(destination.read_text())
     assert manifest["solvers"][0]["procedure"] == version
     assert not (tmp_path / "route.json").exists()
+    numerical = json.loads((tmp_path / "numerical-result.json").read_text())
+    assert numerical["material_metric_cache"] == {
+        "hits": 0,
+        "misses": 0,
+        "maxsize": 64,
+        "currsize": 0,
+    }
 
 
 def test_v2_reproduces_measured_gym_branch_and_toggle_without_hidden_postpass(

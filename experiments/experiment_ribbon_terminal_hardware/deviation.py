@@ -13,8 +13,13 @@ from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_feature_insertion.allocation import Allocation, fit
 from experiments.experiment_ribbon_feature_insertion.features import chains
-from experiments.experiment_ribbon_fold_route.contact import ProjectionReuse, inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import (
+    ProbeOrder,
+    ProjectionReuse,
+    inspect_contact,
+)
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.contact_traversal import ContactTraversal
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
@@ -62,7 +67,10 @@ def recover(
     No other guide/root is attempted and no stage renews work.
     Pair-limited initial contact may resume its exact immutable material-cell
     traversal once within the original remaining pool. Comparisons are cumulative;
-    changed geometry still needs a fresh full proof with only unspent work.
+    the existing negative-only flat screen visits original pairs before deep
+    subdivision, within that same pair/support/time allowance. Every screen miss
+    still requires the complete interval certificate.
+    Changed geometry still needs a fresh full proof with only unspent work.
     All work consumes the caller's original
     clocks and remaining pair pool. The invalid parent's length is reported as
     a quality goal; guide-derived straight travel stays bounded. Final physical
@@ -186,6 +194,7 @@ def recover(
             active_pairs = min(1024, remaining_pairs)
             detail["contacts"] = 1
             contact_started = perf_counter()
+            probe = FlatProbe()
             traversal = (
                 ContactTraversal(
                     candidate,
@@ -193,6 +202,8 @@ def recover(
                     checkpoint=bounded,
                     cap_policy=CapPolicy.ANALYTIC_SUPPORT,
                     projection_reuse=ProjectionReuse.CELLS,
+                    witness_probe=probe,
+                    probe_order=ProbeOrder.ORIGINAL_PAIRS,
                 )
                 if remaining_pairs > active_pairs
                 else None
@@ -206,6 +217,8 @@ def recover(
                     checkpoint=bounded,
                     cap_policy=CapPolicy.ANALYTIC_SUPPORT,
                     projection_reuse=ProjectionReuse.CELLS,
+                    witness_probe=probe,
+                    probe_order=ProbeOrder.ORIGINAL_PAIRS,
                 )
             )
             detail["contact_seconds"] = perf_counter() - contact_started
@@ -223,10 +236,11 @@ def recover(
                 bounded()
                 active_pairs = remaining_pairs - detail["contact_pairs"]
                 contact_started = perf_counter()
-                contact = traversal.advance(remaining_pairs)
+                resumed = traversal.advance(remaining_pairs)
                 detail["contact_seconds"] += perf_counter() - contact_started
+                detail["contact_resumptions"] = int(resumed is not contact)
+                contact = resumed
                 detail["contact_pairs"] = contact.pairs_checked
-                detail["contact_resumptions"] = 1
                 active_pairs = 0
                 record(
                     {
@@ -236,6 +250,7 @@ def recover(
                         "pair_ceiling": remaining_pairs,
                     }
                 )
+            detail["flat_witness_probe"] = asdict(probe)
             if contact.status == "separated":
                 report = terminal.certify(candidate, "spatial_deviation_final")
                 bounded()

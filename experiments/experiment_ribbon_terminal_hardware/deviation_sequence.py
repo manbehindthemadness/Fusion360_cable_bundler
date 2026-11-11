@@ -25,12 +25,14 @@ from .feature_guidance import (
     MaterialGuidance,
     ReturnLength,
 )
+from .flat_continuation import ContactContinuation
 from .gate import Gate
 from .joint_contact import JointMode
 from .joint_contact import recover as recover_joints
 from .joint_handoff import JointHandoff
-from .material_return import select_fold
+from .material_return_selection import UnreflectedReturns, select_fold
 from .recovery_limits import Work, validate
+from .restoration_handoff import RestorationHandoff
 
 
 class SequenceStart(Enum):
@@ -57,11 +59,20 @@ def recover(
     """
     Share the original allowance across coupled separation, distinct witnessed returns and straight correction.
 
-    Only closed, actually measured blockers can hand off between stages. A
+    Closed, actually measured blockers use the original closed handoff. A
+    separate uncertified restoration handoff can retain a strict current-pose
+    material crossing after an ordinary projection/descent stop before closure,
+    or immediately when its actual interval selects a distinct unreflected turn
+    and another logical update remains.
+    It never transfers closure, acceptance or renewed work. A
     material crossing selects the existing dominant turn once per fold, without
     trying another fold after failure. Hardware-only blockers start with fixed
     bends; initial straight-projection failure can expand joint mobility once
     before any motion, sharing the same original work.
+    Adaptive hardware motion may retain one newly measured complete flat crossing
+    in its current straight domain before a full joint handoff. Only an unchanged
+    closed blocked state can fall back after algebraic decline, within original
+    work. Final hardware and complete contact checks remain mandatory.
     Earlier actual connector features remain guidance at the same fixed targets.
     One later crossing selecting an already reflected fold can continue with
     the current bend signs under the remaining allowance; it never flips back.
@@ -173,7 +184,11 @@ def recover(
             if not retain(candidate, evidence):
                 stop = "feature_capacity"
                 break
-            mode = ContactGuidance(tuple(features.values()), ContactMotion.ADAPTIVE_HARDWARE)
+            mode = ContactGuidance(
+                tuple(features.values()),
+                ContactMotion.ADAPTIVE_HARDWARE,
+                ContactContinuation.FIRST_FLAT,
+            )
         elif evidence.status == "penetration" and evidence.witness is not None:
             selected = select_fold(candidate, evidence.witness)
             if selected is None or (selected in reflected and material_continuation):
@@ -193,13 +208,16 @@ def recover(
                 ContactMotion.ADAPTIVE_HARDWARE
                 if evidence.status == "separated"
                 else ContactMotion.BEND_JOINTS,
+                ContactContinuation.FIRST_FLAT
+                if evidence.status == "separated"
+                else ContactContinuation.HANDOFF,
             )
         left = remaining()
         if left is None:
             break
         if start is SequenceStart.BLOCKED_MATING and not first_mating:
             detail["length_ceiling_released"] = True
-        yielded: list[JointHandoff] = []
+        yielded: list[JointHandoff | RestorationHandoff] = []
         stages += 1
         stage_evidence: Report | Penetration | ContactResult = evidence
         if isinstance(mode, MaterialGuidance) or mode is JointMode.BLOCKED_MATING:
@@ -219,6 +237,10 @@ def recover(
             maximum_updates=left.updates,
             mode=mode,
             on_blocked=yielded.append,
+            on_restoration_blocked=yielded.append,
+            early_material_return=UnreflectedReturns(frozenset(reflected))
+            if isinstance(mode, MaterialGuidance) and left.updates > 1
+            else None,
         )
         if result is None:
             if first_mating:
@@ -264,6 +286,13 @@ def recover(
                 "stage": "spatial_sequence",
                 "status": "handoff",
                 "number": stages,
+                "kind": "uncertified_material_restoration"
+                if isinstance(state, RestorationHandoff)
+                else "closed",
+                "original_stop": state.stop_reason
+                if isinstance(state, RestorationHandoff)
+                else None,
+                "cap_error_mm": cap_error(candidate),
                 "route": snapshot(candidate),
                 "evidence": asdict(evidence),
                 "spent": dict(counters),

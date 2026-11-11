@@ -21,7 +21,7 @@ from devtools.ribbon_analysis.inspection.archive import (
     snapshot_payload,
     write_document,
 )
-from experiments.experiment_ribbon_contraction.runner import snapshot
+from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_feature_insertion.contact_measurement import ContactPolicy
 
 from .inspection import freeze
@@ -42,8 +42,12 @@ def run(directory: Path) -> Path:
     Open the append stream once, retaining per-event flush before solver progress.
     The original worker clocks include opening and using the stream. Context
     ownership closes it on normal, rejected, cancelled and exceptional exits.
+    Clear raw material measurements within these clocks before each job, even
+    when a host-only caller reuses this process. Record bounded hit/miss counts
+    after solving; these are computational measurements, not acceptance proofs.
     """
     started, cpu_started = perf_counter(), process_time()
+    material_error.cache_clear()
     with (directory / "trials.jsonl").open("a") as trials:
         return _run(directory, trials, started=started, cpu_started=cpu_started)
 
@@ -136,6 +140,13 @@ def _run(directory: Path, trials: TextIO, *, started: float, cpu_started: float)
             )
         else:
             result = solve(targets, settings, checkpoint, record)
+        metric_cache = material_error.cache_info()
+        result.detail["material_metric_cache"] = {
+            "hits": metric_cache.hits,
+            "misses": metric_cache.misses,
+            "maxsize": metric_cache.maxsize,
+            "currsize": metric_cache.currsize,
+        }
         write_document(directory / "numerical-result.json", result.detail)
         if result.route is None and result.inspection_route is not None:
             checkpoint()

@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import replace
 from math import pi
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -14,6 +15,7 @@ from cable_bundler.routing.geometry import Vector3
 from experiments.experiment_ribbon_fold_route import contact
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
+from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.contact_inverse import occupied_coordinates
 from experiments.experiment_ribbon_fold_route.contact_traversal import ContactTraversal
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
@@ -200,3 +202,118 @@ def test_curved_subdivision_retains_the_original_pending_pair(
     assert results[-1] == expected
     assert all(a.pairs_checked <= b.pairs_checked for a, b in zip(results, results[1:]))
     assert results[0].pairs_checked <= 1
+
+
+@pytest.mark.parametrize("gap", (0.2, 1.0, 1.2))
+@pytest.mark.parametrize("order", tuple(contact.ProbeOrder))
+def test_optional_screen_keeps_its_state_across_material_suspension(
+    gap: float, order: contact.ProbeOrder
+) -> None:
+    """
+    Preserve probe calls, original pair order and final proof across a retained material stack.
+    """
+    source = _parallel(gap)
+    expected_probe = Mock(return_value=contact.ProbeResult(0))
+    expected = contact.inspect_contact(
+        source,
+        maximum_pairs=128,
+        witness_probe=expected_probe,
+        probe_order=order,
+    )
+    probe = Mock(return_value=contact.ProbeResult(0))
+    traversal = ContactTraversal(source, maximum_pairs=128, witness_probe=probe, probe_order=order)
+    for limit in (1, 2, 7, 128):
+        measured = traversal.advance(limit)
+    assert measured == expected
+    assert [call.args[1:3] for call in probe.call_args_list] == [
+        call.args[1:3] for call in expected_probe.call_args_list
+    ]
+    assert len({call.args[1:3] for call in probe.call_args_list}) == probe.call_count
+
+
+@pytest.mark.parametrize("order", tuple(contact.ProbeOrder))
+def test_probe_pair_exhaustion_is_final_without_restarting_the_walk(
+    order: contact.ProbeOrder,
+) -> None:
+    """
+    A completed optional screen cannot renew its allowance when more material work was reserved.
+    """
+    probe = Mock(return_value=contact.ProbeResult(1, limit="pairs"))
+    traversal = ContactTraversal(
+        _parallel(1.0), maximum_pairs=128, witness_probe=probe, probe_order=order
+    )
+    first = traversal.advance(4)
+    assert first.status == "unresolved" and first.limit == "pairs"
+    assert first.pairs_checked == 4 and probe.call_count == 1
+    assert traversal.advance(128) is first
+    assert probe.call_count == 1
+
+
+@pytest.mark.parametrize("order", tuple(contact.ProbeOrder))
+def test_probe_hard_failure_permanently_invalidates_the_retained_walk(
+    order: contact.ProbeOrder,
+) -> None:
+    """
+    Preserve source cancellation during screening and prevent a second uncharged probe.
+    """
+    probe = Mock(side_effect=InterruptedError("original source cancellation"))
+    traversal = ContactTraversal(
+        _parallel(1.0), maximum_pairs=128, witness_probe=probe, probe_order=order
+    )
+    with pytest.raises(InterruptedError, match="source cancellation"):
+        traversal.advance(128)
+    with pytest.raises(RuntimeError, match="cannot resume"):
+        traversal.advance(128)
+    assert probe.call_count == 1
+
+
+@pytest.mark.parametrize("offset", (9.0, 9.8))
+def test_real_flat_screen_finds_edge_overlap_before_material_subdivision(offset: float) -> None:
+    """
+    Require strict inverse witnesses for authored overlapping strip ends whose centers miss each other.
+    """
+    source = _parallel(0.2)
+    second = replace(
+        source.pieces[1], pose=replace(source.pieces[1].pose, origin=Vector3(offset, 0, 0.2))
+    )
+    source = replace(source, pieces=(source.pieces[0], second, source.pieces[2]))
+    probe = FlatProbe()
+    result = ContactTraversal(source, maximum_pairs=64, witness_probe=probe).advance(64)
+    assert result.status == "penetration" and result.witness is not None
+    assert result.witness.pieces == (0, 1) and result.pairs_checked < 16
+    assert probe.comparisons > 0 and probe.supports <= 2048
+    for index in result.witness.pieces:
+        assert occupied_coordinates(source.pieces[index], result.witness.point, 1, 1.0) is not None
+
+
+@pytest.mark.parametrize("offset", (9.0, 9.8))
+def test_original_pair_screen_reaches_actual_crossing_before_unrelated_tangent_subdivision(
+    offset: float,
+) -> None:
+    """
+    A bounded original-pair screen must find a strict strip-end crossing before a distant tangent pair.
+    """
+    source = _parallel(0.2)
+    first = source.pieces[0]
+    second = replace(source.pieces[1], pose=replace(first.pose, origin=Vector3(offset, 0, 0.2)))
+    tangent = tuple(
+        replace(first, pose=replace(first.pose, origin=Vector3(100, 0, height)))
+        for height in (0.0, 1.0)
+    )
+    source = replace(source, pieces=(first, second, *tangent))
+    material = ContactTraversal(source, maximum_pairs=128, witness_probe=FlatProbe()).advance(128)
+    probe = FlatProbe()
+    screened = ContactTraversal(
+        source,
+        maximum_pairs=128,
+        witness_probe=probe,
+        probe_order=contact.ProbeOrder.ORIGINAL_PAIRS,
+    ).advance(128)
+    assert material.status == "unresolved" and material.witness is None
+    assert screened.status == "penetration" and screened.witness is not None
+    assert screened.witness.pieces == (0, 1) and screened.pairs_checked < material.pairs_checked
+    assert probe.comparisons > 0 and probe.supports <= 2048
+    for index in screened.witness.pieces:
+        assert (
+            occupied_coordinates(source.pieces[index], screened.witness.point, 1, 1.0) is not None
+        )

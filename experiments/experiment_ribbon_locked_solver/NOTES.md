@@ -4510,3 +4510,90 @@ monitored rather than inferred from RSS. Final artifact:resume1735/final-result.
 Ordinary cumulative1225attempts1199passes/22numerical/3boundary/1native-audit failure
 plus1separate setup,longest82,incident27,reviewedthrough20,next40. Current-source
 streak12. No production changes or agent commit. All failed outcomes preserved.
+
+Native construction conditioning — resume2086..2089 (2026-11-11)
+
+The2085case8 angular failure is corroborated by actual local native derivatives,
+not explained by microscopic chord noise: unchanged original body center-guide
+nearest-projection derivative error0.06259446degrees versus original chord
+0.06259531degrees. Two original skin faces are cylinders, although the prescribed
+bend support is NURBS. Stationarity errors are below1e-15mm and normalized
+projection Hessians are well conditioned.2086first stopped before any point or
+derivative queries because its explicit NURBS-chart assumption was false;2087is
+a separately bounded5second read-only support diagnosis. Neither repairs or
+requalifies the failed layout; no audit gate is changed.
+
+2088uses ONE independently authored one-fold analytical strip, TWO native
+representations, ZERO fresh-layout coverage. Fixed1024x authoring followed by
+exact inverse binary scaling retained both NURBS skins and measured center
+tangent error1.44677e-7degrees/maxposition2.70052e-12mm. Unit-scale comparison
+simplified one skin toCylinder and failed original goals:0.02188750degrees/
+1.85588e-6mm. Both built;2attempts/0unattempted. Strict named-subset failure
+stopped the schedule. These are limited mechanism measurements, not full native
+fidelity, continuous physical compliance or a generalized construction guarantee.
+
+2089adds typed NativeScale.UNIT/CONDITIONED in fold_route/material_scale.py.
+New NativeOwner instances default to fixed1024x construction. All dimensional
+inputs transform together (origins/geometry/profile/control points/error bounds);
+angles, directions, knots, weights, labels and ordered indices remain unchanged.
+One original createBody call is inverse-transformed before persistence and the
+original physical audit. No scale search, fallback or second attempt. Original
+120s/4GiB native budget includes preparation and inverse-transform cost; separate
+create_body_seconds/inverse_scale_seconds remain within kernel_seconds and
+generation_seconds. Range setup preserves explicit scale when replacing owners.
+Rejected inspection bodies retain their existing separate unit-scale builder.
+
+211unique affected analytical/mocked controls pass(186affected+42consumer with
+17repeated), no skipped saved layouts. Five changed files passRuff/format/IDE;
+14pre-existing weak findings in unchanged blocks remain(13duplicates/one intended
+fail-soft exception); no new findings. Incremental complete diff reviewed.
+No changed-code solver/matrix/proof replay of any saved layout.
+
+Qualification is pending a clean Fusion restart.2089host-state confirms PID17063
+is idle, without worker/poll/profile/pending profile command; its native builder
+and range setup are cached OLD and lack scale policy/inverse timing. Do not
+reload/patch these live cached modules or start a mismatched cohort. Lock remains
+the preceding301source freeze and intentionally stale; candidate has302sources.
+After restart verify new native constructor/build/setup, freeze reviewed source,
+reserve NEW random unique layouts and run original20case first-failure scope
+(120s/case4GiB3.8GiBlaunch20minreview). Full physical audits remain UNMEASURED;
+2072native ownership failure remains unresolved. Goal incomplete; no production
+change or commit.
+
+2091 post-restart native-conditioning qualification — seed1522057452,
+idfresh-8e1c09d01ad54505b592e8bd3ba07cd7/source302. NewFusionPID51094 passed
+constructor/build/Runtime policy and allreviewed-source readiness guards; one
+owned scratch bd8a6516-399e-45d3-8584-a5c6e10bc149 created, previous open design
+9cf8a7a7-5f9a-4b1f-81c8-1ab96d486a1d untouched. Newsession
+ff167ebd-cb79-4d27-ba7b-2e4b9182ab8c; workspace resume2091/gym/workspace.
+20reserved/12attempted/11ordinarypasses/1numericalfailure/8unattempted. All11
+accepted routes built once at1024scale/inverse beforepersistence and passed
+original namedfidelity/boundarychecks. WidthpopulationsN8:4,N9:2,N10:5;119490native
+pointmeasurements, still11independentcomplete configurations.0accuracywarnings;
+maxrecordednativepointerror2.5258302943e-9mm. Nativegeneration median1.190917s,
+audit median1.563854s, inversecost included. TWO solveCPU<=nativegeneration
+performance-goal misses retained; no causal unmatched-sample speedup claim. Full
+physicalauditsUNMEASURED. ONE separate rejected native inspection body has no
+acceptancecredit. FinalizerONCE;monitor85413exit0/liveidleconfirmed.
+Case12N10seed434411172/eligiblezero-basedzones3and25, job
+selected-bde0627033ee48b8b6c0e397f89f1bac. Closed100.245612mm deviation crosses
+endreturnfold4(piece7) withterminalstraight9; endproxyalsointruded bystraight6.
+Fold5reflection hands off afteroneNewton/newstartcrossing tofold1; nextstage7
+Newton thenlinear_projection_infeasible. Globalrecovery.315978CPU BELOW.35cap,
+notCPUexhaustion. Temporarylaststage171.703685mm length is unaccepted. Thismode
+alreadytreatslengthas restorationgoal with no hard length inequality; no evidence
+that merely releasing a length cap resolves its projection failure.
+2092 freezes originalcloseddeviation source302 withoutsolve/probe/nativebody:143
+sections/4CADviews reviewed; caps1.3519e-13mm/frame5.7995e-16, separatecapture
+42pairs verifies same7/9crossing,24cells endproxyblocked. Original4pairwitness
+remains separately accounted. No restored/open recovery substituted for baseline.
+2093 THREE independentlyauthored bounded affine controls, ZERO layouts/native
+attempts. Knownfeasiblepoint(0x6,epsilon,1,.09epsilon) satisfies6cap equalities,
+3inequalities and[-2,2]bounds atoriginal1e-14 rawgate. Currentprojector succeeds
+epsilon1e-5, declines5e-7/2e-7 in original2x2Gram rankgate. Captured declinedmatrix
+andright in result.json. No oldlayout/matrix replay and NO claim that2091case12
+has that same defect or feasible linearization. Next: test direct rank-revealing
+working projection ONLY when originalGram solve declines, retaining successful
+legacy arithmetic/cache,16updates,allclocks/rawgate and final physical checks.
+No new correction or budget expansion. Current source302 unchanged afterfreeze.
+Restartblock cleared byuser; goal remains incomplete.

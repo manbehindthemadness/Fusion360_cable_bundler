@@ -4,16 +4,13 @@ Verify strict negative-only flat witnesses, complete original proofs and bounded
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict
-from pathlib import Path
 from typing import Callable
 from unittest.mock import Mock
 
 import pytest
 
 from cable_bundler.routing.geometry import Vector3
-from experiments.experiment_ribbon_contraction.runner import restore
 from experiments.experiment_ribbon_fold_route import contact
 from experiments.experiment_ribbon_fold_route.contact import (
     Penetration,
@@ -33,12 +30,14 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedP
 
 def load_routes() -> dict[str, FoldRoute]:
     """
-    Load three immutable dependent shapes from one documented complete boundary configuration.
+    Retire the shared saved-layout entry point without reading or replaying historical geometry.
+
+    Keep dependent controls explicitly skipped under the user's fresh-input
+    policy. Independently authored analytical controls remain available.
     """
-    payload = json.loads(
-        Path(__file__).with_name("fixtures").joinpath("ribbon_flat_contact.json").read_text()
+    raise pytest.skip.Exception(
+        "Saved ribbon layout retired under user-directed fresh-input policy"
     )
-    return {name: restore(payload[name]) for name in ("overlap", "separated", "incident_source")}
 
 
 @pytest.fixture(scope="module")

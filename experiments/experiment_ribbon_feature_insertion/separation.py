@@ -61,12 +61,13 @@ def _located(source: FoldRoute, pieces: tuple[PlacedPiece, ...], region: Region)
 
     The slab is analysis-only and never becomes route geometry. A missing fold
     rejects the proposal instead of silently measuring a different material event.
+    Occupied and internal absent slots use existing piece poses. Only an absent
+    trailing slot needs the actual last terminal frame; earlier frames are unused.
     """
     expected = sum(isinstance(p.geometry, CylindricalFold) for p in source.pieces)
     if sum(isinstance(p.geometry, CylindricalFold) for p in pieces) != expected:
         raise TopologyChanged("Joint separation requires the original ordered folds")
     fold = 0
-    previous = Pose(source.targets.start, source.targets.start_tangent, source.targets.start_width)
     for piece in pieces:
         if fold == region.fold:
             if region.straight and isinstance(piece.geometry, Straight):
@@ -75,10 +76,16 @@ def _located(source: FoldRoute, pieces: tuple[PlacedPiece, ...], region: Region)
                 return piece
             if region.straight and isinstance(piece.geometry, CylindricalFold):
                 return PlacedPiece(piece.pose, Straight(1e-12), "Absent-slot bound")
-        previous = piece.end_pose()
         if isinstance(piece.geometry, CylindricalFold):
             fold += 1
     if region.straight and fold == region.fold:
+        previous = (
+            pieces[-1].end_pose()
+            if pieces
+            else Pose(
+                source.targets.start, source.targets.start_tangent, source.targets.start_width
+            )
+        )
         return PlacedPiece(previous, Straight(1e-12), "Absent terminal-slot bound")
     raise TopologyChanged("Original material region is unavailable")
 

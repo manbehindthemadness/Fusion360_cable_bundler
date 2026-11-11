@@ -21,7 +21,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from tests.test_ribbon_feature_insertion import _targets
 
 
-@pytest.mark.parametrize("domain", ("free", "sum_face", "zero_slot"))
+@pytest.mark.parametrize("domain", ("free", "sum_inward", "sum_outward", "zero_slot"))
 def test_angular_projection_uses_only_legal_positive_straight_transfers(
     domain: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -29,11 +29,12 @@ def test_angular_projection_uses_only_legal_positive_straight_transfers(
     Solve a known endpoint map without spending angle motion on legal runway compensation.
 
     The map is (s0+a0+a2, s1+a0+10*a1, a0). With both straights positive,
-    X/Y can move freely below the sum budget; at its boundary only their
-    difference is free. A zero second slot cannot borrow negative travel.
+    X/Y can move freely below the sum budget. Inward motion may shorten;
+    outward demand must retain the active sum face. A zero second slot
+    cannot borrow negative travel.
     These are affine equations, not a saved or complete ribbon configuration.
     """
-    epsilon = 0.01
+    epsilon = -0.01 if domain == "sum_outward" else 0.01
     second = 0.0 if domain == "zero_slot" else 1.0
     targets = replace(_targets(), diameter_mm=1.0, end=Vector3(1, second, epsilon))
     boundary = Boundary(targets, 0.6)
@@ -84,7 +85,7 @@ def test_angular_projection_uses_only_legal_positive_straight_transfers(
     monkeypatch.setitem(vars(repair), "reframed", reframed)
     monkeypatch.setitem(vars(repair), "Model", model)
     closure = Closure((1.0, 0.0, second), (0.0, 0.0, -epsilon), epsilon)
-    budget = 2.0 if domain == "sum_face" else None
+    budget = 2.0 if domain.startswith("sum_") else None
     fixed = repair.correction(boundary, chain, closure, lambda: None, maximum_straight_mm=budget)
     coupled = repair.correction(
         boundary,
@@ -100,17 +101,19 @@ def test_angular_projection_uses_only_legal_positive_straight_transfers(
     projected = tuple(coupled)
     expected = (
         (epsilon, -20 * epsilon / 101, -2 * epsilon / 101)
-        if domain == "sum_face"
+        if domain == "sum_outward"
         else (epsilon, -epsilon / 10 if domain == "zero_slot" else 0.0, 0.0)
     )
     assert projected == pytest.approx(expected, abs=1e-11)
     assert math.fsum(d * d for d in projected) < math.fsum(d * d for d in fixed)
     # The fixed direction crosses a hypothetical material-angle boundary; legal transfers avoid it.
-    assert fixed[2] < -epsilon / 2 < projected[2]
+    assert fixed[2] / epsilon < -0.5 < projected[2] / epsilon
     s0, s1 = 1 - projected[0] - projected[2], second - projected[0] - 10 * projected[1]
     assert min(s0, s1) >= -1e-11
-    if budget is not None:
+    if domain == "sum_outward":
         assert s0 + s1 == pytest.approx(budget, abs=1e-11)
+    elif domain == "sum_inward":
+        assert budget is not None and s0 + s1 < budget
     if domain == "zero_slot":
         assert abs(s1) < 1e-11
     end = model(boundary, projected).endpoint((s0, 0.0, s1)).origin

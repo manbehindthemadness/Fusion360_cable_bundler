@@ -359,15 +359,34 @@ class FlatSeparation:
 
     def _gap(self, values: tuple[float, ...], side: Side) -> float:
         """
-        Re-enclose both complete flat regions under the current joint coordinates.
+        Validate current placements before reusing identical complete flat-region projections.
         """
         pieces = self.model.pieces(values)
         first, second = tuple(
-            flat_span(locate(self.model.original, pieces, tag), part, self.axis)
+            self._spans(locate(self.model.original, pieces, tag), part)
             for tag, part in zip(self.pair, self.parts)
         )
         gap = second[0] - first[1] if side is Side.BEFORE else first[0] - second[1]
         return gap / self.model.scale
+
+    @cached_property
+    def _spans(self) -> Callable[[PlacedPiece, FlatPart], tuple[float, float]]:
+        """
+        Retain at most64exact material dependencies within this fixed-axis constraint.
+
+        Unrelated suffix coordinates still pass full model placement and stable
+        region lookup. Identical immutable world-space pieces and complete
+        phase/profile parts then have identical bounds on this constraint's
+        unchanged axis. Other constraints own separate caches; neither a
+        clearance certificate nor an acceptance decision is cached here.
+        """
+        return lru_cache(maxsize=64)(self._span)
+
+    def _span(self, piece: PlacedPiece, part: FlatPart) -> tuple[float, float]:
+        """
+        Preserve the original complete-prism projection arithmetic for one actual material region.
+        """
+        return flat_span(piece, part, self.axis)
 
     def gap(self, values: tuple[float, ...], side: Side) -> float:
         """

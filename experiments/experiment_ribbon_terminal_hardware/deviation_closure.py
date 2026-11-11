@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any, Callable, Sequence
 
 from experiments.experiment_ribbon_feature_insertion.allocation import Allocation
+from experiments.experiment_ribbon_feature_insertion.closure_goal import ClosureGoal
 from experiments.experiment_ribbon_feature_insertion.continuation import BranchPolicy
 from experiments.experiment_ribbon_feature_insertion.features import Chain
 from experiments.experiment_ribbon_feature_insertion.reclosure import Unclosed, refine
@@ -41,7 +42,11 @@ def close(
             Model(boundary, chain.topology), checkpoint, maximum_straight_mm=maximum_straight_mm
         )
         if measured.error > 1e-7 / boundary.targets.diameter_mm:
-            pending.append(Unclosed(chain, measured, branch_policy=BranchPolicy.CONTINUOUS))
+            pending.append(
+                Unclosed(
+                    chain, measured, branch_policy=BranchPolicy.CONTINUOUS, goal=ClosureGoal.MATING
+                )
+            )
     if not pending:
         return None
     selected = min(pending, key=lambda item: (item.closure.error, item.chain.roots))
@@ -53,6 +58,7 @@ def close(
             "position_error_diameters": selected.closure.error,
             "branch_policy": selected.branch_policy.value,
             "maximum_steps": 4,
+            "closure_goal": selected.goal.value,
             "maximum_straight_mm": maximum_straight_mm,
         }
     )

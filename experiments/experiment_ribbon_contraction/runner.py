@@ -11,7 +11,7 @@ import resource
 import sys
 import time
 from dataclasses import asdict
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 
@@ -74,9 +74,17 @@ def snapshot(route: FoldRoute) -> dict[str, Any]:
     }
 
 
+@lru_cache(maxsize=64)
 def material_error(route: FoldRoute) -> float:
     """
     Sample local metric and no-lateral-bend identities independently of shortening.
+
+    Reuse only the exact raw scalar for an identical frozen route, including its
+    targets/profile, ordered material pieces and world-space poses. No rounded
+    geometry, acceptance decision or tolerance participates. The sampler and
+    arithmetic remain unchanged; every caller still applies its own contract
+    and resource checks. Retain at most64routes in the numerical worker; cold
+    workers start empty and discard this bounded cache when their job exits.
     """
     errors = []
     for piece in route.pieces:

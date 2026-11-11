@@ -17,7 +17,8 @@ from experiments.experiment_ribbon_contraction.runner import material_error, res
 from experiments.experiment_ribbon_feature_insertion.allocation import fit as fit_exact
 from experiments.experiment_ribbon_feature_insertion.deviation_guide import DeviationGuide
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
-from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, ProbeOrder
+from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
@@ -230,6 +231,9 @@ def test_one_changed_guide_uses_exact_allocation_and_no_certificate_can_transfer
     assert boundary.targets is source.targets and isinstance(frames.guide, DeviationGuide)
     assert parameters == frames.guide.stations()
     assert certificate.call_args.kwargs["maximum_pairs"] == 123
+    assert isinstance(certificate.call_args.kwargs["witness_probe"], FlatProbe)
+    assert certificate.call_args.kwargs["probe_order"] is ProbeOrder.ORIGINAL_PAIRS
+    assert result.detail["flat_witness_probe"]["comparisons"] == 0
     assert fit.call_args.kwargs["maximum_straight_mm"] == frames.guide.distances[-1]
     assert gate.certify.call_count == int(contact_status == "separated")
     assert refinement.call_count == int(not accepted)
@@ -478,6 +482,8 @@ def test_contact_resumption_spends_only_original_unused_pairs_before_refinement(
     assert result is not None
     assert factory.call_args.args[0] is candidate
     assert factory.call_args.kwargs["maximum_pairs"] == 2048
+    assert isinstance(factory.call_args.kwargs["witness_probe"], FlatProbe)
+    assert factory.call_args.kwargs["probe_order"] is ProbeOrder.ORIGINAL_PAIRS
     assert [call.args[0] for call in advance.call_args_list] == [1024, 2048]
     assert result.detail["contacts"] == 1
     if outcome == "interrupted":

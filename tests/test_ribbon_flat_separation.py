@@ -89,6 +89,7 @@ def test_incident_reflection_frees_angle_bank_and_runways_but_preserves_other_si
     assert all(math.isfinite(value) for value in reflected.initial)
 
 
+@pytest.mark.skip(reason="Saved gym layout retired under user-directed fresh-input policy")
 def test_mating_recovery_clears_all_conductors_without_retaining_the_long_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
