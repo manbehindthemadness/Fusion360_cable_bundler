@@ -3108,3 +3108,65 @@ working projection ONLY when originalGram solve declines, retaining successful
 legacy arithmetic/cache,16updates,allclocks/rawgate and final physical checks.
 No new correction or budget expansion. Current source302 unchanged afterfreeze.
 Restartblock cleared byuser; goal remains incomplete.
+
+2094 user-directed adaptive bend-event policy DESIGN (not implemented): no hard
+global event-count ceiling and no gratuitous insertion. Preserve simple valid
+routes; actual blockers may trigger local topology refinement. Merelyraising6
+would expand globalroot combinations and2^(folds+1)straightmasks exponentially.
+Use small witness-selected windows with fixed entry/exit position+orderedframe,
+reuse unaffected root choices and fit only local variables. Carry stable event/
+interval lineage so retained contact/hardware guidance cannot shift to wrong
+ordinal after insertion. After fitting, all original globalcap/material/contact/
+hardware/native checks remain mandatory. Verify removal/merging with bounded
+localreclosure to prefer fewer events; this gives practical localirredundancy,
+not proof of globallyminimum eventcount. Numericrank/budget/native errors alone
+do not justify addedgeometry. All original time/memory/pair/update/native limits
+remain shared; resource exhaustion is unresolved, not geometriceventceiling.
+ONE independent analytical planar closed-detour family/THREEanglevariants checks
+threebend angles(theta,-2theta,theta),2equalrunways. With12mmspan/R1mm/theta30deg:
+peakcenterexcursion3.154701mm/extralength1.641400mm; actualcaperror6.66e-16mm,
+orderedframe1.59e-16. Variant15deg andmirrored-30deg also close. Nativeattempts0/
+freshlayoutcoverage0/contacthardwarephysicalUNMEASURED. Not a universal3Dmodule.
+Detailed practicalworkflow/invariants/complexity/pruning/firstimplementationslice:
+artifacts/verification/resume2094/adaptive-event-design.json. Source302 andcurrent
+six-event constructor unchanged at2094.2091failure not proven to requireadditionalbends;
+2093independentaffine false-negatives still need separate handling.
+
+2095 adaptive-event implementation: strict current-pose witnesses select small
+material windows with fixed actual entry/exit poses and ordered frames. Local
+two/three-stage roots replace at most two old folds plus straight workspaces;
+global event count is unrestricted. Prefer fewer local folds. All windows share
+eight fitted roots, original four logical updates/.35CPU/2wall/2048pairs and the
+existing terminal budget. Every candidate or module-removal proof consumes an
+update and full global cap/material/contact/both-terminal recertification.
+Stable piece lineage preserves unchanged identities; overlapping rewrites cannot
+undo stale ordinal ranges or inherit certificates. Only unsupported preparation
+can use the old fixed-stage fallback with remaining time. Attempted failure ends
+the action; uncertainty/numerical/native failure alone cannot add events. Pruning
+is bounded and may remain unattempted; no minimum-event guarantee. Native policy
+and physical gates unchanged.136 affected authored analytical/mocked tests pass,
+including20 new controls, Ruff/format and six-file IDE checks clear. Real local
+factorization and six-to-nine closed splice tested; repeated refinement/pruning
+protocol uses explicit checker doubles. ZERO new-layout/native qualification yet.
+Fresh qualification requires new306-source freeze, new seed and unique layouts;
+2091case12 geometry retired from changed-code replay. No production promotion.
+
+2096 fresh qualification of2095, source306/seed3376025099/id
+fresh-19cddfbecf244c2ab81957f14eb42bba.20reserved/11attempted/10numerical-native-
+fidelity-boundarypasses/1initialclosurefailure/9unattempted. All ten passes use
+four folds; ZERO adaptive controller entries. Thus ordinary routing works in
+this sample, but fresh event-growth qualification is still OPEN.103530native
+point measurements are subordinate to10complete configurations;0accuracywarnings,
+max2.0009030839e-9mm. SolveCPU median.602526s/11, nativegeneration8.807812s/10,
+audit12.181415s/10;0matchedtiminggoalmisses. Different layouts and host conditions
+prevent a causal comparison with2091. Full physical audits UNMEASURED.
+Case11 jobselected-b998e020fbb14e2d829954adf24bdfcf is eligible (zones19/5).
+Initial fixed-radius constructor produced0closedbranches and did0contact/
+hardware checks; existing closest-root continuation ended unresolved at
+.0004930502865251918diameter normalized position residual. TotalCPU.217483s;
+no native or rejected-inspection attempt. This is a finite construction/closure
+failure, not demonstrated need for extra bends or proof of infeasibility. Keep
+it separate from strict-witness adaptive refinement. No replay, tuning or retry.
+FinalizerONCE; monitor68387exit0/liveidle confirmed.111prior same-contract cohorts
+hold1009attempts/83failures; these first-failure cohorts are descriptive statistics,
+not an unbiased reliability estimate. Goal incomplete; no production promotion.

@@ -24,6 +24,7 @@ from experiments.experiment_ribbon_fold_route.contact_traversal import ContactTr
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
+from .adaptive_event_recovery import recover as recover_adaptive
 from .deviation_closure import close as close_deviation
 from .deviation_plan import plan
 from .deviation_refinement import refine
@@ -38,6 +39,111 @@ class _Exhausted(RuntimeError):
 
 
 def recover(
+    original: FoldRoute,
+    terminal: Gate,
+    checkpoint: Callable[[], None],
+    record: Callable[[dict[str, Any]], None],
+    *,
+    maximum_length_mm: float,
+    minimum_straight_mm: float,
+    remaining_pairs: int,
+    maximum_cpu_seconds: float,
+    maximum_seconds: float,
+    maximum_updates: int = 4,
+) -> Result | None:
+    """
+    Prefer a witnessed local rewrite without treating six bends as a global representation limit.
+
+    Unsupported preparation may reach the existing fixed-stage fallback with
+    only unused time. An attempted local rewrite ends this action, successful
+    or not; it cannot start a renewed global family. Native and all physical
+    contracts are unchanged. The local controller owns the same update/pair
+    allocation and explicitly accounts every construction and pruning proof.
+    """
+    validate(
+        remaining_pairs=remaining_pairs,
+        maximum_cpu_seconds=maximum_cpu_seconds,
+        maximum_seconds=maximum_seconds,
+        maximum_updates=maximum_updates,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+    )
+    cpu, wall = process_time(), perf_counter()
+
+    def exhausted() -> Result:
+        """
+        Decline the original action rather than renew time after preparation.
+        """
+        return Result(
+            original,
+            None,
+            {
+                "status": "unresolved",
+                "stop_reason": "phase_budget",
+                "iterations": 0,
+                "newton_steps": 0,
+                "contacts": 0,
+                "contact_pairs": 0,
+                "contact_seconds": 0.0,
+                "cpu_seconds": process_time() - cpu,
+                "elapsed_seconds": perf_counter() - wall,
+                "purpose": "adaptive_local_events",
+            },
+        )
+
+    def finish(result: Result) -> Result:
+        """
+        Charge all preparation and reject a late certificate under either strategy.
+        """
+        detail = dict(result.detail)
+        detail.update(cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - wall)
+        if (
+            detail["cpu_seconds"] >= maximum_cpu_seconds
+            or detail["elapsed_seconds"] >= maximum_seconds
+        ):
+            detail.update(status="unresolved", stop_reason="phase_budget")
+            record({"stage": "adaptive_events", "status": "unresolved", "detail": dict(detail)})
+            return Result(original, None, detail)
+        return Result(result.route, result.contact, detail)
+
+    evidence = terminal.measure(original, "adaptive_events_source")
+    checkpoint()
+    cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+    wall_left = maximum_seconds - (perf_counter() - wall)
+    if min(cpu_left, wall_left) <= 0:
+        return exhausted()
+    adaptive = recover_adaptive(
+        original,
+        evidence,
+        terminal,
+        checkpoint,
+        record,
+        work=Work(maximum_updates, remaining_pairs, cpu_left, wall_left),
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+    )
+    if adaptive is not None:
+        return finish(adaptive)
+    cpu_left = maximum_cpu_seconds - (process_time() - cpu)
+    wall_left = maximum_seconds - (perf_counter() - wall)
+    if min(cpu_left, wall_left) <= 0:
+        return exhausted()
+    fallback = recover_fixed_stages(
+        original,
+        terminal,
+        checkpoint,
+        record,
+        maximum_length_mm=maximum_length_mm,
+        minimum_straight_mm=minimum_straight_mm,
+        remaining_pairs=remaining_pairs,
+        maximum_cpu_seconds=cpu_left,
+        maximum_seconds=wall_left,
+        maximum_updates=maximum_updates,
+    )
+    return finish(fallback) if fallback is not None else None
+
+
+def recover_fixed_stages(
     original: FoldRoute,
     terminal: Gate,
     checkpoint: Callable[[], None],

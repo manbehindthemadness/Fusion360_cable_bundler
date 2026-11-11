@@ -1,5 +1,27 @@
 # Finite terminal hardware trial
 
+Current adaptive-event recovery (checkpoint2095): `deviation.recover` first
+selects one strict-witness local window containing at most two existing folds
+and adjacent straight workspaces. Its actual entry/exit positions and ordered
+frames stay fixed. Local algebraic construction prefers fewer bends; splicing
+retains every outer piece by identity. The complete route has no event-count
+ceiling. All windows share eight fitted roots and the original four updates,
+2048 pairs, .35 CPU/2 wall seconds; terminal proofs retain their shared budget.
+Unresolved proofs cannot justify insertion. Only unsupported preparation can
+reach the former fixed-stage constructor with unused time; attempted failure
+ends the action. Changed routes receive new full cap/material/self-contact and
+both-terminal checks. Native construction and fidelity gates are unchanged.
+Stable inserted/retired piece IDs permit bounded exact-module undo, with full
+recertification; overlapping edits and unattempted pruning are reported. This
+does not establish global minimum event count or general geometric success.
+136 authored analytical/mocked affected tests pass, including 20 new controls;
+Ruff/format and six-file IDE checks pass. Fresh2096 qualification (source306,
+seed3376025099):20reserved/11attempted/10numerical-native-fidelity-boundarypasses/
+1initialclosurefailure/9unattempted. All ten passes use four folds; ZERO adaptive
+entries, so event growth still lacks fresh-layout/native qualification. Failure
+occurs before any contact or terminal check; no infeasibility conclusion or retry.
+Full physical audits remain unmeasured. No historical changed-code geometry replay.
+
 LATEST original-eight goal: SEVEN qualified, ONE unresolved historical-32e26c5c88b5.
 1506all77:76accepted/1unresolved/0unattempted; all76matched routepairs EXACT against
 1505 (all75previous successes also exact).258-source lock SHA256
