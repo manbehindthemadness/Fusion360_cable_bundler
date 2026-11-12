@@ -94,11 +94,14 @@ class SignedJoints(MovableBends):
         return False before placement. In particular, a rounded negative runway
         proposal is rejected, never snapped or allowed to abort the whole solve.
         """
-        if len(values) != len(self.initial) or any(
-            not math.isfinite(value) or not self.bounds(i)[0] <= value <= self.bounds(i)[1]
-            for i, value in enumerate(values)
-        ):
+        if len(values) != len(self.initial):
             return False
+        for index, value in enumerate(values):
+            if not math.isfinite(value):
+                return False
+            low, high = self.bounds(index)
+            if not low <= value <= high:
+                return False
         route = self.route(values)
         return route is not None and self.preserves(route)
 

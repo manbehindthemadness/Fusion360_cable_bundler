@@ -54,26 +54,14 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
         a, b = alpha * rho, -sign * gamma * rho
         return math.hypot(a, b), math.atan2(b, a)
 
-    def value(xi: float, eta: float, height: float) -> float:
-        """
-        Evaluate the original material offset map with fixed trigonometric coefficients.
-        """
-        if xi <= 0:
-            x, z = xi, height
-        elif xi >= arc:
-            x = radius * sine + (xi - arc) * cosine - sign * height * sine
-            z = sign * radius * (1 - cosine) + sign * (xi - arc) * sine + height * cosine
-        else:
-            phase, rho = xi / radius, radius - sign * height
-            x = rho * math.sin(phase)
-            z = sign * (radius - rho * math.cos(phase))
-        return alpha * x + beta * eta + gamma * z
-
     def edge_values(
         start: tuple[float, float], end: tuple[float, float], heights: Heights
     ) -> list[float]:
         """
         Retain endpoints, join crossings and all stationary points in their original order.
+
+        Evaluate scalar offsets here to avoid one Python call per point and
+        temporary per-height lists. Preserve every original arithmetic operation.
         """
         xi, eta = start
         dx, de = end[0] - xi, end[1] - eta
@@ -103,7 +91,18 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
                             for winding in range(first, last + 1):
                                 p = root + winding * math.tau
                                 points.append(max(0.0, min(1.0, (radius * p - xi) / dx)))
-            values.extend([value(xi + dx * t, eta + de * t, height) for t in points])
+            for t in points:
+                along, across = xi + dx * t, eta + de * t
+                if along <= 0:
+                    x, z = along, height
+                elif along >= arc:
+                    x = radius * sine + (along - arc) * cosine - sign * height * sine
+                    z = sign * radius * (1 - cosine) + sign * (along - arc) * sine + height * cosine
+                else:
+                    phase, rho = along / radius, radius - sign * height
+                    x = rho * math.sin(phase)
+                    z = sign * (radius - rho * math.cos(phase))
+                values.append(alpha * x + beta * across + gamma * z)
         return values
 
     def bounds(corners: Corners, heights: Heights) -> tuple[float, float] | None:
@@ -113,7 +112,7 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
         values: list[float] = []
         for start, end in zip(corners, corners[1:] + corners[:1]):
             values.extend(edge_values(start, end, heights))
-        if not all(math.isfinite(result) for result in values):
+        if not all(map(math.isfinite, values)):
             return None
         return min(values), max(values)
 

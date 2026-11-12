@@ -15,6 +15,17 @@ ROOT = Path(__file__).resolve().parents[2]
 LOCK = Path(__file__).with_name("solver-lock.json")
 
 
+def _analysis_paths(directory: Path) -> set[Path]:
+    """
+    Discover every original source suffix in one recursive walk, without caching paths or file contents.
+
+    Match complete names rather than Path.suffix so bare hidden names such as
+    .py remain included. Matching directories remain present, preserving the
+    caller's original read failure instead of silently ignoring malformed inputs.
+    """
+    return {path for path in directory.rglob("*") if path.name.endswith((".py", ".html", ".js"))}
+
+
 def sources() -> dict[str, str]:
     """
     Hash maintained numerical, native and coordinate implementations required by this version.
@@ -22,9 +33,7 @@ def sources() -> dict[str, str]:
     paths = {*Path(__file__).parent.glob("*.py")}
     paths.update((Path(__file__).parent / "tester").glob("*.py"))
     analysis = ROOT / "devtools/ribbon_analysis"
-    paths.update(analysis.rglob("*.py"))
-    paths.update(analysis.rglob("*.html"))
-    paths.update(analysis.rglob("*.js"))
+    paths.update(_analysis_paths(analysis))
     for package in (
         "experiment_ribbon_fold_route",
         "experiment_ribbon_joint_route",

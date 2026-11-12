@@ -59,6 +59,7 @@ from .hardware_motion import expand as expand_hardware
 from .hardware_motion import straight_growth_requires_angles
 from .incident_model import IncidentJoints
 from .joint_completion import closed_material, stalled_certificate_ready
+from .joint_derivatives import Difference
 from .joint_derivatives import jacobian as joint_jacobian
 from .joint_evaluation import JointEvaluation
 from .joint_handoff import JointHandoff
@@ -1173,6 +1174,7 @@ def recover(
                 fixed,
                 bounded,
                 admissible=admissible,
+                difference=Difference.ONE_SIDED,
             )
             project_step = (
                 active_step
@@ -1432,6 +1434,7 @@ def recover(
         "method": "complete_flat_contacts",
         "iterations": math.ceil(newton / 6),
         "newton_steps": newton,
+        "derivative_scheme": Difference.ONE_SIDED.value,
         "motion_attempted": motion_attempted,
         "contacts": contacts,
         "contact_pairs": pairs,

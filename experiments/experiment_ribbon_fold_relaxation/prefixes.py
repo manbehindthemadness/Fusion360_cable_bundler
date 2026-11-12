@@ -4,12 +4,13 @@ Reuse exact immutable material prefixes while keeping full-coordinate validation
 
 from __future__ import annotations
 
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import Callable
 
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece
 
 from .flexible import FlexibleModel
+from .placement_cache import placement_cache
 
 
 class PrefixModel(FlexibleModel):
@@ -27,7 +28,7 @@ class PrefixModel(FlexibleModel):
         """
         Bind bounded prefix reuse to this model's fixed original targets and material.
         """
-        return lru_cache(maxsize=64)(self._prefix)
+        return placement_cache(self, type(self)._prefix)
 
     def pieces(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
         """

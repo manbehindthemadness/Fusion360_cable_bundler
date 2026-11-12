@@ -5,7 +5,7 @@ Expose movable existing bends and straight slots while keeping original radii fi
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import Callable
 
 from experiments.experiment_ribbon_fold_relaxation.closure_policy import (
@@ -15,6 +15,7 @@ from experiments.experiment_ribbon_fold_relaxation.closure_policy import (
     ordered_caps_closed,
 )
 from experiments.experiment_ribbon_fold_relaxation.flexible import FlexibleModel
+from experiments.experiment_ribbon_fold_relaxation.placement_cache import placement_cache
 from experiments.experiment_ribbon_fold_relaxation.prefixes import PrefixModel
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected, step_limit
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece
@@ -80,7 +81,7 @@ class MovableBends(FlexibleModel):
         """
         Own at most 64 immutable coordinate placements for repeated closure and gap probes.
         """
-        return lru_cache(maxsize=64)(self._place)
+        return placement_cache(self, type(self)._place)
 
     def _place(self, values: tuple[float, ...]) -> tuple[PlacedPiece, ...]:
         """

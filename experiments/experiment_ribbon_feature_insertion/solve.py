@@ -53,6 +53,8 @@ class Result:
     contact_pairs: int = 0
     rejected: tuple[tuple[Branch, ContactResult], ...] = ()
     deferred: tuple[Allocation, ...] = ()
+    closure_candidates: tuple[Unclosed, ...] = ()
+    inspection_route: FoldRoute | None = None
 
 
 def construct(
@@ -126,6 +128,7 @@ def construct(
     )
     branches: list[Branch] = []
     unfinished: list[Unclosed] = []
+    initial_unclosed: list[Unclosed] = []
     for chain in chains(boundary, frames, parameters, checkpoint, record):
         allocation = fit(boundary, chain, threshold_mm, checkpoint, record, **budget_options)
         if allocation is None:
@@ -138,6 +141,7 @@ def construct(
                     **budget_options,
                 ),
             )
+            initial_unclosed.append(pending)
             outcome = refine(
                 boundary, pending, threshold_mm, 2, checkpoint, record, **budget_options
             )
@@ -279,6 +283,7 @@ def construct(
         contact_pairs=contact_pairs,
         rejected=tuple((b, measurements[b.roots]) for b in branches if b.roots in measurements),
         deferred=tuple(deferred),
+        closure_candidates=tuple(initial_unclosed) if not candidates else (),
     )
 
 

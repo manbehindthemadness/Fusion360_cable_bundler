@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import pytest
 
 from experiments.experiment_ribbon_terminal_hardware import redistributed_projection as projection
+from experiments.experiment_ribbon_terminal_hardware.native_slots import NativeSlots
 from experiments.experiment_ribbon_terminal_hardware.primal_projection import Result, Stop
 
 
@@ -190,3 +191,103 @@ def test_coupled_policy_selects_one_optimizer_from_violated_rows_before_executio
     coupled = guidance[0] > 0
     assert primal.call_count == evidence.primal_attempts == int(coupled)
     assert dual.call_count == int(not coupled) and primal.call_count + dual.call_count == 1
+
+
+@pytest.mark.parametrize("current", (-0.01, 1.01))
+def test_coupled_restoration_selects_dual_before_an_excluded_anchor(
+    monkeypatch: pytest.MonkeyPatch, current: float
+) -> None:
+    """
+    A new lower or upper face cannot supply the zero-motion anchor required by primal optimization.
+    """
+    dual = Mock(return_value=None)
+    primal = Mock(side_effect=AssertionError("Excluded zero-motion anchor"))
+    monkeypatch.setitem(vars(projection), "active_step", dual)
+    monkeypatch.setitem(vars(projection), "primal_project", primal)
+    evidence = projection.ProjectionEvidence()
+    step = projection.redistributed_step(
+        _Box(),
+        (current,),
+        [[-1.0]] + [[0.0] for _ in range(5)] + [[-1.0], [-2.0]],
+        (1.0,) + (0.0,) * 5 + (0.2, 0.3),
+        lambda: None,
+        evidence=evidence,
+        guidance_policy=projection.GuidancePolicy.RESTORATION_MERIT,
+        linear_policy=projection.LinearPolicy.COUPLED_RESTORATION,
+    )
+    assert step is None and evidence.primal_attempts == 0
+    dual.assert_called_once()
+    primal.assert_not_called()
+
+
+@pytest.mark.parametrize("floor", (1e-5, 0.1, 0.8))
+def test_new_native_positive_floor_can_restore_without_an_invalid_primal_anchor(
+    monkeypatch: pytest.MonkeyPatch, floor: float
+) -> None:
+    """
+    Newly required positive material stays representable while one actual dual projection reduces merit.
+    """
+    bounds = NativeSlots(_Box(), frozenset({0}), frozenset(), floor)
+    rows = [[-1.0]] + [[0.0] for _ in range(5)] + [[-1.0], [-2.0]]
+    residual = (1.0,) + (0.0,) * 5 + (0.2, 0.3)
+    explicit_evidence = projection.ProjectionEvidence()
+    assert (
+        projection.redistributed_step(
+            bounds,
+            (0.0,),
+            rows,
+            residual,
+            lambda: None,
+            evidence=explicit_evidence,
+            guidance_policy=projection.GuidancePolicy.RESTORATION_MERIT,
+            linear_policy=projection.LinearPolicy.FEASIBLE_PRIMAL,
+        )
+        is None
+    )
+    assert explicit_evidence.primal_stops == {"invalid_anchor": 1}
+    primal = Mock(side_effect=AssertionError("No primal attempt or fallback"))
+    monkeypatch.setitem(vars(projection), "primal_project", primal)
+    evidence = projection.ProjectionEvidence()
+    step = projection.redistributed_step(
+        bounds,
+        (0.0,),
+        rows,
+        residual,
+        lambda: None,
+        evidence=evidence,
+        guidance_policy=projection.GuidancePolicy.RESTORATION_MERIT,
+        linear_policy=projection.LinearPolicy.COUPLED_RESTORATION,
+    )
+    assert step is not None and floor <= step[0] <= 1.0
+    predicted = tuple(term + row[0] * step[0] for row, term in zip(rows, residual))
+    assert projection.strict_descent(
+        residual, predicted, projection.GuidancePolicy.RESTORATION_MERIT
+    )
+    assert evidence.primal_attempts == 0
+    primal.assert_not_called()
+
+
+def test_coupled_domain_check_propagates_cancellation_before_optimizer_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Interrupted eligibility work cannot launch either optimizer or become an ordinary decline.
+    """
+    primal = Mock(side_effect=AssertionError("No optimizer after cancellation"))
+    dual = Mock(side_effect=AssertionError("No optimizer after cancellation"))
+    monkeypatch.setitem(vars(projection), "primal_project", primal)
+    monkeypatch.setitem(vars(projection), "active_step", dual)
+    checkpoint = Mock(side_effect=TimeoutError("domain review cancelled"))
+    with pytest.raises(TimeoutError, match="domain review cancelled"):
+        projection.redistributed_step(
+            _Box(),
+            (0.0,),
+            [[-1.0]] + [[0.0] for _ in range(5)] + [[-1.0], [-2.0]],
+            (1.0,) + (0.0,) * 5 + (0.2, 0.3),
+            checkpoint,
+            guidance_policy=projection.GuidancePolicy.RESTORATION_MERIT,
+            linear_policy=projection.LinearPolicy.COUPLED_RESTORATION,
+        )
+    checkpoint.assert_called_once()
+    primal.assert_not_called()
+    dual.assert_not_called()

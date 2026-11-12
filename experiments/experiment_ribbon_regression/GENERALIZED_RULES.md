@@ -14,6 +14,56 @@ is implied.
 
 ## Geometry and recovery
 
+- Bounded per-model placement caches retain their owner weakly, binding the
+  original unbound subclass implementation. Keep exact keys and64-entry limits;
+  hold the owner for computation and propagate exceptions. Existing immutable
+  hits need no live owner, while misses after release raise ReferenceError. This
+  avoids model/cache reference cycles without retaining old models globally.
+  Cancellation Path values may be prepared once, but their filesystem state,
+  memory/time checks and complete source hashes are always observed afresh at
+  their original cadence. Single-walk discovery matches full source-name suffixes,
+  including bare hidden names, with no cached path set or metadata trust.
+ 2418preserves all8selected routes exactly; 2failures remain and fresh validation
+  is pending. Existing native receipts concern those identical routes only.
+
+- Complete vector validation reads each immutable coordinate domain once, then
+  checks both bounds. Keep size/finiteness guards before placement, original
+  error/False behavior and full ordered-material validation.2402exact matrices
+  and2403affected QA support unchanged numerical arithmetic, not a reliability
+  claim.2404preserves five selected routes byte-for-byte but stops at another
+  required control's original proof CPU cap; current candidate is unqualified.
+  Do not treat interrupted pair upper bounds as actual pair exhaustion.
+
+- Feasible-primal needs a feasible anchor. Coupled restoration's zero-motion
+  anchor is available only if every current coordinate lies within its current
+  domain. A newly activated positive native floor can exclude a zero slot.
+  Select the existing dual before optimization in that case; never retry after
+  primal decline or weaken the floor. Explicit primal/default dual retain their
+  contracts.2396analytical regression and affected QA pass;2397layout qualification
+  stopped at a required control's original CPU cap, before the changed branch
+  was used. The candidate is unqualified; no new native/fresh success follows.
+
+- An explicit reference one-sided finite-difference mode may reuse the current
+  raw equations and sample one original bounded admissible endpoint per free
+  coordinate. Keep centered differentiation as the shared public default.
+  Prefer the positive endpoint; use the negative only when bounds/material domain
+  prevent it. Fixed columns stay zero; base/probe row contracts and caller errors
+  remain strict. This is first-order numerical guidance, never a clearance proof
+  or reused previous-pose Jacobian. All actual nonlinear/physical/native checks
+  and original work limits remain.2386preserves seven selected numerical passes
+  and solves case16 within.335014CPU, yielding8/10numericalpasses/two unresolved.
+  All accepted routes changed:2388qualifies ONEcase16native with named fidelity
+  and boundary checks/no warnings;2391qualifies the other seven selected routes
+  with the same named checks and zero warnings. These qualify2386, not2396.
+  Fresh2389reserves20new unique layouts, seed45638638, excluding3666fingerprints:
+  all20numerical/native/named-fidelity/boundary and strict accuracy checks pass,
+  no warnings/repairs/source changes. Case8uses adaptive construction4->6events,
+  .058150CPU/309pairs/zero Newton, then native pass. No one-sided joint-correction
+  phase receipts occur, so this is preservation and adaptive-construction evidence,
+  not fresh transfer evidence for the derivative approximation. Two selected
+  recovery failures and full physical audits remain unresolved/unmeasured. A smaller
+  stationary-root cache was declined after two completed proofs slowed despite
+  exact scalar/contact equivalence; do not infer a speed benefit from reuse counts.
 - Phase-aware subdivision changes numerical cut locations, never material
   coverage or acceptance. Keep original cell/dimension selection, finite strict
   interior cuts, both child boxes covering their parent and one depth charge.
@@ -4451,6 +4501,46 @@ checkpoints and dispositions; the first surviving mask prepares the exact same
 objective once. All original affine/native/mating/material checks and root/mask/
 Newton/time budgets remain. This removes unused pure geometry work; it does not
 make a reach miss a feasibility proof or establish a whole-route speed benefit.
+
+Scalar extrema evaluation (2354): evaluate each original material offset in its
+sole edge loop, retaining point/interpolation/arithmetic order, all stationary
+roots, finite/underflow guards, bounded height preparation and outward projection
+rounding. Removing Python call frames and temporary lists grants no geometric
+shortcut, cache, extra work or physical slack.2000scalar float-hex matches and
+2436static projection receipts establish measured equivalence; six selected
+accepted routes remain byte-identical2338. Four unresolved cases remain. Static
+ordinary-proof timing excludes the optional retained-direction callback and
+cannot substitute for complete in-budget solver/native/fresh qualification.
+
+Initial displacement-cone coverage (2375 implementation,2376selected qualification): zero closed roots
+cannot reach contact/hardware-driven event recovery. A measured endpoint deficit
+can reveal a missing travel direction in the fixed orientation chain; neither
+an initializer quality-ceiling miss nor finite angular exhaustion proves global
+infeasibility. Projecting that deficit off a departing width derives a regular
+bank-zero steering direction; exact compensation can preserve the original
+steering frame while adding a real direction. This does not prove the fewest
+events or physical clearance. Retain the constructor's already measured raw
+closure evidence only when no branch closes. In the monotonic hardware-enabled
+workflow, one selected strict missing-ray deficit can add one bank-zero prefix,
+refactor the first steering group exactly and preserve all remaining factors.
+Two compensation roots and one closest four-correction window share one original
+construction update; actual corrections, proofs and the existing physical sequence
+all debit the same recovery allocation. No geometry acceptance follows from the
+prefix alone: the closed2370diagnostic still has real contact/hardware intrusion.
+The integrated2376cold solve clears both, then ordinary contraction/smoothing
+produces35.4670mm output. All six required routes remain byte-identical2355;
+ten selected attempts yield seven numerical passes and three unresolved.
+2377one selected native attempt builds and passes named fidelity/boundary checks,
+with no warnings.18analytical mechanism tests pass; five affected-test failures
+reproduce before integration. No fresh reliability or full physical-audit claim.
+Fresh2379then reserves20new unique layouts under331source, seed3982782551,
+excluding3646novelty fingerprints before solving. All20complete numerical/native/
+named-fidelity/boundary checks:19strict accuracy passes and one accepted seam
+warning5.69773e-6mm under the existing sub-.01mm policy. No failures, repairs or
+source changes; actual inputs match the reserved order. None enters construction
+recovery or the spatial sequence. This supports sampled preservation, not transfer
+of the new initial-closure mechanism or a population reliability/speed claim.
+Retain three selected unresolved cases and full physical audits as unmeasured.
 
 Planar-edge clipping proposal2240 was declined: matched full proofs retained
 712/992 comparisons but showed no timing benefit. Original extrema restored;

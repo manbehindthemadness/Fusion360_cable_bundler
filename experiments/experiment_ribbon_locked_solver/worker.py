@@ -77,6 +77,7 @@ def _run(directory: Path, trials: TextIO, *, started: float, cpu_started: float)
     settings = Settings.parse(plan["settings"])
     last_sources = perf_counter()
     last_stage, last_report = "", 0.0
+    cancel_path = directory / "cancel"
     append(
         directory,
         "numerical",
@@ -90,7 +91,7 @@ def _run(directory: Path, trials: TextIO, *, started: float, cpu_started: float)
         nonlocal last_sources
         peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         rss = peak if sys.platform == "darwin" else peak * 1024
-        if (directory / "cancel").exists() or perf_counter() - started > 120 or rss >= 4294967296:
+        if cancel_path.exists() or perf_counter() - started > 120 or rss >= 4294967296:
             raise TimeoutError("Selected gym solver resource/cancellation limit")
         if perf_counter() - last_sources > 0.5:
             if verify() != pins:

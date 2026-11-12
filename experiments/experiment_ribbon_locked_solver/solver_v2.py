@@ -208,6 +208,7 @@ def solve(
         record,
         selection_policy=Policy.MONOTONIC if settings.first_pass_optimization else Policy.MIDPOINT,
         terminal=terminal,
+        boundary=boundary,
     )
     first_seconds = perf_counter() - started
     detail: dict[str, Any] = {
@@ -245,7 +246,9 @@ def solve(
         detail.update(
             elapsed_seconds=perf_counter() - started, cpu_seconds=process_time() - cpu_started
         )
-        return Result(None, None, detail, None)
+        if recovery_detail is not None:
+            detail["rejection_reason"] = recovery_detail.get("stop_reason", result.status)
+        return Result(None, None, detail, None, inspection_route=result.inspection_route)
     first = result.route
     measurement = result.contact
     if measurement is None:

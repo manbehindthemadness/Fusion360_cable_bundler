@@ -21,10 +21,12 @@ from experiments.experiment_ribbon_feature_insertion.selection import Branch, Po
 from experiments.experiment_ribbon_feature_insertion.solve import CONTACT_PAIR_BUDGET, Result
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.contact_core import core_witness
+from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 
 from .deferred_construction import recover as recover_deferred
 from .fallback_feasibility import before_optional_motion
+from .initial_closure import recover as recover_initial_closure
 from .recovery_queue import recover_failed
 
 
@@ -37,6 +39,7 @@ def recover_construction(
     *,
     selection_policy: Policy,
     terminal: Gate | None = None,
+    boundary: Boundary | None = None,
 ) -> tuple[Result, dict[str, Any] | None]:
     """
     Correct existing failed branches without losing an already separated baseline.
@@ -79,7 +82,20 @@ def recover_construction(
     """
     if result.route is None and result.deferred and terminal is not None:
         return recover_deferred(result, terminal, threshold_mm, checkpoint, record)
-    if not result.rejected or result.contact_pairs >= CONTACT_PAIR_BUDGET:
+    if not result.rejected:
+        if boundary is not None:
+            return recover_initial_closure(
+                result,
+                boundary,
+                terminal,
+                threshold_mm,
+                frames.guide.distances[-1],
+                checkpoint,
+                record,
+                selection_policy=selection_policy,
+            )
+        return result, None
+    if result.contact_pairs >= CONTACT_PAIR_BUDGET:
         return result, None
     baseline = None
     candidates = result.rejected

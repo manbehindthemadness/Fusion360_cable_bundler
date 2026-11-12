@@ -133,6 +133,24 @@ def _motion_scale(jacobian: list[list[float]], residual: tuple[float, ...], meri
     return scale
 
 
+def _zero_motion_anchor_available(
+    model: CoordinateBounds, values: tuple[float, ...], checkpoint: Callable[[], None]
+) -> bool:
+    """
+    Require current coordinates inside every declared face before selecting the zero-motion primal anchor.
+
+    Newly required positive native floors can exclude an existing zero slot.
+    Such a domain needs the existing dual optimizer, selected before any
+    working-set action rather than after an invalid primal attempt.
+    """
+    for index, value in enumerate(values):
+        checkpoint()
+        low, high = model.bounds(index)
+        if not low <= value <= high:
+            return False
+    return True
+
+
 def redistributed_step(
     model: CoordinateBounds,
     values: tuple[float, ...],
@@ -199,8 +217,10 @@ def redistributed_step(
     nonlinear gates. A decline never starts a second projection. Default callers
     retain the original dual policy and arithmetic.
     Coupled restoration selects feasible-primal only for multiple already-positive
-    guidance rows; zero or one keeps dual. This uses the existing positive-row
-    definition before starting the one optimizer, with no retries or extra work.
+    guidance rows and a current point within every coordinate bound. A new native
+    floor can exclude a current zero slot, invalidating that zero-motion anchor.
+    Such domains, or zero/one positive guidance rows, select dual before starting
+    the one optimizer, with no retries or additional working-set allowance.
     """
     if not isinstance(guidance_policy, GuidancePolicy):
         raise ValueError("Use an explicit guidance restoration policy")
@@ -222,6 +242,7 @@ def redistributed_step(
         linear_policy = (
             LinearPolicy.FEASIBLE_PRIMAL
             if sum(term > 0 for term in residual[6:]) > 1
+            and _zero_motion_anchor_available(model, values, checkpoint)
             else LinearPolicy.DUAL
         )
     checkpoint()

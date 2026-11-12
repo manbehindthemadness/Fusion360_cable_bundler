@@ -103,11 +103,12 @@ class FlexibleModel(ClosureModel):
         """
         if len(values) != 4 * len(self.folds) + 1:
             raise ValueError("Supply four coordinates per fold and one final runway slot")
-        if any(
-            not math.isfinite(v) or not self.bounds(i)[0] <= v <= self.bounds(i)[1]
-            for i, v in enumerate(values)
-        ):
-            raise ValueError("Flexible material coordinate outside its declared bounds")
+        for index, value in enumerate(values):
+            if not math.isfinite(value):
+                raise ValueError("Flexible material coordinate outside its declared bounds")
+            low, high = self.bounds(index)
+            if not low <= value <= high:
+                raise ValueError("Flexible material coordinate outside its declared bounds")
 
     def _append_segment(
         self, output: list[PlacedPiece], index: int, values: tuple[float, ...]
