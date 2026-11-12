@@ -115,7 +115,10 @@ class PlacedPiece:
         Carry a flat terminal frame forward, removing accumulated floating roundoff.
 
         Base material pieces omit the unused acceleration transform. Subclasses
-        retain their original surface dispatch; all frame arithmetic is unchanged.
+        retain their original surface dispatch. Positive tiny material velocities
+        are rescaled before direction normalization; segment length is not an
+        orientation singularity. Ordinary-size arithmetic and rejection of zero
+        or nonfinite directions remain unchanged.
         """
         if type(self) is PlacedPiece:
             local_point, local_velocity, local_across, _ = self.geometry.surface(1, 0)
@@ -124,6 +127,10 @@ class PlacedPiece:
             across = self.pose.direction(local_across)
         else:
             point, velocity, across, _ = self.surface(1, 0)
+        if 0.0 < self.geometry.material_length_mm <= 1e-12:
+            speed = magnitude(velocity)
+            if speed > 0.0:
+                velocity = Vector3(velocity.x / speed, velocity.y / speed, velocity.z / speed)
         tangent = unit(velocity)
         width = unit(across.translated(tangent, -dot(across, tangent)))
         return Pose(point, tangent, width)

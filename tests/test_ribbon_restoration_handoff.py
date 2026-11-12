@@ -55,7 +55,7 @@ class _Equations:
         """
 
 
-def _source() -> FoldRoute:
+def _source(last_bank: float = 0.1) -> FoldRoute:
     """
     Author a strict straight crossing followed by an unrelated fourth fold, with explicit open caps.
     """
@@ -68,7 +68,7 @@ def _source() -> FoldRoute:
             Straight(5),
             fold(2, 1.2, math.pi / 2, 0, 0),
             Straight(10),
-            fold(2, 1.2, 0.2, 0.1, 1),
+            fold(2, 1.2, 0.2, last_bank, 1),
             Straight(3),
         )
     )
@@ -125,7 +125,8 @@ def test_unknown_or_stale_material_and_resource_stops_cannot_authorize_handoff(
 
 
 @pytest.mark.parametrize(
-    "outcome", ("linear", "descent", "stale", "budget", "late_budget", "cancel", "miss")
+    "outcome",
+    ("linear", "descent", "bank_event", "stale", "budget", "late_budget", "cancel", "miss"),
 )
 def test_real_joint_entry_only_yields_unchanged_current_witness_after_an_ordinary_stop(
     monkeypatch: pytest.MonkeyPatch, outcome: str
@@ -133,7 +134,7 @@ def test_real_joint_entry_only_yields_unchanged_current_witness_after_an_ordinar
     """
     Mock only algebraic dispositions while real material placement, screening and witness validation run.
     """
-    source = _source()
+    source = _source(1e-5) if outcome == "bank_event" else _source()
     clock = [0.0]
     cancelled = [False]
     for name in ("process_time", "perf_counter"):
@@ -152,6 +153,8 @@ def test_real_joint_entry_only_yields_unchanged_current_witness_after_an_ordinar
         cancelled[0] = outcome == "cancel" and calls > 1
         if calls == 1 or (outcome == "stale" and calls == 2):
             return (0.001,) + (0.0,) * (len(values) - 1)
+        if outcome == "bank_event":
+            return tuple(-0.2 if i == 11 else 0.0 for i in range(len(values)))
         return (0.0,) * len(values) if outcome == "descent" else None
 
     monkeypatch.setitem(vars(joint_contact), "JointEvaluation", Mock(return_value=_Equations()))
@@ -175,11 +178,13 @@ def test_real_joint_entry_only_yields_unchanged_current_witness_after_an_ordinar
 
     monkeypatch.setitem(vars(joint_contact), "screen_restoration", measured)
     yielded: list[RestorationHandoff] = []
+    events: list[dict[str, Any]] = []
 
     def record(event: dict[str, Any]) -> None:
         """
         Account preparation/recording time before the final unchanged resource guard.
         """
+        events.append(event)
         if event["status"] == "material_restoration_prepared" and outcome == "late_budget":
             clock[0] = 0.36
 
@@ -211,14 +216,17 @@ def test_real_joint_entry_only_yields_unchanged_current_witness_after_an_ordinar
         source, _witness(6, 8), _gate(source), checkpoint, record, **options
     )
     assert result is not None and result.contact is None
-    expected = outcome in ("linear", "descent")
+    expected = outcome in ("linear", "descent", "bank_event")
     assert len(yielded) == int(expected)
     if expected:
         assert result.detail["stop_reason"] == "material_restoration_handoff"
         assert yielded[0].stop_reason == (
-            "joint_no_descent" if outcome == "descent" else "linear_projection_infeasible"
+            "joint_no_descent"
+            if outcome in ("descent", "bank_event")
+            else "linear_projection_infeasible"
         )
         assert result.detail["restoration_handoff_inverse_checks"] == 2
+        assert not any(event["status"] == "bank_event_restoration_debit" for event in events)
     else:
         assert result.detail["stop_reason"] == (
             "phase_budget"

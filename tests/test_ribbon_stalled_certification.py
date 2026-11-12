@@ -38,6 +38,43 @@ from tests.test_ribbon_contact_refinement import _gate, _source
 from tests.test_ribbon_material_return import _witness
 
 
+@pytest.mark.parametrize("caps", (math.nan, math.inf, 1e-6))
+def test_open_or_nonfinite_caps_reject_before_material_sampling(
+    monkeypatch: pytest.MonkeyPatch, caps: float
+) -> None:
+    """
+    Reject ineligible poses without spending material work or requesting proof.
+    """
+    source = _source()
+    sampler = Mock(side_effect=AssertionError("Rejected caps need no material sampling"))
+    monkeypatch.setitem(vars(joint_completion), "cap_error", lambda _: caps)
+    monkeypatch.setitem(vars(joint_completion), "material_error", sampler)
+    assert not joint_completion.closed_material(
+        source, SignedJoints(source), length_ceiling_mm=None
+    )
+    sampler.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "metric,ready", ((0.0, True), (1e-10, True), (1e-9, False), (math.nan, False))
+)
+def test_cap_boundary_still_requires_the_material_measurement(
+    monkeypatch: pytest.MonkeyPatch, metric: float, ready: bool
+) -> None:
+    """
+    Inclusive cap eligibility cannot bypass finite material and unchanged metric gates.
+    """
+    source = _source()
+    sampler = Mock(return_value=metric)
+    monkeypatch.setitem(vars(joint_completion), "cap_error", lambda _: 1e-7)
+    monkeypatch.setitem(vars(joint_completion), "material_error", sampler)
+    assert (
+        joint_completion.closed_material(source, SignedJoints(source), length_ceiling_mm=None)
+        is ready
+    )
+    sampler.assert_called_once_with(source)
+
+
 @pytest.mark.parametrize("guidance", (-1.0, 1e-5, 100.0))
 @pytest.mark.parametrize("scale", (0.5, 1.0, 20.0))
 def test_readiness_keeps_actual_closed_material_separate_from_guidance(

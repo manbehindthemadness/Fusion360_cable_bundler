@@ -5,34 +5,46 @@ Derive one actual-cap correction in an unchanged ordered fixed-fold straight spa
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import Callable
 
-from cable_bundler.routing.geometry import difference
+from cable_bundler.routing.geometry import Vector3, difference
 from devtools.ribbon_analysis.contracts import TargetPose
 from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
 
 from .geometry import PlacedPiece, Pose, Straight, pose_error
-from .mating import matching_frame, ordered_mating_caps
+from .mating import fixed_fold_frames_match, ordered_mating_caps
 
 
-def correction(
+@dataclass(frozen=True)
+class ClosureSpace:
+    """
+    Bind exact ordered straight directions and the measured defect to one current placement.
+    """
+
+    directions: tuple[Vector3, ...]
+    offset: Vector3
+    active: tuple[int, ...]
+    already_closed: bool
+
+
+def prepare(
     pieces: tuple[PlacedPiece, ...],
     targets: TargetPose,
     lengths_mm: tuple[float, ...],
     checkpoint: Callable[[], None],
     *,
     fixed_slots: frozenset[int] = frozenset(),
-) -> tuple[float, ...] | None:
+) -> ClosureSpace | None:
     """
-    Project one measured endpoint defect onto occupied, unfixed straight directions in millimeters.
+    Validate and prepare one fixed-fold correction space in millimeters.
 
     Preserve slot order through actual folds, including absent boundary slots.
     Supplied lengths must describe these exact pieces; no guessed index mapping,
     target shift, orientation change or active-set search is allowed. Position
     must already meet ordinary1e-7route closure and frames the existing strict
-    mating criterion. The result is one linear proposal only: adapters must
-    recompose their actual model, enforce bounds/native sizes/quality, and check
-    ordered mating frames. A small affine residual alone is not closure proof.
+    mating criterion. Preparation grants no correction, native eligibility or
+    physical certificate. Different projectors share this same slot/frame contract.
     """
     checkpoint()
     if any(not math.isfinite(v) or v < 0 for v in lengths_mm) or any(
@@ -51,21 +63,39 @@ def correction(
             directions.append(piece.end_pose().tangent)
     if tuple(measured) != lengths_mm:
         raise ValueError("Straight coordinates must match the actual ordered placement")
-    if ordered_mating_caps(pieces, targets):
-        return (0.0,) * len(lengths_mm)
+    already_closed = ordered_mating_caps(pieces, targets)
     expected = Pose(targets.end, targets.end_tangent, targets.end_width)
     actual = pieces[-1].end_pose()
-    if (
-        not matching_frame(
-            pieces[0].pose, Pose(targets.start, targets.start_tangent, targets.start_width)
-        )
-        or not matching_frame(Pose(expected.origin, actual.tangent, actual.width), expected)
-        or max(pose_error(actual, expected)) > 1e-7
+    if not already_closed and (
+        not fixed_fold_frames_match(pieces, targets) or max(pose_error(actual, expected)) > 1e-7
     ):
         return None
     checkpoint()
     active = tuple(i for i, length in enumerate(lengths_mm) if length > 0 and i not in fixed_slots)
     offset = difference(targets.end, actual.origin)
+    return ClosureSpace(tuple(directions), offset, active, already_closed)
+
+
+def correction(
+    pieces: tuple[PlacedPiece, ...],
+    targets: TargetPose,
+    lengths_mm: tuple[float, ...],
+    checkpoint: Callable[[], None],
+    *,
+    fixed_slots: frozenset[int] = frozenset(),
+) -> tuple[float, ...] | None:
+    """
+    Project one actual-cap defect using the original affine arithmetic and occupied slot order.
+
+    This returns one proposal, not closure proof. Adapters must recompose their
+    actual model, enforce bounds/native sizes/quality and check ordered mating.
+    """
+    space = prepare(pieces, targets, lengths_mm, checkpoint, fixed_slots=fixed_slots)
+    if space is None:
+        return None
+    if space.already_closed:
+        return (0.0,) * len(lengths_mm)
+    active, directions, offset = space.active, space.directions, space.offset
     delta = affine_projection(
         [[getattr(directions[i], axis) for i in active] for axis in "xyz"],
         [getattr(offset, axis) for axis in "xyz"],

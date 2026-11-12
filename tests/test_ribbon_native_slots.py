@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_terminal_hardware.active_projection import (
     CoordinateBounds,
     active_step,
 )
+from experiments.experiment_ribbon_terminal_hardware.bank_events import ZeroBanks
 from experiments.experiment_ribbon_terminal_hardware.check import inspect
 from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
     ContactGuidance,
@@ -124,17 +125,22 @@ def test_existing_second_projection_activates_positive_slivers_and_freezes_outwa
         """
         calls.append(model)
         if len(calls) == 1:
-            assert isinstance(model, SignedJoints) and values[0] == 0.0
+            assert isinstance(model, ZeroBanks) and values[0] == 0.0
+            assert isinstance(model.source, SignedJoints)
             return tuple(
-                (5e-6 if positive else -1e-20) / model.scale if index == 0 else 0.0
+                (5e-6 if positive else -1e-20) / model.source.scale if index == 0 else 0.0
                 for index in range(len(values))
             )
         assert len(calls) == 2
         if positive:
             assert isinstance(model, NativeSlots) and model.positive == frozenset({0})
             first_model = calls[0]
-            assert isinstance(first_model, SignedJoints)
-            assert model.minimum * first_model.scale > 1e-5
+            assert isinstance(first_model, ZeroBanks)
+            assert isinstance(first_model.source, SignedJoints)
+            assert model.source is first_model
+            assert model.minimum * first_model.source.scale > 1e-5
+            for index in first_model.positive | first_model.negative:
+                assert model.bounds(index) == first_model.bounds(index)
             assert any(row[0] != 0 for row in rows[:6])
         else:
             assert model is calls[0] and all(row[0] == 0 for row in rows)

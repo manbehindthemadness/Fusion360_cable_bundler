@@ -7,7 +7,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import AbstractSet, Callable
 
-from experiments.experiment_ribbon_bend_relocation.model import MovableBends
+from .projection_system import CoordinateBounds
 
 
 class Difference(Enum):
@@ -20,7 +20,7 @@ class Difference(Enum):
 
 
 def jacobian(
-    model: MovableBends,
+    model: CoordinateBounds,
     values: tuple[float, ...],
     evaluate: Callable[[tuple[float, ...]], tuple[float, ...]],
     row_count: int,

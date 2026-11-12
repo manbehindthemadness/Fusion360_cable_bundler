@@ -6,11 +6,15 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from unittest.mock import Mock
 
 import pytest
 
 from experiments.experiment_ribbon_terminal_hardware import primal_projection as primal
-from experiments.experiment_ribbon_terminal_hardware.projection_system import CoordinateBounds
+from experiments.experiment_ribbon_terminal_hardware.projection_system import (
+    CoordinateBounds,
+    ProjectionSystem,
+)
 
 
 @dataclass(frozen=True)
@@ -187,6 +191,93 @@ def test_caller_cancellation_propagates_after_feasible_input(
             (2.0,),
             lambda: None,
         )
+
+
+@pytest.mark.parametrize("slope", (-1.0, 0.0, 1e-14))
+def test_nonblocking_rows_need_no_tangent_independence_work(
+    monkeypatch: pytest.MonkeyPatch, slope: float
+) -> None:
+    """
+    Keep each constraint checkpoint while omitting algebra that cannot limit this ray.
+    """
+    system = ProjectionSystem([0.0, 0.0], [([0.0, 1.0], 1.0, 1e-14)], [None])
+    checkpoint = Mock()
+    unused = Mock(side_effect=AssertionError("Nonblocking row needs no tangent remainder"))
+    monkeypatch.setattr(primal, "_remainder", unused)
+    motion, blocker = primal._advance(
+        system, [0.0, 0.0], [0.0, slope], [], primal._Tangent([[1.0, 0.0]], [[1.0]]), checkpoint
+    )
+    assert motion == [0.0, slope] and blocker is None
+    checkpoint.assert_called_once_with()
+    unused.assert_not_called()
+
+
+def test_positive_independent_blockers_keep_first_tie_and_exact_fraction() -> None:
+    """
+    Slope filtering cannot reorder equal limiting faces or relax their original halfspaces.
+    """
+    system = ProjectionSystem(
+        [0.0, 0.0],
+        [([0.0, -1.0], 1.0, 1e-14), ([0.0, 1.0], 0.25, 1e-14), ([0.0, 1.0], 0.25, 1e-14)],
+        [None] * 3,
+    )
+    checkpoint = Mock()
+    motion, blocker = primal._advance(
+        system, [0.0, 0.0], [0.0, 1.0], [], primal._Tangent([[1.0, 0.0]], [[1.0]]), checkpoint
+    )
+    assert motion == [0.0, 0.25] and blocker == 1 and checkpoint.call_count == 3
+
+
+@pytest.mark.parametrize("right", (1.0, 2.0))
+def test_positive_nonlimiting_rows_need_no_tangent_independence_work(
+    monkeypatch: pytest.MonkeyPatch, right: float
+) -> None:
+    """
+    A boundary at or beyond the full ray cannot become its first blocking face.
+    """
+    system = ProjectionSystem([0.0, 0.0], [([0.0, 1.0], right, 1e-14)], [None])
+    unused = Mock(side_effect=AssertionError("Nonlimiting ray needs no tangent remainder"))
+    monkeypatch.setattr(primal, "_remainder", unused)
+    checkpoint = Mock()
+    motion, blocker = primal._advance(
+        system, [0.0, 0.0], [0.0, 1.0], [], primal._Tangent([[1.0, 0.0]], [[1.0]]), checkpoint
+    )
+    assert motion == [0.0, 1.0] and blocker is None
+    checkpoint.assert_called_once_with()
+    unused.assert_not_called()
+
+
+@pytest.mark.parametrize("dependent", (False, True))
+@pytest.mark.parametrize("quantity", ("slope", "slack"))
+def test_speculative_overflow_preserves_original_dependence_and_error_behavior(
+    dependent: bool,
+    quantity: str,
+) -> None:
+    """
+    Finite extreme directions must not introduce errors on rows the old algorithm skipped.
+    """
+    normal = [math.sqrt(0.5), math.sqrt(0.5)]
+    tangent = primal._Tangent([normal if dependent else [1.0, 0.0]], [[1.0]])
+    system = ProjectionSystem([0.0, 0.0], [(normal, 1.0, 1e-14)], [None])
+    direction = [1.5e308, 1.5e308] if quantity == "slope" else [1.0, 1.0]
+    origin = [1.5e308, 1.5e308] if quantity == "slack" else [0.0, 0.0]
+    if dependent:
+        motion, blocker = primal._advance(system, origin, direction, [], tangent, lambda: None)
+        assert motion == [a + b for a, b in zip(origin, direction)] and blocker is None
+    else:
+        with pytest.raises(OverflowError):
+            primal._advance(system, origin, direction, [], tangent, lambda: None)
+
+
+def test_cancellation_still_runs_for_each_nonblocking_row() -> None:
+    """
+    Skipped independence work grants no permission to skip cancellation or resource checks.
+    """
+    system = ProjectionSystem([0.0], [([-1.0], 1.0, 1e-14), ([-1.0], 2.0, 1e-14)], [None, None])
+    checkpoint = Mock(side_effect=[None, TimeoutError("caller clock")])
+    with pytest.raises(TimeoutError, match="caller clock"):
+        primal._advance(system, [0.0], [1.0], [], primal._Tangent([], []), checkpoint)
+    assert checkpoint.call_count == 2
 
 
 @pytest.mark.parametrize("anchor", ((math.nan,), (math.inf,), ()))

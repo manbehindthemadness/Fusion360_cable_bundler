@@ -169,3 +169,21 @@ def test_strict_plane_edges_keep_original_stationary_derivative_underflow_declin
     evaluate = prepare_extrema(fold, 1.0, 0.0, 0.0)
     corners = ((-2e-200, -1.0), (-1e-200, -1.0), (-1e-200, 1.0), (-2e-200, 1.0))
     assert evaluate(corners, (-0.5, 0.5)) is None
+
+
+def test_zero_height_cache_retains_signed_offsets_at_underflowed_exit() -> None:
+    """
+    Equal numeric cache keys must not transfer a positive-zero height offset to negative zero.
+
+    An extreme finite fold isolates the raw scalar sign without claiming a
+    physically constructible ribbon. Its flat exit remains evaluated under
+    the original arithmetic; the result is not a clearance certificate.
+    """
+    tiny = math.ulp(0.0)
+    evaluate = prepare_extrema(CylindricalFold(tiny, -1e-3, 0, 4, 1, 1), -0.0, -0.0, 1.0)
+    corners = ((tiny, 0.0),) * 4
+    positive = evaluate(corners, (0.0, 0.0))
+    negative = evaluate(corners, (-0.0, -0.0))
+    assert positive is not None and negative is not None
+    assert tuple(value.hex() for value in positive) == ("0x0.0p+0",) * 2
+    assert tuple(value.hex() for value in negative) == ("-0x0.0p+0",) * 2

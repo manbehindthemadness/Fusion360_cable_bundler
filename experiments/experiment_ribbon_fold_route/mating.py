@@ -32,3 +32,20 @@ def ordered_mating_caps(pieces: tuple[PlacedPiece, ...], targets: TargetPose) ->
     start = Pose(targets.start, targets.start_tangent, targets.start_width)
     end = Pose(targets.end, targets.end_tangent, targets.end_width)
     return matching_frame(pieces[0].pose, start) and matching_frame(pieces[-1].end_pose(), end)
+
+
+def fixed_fold_frames_match(pieces: tuple[PlacedPiece, ...], targets: TargetPose) -> bool:
+    """
+    Require the fixed start frame and final orientation before straight-only mating correction.
+
+    Changing straight lengths can close the final position, but cannot repair
+    either terminal orientation or the anchored start. Use the existing strict
+    mating-frame limit; this grants no end-position or physical certificate.
+    """
+    if not pieces:
+        return False
+    start = Pose(targets.start, targets.start_tangent, targets.start_width)
+    end = Pose(targets.end, targets.end_tangent, targets.end_width)
+    actual = pieces[-1].end_pose()
+    orientation = Pose(end.origin, actual.tangent, actual.width)
+    return matching_frame(pieces[0].pose, start) and matching_frame(orientation, end)

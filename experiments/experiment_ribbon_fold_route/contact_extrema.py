@@ -37,22 +37,31 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
     the parallelogram boundary. Four edges at both heights retain every original
     endpoint, G1 join and stationary phase. Arithmetic order and finite guards
     remain unchanged; the returned evaluator retains only this projection's
-    coefficients, including at most sixteen height-dependent coefficient pairs,
+    coefficients, including at most sixteen height-dependent coefficient tuples,
     with no material-cell result cache, global route cache or acceptance authority.
+    Zero-height offsets retain their original sign despite equal numeric cache keys.
     """
     radius, angle = fold.radius_mm, abs(fold.angle_radians)
     sign = math.copysign(1.0, fold.angle_radians)
     arc = radius * angle
     sine, cosine = math.sin(angle), math.cos(angle)
+    arc_x = radius * sine
+    arc_z = sign * radius * (1 - cosine)
 
     @lru_cache(maxsize=16)
-    def height_coefficients(height: float) -> tuple[float, float]:
+    def height_coefficients(height: float) -> tuple[float, float, float, float, float]:
         """
-        Reuse only the stationary amplitude and phase shift for an unchanged material height.
+        Reuse stationary coefficients and unchanged height offsets without reassociating arithmetic.
         """
         rho = radius - sign * height
         a, b = alpha * rho, -sign * gamma * rho
-        return math.hypot(a, b), math.atan2(b, a)
+        return (
+            rho,
+            math.hypot(a, b),
+            math.atan2(b, a),
+            sign * height * sine,
+            height * cosine,
+        )
 
     def edge_values(
         start: tuple[float, float], end: tuple[float, float], heights: Heights
@@ -70,18 +79,23 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
         if dx != 0:
             parameters.extend([t for cut in (0.0, arc) if 0 < (t := (cut - xi) / dx) < 1])
             low, high = max(0.0, min(xi, end[0]) / radius), min(angle, max(xi, end[0]) / radius)
+        slope_scale = dx / radius if dx != 0 else 0.0
+        transverse_rate = beta * de
+        stationary_rate = -beta * de
         values: list[float] = []
         for height in heights:
             points = list(parameters)
+            rho, amplitude, shift, height_sine, height_cosine = height_coefficients(height)
+            if height == 0.0:
+                height_sine, height_cosine = sign * height * sine, height * cosine
             if dx != 0:
-                amplitude, shift = height_coefficients(height)
-                derivative = (dx / radius) * amplitude
+                derivative = slope_scale * amplitude
                 if amplitude != 0 and (derivative == 0 or not math.isfinite(derivative)):
                     return [math.nan]
-                if not math.isfinite(beta * de):
+                if not math.isfinite(transverse_rate):
                     return [math.nan]
                 if low <= high and derivative != 0:
-                    ratio = -beta * de / derivative
+                    ratio = stationary_rate / derivative
                     # Include an extremum at +/-1 despite last-bit division error.
                     if abs(ratio) <= 1 + 1e-14:
                         phase = math.acos(max(-1.0, min(1.0, ratio)))
@@ -96,10 +110,11 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
                 if along <= 0:
                     x, z = along, height
                 elif along >= arc:
-                    x = radius * sine + (along - arc) * cosine - sign * height * sine
-                    z = sign * radius * (1 - cosine) + sign * (along - arc) * sine + height * cosine
+                    offset = along - arc
+                    x = arc_x + offset * cosine - height_sine
+                    z = arc_z + sign * offset * sine + height_cosine
                 else:
-                    phase, rho = along / radius, radius - sign * height
+                    phase = along / radius
                     x = rho * math.sin(phase)
                     z = sign * (radius - rho * math.cos(phase))
                 values.append(alpha * x + beta * across + gamma * z)

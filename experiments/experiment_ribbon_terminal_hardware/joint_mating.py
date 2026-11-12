@@ -12,6 +12,7 @@ from experiments.experiment_ribbon_fold_route.straight_closure import correction
 
 from .feature_plane import SignedJoints
 from .joint_completion import stalled_certificate_ready
+from .joint_mating_native import at_floor, project
 
 
 def restore(
@@ -32,8 +33,10 @@ def restore(
     later motion once final certification is requested. Coordinates, targets
     and placement must agree exactly. Permanent native pins remain fixed;
     bounds, material identity, native sizes and the original length policy hold.
-    Angles/banks/radii are never changed. No root, zero-face or alternate
-    projection search occurs. Only actual strict mating after recomposition
+    Angles/banks/radii are never changed. An already active native floor selects
+    the existing bounded linear kernel before projection; other poses retain
+    the affine kernel. No root, zero-face or alternate projection attempt follows
+    a decline. Only actual strict mating after recomposition
     supplies restored coordinates; all physical certificates remain separate.
     """
     checkpoint()
@@ -62,19 +65,26 @@ def restore(
         return None
     if ordered_mating_caps(route.pieces, route.targets):
         return values
-    delta = correction(
-        route.pieces,
-        route.targets,
-        tuple(values[i] * model.scale for i in indices),
-        checkpoint,
-        fixed_slots=frozenset(slot for slot, i in enumerate(indices) if i in fixed),
-    )
-    if delta is None:
-        return None
-    proposed = list(values)
-    for index, change in zip(indices, delta):
-        proposed[index] += change / model.scale
-    coordinates = tuple(proposed)
+    if at_floor(model, values, minimum_straight_mm):
+        coordinates = project(
+            route, model, values, checkpoint, minimum_mm=minimum_straight_mm, fixed=fixed
+        )
+        if coordinates is None:
+            return None
+    else:
+        delta = correction(
+            route.pieces,
+            route.targets,
+            tuple(values[i] * model.scale for i in indices),
+            checkpoint,
+            fixed_slots=frozenset(slot for slot, i in enumerate(indices) if i in fixed),
+        )
+        if delta is None:
+            return None
+        proposed = list(values)
+        for index, change in zip(indices, delta):
+            proposed[index] += change / model.scale
+        coordinates = tuple(proposed)
     checkpoint()
     if (
         any(coordinates[i] != values[i] for i in fixed)

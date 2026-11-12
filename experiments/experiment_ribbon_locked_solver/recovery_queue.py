@@ -52,7 +52,9 @@ def recover_failed(
     Use the same existing analytic cap support proof as v2 construction and
     accepted-fallback recovery, without exempting adjacent material interiors.
     With hardware enabled, a strict material return may replace the first
-    separation motion with one contact-interval-selected reversal. It shares
+    separation motion with one boundary-preserving local deviation or
+    contact-interval-selected reversal. A local window must contain both
+    colliders, have straight workspace and retain an outside bend. It shares
     this same allowance, reports invalid-source length as a quality goal and
     follows demonstrated blockers through the shared sequence. It needs both
     physical certificates; primitive adjacency and terminal membership do not

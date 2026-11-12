@@ -139,6 +139,13 @@ def _advance(
 ) -> tuple[list[float], int | None]:
     """
     Stop the one tangent ray at its first independent blocking face; keep all rows in later checks.
+
+    A finite slope no larger than the original1e-14gate cannot block this
+    ray. A positive slope whose candidate fraction cannot improve the current
+    first blocker also needs no two-pass independence calculation. Checkpoints,
+    positive-slope arithmetic, row order and final feasibility stay unchanged.
+    A speculative dot-product overflow or invalid sum is deferred until after
+    the original dependence test: dependent rows previously skipped those products.
     """
     fraction = 1.0
     blocker = None
@@ -146,12 +153,30 @@ def _advance(
         checkpoint()
         if index in active:
             continue
+        slope_error: OverflowError | ValueError | None = None
+        try:
+            slope = dot(row, direction)
+        except (OverflowError, ValueError) as error:
+            slope, slope_error = math.nan, error
+        if math.isfinite(slope) and slope <= 1e-14:
+            continue
+        step_error: OverflowError | ValueError | None = None
+        step = 0.0
+        if slope_error is None and slope > 1e-14:
+            try:
+                step = max(0.0, (right - dot(row, motion)) / slope)
+            except (OverflowError, ValueError) as error:
+                step_error = error
+            if step_error is None and step >= fraction:
+                continue
         independent, _ = _remainder(row, tangent.units)
         if math.hypot(*independent) <= 1e-10:
             continue
-        slope = dot(row, direction)
+        if slope_error is not None:
+            raise slope_error
         if slope > 1e-14:
-            step = max(0.0, (right - dot(row, motion)) / slope)
+            if step_error is not None:
+                raise step_error
             if step < fraction:
                 fraction, blocker = step, index
     return [v + fraction * d for v, d in zip(motion, direction)], blocker

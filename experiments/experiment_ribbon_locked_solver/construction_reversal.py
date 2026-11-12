@@ -1,5 +1,5 @@
 """
-Route measured self-contact returns into one existing incident reversal before local separation.
+Choose one closed local deviation or incident reversal before construction-contact motion.
 """
 
 from __future__ import annotations
@@ -11,12 +11,17 @@ from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_feature_insertion.contact_recovery import Recovery
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_terminal_hardware.adaptive_event_recovery import (
+    recover as recover_adaptive,
+)
 from experiments.experiment_ribbon_terminal_hardware.deviation_sequence import (
     recover as recover_sequence,
 )
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.material_return import select_fold
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+
+from .construction_workspace import closed_return
 
 
 def before_contact_motion(
@@ -30,11 +35,16 @@ def before_contact_motion(
     """
     Replace the first local correction for a witnessed return anywhere in the material chain.
 
-    Select the largest accumulated fold turn inside the actual contact bracket,
-    without requiring adjacent folds or terminal membership. No alternative is tried.
-    Unsupported evidence keeps ordinary separation. Once a supported reflection
+    A closed local workspace containing both colliders and retaining an outer
+    bend selects boundary-preserving event refinement. Otherwise select the
+    largest accumulated fold turn inside the actual contact bracket, without
+    requiring adjacency or terminal membership. Choose before any motion;
+    failure never starts the other strategy.
+    Unsupported evidence keeps ordinary separation. Once a supported action
     is attempted, failure consumes that action; no fresh separation attempt follows.
-    Both caps, radii, other signs and material order stay fixed. The same shared
+    Ordered caps, radius floor, profile and material order stay fixed. Reversal
+    retains the other signs; local refinement constructs a new ordered module.
+    The same shared
     sequence used after spatial deviation follows actual hardware/material
     blockers without renewing work. Invalid-source length is a reported goal;
     full thick self-contact and both hardware certificates remain mandatory.
@@ -52,6 +62,20 @@ def before_contact_motion(
         assert terminal is not None and measurement.witness is not None
         if select_fold(source, measurement.witness) is None:
             return None
+        workspace = closed_return(source, measurement.witness)
+        strategy = recover_adaptive if workspace is not None else recover_sequence
+        purpose = (
+            "construction_local_deviation"
+            if workspace is not None
+            else "construction_loop_reversal"
+        )
+        record(
+            {
+                "stage": "construction_contact_strategy",
+                "strategy": purpose,
+                "window": None if workspace is None else [workspace.begin, workspace.end],
+            }
+        )
         left = work.remaining(
             updates=0,
             pairs=0,
@@ -67,7 +91,7 @@ def before_contact_motion(
                 0.0,
                 {"status": "unresolved", "iterations": 0, "stop_reason": "local_budget"},
             )
-        result = recover_sequence(
+        result = strategy(
             source,
             measurement,
             terminal,
@@ -77,9 +101,11 @@ def before_contact_motion(
             minimum_straight_mm=threshold_mm,
             work=left,
         )
+        if result is None:
+            return None
         detail: dict[str, Any] = {
             **result.detail,
-            "purpose": "construction_loop_reversal",
+            "purpose": purpose,
             "cpu_seconds": process_time() - cpu,
             "elapsed_seconds": perf_counter() - wall,
         }
@@ -87,7 +113,7 @@ def before_contact_motion(
         contact = result.contact
         record(
             {
-                "stage": "construction_loop_reversal",
+                "stage": purpose,
                 "source": snapshot(source),
                 "detail": detail,
             }
@@ -99,9 +125,7 @@ def before_contact_motion(
         ):
             detail.update(status="unresolved", stop_reason="local_budget")
             route, contact = None, None
-            record(
-                {"stage": "construction_loop_reversal", "status": "unresolved", "detail": detail}
-            )
+            record({"stage": purpose, "status": "unresolved", "detail": detail})
         return Recovery(
             route,
             contact,

@@ -31,8 +31,11 @@ def closed_material(
         and (not math.isfinite(length_ceiling_mm) or length > length_ceiling_mm)
     ):
         return False
-    caps, material = cap_error(route), material_error(route)
-    return math.isfinite(caps) and caps <= 1e-7 and math.isfinite(material) and material <= 1e-10
+    caps = cap_error(route)
+    if not math.isfinite(caps) or caps > 1e-7:
+        return False
+    material = material_error(route)
+    return math.isfinite(material) and material <= 1e-10
 
 
 def stalled_certificate_ready(
@@ -44,12 +47,14 @@ def stalled_certificate_ready(
     minimum_straight_mm: float,
 ) -> bool:
     """
-    Permit one unchanged closed shape to request actual proof after accepted motion stalls.
+    Permit one unchanged closed shape to request actual proof after accepted motion.
 
     Finite guidance may remain unsatisfied; only the actual strict certificates
     can resolve that question. The caller must have accepted a correction and
-    declined its ordinary descent or native projection, retain its original allowance and
-    prevent any subsequent motion or constraint insertion in this stage.
+    retained its original allowance and prevented any subsequent motion or
+    constraint insertion in this stage. An angular/reflected owner may request
+    this after ordinary negative discovery at actual material readiness; other
+    owners retain their existing descent/projection decline trigger.
     Native slivers are ineligible: this final request cannot reclose or extend
     them. Absent slots are not material pieces and need no artificial runway.
     """

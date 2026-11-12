@@ -34,9 +34,13 @@ from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProb
 from experiments.experiment_ribbon_fold_route.contact_phase_core import ProfileProbe
 from experiments.experiment_ribbon_fold_route.contact_subdivision import Subdivision
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
-from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
+from experiments.experiment_ribbon_fold_route.mating import (
+    fixed_fold_frames_match,
+    ordered_mating_caps,
+)
 
 from .active_projection import active_step
+from .bank_events import BankEvent, ZeroBanks
 from .cap_completion import ordered_caps_complete
 from .check import Report
 from .contact_addition import Addition, ContactPolicy
@@ -272,6 +276,16 @@ def recover(
     Rejected nonlinear steps use safeguarded quadratic contraction from the
     existing linear prediction and observed merit. Inadmissible trials halve.
     The same four trials and strict nonlinear descent remain mandatory.
+    All four ordinary trials, the original stalled-certificate request and
+    prepared physical-evidence handoffs keep priority. Otherwise a crossed
+    bank-zero change point may use two
+    remaining Newton slots: one debits the four failed ordinary trials, and one
+    debits a single change-point measurement, without another linear solve.
+    No root, logical update, global trial-work or clock allowance is renewed.
+    At exact bank zeros only,
+    measured endpoint merit selects one matching derivative/projector side;
+    nonzero bank signs remain free. A declined projection never tries another
+    side, and all final physical and native-size gates remain unchanged.
     Reflected/coupled angular restoration permits only already-positive guidance
     terms to trade below a strictly decreasing maximum residual. Satisfied linear
     guidance stays strict; final material, cap and physical gates are unchanged.
@@ -312,6 +326,13 @@ def recover(
     finite optimization guidance need not be a clearance proof. This request
     never resumes motion or inserts constraints; all original final contracts,
     actual certificates, handoff evidence and remaining clocks/pairs still apply.
+    After accepted angular/reflected motion, ordinary negative discovery retains
+    priority. If it supplies no new constraint, actual native/material readiness
+    with straight-correctable terminal frames may request that same final proof
+    before microscopic guidance descent spends
+    the remaining clock. Finite guidance alone cannot accept geometry. The once-only
+    request prevents subsequent motion in this stage; original strict-witness
+    callbacks may still hand off under the unchanged remaining allocation.
     """
     if not isinstance(mode, (JointMode, IncidentGuidance, MaterialGuidance, ContactGuidance)):
         raise ValueError("Supply an explicit joint recovery mode")
@@ -731,7 +752,7 @@ def recover(
 
     def request_final(original_stop: str) -> bool:
         """
-        Request original physical proof once after motion stalls on native-ready closed material.
+        Request original physical proof once for native-ready material after accepted motion.
         """
         nonlocal stalled_certificate_requests
         if newton == 0 or stalled_certificate_requests:
@@ -966,6 +987,14 @@ def recover(
                             stop = "new_material_return"
                             break
                     continue
+            if (
+                not caps_complete
+                and (reflected or coupled_contact)
+                and not straight_contact
+                and fixed_fold_frames_match(candidate.pieces, candidate.targets)
+                and request_final("material_ready")
+            ):
+                continue
             if caps_complete:
                 if not closed_material(
                     candidate,
@@ -1166,8 +1195,20 @@ def recover(
             if newton >= newton_limit:
                 stop = "joint_update_limit"
                 break
+            zero_banks = (
+                ZeroBanks.at(model, values, merit, admissible, bounded)
+                if (reflected or coupled_contact) and not straight_contact
+                else None
+            )
+            linear_model = model if zero_banks is None else zero_banks
+            if zero_banks is not None:
+                emit(
+                    "bank_zero_linearization",
+                    positive=sorted(zero_banks.positive),
+                    negative=sorted(zero_banks.negative),
+                )
             jacobian = joint_jacobian(
-                model,
+                linear_model,
                 values,
                 equations,
                 len(terms),
@@ -1187,7 +1228,7 @@ def recover(
                 )
                 else project
             )
-            delta = project_step(model, values, jacobian, terms, bounded)
+            delta = project_step(linear_model, values, jacobian, terms, bounded)
             initial_hardware_motion = (
                 adaptive_hardware
                 and straight_contact
@@ -1295,7 +1336,7 @@ def recover(
                     and any(values[index] + delta[index] > 0 for index in native_candidates)
                 ):
                     native_domain = bind_native_slots(
-                        model,
+                        linear_model,
                         values,
                         frozenset(native_candidates),
                         delta,
@@ -1329,7 +1370,7 @@ def recover(
                     for row in jacobian
                 ]
                 if native_domain is None:
-                    delta = project_step(model, values, jacobian, terms, bounded)
+                    delta = project_step(linear_model, values, jacobian, terms, bounded)
                 elif straight_contact:
                     delta = active_step(native_domain, values, jacobian, terms, bounded)
                 else:
@@ -1360,6 +1401,16 @@ def recover(
             if native_pins:
                 delta = tuple(0.0 if i in native_pins else change for i, change in enumerate(delta))
             fraction = step_limit(model, values, delta, 1.0)
+            bank_event = (
+                BankEvent.first(
+                    values,
+                    delta,
+                    (i for i, full in enumerate(model.indices) if full % 4 == 2),
+                    fraction,
+                )
+                if (reflected or coupled_contact) and not straight_contact
+                else None
+            )
             predicted = tuple(
                 term + math.fsum(a * b for a, b in zip(row, delta))
                 for row, term in zip(jacobian, terms)
@@ -1369,10 +1420,18 @@ def recover(
                 + tuple(max(0.0, term) for term in predicted[6:])
             )
             predicted_change = linear_error - error
+            last_trial_fraction = fraction
             for _ in range(4):
                 bounded()
                 motion_attempted = True
+                last_trial_fraction = fraction
                 trial = advance(model, values, delta, fraction)
+                if bank_event is not None:
+                    trial = bank_event.coordinates(trial, fraction)
+                    if fraction == bank_event.fraction:
+                        emit(
+                            "bank_event_trial", fraction=fraction, banks=sorted(bank_event.indices)
+                        )
                 trial_error = merit(trial) if admissible(trial) else None
                 if trial_error is not None and trial_error < error:
                     values, newton = trial, newton + 1
@@ -1382,7 +1441,40 @@ def recover(
                 stop = "joint_no_descent"
                 if request_final(stop):
                     continue
-                break
+                event_accepted = False
+                if (
+                    bank_event is not None
+                    and bank_event.fraction < last_trial_fraction
+                    and newton + 2 <= newton_limit
+                    and not (
+                        on_blocked is not None
+                        and flat_continuation is not None
+                        and flat_continuation.unchanged(values, candidate)
+                    )
+                    and not (
+                        on_restoration_blocked is not None
+                        and restoration_witness is not None
+                        and restoration_witness[0] == values
+                    )
+                ):
+                    bounded()
+                    newton += 2
+                    emit(
+                        "bank_event_restoration_debit",
+                        newton_steps=newton,
+                        failed_correction_slots=1,
+                        event_correction_slots=1,
+                        fraction=bank_event.fraction,
+                        banks=sorted(bank_event.indices),
+                    )
+                    trial = bank_event.coordinates(
+                        advance(model, values, delta, bank_event.fraction), bank_event.fraction
+                    )
+                    trial_error = merit(trial) if admissible(trial) else None
+                    if trial_error is not None and trial_error < error:
+                        values, event_accepted = trial, True
+                if not event_accepted:
+                    break
             emit("update", newton=newton, values=values, residual=equations(values))
         if (
             on_blocked is not None
