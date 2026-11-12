@@ -100,7 +100,7 @@ def test_malformed_native_dimensions_cannot_create_a_motion_domain(
 
 
 @pytest.mark.parametrize("positive", (False, True))
-def test_existing_second_projection_activates_positive_slivers_and_freezes_zero_directions(
+def test_existing_second_projection_activates_positive_slivers_and_freezes_outward_directions(
     monkeypatch: pytest.MonkeyPatch, positive: bool
 ) -> None:
     """
@@ -126,7 +126,7 @@ def test_existing_second_projection_activates_positive_slivers_and_freezes_zero_
         if len(calls) == 1:
             assert isinstance(model, SignedJoints) and values[0] == 0.0
             return tuple(
-                5e-6 / model.scale if index == 0 and positive else 0.0
+                (5e-6 if positive else -1e-20) / model.scale if index == 0 else 0.0
                 for index in range(len(values))
             )
         assert len(calls) == 2

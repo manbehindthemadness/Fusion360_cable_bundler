@@ -4,6 +4,7 @@ Rebind actual hardware guidance to a larger signed-joint domain before any corre
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable
 
@@ -14,6 +15,31 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from .feature_guidance import ContactGuidance, ContactMotion, member_planes
 from .feature_plane import FeaturePlane, SignedJoints
 from .model import Hardware
+
+
+def straight_growth_requires_angles(
+    model: SignedJoints, delta: tuple[float, ...], length_goal_mm: float
+) -> bool:
+    """
+    Enable angular mobility before a straight proposal grows beyond both source length and goal.
+
+    Fixed-bend material length is affine in the normalized straight coordinates,
+    so this decision needs no geometry trial or new projection. Preserve useful
+    inherited length slack and ignore the existing1e-7mm numerical margin. This
+    selects a coordinate domain only: neither angular growth nor a final route
+    above the quality goal becomes a physical rejection. The caller must limit
+    the decision to initial hardware-only preparation before any motion trial.
+    """
+    if (
+        any(index % 4 for index in model.indices)
+        or len(delta) != len(model.initial)
+        or not math.isfinite(length_goal_mm)
+        or any(not math.isfinite(change) for change in delta)
+    ):
+        raise ValueError("Use a complete finite fixed-bend straight projection and length goal")
+    source_length = model.original.material_length_mm
+    proposed_length = source_length + model.scale * math.fsum(delta)
+    return proposed_length > max(source_length, length_goal_mm) + 1e-7
 
 
 @dataclass(frozen=True)
@@ -36,7 +62,8 @@ def expand(
     """
     Prepare angular/straight mobility at the identical closed material shape without executing a step.
 
-    The caller must first receive no admissible initial straight-projection step,
+    The caller must first receive no admissible initial straight-projection step
+    or determine that it grows beyond both source length and the inherited goal,
     preserve its original clocks/counters and replace model-bound caches. Every
     fold sign/radius/profile and ordered cap remains authoritative. Rebinding
     guidance neither measures clearance nor grants another motion allowance.

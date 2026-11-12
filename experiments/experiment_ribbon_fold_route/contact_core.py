@@ -15,6 +15,19 @@ from .geometry import FoldRoute, PlacedPiece
 from .straight_witness import straight_pair
 
 
+def core_dimensions(lines: int, diameter: float) -> tuple[float, float]:
+    """
+    Return nominal half-width and uniform joined-profile valley half-height.
+
+    These dimensions describe the common rectangular material core, excluding
+    side extensions and lobe bulges. They support negative witness proposals,
+    never a clearance envelope. Require positive finite profile dimensions.
+    """
+    if type(lines) is not int or lines < 1 or not math.isfinite(diameter) or diameter <= 0:
+        raise ValueError("Use positive conductor count and finite diameter")
+    return lines * diameter / 2, 0.3 * diameter
+
+
 def core_witness(route: FoldRoute, first: int, second: int) -> Penetration | None:
     """
     Verify the intersection centroid of two straight joined-profile cores in both actual inverse maps.
@@ -29,8 +42,7 @@ def core_witness(route: FoldRoute, first: int, second: int) -> Penetration | Non
     pieces = straight_pair(route, first, second)
     if pieces is None:
         return None
-    half_width = route.targets.lines * route.targets.diameter_mm / 2
-    half_height = 0.3 * route.targets.diameter_mm
+    half_width, half_height = core_dimensions(route.targets.lines, route.targets.diameter_mm)
     vertices = _vertices(*pieces, half_width, half_height)
     vertices.extend(_vertices(*reversed(pieces), half_width, half_height))
     if not vertices:

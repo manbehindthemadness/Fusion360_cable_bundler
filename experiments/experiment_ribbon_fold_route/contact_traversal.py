@@ -8,7 +8,10 @@ from functools import partial
 from typing import Callable, Generator
 
 from .contact import ContactResult, ProbeOrder, ProjectionReuse, WitnessProbe, _walk
+from .contact_affine_witness import AffineWitnesses
+from .contact_axes import ProposedAxes
 from .contact_cap_support import CapPolicy
+from .contact_subdivision import Subdivision
 from .geometry import FoldRoute
 
 
@@ -26,6 +29,7 @@ class ContactTraversal:
     Exceptions permanently close this traversal; callers cannot retry cancelled
     work or recover uncharged partial comparisons. The owner must conservatively
     charge its active allowance when a check is interrupted.
+    The selected subdivision policy remains fixed across every suspension.
     """
 
     def __init__(
@@ -39,6 +43,9 @@ class ContactTraversal:
         projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
         witness_probe: WitnessProbe | None = None,
         probe_order: ProbeOrder = ProbeOrder.MATERIAL_CELLS,
+        proposed_axes: ProposedAxes | None = None,
+        affine_witnesses: AffineWitnesses | None = None,
+        subdivision: Subdivision = Subdivision.MIDPOINT,
     ) -> None:
         """
         Seal the source, policy and total allowance before any material comparison.
@@ -56,6 +63,9 @@ class ContactTraversal:
             witness_probe=witness_probe,
             probe_order=probe_order,
             projection_reuse=projection_reuse,
+            proposed_axes=proposed_axes,
+            affine_witnesses=affine_witnesses,
+            subdivision=subdivision,
         )
         self._pending: Generator[ContactResult, int, ContactResult] | None = None
         self._result: ContactResult | None = None

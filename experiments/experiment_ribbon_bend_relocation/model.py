@@ -62,8 +62,14 @@ class MovableBends(FlexibleModel):
 
     def expanded(self, values: tuple[float, ...]) -> tuple[float, ...]:
         """
-        Reinsert the immutable initial radius coordinates for the shared model.
+        Reinsert immutable radius coordinates only for a complete movable-coordinate vector.
+
+        Missing or extra coordinates cannot be guessed from the initial state
+        or discarded by zip. This guards placement and length-gradient callers
+        before their existing material arithmetic; valid full vectors are unchanged.
         """
+        if len(values) != len(self.indices):
+            raise ValueError("Supply complete movable-bend coordinates")
         result = list(self.full.initial)
         for index, value in zip(self.indices, values):
             result[index] = value

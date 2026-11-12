@@ -345,14 +345,18 @@ def test_reclosed_deviation_is_checked_and_only_unused_work_can_continue(
         maximum_straight_mm: float,
         checkpoint: Callable[[], None],
         record: Callable[[dict[str, Any]], None],
+        *,
+        maximum_steps: int,
     ) -> Any:
         """
         Model four accepted closure corrections while retaining a real closed route for contract checks.
         """
         assert attempted == (chain,) and maximum_straight_mm > 0 and threshold_mm == 1e-5
         assert boundary.targets is source.targets
+        assert maximum_steps == 4
         checkpoint()
         for _ in range(4):
+            record({"stage": "feature_reclosure_step", "status": "started"})
             record({"stage": "feature_reclosure", "status": "residual_reduced"})
         return SimpleNamespace(route=changed, score=0.0, chain=chain)
 
@@ -387,6 +391,7 @@ def test_reclosed_deviation_is_checked_and_only_unused_work_can_continue(
         left = refinement.call_args.kwargs["work"]
         assert left.updates == maximum_updates - 1 and left.pairs == 106
         assert left.cpu_seconds < 0.35 and left.wall_seconds < 2
+        assert left.newton_steps == 20
 
 
 def test_final_certificate_cannot_escape_total_phase_clock(

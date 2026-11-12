@@ -292,7 +292,7 @@ def test_unresolved_work_geometry_can_finish_before_strict_final_acceptance(
     result = solver_v2.solve(
         first.targets, Settings(1, False, False, True), lambda: None, lambda e: None
     )
-    assert "terminal" not in constructor.call_args.kwargs
+    assert constructor.call_args.kwargs["terminal"] is None
     assert (result.route is final) is final_clear
     assert result.first_pass is first
     assert result.inspection_route is (None if final_clear else final)

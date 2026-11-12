@@ -74,7 +74,7 @@ def _cone(epsilon: float) -> Model:
         source=SimpleNamespace(targets=replace(_targets(), end=Vector3(0, 1, 0), diameter_mm=1.0)),
     )
     columns = ((1, 0, 0), (0, 0, 0), (-1, epsilon, 0), (0, 0, 0), (0, -1, 0))
-    model.equations.return_value = columns, (0, 1, 0)
+    model.straight_equations.return_value = columns[::2], (0, 1, 0)
 
     def endpoint(values: tuple[float, ...]) -> Pose:
         """

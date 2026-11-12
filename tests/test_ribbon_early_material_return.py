@@ -9,17 +9,53 @@ from unittest.mock import Mock
 
 import pytest
 
+from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_terminal_hardware import joint_contact
-from experiments.experiment_ribbon_terminal_hardware.feature_guidance import MaterialGuidance
+from experiments.experiment_ribbon_terminal_hardware.check import inspect
+from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
+    ContactGuidance,
+    ContactMotion,
+    MaterialGuidance,
+)
 from experiments.experiment_ribbon_terminal_hardware.material_return_selection import (
     UnreflectedReturns,
     select_fold,
 )
+from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from experiments.experiment_ribbon_terminal_hardware.restoration_handoff import RestorationHandoff
 from tests.test_ribbon_contact_refinement import _gate
 from tests.test_ribbon_material_return import _witness
 from tests.test_ribbon_restoration_handoff import _contact, _Equations, _source
+
+
+def _assert_transfer_outcome(
+    result: Result | None,
+    outcome: str,
+    straight_only: bool,
+    project: Mock,
+    yielded: list[RestorationHandoff],
+    events: list[dict[str, Any]],
+    selected: int,
+) -> None:
+    """
+    Check transfer identity, original work and stop disposition at the controlled algebra boundary.
+    """
+    assert result is not None and result.contact is None
+    if outcome == "early" and not straight_only:
+        assert project.call_count == 1 and len(yielded) == 1
+        assert yielded[0].stop_reason == "new_material_return"
+        assert result.detail["newton_steps"] == 1
+        assert result.detail["restoration_handoff_inverse_checks"] == 2
+        prepared = next(e for e in events if e["status"] == "material_restoration_prepared")
+        assert prepared["next_fold"] == selected
+    elif outcome in ("budget", "late"):
+        assert not yielded and result.detail["stop_reason"] == "phase_budget"
+    elif outcome == "miss":
+        assert not yielded and result.detail["stop_reason"] == "linear_projection_infeasible"
+    else:
+        assert project.call_count == 2 and len(yielded) == 1
+        assert yielded[0].stop_reason == "linear_projection_infeasible"
 
 
 def test_return_policy_uses_actual_interval_and_never_reverses_a_previous_fold() -> None:
@@ -40,8 +76,11 @@ def test_return_policy_uses_actual_interval_and_never_reverses_a_previous_fold()
 @pytest.mark.parametrize(
     "outcome", ("early", "default", "repeated", "last_update", "miss", "budget", "late", "cancel")
 )
+@pytest.mark.parametrize(
+    ("angular_contact", "straight_only"), ((False, False), (True, False), (True, True))
+)
 def test_real_joint_transfers_before_another_projection_only_when_new_return_is_available(
-    monkeypatch: pytest.MonkeyPatch, outcome: str
+    monkeypatch: pytest.MonkeyPatch, outcome: str, angular_contact: bool, straight_only: bool
 ) -> None:
     """
     Actual placement and negative evidence drive transfer; only algebraic outcomes and clocks are controlled.
@@ -67,6 +106,7 @@ def test_real_joint_transfers_before_another_projection_only_when_new_return_is_
     replacements = {
         "JointEvaluation": Mock(return_value=_Equations()),
         "redistributed_step": projection,
+        "shortest_run_step": projection,
         "joint_jacobian": lambda model, values, *args, **kwargs: [
             [0.0] * len(values) for _ in range(7)
         ],
@@ -115,7 +155,7 @@ def test_real_joint_transfers_before_another_projection_only_when_new_return_is_
         """
         return joint_contact.recover(
             source,
-            _witness(6, 8),
+            ContactResult("penetration", 0, _witness(6, 8)) if angular_contact else _witness(6, 8),
             _gate(source),
             checkpoint,
             record,
@@ -125,7 +165,11 @@ def test_real_joint_transfers_before_another_projection_only_when_new_return_is_
             maximum_cpu_seconds=0.35,
             maximum_seconds=2,
             maximum_updates=1 if outcome == "last_update" else 4,
-            mode=MaterialGuidance(3),
+            mode=ContactGuidance(
+                motion=ContactMotion.STRAIGHT_SLOTS if straight_only else ContactMotion.BEND_JOINTS
+            )
+            if angular_contact
+            else MaterialGuidance(3),
             on_restoration_blocked=yielded.append,
             early_material_return=policy,
         )
@@ -136,25 +180,13 @@ def test_real_joint_transfers_before_another_projection_only_when_new_return_is_
         assert not yielded
         return
     result = run()
-    assert result is not None and result.contact is None
-    if outcome == "early":
-        assert project.call_count == 1 and len(yielded) == 1
-        assert yielded[0].stop_reason == "new_material_return"
-        assert result.detail["newton_steps"] == 1
-        assert result.detail["restoration_handoff_inverse_checks"] == 2
-        prepared = next(e for e in events if e["status"] == "material_restoration_prepared")
-        assert prepared["next_fold"] == selected
-    elif outcome in ("budget", "late"):
-        assert not yielded and result.detail["stop_reason"] == "phase_budget"
-    elif outcome == "miss":
-        assert not yielded and result.detail["stop_reason"] == "linear_projection_infeasible"
-    else:
-        assert project.call_count == 2 and len(yielded) == 1
-        assert yielded[0].stop_reason == "linear_projection_infeasible"
+    _assert_transfer_outcome(result, outcome, straight_only, project, yielded, events, selected)
 
 
+@pytest.mark.parametrize("hardware_start", (False, True))
 def test_sequence_passes_frozen_return_history_and_debits_the_first_stage(
     monkeypatch: pytest.MonkeyPatch,
+    hardware_start: bool,
 ) -> None:
     """
     A new return keeps prior signs and uses only the original allowance left after evidence preparation.
@@ -169,6 +201,11 @@ def test_sequence_passes_frozen_return_history_and_debits_the_first_stage(
     assert contact.witness is not None
     selected = select_fold(source, contact.witness)
     assert selected is not None
+    terminal = sequence_gate(source)
+    terminal.hardware = Hardware.create(source.targets, Dimensions(1000, 1000, 1000))
+    hardware = inspect(source, terminal.hardware)
+    assert hardware.status == "blocked" and hardware.witness is not None
+    initial_reflected = frozenset() if hardware_start else frozenset({3})
     clock = [0.0]
     for name in ("process_time", "perf_counter"):
         monkeypatch.setitem(vars(deviation_sequence), name, lambda: clock[0])
@@ -180,17 +217,24 @@ def test_sequence_passes_frozen_return_history_and_debits_the_first_stage(
         """
         seen.append(options)
         assert route is source
-        assert isinstance(options["mode"], MaterialGuidance)
         if len(seen) == 1:
-            assert options["mode"].selected_fold == 3
-            assert options["early_material_return"].reflected_folds == frozenset({3})
+            if hardware_start:
+                assert isinstance(options["mode"], ContactGuidance)
+                assert options["mode"].evidence[0].report is hardware
+            else:
+                assert isinstance(options["mode"], MaterialGuidance)
+                assert options["mode"].selected_fold == 3
+            assert options["early_material_return"].reflected_folds == initial_reflected
             options["on_restoration_blocked"](
                 RestorationHandoff(route, contact, "new_material_return")
             )
             clock[0] = 0.02
             return _result(route, newton=1, pairs=7)
+        assert isinstance(options["mode"], MaterialGuidance)
         assert options["mode"].selected_fold == selected
-        assert options["early_material_return"].reflected_folds == frozenset({3, selected})
+        assert options["early_material_return"].reflected_folds == initial_reflected | {selected}
+        if hardware_start:
+            assert options["mode"].evidence[0].report is hardware
         assert options["maximum_updates"] == 3 and options["remaining_pairs"] == 93
         assert options["maximum_cpu_seconds"] == pytest.approx(0.33)
         assert options["maximum_seconds"] == pytest.approx(1.98)
@@ -199,8 +243,8 @@ def test_sequence_passes_frozen_return_history_and_debits_the_first_stage(
     monkeypatch.setitem(vars(deviation_sequence), "recover_joints", stage)
     result = deviation_sequence.recover(
         source,
-        ContactResult("penetration", 0, _witness(6, 8)),
-        sequence_gate(source),
+        hardware if hardware_start else ContactResult("penetration", 0, _witness(6, 8)),
+        terminal,
         lambda: None,
         lambda event: None,
         work=Work(4, 100, 0.35, 2),
@@ -208,6 +252,6 @@ def test_sequence_passes_frozen_return_history_and_debits_the_first_stage(
         minimum_straight_mm=1e-5,
     )
     assert len(seen) == 2 and result.contact is None
-    assert result.detail["reflected_folds"] == sorted({3, selected})
+    assert result.detail["reflected_folds"] == sorted(initial_reflected | {selected})
     assert result.detail["iterations"] == 2 and result.detail["newton_steps"] == 2
     assert result.detail["contact_pairs"] == 12

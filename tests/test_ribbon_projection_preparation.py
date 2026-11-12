@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from cable_bundler.routing.geometry import Vector3, unit
+from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_fold_route import contact_bounds
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, prepare_projection
@@ -116,3 +116,56 @@ def test_prepared_extrema_preserve_nonfinite_decline(
     fold = CylindricalFold(1, 1.2, 0, 4, 2, 2)
     evaluate = prepare_extrema(fold, *coefficients)
     assert evaluate(((-1, -1), (3, -1), (3, 1), (-1, 1)), (-0.5, 0.5)) is None
+
+
+@pytest.mark.parametrize("after", (False, True))
+@pytest.mark.parametrize("sign", (-1, 1))
+def test_strict_plane_extrema_enclose_actual_material(after: bool, sign: int) -> None:
+    """
+    Retain actual corner occupancy in the unchanged complete edge-extrema enclosure.
+    """
+    fold = CylindricalFold(1, sign * 1.2, 0, 4, 5, 5)
+    low, high = (2.0, 4.0) if after else (-3.0, -1.0)
+    corners = ((low, -1.0), (high, -1.0), (high, 1.0), (low, 1.0))
+    coefficients = (0.7, -0.2, 0.3)
+    evaluate = prepare_extrema(fold, *coefficients)
+    bound = evaluate(corners, (-0.5, 0.5))
+    assert bound is not None
+    for xi, eta in corners:
+        u = (xi + fold.before_mm) / fold.material_length_mm
+        center, velocity, width, _ = fold.surface(u, eta)
+        normal = unit(cross(velocity, width))
+        for height in (-0.5, 0.5):
+            point = center.translated(normal, height)
+            actual = (
+                coefficients[0] * (point.x - fold.before_mm)
+                + coefficients[1] * point.y
+                + coefficients[2] * point.z
+            )
+            assert bound[0] - 1e-13 <= actual <= bound[1] + 1e-13
+
+
+@pytest.mark.parametrize("after", (False, True))
+@pytest.mark.parametrize(
+    "coefficients", ((math.inf, 1.0, 1.0), (1.0, math.inf, 1.0), (1.0, 1.0, math.inf))
+)
+def test_strict_plane_edges_keep_original_nonfinite_decline(
+    after: bool, coefficients: tuple[float, float, float]
+) -> None:
+    """
+    Flat edges retain the original finite-arithmetic fallback.
+    """
+    low, high = (2.0, 4.0) if after else (-3.0, -1.0)
+    corners = ((low, -1.0), (high, -1.0), (high, 1.0), (low, 1.0))
+    evaluate = prepare_extrema(CylindricalFold(1, 1.2, 0, 4, 5, 5), *coefficients)
+    assert evaluate(corners, (-0.5, 0.5)) is None
+
+
+def test_strict_plane_edges_keep_original_stationary_derivative_underflow_decline() -> None:
+    """
+    Preserve an existing fallback even when its amplitude guard concerns an unvisited curved phase.
+    """
+    fold = CylindricalFold(1e200, 1.2, 0, 4, 5, 5)
+    evaluate = prepare_extrema(fold, 1.0, 0.0, 0.0)
+    corners = ((-2e-200, -1.0), (-1e-200, -1.0), (-1e-200, 1.0), (-2e-200, 1.0))
+    assert evaluate(corners, (-0.5, 0.5)) is None

@@ -327,3 +327,24 @@ Numerical geometry/results were unchanged. No new instrument probe or original
 endpoint solve occurred. One tuned layout and several recorded development
 failures are not fresh validation or automatic-sequence success; see the frozen
 1781..1789plans/dispositions. Native full physical/interference audits are absent.
+
+## Host callback completion and retained geometry — 2026-11-12
+
+A callback that creates Fusion geometry must finish before independent reporting
+or boundary measurement can be treated as a separate completed operation. During
+selected native qualification2260, construction and named fidelity succeeded,
+but an uncaught reporting error was followed by loss of the new component and
+an invalid native-owner handle. Preserve those receipts; a screenshot or success
+row does not prove that geometry is still retained.2261checked actual ownership.
+
+Use a fail-soft error-recording boundary around diagnostic transport, then return
+the creation callback. Measure later in a separate callback after checking the
+same document, ownership tokens, body revision, original source and idle state.
+Inspect disposition files even when the transport returns success: caught errors
+must remain visibly failed or incomplete.2262/2263validated this separation on
+one replacement body; no automatic rebuild or instrument probe was implied.
+
+The gym handoff.validate function returns a detached validated payload dict.
+Create a Scene from Config and both Goals for APIs that require Scene; do not
+pass the dict as though it exposed scene.config. These are integration safeguards,
+not geometry acceptance, native construction permission or new experiment scope.

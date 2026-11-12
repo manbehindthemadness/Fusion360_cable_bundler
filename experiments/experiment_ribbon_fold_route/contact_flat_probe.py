@@ -13,7 +13,7 @@ from cable_bundler.routing.geometry import Vector3
 
 from .contact import Penetration, ProbeResult
 from .contact_convex import Triple, dot, overlap_point, scaled, subtract, triple
-from .contact_flat_geometry import FlatPhase, Shape, profile_arcs, shapes
+from .contact_flat_geometry import FlatPhase, FlatShapes, Shape, profile_arcs, shapes
 from .contact_inverse import occupied_coordinates
 from .geometry import FoldRoute
 
@@ -34,6 +34,19 @@ class FlatProbe:
     supports: int = 0
     inverse_tests: int = 0
     skipped_phase_pairs: int = 0
+
+    @cached_property
+    def _shapes(self) -> FlatShapes:
+        """
+        Keep one bounded pure preparation context without changing serialized numerical counters.
+        """
+        return FlatShapes(shapes)
+
+    def shape_preparations(self) -> dict[str, int]:
+        """
+        Expose context-local preparation counts separately from support/probe/acceptance receipts.
+        """
+        return self._shapes.statistics()
 
     def __call__(
         self,
@@ -57,6 +70,9 @@ class FlatProbe:
         Per-call exclusions omit only named phase pairs from this negative probe,
         before any hull support work. They never persist into another call or
         change the caller's complete material interval certificate.
+        Exact unchanged member/profile shapes share one bounded preparation
+        context. Fresh hulls still charge every original support query, including
+        their six broad-phase bounds, on every call. No probe result is reused.
         """
         if type(remaining_pairs) is not int or remaining_pairs < 0:
             raise ValueError("Supply nonnegative remaining contact work")
@@ -116,11 +132,15 @@ class FlatProbe:
             )
 
         try:
+            if checkpoint is not None:
+                checkpoint()
             arcs = profile_arcs(route.targets.lines, route.targets.diameter_mm)
             hulls = []
             for piece_index in (first, second):
+                if checkpoint is not None:
+                    checkpoint()
                 groups: dict[FlatPhase, list[Shape]] = {}
-                for shape in shapes(route.pieces[piece_index], arcs):
+                for shape in self._shapes(route.pieces[piece_index], arcs):
                     groups.setdefault(shape.placement.phase, []).append(shape)
                 hulls.append([_Hull(tuple(members), query) for members in groups.values()])
             for a in hulls[0]:

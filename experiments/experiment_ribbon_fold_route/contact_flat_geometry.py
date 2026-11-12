@@ -7,6 +7,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
+from typing import Callable
 
 from cable_bundler.routing.geometry import cross
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
@@ -151,6 +153,40 @@ def region(piece: PlacedPiece, phase: FlatPhase, low_q: float, high_q: float) ->
     )
 
 
+class FlatRegions:
+    """
+    Own one bounded exact preparation context with observable reuse, never physical acceptance.
+    """
+
+    def __init__(
+        self, prepare: Callable[[PlacedPiece, FlatPhase, float, float], FlatRegion] = region
+    ) -> None:
+        """
+        Retain at most64immutable piece/phase/profile preparations for this context alone.
+        """
+        self._prepared = lru_cache(maxsize=64)(prepare)
+
+    def __call__(
+        self, piece: PlacedPiece, phase: FlatPhase, low_q: float, high_q: float
+    ) -> FlatRegion:
+        """
+        Return the original exact region or propagate its failure without caching an exception.
+        """
+        return self._prepared(piece, phase, low_q, high_q)
+
+    def statistics(self) -> dict[str, int]:
+        """
+        Report actual cache reuse and retained size, independently of geometry or solve outcomes.
+        """
+        info = self._prepared.cache_info()
+        return {
+            "hits": info.hits,
+            "preparations": info.misses,
+            "retained": info.currsize,
+            "capacity": 64,
+        }
+
+
 @dataclass(frozen=True)
 class Shape:
     """
@@ -231,3 +267,40 @@ def shapes(piece: PlacedPiece, arcs: tuple[ProfileArc, ...]) -> tuple[Shape, ...
                 )
                 result.append(Shape(placement, arc))
     return tuple(result)
+
+
+class FlatShapes:
+    """
+    Reuse at most 64 exact immutable member/profile preparations within one negative probe context.
+
+    Keys include the complete placement, material geometry and ordered profile
+    arcs. No hull, support query, witness, direction or clearance result is
+    retained. Changed geometry must prepare again; eviction loses only reuse.
+    """
+
+    def __init__(
+        self,
+        prepare: Callable[[PlacedPiece, tuple[ProfileArc, ...]], tuple[Shape, ...]] = shapes,
+    ) -> None:
+        """
+        Own bounded exact preparation reuse independently of all other probes and models.
+        """
+        self._prepared = lru_cache(maxsize=64)(prepare)
+
+    def __call__(self, piece: PlacedPiece, arcs: tuple[ProfileArc, ...]) -> tuple[Shape, ...]:
+        """
+        Return the unchanged prepared shapes or propagate an uncached preparation failure.
+        """
+        return self._prepared(piece, arcs)
+
+    def statistics(self) -> dict[str, int]:
+        """
+        Report exact preparation work and bounded retention, never geometric acceptance.
+        """
+        info = self._prepared.cache_info()
+        return {
+            "hits": info.hits,
+            "preparations": info.misses,
+            "retained": info.currsize,
+            "capacity": 64,
+        }

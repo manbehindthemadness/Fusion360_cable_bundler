@@ -19,6 +19,8 @@ class TerminalAllowance:
     updates: int
     cpu_seconds: float
     wall_seconds: float
+    newton_steps: int = 0
+    used_newton_steps: int | None = None
 
 
 def defer_unentered(
@@ -43,6 +45,10 @@ def defer_unentered(
         raise ValueError("Preparation accounting must be finite and nonnegative")
     if prior is not None and (
         prior.get("status") != "deferred"
+        or (
+            prior.get("newton_steps") is not None
+            and (type(prior["newton_steps"]) is not int or prior["newton_steps"] != 0)
+        )
         or any(
             type(prior.get(key)) is not int or prior[key] != 0
             for key in ("iterations", "contacts", "pairs")
@@ -61,6 +67,7 @@ def defer_unentered(
         "iterations": 0,
         "contacts": 0,
         "pairs": 0,
+        "newton_steps": 0,
         "cpu_seconds": previous_cpu + preparation_cpu,
         "elapsed_seconds": elapsed_seconds,
         "contraction_selection_only": True,
@@ -98,5 +105,18 @@ def remaining_completed(
         or not 0 <= cast(int, pairs) <= 2048
     ):
         return None
+    raw_newton = detail.get("newton_steps")
+    if raw_newton is not None and (
+        type(raw_newton) is not int or not 0 <= cast(int, raw_newton) <= min(24, 6 * updates)
+    ):
+        return None
+    used_newton = cast(int, raw_newton) if raw_newton is not None else None
+    if detail.get("newton_steps_scope") not in (None, "whole_recovery"):
+        used_newton = None
+    left_newton = min(24 - used_newton, 6 * (4 - updates)) if used_newton is not None else 0
     wall = min(first_pass_remaining, 2.0 - (perf_counter() - started))
-    return TerminalAllowance(4 - updates, 0.35 - cpu, wall) if wall > 0 else None
+    return (
+        TerminalAllowance(4 - updates, 0.35 - cpu, wall, left_newton, used_newton)
+        if wall > 0
+        else None
+    )

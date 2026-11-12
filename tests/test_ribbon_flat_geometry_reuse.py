@@ -70,8 +70,8 @@ def test_suffix_probes_reuse_only_the_unchanged_actual_material_members(
         for delta in (-1e-5, 1e-5)
     ]
     expected = [_raw(bound, probe, side) for probe in probes]
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     assert [bound.gap(probe, side) for probe in probes] == expected
     assert projected.call_count == 2
 
@@ -97,8 +97,8 @@ def test_entire_cap_and_material_derivative_matrix_stays_exact_with_less_project
         """
         return model.residual(values) + tuple(bound.gap(values, side) for side in Side)
 
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     expected = jacobian(
         model, model.initial, raw, 8, frozenset(), lambda: None, admissible=model.admissible
     )
@@ -123,8 +123,8 @@ def test_changed_placement_or_material_requires_new_exact_region_bounds(
     changed = values[:index] + (values[index] + 1e-5,) + values[index + 1 :]
     expected = _raw(bound, changed, Side.BEFORE)
     bound.gap(values, Side.BEFORE)
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     assert bound.gap(changed, Side.BEFORE) == expected
     assert projected.call_count == (2 if index == 0 else 1)
 
@@ -145,8 +145,8 @@ def test_both_sides_share_bounds_but_other_axes_parts_and_models_do_not(
     )
     variant_values = [_raw(other, values, Side.AFTER) for other in variants]
     bound.gap(values, Side.BEFORE)
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     assert bound.gap(values, Side.AFTER) == expected and projected.call_count == 0
     for other, expected_other in zip(variants, variant_values):
         projected.reset_mock()
@@ -163,8 +163,8 @@ def test_invalid_unrelated_suffix_cannot_bypass_complete_model_validation(
     bound = _constraint()
     values = bound.model.initial
     bound.gap(values, Side.BEFORE)
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     with pytest.raises(ValueError, match="declared bounds"):
         bound.gap(values[:-1] + (-1.0,), Side.AFTER)
     projected.assert_not_called()
@@ -183,7 +183,7 @@ def test_dependency_retention_is_bounded_and_eviction_recomputes_exact_bounds(
     for index in range(1, 35):
         changed = (values[0] + index * 1e-4,) + values[1:]
         bound.gap(changed, Side.BEFORE)
-    projected = Mock(wraps=flat_separation.flat_span)
-    monkeypatch.setitem(vars(flat_separation), "flat_span", projected)
+    projected = Mock(wraps=flat_separation._flat_span)
+    monkeypatch.setitem(vars(flat_separation), "_flat_span", projected)
     assert bound.gap(values, Side.AFTER) == expected
     assert projected.call_count == 2

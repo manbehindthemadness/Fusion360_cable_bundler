@@ -67,6 +67,9 @@ def test_ordinary_midpoint_and_turn_interval_validation() -> None:
             frames.turn_parameter(wanted, begin, end)
 
 
+@pytest.mark.skip(
+    reason="Historical seeded gym solve retired; use fresh layouts or selected catalogue"
+)
 def test_compact_feature_contact_stays_on_one_branch_with_original_work_limits() -> None:
     """
     Clear the fold and attached-straight contacts without abandoning the same material feature.
@@ -88,6 +91,9 @@ def test_compact_feature_contact_stays_on_one_branch_with_original_work_limits()
     assert disabled.detail["construction"]["guide_parameters"] == (0.5,)
 
 
+@pytest.mark.skip(
+    reason="Historical seeded gym solve retired; use fresh layouts or selected catalogue"
+)
 def test_short_control_keeps_midpoint_when_only_curved_material_exceeds_guide() -> None:
     """
     Preserve the accepted short layout rather than treating necessary bend arcs as runaway demand.

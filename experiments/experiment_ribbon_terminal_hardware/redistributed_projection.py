@@ -5,14 +5,26 @@ Restore bounded return geometry without forcing all cap errors along one proport
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable
+from typing import Callable, cast
 
 from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
 
 from .active_projection import ActiveFaces, CoordinateBounds, UnfinishedProjection, active_step
+from .primal_projection import Stop as PrimalStop
+from .primal_projection import project as primal_project
 from .projection_initialization import Initialization, InitializationEvidence
+
+
+class LinearPolicy(Enum):
+    """
+    Select one bounded linear optimizer without allocating a second projection after decline.
+    """
+
+    DUAL = "dual"
+    FEASIBLE_PRIMAL = "feasible_primal"
+    COUPLED_RESTORATION = "coupled_restoration"
 
 
 class GuidancePolicy(Enum):
@@ -68,6 +80,12 @@ class ProjectionEvidence:
     guidance_tradeoff_proposals: int = 0
     coordinate_seed_attempts: int = 0
     coordinate_seed_faces: int = 0
+    primal_attempts: int = 0
+    primal_completed: int = 0
+    primal_updates: int = 0
+    primal_prefixes: int = 0
+    primal_proposals: int = 0
+    primal_stops: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -124,6 +142,7 @@ def redistributed_step(
     *,
     evidence: ProjectionEvidence | None = None,
     guidance_policy: GuidancePolicy = GuidancePolicy.NONWORSENING,
+    linear_policy: LinearPolicy = LinearPolicy.DUAL,
 ) -> tuple[float, ...] | None:
     """
     Use the original projector once, allowing bounded redistribution of the six cap errors.
@@ -172,9 +191,24 @@ def redistributed_step(
     Only explicit restoration opts into grouped coordinate-face initialization,
     charged as the first of those same sixteen working-set updates. Seed counters
     describe attempted/dual-feasible initializations, never accepted geometry.
+    Explicit feasible-primal restoration replaces that dual action entirely.
+    Zero geometry, the current six cap residuals divided by M, and restoration
+    fraction1 supply its independently checked augmented anchor. A retained
+    feasible prefix is incomplete optimization, not a completed working set.
+    It still passes the same coordinate clipping, predicted-descent and caller
+    nonlinear gates. A decline never starts a second projection. Default callers
+    retain the original dual policy and arithmetic.
+    Coupled restoration selects feasible-primal only for multiple already-positive
+    guidance rows; zero or one keeps dual. This uses the existing positive-row
+    definition before starting the one optimizer, with no retries or extra work.
     """
     if not isinstance(guidance_policy, GuidancePolicy):
         raise ValueError("Use an explicit guidance restoration policy")
+    if not isinstance(linear_policy, LinearPolicy) or (
+        linear_policy is not LinearPolicy.DUAL
+        and guidance_policy is not GuidancePolicy.RESTORATION_MERIT
+    ):
+        raise ValueError("Feasible primal projection requires explicit restoration guidance")
     if (
         not 7 <= len(residual) <= 19
         or len(jacobian) != len(residual)
@@ -184,6 +218,12 @@ def redistributed_step(
     before = max(abs(term) if i < 6 else max(0.0, term) for i, term in enumerate(residual))
     if before == 0.0:
         return None
+    if linear_policy is LinearPolicy.COUPLED_RESTORATION:
+        linear_policy = (
+            LinearPolicy.FEASIBLE_PRIMAL
+            if sum(term > 0 for term in residual[6:]) > 1
+            else LinearPolicy.DUAL
+        )
     checkpoint()
     motion_scale = _motion_scale(jacobian, residual, before)
     if evidence is not None and motion_scale != before:
@@ -203,21 +243,42 @@ def redistributed_step(
     unfinished = UnfinishedProjection()
     faces = ActiveFaces()
     initial = InitializationEvidence()
-    solution = active_step(
-        _ResidualBounds(model, len(values), motion_scale),
-        tuple(value * motion_scale for value in values) + (0.0,) * 7,
-        augmented,
-        residual,
-        checkpoint,
-        unfinished=unfinished,
-        faces=faces,
-        initialization=(
-            Initialization.COORDINATE_FACES
-            if guidance_policy is GuidancePolicy.RESTORATION_MERIT
-            else Initialization.EMPTY
-        ),
-        initialization_evidence=initial,
-    )
+    augmented_model = _ResidualBounds(model, len(values), motion_scale)
+    augmented_values = tuple(value * motion_scale for value in values) + (0.0,) * 7
+    if linear_policy is LinearPolicy.FEASIBLE_PRIMAL:
+        anchor = (0.0,) * len(values) + tuple(term / before for term in residual[:6]) + (1.0,)
+        if evidence is not None:
+            evidence.primal_attempts += 1
+        result = primal_project(
+            augmented_model, augmented_values, augmented, residual, anchor, checkpoint
+        )
+        solution = result.step
+        if result.stop is PrimalStop.STATIONARY:
+            faces.lower, faces.upper = result.lower, result.upper
+        if evidence is not None:
+            evidence.primal_completed += 1
+            evidence.primal_updates += result.updates
+            evidence.primal_prefixes += int(
+                solution is not None and result.stop is not PrimalStop.STATIONARY
+            )
+            stop_name = cast(str, cast(object, result.stop.value))
+            evidence.primal_stops[stop_name] = evidence.primal_stops.get(stop_name, 0) + 1
+    else:
+        solution = active_step(
+            augmented_model,
+            augmented_values,
+            augmented,
+            residual,
+            checkpoint,
+            unfinished=unfinished,
+            faces=faces,
+            initialization=(
+                Initialization.COORDINATE_FACES
+                if guidance_policy is GuidancePolicy.RESTORATION_MERIT
+                else Initialization.EMPTY
+            ),
+            initialization_evidence=initial,
+        )
     if evidence is not None:
         evidence.coordinate_seed_attempts += initial.attempts
         evidence.coordinate_seed_faces += initial.faces
@@ -272,6 +333,8 @@ def redistributed_step(
         return None
     if bounded_proposal and evidence is not None:
         evidence.bounded_proposals += 1
+    if evidence is not None:
+        evidence.primal_proposals += int(linear_policy is LinearPolicy.FEASIBLE_PRIMAL)
     if changed_bounds and evidence is not None:
         evidence.bound_clipped_proposals += 1
     if evidence is not None:

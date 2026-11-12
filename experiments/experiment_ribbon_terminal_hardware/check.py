@@ -20,6 +20,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose
 from experiments.experiment_ribbon_fold_route.mating import matching_frame
 
 from .model import Box, Hardware, Terminal
+from .probe_domain import ProbeDomain
 from .sat import BoxProjection, separated_on_piece_axes
 from .witness_height import occupied_height
 
@@ -84,6 +85,7 @@ def inspect(
     maximum_depth: int = 36,
     checkpoint: Callable[[], None] | None = None,
     projection_policy: ProjectionPolicy = ProjectionPolicy.BOX_AXES,
+    probe_domain: ProbeDomain | None = None,
 ) -> Report:
     """
     Enclose every material region against both boxes; test strict interior witnesses before subdivision.
@@ -96,9 +98,14 @@ def inspect(
     Certification may explicitly allow whole cells unresolved by the three box axes to use fifteen
     box/piece SAT directions before subdivision. Additional axes use outward
     box enclosures, retain all material and share the same caller work limits.
+    An explicit source-bound probe domain visits only selected original members
+    for negative discovery. Its strict witness retains original piece identity;
+    a completed subset without intrusion remains unresolved, never clearance.
     """
     if hardware.targets != route.targets:
         raise ValueError("Hardware and route must retain the same exact targets")
+    if probe_domain is not None and probe_domain.source is not route:
+        raise ValueError("A negative probe domain must retain its exact immutable source")
     if not isinstance(projection_policy, ProjectionPolicy):
         raise ValueError("An explicit terminal projection policy is required")
     if any(type(value) is not int or value < 1 for value in (maximum_cells, maximum_depth)):
@@ -112,7 +119,15 @@ def inspect(
     checked = 0
     prepared = lru_cache(maxsize=64)(prepare_projection)
     prepared_boxes = lru_cache(maxsize=2)(BoxProjection.create)
-    for box in hardware.boxes:
+    boxes = (
+        tuple(
+            next(box for box in hardware.boxes if box.terminal is terminal)
+            for terminal in probe_domain.terminals
+        )
+        if probe_domain is not None
+        else hardware.boxes
+    )
+    for box in boxes:
         matching = mating_frame(route, box)
         at_end = box.terminal is Terminal.END
         mating_index = len(route.pieces) - 1 if at_end else 0
@@ -125,7 +140,11 @@ def inspect(
                 Span(-route.half_width_mm, route.half_width_mm),
                 Span(-thickness, thickness),
             )
-            for index in reversed(range(len(route.pieces)))
+            for index in (
+                probe_domain.members(box.terminal)
+                if probe_domain is not None
+                else reversed(range(len(route.pieces)))
+            )
         )
         while pending:
             if checkpoint is not None:
@@ -201,4 +220,10 @@ def inspect(
             if cell.depth >= maximum_depth:
                 return Report("unresolved", checked, reason="Terminal near-contact depth exhausted")
             pending.extend(cell.split(piece.geometry.material_length_mm))
+    if probe_domain is not None:
+        return Report(
+            "unresolved",
+            checked,
+            reason="Negative-only member probe found no intrusion; full clearance unmeasured",
+        )
     return Report("clear", checked, reason="Thick material clears both finite terminal envelopes")

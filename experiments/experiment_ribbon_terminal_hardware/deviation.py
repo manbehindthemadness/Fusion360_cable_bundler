@@ -50,6 +50,7 @@ def recover(
     maximum_cpu_seconds: float,
     maximum_seconds: float,
     maximum_updates: int = 4,
+    maximum_newton_steps: int = 24,
 ) -> Result | None:
     """
     Prefer a witnessed local rewrite without treating six bends as a global representation limit.
@@ -67,6 +68,7 @@ def recover(
         maximum_updates=maximum_updates,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        maximum_newton_steps=maximum_newton_steps,
     )
     cpu, wall = process_time(), perf_counter()
 
@@ -96,6 +98,9 @@ def recover(
         Charge all preparation and reject a late certificate under either strategy.
         """
         detail = dict(result.detail)
+        used = detail.get("newton_steps", 0)
+        if type(used) is not int or not 0 <= used <= maximum_newton_steps:
+            raise ArithmeticError("Terminal recovery exceeded its remaining corrections")
         detail.update(cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - wall)
         if (
             detail["cpu_seconds"] >= maximum_cpu_seconds
@@ -118,7 +123,7 @@ def recover(
         terminal,
         checkpoint,
         record,
-        work=Work(maximum_updates, remaining_pairs, cpu_left, wall_left),
+        work=Work(maximum_updates, remaining_pairs, cpu_left, wall_left, maximum_newton_steps),
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
     )
@@ -139,6 +144,7 @@ def recover(
         maximum_cpu_seconds=cpu_left,
         maximum_seconds=wall_left,
         maximum_updates=maximum_updates,
+        maximum_newton_steps=maximum_newton_steps,
     )
     return finish(fallback) if fallback is not None else None
 
@@ -155,6 +161,7 @@ def recover_fixed_stages(
     maximum_cpu_seconds: float,
     maximum_seconds: float,
     maximum_updates: int = 4,
+    maximum_newton_steps: int = 24,
 ) -> Result | None:
     """
     Derive one changed spatial reference from actual full-feature intrusion and construct exact roots.
@@ -189,6 +196,7 @@ def recover_fixed_stages(
         maximum_updates=maximum_updates,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        maximum_newton_steps=maximum_newton_steps,
     )
     cpu, wall = process_time(), perf_counter()
     detail: dict[str, Any] = {
@@ -264,11 +272,11 @@ def recover_fixed_stages(
 
             def record_closure(event: dict[str, Any]) -> None:
                 """
-                Charge every accepted angular correction before forwarding the original evidence.
+                Charge every started angular correction, including failed derivatives.
                 """
                 if (
-                    event.get("stage") == "feature_reclosure"
-                    and event.get("status") == "residual_reduced"
+                    event.get("stage") == "feature_reclosure_step"
+                    and event.get("status") == "started"
                 ):
                     detail["newton_steps"] += 1
                 record(event)
@@ -280,6 +288,7 @@ def recover_fixed_stages(
                 guide.distances[-1],
                 bounded,
                 record_closure,
+                maximum_steps=min(4, maximum_newton_steps),
             )
             detail["closure_refined"] = closed is not None
             if closed is not None:
@@ -366,12 +375,17 @@ def recover_fixed_stages(
                 if contact.status != "separated":
                     detail["stop_reason"] = "contact_not_separated"
                 left = Work(
-                    maximum_updates, remaining_pairs, maximum_cpu_seconds, maximum_seconds
+                    maximum_updates,
+                    remaining_pairs,
+                    maximum_cpu_seconds,
+                    maximum_seconds,
+                    maximum_newton_steps,
                 ).remaining(
                     updates=detail["iterations"],
                     pairs=detail["contact_pairs"],
                     cpu_seconds=process_time() - cpu,
                     wall_seconds=perf_counter() - wall,
+                    newton_steps=detail["newton_steps"],
                 )
                 if left is not None:
                     refined = refine(

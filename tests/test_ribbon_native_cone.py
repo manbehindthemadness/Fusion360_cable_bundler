@@ -40,7 +40,7 @@ def test_native_projection_preserves_a_real_endpoint_deficit_until_orientation_c
         topology=SimpleNamespace(folds=()),
         source=SimpleNamespace(targets=target),
     )
-    model.equations.return_value = (((1.0, 0.0, 0.0),), (epsilon, 0.0, 0.0))
+    model.straight_equations.return_value = (((1.0, 0.0, 0.0),), (epsilon, 0.0, 0.0))
 
     def endpoint(values: tuple[float, ...]) -> Pose:
         """
@@ -132,7 +132,12 @@ def test_optional_guide_fit_cannot_erase_a_measured_admissible_closure(
     )
     assert result is not None and result.values == source.values and result.score == source.score
     assert project_fit.call_count == source.masks
-    assert events[-1]["status"] == "native_cone_verified"
+    verified = [event for event in events if event.get("status") == "native_cone_verified"]
+    assert len(verified) == 1 and tuple(verified[0]["values"]) == source.values
+    mating = events[-1]
+    assert mating["stage"] == "feature_mating_allocation" and mating["status"] == "unchanged"
+    assert mating["newton_steps"] == mating["accepted_affine_corrections"] == 0
+    assert mating["cap_error_mm"] < 1e-7
 
 
 @pytest.mark.parametrize("broken", ("cap_error", "material_error"))

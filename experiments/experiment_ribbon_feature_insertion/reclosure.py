@@ -5,6 +5,7 @@ Bound residual-driven closure work while retaining unfinished, still-progressing
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Callable
 
 from experiments.experiment_ribbon_joint_route.allocation import Model
@@ -15,6 +16,15 @@ from .closure_goal import ClosureGoal
 from .continuation import BranchPolicy
 from .features import Chain
 from .repair import Closure, StraightMotion, changed, correction, nearest, reframed
+
+
+class ReclosureAllocation(Enum):
+    """
+    Choose optional guide optimization or validation of already measured native-cone coordinates.
+    """
+
+    GUIDE = "guide_optimum"
+    MEASURED = "measured_closure"
 
 
 @dataclass(frozen=True)
@@ -28,6 +38,7 @@ class Unclosed:
     iteration: int = 0
     branch_policy: BranchPolicy = BranchPolicy.INDEX
     goal: ClosureGoal = ClosureGoal.ROUTE
+    allocation_policy: ReclosureAllocation = ReclosureAllocation.GUIDE
 
     def __post_init__(self) -> None:
         """
@@ -37,6 +48,8 @@ class Unclosed:
             raise ValueError("Retain an explicit unfinished branch policy")
         if not isinstance(self.goal, ClosureGoal):
             raise ValueError("Retain an explicit unfinished closure goal")
+        if not isinstance(self.allocation_policy, ReclosureAllocation):
+            raise ValueError("Retain an explicit closure allocation policy")
 
 
 def refine(
@@ -49,6 +62,7 @@ def refine(
     *,
     branch_policy: BranchPolicy | None = None,
     maximum_straight_mm: float | None = None,
+    allocation_policy: ReclosureAllocation | None = None,
 ) -> Allocation | Unclosed | None:
     """
     Continue the same residual-derived corrections until exact closure, stalling or a finite cap.
@@ -68,10 +82,18 @@ def refine(
     no resumed or physical-factor continuation can drop or renew that budget.
     Omitted policy resumes the unfinished state's recorded policy; an explicit
     override affects this action and the policy retained by any resulting state.
+    MEASURED validates only computed feasible coordinates, without another guide
+    mask enumeration. A step-start receipt precedes every correction attempt,
+    including derivative failure; callers can debit actual started work.
     """
     policy = unfinished.branch_policy if branch_policy is None else branch_policy
+    allocation_policy = (
+        unfinished.allocation_policy if allocation_policy is None else allocation_policy
+    )
     if not isinstance(policy, BranchPolicy):
         raise ValueError("Select an explicit physical-factor policy")
+    if not isinstance(allocation_policy, ReclosureAllocation):
+        raise ValueError("Select an explicit closure allocation policy")
     checkpoint()
     goal = unfinished.goal
     diameter = boundary.targets.diameter_mm
@@ -100,6 +122,15 @@ def refine(
             StraightMotion.REALLOCATABLE
             if unfinished.iteration > 0 or policy is BranchPolicy.CONTINUOUS
             else StraightMotion.FIXED
+        )
+        record(
+            {
+                "stage": "feature_reclosure_step",
+                "status": "started",
+                "iteration": iteration,
+                "roots": current.roots,
+                "allocation_policy": allocation_policy.value,
+            }
         )
         delta = correction(
             boundary,
@@ -169,14 +200,26 @@ def refine(
                 current, closure, progressed = probe, trial, True
                 precision_pending = False
                 if trial.error <= limit:
-                    allocation = fit(
-                        boundary,
-                        current,
-                        threshold_mm,
-                        checkpoint,
-                        record,
-                        maximum_straight_mm=maximum_straight_mm,
-                        feasible_values=trial.values,
+                    allocation = (
+                        closure_allocation(
+                            boundary,
+                            current,
+                            trial.values,
+                            threshold_mm,
+                            checkpoint,
+                            record,
+                            maximum_straight_mm=maximum_straight_mm,
+                        )
+                        if allocation_policy is ReclosureAllocation.MEASURED
+                        else fit(
+                            boundary,
+                            current,
+                            threshold_mm,
+                            checkpoint,
+                            record,
+                            maximum_straight_mm=maximum_straight_mm,
+                            feasible_values=trial.values,
+                        )
                     )
                     if allocation is not None:
                         checkpoint()
@@ -201,7 +244,9 @@ def refine(
         if not progressed:
             return None
     return (
-        Unclosed(current, closure, unfinished.iteration + maximum_steps, policy, goal)
+        Unclosed(
+            current, closure, unfinished.iteration + maximum_steps, policy, goal, allocation_policy
+        )
         if closure.error > limit or precision_pending
         else None
     )

@@ -101,10 +101,11 @@ def test_reflection_keeps_self_contact_under_explicit_length_policy(
     bind = Mock(wraps=MaterialConstraint.from_witness)
     monkeypatch.setattr(MaterialConstraint, "from_witness", bind)
 
-    def projection(*args: Any, **_kwargs: Any) -> None:
+    def projection(*args: Any, **kwargs: Any) -> None:
         """
         Inspect actual initial equations, then stop without claiming physical coverage.
         """
+        assert kwargs["linear_policy"] is joint_contact.LinearPolicy.DUAL
         captured.append(args[3])
 
     monkeypatch.setitem(vars(joint_contact), "redistributed_step", projection)

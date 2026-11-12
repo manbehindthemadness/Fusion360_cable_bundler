@@ -446,9 +446,16 @@ def solve(
                     maximum_cpu_seconds=terminal_cpu_left,
                     maximum_seconds=allowance[1],
                     maximum_updates=partial.updates if partial is not None else 4,
+                    maximum_newton_steps=partial.newton_steps if partial is not None else 24,
                 )
                 if recovered is not None:
                     recovery = dict(recovered.detail)
+                    newton = recovery.get("newton_steps", 0)
+                    limit = partial.newton_steps if partial is not None else 24
+                    if type(newton) is not int or not 0 <= newton <= limit:
+                        raise ArithmeticError(
+                            "Terminal recovery exceeded its remaining corrections"
+                        )
                     if prior_recovery is not None:
                         recovery.update(
                             deferred_before_terminal=prior_recovery,
@@ -463,7 +470,10 @@ def solve(
                                 cpu_seconds=prior_recovery["cpu_seconds"]
                                 + process_time()
                                 - reservation_cpu,
-                                newton_steps_scope="terminal_reclosure_only",
+                                newton_steps=(partial.used_newton_steps or 0) + newton,
+                                newton_steps_scope="whole_recovery"
+                                if partial.used_newton_steps is not None
+                                else "terminal_reclosure_only_prior_unmeasured",
                                 contact_seconds_scope="terminal_certificate_only",
                             )
                     detail["construction"]["recovery"] = recovery
@@ -605,6 +615,10 @@ def _remaining_recovery(
         return None
     if any(detail.get(field) != 0 for field in ("iterations", "contacts", "pairs")):
         raise ArithmeticError("Deferred recovery already consumed geometry work")
+    if detail.get("newton_steps") is not None and (
+        type(detail["newton_steps"]) is not int or detail["newton_steps"] != 0
+    ):
+        raise ArithmeticError("Deferred recovery already consumed geometry corrections")
     cpu_left = MAXIMUM_CPU_SECONDS - detail["cpu_seconds"]
     wall_left = min(first_pass_remaining, MAXIMUM_WALL_SECONDS - (perf_counter() - started))
     return (cpu_left, wall_left) if cpu_left > 0 and wall_left > 0 else None

@@ -14,6 +14,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .check import ProjectionPolicy, Report, inspect
 from .model import Dimensions, Hardware
+from .probe_domain import ProbeDomain
 
 
 class _Exhausted(RuntimeError):
@@ -93,15 +94,24 @@ class Gate:
         """
         return self._measure(route, stage, 512, ProjectionPolicy.PIECE_AXES)
 
-    def probe(self, route: FoldRoute, stage: str) -> Report:
+    def probe(
+        self,
+        route: FoldRoute,
+        stage: str,
+        *,
+        domain: ProbeDomain | None = None,
+        checkpoint: Callable[[], None] | None = None,
+    ) -> Report:
         """
         Look for a demonstrated early intrusion in at most32cells of the same shared budget.
 
         An incomplete probe is not cached as the final route measurement. This
         reserves the existing allowance for first-pass/final certification rather
         than spending512cells on an initializer that may change afterward.
+        A source-bound domain narrows negative discovery only; its missed subset
+        is unresolved and cannot enter this gate's positive-clearance cache.
         """
-        return self._measure(route, stage, 32, ProjectionPolicy.BOX_AXES)
+        return self._measure(route, stage, 32, ProjectionPolicy.BOX_AXES, domain, checkpoint)
 
     def _measure(
         self,
@@ -109,13 +119,19 @@ class Gate:
         stage: str,
         maximum_cells: int,
         projection_policy: ProjectionPolicy,
+        domain: ProbeDomain | None = None,
+        local_checkpoint: Callable[[], None] | None = None,
     ) -> Report:
         """
         Share route-bound evidence, accumulated work and logging between probe and full checks.
         """
         self.checkpoint()
+        if local_checkpoint is not None:
+            local_checkpoint()
         if route.targets != self.hardware.targets:
             raise ValueError("Terminal gate cannot change its fixed target inputs")
+        if domain is not None and domain.source is not route:
+            raise ValueError("A negative probe domain must retain its exact immutable source")
         cached = self._cache.get(id(route))
         if projection_policy is ProjectionPolicy.PIECE_AXES and (
             cached is None or cached[1].status == "unresolved"
@@ -136,6 +152,8 @@ class Gate:
             """
             nonlocal calls
             self.checkpoint()
+            if local_checkpoint is not None:
+                local_checkpoint()
             if (
                 self.cpu_seconds + process_time() - cpu >= 0.1
                 or self.wall_seconds + perf_counter() - wall >= 0.25
@@ -152,6 +170,7 @@ class Gate:
                 maximum_cells=min(maximum_cells, 1024 - self.cells),
                 checkpoint=bounded,
                 projection_policy=projection_policy,
+                probe_domain=domain,
             )
             measured_cells = report.cells_checked
         except _Exhausted:
@@ -180,6 +199,7 @@ class Gate:
                 "status": report.status,
                 "report": asdict(report),
                 "route": snapshot(route),
+                "probe_member_pairs": None if domain is None else len(domain.pairs),
             }
         )
         return report

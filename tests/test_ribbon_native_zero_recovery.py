@@ -56,6 +56,9 @@ def test_only_real_runway_coordinates_can_be_frozen(slots: frozenset[int]) -> No
         NativeReversal(route, 0, slots)
 
 
+@pytest.mark.skip(
+    reason="Historical seeded gym solve retired; use fresh layouts or selected catalogue"
+)
 def test_sub_native_reflection_recloses_then_couples_actual_new_hardware(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

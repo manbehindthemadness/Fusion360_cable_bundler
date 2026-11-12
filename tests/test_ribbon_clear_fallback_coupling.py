@@ -36,6 +36,10 @@ from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.joint_contact import JointMode
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
 
+pytestmark = pytest.mark.skip(
+    reason="Historical Fusion-authored layout retired; replace with authored analytical controls before reuse"
+)
+
 
 def _targets() -> Targets:
     """

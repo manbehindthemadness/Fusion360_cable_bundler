@@ -1,3 +1,30 @@
+USER-DIRECTED SELECTED-CASE REGRESSION CATALOGUE — 2026-11-11
+A separate optional catalogue may retain selected cases' seeds, exact values,
+ordered target poses, settings/source identity and original evidence references
+for inexpensive labelled diagnostic regression. This is an explicit selected-
+case exception to historical retirement below, not wholesale fixture reactivation.
+Fresh campaigns still require new seeds/unique layouts and their existing novelty
+and aggregate statistics. The catalogue must not influence fresh authoring,
+sampling, solver decisions, repair lookup or acceptance. Replays remain diagnostic:
+no new-layout/pass-streak credit or mixed fresh statistics. Retain original failed
+outcomes; a known failure becoming solvable is regression evidence, while fresh
+unseen inputs remain the independent generalization check. Freeze separate bounded
+plans for any selected solver/native replay; importing/exporting values alone
+runs no solver, proof or native geometry. Store no solved geometry in the catalogue.
+
+USER-DIRECTED GEOMETRY RETENTION — 2026-11-11
+Keep only the current owned Fusion diagnostic scene and, when needed, its
+immediate comparison geometry. Do not accumulate old native outputs, guide
+sketches, inspection components or hidden inspection palettes: they consume
+memory. Before another cohort or replacement diagnostic, retire obsolete owned
+geometry after its existing numerical/native/proof receipts have been preserved
+and all relevant workers/kernel operations are confirmed idle. Establish exact
+ownership/provenance; preserve unknown, modified or unrelated user geometry.
+Keep archived numerical evidence and historical aggregate statistics on disk.
+Cleanup neither changes recorded outcomes nor authorizes a solver/native replay.
+Record removed entities and sampled RSS; Fusion may retain allocated memory
+after deletion. Existing4GiB ceiling/3.8GiB launch headroom and other limits stay.
+
 USER-DIRECTED FIXED-SAMPLE FAILURE-RATE RUN — 2026-11-09
 For the explicit goal "run another 100 layouts and determine failure rate", use
 100 entirely new precommitted layouts with one unchanged solver source. Preserve

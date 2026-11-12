@@ -17,6 +17,7 @@ from experiments.experiment_ribbon_fold_route.contact import ContactResult, Pene
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span
 from experiments.experiment_ribbon_fold_route.contact_flat_geometry import (
     FlatPhase,
+    FlatRegion,
     profile_arcs,
     region,
 )
@@ -172,6 +173,19 @@ def flat_span(piece: PlacedPiece, part: FlatPart, axis: Vector3) -> tuple[float,
     Evaluate the identical complete-prism support directly in affine material coordinates.
     """
     placed = region(piece, part.phase, part.low_q, part.high_q)
+    return _flat_span(piece, part, axis, placed)
+
+
+def _flat_span(
+    piece: PlacedPiece, part: FlatPart, axis: Vector3, placed: FlatRegion
+) -> tuple[float, float]:
+    """
+    Project an exact prepared phase through the unchanged full-profile affine support arithmetic.
+
+    Callers own preparation of this same piece/phase/interval. Keep the AFTER
+    phase's cap-origin convention, profile height and operation order identical
+    for independent public calls and model-owned preparation reuse.
+    """
     if len(placed.polygon) < 3:
         raise ValueError("Required flat material region vanished")
     a, b = dot(Vector3(*placed.tangent), axis), dot(Vector3(*placed.width), axis)
@@ -386,7 +400,8 @@ class FlatSeparation:
         """
         Preserve the original complete-prism projection arithmetic for one actual material region.
         """
-        return flat_span(piece, part, self.axis)
+        placed = self.model.flat_regions(piece, part.phase, part.low_q, part.high_q)
+        return _flat_span(piece, part, self.axis, placed)
 
     def gap(self, values: tuple[float, ...], side: Side) -> float:
         """

@@ -7,6 +7,8 @@ from __future__ import annotations
 import math
 from typing import Callable
 
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace
+
 from .linear_fit import least_squares
 
 
@@ -17,6 +19,8 @@ def project(
     minimum: float,
     maximum_sum: float | None,
     checkpoint: Callable[[], None],
+    *,
+    workspace: AffineWorkspace | None = None,
 ) -> list[float] | None:
     """
     Minimize endpoint error over one support, including its original straight-budget face.
@@ -26,6 +30,9 @@ def project(
     physical candidates. Pin selected coordinates exactly; free coordinates must
     meet the same lower floor. Zero support is owned by the caller. An ordinary
     unconstrained optimum already inside this domain returns without extra faces.
+    A caller-owned workspace can share at most64exact immutable row-prefix bases
+    across supports in one action. Otherwise this support owns its workspace.
+    Reference corrections, all faces and endpoint scores are still evaluated afresh.
     """
     if not 0 <= size <= 3 or not math.isfinite(minimum) or minimum <= 0:
         raise ValueError("Use at most three native-sized straight coordinates")
@@ -33,6 +40,7 @@ def project(
         raise ValueError("Use a finite nonnegative straight-coordinate budget")
     if maximum_sum is not None and size * minimum > maximum_sum:
         return None
+    prepared = AffineWorkspace() if workspace is None else workspace
     best: list[float] | None = None
     score: tuple[float, float] | None = None
     for mask in range(1 << size):
@@ -45,6 +53,7 @@ def project(
             right,
             size,
             maximum_sum=maximum_sum,
+            workspace=prepared,
         )
         if candidate is None:
             continue

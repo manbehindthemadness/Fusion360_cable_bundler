@@ -1,22 +1,52 @@
 """
-Find strict new flat-region crossings without granting clearance to an open-cap proposal.
+Find strict current material crossings without granting clearance to an open-cap proposal.
 """
 
 from __future__ import annotations
 
+from itertools import chain
 from typing import Callable, Iterable, Mapping
 
 from experiments.experiment_ribbon_feature_insertion.separation import Side, regions
-from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration, ProbeResult
 from experiments.experiment_ribbon_fold_route.contact_flat_geometry import FlatPhase
 from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.contact_inverse import occupied_coordinates
+from experiments.experiment_ribbon_fold_route.contact_phase_core import CoreProbe
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
+from .curved_discovery import CurvedProbe
 from .flat_separation import FlatSeparation
 from .material_constraint import MaterialConstraint
+from .restoration_order import MaterialFocus, ordered_pairs
 
 PhasePair = tuple[FlatPhase, FlatPhase]
+
+
+def _verified_witness(
+    route: FoldRoute,
+    pair: tuple[int, int],
+    result: ProbeResult,
+    retain: Callable[[Penetration], bool],
+) -> Penetration | None:
+    """
+    Revalidate original current material identity and both strict inverses at the owner boundary.
+    """
+    witness = result.witness
+    if witness is None:
+        return None
+    if witness.pieces != pair:
+        raise ArithmeticError("Negative screen changed original piece identities")
+    first, second = tuple(
+        occupied_coordinates(
+            route.pieces[index], witness.point, route.targets.lines, route.targets.diameter_mm
+        )
+        for index in pair
+    )
+    if first is None or second is None:
+        raise ArithmeticError("Negative screen supplied no strict material crossing")
+    verified = Penetration(pair, first, second, witness.point)
+    return verified if retain(verified) else None
 
 
 def represented_phases(
@@ -60,6 +90,9 @@ def screen(
     retain: Callable[[Penetration], bool],
     *,
     covered_phases: Mapping[tuple[int, int], frozenset[PhasePair]] | None = None,
+    focus: MaterialFocus | None = None,
+    curved_probe: CurvedProbe | None = None,
+    flat_core_probe: CoreProbe | None = None,
 ) -> ContactResult:
     """
     Screen original nonadjacent pairs once, returning penetration or explicitly unmeasured contact.
@@ -70,65 +103,88 @@ def screen(
     strict material inverse maps before exposing any new witness. Adjacent/curved
     misses and pair/support exhaustion never imply separation. Cancellation is
     propagated so the owner can charge interrupted work conservatively.
+    Optional exact-route material focus changes discovery order only. Every
+    original nonadjacent pair remains eligible under the same comparison pool;
+    stale focus uses the unchanged global order and supplies no certificate.
+    A supplied curved context reserves at most half this same comparison pool for
+    actual phase-midpoint proposals before flat hull refinement. Roots are charged
+    once across both passes; the remaining pool and shared support ceiling cannot
+    renew. Every miss remains unmeasured and the full final proof is unchanged.
+    An explicit flat-prism context replaces hull refinement for this negative
+    screen only, charging every outer/inner proposal to the same comparisons
+    and preserving the original support stop.
+    It cannot report clearance or renew support work; complete positive checking
+    retains the caller's ordinary profile-hull probe.
     """
     if type(maximum_pairs) is not int or maximum_pairs < 0:
         raise ValueError("Use a nonnegative remaining contact allowance")
     checked = 0
-    for first in range(len(route.pieces)):
-        for second in range(first + 2, len(route.pieces)):
-            checkpoint()
-            if checked >= maximum_pairs or probe.supports >= 2048:
-                return ContactResult(
-                    "unresolved", checked, reason="Negative screen allowance exhausted"
-                )
+    flat_probe = probe if flat_core_probe is None else flat_core_probe
+    roots = ordered_pairs(route, focus, checkpoint)
+    visited: list[tuple[int, int]] = []
+    if curved_probe is not None and probe.supports < 2048:
+        reserved = maximum_pairs // 2
+        while checked < reserved:
+            pair = next(roots, None)
+            if pair is None:
+                break
+            visited.append(pair)
             checked += 1
-            excluded = (
-                covered_phases.get((first, second), frozenset()) if covered_phases else frozenset()
-            )
-            result = (
-                probe(
-                    route,
-                    first,
-                    second,
-                    maximum_pairs - checked,
-                    checkpoint,
-                    excluded_phases=excluded,
-                )
-                if excluded
-                else probe(route, first, second, maximum_pairs - checked, checkpoint)
-            )
+            result = curved_probe(route, *pair, reserved - checked, checkpoint)
             if (
                 type(result.pairs_checked) is not int
-                or not 0 <= result.pairs_checked <= maximum_pairs - checked
+                or not 0 <= result.pairs_checked <= reserved - checked
             ):
-                raise ArithmeticError("Negative screen exceeded its original contact allowance")
+                raise ArithmeticError("Curved discovery exceeded its original contact allowance")
             checked += result.pairs_checked
-            witness = result.witness
+            witness = _verified_witness(route, pair, result, retain)
             if witness is not None:
-                if witness.pieces != (first, second):
-                    raise ArithmeticError("Negative screen changed original piece identities")
-                first_coordinates, second_coordinates = tuple(
-                    occupied_coordinates(
-                        piece, witness.point, route.targets.lines, route.targets.diameter_mm
-                    )
-                    for piece in (route.pieces[first], route.pieces[second])
-                )
-                if first_coordinates is None or second_coordinates is None:
-                    raise ArithmeticError("Negative screen supplied no strict material crossing")
-                verified = Penetration(
-                    (first, second), first_coordinates, second_coordinates, witness.point
-                )
-                if retain(verified):
-                    return ContactResult(
-                        "penetration",
-                        checked,
-                        witness=verified,
-                        reason="Strict new material crossing during cap restoration",
-                    )
-            if result.limit is not None:
                 return ContactResult(
-                    "unresolved", checked, reason="Negative probe allowance exhausted"
+                    "penetration",
+                    checked,
+                    witness=witness,
+                    reason="Strict curved material crossing during cap restoration",
                 )
+    for ordinal, (first, second) in enumerate(chain(visited, roots)):
+        if checked >= maximum_pairs or probe.supports >= 2048:
+            return ContactResult(
+                "unresolved", checked, reason="Negative screen allowance exhausted"
+            )
+        if ordinal >= len(visited):
+            checked += 1
+        excluded = (
+            covered_phases.get((first, second), frozenset()) if covered_phases else frozenset()
+        )
+        result = (
+            flat_probe(
+                route,
+                first,
+                second,
+                maximum_pairs - checked,
+                checkpoint,
+                excluded_phases=excluded,
+            )
+            if excluded
+            else flat_probe(route, first, second, maximum_pairs - checked, checkpoint)
+        )
+        if (
+            type(result.pairs_checked) is not int
+            or not 0 <= result.pairs_checked <= maximum_pairs - checked
+        ):
+            raise ArithmeticError("Negative screen exceeded its original contact allowance")
+        checked += result.pairs_checked
+        witness = _verified_witness(route, (first, second), result, retain)
+        if witness is not None:
+            return ContactResult(
+                "penetration",
+                checked,
+                witness=witness,
+                reason=flat_core_probe.discovery_reason
+                if flat_core_probe is not None
+                else "Strict new material crossing during cap restoration",
+            )
+        if result.limit is not None:
+            return ContactResult("unresolved", checked, reason="Negative probe allowance exhausted")
     return ContactResult(
         "unresolved",
         checked,

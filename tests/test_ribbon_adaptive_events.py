@@ -36,6 +36,7 @@ from experiments.experiment_ribbon_terminal_hardware.check import Report, Witnes
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+from tests.ribbon_adaptive_controls import disjoint, retained
 from tests.test_ribbon_aesthetic import _route
 
 
@@ -78,9 +79,9 @@ def _bump(window: Window, angle: float = 0.3) -> FoldRoute:
     Match aligned boundary poses with an independently derived three-bend isometric bump.
     """
     source = window.route
-    assert dot(source.targets.start_tangent, source.targets.end_tangent) > 1-1e-12
-    assert dot(source.targets.start_width, source.targets.end_width) > 1-1e-12
-    length = dot(difference(source.targets.end,source.targets.start),source.targets.start_tangent)
+    assert dot(source.targets.start_tangent, source.targets.end_tangent) > 1 - 1e-12
+    assert dot(source.targets.start_width, source.targets.end_width) > 1 - 1e-12
+    length = dot(difference(source.targets.end, source.targets.start), source.targets.start_tangent)
     radius = source.radius_mm
     runway = (length - 4 * radius * math.sin(angle)) / (2 * math.cos(angle))
     geometries = (
@@ -316,9 +317,10 @@ def test_controller_certifies_grown_route_and_rejects_removal_that_restores_intr
     )
     assert result is not None and result.contact is certificate and events(result.route) == 9
     assert result.detail["pruning_attempted"] == 1 and result.detail["modules_removed"] == 0
-    assert result.detail["contact_pairs"] == 4 and result.detail["iterations"] == 2
+    assert result.detail["contact_pairs"] == 2 and result.detail["iterations"] == 2
+    assert result.detail["contact_checks_deferred"] == 1
+    inspect.assert_called_once()
     assert inspect.call_args_list[0].kwargs["maximum_pairs"] == 2048
-    assert inspect.call_args_list[1].kwargs["maximum_pairs"] == 2046
 
 
 def test_resource_failure_propagates_without_a_geometry_fallback() -> None:
@@ -348,16 +350,26 @@ def test_two_local_rewrites_can_grow_then_remove_a_module_within_one_allocation(
     A later disjoint rewrite can make an earlier module redundant. Four charged
     actions cover both insertions and both removal checks; root/pair work never resets.
     """
-    source, hardware, evidence = _source()
+    source, hardware, evidence, other = disjoint()
     visited = []
 
-    def propose(route: FoldRoute, observed: Any, fixed: Any, check: Any,
-                *,select_window: planning.WindowSelector = select) -> Proposal:
+    def propose(
+        route: FoldRoute,
+        observed: Any,
+        fixed: Any,
+        check: Any,
+        *,
+        select_window: planning.WindowSelector = select,
+    ) -> Proposal:
         """
         Select two disjoint analytical straight windows to exercise lineage across growth.
         """
         del observed, fixed, check, select_window
-        index = 0 if not visited else len(route.pieces) - 1
+        index = (
+            0
+            if not visited
+            else next(i for i, piece in enumerate(route.pieces) if piece is source.pieces[2])
+        )
         visited.append(events(route))
         return _proposal(Window(route, index, index + 1))
 
@@ -381,9 +393,9 @@ def test_two_local_rewrites_can_grow_then_remove_a_module_within_one_allocation(
         hardware=hardware,
         certify=Mock(
             side_effect=lambda route, stage: (
-                Report("clear", 1)
-                if isinstance(route.pieces[-1].geometry, CylindricalFold)
-                else evidence
+                retained(route, source.pieces[2], other)
+                if any(piece is source.pieces[2] for piece in route.pieces)
+                else Report("clear", 1)
             )
         ),
     )
@@ -398,10 +410,11 @@ def test_two_local_rewrites_can_grow_then_remove_a_module_within_one_allocation(
         minimum_straight_mm=1e-5,
     )
     assert result is not None and result.contact is certificate
-    assert visited == [6, 9] and result.detail["rewrites"] == 2
-    assert result.detail["modules_removed"] == 1 and events(result.route) == 9
+    assert visited == [7, 10] and result.detail["rewrites"] == 2
+    assert result.detail["modules_removed"] == 1 and events(result.route) == 10
     assert result.detail["roots_attempted"] == 2 and result.detail["iterations"] == 4
-    assert result.detail["contact_pairs"] == 8
+    assert result.detail["contact_pairs"] == 4
+    assert result.detail["contact_checks_deferred"] == 2
 
 
 @pytest.mark.parametrize("limit", ("pairs", None))
@@ -425,7 +438,7 @@ def test_unresolved_proof_stops_insertion_instead_of_manufacturing_another_event
     result = runner.recover(
         source,
         evidence,
-        Mock(spec=Gate, hardware=hardware),
+        Mock(spec=Gate, hardware=hardware, certify=Mock(return_value=Report("clear", 1))),
         lambda: None,
         Mock(),
         work=Work(4, 2048, 0.35, 2),

@@ -14,6 +14,7 @@ import pytest
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from experiments.experiment_ribbon_fold_route import contact
 from experiments.experiment_ribbon_fold_route.contact import ProbeResult, ProjectionReuse
+from experiments.experiment_ribbon_fold_route.contact_axes import AxisContinuation, ProposedAxes
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.contact_inverse import occupied_coordinates
@@ -213,7 +214,11 @@ def test_proposal_verification_keeps_the_original_caller_guard() -> None:
         contact.inspect_contact(_skew(6), witness_probe=propose, checkpoint=guard)
 
 
-def test_flat_probe_direction_still_checks_curved_material(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("continuation", tuple(AxisContinuation))
+def test_flat_probe_direction_still_checks_curved_material(
+    monkeypatch: pytest.MonkeyPatch,
+    continuation: AxisContinuation,
+) -> None:
     """
     Force interval fallback where a straight crosses the circular portion between separated flat phases.
     """
@@ -238,7 +243,14 @@ def test_flat_probe_direction_still_checks_curved_material(monkeypatch: pytest.M
 
     monkeypatch.setitem(vars(contact), "occupied_coordinates", miss_initial_points)
     probe = Mock(return_value=ProbeResult(0, axis_proposal=Vector3(0, 0, 1)))
-    result = _inspect(route, probe)
+    result = contact.inspect_contact(
+        route,
+        maximum_pairs=2048,
+        cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+        projection_reuse=ProjectionReuse.CELLS,
+        witness_probe=probe,
+        proposed_axes=ProposedAxes(continuation),
+    )
     assert result.status == "penetration" and result.witness is not None
     probe.assert_called_once()
     for piece in result.witness.pieces:

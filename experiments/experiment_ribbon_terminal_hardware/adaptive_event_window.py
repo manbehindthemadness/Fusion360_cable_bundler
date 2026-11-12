@@ -29,6 +29,34 @@ def _require_lineage(route: FoldRoute, lineage: tuple[EventId, ...]) -> None:
         raise ValueError("Require one unique identity per actual material piece")
 
 
+def reidentify(
+    source: FoldRoute,
+    lineage: tuple[EventId, ...],
+    changed: FoldRoute,
+    generation: int,
+) -> tuple[EventId, ...]:
+    """
+    Keep IDs only for exact surviving piece objects after fixed-topology correction.
+
+    New, moved or re-created pieces receive fresh identities even when their
+    geometry compares equal. Straight-slot cleanup may change primitive count;
+    old module undo eligibility must not be guessed from shifted ordinals.
+    """
+    _require_lineage(source, lineage)
+    if (
+        type(generation) is not int
+        or generation <= 0
+        or any(label[0] == generation for label in lineage)
+    ):
+        raise ValueError("Use an unallocated positive identity generation")
+    owned = {id(piece): label for piece, label in zip(source.pieces, lineage)}
+    if len(owned) != len(lineage):
+        raise ValueError("Ambiguous repeated piece ownership cannot transfer identity")
+    result = tuple(owned.get(id(piece), (generation, i)) for i, piece in enumerate(changed.pieces))
+    _require_lineage(changed, result)
+    return result
+
+
 @dataclass(frozen=True)
 class Window:
     """
@@ -184,7 +212,7 @@ def reopen(window: Window, lineage: tuple[EventId, ...], history: tuple[Edit, ..
     """
     Reopen complete surviving modules touched by a selected material interval.
 
-    Merge overlapping domains to a fixed point; merely touching boundary pieces
+    Merge overlapping domains to a fixed point; meeting at an interval boundary
     does not merge disjoint workspaces. A later rewrite retires every covered ID
     and owns one replacement domain, preventing recursive child-window narrowing.
     Old partial or changed ranges are ignored rather than guessed. This changes
@@ -192,16 +220,21 @@ def reopen(window: Window, lineage: tuple[EventId, ...], history: tuple[Edit, ..
     geometry certification remain bounded by the caller's original allocation.
     """
     _require_lineage(window.source, lineage)
-    remaining = [
-        current for edit in history
-        if (current := edit.inserted_window(window.source, lineage)) is not None
-    ]
+    remaining: list[Window] = []
+    for edit in history:
+        inserted = edit.inserted_window(window.source, lineage)
+        if inserted is not None:
+            remaining.append(inserted)
     begin, end = window.begin, window.end
     while remaining:
-        overlapping = [current for current in remaining if current.begin < end and begin < current.end]
+        overlapping = [
+            current for current in remaining if current.begin < end and begin < current.end
+        ]
         if not overlapping:
             break
         begin = min(begin, *(current.begin for current in overlapping))
         end = max(end, *(current.end for current in overlapping))
         remaining = [current for current in remaining if current not in overlapping]
-    return window if (begin, end) == (window.begin, window.end) else Window(window.source, begin, end)
+    return (
+        window if (begin, end) == (window.begin, window.end) else Window(window.source, begin, end)
+    )

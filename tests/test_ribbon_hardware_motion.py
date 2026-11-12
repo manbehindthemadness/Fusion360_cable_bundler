@@ -13,8 +13,9 @@ import pytest
 from cable_bundler.routing.geometry import Vector3
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_terminal_hardware import hardware_motion, joint_contact
-from experiments.experiment_ribbon_terminal_hardware.check import inspect
+from experiments.experiment_ribbon_terminal_hardware.check import Report, inspect
 from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
     ContactGuidance,
     ContactMotion,
@@ -28,20 +29,9 @@ from experiments.experiment_ribbon_terminal_hardware.terminal_protection import 
 from tests.test_ribbon_contact_refinement import _source
 
 
-@pytest.mark.parametrize("straight_policy", ("infeasible", "unchanged", "growing", "shortening"))
-@pytest.mark.parametrize("exhausted", (False, True))
-def test_only_initial_failed_straight_projection_expands_without_renewal(
-    monkeypatch: pytest.MonkeyPatch,
-    straight_policy: str,
-    exhausted: bool,
-) -> None:
+def _adaptive_case() -> tuple[FoldRoute, Mock, Report, ContactGuidance]:
     """
-    Exercise real model/equation/derivative rebinding while mocking only projection dispositions.
-
-    A feasible straight projection retains its original domain, including growth. A failed one
-    permits one angular preparation before any motion, with the original clock
-    and immutable source. Hard exhaustion forbids the new domain. Neither
-    mocked projector is physical evidence or complete-ribbon coverage.
+    Bind a closed analytical hairpin and its actual intrusion report to one adaptive correction.
     """
     source = _source(0.2)
     terminal = Mock(spec=Gate)
@@ -49,6 +39,25 @@ def test_only_initial_failed_straight_projection_expands_without_renewal(
     evidence = inspect(source, terminal.hardware)
     assert evidence.status == "blocked" and evidence.witness is not None
     mode = ContactGuidance((FeatureEvidence(source, evidence),), ContactMotion.ADAPTIVE_HARDWARE)
+    return source, terminal, evidence, mode
+
+
+@pytest.mark.parametrize("straight_policy", ("infeasible", "unchanged", "growing", "shortening"))
+@pytest.mark.parametrize("exhausted", (False, True))
+def test_initial_straight_infeasibility_or_excess_growth_expands_without_renewal(
+    monkeypatch: pytest.MonkeyPatch,
+    straight_policy: str,
+    exhausted: bool,
+) -> None:
+    """
+    Exercise real model/equation/derivative rebinding while mocking only projection dispositions.
+
+    Unchanged and shortening projections retain the original straight domain. An
+    infeasible or unnecessarily growing one enables angular preparation before any motion, with the original clock
+    and immutable source. Hard exhaustion forbids the new domain. Neither
+    mocked projector is physical evidence or complete-ribbon coverage.
+    """
+    source, terminal, evidence, mode = _adaptive_case()
     clock = [0.0]
     for name in ("process_time", "perf_counter"):
         monkeypatch.setitem(vars(joint_contact), name, lambda: clock[0])
@@ -132,7 +141,7 @@ def test_only_initial_failed_straight_projection_expands_without_renewal(
         mode=mode,
     )
     assert result is not None and result.route is source and result.contact is None
-    expanded = straight_policy == "infeasible" and not exhausted
+    expanded = straight_policy in ("infeasible", "growing") and not exhausted
     assert result.detail["hardware_domain_expanded"] is expanded
     assert projected.call_count == int(expanded)
     if expanded:
@@ -140,18 +149,83 @@ def test_only_initial_failed_straight_projection_expands_without_renewal(
             projected.call_args.kwargs["guidance_policy"]
             is joint_contact.GuidancePolicy.RESTORATION_MERIT
         )
+        assert (
+            projected.call_args.kwargs["linear_policy"]
+            is joint_contact.LinearPolicy.COUPLED_RESTORATION
+        )
     assert protected_models == models
     assert result.detail["newton_steps"] == result.detail["contact_pairs"] == 0
+    assert result.detail["motion_attempted"] is (
+        not exhausted and straight_policy in ("unchanged", "shortening")
+    )
     assert result.detail["stop_reason"] == (
         "phase_budget"
         if exhausted
         else "joint_no_descent"
-        if straight_policy in ("unchanged", "shortening", "growing")
+        if straight_policy in ("unchanged", "shortening")
         else "linear_projection_infeasible"
     )
     assert sum(e["status"] == "hardware_motion_expanded" for e in events) == int(expanded)
+    if expanded:
+        assert next(e for e in events if e["status"] == "hardware_motion_expanded")["reason"] == (
+            "straight_growth_beyond_goal"
+            if straight_policy == "growing"
+            else "linear_projection_infeasible"
+        )
     growth = [e for e in events if e["status"] == "hardware_straight_growth_declined"]
     assert not growth
+
+
+@pytest.mark.parametrize("bank", (-0.3, 0.0, 0.4))
+@pytest.mark.parametrize(
+    "growth_mm,slack_mm,expected",
+    (
+        (0, 0, False),
+        (-0.1, 0, False),
+        (0.1, 0, True),
+        (0.1, 0.2, False),
+        (0.1, -1, True),
+        (1e-8, 0, False),
+    ),
+)
+def test_affine_straight_growth_selects_mobility_without_testing_geometry(
+    bank: float, growth_mm: float, slack_mm: float, expected: bool
+) -> None:
+    """
+    Match fixed-bend affine length against real authored material while retaining useful length slack.
+    """
+    source = _source(bank)
+    model = StraightSlots(source)
+    delta = (growth_mm / model.scale,) + (0.0,) * (len(model.initial) - 1)
+    proposed = model.route(tuple(a + b for a, b in zip(model.initial, delta)))
+    assert proposed is not None
+    assert proposed.material_length_mm == pytest.approx(source.material_length_mm + growth_mm)
+    assert (
+        hardware_motion.straight_growth_requires_angles(
+            model, delta, source.material_length_mm + slack_mm
+        )
+        is expected
+    )
+
+
+def test_growth_policy_requires_fixed_bends_and_complete_finite_projection() -> None:
+    """
+    Reject unsupported algebra instead of interpreting missing or angular motion as straight growth.
+    """
+    source = _source()
+    model = StraightSlots(source)
+    for delta, goal in (
+        ((), source.material_length_mm),
+        ((float("nan"),) * len(model.initial), source.material_length_mm),
+        ((0.0,) * len(model.initial), float("inf")),
+    ):
+        with pytest.raises(ValueError):
+            hardware_motion.straight_growth_requires_angles(model, delta, goal)
+    angular = SignedJoints(source)
+    with pytest.raises(ValueError):
+        hardware_motion.straight_growth_requires_angles(
+            angular, (0.0,) * len(angular.initial), source.material_length_mm
+        )
 
 
 def test_adaptive_policy_never_turns_unknown_contact_into_hardware_only_evidence() -> None:

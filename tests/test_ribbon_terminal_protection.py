@@ -169,12 +169,12 @@ def test_gap_protection_cannot_be_substituted_for_a_clearance_report() -> None:
     assert Protection(overlapping, -0.2).residual(model.initial) == 0.0
 
 
-@pytest.mark.parametrize("angle,allowed_touch", ((pi / 2, True), (pi, False)))
-def test_only_complete_mating_cap_certificate_can_retain_a_nonpositive_enclosure(
-    angle: float, allowed_touch: bool
+@pytest.mark.parametrize("angle", (pi / 2, pi))
+def test_matched_mating_boundary_guidance_does_not_require_a_whole_fold_certificate(
+    angle: float,
 ) -> None:
     """
-    Keep certified quarter-turn mating touch, but restore uncertified full-fold enclosure overlap.
+    Keep actual fixed-cap contact as guidance for both quarter and half turns, never as clearance proof.
     """
     source = _route((fold(2, 1.2, angle, 0, 1),))
     model = SignedJoints(source)
@@ -183,13 +183,9 @@ def test_only_complete_mating_cap_certificate_can_retain_a_nonpositive_enclosure
     assert len(protections) == 2
     for protection in protections:
         original_gap = protection.plane.gap(model.initial)
-        if allowed_touch:
-            assert protection.minimum_gap == min(original_gap, 1e-7 / model.scale)
-            assert protection.residual(model.initial) <= 0
-        else:
-            assert original_gap < 0
-            assert protection.minimum_gap == 1e-7 / model.scale
-            assert protection.residual(model.initial) > 0
+        assert protection.minimum_gap == min(original_gap, 1e-7 / model.scale)
+        assert protection.residual(model.initial) <= 0
+        assert protection.basis.value == "source_mating_boundary"
 
 
 def test_satisfied_opposite_terminal_inequality_changes_the_same_linear_correction() -> None:

@@ -18,7 +18,9 @@ from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProb
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
 from experiments.experiment_ribbon_terminal_hardware import joint_contact
+from experiments.experiment_ribbon_terminal_hardware.curved_discovery import CurvedProbe
 from experiments.experiment_ribbon_terminal_hardware.feature_guidance import MaterialGuidance
+from experiments.experiment_ribbon_terminal_hardware.restoration_order import MaterialFocus
 from experiments.experiment_ribbon_terminal_hardware.restoration_screen import screen
 from tests.test_ribbon_aesthetic import _route
 from tests.test_ribbon_contact_refinement import _gate
@@ -161,6 +163,9 @@ def test_screening_precedes_cap_closure_and_preserves_original_work_accounting(
         del probe
         checkpoint()
         assert maximum_pairs <= 32 and route.targets == source.targets
+        focus = _options["focus"]
+        assert isinstance(focus, MaterialFocus) and focus.source is route
+        assert isinstance(_options["curved_probe"], CurvedProbe)
         if outcome == "interrupted":
             raise vars(joint_contact)["_Exhausted"]()
         if outcome == "budget":
@@ -189,6 +194,9 @@ def test_screening_precedes_cap_closure_and_preserves_original_work_accounting(
     assert result.detail["newton_steps"] == (10 if outcome == "budget" else 1)
     assert result.detail["flat_constraints"] == (2 if outcome == "witness" else 1)
     assert result.detail["restoration_screen_checks"] == (8 if outcome == "budget" else 1)
+    assert (
+        result.detail["restoration_focused_screens"] == result.detail["restoration_screen_checks"]
+    )
     expected_pairs = 7 if outcome == "witness" else 32 if outcome == "interrupted" else 256
     assert (
         result.detail["restoration_screen_pairs"]

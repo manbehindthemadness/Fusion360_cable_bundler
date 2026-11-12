@@ -4,7 +4,6 @@ Reject thick ribbon self-intersection using analytic envelopes and volume witnes
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, replace
 from enum import Enum
 from functools import lru_cache
@@ -13,11 +12,14 @@ from typing import Callable, Generator, Literal, Protocol
 from cable_bundler.routing.geometry import Vector3, cross, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
+from .contact_affine_witness import AffineWitnesses
+from .contact_axes import ProposedAxes
 from .contact_bounds import Cell, Span, prepare_projection
 from .contact_cap_support import CapPolicy, cap_region
 from .contact_caps import straight_bridge_pairs
 from .contact_inverse import occupied_coordinates, profile_height
 from .contact_profile import clip_profile
+from .contact_subdivision import Subdivision, subdivide
 from .geometry import FoldRoute, pose_error
 
 
@@ -86,6 +88,25 @@ class ProbeResult:
     axis_proposal: Vector3 | None = None
 
 
+def validate_negative_probe(
+    route: FoldRoute, first: int, second: int, remaining_pairs: int
+) -> None:
+    """
+    Require a whole nonadjacent material pair and a nonnegative integer discovery allocation.
+
+    Flat-core and curved discovery share this query contract. Validation runs
+    no geometry or proof and grants no work, witness or clearance authority.
+    """
+    if type(remaining_pairs) is not int or remaining_pairs < 0:
+        raise ValueError("Use a nonnegative remaining comparison allowance")
+    if (
+        type(first) is not int
+        or type(second) is not int
+        or not 0 <= first < first + 2 <= second < len(route.pieces)
+    ):
+        raise ValueError("Probe ordered nonadjacent current material pieces")
+
+
 class WitnessProbe(Protocol):
     """
     Propose a strict interior witness or one untrusted axis within the remaining pair allowance.
@@ -115,12 +136,17 @@ def inspect_contact(
     witness_probe: WitnessProbe | None = None,
     probe_order: ProbeOrder = ProbeOrder.ORIGINAL_PAIRS,
     projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
+    proposed_axes: ProposedAxes | None = None,
+    affine_witnesses: AffineWitnesses | None = None,
+    subdivision: Subdivision = Subdivision.MIDPOINT,
 ) -> ContactResult:
     """
     Measure one bounded traversal, discarding unfinished work when its pair allowance expires.
 
     Stateful callers can use ContactTraversal to retain the exact pending stack
     for the same immutable route. Both paths share the unchanged analytic proof.
+    Explicit material-phase subdivision changes only complete child-box cuts;
+    midpoint remains the default and every child retains the same proof gates.
     """
     traversal = _walk(
         route,
@@ -131,6 +157,9 @@ def inspect_contact(
         witness_probe=witness_probe,
         probe_order=probe_order,
         projection_reuse=projection_reuse,
+        proposed_axes=proposed_axes,
+        affine_witnesses=affine_witnesses,
+        subdivision=subdivision,
     )
     try:
         return next(traversal)
@@ -150,6 +179,9 @@ def _walk(
     witness_probe: WitnessProbe | None,
     probe_order: ProbeOrder,
     projection_reuse: ProjectionReuse,
+    proposed_axes: ProposedAxes | None = None,
+    affine_witnesses: AffineWitnesses | None = None,
+    subdivision: Subdivision = Subdivision.MIDPOINT,
 ) -> Generator[ContactResult, int, ContactResult]:
     """
     Enclose every pair of original pieces through bounded material-box subdivision.
@@ -183,6 +215,14 @@ def _walk(
     One finite axis proposed by a completed optional probe may avoid subdivision
     only after the same full thick-cell outward bounds strictly separate. A
     proposal, convex-hull miss or probe limit never grants material clearance.
+    An optional affine-cell context proposes at most 32 intersection points on
+    nonmating pairs. Both original strict material inverses must verify a point;
+    a declined proposal changes neither ordinary proof nor contact acceptance.
+    An explicitly supplied material-cell axis context can retain at most 64
+    validated directions for this walk, re-proving both complete outward-rounded
+    child bounds before expensive inverse/local-frame checks. No span or positive
+    certificate transfers to another cell. Default proposals remain root-only;
+    evicted or unhelpful directions leave ordinary proofs/subdivision mandatory.
     Explicit material-cell probe order retains the original depth-first witness
     sequence instead of screening all original pairs before subdivision. The
     optional probe still runs only once per original nonmating pair, after its
@@ -194,6 +234,12 @@ def _walk(
         raise ValueError("Supply an explicit contact projection reuse policy")
     if not isinstance(probe_order, ProbeOrder):
         raise ValueError("Supply an explicit contact probe order")
+    if not isinstance(subdivision, Subdivision):
+        raise ValueError("Supply an explicit material subdivision policy")
+    if proposed_axes is not None and not isinstance(proposed_axes, ProposedAxes):
+        raise ValueError("Supply an optional-axis proof context")
+    if affine_witnesses is not None and not isinstance(affine_witnesses, AffineWitnesses):
+        raise ValueError("Supply an affine witness context")
     if (
         isinstance(maximum_pairs, bool)
         or not isinstance(maximum_pairs, int)
@@ -285,15 +331,35 @@ def _walk(
         center_point = lru_cache(maxsize=512)(center_point)
         occupied_point = lru_cache(maxsize=512)(occupied_point)
     joined: dict[tuple[int, int], bool] = {}
-    cache: dict[Cell, tuple[Span, ...]] = {}
+    cache: dict[Cell, list[Span | None]] = {}
 
-    def bounds(region: Cell) -> tuple[Span, ...]:
+    def world_separated(left_cell: Cell, right_cell: Cell) -> bool:
         """
-        Cache only the three world-coordinate broad-phase bounds.
+        Evaluate original world axes in order, retaining only bounds actually needed.
+
+        Each slot belongs to the same immutable cell and world axis. A complete
+        thick-cell gap on one axis suffices; unused axes have no proof authority.
+        The existing per-cell cache survives suspension with this walk only.
         """
-        if region not in cache:
-            cache[region] = tuple(evaluated(region, direction) for direction in axes)
-        return cache[region]
+        first_bounds = cache.get(left_cell)
+        if first_bounds is None:
+            first_bounds = [None, None, None]
+            cache[left_cell] = first_bounds
+        second_bounds = cache.get(right_cell)
+        if second_bounds is None:
+            second_bounds = [None, None, None]
+            cache[right_cell] = second_bounds
+        for index, direction in enumerate(axes):
+            left_span, right_span = first_bounds[index], second_bounds[index]
+            if left_span is None:
+                left_span = evaluated(left_cell, direction)
+                first_bounds[index] = left_span
+            if right_span is None:
+                right_span = evaluated(right_cell, direction)
+                second_bounds[index] = right_span
+            if left_span.high < right_span.low or right_span.high < left_span.low:
+                return True
+        return False
 
     pending = [(a, b) for i, a in enumerate(cells) for b in cells[i + 1 :]]
     original_pending: list[tuple[Cell, Cell]] = []
@@ -302,13 +368,18 @@ def _walk(
     probe_enabled = witness_probe is not None
     bridges = straight_bridge_pairs(route)
     checked = 0
-    axis_tests = axis_separations = 0
+    axis_proofs = proposed_axes if proposed_axes is not None else ProposedAxes()
+    axis_proofs.bind(route)
+    if affine_witnesses is not None:
+        affine_witnesses.bind(route)
 
     def measured(result: ContactResult) -> ContactResult:
         """
         Freeze this walk's cumulative proposal counters on completed or suspended receipts.
         """
-        return replace(result, axis_tests=axis_tests, axis_separations=axis_separations)
+        return replace(
+            result, axis_tests=axis_proofs.tests, axis_separations=axis_proofs.separations
+        )
 
     while pending or original_pending:
         if checkpoint is not None and checked % 64 == 0:
@@ -337,7 +408,9 @@ def _walk(
             ) or pair in bridges
         if joined[pair] and cap_supported(first, True) and cap_supported(second, False):
             continue
-        if any(x.high < y.low or y.high < x.low for x, y in zip(bounds(first), bounds(second))):
+        if world_separated(first, second):
+            continue
+        if axis_proofs.separates_descendants(first, second, evaluated, checkpoint):
             continue
         for cell, other, reversed_pair in ((first, second, False), (second, first, True)):
             point = center_point(cell)
@@ -374,7 +447,19 @@ def _walk(
             if separating:
                 break
         if separating:
+            axis_proofs.learn_local(first, second, axis)
             continue
+        if affine_witnesses is not None and not joined[pair]:
+            found = affine_witnesses.inspect(first, second, occupied_point, checkpoint)
+            if found is not None:
+                return measured(
+                    ContactResult(
+                        "penetration",
+                        checked,
+                        witness=Penetration(pair, *found),
+                        reason="Both strict material inverses verify an affine-cell intersection proposal.",
+                    )
+                )
         if probe_enabled and first.depth == second.depth == 0 and not joined[pair]:
             assert witness_probe is not None
             allowance = maximum_pairs - checked
@@ -421,24 +506,8 @@ def _walk(
             if probe.limit == "supports":
                 probe_enabled = False
             if probe.axis_proposal is not None and probe.limit is None:
-                axis = probe.axis_proposal
-                if not isinstance(axis, Vector3):
-                    raise ValueError("Optional axis proposal must be a finite nonzero vector")
-                coordinates = axis.x, axis.y, axis.z
-                if (
-                    any(
-                        type(value) not in (int, float) or not math.isfinite(value)
-                        for value in coordinates
-                    )
-                    or not 0 < math.hypot(*coordinates) < math.inf
-                ):
-                    raise ValueError("Optional axis proposal must be a finite nonzero vector")
-                if checkpoint is not None:
-                    checkpoint()
-                axis_tests += 1
-                x, y = evaluated(first, axis), evaluated(second, axis)
-                if x.high < y.low or y.high < x.low:
-                    axis_separations += 1
+                axis = axis_proofs.retain(pair, probe.axis_proposal)
+                if axis_proofs.separates(first, second, axis, evaluated, checkpoint):
                     continue
         if max(first.depth, second.depth) >= maximum_depth:
             return measured(
@@ -462,9 +531,9 @@ def _walk(
             second.height.high - second.height.low,
         )
         if size_a >= size_b:
-            pending.extend((child, second) for child in first.split(a.geometry.material_length_mm))
+            pending.extend((child, second) for child in subdivide(first, a.geometry, subdivision))
         else:
-            pending.extend((first, child) for child in second.split(b.geometry.material_length_mm))
+            pending.extend((first, child) for child in subdivide(second, b.geometry, subdivision))
     return measured(
         ContactResult(
             "separated",

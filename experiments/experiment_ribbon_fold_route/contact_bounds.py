@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, cross, dot
@@ -81,9 +82,32 @@ class Cell:
     height: Span
     depth: int = 0
 
-    def split(self, length: float) -> tuple[Cell, Cell]:
+    @cached_property
+    def _cached_hash(self) -> int:
         """
-        Bisect the largest material-space span, retaining every part of the box.
+        Compute the original dataclass tuple hash once for this frozen value.
+
+        The private preparation is absent from dataclass fields and serialized
+        contact receipts. No geometric bound or contact result is retained.
+        """
+        return hash((self.piece, self.u, self.q, self.height, self.depth))
+
+    def __hash__(self) -> int:
+        """
+        Preserve exact key semantics without repeatedly hashing the three immutable intervals.
+        """
+        return self._cached_hash
+
+    def split(
+        self, length: float, *, longitudinal_cuts: tuple[float, ...] = ()
+    ) -> tuple[Cell, Cell]:
+        """
+        Partition the largest material-space span, retaining every part of the box.
+
+        Default cuts retain the original midpoint. Optional finite strict interior
+        longitudinal hints choose the nearest midpoint, preserving input order
+        on ties. Other dimensions ignore hints. Both children share the exact
+        cut and increment depth once; no boundary material is discarded.
         """
         spans = (self.u, self.q, self.height)
         sizes = (
@@ -94,6 +118,14 @@ class Cell:
         index = max(range(3), key=lambda i: sizes[i])
         span = spans[index]
         middle = (span.low + span.high) / 2
+        if index == 0 and longitudinal_cuts:
+            candidates = tuple(
+                value
+                for value in longitudinal_cuts
+                if math.isfinite(value) and span.low < value < span.high
+            )
+            if candidates:
+                middle = min(candidates, key=lambda value: abs(value - middle))
         first, second = list(spans), list(spans)
         first[index], second[index] = Span(span.low, middle), Span(middle, span.high)
         return Cell(self.piece, *first, self.depth + 1), Cell(self.piece, *second, self.depth + 1)
@@ -178,13 +210,25 @@ def _straight_projection(
     origin: float, length: float, coefficients: tuple[float, float, float], cell: Cell
 ) -> Span:
     """
-    Preserve every original interval operation while reusing fixed straight transform coefficients.
+    Preserve every original interval operation without allocating intermediate Span objects.
+
+    Multiply, min/max, nextafter and addition order match Span.scale/add exactly,
+    including zero coefficients and subnormals. Only the final enclosure is
+    allocated; no term, rounding step or numerical guard is omitted.
     """
-    result = Span(origin, origin)
-    for span, coefficient in zip((cell.u.scale(length), cell.q, cell.height), coefficients):
-        result = result.add(span.scale(coefficient))
-    guard = 1e-11 * (1 + max(abs(result.low), abs(result.high)))
-    return Span(result.low - guard, result.high + guard)
+    a, b = cell.u.low * length, cell.u.high * length
+    u_low = math.nextafter(min(a, b), -math.inf)
+    u_high = math.nextafter(max(a, b), math.inf)
+    low = high = origin
+    intervals = ((u_low, u_high), (cell.q.low, cell.q.high), (cell.height.low, cell.height.high))
+    for (first, second), coefficient in zip(intervals, coefficients):
+        a, b = first * coefficient, second * coefficient
+        scaled_low = math.nextafter(min(a, b), -math.inf)
+        scaled_high = math.nextafter(max(a, b), math.inf)
+        low = math.nextafter(low + scaled_low, -math.inf)
+        high = math.nextafter(high + scaled_high, math.inf)
+    guard = 1e-11 * (1 + max(abs(low), abs(high)))
+    return Span(low - guard, high + guard)
 
 
 def interval_projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:

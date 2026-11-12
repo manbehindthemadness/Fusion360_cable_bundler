@@ -11,7 +11,7 @@ from itertools import combinations
 from typing import Callable
 
 from cable_bundler.routing.geometry import difference
-from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
+from experiments.experiment_ribbon_bend_reduction.closure import AffineWorkspace, affine_projection
 from experiments.experiment_ribbon_fold_route.geometry import Pose
 from experiments.experiment_ribbon_fold_route.native_length import minimum_coordinate
 from experiments.experiment_ribbon_joint_route.allocation import Model
@@ -55,7 +55,7 @@ def nearest(
     minimum_straight_mm: float = 0.0,
 ) -> Closure:
     """
-    Project onto the three-dimensional straight-displacement cone using at most64derived supports.
+    Project onto the straight-displacement cone using the original supports of up to three rays.
 
     Supports of at most three rays suffice in the zero-minimum XYZ cone. This is nearest-endpoint
     accounting, not guessed path initialization or an accepted material route.
@@ -68,8 +68,13 @@ def nearest(
     support or orientation trial. Error still measures actual endpoint distance.
     Positive floors retain the original three-ray representation limit; failure
     does not prove infeasibility of larger native-sized supports or other shapes.
+    Prepare only straight displacement columns: radius coordinates stay zero
+    throughout this fixed-radius projection. Actual endpoint placement, support
+    order, checkpoints and closure tie-breaking remain authoritative.
+    Native faces share one bounded exact affine-basis workspace for this action;
+    no candidate coordinates, endpoint residuals or acceptance decisions are cached.
     """
-    columns, right = model.equations()
+    columns, right = model.straight_equations()
     count = len(model.topology.folds) + 1
     diameter = model.source.targets.diameter_mm
     if not math.isfinite(minimum_straight_mm) or minimum_straight_mm < 0:
@@ -78,13 +83,16 @@ def nearest(
     if minimum_straight_mm and minimum is None:
         raise ValueError("Native straight floor cannot be represented")
     maximum_sum = maximum_straight_mm / diameter if maximum_straight_mm is not None else None
+    workspace = AffineWorkspace() if minimum is not None else None
     best: Closure | None = None
     for size in range(4):
         for support in combinations(range(count), size):
             checkpoint()
-            rows = [[columns[2 * i][a] for i in support] for a in range(3)]
+            rows = [[columns[i][a] for i in support] for a in range(3)]
             values = (
-                native_projection(rows, list(right), size, minimum, maximum_sum, checkpoint)
+                native_projection(
+                    rows, list(right), size, minimum, maximum_sum, checkpoint, workspace=workspace
+                )
                 if minimum is not None
                 else least_squares([], [], rows, list(right), size, maximum_sum=maximum_sum)
             )

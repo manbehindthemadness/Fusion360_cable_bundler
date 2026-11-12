@@ -113,8 +113,17 @@ class PlacedPiece:
     def _end_pose(self) -> Pose:
         """
         Carry a flat terminal frame forward, removing accumulated floating roundoff.
+
+        Base material pieces omit the unused acceleration transform. Subclasses
+        retain their original surface dispatch; all frame arithmetic is unchanged.
         """
-        point, velocity, across, _ = self.surface(1, 0)
+        if type(self) is PlacedPiece:
+            local_point, local_velocity, local_across, _ = self.geometry.surface(1, 0)
+            point = self.pose.point(local_point)
+            velocity = self.pose.direction(local_velocity)
+            across = self.pose.direction(local_across)
+        else:
+            point, velocity, across, _ = self.surface(1, 0)
         tangent = unit(velocity)
         width = unit(across.translated(tangent, -dot(across, tangent)))
         return Pose(point, tangent, width)

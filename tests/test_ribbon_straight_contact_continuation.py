@@ -90,16 +90,23 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
     """
     Exercise actual placement and projection, mocking physical reports only to test protocol ordering.
 
-    The synthetic row requires compensated growth after initial hardware motion.
+    The inherited quarter-millimeter goal permits the initial0.2mm compensated
+    hardware growth. Later contact restoration exceeds that preference without
+    switching domains after motion or turning the length goal into a hard gate.
     These checker-boundary dispositions do not establish real contact coverage;
     independent occupied-material controls exercise the actual preparation below.
+    Closed candidates reach the full checker directly. Negative discovery is
+    permitted only during open-cap correction and cannot spend closed proof work.
     """
     from typing import Any, cast
     from unittest.mock import Mock
 
     from cable_bundler.routing.geometry import Vector3
     from experiments.experiment_ribbon_feature_insertion.separation import Region, Side
-    from experiments.experiment_ribbon_fold_route.contact import ContactResult
+    from experiments.experiment_ribbon_fold_route.contact import (
+        ContactResult,
+        ProbeOrder,
+    )
     from experiments.experiment_ribbon_fold_route.contact_flat_geometry import FlatPhase
     from experiments.experiment_ribbon_terminal_hardware import joint_contact
     from experiments.experiment_ribbon_terminal_hardware.check import Report, Witness
@@ -117,6 +124,9 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
     from experiments.experiment_ribbon_terminal_hardware.joint_handoff import JointHandoff
     from experiments.experiment_ribbon_terminal_hardware.material_constraint import (
         MaterialConstraint,
+    )
+    from experiments.experiment_ribbon_terminal_hardware.retained_directions import (
+        RetainedDirections,
     )
     from tests.test_ribbon_contact_refinement import _gate
     from tests.test_ribbon_material_return import _witness
@@ -141,18 +151,27 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
     monkeypatch.setitem(vars(joint_contact), "prepare_terminal_protection", lambda *_args: ())
     crossing = ContactResult("penetration", 4, _witness(0, 2))
     final = ContactResult("unresolved" if outcome == "unresolved" else "separated", 5)
-    contact = Mock(side_effect=[crossing, crossing if outcome == "repeat" else final])
+    reports = [crossing if outcome == "repeat" else final]
+    contact = Mock(side_effect=[crossing, *reports])
     monkeypatch.setitem(vars(joint_contact), "inspect_contact", contact)
+
+    def open_screen(route: Any, *_args: Any, **_kwargs: Any) -> ContactResult:
+        """
+        Refuse discovery before initial closed certification; new violated guidance may screen again.
+        """
+        assert contact.call_count > 0 or cap_error(route) > 1e-7
+        return ContactResult("unresolved", 0)
+
+    monkeypatch.setitem(vars(joint_contact), "screen_restoration", open_screen)
     prepared: list[Any] = []
 
-    def prepare(model: Any, route: Any, evidence: Any, values: Any) -> Any:
+    def make_addition(model: Any, values: Any) -> Addition:
         """
-        Bind one analytical full-profile row to the actual current cap-closed pose.
+        Describe one analytical full-profile row independently of either negative-discovery boundary.
         """
-        prepared.append(route)
-        assert cap_error(route) < 1e-7 and evidence is crossing
         bound = Mock(spec=MaterialConstraint)
         bound.pair = (Region(0, True), Region(1, True))
+        bound.bound = Mock(model=model, pair=bound.pair, axis=Vector3(0, 0, 1))
         bound.parts = (FlatPart(FlatPhase.STRAIGHT, -0.5, 0.5, 0.5),) * 2
         target = values[0] + 0.25 / model.scale
         bound.gap.side_effect = (
@@ -160,10 +179,19 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
             if outcome in ("decline", "late")
             else (lambda coordinates, side: coordinates[0] - target)
         )
-        addition = Addition(
+        return Addition(
             cast(MaterialConstraint, bound), Side.AFTER, (bound.pair, bound.parts), crossing.witness
         )
-        return ClosedFlatContinuation(values, JointHandoff(route, evidence), addition)
+
+    def prepare(model: Any, route: Any, evidence: Any, values: Any) -> Any:
+        """
+        Bind one analytical full-profile row to the actual current cap-closed pose.
+        """
+        prepared.append(route)
+        assert cap_error(route) < 1e-7 and evidence is crossing
+        return ClosedFlatContinuation(
+            values, JointHandoff(route, evidence), make_addition(model, values)
+        )
 
     monkeypatch.setattr(ClosedFlatContinuation, "prepare", staticmethod(prepare))
     original = joint_contact.shortest_run_step
@@ -190,6 +218,7 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
         """
         Keep preparation and recording overhead inside the same original guard.
         """
+        assert event["status"] != "hardware_motion_expanded"
         if event["status"] == "straight_contact_retained":
             if outcome == "budget":
                 clock[0] = 0.36
@@ -214,7 +243,7 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
             terminal,
             checkpoint,
             record,
-            maximum_length_mm=source.material_length_mm,
+            maximum_length_mm=source.material_length_mm + 0.25,
             minimum_straight_mm=1e-5,
             remaining_pairs=123,
             maximum_cpu_seconds=0.35,
@@ -237,8 +266,18 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
         return
     result = run()
     assert result is not None and result.detail["contact_pairs"] <= 9
+    assert result.detail["closed_contact_discoveries"] == 0
+    final_call_count = 2
+    for index, certified in enumerate(contact.call_args_list):
+        assert certified.kwargs["maximum_pairs"] == (123 if index == 0 else 119)
+    if contact.call_count == final_call_count:
+        certified = contact.call_args_list[-1]
+        directions = certified.kwargs["witness_probe"]
+        assert isinstance(directions, RetainedDirections) and directions.axes
+        assert directions.source is certified.args[0]
+        assert certified.kwargs["probe_order"] is ProbeOrder.MATERIAL_CELLS
     if outcome == "accept":
-        assert result.contact is final and not yielded and contact.call_count == 2
+        assert result.contact is final and not yielded and contact.call_count == final_call_count
         assert result.route.material_length_mm > source.material_length_mm + 0.69
         assert cap_error(result.route) < 1e-7 and terminal.certify.call_count == 2
         assert [
@@ -249,7 +288,7 @@ def test_real_joint_entry_retains_one_affine_flat_row_without_renewing_work(
         assert result.detail["stop_reason"] == "material_handoff"
         assert result.detail["straight_contact_fallbacks"] == int(outcome == "decline")
         assert len(prepared) == int(outcome != "default")
-        assert contact.call_count == (2 if outcome == "repeat" else 1)
+        assert contact.call_count == (final_call_count if outcome == "repeat" else 1)
         if outcome == "decline":
             assert yielded[0].route is prepared[0]
     else:

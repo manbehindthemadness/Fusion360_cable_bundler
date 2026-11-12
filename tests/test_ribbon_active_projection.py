@@ -152,6 +152,58 @@ def test_small_systems_match_the_existing_complete_subset_solution() -> None:
         assert actual == pytest.approx(expected, abs=2e-10)
 
 
+@pytest.mark.parametrize("exponent", (8, 9, 10))
+@pytest.mark.parametrize("row_scale", (0.1, 1.0, 10.0))
+def test_satisfied_pending_bound_survives_conditioned_dual_release(
+    exponent: int, row_scale: float, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Retain a feasible correction when a small Gram error completes the pending halfspace early.
+
+    Three authored halfspaces nearly meet at x=1,y=.2. Their third normal
+    has a small independent z component, so an ordinary tiny coefficient
+    error can leave that halfspace satisfied after releasing the x bound.
+    Inject that algebraic error once, without altering any dot product,
+    constraint, final gate or expected feasible geometry. A negative remaining
+    primal distance must not discard the already feasible dual state.
+    """
+    height = 2.0**-exponent
+    lateral = math.sqrt(0.36 - height**2)
+    multiplier = (1.0 - 0.8 * (0.2 / 0.6)) / (0.8 + 0.8 * lateral / 0.6)
+    third = 0.8 - lateral * 0.2 + multiplier * height**2
+    rows = [[float(i == j) for j in range(9)] for i in range(6)]
+    rows += [
+        [0.0] * 6 + list(normal)
+        for normal in ((-1.0, 0.0, 0.0), (-0.8, -0.6, 0.0), (-0.8, lateral, -height))
+    ]
+    rows = [[value * row_scale for value in row] for row in rows]
+    residual = (0.0,) * 6 + tuple(value * row_scale for value in (1.0, 0.92, third))
+    original = vars(active_projection)["_solve"]
+    injected = 0
+
+    def conditioned_solve(matrix: list[list[float]], right: list[float]) -> list[float] | None:
+        """
+        Perturb only the first two-normal Gram solution by a fixed small coefficient error.
+        """
+        nonlocal injected
+        solved = original(matrix, right)
+        if len(right) == 2 and solved is not None and not injected:
+            injected += 1
+            solved[0] += 1e-8
+            solved[1] -= 4e-8
+        return solved
+
+    monkeypatch.setitem(vars(active_projection), "_solve", conditioned_solve)
+    result = active_step(_model(), (0.0,) * 9, rows, residual, lambda: None)
+    assert injected == 1 and result is not None
+    measured = tuple(
+        term + math.fsum(a * b for a, b in zip(row, result)) for row, term in zip(rows, residual)
+    )
+    assert measured[:6] == (0.0,) * 6
+    assert max(measured[6:]) <= 1e-14
+    assert result[6:] == pytest.approx((1.0, 0.2, multiplier * height), abs=5e-8)
+
+
 def test_native_coordinate_bounds_are_not_omitted() -> None:
     """
     A linear clearance requirement cannot bypass an incompatible coordinate upper bound.

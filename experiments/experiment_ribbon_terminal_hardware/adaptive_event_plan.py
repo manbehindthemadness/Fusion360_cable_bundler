@@ -119,7 +119,9 @@ def plan(
             return None
     model = SignedJoints(source)
     window = select_window(source, members)
-    if window.source is not source or not any(window.begin <= member < window.end for member in members):
+    if window.source is not source or not any(
+        window.begin <= member < window.end for member in members
+    ):
         raise ValueError("Window strategy must cover a current witness in its owned route")
     if isinstance(witness, Witness):
         assert isinstance(evidence, Report)

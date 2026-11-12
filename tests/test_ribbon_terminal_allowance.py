@@ -96,9 +96,11 @@ def test_zero_native_slot_is_reprojected_instead_of_clamped_after_closure() -> N
 
 
 @pytest.mark.parametrize("hardware_clear", (False, True))
+@pytest.mark.parametrize("measured", (False, True))
 def test_only_rejected_hardware_uses_remaining_completed_work(
     monkeypatch: pytest.MonkeyPatch,
     hardware_clear: bool,
+    measured: bool,
 ) -> None:
     """
     Preserve a successful legacy route, or carry one recorded update without renewing counters.
@@ -106,6 +108,8 @@ def test_only_rejected_hardware_uses_remaining_completed_work(
     source = _route((Straight(10),))
     constructor = _constructor(source)
     prior = {"status": "separated", "iterations": 3, "cpu_seconds": 0.2, "contacts": 2, "pairs": 13}
+    if measured:
+        prior["newton_steps"] = 18
     monkeypatch.setitem(vars(solver_v2), "construct", constructor)
     monkeypatch.setitem(
         vars(solver_v2),
@@ -135,7 +139,7 @@ def test_only_rejected_hardware_uses_remaining_completed_work(
             {
                 "status": "separated",
                 "iterations": 1,
-                "newton_steps": 5,
+                "newton_steps": 5 if measured else 0,
                 "contacts": 1,
                 "contact_pairs": 7,
                 "contact_seconds": 0.01,
@@ -154,6 +158,7 @@ def test_only_rejected_hardware_uses_remaining_completed_work(
     else:
         late.assert_called_once()
         assert late.call_args.kwargs["maximum_updates"] == 1
+        assert late.call_args.kwargs["maximum_newton_steps"] == (6 if measured else 0)
         assert 0 < late.call_args.kwargs["maximum_cpu_seconds"] < 0.15
         assert late.call_args.kwargs["remaining_pairs"] == 2048 - 749
         detail = result.detail["construction"]["recovery"]
@@ -161,3 +166,7 @@ def test_only_rejected_hardware_uses_remaining_completed_work(
             detail["iterations"] == 4 and detail["contacts"] == 3 and detail["contact_pairs"] == 20
         )
         assert result.detail["construction"]["contact_pairs"] == 756
+        assert detail["newton_steps"] == (23 if measured else 0)
+        assert detail["newton_steps_scope"] == (
+            "whole_recovery" if measured else "terminal_reclosure_only_prior_unmeasured"
+        )

@@ -17,13 +17,16 @@ from experiments.experiment_ribbon_fold_route.contact import (
     ProjectionReuse,
     inspect_contact,
 )
+from experiments.experiment_ribbon_fold_route.contact_affine_witness import AffineWitnesses
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .adaptive_event_construction import Roots, construct
+from .adaptive_event_continuation import recover as continue_fixed
 from .adaptive_event_plan import plan
-from .adaptive_event_window import Edit, EventId, Window, events, reopen, select
+from .adaptive_event_schedule import Action, Correction, choose, preparation_declined
+from .adaptive_event_window import Edit, EventId, Window, events, reidentify, reopen, select
 from .check import Report
 from .gate import Gate
 from .recovery_limits import Work, validate
@@ -53,8 +56,14 @@ def recover(
     cover all windows and optional undo checks. There is no parent event-count
     ceiling. Windows keep both actual boundary poses; outer objects and their
     lineage survive unchanged. Old ordinal constraints or certificates are never
-    transferred. Unresolved proofs cannot trigger insertion. A failed attempted
-    rewrite returns the original source, not an enlarged fallback allocation.
+    transferred. Strict hardware blockers are checked before self-contact and can
+    guide another update without spending a contact proof on known rejected
+    geometry. Unresolved evidence cannot trigger insertion. An intact inserted
+    module with a current strict blocker prefers one fixed-topology sequence
+    before another rewrite; root exhaustion also permits that entry. Only an
+    explicit unchanged hardware-preparation decline without a motion trial can
+    leave event refinement eligible. The correction entry cannot renew itself.
+    A failed phase returns the original source without renewing its allocation.
     Removal prefers simpler certified geometry; missing pruning work is explicit,
     and no global minimality is claimed. All original physical checks remain.
     """
@@ -65,14 +74,18 @@ def recover(
         maximum_updates=work.updates,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        maximum_newton_steps=work.newton_steps,
     )
     if evidence.witness is None or evidence.status != (
         "blocked" if isinstance(evidence, Report) else "penetration"
     ):
         return None
     cpu, wall = process_time(), perf_counter()
-    roots = Roots()
+    roots = Roots(newton_limit=work.newton_steps)
+    correction = Correction.READY
+    pending: Action | None = None
     current = source
+    evidence_source = source
     lineage: tuple[EventId, ...] = tuple((0, i) for i in range(len(source.pieces)))
     edits: list[Edit] = []
     iterations = pairs = contacts = 0
@@ -84,6 +97,8 @@ def recover(
         "purpose": "adaptive_local_events",
         "initial_event_count": events(source),
         "reopened_windows": 0,
+        "contact_checks_deferred": 0,
+        "preparation_only_resumes": 0,
     }
 
     def bounded() -> None:
@@ -94,9 +109,22 @@ def recover(
         if process_time() - cpu >= work.cpu_seconds or perf_counter() - wall >= work.wall_seconds:
             raise _Exhausted()
 
+    def remaining() -> Work | None:
+        """
+        Deduct all prior geometry, proof and reporting work from the same original allocation.
+        """
+        checkpoint()
+        return work.remaining(
+            updates=iterations,
+            pairs=pairs,
+            newton_steps=roots.newton_steps,
+            cpu_seconds=process_time() - cpu,
+            wall_seconds=perf_counter() - wall,
+        )
+
     def certify(route: FoldRoute) -> tuple[ContactResult | None, Report | None]:
         """
-        Check physical contracts and complete changed-route clearance without a new pair or hardware pool.
+        Check hardware first, retaining actual evidence without renewing either proof pool.
         """
         nonlocal pairs, contacts, contact_seconds
         bounded()
@@ -109,8 +137,25 @@ def recover(
         allowance = work.pairs - pairs
         if allowance <= 0:
             return None, None
+        terminal_proof = terminal.certify(route, "adaptive_events_before_contact")
+        if terminal_proof.status == "blocked" and terminal_proof.witness is not None:
+            detail["contact_checks_deferred"] += 1
+            record(
+                {
+                    "stage": "adaptive_proof",
+                    "status": "contact_deferred",
+                    "hardware": asdict(terminal_proof),
+                    "contact": None,
+                    "contact_scope": "unattempted_for_strict_hardware_blocker",
+                }
+            )
+            bounded()
+            return None, terminal_proof
+        bounded()
         contacts += 1
         started = perf_counter()
+        probe = FlatProbe()
+        affine_context = AffineWitnesses()
         try:
             proof = inspect_contact(
                 route,
@@ -118,8 +163,9 @@ def recover(
                 checkpoint=bounded,
                 cap_policy=CapPolicy.ANALYTIC_SUPPORT,
                 projection_reuse=ProjectionReuse.CELLS,
-                witness_probe=FlatProbe(),
+                witness_probe=probe,
                 probe_order=ProbeOrder.ORIGINAL_PAIRS,
+                affine_witnesses=affine_context,
             )
         except _Exhausted:
             pairs += allowance
@@ -127,16 +173,20 @@ def recover(
             raise
         finally:
             contact_seconds += perf_counter() - started
+            detail.setdefault("flat_probe_preparations", []).append(probe.shape_preparations())
+            detail.setdefault("affine_witnesses", []).append(affine_context.statistics())
         if type(proof.pairs_checked) is not int or not 0 <= proof.pairs_checked <= allowance:
             raise ArithmeticError("Adaptive proof exceeded its remaining pair allocation")
         if proof.status == "separated" and proof.limit is not None:
             raise ArithmeticError("Incomplete material proof cannot certify adaptive geometry")
         pairs += proof.pairs_checked
-        bounded()
-        terminal_proof = (
-            terminal.certify(route, "adaptive_events_complete")
-            if proof.status == "separated"
-            else None
+        record(
+            {
+                "stage": "adaptive_proof",
+                "status": "contact_measured",
+                "hardware": asdict(terminal_proof),
+                "contact": asdict(proof),
+            }
         )
         bounded()
         return proof, terminal_proof
@@ -147,12 +197,29 @@ def recover(
         """
         bounded()
         selected = select(route, members)
+        if correction is Correction.SPENT:
+            record(
+                {
+                    "stage": "adaptive_workspace",
+                    "status": "subdivide_after_preparation_decline",
+                    "window": [selected.begin, selected.end],
+                    "parent_event_count": events(route),
+                }
+            )
+            bounded()
+            return selected
         expanded = reopen(selected, lineage, tuple(edits))
         if (expanded.begin, expanded.end) != (selected.begin, selected.end):
             detail["reopened_windows"] += 1
-            record({"stage":"adaptive_workspace", "status":"reopened",
-                "selected":[selected.begin,selected.end], "window":[expanded.begin,expanded.end],
-                "parent_event_count":events(expanded.route)})
+            record(
+                {
+                    "stage": "adaptive_workspace",
+                    "status": "reopened",
+                    "selected": [selected.begin, selected.end],
+                    "window": [expanded.begin, expanded.end],
+                    "parent_event_count": events(expanded.route),
+                }
+            )
         bounded()
         return expanded
 
@@ -160,8 +227,93 @@ def recover(
         bounded()
         if cap_error(source) > 1e-7 or material_error(source) > 1e-10:
             return None
-        while iterations < work.updates and pairs < work.pairs and roots.attempted < 8:
-            proposed = plan(current, evidence, terminal.hardware, bounded, select_window=select_workspace)
+        while iterations < work.updates and pairs < work.pairs:
+            bounded()
+            action = choose(
+                current,
+                evidence,
+                evidence_source,
+                lineage,
+                tuple(edits),
+                roots.attempted,
+                correction,
+            )
+            if pending is not None and action is not Action.STOP:
+                action = pending
+            pending = None
+            if action is Action.STOP:
+                if not edits and iterations == 0:
+                    return None
+                stop = "work_exhausted" if roots.attempted == 8 else "unsupported_local_witness"
+                break
+            if action in (Action.CORRECT_MODULE, Action.CORRECT_EXHAUSTED, Action.CORRECT_DECLINED):
+                record(
+                    {
+                        "stage": "adaptive_schedule",
+                        "action": action.value,
+                        "roots_attempted": roots.attempted,
+                        "remaining_updates": work.updates - iterations,
+                    }
+                )
+                left = remaining()
+                if left is None:
+                    stop = "work_exhausted"
+                    break
+                correction = Correction.SPENT
+                # Reduced child clocks preserve actual completed counters even
+                # when the original clock rejects the following receipt.
+                child = continue_fixed(
+                    current,
+                    evidence,
+                    terminal,
+                    checkpoint,
+                    record,
+                    work=left,
+                    maximum_length_mm=maximum_length_mm,
+                    minimum_straight_mm=minimum_straight_mm,
+                )
+                spent = child.detail
+                iterations += spent["iterations"]
+                roots.newton_steps += spent["newton_steps"]
+                contacts += spent["contacts"]
+                pairs += spent["contact_pairs"]
+                contact_seconds += spent["contact_seconds"]
+                detail["fixed_continuation"] = dict(spent)
+                detail["correction_schedule"] = action.value
+                stop = spent["stop_reason"]
+                record(
+                    {
+                        "stage": "adaptive_continuation",
+                        "status": spent["status"],
+                        "detail": dict(spent),
+                    }
+                )
+                bounded()
+                if child.contact is not None:
+                    lineage = reidentify(current, lineage, child.route, work.updates + 1)
+                    current, accepted, stop = child.route, child.contact, "accepted"
+                    break
+                if (
+                    action is Action.CORRECT_MODULE
+                    and roots.attempted < 8
+                    and preparation_declined(child, current, evidence)
+                    and remaining() is not None
+                ):
+                    detail["preparation_only_resumes"] += 1
+                    record(
+                        {
+                            "stage": "adaptive_schedule",
+                            "action": "refine_after_preparation_decline",
+                            "roots_attempted": roots.attempted,
+                            "remaining_updates": work.updates - iterations,
+                        }
+                    )
+                    continue
+                break
+            stop = "work_exhausted"
+            proposed = plan(
+                current, evidence, terminal.hardware, bounded, select_window=select_workspace
+            )
             if proposed is None:
                 if not edits and iterations == 0:
                     return None
@@ -182,6 +334,9 @@ def recover(
             local = construct(proposed, minimum_straight_mm, roots, bounded, record)
             if local is None:
                 stop = "no_closed_local_allocation"
+                if correction is Correction.READY:
+                    pending = Action.CORRECT_DECLINED
+                    continue
                 break
             candidate = window.splice(local)
             children = tuple((iterations, i) for i in range(len(local.pieces)))
@@ -205,8 +360,20 @@ def recover(
                 }
             )
             measured, hardware = certify(current)
+            if (
+                hardware is not None
+                and hardware.status == "blocked"
+                and hardware.witness is not None
+            ):
+                evidence = hardware
+                evidence_source = current
+                continue
             if measured is None:
-                stop = "global_contract_or_pair_budget"
+                stop = (
+                    "uncertain_global_proof"
+                    if hardware is not None
+                    else "global_contract_or_pair_budget"
+                )
                 break
             if (
                 measured.status == "separated"
@@ -217,13 +384,7 @@ def recover(
                 break
             if measured.status == "penetration" and measured.witness is not None:
                 evidence = measured
-            elif (
-                measured.status == "separated"
-                and hardware is not None
-                and hardware.status == "blocked"
-                and hardware.witness is not None
-            ):
-                evidence = hardware
+                evidence_source = current
             else:
                 stop = "uncertain_global_proof"
                 break
@@ -263,7 +424,8 @@ def recover(
         status="separated" if accepted is not None else "unresolved",
         stop_reason=stop,
         iterations=iterations,
-        newton_steps=0,
+        newton_steps=roots.newton_steps,
+        local_reclosures=roots.reclosures,
         contacts=contacts,
         contact_pairs=pairs,
         contact_seconds=contact_seconds,

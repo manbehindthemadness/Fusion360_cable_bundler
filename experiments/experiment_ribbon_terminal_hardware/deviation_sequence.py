@@ -44,9 +44,22 @@ class SequenceStart(Enum):
     BLOCKED_MATING = "blocked_mating"
 
 
+HARDWARE_PREPARATION_DECLINES = frozenset(
+    {
+        "unsupported_guidance",
+        "linear_projection_infeasible",
+        "unsupported_hardware_domain",
+        "physical_inequality_capacity",
+        "native_projection_infeasible",
+        "native_extension_infeasible",
+        "joint_update_limit",
+    }
+)
+
+
 def recover(
     source: FoldRoute,
-    contact: ContactResult,
+    contact: ContactResult | Report,
     terminal: Gate,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
@@ -85,9 +98,16 @@ def recover(
     handoff or the existing explicit release turns that entry's length ceiling
     into a quality goal. Unsupported initial mating preparation can decline
     without motion or certificates, preserving its caller's original fallback.
+    A hardware-only entry must carry a strict occupied witness; it grants no
+    self-contact certificate. The same existing hardware-guidance stages and
+    full final checks apply as for a later hardware handoff.
+    Only one explicitly measured no-trial hardware preparation may report
+    hardware_preparation_only. Missing motion receipts stay unknown, never false.
     """
     if not isinstance(start, SequenceStart):
         raise ValueError("Choose an explicit recovery-sequence entry policy")
+    if isinstance(contact, Report) and (contact.status != "blocked" or contact.witness is None):
+        raise ValueError("Hardware entry requires an actual occupied witness")
     if start is SequenceStart.BLOCKED_MATING and (
         contact.status != "penetration" or contact.witness is None
     ):
@@ -99,6 +119,7 @@ def recover(
         maximum_updates=work.updates,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        maximum_newton_steps=work.newton_steps,
     )
     cpu, wall = process_time(), perf_counter()
     candidate = source
@@ -114,6 +135,7 @@ def recover(
         "contact_seconds": 0.0,
     }
     stages = 0
+    motion_attempted: bool | None = False
     accepted: Result | None = None
     stop = "work_exhausted"
     detail: dict[str, Any] = {}
@@ -130,6 +152,7 @@ def recover(
             pairs=counters["contact_pairs"],
             cpu_seconds=process_time() - cpu,
             wall_seconds=perf_counter() - wall,
+            newton_steps=counters["newton_steps"],
         )
 
     def retain(route: FoldRoute, report: Report) -> bool:
@@ -235,14 +258,17 @@ def recover(
             maximum_cpu_seconds=left.cpu_seconds,
             maximum_seconds=left.wall_seconds,
             maximum_updates=left.updates,
+            maximum_newton_steps=left.newton_steps,
             mode=mode,
             on_blocked=yielded.append,
             on_restoration_blocked=yielded.append,
             early_material_return=UnreflectedReturns(frozenset(reflected))
-            if isinstance(mode, MaterialGuidance) and left.updates > 1
+            if isinstance(mode, (MaterialGuidance, ContactGuidance)) and left.updates > 1
             else None,
         )
         if result is None:
+            if not (stages == 1 and isinstance(contact, Report) and candidate is source):
+                motion_attempted = None if motion_attempted is not True else True
             if first_mating:
                 detail["initial_mating_supported"] = False
                 stop = "unsupported_initial_mating"
@@ -254,13 +280,22 @@ def recover(
             detail["initial_mating_supported"] = True
             detail["length_ceiling_released"] = result.detail.get("length_ceiling_released") is True
         spent = result.detail
+        stage_motion = spent.get("motion_attempted")
+        if type(stage_motion) is bool and stage_motion:
+            motion_attempted = True
+        elif type(stage_motion) is not bool and motion_attempted is not True:
+            motion_attempted = None
         if any(
             type(spent[key]) is not int or spent[key] < 0
             for key in ("iterations", "newton_steps", "contacts", "contact_pairs")
         ):
             raise ArithmeticError("Joint stages must report nonnegative integer work")
         charged = max(1, spent["iterations"], ceil(spent["newton_steps"] / 6))
-        if charged > left.updates or spent["contact_pairs"] > left.pairs:
+        if (
+            charged > left.updates
+            or spent["contact_pairs"] > left.pairs
+            or spent["newton_steps"] > left.newton_steps
+        ):
             raise ArithmeticError("Joint stage exceeded its remaining allocation")
         counters["iterations"] += charged
         for key in ("newton_steps", "contacts", "contact_pairs", "contact_seconds"):
@@ -306,6 +341,16 @@ def recover(
         stages=stages,
         reflected_folds=sorted(reflected),
         material_continuation=material_continuation,
+        motion_attempted=motion_attempted,
+        hardware_preparation_only=(
+            isinstance(contact, Report)
+            and stages == 1
+            and candidate is source
+            and accepted is None
+            and motion_attempted is False
+            and counters["newton_steps"] == counters["contacts"] == counters["contact_pairs"] == 0
+            and stop in HARDWARE_PREPARATION_DECLINES
+        ),
         retained_hardware_features=len(features),
         cpu_seconds=process_time() - cpu,
         elapsed_seconds=perf_counter() - wall,
@@ -317,7 +362,9 @@ def recover(
     detail.update(cpu_seconds=process_time() - cpu, elapsed_seconds=perf_counter() - wall)
     if detail["cpu_seconds"] >= work.cpu_seconds or detail["elapsed_seconds"] >= work.wall_seconds:
         accepted = None
-        detail.update(status="unresolved", stop_reason="phase_budget")
+        detail.update(
+            status="unresolved", stop_reason="phase_budget", hardware_preparation_only=False
+        )
         record({"stage": "spatial_sequence", "status": "unresolved", "detail": detail})
     return Result(
         accepted.route if accepted is not None else source,

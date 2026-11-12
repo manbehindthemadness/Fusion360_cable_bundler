@@ -11,6 +11,7 @@ from itertools import combinations
 from typing import Any, Callable
 
 from cable_bundler.routing.geometry import difference
+from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_reduction.closure import affine_projection
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import snapshot
@@ -19,6 +20,20 @@ from experiments.experiment_ribbon_fold_route.primitives import Piece
 
 from .boundary import FoldBoundary
 from .frames import Topology
+
+
+def _radius_geometry(original: CylindricalFold, radius: float) -> CylindricalFold:
+    """
+    Share an unchanged immutable float-radius fold; validate every changed radius as before.
+
+    Nonfloat original radii still use replacement so the original computed-radius
+    numeric representation is retained. No placement or physical decision is shared.
+    """
+    return (
+        original
+        if type(original.radius_mm) is float and radius == original.radius_mm
+        else replace(original, radius_mm=radius)
+    )
 
 
 @dataclass(frozen=True)
@@ -87,9 +102,9 @@ class Model:
             if index < len(self.topology.folds):
                 original = self.topology.folds[index]
                 geometries.append(
-                    replace(
+                    _radius_geometry(
                         original,
-                        radius_mm=original.radius_mm + values[2 * index + 1] * target.diameter_mm,
+                        original.radius_mm + values[2 * index + 1] * target.diameter_mm,
                     )
                 )
             for geometry in geometries:

@@ -13,24 +13,35 @@ from typing import Any, Callable, Union, cast
 
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
-from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
+from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_feature_insertion.separation import Side
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, step_limit
 from experiments.experiment_ribbon_fold_route.contact import (
     ContactResult,
     Penetration,
+    ProbeOrder,
     ProjectionReuse,
     inspect_contact,
 )
+from experiments.experiment_ribbon_fold_route.contact_affine_witness import AffineWitnesses
+from experiments.experiment_ribbon_fold_route.contact_axes import (
+    AxisContinuation,
+    AxisLearning,
+    ProposedAxes,
+)
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.contact_flat_probe import FlatProbe
+from experiments.experiment_ribbon_fold_route.contact_phase_core import ProfileProbe
+from experiments.experiment_ribbon_fold_route.contact_subdivision import Subdivision
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
+from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
 
 from .active_projection import active_step
 from .cap_completion import ordered_caps_complete
 from .check import Report
 from .contact_addition import Addition, ContactPolicy
 from .contact_addition import prepare as prepare_contact_addition
+from .curved_discovery import CurvedProbe
 from .feature_guidance import (
     ContactGuidance,
     ContactMotion,
@@ -43,24 +54,38 @@ from .feature_plane import FeatureCoverage, FeaturePlane, SignedJoints
 from .flat_continuation import ClosedFlatContinuation, ContactContinuation
 from .flat_separation import FlatSeparation, ProfileExtent
 from .gate import Gate
+from .hardware_halfspaces import separated_alternatives
 from .hardware_motion import expand as expand_hardware
+from .hardware_motion import straight_growth_requires_angles
 from .incident_model import IncidentJoints
+from .joint_completion import closed_material, stalled_certificate_ready
 from .joint_derivatives import jacobian as joint_jacobian
 from .joint_evaluation import JointEvaluation
 from .joint_handoff import JointHandoff
+from .joint_mating import restore as restore_mating
 from .line_search import contracted_fraction
 from .material_constraint import MaterialConstraint
 from .material_return_selection import UnreflectedReturns
+from .material_working_set import least_binding
+from .moving_probe import moving_domain
 from .native_slots import bind_proposal as bind_native_slots
 from .native_slots import extensions as extend_native_slots
 from .native_slots import zero_step
 from .quality_projection import quality_step
 from .radius_model import RadiusJoints
 from .recovery_limits import validate
-from .redistributed_projection import GuidancePolicy, ProjectionEvidence, redistributed_step
+from .redistributed_projection import (
+    GuidancePolicy,
+    LinearPolicy,
+    ProjectionEvidence,
+    redistributed_step,
+    strict_descent,
+)
 from .restoration_handoff import RestorationHandoff, RestorationStop
+from .restoration_order import FocusKind, MaterialFocus
 from .restoration_screen import represented_phases
 from .restoration_screen import screen as screen_restoration
+from .retained_directions import RetainedDirections
 from .reversal_model import incident_fold
 from .run_translation import StraightSlots
 from .straight_projection import RunwayEvidence, shortest_run_step
@@ -103,6 +128,7 @@ def recover(
     maximum_cpu_seconds: float,
     maximum_seconds: float,
     maximum_updates: int,
+    maximum_newton_steps: int = 24,
     mode: RecoveryMode = JointMode.PARENT_CEILING,
     on_blocked: Callable[[JointHandoff], None] | None = None,
     on_restoration_blocked: Callable[[RestorationHandoff], None] | None = None,
@@ -117,10 +143,28 @@ def recover(
     projection/descent decline can yield only its identical retained closed state;
     motion invalidates that fallback and every success needs fresh full proofs.
 
-    An opted-in sequence may stop a reflected material stage at a newly retained
+    An opted-in sequence may stop an angular hardware/contact or reflected material stage at a newly retained
     strict crossing selecting a distinct unreflected turn, while another logical
     update remains. The same current-pose inverse validation and original clocks
     guard this uncertified transfer. It grants no closure, clearance or new work.
+
+    Negative discovery also covers already closed corrections and straight-only
+    motion. Exact current model movement and sampled spatial proximity propose
+    a bounded pair prefix, interleaved with retained material neighborhoods when
+    present. Already represented pairs follow unknown pairs. Samples grant no
+    clearance. A verified strict witness on this same iteration can advance to
+    the existing negative handling after all material/native/hardware gates;
+    no positive certificate or witness transfers to a later pose. Every accepted
+    route still needs the complete current contact certificate. Stalled final
+    requests never resume discovery or motion.
+    Distinct material bounds use the unused original thirteen physical-equation
+    slots rather than a separate four-bound ceiling. Their preparation and all
+    subsequent correction still share the original clocks and motion allocation.
+
+    A final current-pose certificate may consume the genuinely unused part of
+    the original shared contact allocation. An internal1024comparison slice
+    must not strand that work. The single traversal still shares the original
+    CPU/pair ceiling with every earlier pose; no request or geometry is retried.
 
     The parent length is an inequality ceiling, never a growth target. All signs,
     radii, material identity/order and target poses stay fixed. Negative-only hull
@@ -240,6 +284,33 @@ def recover(
     witness after an ordinary projection/descent stop at that unchanged pose.
     It revalidates both inverse maps and material consistency under this same
     clock, grants no cap closure, and cannot follow resource or caller failure.
+    After an angular native replacement declines, its original linear vector
+    can remain usable if every candidate already had exact zero source and
+    increment. Recheck that vector's strict predicted gates on the masked
+    matrix; no new optimizer or trial is allocated. A successful replacement
+    remains preferred. Positive material and nonzero candidate increments never
+    qualify; nonlinear and physical gates are unchanged.
+    After accepted angular motion, a stale hardware member plane may change
+    only when another existing complete-member halfspace already meets the same
+    positive gap. Still-intruding or uncertain members keep their original
+    guidance. Each pose permits one selection per violated member within the
+    original clocks; terminal protections and final whole-route proofs remain.
+    The motion_attempted receipt includes initial reflection, native-coordinate
+    changes and every retraction trial, including trials with zero accepted
+    Newton steps. A linear preparation decline is distinct from failed motion.
+    Initial hardware-only straight growth beyond both source length and inherited
+    quality goal enables the same signed-joint domain before any motion. This
+    selection changes no final length gate and allocates no additional correction.
+    After accepted correction, ordinary no-descent or native-projection decline
+    may request the same final physical certificates once for native-ready
+    material. Before ordinary or stalled proof, one unspent correction may close
+    actual mating frames using only occupied unfixed straight slots. This shares
+    the fixed-fold affine kernel with construction allocation, debits one Newton
+    attempt even if unresolved, and cannot renew roots, bounds, clocks or pins.
+    A restored pose is recomposed and checked before any final request. Its
+    finite optimization guidance need not be a clearance proof. This request
+    never resumes motion or inserts constraints; all original final contracts,
+    actual certificates, handoff evidence and remaining clocks/pairs still apply.
     """
     if not isinstance(mode, (JointMode, IncidentGuidance, MaterialGuidance, ContactGuidance)):
         raise ValueError("Supply an explicit joint recovery mode")
@@ -268,7 +339,9 @@ def recover(
         maximum_updates=maximum_updates,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        maximum_newton_steps=maximum_newton_steps,
     )
+    newton_limit = min(6 * maximum_updates, maximum_newton_steps)
     cpu, wall = process_time(), perf_counter()
     mating_mode = mode in (JointMode.MATING_CEILING, JointMode.BLOCKED_MATING)
     reflected = isinstance(mode, (IncidentGuidance, MaterialGuidance))
@@ -353,12 +426,16 @@ def recover(
         return None
     projection_evidence = ProjectionEvidence()
     restoration_policy = GuidancePolicy.RESTORATION_MERIT
+    linear_policy = LinearPolicy.DUAL
     runway_evidence = RunwayEvidence()
     project = (
         partial(shortest_run_step, evidence=runway_evidence)
         if straight_contact
         else partial(
-            redistributed_step, evidence=projection_evidence, guidance_policy=restoration_policy
+            redistributed_step,
+            evidence=projection_evidence,
+            guidance_policy=restoration_policy,
+            linear_policy=linear_policy,
         )
         if reflected or coupled_contact
         else quality_step
@@ -382,9 +459,14 @@ def recover(
     keys: set[tuple[Any, ...]] = (
         {(bound.pair, bound.parts) for bound, _ in constraints} if coupled_contact else set()
     )
+    constraint_keys: list[tuple[Any, ...] | None] = [
+        (bound.pair, bound.parts) if coupled_contact else None for bound, _ in constraints
+    ]
+    material_guidance_releases = 0
     fixed: set[int] = set()
     native_pins: dict[int, float] = {}
     newton, pairs, contacts, contact_seconds = 0, 0, 0, 0.0
+    motion_attempted = reflected
     candidate = original
     measurement: ContactResult | None = None
     accepted = False
@@ -393,11 +475,23 @@ def recover(
     contact_started = 0.0
     interrupted_pairs: int | None = None
     probe = FlatProbe()
+    flat_core_probe = ProfileProbe()
+    curved_probe = CurvedProbe()
     penetration_seen = False
     native_positive_projections = 0
     native_zero_face_selections = 0
+    native_zero_face_reuses = 0
+    hardware_halfspace_attempts = 0
+    hardware_halfspace_rebindings = 0
+    hardware_guidance_values: tuple[float, ...] | None = None
     ordered_cap_completions = 0
+    stalled_certificate_requests = 0
+    mating_attempts, mating_restored = 0, 0
     screen_checks, screen_pairs, screen_seconds = 0, 0, 0.0
+    focused_screens = 0
+    motion_focused_screens = 0
+    combined_focused_screens = 0
+    screen_preparation_seconds = 0.0
     screened_values: tuple[float, ...] | None = None
     restoration_witness: tuple[tuple[float, ...], ContactResult] | None = None
     flat_continuation: ClosedFlatContinuation | None = None
@@ -408,6 +502,10 @@ def recover(
     restoration_decline: str | None = None
     restoration_inverse_checks = 0
     screen_active = False
+    hardware_screened_values: tuple[float, ...] | None = None
+    hardware_probe_checks = hardware_probe_cells = hardware_probe_constraints = 0
+    retained_axis_contexts: list[ProposedAxes] = []
+    affine_witness_contexts: list[AffineWitnesses] = []
 
     def bounded() -> None:
         """
@@ -461,21 +559,45 @@ def recover(
 
     def retain_addition(entry: Addition | None) -> str | None:
         """
-        Retain complete contact guidance within the original constraint and equation ceilings.
+        Retain distinct complete material guidance within the original physical equation ceiling.
         """
-        if entry is None or len(constraints) >= 4:
+        nonlocal material_guidance_releases
+        if entry is None:
             return "unsupported_or_exhausted_flat_constraints"
         if entry.key in keys:
             return "repeated_contact_witness"
-        keys.add(entry.key)
         inequalities = (
             len(scalar_planes)
             + len(protections)
             + (len(constraints) + 1 + int(bounded_length) if independent_contacts else 2)
         )
         if independent_members and inequalities > 13:
-            return "physical_inequality_capacity"
+            inactive = (
+                least_binding(constraints, values, model.scale, bounded)
+                if independent_contacts and inequalities == 14
+                else None
+            )
+            if inactive is None:
+                return "physical_inequality_capacity"
+            old, old_side = constraints.pop(inactive.index)
+            old_key = constraint_keys.pop(inactive.index)
+            if old_key is not None:
+                keys.remove(old_key)
+            material_guidance_releases += 1
+            emit(
+                "material_guidance_released",
+                reason="strictly_inactive_at_physical_capacity",
+                pair=[asdict(tag) for tag in old.pair],
+                parts=[
+                    {"phase": part.phase.value, "q": (part.low_q, part.high_q)}
+                    for part in old.parts
+                ],
+                side=old_side.name,
+                gap_mm=inactive.gap * model.scale,
+            )
+        keys.add(entry.key)
         constraints.append((entry.bound, entry.side))
+        constraint_keys.append(entry.key)
         evaluation.constraints_changed()
         emit(
             "constraint_added",
@@ -491,6 +613,50 @@ def recover(
         return None
 
     addition: Addition | None = None
+
+    def retain_hardware(report: Report) -> str | None:
+        """
+        Add the same witnessed whole-member hardware guidance within existing feature/equation limits.
+        """
+        nonlocal scalar_planes, protections
+        extra = FeaturePlane.create(
+            model,
+            candidate,
+            report,
+            terminal.hardware,
+            values,
+            coverage=FeatureCoverage.ADJOINING_INTERNAL
+            if reflected or coupled_contact
+            else FeatureCoverage.TERMINAL_RUNWAY,
+        )
+        if (
+            len(planes) >= (4 if reflected or coupled_contact else 2)
+            or extra is None
+            or extra in planes
+        ):
+            return "hardware_not_clear"
+        planes.append(extra)
+        if independent_members:
+            scalar_planes = member_planes(planes, model, values)
+            protections = uncovered_terminal_protection(protections, scalar_planes)
+            inequalities = (
+                len(scalar_planes)
+                + len(protections)
+                + (
+                    len(constraints) + int(bounded_length)
+                    if independent_contacts
+                    else 1 + bool(constraints)
+                )
+            )
+            if inequalities > 13:
+                return "physical_inequality_capacity"
+        evaluation.constraints_changed()
+        emit(
+            "hardware_constraint_added",
+            terminal=extra.box.terminal.value,
+            reference=asdict(extra.reference),
+        )
+        return None
 
     def new_witness(witness: Penetration) -> bool:
         """
@@ -510,6 +676,84 @@ def recover(
         ):
             return False
         addition = proposed_addition
+        return True
+
+    def polish_current() -> bool:
+        """
+        Debit at most one unspent correction before actual fixed-slot mating restoration.
+        """
+        nonlocal newton, motion_attempted, values, candidate, mating_attempts, mating_restored
+        if (
+            newton == 0
+            or newton >= newton_limit
+            or mating_attempts
+            or stalled_certificate_requests
+            or ordered_mating_caps(candidate.pieces, candidate.targets)
+            or not stalled_certificate_ready(
+                candidate,
+                model,
+                equations(values),
+                length_ceiling_mm=maximum_length_mm if bounded_length else None,
+                minimum_straight_mm=minimum_straight_mm,
+            )
+        ):
+            return False
+        before = cap_error(candidate)
+        mating_attempts, newton, motion_attempted = 1, newton + 1, True
+        bounded()
+        restored = restore_mating(
+            candidate,
+            model,
+            values,
+            equations(values),
+            bounded,
+            minimum_straight_mm=minimum_straight_mm,
+            length_ceiling_mm=maximum_length_mm if bounded_length else None,
+            fixed=frozenset(fixed) | frozenset(native_pins),
+        )
+        if restored is not None and restored != values:
+            values = restored
+            updated = model.route(values)
+            assert updated is not None
+            candidate, mating_restored = updated, 1
+        emit(
+            "mating_restoration",
+            status_detail="closed" if mating_restored else "unresolved",
+            newton_steps=newton,
+            before_cap_error_mm=before,
+            cap_error_mm=cap_error(candidate),
+            values=values,
+            route=snapshot(candidate),
+        )
+        bounded()
+        return bool(mating_restored)
+
+    def request_final(original_stop: str) -> bool:
+        """
+        Request original physical proof once after motion stalls on native-ready closed material.
+        """
+        nonlocal stalled_certificate_requests
+        if newton == 0 or stalled_certificate_requests:
+            return False
+        ready = stalled_certificate_ready(
+            candidate,
+            model,
+            equations(values),
+            length_ceiling_mm=maximum_length_mm if bounded_length else None,
+            minimum_straight_mm=minimum_straight_mm,
+        )
+        bounded()
+        if not ready:
+            return False
+        polish_current()
+        stalled_certificate_requests = 1
+        emit(
+            "stalled_certificate_requested",
+            original_stop=original_stop,
+            newton_steps=newton,
+            route=snapshot(candidate),
+        )
+        bounded()
         return True
 
     try:
@@ -533,6 +777,7 @@ def recover(
                     "terminal": protection.plane.box.terminal.value,
                     "member": asdict(protection.plane.reference),
                     "minimum_gap_mm": protection.minimum_gap * model.scale,
+                    "guidance_basis": protection.basis.value,
                 }
                 for protection in protections
             ],
@@ -542,13 +787,51 @@ def recover(
         )
         while True:
             bounded()
-            proposed = model.route(values)
-            assert proposed is not None
-            candidate = proposed
+            if not stalled_certificate_requests:
+                proposed = model.route(values)
+                assert proposed is not None
+                candidate = proposed
+            if (
+                (reflected or coupled_contact)
+                and not straight_contact
+                and scalar_planes
+                and not stalled_certificate_requests
+                and newton > 0
+                and hardware_guidance_values != values
+            ):
+                hardware_guidance_values = values
+                refreshed = separated_alternatives(
+                    scalar_planes, values, bounded, minimum_gap_mm=1e-7
+                )
+                hardware_halfspace_attempts += refreshed.attempts
+                if refreshed.changed:
+                    emit(
+                        "hardware_halfspaces_rebound",
+                        members=[
+                            {
+                                "terminal": scalar_planes[i].box.terminal.value,
+                                "member": asdict(scalar_planes[i].reference),
+                                "old_family": scalar_planes[i].family,
+                                "old_side": scalar_planes[i].side.name,
+                                "old_gap_mm": scalar_planes[i].gap(values) * model.scale,
+                                "new_family": refreshed.planes[i].family,
+                                "new_side": refreshed.planes[i].side.name,
+                                "new_gap_mm": refreshed.planes[i].gap(values) * model.scale,
+                            }
+                            for i in refreshed.changed
+                        ],
+                    )
+                    scalar_planes = refreshed.planes
+                    hardware_halfspace_rebindings += len(refreshed.changed)
+                    evaluation.constraints_changed()
             terms = equations(values)
             error = merit(values)
-            caps_complete = error < 1e-13 or ordered_caps_complete(candidate, terms)
-            if caps_complete and error >= 1e-13:
+            caps_complete = (
+                bool(stalled_certificate_requests)
+                or error < 1e-13
+                or ordered_caps_complete(candidate, terms)
+            )
+            if caps_complete and error >= 1e-13 and not stalled_certificate_requests:
                 ordered_cap_completions += 1
                 emit(
                     "ordered_caps_complete",
@@ -560,20 +843,76 @@ def recover(
                 and not straight_contact
                 and not caps_complete
                 and newton > 0
+                and hardware_screened_values != values
+            ):
+                hardware_screened_values = values
+                domain = moving_domain(
+                    candidate,
+                    model,
+                    values,
+                    terminal.hardware,
+                    (*planes, *(protection.plane for protection in protections)),
+                    bounded,
+                )
+                if domain is not None:
+                    hardware_probe_checks += 1
+                    hardware_probe = terminal.probe(
+                        candidate, "joint_moving_material", domain=domain, checkpoint=bounded
+                    )
+                    hardware_probe_cells += hardware_probe.cells_checked
+                    emit(
+                        "moving_hardware_probe",
+                        report=asdict(hardware_probe),
+                        member_pairs=len(domain.pairs),
+                    )
+                    bounded()
+                    if hardware_probe.status == "blocked" and hardware_probe.witness is not None:
+                        reason = retain_hardware(hardware_probe)
+                        if reason is not None:
+                            stop = reason
+                            break
+                        hardware_probe_constraints += 1
+                        continue
+            screen_eligible = (
+                (reflected or coupled_contact)
+                and not caps_complete
+                and not stalled_certificate_requests
+                and newton > 0
                 and screened_values != values
                 and screen_pairs < 256
                 and probe.supports < 2048
-            ):
-                screened_values = values
+            )
+            focus = None
+            allowed = 0
+            if screen_eligible:
                 allowed = min(32, 256 - screen_pairs, remaining_pairs - pairs)
                 if allowed <= 0:
                     stop = "pair_budget"
                     break
+                focus_started = perf_counter()
+                try:
+                    focus = MaterialFocus.for_correction(
+                        candidate, model, values, constraints, bounded
+                    )
+                finally:
+                    preparation_seconds = perf_counter() - focus_started
+                    screen_preparation_seconds += preparation_seconds
+                    screen_seconds += preparation_seconds
+                    contact_seconds += preparation_seconds
+            if screen_eligible:
+                screened_values = values
                 addition = None
 
                 active_pairs, screen_active = allowed, True
                 screen_checks += 1
                 contact_started = perf_counter()
+                focused_screens += int(focus is not None)
+                motion_focused_screens += int(
+                    focus is not None and focus.kind in (FocusKind.MOTION, FocusKind.COMBINED)
+                )
+                combined_focused_screens += int(
+                    focus is not None and focus.kind is FocusKind.COMBINED
+                )
                 screened = screen_restoration(
                     candidate,
                     probe,
@@ -581,6 +920,9 @@ def recover(
                     bounded,
                     new_witness,
                     covered_phases=represented_phases(candidate, constraints),
+                    focus=focus,
+                    curved_probe=curved_probe,
+                    flat_core_probe=flat_core_probe,
                 )
                 spent = perf_counter() - contact_started
                 pairs += screened.pairs_checked
@@ -588,7 +930,15 @@ def recover(
                 screen_seconds += spent
                 contact_seconds += spent
                 active_pairs, screen_active = None, False
-                emit("restoration_screen", contact=asdict(screened))
+                emit(
+                    "restoration_screen",
+                    contact=asdict(screened),
+                    focus_pairs=0 if focus is None else len(focus.priority),
+                    focus_first_pair=None if focus is None else focus.priority[0],
+                    focus_kind=None if focus is None else focus.kind.value,
+                    caps_complete=caps_complete,
+                    straight_only=straight_contact,
+                )
                 if addition is not None:
                     reason = retain_addition(addition)
                     if reason is not None:
@@ -599,8 +949,12 @@ def recover(
                     if (
                         early_material_return is not None
                         and on_restoration_blocked is not None
-                        and isinstance(mode, MaterialGuidance)
-                        and mode.selected_fold in early_material_return.reflected_folds
+                        and not straight_contact
+                        and (
+                            isinstance(mode, ContactGuidance)
+                            or isinstance(mode, MaterialGuidance)
+                            and mode.selected_fold in early_material_return.reflected_folds
+                        )
                         and math.ceil(newton / 6) < maximum_updates
                         and pairs < remaining_pairs
                         and screened.witness is not None
@@ -612,11 +966,10 @@ def recover(
                             break
                     continue
             if caps_complete:
-                if (
-                    cap_error(candidate) > 1e-7
-                    or material_error(candidate) > 1e-10
-                    or not model.preserves(candidate)
-                    or (bounded_length and candidate.material_length_mm > maximum_length_mm)
+                if not closed_material(
+                    candidate,
+                    model,
+                    length_ceiling_mm=maximum_length_mm if bounded_length else None,
                 ):
                     stop = "final_contract"
                     break
@@ -626,7 +979,10 @@ def recover(
                     if 0 < values[i] * model.scale <= minimum_straight_mm
                 }
                 if slivers:
-                    if newton >= 6 * maximum_updates:
+                    if stalled_certificate_requests:
+                        stop = "native_sliver"
+                        break
+                    if newton >= newton_limit:
                         stop = "native_zero_reclosure_limit"
                         break
                     if (reflected or coupled_contact) and minimum_straight_mm > 0:
@@ -645,6 +1001,7 @@ def recover(
                             },
                         )
                     fixed.update(slivers)
+                    motion_attempted = True
                     values = tuple(
                         native_pins.get(i, 0.0) if i in fixed else value
                         for i, value in enumerate(values)
@@ -658,11 +1015,14 @@ def recover(
                 ):
                     stop = "native_sliver"
                     break
+                if polish_current():
+                    continue
                 hardware_report = (
                     terminal.certify(candidate, "joint_flat_contact_final")
                     if coupled_contact or on_blocked is not None
                     else terminal.measure(candidate, "joint_flat_contact_final")
                 )
+                bounded()
                 if hardware_report.status != "clear":
                     if (
                         on_blocked is not None
@@ -672,6 +1032,9 @@ def recover(
                         on_blocked(JointHandoff(candidate, hardware_report))
                         stop = "hardware_handoff"
                         break
+                    if stalled_certificate_requests:
+                        stop = "hardware_not_clear"
+                        break
                     if (
                         not isinstance(evidence, Penetration)
                         and not reflected
@@ -680,66 +1043,68 @@ def recover(
                     ):
                         stop = "hardware_not_clear"
                         break
-                    extra = FeaturePlane.create(
-                        model,
-                        candidate,
-                        hardware_report,
-                        terminal.hardware,
-                        values,
-                        coverage=FeatureCoverage.ADJOINING_INTERNAL
-                        if reflected or coupled_contact
-                        else FeatureCoverage.TERMINAL_RUNWAY,
-                    )
-                    if (
-                        len(planes) >= (4 if reflected or coupled_contact else 2)
-                        or extra is None
-                        or extra in planes
-                    ):
-                        stop = "hardware_not_clear"
+                    reason = retain_hardware(hardware_report)
+                    if reason is not None:
+                        stop = reason
                         break
-                    planes.append(extra)
-                    if independent_members:
-                        scalar_planes = member_planes(planes, model, values)
-                        protections = uncovered_terminal_protection(protections, scalar_planes)
-                        inequalities = (
-                            len(scalar_planes)
-                            + len(protections)
-                            + (
-                                len(constraints) + int(bounded_length)
-                                if independent_contacts
-                                else 1 + bool(constraints)
-                            )
-                        )
-                        if inequalities > 13:
-                            stop = "physical_inequality_capacity"
-                            break
-                    evaluation.constraints_changed()
-                    emit(
-                        "hardware_constraint_added",
-                        terminal=extra.box.terminal.value,
-                        reference=asdict(extra.reference),
-                    )
                     continue
-                allowed = min(1024, remaining_pairs - pairs)
+                allowed = remaining_pairs - pairs
                 if allowed <= 0:
                     stop = "pair_budget"
                     break
                 active_pairs = allowed
                 contacts += 1
                 contact_started = perf_counter()
+                known_contact = (
+                    penetration_seen
+                    or isinstance(evidence, Penetration)
+                    or (
+                        isinstance(evidence, ContactResult)
+                        and evidence.status == "penetration"
+                        and evidence.witness is not None
+                    )
+                )
+                learned = (
+                    RetainedDirections.prepare(candidate, model, values, constraints, bounded)
+                    if known_contact
+                    else None
+                )
+                axis_context = ProposedAxes(
+                    AxisContinuation.MATERIAL_CELLS,
+                    learning=AxisLearning.LOCAL_SEPARATIONS,
+                )
+                retained_axis_contexts.append(axis_context)
+                affine_context = AffineWitnesses()
+                affine_witness_contexts.append(affine_context)
                 measured_contact = inspect_contact(
                     candidate,
                     maximum_pairs=allowed,
                     cap_policy=CapPolicy.ANALYTIC_SUPPORT,
                     checkpoint=bounded,
-                    witness_probe=None if penetration_seen else probe,
+                    witness_probe=learned if known_contact else probe,
+                    probe_order=ProbeOrder.MATERIAL_CELLS
+                    if known_contact
+                    else ProbeOrder.ORIGINAL_PAIRS,
                     projection_reuse=ProjectionReuse.CELLS,
+                    proposed_axes=axis_context,
+                    affine_witnesses=affine_context,
+                    subdivision=Subdivision.MATERIAL_PHASES,
                 )
-                measurement = measured_contact
                 pairs += measured_contact.pairs_checked
                 contact_seconds += perf_counter() - contact_started
                 active_pairs = None
-                emit("certificate", contact=asdict(measured_contact), route=snapshot(candidate))
+                emit(
+                    "certificate",
+                    contact=asdict(measured_contact),
+                    retained_direction_pairs=0 if learned is None else len(learned.axes),
+                    retained_axis_context=None
+                    if axis_context is None
+                    else axis_context.statistics(),
+                    route=snapshot(candidate),
+                    affine_witnesses=affine_context.statistics(),
+                )
+                measurement = measured_contact
+                bounded()
                 if measured_contact.status == "separated":
                     bounded()
                     accepted, stop = True, "accepted"
@@ -752,6 +1117,7 @@ def recover(
                     if (
                         adaptive_hardware
                         and straight_contact
+                        and not stalled_certificate_requests
                         and isinstance(mode, ContactGuidance)
                         and mode.continuation is ContactContinuation.FIRST_FLAT
                         and flat_continuation is None
@@ -770,6 +1136,9 @@ def recover(
                     bounded()
                     on_blocked(JointHandoff(candidate, measured_contact))
                     stop = "material_handoff"
+                    break
+                if stalled_certificate_requests:
+                    stop = "contact_unresolved"
                     break
                 if not coupled_contact and (
                     measured_contact.status != "penetration" or measured_contact.witness is None
@@ -793,7 +1162,7 @@ def recover(
                     stop = reason
                     break
                 continue
-            if newton >= 6 * maximum_updates:
+            if newton >= newton_limit:
                 stop = "joint_update_limit"
                 break
             jacobian = joint_jacobian(
@@ -817,8 +1186,20 @@ def recover(
                 else project
             )
             delta = project_step(model, values, jacobian, terms, bounded)
-            if delta is None:
-                if adaptive_hardware and straight_contact and newton == 0 and not constraints:
+            initial_hardware_motion = (
+                adaptive_hardware
+                and straight_contact
+                and not motion_attempted
+                and newton == 0
+                and not constraints
+            )
+            straight_growth = (
+                initial_hardware_motion
+                and delta is not None
+                and straight_growth_requires_angles(model, delta, maximum_length_mm)
+            )
+            if delta is None or straight_growth:
+                if initial_hardware_motion:
                     assert isinstance(mode, ContactGuidance)
                     prepared_domain = expand_hardware(original, mode, terminal.hardware, bounded)
                     if prepared_domain is None:
@@ -836,17 +1217,21 @@ def recover(
                     fixed.clear()
                     native_pins.clear()
                     straight_contact, hardware_expanded = False, True
+                    linear_policy = LinearPolicy.COUPLED_RESTORATION
                     project = partial(
                         redistributed_step,
                         evidence=projection_evidence,
                         guidance_policy=restoration_policy,
+                        linear_policy=linear_policy,
                     )
                     evaluation = JointEvaluation(raw_equations, model.admissible)
                     equations, admissible = evaluation.equations, evaluation.admissible
                     emit(
                         "hardware_motion_expanded",
                         newton_steps=newton,
-                        reason="linear_projection_infeasible",
+                        reason="straight_growth_beyond_goal"
+                        if straight_growth
+                        else "linear_projection_infeasible",
                     )
                     continue
                 if mode is JointMode.BLOCKED_MATING and not length_released:
@@ -877,6 +1262,13 @@ def recover(
                     if 0 < (values[i] + delta[i]) * model.scale <= minimum_straight_mm
                 )
             if native_candidates:
+                native_incumbent = (
+                    delta
+                    if (reflected or coupled_contact)
+                    and not straight_contact
+                    and all(values[i] == 0.0 and delta[i] == 0.0 for i in native_candidates)
+                    else None
+                )
                 if (reflected or coupled_contact) and not straight_contact:
                     absent_step = zero_step(
                         values,
@@ -910,6 +1302,8 @@ def recover(
                     )
                     if native_domain is None:
                         stop = "native_projection_infeasible"
+                        if request_final(stop):
+                            continue
                         break
                     frozen_native = set(native_domain.frozen)
                     native_positive_projections += 1
@@ -945,9 +1339,21 @@ def recover(
                         bounded,
                         evidence=projection_evidence,
                         guidance_policy=restoration_policy,
+                        linear_policy=linear_policy,
                     )
+                if delta is None and native_incumbent is not None:
+                    retained_prediction = tuple(
+                        term + math.fsum(a * b for a, b in zip(row, native_incumbent))
+                        for row, term in zip(jacobian, terms)
+                    )
+                    if strict_descent(terms, retained_prediction, restoration_policy):
+                        delta = native_incumbent
+                        native_zero_face_reuses += 1
+                        emit("native_zero_faces_reused", slots=sorted(native_candidates))
                 if delta is None:
                     stop = "native_projection_infeasible"
+                    if request_final(stop):
+                        continue
                     break
             if native_pins:
                 delta = tuple(0.0 if i in native_pins else change for i, change in enumerate(delta))
@@ -963,6 +1369,7 @@ def recover(
             predicted_change = linear_error - error
             for _ in range(4):
                 bounded()
+                motion_attempted = True
                 trial = advance(model, values, delta, fraction)
                 trial_error = merit(trial) if admissible(trial) else None
                 if trial_error is not None and trial_error < error:
@@ -971,6 +1378,8 @@ def recover(
                 fraction = contracted_fraction(fraction, error, trial_error, predicted_change)
             else:
                 stop = "joint_no_descent"
+                if request_final(stop):
+                    continue
                 break
             emit("update", newton=newton, values=values, residual=equations(values))
         if (
@@ -1023,6 +1432,7 @@ def recover(
         "method": "complete_flat_contacts",
         "iterations": math.ceil(newton / 6),
         "newton_steps": newton,
+        "motion_attempted": motion_attempted,
         "contacts": contacts,
         "contact_pairs": pairs,
         "contact_seconds": contact_seconds,
@@ -1032,16 +1442,39 @@ def recover(
         "maximum_length_mm": maximum_length_mm,
         "stop_reason": stop,
         "flat_constraints": len(constraints),
+        "material_guidance_releases": material_guidance_releases,
         "probe": asdict(probe),
+        "curved_discovery": asdict(curved_probe),
+        "flat_core_discovery": asdict(flat_core_probe),
+        "flat_core_preparations": flat_core_probe.preparations(),
+        "flat_probe_preparations": probe.shape_preparations(),
         "terminal_protection_constraints": len(protections),
         "native_positive_slot_projections": native_positive_projections,
         "native_zero_face_selections": native_zero_face_selections,
+        "native_zero_face_reuses": native_zero_face_reuses,
+        "hardware_halfspace_attempts": hardware_halfspace_attempts,
+        "hardware_halfspace_rebindings": hardware_halfspace_rebindings,
+        "hardware_halfspace_counter_scope": "completed_refreshes_only",
         "ordered_cap_completions": ordered_cap_completions,
+        "stalled_certificate_requests": stalled_certificate_requests,
+        "mating_restoration_attempts": mating_attempts,
+        "mating_restorations": mating_restored,
+        "flat_region_cache": model.flat_regions.statistics(),
+        "moving_hardware_probe_checks": hardware_probe_checks,
+        "moving_hardware_probe_cells": hardware_probe_cells,
+        "moving_hardware_probe_constraints": hardware_probe_constraints,
+        "retained_axis_contexts": [context.statistics() for context in retained_axis_contexts],
+        "affine_witnesses": [context.statistics() for context in affine_witness_contexts],
         "straight_contact_preparations": straight_contact_preparations,
         "straight_contact_retained": int(flat_continuation is not None),
         "straight_contact_fallbacks": straight_contact_fallbacks,
         "native_sliver_extensions": len(native_pins),
         "restoration_screen_checks": screen_checks,
+        "restoration_focused_screens": focused_screens,
+        "motion_focused_screens": motion_focused_screens,
+        "combined_focused_screens": combined_focused_screens,
+        "closed_contact_discoveries": 0,
+        "restoration_preparation_seconds": screen_preparation_seconds,
         "restoration_screen_pairs": screen_pairs,
         "restoration_screen_seconds": screen_seconds,
         "restoration_handoff_inverse_checks": restoration_inverse_checks,
@@ -1106,6 +1539,13 @@ def recover(
             guidance_tradeoff_proposals=projection_evidence.guidance_tradeoff_proposals,
             coordinate_seed_attempts=projection_evidence.coordinate_seed_attempts,
             coordinate_seed_faces=projection_evidence.coordinate_seed_faces,
+            primal_projection_attempts=projection_evidence.primal_attempts,
+            primal_projection_completed=projection_evidence.primal_completed,
+            primal_projection_updates=projection_evidence.primal_updates,
+            primal_projection_prefixes=projection_evidence.primal_prefixes,
+            primal_projection_proposals=projection_evidence.primal_proposals,
+            primal_projection_stops=projection_evidence.primal_stops,
+            primal_projection_update_scope="completed_actions_only",
             cap_metric_calibrations=projection_evidence.cap_metric_calibrations,
             active_face_restorations=projection_evidence.active_face_restorations,
             working_set_exhaustions=projection_evidence.exhaustions,

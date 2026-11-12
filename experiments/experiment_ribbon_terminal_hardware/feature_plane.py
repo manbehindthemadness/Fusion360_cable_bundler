@@ -15,6 +15,10 @@ from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_bend_relocation.model import MovableBends
 from experiments.experiment_ribbon_feature_insertion.separation import Region, Side, locate, regions
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, projection
+from experiments.experiment_ribbon_fold_route.contact_flat_geometry import FlatRegions
+from experiments.experiment_ribbon_fold_route.contact_flat_geometry import (
+    region as prepare_flat_region,
+)
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Straight
 
 from .check import Report
@@ -35,6 +39,19 @@ class SignedJoints(MovableBends):
     """
     Move existing angles/banks/runways while preserving every fold sign and radius.
     """
+
+    @cached_property
+    def flat_regions(self) -> FlatRegions:
+        """
+        Share at most64exact flat preparations across this model's different constraint axes.
+
+        Immutable placed piece, phase and profile interval fully identify the
+        original pure preparation. Constraints still validate current placements
+        and resolve ordered material slots before requesting it. Heights and
+        axes remain independent projection inputs; no span, physical certificate
+        or acceptance is cached here. Other models own separate bounded caches.
+        """
+        return FlatRegions(prepare_flat_region)
 
     def bounds(self, index: int) -> tuple[float, float]:
         """

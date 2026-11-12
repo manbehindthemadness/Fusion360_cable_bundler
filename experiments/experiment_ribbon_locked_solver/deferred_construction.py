@@ -81,6 +81,7 @@ def recover(
                     maximum_cpu_seconds=left.cpu_seconds,
                     maximum_seconds=left.wall_seconds,
                     maximum_updates=left.updates,
+                    maximum_newton_steps=left.newton_steps,
                 )
                 if child is None:
                     detail["stop_reason"] = "unsupported_terminal_deviation"

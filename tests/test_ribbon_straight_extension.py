@@ -35,6 +35,8 @@ def test_real_fixed_bend_projection_keeps_necessary_extension_and_requires_final
     Real cap derivatives, runway minimization and nonlinear closure determine
     motion. A mocked linear member inequality requests a quarter-millimeter
     offset; physical gate dispositions verify ordering, not geometry coverage.
+    The inherited0.6mm quality allowance explicitly permits its0.5mm compensated
+    extension without requesting angular mobility under the adaptive policy.
     """
     source = _source(0.0)
     terminal = _gate(source)
@@ -75,7 +77,7 @@ def test_real_fixed_bend_projection_keeps_necessary_extension_and_requires_final
         terminal,
         lambda: None,
         events.append,
-        maximum_length_mm=source.material_length_mm,
+        maximum_length_mm=source.material_length_mm + 0.6,
         minimum_straight_mm=1e-5,
         remaining_pairs=123,
         maximum_cpu_seconds=0.35,

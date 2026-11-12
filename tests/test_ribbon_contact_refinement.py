@@ -69,6 +69,9 @@ def _gate(source: FoldRoute) -> Mock:
     gate = Mock(spec=Gate)
     gate.hardware = Hardware.create(source.targets, Dimensions.scaled(source.targets))
     gate.certify.return_value = Report("clear", 1)
+    gate.probe.return_value = Report(
+        "unresolved", 0, reason="Explicit negative-probe boundary double"
+    )
     return gate
 
 
