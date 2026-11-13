@@ -3860,3 +3860,64 @@ retry. Fresh generalization requires new registry seeds/unique layouts, after
 freezing the next source and scope. Goal objective remains incomplete. Goal tool
 still reports prior BLOCKED status; user explicitly resumed work, but available
 update_goal statuses cannot set active. No duplicate goal created.
+
+
+2026-11-13 — fresh qualification2657/2658, unchanged source343
+
+User requested unseen-layout evidence.2655 measured three already implemented
+contact policies on the fixed2652candidate: identical separation864pairs, CPU
+.079888(originalpairs/affine),.076766(materialcells/affine),.076293(materialcells/
+noaffine). This single diagnostic comparison establishes no useful timing gain.
+2656one bounded profile attributes most work to edge extrema and fold bounds
+(595189calls/.128profiled seconds). No source or policy change was made. Original
+2652automatic CPU failure and2653separate diagnostic pass remain unchanged.
+The proposed efficiency prerequisite was deliberately deferred to measure actual
+unseen behavior, including any CPU stops, under the frozen verified source.
+
+2657 reserves20new unique N8..10gym layouts, seed1684163358, excluding3786prior
+fingerprints. Source343matches2650/verified.json throughout.20planned/attempted/
+collected/numerically accepted,0failure/0unattempted/0native attempts in this
+screen. Original contact, hardware, caps, material, native-floor and work limits;
+no retries, tuning, post-result selection or source changes. SolveCPU min.253206/
+median.4576545/max.808481/total9.406561s. Numerical aggregate recorded once in
+FreshRegistry; every reserved input stays retired from future fresh testing.
+
+Exposure: whole convex-travel exclusions occur on all20inputs. Cases12and17
+invoke adaptive construction and reach8events with complete numerical acceptance.
+No coupled material-contact window or dominated-root projection is used. Thus
+this sample supplies unseen preservation and adaptive-insertion evidence, not
+transfer evidence for the specific coupled self-intersection repair. Input counts
+are8/9/10conductors; known selected cases remain outside this denominator.
+
+2658separately qualifies the SAME20accepted inputs natively, without another
+solve.20planned/attempted/built/named-fidelity/boundary passes,0failure/warnings/
+unattempted. Original1024conditioning/inverse-before-persistence and1e-6mm accuracy
+goal; maximum measured error3.527903215e-9mm. Native generation min0.7057671670336276/
+median1.0990276464726776/max3.8763629579916596s,
+audit median1.5955992505769245s; driver96.809s. All20solve timings meet matched native
+construction timing goal.961retained100msRSSsamples peak714304KiB (~698MiB),
+continuous peak unmeasured. Full physical/native interference/strain audits absent.
+Native stage adds coverage to the same20configurations, never20more independent
+cases; finalized2657numerical statistics were not rewritten.
+
+Historical fixed100aggregate fresh-5129e947eb8543d49a2d1846601f77e4 records84passes/
+16failures,86numerical acceptances,1source and no repairs. That population is
+N1..10and continues through geometry failures, whereas2657is N8..10withfirst-
+failure stopping capped20. Historical97/100checkpoint mixed4sources/3separate
+repairs. Do not present current20/20as a matched failure-rate improvement over
+those runs. Comparison metadata/aggregate-only reads are retained in2657. No
+historical layouts were replayed. One attempted aggregate-read shell command
+omitted the uv command and failed beforePython ran; corrected explicitSDKcommand
+read statistics only. No geometry operation was retried.
+
+Retired previous2654native body/2profiles and each completed2658native body/
+2profiles before the next, checking exact tokens/revisions/transforms/receipts.
+Retained2653current diagnostic5sketches/1palette unchanged; current hidden
+nativeowner native._qualification_2658 holds only case020body/2profiles.
+Final readonly state2658/final-state.json:owners idle,1view,1body/2profiles,
+RSS392688KiB. Exact ownership2658/final-ownership.json. No live numerical module
+reload, production changes, commits or subagents. Same3pre-existing IDEweak
+warnings; no code changed or application QA rerun. Source verification passes.
+Broad generalization goal remains incomplete; automatic2652certification CPU
+issue and coupled-repair fresh exposure are unresolved. Next validation must
+again use new registry seed/unique layouts. No unchanged current-case retry.

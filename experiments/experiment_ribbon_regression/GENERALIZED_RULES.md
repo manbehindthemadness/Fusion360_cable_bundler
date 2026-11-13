@@ -5118,3 +5118,21 @@ boundary with no warnings. Preserve automatic failure and separate measurement
 scopes. Full physical audits unmeasured;0fresh-layout credit. Next independent
 validation must use fresh registry seeds/unique layouts, never these selected
 cases as holdouts. See terminal_hardware/NOTES.md and frozen2644..2654receipts.
+
+
+2026-11-13 — first fresh transfer evidence after coupled-window changes
+
+Unchanged343source2650passes all20fresh unique N8..10layouts in2657(seed1684163358,
+3786prior novelty exclusions), then all20native/named-fidelity/boundary checks in
+2658with0warnings. No tuning/retry/source change or mixed selected-case credit.
+All20use whole convex-travel exclusions; cases12/17use adaptive construction to
+reach8events. None uses the coupled material-contact window or dominated-root
+projection, so those specific transfer claims remain unmeasured. Original2652
+known-case automatic CPU failure stays failed, despite separate2653/54diagnostic/
+native success. Full physical audits remain absent. Numerical and native stages
+are the SAME20configurations, not40. FreshRegistry numerical aggregate finalized
+once; native evidence linked separately on disk. Historical16%fixed100has N1..10
+and different stopping: compare descriptively, never as a controlled rate change.
+Median solveCPU.4576545s; matched-native timing goal met20/20. Retain one owned
+2653diagnostic and only latest2658case020hidden body/2profiles. Detailed immutable
+plans, counts, exposure, timing, resource and ownership receipts:2655..2658.
