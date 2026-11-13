@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
+from unittest.mock import Mock
+
+import pytest
 
 from cable_bundler.routing.geometry import cross, difference, dot, unit
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
@@ -14,6 +17,18 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedP
 from experiments.experiment_ribbon_terminal_hardware.check import Report, Witness
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from tests.test_ribbon_aesthetic import _route
+
+
+@pytest.fixture
+def negative_discovery_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Isolate existing controller protocols from the independently tested optional negative checker.
+    """
+    from experiments.experiment_ribbon_terminal_hardware.hardware_contact_discovery import (
+        HardwareContacts,
+    )
+
+    monkeypatch.setattr(HardwareContacts, "inspect", Mock(return_value=None))
 
 
 def _turn(angle: float) -> CylindricalFold:

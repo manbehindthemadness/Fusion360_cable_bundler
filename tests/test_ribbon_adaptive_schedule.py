@@ -13,7 +13,7 @@ import pytest
 from experiments.experiment_ribbon_bend_relocation.solve import Result
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
-from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
 from experiments.experiment_ribbon_terminal_hardware import (
     adaptive_event_continuation as continuation,
@@ -26,6 +26,7 @@ from experiments.experiment_ribbon_terminal_hardware.adaptive_event_schedule imp
     Action,
     Correction,
     choose,
+    contains_contact,
     preparation_declined,
 )
 from experiments.experiment_ribbon_terminal_hardware.adaptive_event_window import (
@@ -38,8 +39,13 @@ from experiments.experiment_ribbon_terminal_hardware.check import Report, inspec
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.model import Hardware
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+from tests.ribbon_adaptive_controls import (
+    negative_discovery_boundary as negative_discovery_boundary,
+)
 from tests.test_ribbon_adaptive_continuation import moved, reply
 from tests.test_ribbon_adaptive_events import _bump, _proposal, _source
+
+pytestmark = pytest.mark.usefixtures(negative_discovery_boundary.__name__)
 
 
 @dataclass
@@ -120,6 +126,34 @@ def test_action_requires_current_intact_owned_material_without_a_bend_count_rule
         evidence = Report("blocked", 1)
     assert events(route) == 9
     assert choose(route, evidence, owner, lineage, (scenario.edit,), roots, correction) is expected
+
+
+@pytest.mark.parametrize(
+    "variation", ("contained", "external", "recreated", "retired", "uncertain")
+)
+def test_competing_contact_containment_requires_one_exact_intact_module(
+    scenario: Scenario, variation: str
+) -> None:
+    """
+    Keep correction for internal collisions, but do not fix an outside colliding carrier in place.
+    """
+    route, lineage = scenario.parent, scenario.lineage
+    assert scenario.blocker.witness is not None
+    second = len(scenario.local.pieces) - 1
+    if variation == "external":
+        second = len(route.pieces) - 1
+    contact = ContactResult(
+        "penetration",
+        1,
+        Penetration((0, second), (0.5, 0, 0), (0.5, 0, 0), scenario.blocker.witness.point),
+    )
+    if variation == "recreated":
+        route = replace(route, pieces=(replace(route.pieces[0]),) + route.pieces[1:])
+    elif variation == "retired":
+        lineage = ((9, 0),) + lineage[1:]
+    elif variation == "uncertain":
+        contact = ContactResult("unresolved", 1)
+    assert contains_contact(route, contact, lineage, (scenario.edit,)) is (variation == "contained")
 
 
 @pytest.mark.parametrize(

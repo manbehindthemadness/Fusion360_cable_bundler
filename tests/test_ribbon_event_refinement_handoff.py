@@ -29,11 +29,16 @@ from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.joint_handoff import JointHandoff
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
 from experiments.experiment_ribbon_terminal_hardware.run_translation import StraightSlots
+from tests.ribbon_adaptive_controls import (
+    negative_discovery_boundary as negative_discovery_boundary,
+)
 from tests.test_ribbon_adaptive_continuation import moved, reply
 from tests.test_ribbon_adaptive_events import _bump, _proposal, _source
 from tests.test_ribbon_contact_refinement import _gate
 from tests.test_ribbon_departure_return import _departure
 from tests.test_ribbon_deviation_sequence import _result
+
+pytestmark = pytest.mark.usefixtures(negative_discovery_boundary.__name__)
 
 
 def _contact(route: FoldRoute) -> ContactResult:

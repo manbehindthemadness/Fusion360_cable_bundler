@@ -36,6 +36,32 @@ class Action(Enum):
     STOP = "stop"
 
 
+def contains_contact(
+    current: FoldRoute,
+    contact: ContactResult,
+    lineage: tuple[EventId, ...],
+    edits: tuple[Edit, ...],
+) -> bool:
+    """
+    Recognize a strict current crossing wholly contained in one intact inserted module.
+
+    Such a crossing need not reopen the module's boundary before correction.
+    Crossings into surviving outer material need coupled boundary freedom instead.
+    Exact piece ownership and lineage, rather than old ordinals, define containment;
+    this structural decision supplies neither a contact nor a clearance certificate.
+    """
+    if contact.status != "penetration" or contact.witness is None or contact.limit is not None:
+        return False
+    members = contact.witness.pieces
+    if any(type(member) is not int or not 0 <= member < len(current.pieces) for member in members):
+        return False
+    for edit in edits:
+        window = edit.inserted_window(current, lineage)
+        if window is not None and all(window.begin <= member < window.end for member in members):
+            return True
+    return False
+
+
 def choose(
     current: FoldRoute,
     evidence: ContactResult | Report,

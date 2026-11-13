@@ -25,10 +25,17 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from .adaptive_event_construction import Roots, construct
 from .adaptive_event_continuation import recover as continue_fixed
 from .adaptive_event_plan import plan
-from .adaptive_event_schedule import Action, Correction, choose, preparation_declined
+from .adaptive_event_schedule import (
+    Action,
+    Correction,
+    choose,
+    contains_contact,
+    preparation_declined,
+)
 from .adaptive_event_window import Edit, EventId, Window, events, reidentify, reopen, select
 from .check import Report
 from .gate import Gate
+from .hardware_contact_discovery import HardwareContacts
 from .joint_handoff import JointHandoff
 from .recovery_limits import Work, validate
 
@@ -70,6 +77,13 @@ def recover(
     current material; spent correction cannot restart and old lineage is retired.
     Removal prefers simpler certified geometry; missing pruning work is explicit,
     and no global minimality is claimed. All original physical checks remain.
+    A strict hardware blocker may receive one32comparison negative material
+    screen before correction. Its current occupied member and neighbours order
+    proposals only. A verified competing crossing can use existing local event
+    refinement while caps are still closed if no intact inserted module contains
+    both colliding members. Contained crossings retain fixed correction rather
+    than repeatedly rebuilding the same module; a miss retains hardware correction.
+    Negative work shares the original pair/CPU pools and supplies no clearance.
     """
     validate(
         remaining_pairs=work.pairs,
@@ -97,6 +111,7 @@ def recover(
     accepted: ContactResult | None = None
     stop = "work_exhausted"
     pruning_attempted = pruning_removed = pruning_unavailable = 0
+    hardware_contacts = HardwareContacts()
     detail: dict[str, Any] = {
         "purpose": "adaptive_local_events",
         "initial_event_count": events(source),
@@ -145,17 +160,32 @@ def recover(
         terminal_proof = terminal.certify(route, "adaptive_events_before_contact")
         if terminal_proof.status == "blocked" and terminal_proof.witness is not None:
             detail["contact_checks_deferred"] += 1
+            negative = None
+            if accepted is None and roots.attempted < 8 and iterations < work.updates:
+                started = perf_counter()
+                try:
+                    negative = hardware_contacts.inspect(route, terminal_proof, allowance, bounded)
+                except _Exhausted:
+                    charged = min(32, allowance)
+                    pairs += charged
+                    detail["interrupted_hardware_discovery_pairs"] = charged
+                    raise
+                finally:
+                    contact_seconds += perf_counter() - started
+                if negative is not None:
+                    pairs += negative.pairs_checked
             record(
                 {
                     "stage": "adaptive_proof",
                     "status": "contact_deferred",
                     "hardware": asdict(terminal_proof),
                     "contact": None,
-                    "contact_scope": "unattempted_for_strict_hardware_blocker",
+                    "negative_discovery": None if negative is None else asdict(negative),
+                    "contact_scope": "full_certificate_unattempted_for_strict_hardware_blocker",
                 }
             )
             bounded()
-            return None, terminal_proof
+            return negative, terminal_proof
         bounded()
         contacts += 1
         started = perf_counter()
@@ -407,7 +437,20 @@ def recover(
                 and hardware.status == "blocked"
                 and hardware.witness is not None
             ):
-                evidence = hardware
+                if (
+                    measured is not None
+                    and measured.status == "penetration"
+                    and measured.witness is not None
+                    and measured.limit is None
+                    and not contains_contact(current, measured, lineage, tuple(edits))
+                ):
+                    evidence = measured
+                    pending = Action.REFINE
+                    detail["hardware_contact_refinements"] = (
+                        detail.get("hardware_contact_refinements", 0) + 1
+                    )
+                else:
+                    evidence = hardware
                 evidence_source = current
                 continue
             if measured is None:
@@ -471,6 +514,7 @@ def recover(
         contacts=contacts,
         contact_pairs=pairs,
         contact_seconds=contact_seconds,
+        hardware_contact_discovery=hardware_contacts.statistics(),
         roots_attempted=roots.attempted,
         declined_roots=roots.declined,
         event_count=events(current),

@@ -14,7 +14,7 @@ from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, Penetration
 from experiments.experiment_ribbon_fold_route.contact_inverse import occupied_coordinates
 from experiments.experiment_ribbon_fold_route.geometry import Straight
-from experiments.experiment_ribbon_terminal_hardware.adaptive_event_plan import plan
+from experiments.experiment_ribbon_terminal_hardware.adaptive_event_plan import RootPreference, plan
 from experiments.experiment_ribbon_terminal_hardware.adaptive_event_window import Window, select
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from tests.test_ribbon_aesthetic import _route
@@ -76,3 +76,4 @@ def test_plan_rejects_one_sided_window_after_validating_both_real_preimages() ->
         and accepted.window.begin == 0
         and accepted.window.end == len(source.pieces)
     )
+    assert accepted.root_preference is RootPreference.GUIDE_FIT

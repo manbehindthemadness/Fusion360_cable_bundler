@@ -3921,3 +3921,274 @@ warnings; no code changed or application QA rerun. Source verification passes.
 Broad generalization goal remains incomplete; automatic2652certification CPU
 issue and coupled-repair fresh exposure are unresolved. Next validation must
 again use new registry seed/unique layouts. No unchanged current-case retry.
+
+
+2026-11-13 — continuing broad fresh trial2659..2661; first real counterexample
+
+Goal now ACTIVE with objective: prove efficacy and solver reliability by
+continuing across new layouts. Prior turn2657/58was progress (20new accepted
+numerical/native configurations), not a no-progress wait. No goal completion.
+
+2659freezes20new random N1..10layouts with seed1726025768, excluding3806prior
+novelty fingerprints. Source343unchanged2650; no fixture replay,tuning or retries.
+Firstfailure protocol stops at ordinal17:20planned/17attempted/collected,
+16numerical passes/1unresolved/3unattempted. All reservations remain retired.
+The numerical aggregate is recordedonce. SolveCPU min.277446/median.36367/
+max1.171447/total8.059667s. Input ranges match historical fixed100N1..10, but
+stopping differs; no population failure-rate estimate or pooling with2657N8..10.
+
+Cases6(N9)and9(N2)successfully use adaptive8event construction. Case17(N10)
+reaches8events but stops at joint_no_descent, not CPU/pair exhaustion. Parent
+recovery.151779CPU/4updates/2Newton/1root/47pairs. Fixed continuation has3stages;
+first two each take1Newton correction and discover strict flat crossings while
+restoring caps. Their residuals are.011971368384mm and.028326647460mm. Third
+stage attempts a bounded direction but has0Newton/0accepted updates, one active-
+face restoration and one bound-clipped proposal; it stalls. These open-cap
+states are not accepted or fed through the closed-geometry adaptive handoff.
+No coupled adaptive contact window runs in this cohort. This is a fresh
+counterexample to broad efficacy, not evidence the input is infeasible.
+
+2660qualifies preceding16accepted geometries, with no extra numerical solves:
+16planned/nativeattempted/built/named-fidelity/boundary passes,0warnings or
+unattempted native cases. Failed ordinal17has0native attempts;3future cases stay
+unattempted. Native generation median1.0322180834482424s,
+audit median1.3784358125412837s/driver71.878s. Maximum error
+1.849339859e-9mm.16/16solveCPU<=matchednativegeneration.714retained100msRSSsamples
+peak866944KiB (~847MiB),continuouspeakunmeasured. Full physical audits absent.
+These native operations concern the SAME16of17fresh configurations, not16newones.
+
+2661read-only capture selects the exact retained closed8event109.744590575198mm
+candidate from the original unresolved adaptive event. Its measured caps close
+1.616094269e-13mm/frame4.589708859e-16, but contact penetrates(pieces9/12, both
+folds;214pairs) and endhardware is blocked(piece8straight,70cells). Shared world
+contactpoint[27.932689732,13.893840534,-22.456284325]; hardwarepoint
+[25.893913709,16.498252581,-20.844144778]. Cap-closed baseline differs explicitly
+from later open-cap restoration states116.168353940/115.695781541mm retained in
+original journal. No geometry solve/probe/native action or repaired-pass credit.
+CaptureCPU.354315/wall.364234084under separate10sdiagnostic allowance.
+
+Replaced exact-owned2653diagnostic5sketches/1palette with2661rejected-case display;
+all4CADexports visually reviewed. Fingerprint6c5bde4d92c65502dcf3c842f6c03902e1ceb
+53a74507771d9bb0237a3e5f006; palette ribbon_spatial_486801283344/component
+/v4BAAEA/WgLAAAAAAAAAAAA. Motion probe not allocated/executed; read-only launch
+marker disables accidental display probing. Retain one diagnostic5sketches and
+hiddennativeowner native._qualification_2660case016body/2profiles; previous2658
+owner empty. Exact tokens/revision/transform2660/final-ownership.json. Final
+readonly verification confirms idle/oneview/onebody, RSS610848KiB. Archives intact.
+
+No solver edits, production promotion, commits, subagents, module reload or OS
+screen capture. Existing source QA/3pre-existing IDEweakwarnings unchanged; no
+application tests rerun for generated reports/documentation. Sourcepins verified.
+Goal remains ACTIVE/incomplete. Next investigate cap-restoration active-bound
+stall and eligibility of closed-material handoff using spatial brackets/current
+constraints; do not accept open caps, renew work or retry unchanged geometry.
+Any later independent validation requires new registered seeds/unique layouts.
+
+
+2026-11-13 — case17linearization audit2662..2672; derivatives declined
+
+2662reconstructs ONEoriginal final-stage linearization, comparing exact initial
+protections, material/hardware row counts with the journal, then intercepts
+before firstgeometryadvance. Same1e-5derivative/oneoptimizer/.35CPU2wall limits.
+The step fraction is1, notzero; activebound19is reached atfraction1. Thus the
+initial zero-step suspicion is disproven. Predicted contact residual.00660456
+falls to1.35e-9; preparedCPU.017193s. Bounds includeInfinity in the original
+PythonJSONreceipt; JSdisplayparses symbolic infinities in memory, not byediting
+that generated artifact.
+
+2663reconstructs only the four ORIGINAL rejected trial states using frozen2662
+J/delta; intercepts equations before any newderivative/optimizer. Alladmissible;
+fractions1/.481191409/.231416626/.111263601 produce contactresiduals.006862716/
+.006730617/.006665616/.006634016, allworse than.006604560. CPU.007782. No alternate
+direction, acceptance, solverqualification, native or motionprobe. A JavaScript
+script-generation typo (.index instead of.indexOf) and missing-module launch
+failed before any geometry; originalsetupfailurelogretained, correctedlauncher
+then performs the oneaudit.2664ONEcentralJacobian/nooptimizer/trial measures
+oldvectorcontact slope-.00004719instead of-.00660456(CPU.019951); centered
+smoothing reduces but doesnoteliminate the complete-support nonsmooth mismatch.
+
+2665experimental universalcenteredmaterial derivatives: newabsolute-support
+analyticalcontrol at3scales plus realcallerpolicy test; red1fail/3pass, green
+172focusedpass/Ruff2/format2. InitialSDKlookup on newtest before IDEindex returned
+notfound; the command still used the previously verifiedSDK. Proceduralgap
+retained; allsubsequentlookups use existingmaintainedmodule. TypedDomain replaces
+Mock after2IDEtypewarnings; finaltestIDEclear. Sourcefirstinspectiontimedout60s;
+completed120scheckreports6pre-existingunchangedwarnings/weakwarnings, mapped to
+before-source statements in2665/preexisting-ide-findings.json. No introduced
+changed-linefinding. This was experimentalqualification, not productionreadiness.
+
+2666preservation stops after2of11attempts:material-returnpasses, requiredclosed-
+motion2179fails original.35CPU;9unattempted. Centralcost/trajectory consumes
+.240066CPU in its fixedcontinuation; parent.350805CPUstop. Preservefailure; no
+favourabletiming retry.2667currentqualification RETIREDUNATTEMPTED becauseofthat
+regression. Universalcandidate archived/declined.
+
+2668narrowscenteredpolicy to coupled actions ENTEREDwithopen orderedcaps,
+retaining fastreferencepolicy for closedsource/reflection/hardware-only stages.
+173focusedtests pass/Ruff2/format2;newtestIDEclear; finalsourceIDEinspection
+again timesout120s.2669all11selectedattempted/collected:10requiredpasses/
+1priorunresolved,0unattempted.2670ONEcurrentcase17stilljoint_no_descent atsame
+materialstate and0thirdstageNewton. SolveCPU.292402/workerCPU.444808/wall.448698042;
+parent.166157CPU/4updates2Newton1root47pairs. Additionalderivativecost supplies
+no demonstratedsolverbenefit. No native/freshcredit. Scopedcandidate and tests
+archived under2668, then ONLYthisturn's joint_contactedit/newtest/source-lock
+changes rolled back. All343executable hashes match2650/verified.json EXACTLY;
+newtest removed, prioruserwork intact. No unchanged solver replay afterrestoration.
+Original passingQA/freshreceipts apply to the exactrestoredsource. Existing6IDE
+sourcefindings and3optional-indexfindings elsewhere remain outofscope.
+
+2671asks whether the existing32comparisonnegativeProfileProbe can detect a
+competing contact on the ORIGINAL CLOSEDhardwareblocked8eventcandidate before
+restoration. Ordinaryorder exhausts32unresolved(CPU.001736), no clearanceclaim.
+2672one separatelyplanned32comparisonquery orders pairs by proximity to actual
+hardwarewitness, involving occupiedmember8andimmediatematerialneighbours only.
+No oldcontactwitness/seed/coordinate lookup choosespairs. Itfinds strictstraight
+8/13penetration in2comparisons/.003583CPU/.004071209wall; worldpoint
+[26.333695423,15.492242100,-19.697036809]. Bothoriginalstrictinverses verify it.
+This differs from fullpacketfold9/12witness and identifies anotheractualcrossing;
+no route movement, correction, acceptance, native or freshcredit.
+
+Nextboundedimplementationplan2673: reusablehardwarefocus/currentpose negative
+screen can make coupledlocalwindow eligible while caps remainclosed, before
+fixedtopologycorrection consumes its allocation. Atmost32pairs/blockedcandidate
+fromoriginalshared2048/CPU/support/negative ceilings. Misseskeepoldpolicy;
+strictwitnesscanusependingREFINEwithunchangedremainingroots/updates. Allfinal
+physicalgates andfewer-unneeded-events/pruning contracts remain. Notimplemented
+or qualifiedyet. No discardedcandidateisretained merelybecause unit tests pass.
+
+LiveFusionstill2661rejectedcase17diagnostic and2660hiddencase016nativebody/
+2profiles, no newhostmutation/geometryworkers. GoalACTIVE/incomplete; prior
+turnfreshtrial/thisturnmeasuredcounterexample+declinedpolicies areprogress.
+No commits/subagents/productionpromotion/OScaptures. No goalcompletionclaim.
+
+
+2026-11-13 — checkpoint2674: early hardware contact discovery NOT qualified
+
+Source344 adds hardware_contact_discovery and adaptive pendingREFINE scheduling.
+The bounded negative query validates current hardware occupancy and both material
+inverses; it grants no clearance and shares original contact/resource ceilings.
+Focused QA:162passed; Ruff/format and IDE inspections clear on all11changed paths.
+Legacy scheduling tests explicitly isolate the optional query; new independent
+geometry and controller tests cover its witnesses and final acceptance gates.
+
+Selected preservation2674 STOPPED at third input:2numericalpasses,1required-pass
+regression(mating-proof-2200-04),8unattempted of11. No native attempts or fresh
+credit. Regression uses3hardware-contact refinements/reopenedwindows,4updates/
+4roots/0Newton/.115858recoveryCPU,8negativepairs; stops work_exhausted with
+hardware clearance unestablished. This is scheduling regression, not CPU stop.
+Do not run currentcase2675 or fresh qualification on this unqualified source.
+No unchanged retries or budget enlargement. Full physical audit unmeasured.
+Source344 remains an experimental working-tree candidate, not qualified baseline.
+Next: revise competing-contact scheduling without starving hardware correction;
+retain original343 qualification evidence and all failed receipts separately.
+Live ownership unchanged:2661diagnostic/2660native; no Fusion mutation this scope.
+Goal active/incomplete; no commit or production promotion.
+
+
+2026-11-13 — checkpoint2678: exact ownership distinguishes competing crossings
+
+2676 adds contains_contact: a strict current crossing wholly within one exact
+intact inserted module does not preempt hardware correction. A crossing beyond
+that module remains eligible for coupled refinement. No seed/coordinate lookup,
+new work allowance, acceptance relaxation or global event cap.
+Focused QA168passed; four changed paths Ruff/format and IDE clear. Initial new
+controller test incorrectly placed hardware outside its intended module; fixed
+its analytical setup, preserving the failed test receipt. Prior2673 QA retained.
+
+2677selected11 completed:10required numericalpasses/1priorunresolved,0skipped.
+All10accepted routes EXACT2669baseline. 0nativeattempts/0freshcredit; original
+2674regression stays failed, and2675 retired with0attempts.
+2678one currentcase17 diagnostic remains UNRESOLVED (.355137solverCPU). Early
+negative finds strict8/13crossing in2pairs; refinement selected8..14/reopened
+1..14, replacing prior module and reducing8events to7. Recovery4updates/2roots/
+6Newton/547pairs/.223265CPU. Fixed child achieves closed hardwareclear state
+130.63604583706424mm, but full material certificate finds strict2/6crossing
+(379pairs) at the opposite terminal. Final stop work_exhausted, not CPU stop.
+Fallback parent96.55672514075343mm remains separately rejected; do not display
+it as the final closed child. Original2659case17failed result unchanged.
+
+This diagnoses broader spatial displacement after reopening, not general efficacy.
+Next inspect frozen closed child/affected interval before another policy change.
+Current344source is experimental, not qualified for fresh campaign restart.
+Full physical audit unmeasured. Native case17unattempted; no Fusion mutations.
+Ownership remains2661rejectedcloseddiagnostic/2660hiddennativecase016. Goalactive
+and incomplete. No commit, production promotion, new fresh credit or subagents.
+
+
+2026-11-13 — checkpoint2682: spatial comparison rejects workspace-only repair
+
+2679captures EXACT2678event509closed child, separate from rejected fallback.
+Length130.63604583706424mm; cap6.50873e-12mm/frame8.6061e-14; hardwareclear32cells;
+strict material2/6penetration794pairs. Both are STRAIGHTS:7.715424523mm return
+and47.962818858mm main travel. Four CADexports inspected; return crosses main
+travel near start. Capture.392638CPU/.395180417wall;0solve/probe/native/freshcredit.
+One exactowned2661diagnostic retired(5sketches/1palette/0bodies); new2679view
+5sketches/0bodies. Native2660case016retainedunchanged. Separate finalcallback
+verified idle/currentview/bodyrevision. No motionprobe allocated or executed.
+
+2680trial keeps complete witnessed material interval without reopening old modules.
+169focused tests pass; scopedRuff/format and2changed-code IDE checks clear.
+2681selected11:10requiredpasses/1priorunresolved.2682currentknowncase17stillfails:
+.445342solverCPU; recovery4updates/4roots(2declined)/7Newton/246pairs/.318797CPU.
+Localrewrite8..14preservesoutermaterial and grows8to11events, demonstrating no
+global event cap. Subsequent closed112.256726071mmstate still has strict14/18
+crossing7pairs near originalendconnector. Latercorrection stopsjoint_update_limit
+with opencaps; no acceptance/native/freshcredit. Smaller workspace alone is not
+sufficient; do not claim efficacy from preserved outer geometry or shorter length.
+
+Trial2680DECLINED; only its two code/test edits and lock rolledback, all344source
+hashes EXACT2676verified. Declinedimplementation/tests/receipts archived2680.
+168passing baseline QA/IDE/Ruff retained without unaffected repeats. Source remains
+ownership-aware earlynegative candidate2676, still not fresh-restart qualified.
+Next inspect first boundary-closed root choice and retained competingreturn before
+changing candidate construction. No unchanged retry or budget enlargement.
+GoalACTIVE/incomplete; no commit/productionpromotion/subagent.
+
+
+2026-11-13 — checkpoint2690: guide-fit root preference qualified; restart pause
+
+2683diagnostic fits six previously unattempted algebraic alternatives only,
+.037934CPU/.037959417wall, no reclosure/native/fresh credit. Root110 has guide
+score41.4519276 vs original100score109.3656672.2684independentcapture:104.300992mm,
+cap1.64694e-13mm, selfcontact separated553pairs but hardwareblocked66cells.
+This supports root preference, not acceptance of that uncorrected alternative.
+
+2685 adds typed RootPreference: hardware FIRST_CLOSED retained; strict coupled
+material proposals compare closed allocations by fewer folds, guide-site error,
+length, root identity within SAME remaining8globalchoices. No added search budget,
+reclosure after a closed choice, final-gate relaxation, seed/coordinate lookup or
+global bend cap. QA200unique focused/affected tests pass (171+29additional);
+newtestfinal3pass. Ruff/format and4changed-code IDEchecks clear after minor
+newtestnarrowing-warning correction. FullQAunrun. All344sourcehashes frozen2685.
+
+2686selected11:10requiredpasses/1priorunresolved;0native/freshcredit.
+2687ORIGINAL2659case17 development qualification numerically ACCEPTED .754341CPU.
+Recovery3updates/8roots(5declined)/3Newton/493pairs/.165183CPU,7events and
+109.2174156988332mm; onehardwarecorrectionstage, no reflectedfolds.
+2688ONE nativebuilt/namedfidelity/boundarypass,0warnings/retries. Native2.711467125s,
+audit4.594925417s, maxerror7.59131e-10mm, driver9.277s; solve<=native goalmet.
+93retained100msRSSsamples peak727936KiB;continuouspeak/fullphysicalunmeasured.
+Original2659failure remains failed; selected repaired case gets0freshpasscredit.
+
+2689current accepteddiagnostic:cap5.72902e-13mm/frame6.39543e-15; independent
+contact separated657pairs/hardwareclear28cells. Four CADexports inspected; no
+probe. Replaces exactowned2679diagnostic only. Native2688hidden1body/2profiles;
+old2660body/2profiles retired after receipts. Separate callbacks verifyownership.
+
+2690FRESH seed1059522119,3826prior novelty exclusions,20unique N1..10reservations.
+17attempted:16numericalpasses,NEWcase017unresolved,3unattempted; firstfailurestop,
+0retries/tuning/sourcechanges. Registry numericalaggregate recordedonce. New
+case017 differs from repaired2659case17. SolveCPU median.383039/max.984420/
+total7.230972s. Guide-fit selection exposure0cases: fresh efficacy remainsUNPROVEN.
+No native/namedfidelity/boundary attempts for any2690input; do not count as overall
+passes or mix selectedrepair with fresh statistics. Newfailure has terminal
+clearanceunestablished; no constructionrecovery receipt. Investigation deferred.
+
+User requested completion then pause for low IDE memory/restarts. Numericalbatch
+terminal and collected;2690/pause-host-idle.json confirms idle current2689view
+and2688nativebody, sameexactrevision. No pending geometry/probe/worker. Goal
+PAUSED at user request, objectiveincomplete. Next session revalidate restarted
+apps/doc/ownership/logs before action; qualify16pending nativecases separately
+under new bounded plan, then investigate NEW2690case017. Never retry2690inputs as
+fresh or run its3unattempted reservations after the recorded stop. No commit or
+productionpromotion/subagents. Do not start more work until user resumes.

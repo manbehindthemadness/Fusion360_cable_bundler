@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from experiments.experiment_ribbon_feature_insertion.allocation import fit
+from experiments.experiment_ribbon_feature_insertion.allocation import Allocation, fit
 from experiments.experiment_ribbon_feature_insertion.deviation_guide import DeviationGuide
 from experiments.experiment_ribbon_feature_insertion.features import Chain, chains
 from experiments.experiment_ribbon_feature_insertion.reclosure import ReclosureAllocation
@@ -15,7 +15,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
-from .adaptive_event_plan import Proposal
+from .adaptive_event_plan import Proposal, RootPreference
 from .deviation_closure import close
 
 
@@ -60,7 +60,7 @@ def construct(
     record: Callable[[dict[str, Any]], None],
 ) -> FoldRoute | None:
     """
-    Construct the guide's actual steering stages and stop at the first boundary-closed allocation.
+    Construct the guide's steering stages within the original shared algebraic choice pool.
 
     Each local stage has at most six folds/eight roots/128 straight masks. The
     parent route has no event-count cap. Eight fitted choices are shared across
@@ -75,10 +75,29 @@ def construct(
     added tangent and cannot describe the bump's outward-and-return headings.
     Ordinary guides retain their midpoint reference. Fewer folds are preferred
     among exact factorizations of the selected stages, not by discarding them.
+    Hardware proposals stop at their first closed allocation. Coupled material
+    proposals compare the remaining exact allocations by fold count, guide-site
+    error, material length and root identity, in that order. They fit no extra
+    roots, renew no clocks and perform no additional reclosure after finding a
+    closed allocation. Guide quality is a preference, never a physical certificate.
     """
+    if not isinstance(proposal.root_preference, RootPreference):
+        raise ValueError("Choose an explicit algebraic root preference")
     local = proposal.window.route
     boundary = Boundary(local.targets, local.radius_mm)
     attempted: list[Chain] = []
+    best: Allocation | None = None
+
+    def rank(allocation: Allocation) -> tuple[int, float, float, tuple[int, ...]]:
+        """
+        Prefer fewer needed bends before guide quality, without encoding a physical acceptance claim.
+        """
+        return (
+            len(allocation.chain.topology.folds),
+            allocation.score,
+            allocation.route.material_length_mm,
+            allocation.chain.roots,
+        )
 
     def local_record(event: dict[str, Any]) -> None:
         """
@@ -122,8 +141,25 @@ def construct(
                 maximum_straight_mm=proposal.frames.guide.distances[-1],
             )
             if allocated is not None and ordered_mating_caps(allocated.route.pieces, local.targets):
-                return allocated.route
-            roots.declined += 1
+                if proposal.root_preference is RootPreference.FIRST_CLOSED:
+                    return allocated.route
+                if best is None or rank(allocated) < rank(best):
+                    best = allocated
+            else:
+                roots.declined += 1
+    if best is not None:
+        record(
+            {
+                "stage": "adaptive_root_selection",
+                "status": "guide_fit_minimum",
+                "roots": best.chain.roots,
+                "score_mm2": best.score,
+                "length_mm": best.route.material_length_mm,
+                "roots_attempted": roots.attempted,
+                "scope": "remaining_algebraic_choices_only_not_clearance",
+            }
+        )
+        return best.route
     if attempted:
         roots.reclosures += 1
         repaired = close(

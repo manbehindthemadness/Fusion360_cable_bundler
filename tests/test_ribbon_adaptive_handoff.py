@@ -23,8 +23,13 @@ from experiments.experiment_ribbon_terminal_hardware.adaptive_event_window impor
 from experiments.experiment_ribbon_terminal_hardware.check import Report
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
 from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+from tests.ribbon_adaptive_controls import (
+    negative_discovery_boundary as negative_discovery_boundary,
+)
 from tests.test_ribbon_adaptive_continuation import moved, reply
 from tests.test_ribbon_adaptive_events import _bump, _proposal, _source
+
+pytestmark = pytest.mark.usefixtures(negative_discovery_boundary.__name__)
 
 
 @dataclass

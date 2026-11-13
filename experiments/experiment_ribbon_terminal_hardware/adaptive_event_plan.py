@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
@@ -28,6 +29,15 @@ from .model import Hardware
 WindowSelector = Callable[[FoldRoute, tuple[int, ...]], Window]
 
 
+class RootPreference(Enum):
+    """
+    Distinguish immediate hardware closure from fitting a coupled material escape guide.
+    """
+
+    FIRST_CLOSED = "first_closed"
+    GUIDE_FIT = "guide_fit"
+
+
 @dataclass(frozen=True)
 class Proposal:
     """
@@ -37,6 +47,7 @@ class Proposal:
     window: Window
     frames: Frames
     offset_mm: Vector3
+    root_preference: RootPreference = RootPreference.FIRST_CLOSED
 
 
 def _matches_material(
@@ -158,4 +169,9 @@ def plan(
         frames = Frames.from_guide(window.route.targets, guide)
     except ValueError:
         return None
-    return Proposal(window, frames, offset)
+    return Proposal(
+        window,
+        frames,
+        offset,
+        RootPreference.FIRST_CLOSED if isinstance(evidence, Report) else RootPreference.GUIDE_FIT,
+    )

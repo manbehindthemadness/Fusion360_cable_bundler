@@ -348,3 +348,82 @@ The gym handoff.validate function returns a detached validated payload dict.
 Create a Scene from Config and both Goals for APIs that require Scene; do not
 pass the dict as though it exposed scene.config. These are integration safeguards,
 not geometry acceptance, native construction permission or new experiment scope.
+
+
+2026-11-13 — checkpoint2682: spatial comparison rejects workspace-only repair
+
+2679captures EXACT2678event509closed child, separate from rejected fallback.
+Length130.63604583706424mm; cap6.50873e-12mm/frame8.6061e-14; hardwareclear32cells;
+strict material2/6penetration794pairs. Both are STRAIGHTS:7.715424523mm return
+and47.962818858mm main travel. Four CADexports inspected; return crosses main
+travel near start. Capture.392638CPU/.395180417wall;0solve/probe/native/freshcredit.
+One exactowned2661diagnostic retired(5sketches/1palette/0bodies); new2679view
+5sketches/0bodies. Native2660case016retainedunchanged. Separate finalcallback
+verified idle/currentview/bodyrevision. No motionprobe allocated or executed.
+
+2680trial keeps complete witnessed material interval without reopening old modules.
+169focused tests pass; scopedRuff/format and2changed-code IDE checks clear.
+2681selected11:10requiredpasses/1priorunresolved.2682currentknowncase17stillfails:
+.445342solverCPU; recovery4updates/4roots(2declined)/7Newton/246pairs/.318797CPU.
+Localrewrite8..14preservesoutermaterial and grows8to11events, demonstrating no
+global event cap. Subsequent closed112.256726071mmstate still has strict14/18
+crossing7pairs near originalendconnector. Latercorrection stopsjoint_update_limit
+with opencaps; no acceptance/native/freshcredit. Smaller workspace alone is not
+sufficient; do not claim efficacy from preserved outer geometry or shorter length.
+
+Trial2680DECLINED; only its two code/test edits and lock rolledback, all344source
+hashes EXACT2676verified. Declinedimplementation/tests/receipts archived2680.
+168passing baseline QA/IDE/Ruff retained without unaffected repeats. Source remains
+ownership-aware earlynegative candidate2676, still not fresh-restart qualified.
+Next inspect first boundary-closed root choice and retained competingreturn before
+changing candidate construction. No unchanged retry or budget enlargement.
+GoalACTIVE/incomplete; no commit/productionpromotion/subagent.
+
+
+2026-11-13 — checkpoint2690: guide-fit root preference qualified; restart pause
+
+2683diagnostic fits six previously unattempted algebraic alternatives only,
+.037934CPU/.037959417wall, no reclosure/native/fresh credit. Root110 has guide
+score41.4519276 vs original100score109.3656672.2684independentcapture:104.300992mm,
+cap1.64694e-13mm, selfcontact separated553pairs but hardwareblocked66cells.
+This supports root preference, not acceptance of that uncorrected alternative.
+
+2685 adds typed RootPreference: hardware FIRST_CLOSED retained; strict coupled
+material proposals compare closed allocations by fewer folds, guide-site error,
+length, root identity within SAME remaining8globalchoices. No added search budget,
+reclosure after a closed choice, final-gate relaxation, seed/coordinate lookup or
+global bend cap. QA200unique focused/affected tests pass (171+29additional);
+newtestfinal3pass. Ruff/format and4changed-code IDEchecks clear after minor
+newtestnarrowing-warning correction. FullQAunrun. All344sourcehashes frozen2685.
+
+2686selected11:10requiredpasses/1priorunresolved;0native/freshcredit.
+2687ORIGINAL2659case17 development qualification numerically ACCEPTED .754341CPU.
+Recovery3updates/8roots(5declined)/3Newton/493pairs/.165183CPU,7events and
+109.2174156988332mm; onehardwarecorrectionstage, no reflectedfolds.
+2688ONE nativebuilt/namedfidelity/boundarypass,0warnings/retries. Native2.711467125s,
+audit4.594925417s, maxerror7.59131e-10mm, driver9.277s; solve<=native goalmet.
+93retained100msRSSsamples peak727936KiB;continuouspeak/fullphysicalunmeasured.
+Original2659failure remains failed; selected repaired case gets0freshpasscredit.
+
+2689current accepteddiagnostic:cap5.72902e-13mm/frame6.39543e-15; independent
+contact separated657pairs/hardwareclear28cells. Four CADexports inspected; no
+probe. Replaces exactowned2679diagnostic only. Native2688hidden1body/2profiles;
+old2660body/2profiles retired after receipts. Separate callbacks verifyownership.
+
+2690FRESH seed1059522119,3826prior novelty exclusions,20unique N1..10reservations.
+17attempted:16numericalpasses,NEWcase017unresolved,3unattempted; firstfailurestop,
+0retries/tuning/sourcechanges. Registry numericalaggregate recordedonce. New
+case017 differs from repaired2659case17. SolveCPU median.383039/max.984420/
+total7.230972s. Guide-fit selection exposure0cases: fresh efficacy remainsUNPROVEN.
+No native/namedfidelity/boundary attempts for any2690input; do not count as overall
+passes or mix selectedrepair with fresh statistics. Newfailure has terminal
+clearanceunestablished; no constructionrecovery receipt. Investigation deferred.
+
+User requested completion then pause for low IDE memory/restarts. Numericalbatch
+terminal and collected;2690/pause-host-idle.json confirms idle current2689view
+and2688nativebody, sameexactrevision. No pending geometry/probe/worker. Goal
+PAUSED at user request, objectiveincomplete. Next session revalidate restarted
+apps/doc/ownership/logs before action; qualify16pending nativecases separately
+under new bounded plan, then investigate NEW2690case017. Never retry2690inputs as
+fresh or run its3unattempted reservations after the recorded stop. No commit or
+productionpromotion/subagents. Do not start more work until user resumes.
