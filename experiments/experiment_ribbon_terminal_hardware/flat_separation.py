@@ -5,7 +5,7 @@ Guide joint correction with complete witnessed flat/profile regions instead of i
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Callable
@@ -176,6 +176,37 @@ def flat_span(piece: PlacedPiece, part: FlatPart, axis: Vector3) -> tuple[float,
     return _flat_span(piece, part, axis, placed)
 
 
+def _nearest_axis(
+    first: PlacedPiece,
+    second: PlacedPiece,
+    parts: tuple[FlatPart, FlatPart],
+    checkpoint: Callable[[], None] | None = None,
+) -> Vector3 | None:
+    """
+    Share the original ordered complete-prism SAT choice, optionally checkpointing every direction.
+    """
+    first_shape = flat_prism(first, parts[0])
+    second_shape = flat_prism(second, parts[1])
+    candidates = (
+        first_shape[2]
+        + second_shape[2]
+        + tuple(cross(x, y) for x in first_shape[1] for y in second_shape[1])
+    )
+    choices = []
+    for raw in candidates:
+        if checkpoint is not None:
+            checkpoint()
+        if magnitude(raw) <= 1e-10:
+            continue
+        axis = unit(raw)
+        x, y = (
+            tuple(dot(p, axis) for p in first_shape[0]),
+            tuple(dot(p, axis) for p in second_shape[0]),
+        )
+        choices.extend(((min(y) - max(x), axis), (min(x) - max(y), axis.translated(axis, -2))))
+    return max(choices, key=lambda item: item[0])[1] if choices else None
+
+
 def _flat_span(
     piece: PlacedPiece, part: FlatPart, axis: Vector3, placed: FlatRegion
 ) -> tuple[float, float]:
@@ -342,27 +373,38 @@ class FlatSeparation:
             first_piece, second_piece = (
                 locate(model.original, pieces, tags[index]) for index in pair
             )
-        first_shape = flat_prism(first_piece, a)
-        second_shape = flat_prism(second_piece, b)
-        candidates = (
-            first_shape[2]
-            + second_shape[2]
-            + tuple(cross(x, y) for x in first_shape[1] for y in second_shape[1])
-        )
-        choices = []
-        for raw in candidates:
-            if magnitude(raw) <= 1e-10:
-                continue
-            axis = unit(raw)
-            x, y = (
-                tuple(dot(p, axis) for p in first_shape[0]),
-                tuple(dot(p, axis) for p in second_shape[0]),
-            )
-            choices.extend(((min(y) - max(x), axis), (min(x) - max(y), axis.translated(axis, -2))))
-        if not choices:
+        axis = _nearest_axis(first_piece, second_piece, (a, b))
+        if axis is None:
             return None
-        axis = max(choices, key=lambda item: item[0])[1]
         return cls(model, (tags[first], tags[second]), (a, b), axis)
+
+    def separated_alternative(
+        self,
+        values: tuple[float, ...],
+        checkpoint: Callable[[], None],
+        *,
+        minimum_gap_mm: float,
+    ) -> FlatSeparation | None:
+        """
+        Reorient the same complete phases only if the current pose already has the required gap.
+
+        Stable material tags also cover straight slots absent from the original
+        route. No witness is reinterpreted and no phase, profile or height is
+        reduced. This is correction guidance, not a full contact certificate.
+        New immutable axis ownership prevents reuse of old fixed-axis gap caches.
+        """
+        if not math.isfinite(minimum_gap_mm) or minimum_gap_mm <= 0:
+            raise ValueError("Use the existing positive material gap")
+        checkpoint()
+        pieces = self.model.pieces(values)
+        first, second = (locate(self.model.original, pieces, tag) for tag in self.pair)
+        axis = _nearest_axis(first, second, self.parts, checkpoint)
+        if axis is None:
+            return None
+        alternative = replace(self, axis=axis)
+        gap = alternative.gap(values, Side.BEFORE) * self.model.scale
+        checkpoint()
+        return alternative if gap >= minimum_gap_mm else None
 
     @cached_property
     def _gaps(self) -> Callable[[tuple[float, ...], Side], float]:

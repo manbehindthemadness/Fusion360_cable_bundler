@@ -188,7 +188,7 @@ def test_local_windows_share_corrections_and_only_actually_attempted_roots(
     monkeypatch.setitem(
         vars(construction),
         "chains",
-        Mock(side_effect=((allocated.chain,), (), (allocated.chain,), (), (allocated.chain,), ())),
+        Mock(side_effect=((allocated.chain,), (allocated.chain,), (allocated.chain,))),
     )
     monkeypatch.setitem(vars(construction), "fit", Mock(return_value=None))
     limits: list[int] = []

@@ -60,7 +60,7 @@ def construct(
     record: Callable[[dict[str, Any]], None],
 ) -> FoldRoute | None:
     """
-    Prefer fewer local bends and stop at the first fully boundary-closed allocation.
+    Construct the guide's actual steering stages and stop at the first boundary-closed allocation.
 
     Each local stage has at most six folds/eight roots/128 straight masks. The
     parent route has no event-count cap. Eight fitted choices are shared across
@@ -69,6 +69,12 @@ def construct(
     Measured native-cone closure avoids renewed guide masks; no new root,
     offset or alternative family follows a failed correction.
     Full-route acceptance and optional module removal belong to the controller.
+    Finite correction may change the material bend branch. Optimizer trajectory
+    continuity grants no physical acceptance; full-route proofs remain required.
+    A deviation uses its two analytic slope extrema. Its midpoint has zero
+    added tangent and cannot describe the bump's outward-and-return headings.
+    Ordinary guides retain their midpoint reference. Fewer folds are preferred
+    among exact factorizations of the selected stages, not by discarding them.
     """
     local = proposal.window.route
     boundary = Boundary(local.targets, local.radius_mm)
@@ -84,7 +90,12 @@ def construct(
             roots.newton_steps += 1
         record({**event, "adaptive_window": [proposal.window.begin, proposal.window.end]})
 
-    for parameters in ((0.5,), DeviationGuide.stations()):
+    stages = (
+        (DeviationGuide.stations(),)
+        if isinstance(proposal.frames.guide, DeviationGuide)
+        else ((0.5,),)
+    )
+    for parameters in stages:
         checkpoint()
         if roots.attempted >= 8:
             break

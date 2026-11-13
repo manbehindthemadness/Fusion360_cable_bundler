@@ -62,6 +62,7 @@ from .hardware_halfspaces import separated_alternatives
 from .hardware_motion import expand as expand_hardware
 from .hardware_motion import straight_growth_requires_angles
 from .incident_model import IncidentJoints
+from .incident_window import IncidentWindow, ReturnCoordinates
 from .joint_completion import closed_material, stalled_certificate_ready
 from .joint_derivatives import Difference
 from .joint_derivatives import jacobian as joint_jacobian
@@ -70,6 +71,7 @@ from .joint_handoff import JointHandoff
 from .joint_mating import restore as restore_mating
 from .line_search import contracted_fraction
 from .material_constraint import MaterialConstraint
+from .material_halfspaces import separated_alternatives as separated_material_alternatives
 from .material_return_selection import UnreflectedReturns
 from .material_working_set import least_binding
 from .moving_probe import moving_domain
@@ -370,7 +372,14 @@ def recover(
     selected: int | None = None
     model: SignedJoints
     if isinstance(mode, (IncidentGuidance, MaterialGuidance)):
-        model = IncidentJoints(original, mode.selected_fold)
+        if (
+            isinstance(mode, MaterialGuidance)
+            and mode.coordinates is ReturnCoordinates.WITNESSED_INTERVAL
+        ):
+            assert isinstance(evidence, Penetration)
+            model = IncidentWindow(original, mode.selected_fold, evidence)
+        else:
+            model = IncidentJoints(original, mode.selected_fold)
         selected = mode.selected_fold
     elif mode is JointMode.RADIUS_RESTORATION:
         if (
@@ -506,6 +515,9 @@ def recover(
     hardware_halfspace_attempts = 0
     hardware_halfspace_rebindings = 0
     hardware_guidance_values: tuple[float, ...] | None = None
+    material_guidance_values: tuple[float, ...] | None = None
+    material_halfspace_attempts = 0
+    material_halfspace_rebindings = 0
     ordered_cap_completions = 0
     stalled_certificate_requests = 0
     mating_attempts, mating_restored = 0, 0
@@ -846,6 +858,40 @@ def recover(
                     scalar_planes = refreshed.planes
                     hardware_halfspace_rebindings += len(refreshed.changed)
                     evaluation.constraints_changed()
+            if (
+                (reflected or coupled_contact)
+                and not straight_contact
+                and constraints
+                and not stalled_certificate_requests
+                and newton > 0
+                and material_guidance_values != values
+            ):
+                material_guidance_values = values
+                refreshed_material = separated_material_alternatives(
+                    constraints, values, bounded, minimum_gap_mm=1e-8
+                )
+                material_halfspace_attempts += refreshed_material.attempts
+                if refreshed_material.changed:
+                    emit(
+                        "material_halfspaces_rebound",
+                        constraints=list(refreshed_material.changed),
+                        gaps=[
+                            {
+                                "old_gap_mm": constraints[index][0].gap(
+                                    values, constraints[index][1]
+                                )
+                                * model.scale,
+                                "new_gap_mm": refreshed_material.constraints[index][0].gap(
+                                    values, refreshed_material.constraints[index][1]
+                                )
+                                * model.scale,
+                            }
+                            for index in refreshed_material.changed
+                        ],
+                    )
+                    constraints = refreshed_material.constraints
+                    material_halfspace_rebindings += len(refreshed_material.changed)
+                    evaluation.constraints_changed()
             terms = equations(values)
             error = merit(values)
             caps_complete = (
@@ -1109,7 +1155,7 @@ def recover(
                 measured_contact = inspect_contact(
                     candidate,
                     maximum_pairs=allowed,
-                    cap_policy=CapPolicy.ANALYTIC_SUPPORT,
+                    cap_policy=CapPolicy.FACTORED_SUPPORT,
                     checkpoint=bounded,
                     witness_probe=learned if known_contact else probe,
                     probe_order=ProbeOrder.MATERIAL_CELLS
@@ -1549,6 +1595,9 @@ def recover(
         "native_zero_face_reuses": native_zero_face_reuses,
         "hardware_halfspace_attempts": hardware_halfspace_attempts,
         "hardware_halfspace_rebindings": hardware_halfspace_rebindings,
+        "material_halfspace_attempts": material_halfspace_attempts,
+        "material_halfspace_rebindings": material_halfspace_rebindings,
+        "material_halfspace_counter_scope": "completed_refreshes_only",
         "hardware_halfspace_counter_scope": "completed_refreshes_only",
         "ordered_cap_completions": ordered_cap_completions,
         "stalled_certificate_requests": stalled_certificate_requests,
@@ -1610,6 +1659,8 @@ def recover(
         if isinstance(mode, MaterialGuidance):
             detail.update(
                 length_policy=mode.length.value,
+                return_coordinates=mode.coordinates.value,
+                movable_coordinates=len(model.initial),
                 length_goal_mm=maximum_length_mm,
                 length_goal_excess_mm=max(0.0, candidate.material_length_mm - maximum_length_mm),
             )

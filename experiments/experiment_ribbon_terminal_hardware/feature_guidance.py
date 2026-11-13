@@ -15,6 +15,7 @@ from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from .check import Report
 from .feature_plane import FeatureCoverage, FeaturePlane, SignedJoints
 from .flat_continuation import ContactContinuation
+from .incident_window import ReturnCoordinates
 from .model import Hardware
 
 
@@ -86,12 +87,13 @@ class ReturnLength(Enum):
 @dataclass(frozen=True)
 class MaterialGuidance:
     """
-    Reflect a contact-selected fold while retaining any earlier actual connector evidence.
+    Reflect a contact-selected fold in explicit coordinates, retaining earlier connector evidence.
     """
 
     selected_fold: int
     evidence: tuple[FeatureEvidence, ...] = ()
     length: ReturnLength = ReturnLength.PARENT_CEILING
+    coordinates: ReturnCoordinates = ReturnCoordinates.GLOBAL
 
     def __post_init__(self) -> None:
         """
@@ -101,6 +103,8 @@ class MaterialGuidance:
             raise ValueError("Select an existing witnessed fold")
         if not isinstance(self.length, ReturnLength):
             raise ValueError("Select an explicit return length policy")
+        if not isinstance(self.coordinates, ReturnCoordinates):
+            raise ValueError("Select explicit return coordinates")
         if self.evidence:
             RetainedFeatures(self.evidence)
 

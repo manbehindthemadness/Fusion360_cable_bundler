@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import cast
 
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 from experiments.experiment_ribbon_fold_route.contact import Penetration
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
+from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
 
 
 def select_fold(route: FoldRoute, witness: Penetration) -> int | None:
@@ -59,7 +61,7 @@ def select_fold(route: FoldRoute, witness: Penetration) -> int | None:
 @dataclass(frozen=True)
 class UnreflectedReturns:
     """
-    Permit early transfer only to a strict witness's distinct, not yet reflected interval turn.
+    Select an untried interval turn or the bend carrying a witnessed outgoing flat.
 
     The owning sequence records the current selected turn before entering its
     stage. This immutable set grants neither another motion nor acceptance; the
@@ -79,7 +81,29 @@ class UnreflectedReturns:
 
     def select(self, route: FoldRoute, witness: Penetration) -> int | None:
         """
-        Apply the same deterministic actual-interval selection without revisiting earlier returns.
+        Preserve first choices, then permit an untried departure owner at a repeated return.
+
+        A first witness on a fold's AFTER flat inherits that fold's rotation,
+        although its bend lies outside the occupied interval. Once the interval's
+        dominant turn was reflected and the current ordered caps have closed,
+        this directly incident event can receive the next bounded correction.
+        Open-cap transient crossings do not preempt the ongoing reclosure.
+        Curved/BEFORE points, custom material and previously reflected owners
+        grant no alternative or flip-back action.
+        This is guidance selection only; strict current-pose evidence, remaining
+        work and all final physical certificates remain the caller's responsibility.
         """
         selected = select_fold(route, witness)
-        return selected if selected not in self.reflected_folds else None
+        if selected not in self.reflected_folds:
+            return selected
+        first = witness.pieces[0]
+        geometry = route.pieces[first].geometry
+        if type(geometry) is not CylindricalFold:
+            return None
+        if not ordered_mating_caps(route.pieces, route.targets):
+            return None
+        _, bend_end = cast(CylindricalFold, geometry).bend_interval(witness.first[1])
+        if witness.first[0] < bend_end:
+            return None
+        owner = sum(isinstance(piece.geometry, CylindricalFold) for piece in route.pieces[:first])
+        return owner if owner not in self.reflected_folds else None

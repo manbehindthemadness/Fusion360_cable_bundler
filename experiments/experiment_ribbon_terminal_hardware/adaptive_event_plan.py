@@ -88,7 +88,7 @@ def plan(
     Hardware also requires the same fixed proxy interior. The direction bounds
     complete members; a guide is an aim only, never a clearance certificate.
     A supplied selector may reopen a larger current workspace after validation;
-    it must preserve source ownership and contain at least one witnessed member.
+    it must preserve source ownership and contain every witnessed member.
     """
     checkpoint()
     witness = evidence.witness
@@ -119,10 +119,10 @@ def plan(
             return None
     model = SignedJoints(source)
     window = select_window(source, members)
-    if window.source is not source or not any(
+    if window.source is not source or not all(
         window.begin <= member < window.end for member in members
     ):
-        raise ValueError("Window strategy must cover a current witness in its owned route")
+        raise ValueError("Window strategy must cover every current witness in its owned route")
     if isinstance(witness, Witness):
         assert isinstance(evidence, Report)
         box = next((box for box in hardware.boxes if box.terminal.value == witness.terminal), None)

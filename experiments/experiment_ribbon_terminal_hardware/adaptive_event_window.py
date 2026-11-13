@@ -111,13 +111,24 @@ class Window:
 
 def select(route: FoldRoute, members: tuple[int, ...]) -> Window:
     """
-    Choose a small incident fold pair with the most existing adjacent straight workspace.
+    Couple all occupied members, or choose an incident pair for a singleton blocker.
 
+    Multiple occupied members retain their complete intervening material and
+    adjoining straight runways. Fixing one colliding carrier outside the local
+    boundary would remove its bend freedom before construction. A singleton
+    retains the established maximum-workspace incident-pair policy.
     This is a deterministic structural choice, not a bank of geometry trials.
     The local constructor stays bounded while the parent may have any event count.
     """
     if not members or any(type(i) is not int or not 0 <= i < len(route.pieces) for i in members):
         raise ValueError("Select existing witnessed material members")
+    if len(members) > 1:
+        begin, end = min(members), max(members) + 1
+        if begin and isinstance(route.pieces[begin - 1].geometry, Straight):
+            begin -= 1
+        if end < len(route.pieces) and isinstance(route.pieces[end].geometry, Straight):
+            end += 1
+        return Window(route, begin, end)
     folds = [i for i, p in enumerate(route.pieces) if isinstance(p.geometry, CylindricalFold)]
     candidates: set[tuple[int, int]] = set()
     for member in members:

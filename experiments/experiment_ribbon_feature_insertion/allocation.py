@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_joint_route.allocation import Model
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 
 from .allocation_bounds import StraightReach
+from .allocation_hull import separate
 from .features import Chain
 from .linear_fit import least_squares
 from .mating_allocation import polish
@@ -111,7 +112,9 @@ def fit(
     relaxing radii. A repeated sliver repair or native construction never runs here.
     An explicit guide-derived straight budget bounds the same active-mask
     solutions, including their active budget face; fold material stays separate.
-    With that budget, conservative coordinate ranges skip only masks unable to
+    With that budget, conservative convex travel support can exclude a complete
+    fixed-angle guide fit; its root remains eligible for caller angular reclosure.
+    Otherwise conservative coordinate ranges skip only masks unable to
     meet the same nonnegative travel, sum and affine-residual gates. Every mask
     retains its original checkpoint/ordinal; overlap runs the unchanged fit.
     Prepare guide-objective geometry only after the first nonexcluded mask;
@@ -137,6 +140,22 @@ def fit(
     reach = StraightReach(
         hard, right, maximum_straight_mm / diameter if maximum_straight_mm is not None else None
     )
+    checkpoint()
+    separation = separate(reach, checkpoint)
+    if separation is not None and feasible_values is None:
+        record(
+            {
+                "stage": "feature_allocation",
+                "roots": chain.roots,
+                "status": "whole_travel_excluded",
+                "unattempted_masks": 1 << count,
+                "direction": separation.direction,
+                "travel_projection": separation.travel,
+                "target_projection": separation.target,
+                "scope": "fixed_angle_guide_fit_only",
+            }
+        )
+        return None
     best: Allocation | None = None
     workspace = AffineWorkspace()
     for mask in range(1 << count):

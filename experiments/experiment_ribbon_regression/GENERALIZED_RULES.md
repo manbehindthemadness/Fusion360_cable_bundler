@@ -4849,3 +4849,272 @@ hardware clearance on the saved final pose; it cannot convert the timed-out
 worker into a pass. No native or fresh validation credit. Next reduce actual
 analytic-bound cost while preserving outward enclosures, then qualify natively
 and test new unique layouts before any reliability/generalization claim.
+
+### Share geometry rather than results; measure spacing across width — resume2530
+
+Different separating axes can reuse the same immutable cell boundary geometry;
+they cannot reuse another axis's projection or stationary points. The bounded
+prototype matches1425recordedscalaroutputs exactly and shows1279boundary reuse
+hits, but remains outside the solver pending numerical edge-case and lifetime
+validation. Microbenchmarks alone do not establish an actual recovery CPU gain.
+
+Measure bend-event spacing on material lanes, including diagonal fold staggering.
+Separate straight-piece length and center-lane travel do not fully describe the
+tightest lane or the width-wide flat workspace. Record these quantities alongside
+CPU and event count; do not infer Euclidean clearance or add a spacing threshold
+from one specimen. The frozen eightfold candidate's minimum lane gap is.0029284mm,
+despite5.2856mm center-lane flat travel at that same pair. No spacing policy changed.
+
+2531exposes signed-zero aliasing in numerical tuple cache keys.2532shares prepared
+geometry by retained immutable Cell identity and exact fold identity, bounded128
+entries within a single contact walk. Strong retention prevents identity recycling;
+independent walks cannot exchange geometry. Preserve axis-specific roots/guards.
+2533preserves9selectedpasses byte-for-byte with2priorunresolved;2535currentcase still
+hits originalCPUcap on exactly the same closed pose. Exact scalar/route preservation
+supports compatibility, not yet a sufficient performance or generalization claim.
+
+2540shares already-identical full-accuracy material prefix sums between normalized
+boundaries and millimetre starts. Preserve each original fsum input/order; a running
+sum can erase small spacing after long travel.2541preserves9selected routes exactly
+with2priorunresolved. Exact arithmetic work reduction is not measured solve speedup;
+unmatched capped timings cannot establish how much a completed proof would cost.
+
+2543's earlier CPU stop and2548's selected preservation regression remain failures
+even when recorded common Newton vectors match. Neither exact algebra nor fewer
+operations establishes useful CPU margin. Decline a slower cache or a resource-
+regressing candidate rather than retry until timing passes.2544root cache and
+2545basis reuse are declined; restore complete2541source map. Separately exclude
+generated evidence from IDE code indexing (2550) to bound host workload, preserving
+files and source verification. Variable host CPU remains a confounder, not an excuse
+for deleting outcomes or weakening solver clocks, spacing or physical checks.
+
+2552..2558show that a geometrically plausible extra axis, certificate-aligned cuts,
+or stronger per-cell support bound need not reduce total proof work. Measure the
+complete traversal and its direction-learning interactions before integration.
+Counter-only baseline2556 attributes594of798pairvisits to adjacent material joins;
+correlated cap diagnostics locate126of134legacydeclines at the conservative lead-
+margin gate. This is a certificate-design target, not proof that event spacing is
+invalid or permission to accept unresolved/zero-clearance material interiors.
+All trial policies remain outside the solver; no new-layout or native credit.
+
+A legitimate shared cap has zero support on its boundary. A positive-interior
+certificate can factor material progress instead of weakening a positive-distance
+guard. Keep exit-plane checks independent and test actual material inverses for
+strict crossings.2560..2562reduce proof work while preserving9selected routes.
+Neither this nor a narrowly passing diagnostic establishes fresh reliability.
+2563failed qualification remains;2569instrumented pass has zero validation credit.
+Pair totals do not identify an exhaustion stack. Two proof-first schedules regress
+selected resource outcomes and are declined; original scheduling restored2568.
+
+2571tests transfer on20precommitted new unique layouts using source337:20/20strict
+numerical passes,0unattempted. Retire all fingerprints and finalize once. Numerical
+transfer evidence does not supply native/fidelity/boundary or fullphysical credit;
+use a distinct evidence-scope comparison key. Do not infer a failure-rate improvement
+from a small first-failure cohort compared with a censored earlier cohort.
+2570also illustrates cold-preparation costs: a repeated-read cache can reduce hot
+work and still regress construction-heavy workloads. Honor the frozen rejection
+rule, retain the unfavorable outcome and restore rather than tune to the benchmark.
+
+2572qualifies the SAME20fresh2571routes natively with named fidelity and boundary
+checks; count20independent configurations, not40. Preserve the one speed-goal miss
+and unmeasured fullphysical scope. A finalized numerical-only aggregate stays intact;
+attach followup provenance separately. Native success does not validate future source.
+
+2573locates avoidable proof work in optional layout smoothing still using historical
+certificate options. Reuse established stronger cap proof and immutable boundary
+preparation there without reducing contact coverage or changing mathematical steps.
+2574integrates this common mechanism for all layout inputs,135focused/consumerQApass.
+2575's new-seed case3exhausts recovery BEFORE smoothing; retain its2passes/1unresolved/
+17unattempted and distinguish the unreached change from a demonstrated regression.
+Original fourfold rejected selection, later recovery stages and wrapper candidates
+need separate identity/length/cap evidence. Do not use a visually convenient earlier
+packet as the final recovery result. Read the actual stage before predicting motion.
+
+2579separates a closed-but-intersecting recovery stage from a later separated-but-
+open stage with unresolved hardware. No stage substitutes for the actual failed
+worker.2581's sealed gap-to-world prediction MISSES and contact remains; retain
+that result. A requested local gap does not specify rigid local translation or
+which straight donates material under fixed-cap compensation. Follow ordered
+features through appearing zero slots, and do not treat changing witnesses as a
+clearance gradient or depth measurement. The one case-wide probe is consumed.
+
+2582's derivative-order experiment retains matrixbits but lacks useful work reduction;
+decline it.2583..2586instead locate identical local material preparation repeated
+under different world poses. Reuse only immutable six-parameter fold geometry and
+its original local terminal sample, keyed bit-exactly within bounded model lifetime.
+Recompute world placement/equations and retain constructor validation/nonfloat and
+subclass behavior, identity/order, serialization and all final proofs.338source
+passes237focused/affected tests and exact analytical4/8/12fold derivative matrices;
+small-workload CPU benefit is NOT original-worker completion or fresh reliability.
+Separate frozen solver qualification and newseed validation remain required.
+
+
+2590..2595 distinguish a dominant interval turn from the bend actually carrying
+an occupied outgoing flat. Once the dominant turn was reflected, a strict current
+closed-cap departure witness can select its untried carrying event. Do not preempt
+open-cap transient reclosure:2592's ungated attempt regressed and was declined.
+The existing ordered-frame cap proof gates the new fallback.2594 preserves all
+nine selected accepted routes exactly, yet2595still exhausts currentcase3 at.35CPU.
+Correct event selection alone is not proof that the correction converges or clears.
+2596 investigates opposite-branch initialization from actual crease-axis frame
+geometry, not specimen-specific angles. Keep default reflection unchanged; evaluate
+new initialization separately, preserving every failure and original resource gates.
+
+2597's preservation stop was a CPU-limited proof on byte-identical geometry before
+the new reversal-start policy executed. Preserve that unresolved result and six
+unattempted configurations; neither infer a causal new-policy regression nor claim
+completed preservation.2598's separate one-attempt currentcase check DOES execute
+the new half-turn start and remains unresolved with larger excursion. Decline the
+policy, retain its evidence, restore exact prior source; do not tune another angle
+or retry either unchanged case. The first contact was BEFORE the incident fold,
+whereas the subsequent closed contact is AFTER on both endpoint folds. Phase and
+ordered material incidence must be measured at each actual handoff, not assumed
+from a later display or transferred from a different witness.
+
+
+2599..2601 localize the new closed departure reversal to actual witnessed material
+and its bounding straight workspaces, preserving remote coordinates exactly.
+The span may contain any number of existing events; no fixed event cap or extra
+optimizer. Analytical159pass/17retiredskips and selected9accepted routes unchanged
+are implementation/preservation evidence, not fresh generalization. Onecurrentcase
+remains unresolved after6localNewtonsteps despite a shorter106.837843mm candidate.
+2602demonstrates stale fixed-world SAT guidance on that recorded path: another
+axis already separates the SAME complete phases atNewton2..4, while the old axis
+reports deep overlap. A candidate direction must prove current complete coverage
+before replacing guidance; changing axes or regions merely to hide a true overlap
+is not acceptable. Retain all actual contact discoveries and final whole-route
+proofs. Do not label three recorded poses as three cases or continuous clearance.
+
+
+2603..2605 refresh material guidance only with a current already-separated bound
+for identical complete phases/profile/height/tags. Preserve touching/overlapping
+and curved constraints, all discovered witnesses, and full final certificates.
+Raw-equation caches must invalidate when axes change; axis-specific caches remain
+owned by their immutable bound. No extra optimizer or renewed work. Selected9
+passes survive,3accepted routes change and neednativequalification. The current
+case still fails6Newtonsteps despite2realrefreshes; do not claim resolution from
+removing one demonstrated artificial deficit.
+2606reserves20newunique layouts with newseed1392938054 and source340:20/20numeric
+passes,0native/0unattempted. No refresh/localintervalstage executes, so this is fresh
+preservation, not unseen mechanism validation. Report median.497484CPU/max1.229021
+and observed10-eventmaximum/.004317458mmminimumpositive straight separately from
+native performance/fidelity and unmeasured fullphysical compliance. Preserve old
+stopped cohorts; no causal16%-to-zero or generalfailure-rate claim from this sample.
+
+
+2607..2610 qualify current source's native translation without module reload:
+compilednative/audit bodies matchcurrent, archivedpre2585cache-onlyendframe remains
+arithmeticallycoherent, and exactfrozenroutes roundtrip live. SAME20fresh2606cases
+pass20native/namedfidelity/boundary/strictaccuracy checks with0warnings; all matched
+solveCPU<=constructiontime. Separatelyqualify3changedselectedroutes plusprior-case9,
+no freshcredit. Keep numericalstageaggregate immutable; nativefollowup is paired
+coverage, not20newconfigurations. Fullphysicalscope remainsunmeasured and current
+case3isunsolved. Aggregate allretainedRSSsamples, notonlyendcallbacks: corrected
+2608maximum743248KiB; rawreceipts/initialsummary preserved. Retire onlyexactowned
+previousgeometry after itsproof; retainonecurrentnative andimmediatediagnostic.
+A finalvisibilityassertion failure exposed the builder's capture-time bodyshow;
+restore theagreedbodyhidden default aftercapture withouttouchinggeometry/revision,
+thenverifyactualownedstate. Do not rerun nativeconstruction for a UI-only finding.
+
+
+2612..2614 boundedNewton initialization preserves9selectedpasses but doesnot
+resolve currentcasewithin6steps. Shorter136.769862mm and lower residuals are not
+geometryqualification. Decline the optionalpolicy andrestore exact2603source;
+retainfailedreceipts, not tunable alternative step sizes or updatedfreshcredit.
+2615measures unused adaptivecapacity at a NEWstrictclosedmaterialhandoff:1update,
+19Newton,1528pairs,3rootchoices. The next mechanism must hand that current evidence
+back BEFORE another fixed-topology action, merge actualspentwork, retire changed
+piece lineage correctly and use only residualparentclocks. This is different from
+retrying unchanged failedmotion. No newroot fit or routefeasibility is proven yet;
+all latergeometry needs separately frozen plans/fullproofs/newseed validation.
+
+
+2616..2619 use a new strictly closed material yield to resume adaptive construction
+on unused original work; never transfer old constraints/lineage/certificates or
+renew the correction entry.182contracttests pass;11selectedattempts preserve9exact
+passes/2priorunresolved. Currentcase advances to closed10events114.048958mm but
+remains a strict contact failure at original work exhaustion. No fresh/native credit.
+Recorded four-view inspection proves BEFORE/AFTER flat-wing overlap within the new
+return pair, plus independent incomingstraight/outgoingflat overlap. Keep actual
+lane entry/exit fractions: fold primitive identity does not mean curved contact.
+Same-sign bend angles alone are not an invalidity rule. Local boundary closure is
+not internal-material separation; investigate collision-aware branch selection
+before spending the one remaining closure action, within existing roots/Newton/
+pairs/clocks. Preclosure collision is guidance, not proof that a deformable root
+cannot solve. No implementation or improved general reliability is claimed yet.
+Replace only proven-owned obsolete diagnostics;2619retains one diagnostic and
+one hidden qualified native comparison. Original case-wide probe stays consumed.
+
+
+2620..2623 negative-only return screening before localclosure preserves9selected
+passes but produces the identical failedcurrentgeometry; decline/remove runtime
+prototype rather than keep cost without benefit. Archive166passingQA/9selected/
+2priorunresolved/1currentfailed attempt and restore exact2616source. A miss does
+not prove clearance: only a later recorded completeflat support audit establishes
+1.145248609mm initialwingseparation. The sameorderedpair strictlyintersects after
+closure. This changes the next action to coupledmaterial/capclosure inside existing
+bounded work, not more initialrootranking or postfailure optimizer. Initialwing
+separation is phase-only, notwhole-routeclearance; worldZ is diagnostic evidence,
+never a specimen-specific solverconstraint. No fresh/native/spatialprobe credit.
+
+
+2624..2631 distinguish endpoint-rotation continuity from material-fold continuity.
+Exact recorded trace exposes a signed342.642694deg half-turn alias despite nearby
+SO3rotations. Opt-in local MATERIAL correction rejects that silent side switch and
+couples signed limits with endpoint/straight closure inside the original work.
+Judge the original cap-scaled motion: a full Newton turn miss is not a valid reason
+to reject an admissible partial step. Reference/material projections share16TOTAL
+faces, same6perturbations/4localNewton/8roots/originalclocks, no new angle grid or
+second optimizer.207QApass and9selected numericalpasses support contract behavior;
+8acceptedroutes exact and1changedroute still needs nativequalification. No fresh
+source341validation yet. Currentcase remainsunsolved with1.811mm unclosedlocal
+residual; retainedsource is stillclosed/intersecting. Do not claim clearance,
+solve/generalization or extend steps. Explicit bend reflections remain permitted;
+signed-continuity guidance is not a contact certificate. Preserve failed local
+intermediate states in future evidence rather than showing a prior invalid mesh
+as a new solution. New independent cases need new registry seeds and layout hashes.
+
+
+2632qualifies the one changedselected2630route natively, namedfidelity/boundary/
+strictaccuracy1/1 with0warnings;0newlayouts/freshcredit. Keep this paired outcome
+separate from prior numericalaggregate and fullphysicalunmeasured scope. Preserve
+onlyexactownednativecomparison+diagnostic; restore hiddenbody AFTERcapture and
+verifyterminalownership. AllretainedRSSsamples, notjustcallbacks, govern reported
+peak615344KiB. SDKqueryunavailability blocks freshPython work; do not bypass its
+mandatoryenvironment lookup or silently reuse stale integration state.
+2633 identifies a concrete scope restriction: a material-contact repair window
+covers onlyone of the two occupied carriers. Investigate the full currentincident
+span plus boundaryrunways as ONEworkarea before a bounded action. Hardware
+singleton neednotchange. Additionalmovablematerial is not extra solverwork or a
+feasibilitycertificate: retain roots/Newton/pairs/clocks, allouteridentities/caps,
+strictcurrentinversevalidation and finalwhole-routeproof. Coupledwindowselection
+is UNIMPLEMENTED; moreworkspace/shorterchord alone doesnot establish a solution.
+
+
+2026-11-13 — coupled material windows and convex travel workload bounds
+
+A multi-member contact window must contain every witnessed material carrier and
+all intervening ordered pieces, plus available neighbouring straight workspace.
+Single-member hardware retains its incident workspace policy. A typed deviation
+uses its actual analytic slope extrema; its zero-slope midpoint does not represent
+the outward-and-return steering demand. Optimizer branch motion grants no output
+clearance: complete final material, cap, thick-contact and hardware gates remain.
+
+Fixed-angle nonnegative travel with an existing sum budget lies in the scaled
+convex hull of origin and straight displacement rays. Outward support intervals
+can exclude an impossible whole guide fit without consuming all active masks;
+that root stays charged and eligible for angular reclosure. Relaxed distance
+lower bounds can also omit strictly dominated endpoint-preparation work. Retain
+original allowances, conservative placement arithmetic guards, actual ties,
+nonfinite fallback, source/cancellation checks and all original resource limits.
+No seed, saved coordinate, prior route or world-axis repair selects the mechanism.
+
+Latest known-input preservation2651:11attempted/collected,10numerical passes and
+1prior unresolved, all10accepted routes exact2642. This is selected diagnostic
+evidence only.2652current produces a closed11bend92.481050mm candidate but fails
+its original CPU allowance during contact. Separate2653diagnostic measures864pair
+separation and clear hardware;2654one native build passes named fidelity and
+boundary with no warnings. Preserve automatic failure and separate measurement
+scopes. Full physical audits unmeasured;0fresh-layout credit. Next independent
+validation must use fresh registry seeds/unique layouts, never these selected
+cases as holdouts. See terminal_hardware/NOTES.md and frozen2644..2654receipts.

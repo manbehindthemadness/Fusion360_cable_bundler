@@ -70,7 +70,9 @@ def _cone(epsilon: float) -> Model:
     model = Mock(
         spec=Model,
         size=5,
-        topology=SimpleNamespace(folds=(Mock(), Mock())),
+        topology=SimpleNamespace(
+            folds=(SimpleNamespace(material_length_mm=0.0), SimpleNamespace(material_length_mm=0.0))
+        ),
         source=SimpleNamespace(targets=replace(_targets(), end=Vector3(0, 1, 0), diameter_mm=1.0)),
     )
     columns = ((1, 0, 0), (0, 0, 0), (-1, epsilon, 0), (0, 0, 0), (0, -1, 0))

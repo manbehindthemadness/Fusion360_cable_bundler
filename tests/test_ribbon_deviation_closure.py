@@ -15,6 +15,7 @@ from experiments.experiment_ribbon_feature_insertion.features import Chain, chai
 from experiments.experiment_ribbon_feature_insertion.guide_frames import Frames
 from experiments.experiment_ribbon_feature_insertion.reclosure import Unclosed
 from experiments.experiment_ribbon_feature_insertion.repair import Closure
+from experiments.experiment_ribbon_feature_insertion.repair import nearest as original_nearest
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_terminal_hardware import deviation_closure
 from tests.test_ribbon_feature_insertion import _targets
@@ -39,7 +40,10 @@ def test_only_one_closest_original_topology_receives_four_bounded_corrections(
     """
     boundary, attempted = original
     assert len(attempted) == 2
-    closures = (Closure((), (1, 0, 0), 1.0), Closure((), (0.2, 0, 0), 0.2))
+    closures = tuple(
+        Closure((0.0,) * (2 * len(chain.topology.folds) + 1), (error, 0, 0), error)
+        for chain, error in zip(attempted, (1.0, 0.2))
+    )
     measure = Mock(side_effect=closures)
     monkeypatch.setitem(vars(deviation_closure), "nearest", measure)
     accepted = Mock(spec=Allocation)
@@ -52,8 +56,9 @@ def test_only_one_closest_original_topology_receives_four_bounded_corrections(
     )
     action = Mock(return_value=result)
     monkeypatch.setitem(vars(deviation_closure), "refine", action)
+    records: list[dict[str, object]] = []
     measured = deviation_closure.close(
-        boundary, attempted, 1e-5, 25.0, lambda: None, lambda e: None
+        boundary, attempted, 1e-5, 25.0, lambda: None, records.append
     )
     assert measured is (accepted if outcome == "closed" else None)
     action.assert_called_once()
@@ -63,6 +68,10 @@ def test_only_one_closest_original_topology_receives_four_bounded_corrections(
     assert selected.goal is ClosureGoal.MATING
     assert action.call_args.args[3] == 4 and action.call_args.kwargs["maximum_straight_mm"] == 25.0
     assert measure.call_count == 2
+    snapshots = [event for event in records if event["stage"] == "spatial_deviation_unclosed"]
+    assert len(snapshots) == (1 if outcome == "unfinished" else 0)
+    if snapshots:
+        assert snapshots[0]["route"] and snapshots[0]["position_error_diameters"] == 0.2
     assert all(call.kwargs["maximum_straight_mm"] == 25.0 for call in measure.call_args_list)
 
 
@@ -104,3 +113,34 @@ def test_original_cancellation_stops_before_preparation_or_alternative_actions(
             lambda e: None,
         )
     measure.assert_not_called()
+
+
+@pytest.mark.parametrize("scale", (0.1, 1.0, 20.0))
+@pytest.mark.parametrize("fraction", (0.4, 1.0))
+def test_relaxed_bounds_preserve_the_actual_nearest_root_and_coordinates(
+    scale: float, fraction: float, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Compare native-sized ranking to exhaustive preparation on independently authored material chains.
+    """
+    frames = Frames.create(_targets(scale))
+    boundary = Boundary(frames.targets, 0.101 * scale)
+    attempted = chains(boundary, frames, (0.3, 0.7), lambda: None, lambda e: None)
+    budget = frames.guide.distances[-1] * fraction
+    selected = Mock(return_value=None)
+    measure = Mock(wraps=original_nearest)
+    monkeypatch.setitem(vars(deviation_closure), "nearest", measure)
+    monkeypatch.setitem(vars(deviation_closure), "refine", selected)
+    records: list[dict[str, object]] = []
+    deviation_closure.close(boundary, attempted, 1e-5 * scale, budget, lambda: None, records.append)
+    bounded = selected.call_args.args[1] if selected.called else None
+    bounded_calls = measure.call_count
+    selected.reset_mock()
+    measure.reset_mock()
+    monkeypatch.setitem(vars(deviation_closure), "separate", lambda *_: None)
+    deviation_closure.close(boundary, attempted, 1e-5 * scale, budget, lambda: None, lambda e: None)
+    exhaustive = selected.call_args.args[1] if selected.called else None
+    assert bounded == exhaustive
+    skipped = sum(e["status"] == "dominated_endpoint_projection" for e in records)
+    assert bounded_calls + skipped == measure.call_count
+    assert skipped > 0

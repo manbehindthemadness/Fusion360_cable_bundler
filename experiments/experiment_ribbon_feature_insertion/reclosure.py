@@ -85,6 +85,9 @@ def refine(
     MEASURED validates only computed feasible coordinates, without another guide
     mask enumeration. A step-start receipt precedes every correction attempt,
     including derivative failure; callers can debit actual started work.
+    MATERIAL retains physical factor matching and additionally couples signed
+    bend-branch limits into the same correction; finite aliases consume only
+    the original two trial halvings and cannot bypass that boundary.
     """
     policy = unfinished.branch_policy if branch_policy is None else branch_policy
     allocation_policy = (
@@ -120,7 +123,7 @@ def refine(
     for iteration in range(unfinished.iteration, unfinished.iteration + maximum_steps):
         motion = (
             StraightMotion.REALLOCATABLE
-            if unfinished.iteration > 0 or policy is BranchPolicy.CONTINUOUS
+            if unfinished.iteration > 0 or policy is not BranchPolicy.INDEX
             else StraightMotion.FIXED
         )
         record(

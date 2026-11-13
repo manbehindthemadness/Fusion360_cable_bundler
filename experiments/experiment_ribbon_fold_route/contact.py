@@ -14,6 +14,7 @@ from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
 from .contact_affine_witness import AffineWitnesses
 from .contact_axes import ProposedAxes
+from .contact_boundary import BoundaryCache
 from .contact_bounds import Cell, Span, prepare_projection
 from .contact_cap_support import CapPolicy, cap_region
 from .contact_caps import straight_bridge_pairs
@@ -260,6 +261,7 @@ def _walk(
         for i in range(len(route.pieces))
     ]
     axes = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
+    boundary_cache = BoundaryCache() if projection_reuse is ProjectionReuse.CELLS else None
 
     @lru_cache(maxsize=64)
     def prepared(piece_index: int, direction: Vector3) -> Callable[[Cell], Span]:
@@ -269,7 +271,9 @@ def _walk(
         This cache belongs to one walk over one fixed route, including retained
         traversal. Another walk cannot reuse an index against different geometry.
         """
-        return prepare_projection(route.pieces[piece_index], direction)
+        return prepare_projection(
+            route.pieces[piece_index], direction, boundary_cache=boundary_cache
+        )
 
     def project(region: Cell, direction: Vector3) -> Span:
         """

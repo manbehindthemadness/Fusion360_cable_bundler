@@ -12,6 +12,7 @@ from typing import Callable
 from cable_bundler.routing.geometry import Vector3, cross, dot
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
+from .contact_boundary import BoundaryCache
 from .contact_extrema import prepare_extrema
 from .geometry import PlacedPiece, Straight
 
@@ -138,7 +139,9 @@ def projection(piece: PlacedPiece, cell: Cell, axis: Vector3) -> Span:
     return prepare_projection(piece, axis)(cell)
 
 
-def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Span]:
+def prepare_projection(
+    piece: PlacedPiece, axis: Vector3, *, boundary_cache: BoundaryCache | None = None
+) -> Callable[[Cell], Span]:
     """
     Prepare fixed piece/axis transforms while retaining the exact analytic cell enclosure.
 
@@ -146,6 +149,8 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
     evaluator is bound to immutable material geometry and one axis. Callers may
     cache it within a bounded measurement context; no global route cache is held.
     Nonfinite or underflowed extrema retain the interval-arithmetic fallback.
+    An optional fixed-route cache shares only immutable cell boundary coordinates
+    across axes; every projection keeps its original stationary roots and guards.
     """
     if isinstance(piece.geometry, Straight):
         projected_origin = dot(piece.pose.origin, axis)
@@ -188,7 +193,14 @@ def prepare_projection(piece: PlacedPiece, axis: Vector3) -> Callable[[Cell], Sp
         ):
             along = u * length - fold.before_mm
             corners.append((c * along + s * q, -s * along + c * q))
-        result = bound_extrema(tuple(corners), (cell.height.low, cell.height.high))
+        frozen_corners = tuple(corners)
+        heights = (cell.height.low, cell.height.high)
+        boundary = (
+            boundary_cache.prepare(cell, fold, frozen_corners, heights)
+            if boundary_cache is not None
+            else None
+        )
+        result = bound_extrema(frozen_corners, heights, boundary=boundary)
         extent = fold.radius_mm * 2 + max(abs(x) for x, _ in corners)
         extent += max(abs(cell.height.low), abs(cell.height.high))
         scale = (

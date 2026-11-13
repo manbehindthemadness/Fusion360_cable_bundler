@@ -13,7 +13,8 @@ from experiments.experiment_ribbon_contraction.runner import snapshot
 from experiments.experiment_ribbon_fold_relaxation.closure_policy import ClosurePolicy
 from experiments.experiment_ribbon_fold_relaxation.flexible_steps import retract, step_limit
 from experiments.experiment_ribbon_fold_relaxation.steps import advance, projected
-from experiments.experiment_ribbon_fold_route.contact import inspect_contact
+from experiments.experiment_ribbon_fold_route.contact import ProjectionReuse, inspect_contact
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 
 from .layout_model import Model
@@ -34,6 +35,8 @@ def ease(
     order stays fixed; banks/radii/angles and all available runway can redistribute.
     Every corrected proposal must satisfy the existing absolute ordered-cap mating
     criterion within the original retraction allowance before contact checking.
+    Contact checks share fixed-cell boundary geometry and certify factored shared
+    caps, retaining strict interior rejection and the original pair/depth budgets.
     """
     if (
         cap_error(source) > 1e-7
@@ -105,7 +108,12 @@ def ease(
                     return current, "contact_proposal_budget"
                 else:
                     record({**event, "status": "contact_started"})
-                    contact = inspect_contact(candidate, checkpoint=checkpoint)
+                    contact = inspect_contact(
+                        candidate,
+                        checkpoint=checkpoint,
+                        cap_policy=CapPolicy.FACTORED_SUPPORT,
+                        projection_reuse=ProjectionReuse.CELLS,
+                    )
                     contacts += 1
                     event.update(
                         contact=asdict(contact),

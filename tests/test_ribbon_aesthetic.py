@@ -22,7 +22,8 @@ from experiments.experiment_ribbon_aesthetic.solve import ease
 from experiments.experiment_ribbon_bend_reduction.rewrite import fold_count
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
-from experiments.experiment_ribbon_fold_route.contact import ContactResult
+from experiments.experiment_ribbon_fold_route.contact import ContactResult, ProjectionReuse
+from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Pose, Straight
 from experiments.experiment_ribbon_fold_route.primitives import Piece, fold
 
@@ -274,11 +275,19 @@ def test_layout_relaxation_preserves_the_original_when_contact_is_unaccepted(
     A layout-scaled improvement cannot bypass full-volume contact acceptance.
     """
 
-    def inspect(route: FoldRoute, *, checkpoint: Callable[[], None] | None = None) -> ContactResult:
+    def inspect(
+        route: FoldRoute,
+        *,
+        checkpoint: Callable[[], None] | None = None,
+        cap_policy: CapPolicy = CapPolicy.MONOTONE,
+        projection_reuse: ProjectionReuse = ProjectionReuse.PREPARATIONS,
+    ) -> ContactResult:
         """
         Represent a bounded nonpassing external contact certificate.
         """
         del route, checkpoint
+        assert cap_policy is CapPolicy.FACTORED_SUPPORT
+        assert projection_reuse is ProjectionReuse.CELLS
         return ContactResult(status, 1)
 
     monkeypatch.setattr(

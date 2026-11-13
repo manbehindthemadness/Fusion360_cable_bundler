@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import cached_property
 
 from cable_bundler.routing.geometry import Vector3
 
@@ -120,6 +121,16 @@ class CylindricalFold:
         """
         position, velocity, _, _ = self.surface(u, offset_mm)
         return position, velocity
+
+    @cached_property
+    def terminal_surface(self) -> tuple[Vector3, Vector3, Vector3, Vector3]:
+        """
+        Reuse this immutable local endpoint sample across distinct world placements.
+
+        This derived sample adds no dataclass field or serialized parameter.
+        Callers preserving custom surface dispatch must opt in only for base folds.
+        """
+        return self.surface(1, 0)
 
     def bend_interval(self, q: float) -> tuple[float, float]:
         """

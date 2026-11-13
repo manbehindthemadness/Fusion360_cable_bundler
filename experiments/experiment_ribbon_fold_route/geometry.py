@@ -8,6 +8,7 @@ import math
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import cast
 
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude, unit
 from devtools.ribbon_analysis.contracts import Targets
@@ -121,7 +122,11 @@ class PlacedPiece:
         or nonfinite directions remain unchanged.
         """
         if type(self) is PlacedPiece:
-            local_point, local_velocity, local_across, _ = self.geometry.surface(1, 0)
+            local_point, local_velocity, local_across, _ = (
+                cast(CylindricalFold, self.geometry).terminal_surface
+                if type(self.geometry) is CylindricalFold
+                else self.geometry.surface(1, 0)
+            )
             point = self.pose.point(local_point)
             velocity = self.pose.direction(local_velocity)
             across = self.pose.direction(local_across)
@@ -155,20 +160,20 @@ class FoldRoute:
 
     def __post_init__(self) -> None:
         """
-        Freeze positive piece lengths and their shared material intervals once.
+        Freeze positive lengths and reuse each exact prefix for both material coordinate systems.
+
+        Each prefix retains the original fsum input/order. An incremental sum
+        would change rounded joins when short pieces follow long material spans.
         """
         if not self.pieces:
             raise ValueError("A material route needs at least one piece.")
         lengths = [piece.geometry.material_length_mm for piece in self.pieces]
         total = math.fsum(lengths)
-        boundaries = (
-            (0.0,) + tuple(math.fsum(lengths[:i]) / total for i in range(1, len(lengths))) + (1.0,)
-        )
+        starts = tuple(math.fsum(lengths[:i]) for i in range(len(lengths)))
+        boundaries = (0.0,) + tuple(start / total for start in starts[1:]) + (1.0,)
         object.__setattr__(self, "material_length_mm", total)
         object.__setattr__(self, "boundaries", boundaries)
-        object.__setattr__(
-            self, "starts_mm", tuple(math.fsum(lengths[:i]) for i in range(len(lengths)))
-        )
+        object.__setattr__(self, "starts_mm", starts)
 
     @property
     def half_width_mm(self) -> float:

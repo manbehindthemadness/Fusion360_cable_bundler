@@ -8,6 +8,7 @@ import math
 from enum import Enum
 
 from .contact_bounds import Cell, cap_neighborhood
+from .contact_cap_factor import entry_arc_supported
 from .geometry import PlacedPiece, Straight
 
 
@@ -18,6 +19,7 @@ class CapPolicy(Enum):
 
     MONOTONE = "monotone"
     ANALYTIC_SUPPORT = "analytic_support"
+    FACTORED_SUPPORT = "factored_support"
 
 
 def cap_region(piece: PlacedPiece, cell: Cell, at_end: bool, policy: CapPolicy) -> bool:
@@ -29,6 +31,9 @@ def cap_region(piece: PlacedPiece, cell: Cell, at_end: bool, policy: CapPolicy) 
     and checks every clipped exit-plane vertex at both thickness extremes.
     A conservative positive local guard rejects uncertain extra proofs. No world
     translation cancellation, contact acceptance tolerance or geometric repair.
+    Explicit factored support can instead prove positive entry/arc interiors
+    while allowing their legitimate zero cap boundary. The guarded exit-plane
+    checks below remain mandatory; legacy policies retain their original path.
     """
     if cap_neighborhood(piece, cell, at_end):
         return True
@@ -54,7 +59,8 @@ def cap_region(piece: PlacedPiece, cell: Cell, at_end: bool, policy: CapPolicy) 
     # For the circular part, X=before-q*tan(bank)+cos(bank)*rho*sin(phase)
     # +sin(bank)^2*xi/cos(bank). Each term after the first pair is nonnegative.
     if before - max(s / c * cell.q.low, s / c * cell.q.high) <= guard:
-        return False
+        if policy is not CapPolicy.FACTORED_SUPPORT or not entry_arc_supported(piece, cell, at_end):
+            return False
     points = tuple(
         (u * fold.material_length_mm - before, q)
         for u, q in (

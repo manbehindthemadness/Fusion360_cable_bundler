@@ -179,7 +179,7 @@ def test_legal_straight_transfers_are_available_before_the_first_possible_stall(
     monkeypatch.setitem(vars(reclosure), "reframed", Mock(return_value=source.chain))
     monkeypatch.setitem(vars(reclosure), "nearest", projected_trial)
     result = reclosure.refine(boundary, source, 1e-5, 4, lambda: None, lambda event: None)
-    if resumed or branch_policy is BranchPolicy.CONTINUOUS:
+    if resumed or branch_policy is not BranchPolicy.INDEX:
         assert isinstance(result, reclosure.Unclosed)
         assert result.iteration == source.iteration + 4
         assert result.closure.error == source.closure.error / 16

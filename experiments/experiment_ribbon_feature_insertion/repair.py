@@ -21,9 +21,11 @@ from experiments.experiment_ribbon_reduced_joints.kinematics import moved
 
 from .angular_allocation import bounded_correction
 from .closure_goal import ClosureGoal
-from .continuation import BranchPolicy, closest
+from .continuation import BranchPolicy, closest, material_continuous
+from .endpoint_ranking import dominated
 from .features import Chain
 from .linear_fit import least_squares
+from .material_allocation import bounded_material_correction
 from .native_cone import project as native_projection
 
 
@@ -73,6 +75,8 @@ def nearest(
     order, checkpoints and closure tie-breaking remain authoritative.
     Native faces share one bounded exact affine-basis workspace for this action;
     no candidate coordinates, endpoint residuals or acceptance decisions are cached.
+    Strictly dominated affine residual estimates can skip full endpoint placement;
+    a scaled arithmetic guard preserves uncertain comparisons and original ties.
     """
     columns, right = model.straight_equations()
     count = len(model.topology.folds) + 1
@@ -85,6 +89,17 @@ def nearest(
     maximum_sum = maximum_straight_mm / diameter if maximum_straight_mm is not None else None
     workspace = AffineWorkspace() if minimum is not None else None
     best: Closure | None = None
+    placement_scale = (
+        1.0
+        + max(abs(value) for value in right)
+        + sum(f.material_length_mm for f in model.topology.folds) / diameter
+        + max(
+            abs(value)
+            for point in (model.source.targets.start, model.source.targets.end)
+            for value in (point.x, point.y, point.z)
+        )
+        / diameter
+    )
     for size in range(4):
         for support in combinations(range(count), size):
             checkpoint()
@@ -104,6 +119,10 @@ def nearest(
             if maximum_straight_mm is not None and (
                 math.fsum(allocation[::2]) * model.source.targets.diameter_mm
                 > maximum_straight_mm + 1e-8 * model.source.targets.diameter_mm
+            ):
+                continue
+            if best is not None and dominated(
+                columns, right, tuple(allocation[::2]), best.error, placement_scale
             ):
                 continue
             delta = difference(model.endpoint(tuple(allocation)).origin, model.source.targets.end)
@@ -133,7 +152,11 @@ def reframed(
 
     Logical roots and group sizes remain fixed. Record any legacy index jump in
     factor rotations so reclosure can consider a continuous alternative explicitly.
+    MATERIAL also rejects a signed half-turn alias of the matched factors;
+    it does not silently choose a different, more distant factorization.
     """
+    if not isinstance(branch_policy, BranchPolicy):
+        raise ValueError("Select an explicit factor continuation policy")
     target = boundary.targets
     sequence = (
         Pose(target.start, target.start_tangent, target.start_width),
@@ -158,7 +181,13 @@ def reframed(
             return None
         previous = original.topology.folds[begin : begin + size]
         matched = closest(previous, choices)
-        selected = matched if branch_policy is BranchPolicy.CONTINUOUS else choices[root]
+        if (
+            branch_policy is BranchPolicy.MATERIAL
+            and matched is not None
+            and not material_continuous(previous, matched)
+        ):
+            return None
+        selected = matched if branch_policy is not BranchPolicy.INDEX else choices[root]
         if selected is None:
             return None
         discontinuity = discontinuity or (
@@ -223,6 +252,10 @@ def correction(
     no trial orientation bank or extra correction step is introduced.
     At most16 algebraic faces replace unbounded span elimination; no extra
     derivative probes or nonlinear correction steps are introduced.
+    MATERIAL couples signed fold limits to those same endpoint equations and
+    legal straight transfers within16faces. Its existing two-sided probes use
+    the current endpoint on an aliased side, giving a one-sided derivative at
+    the material branch boundary without evaluating another perturbation.
     """
     if not isinstance(goal, ClosureGoal):
         raise ValueError("Select an explicit angular closure goal")
@@ -236,41 +269,94 @@ def correction(
     if minimum is None:
         raise ValueError("Native straight floor cannot be represented")
     columns = []
+    turn_rates: list[tuple[float, ...]] = []
     count = len(chain.targets) * 3
     step = 1e-5
+    current_model = Model(boundary, chain.topology)
+    base_position = (
+        current_model.endpoint(closure.values).origin
+        if branch_policy is BranchPolicy.MATERIAL
+        else None
+    )
     for axis in range(count):
         delta = [float(i == axis) for i in range(count)]
         positions = []
+        turn_samples: list[tuple[float, ...]] = []
+        valid_samples = 0
         for sign in (-1, 1):
             checkpoint()
             probe = reframed(
                 boundary,
                 chain,
                 changed(chain.targets, delta, sign * step),
-                branch_policy=branch_policy,
+                branch_policy=BranchPolicy.CONTINUOUS
+                if branch_policy is BranchPolicy.MATERIAL
+                else branch_policy,
             )
             if probe is None:
                 return None
+            if branch_policy is BranchPolicy.MATERIAL and not material_continuous(
+                chain.topology.folds, probe.topology.folds
+            ):
+                assert base_position is not None
+                positions.append(base_position)
+                turn_samples.append(tuple(f.angle_radians for f in chain.topology.folds))
+                continue
+            valid_samples += 1
             positions.append(Model(boundary, probe.topology).endpoint(closure.values).origin)
+            if branch_policy is BranchPolicy.MATERIAL:
+                turn_samples.append(tuple(f.angle_radians for f in probe.topology.folds))
         rate = difference(positions[1], positions[0])
+        if valid_samples == 0:
+            return None
+        divisor = valid_samples * step
         columns.append(
-            tuple(getattr(rate, a) / (2 * step * boundary.targets.diameter_mm) for a in "xyz")
+            tuple(getattr(rate, a) / (divisor * boundary.targets.diameter_mm) for a in "xyz")
         )
-    if straight_motion is StraightMotion.REALLOCATABLE:
+        if turn_samples:
+            turn_rates.append(
+                tuple(math.remainder(b - a, 2 * math.pi) / divisor for a, b in zip(*turn_samples))
+            )
+    if straight_motion is StraightMotion.REALLOCATABLE or branch_policy is BranchPolicy.MATERIAL:
         checkpoint()
-        rays, _ = Model(boundary, chain.topology).equations()
-        active = [i for i in range(0, len(closure.values), 2) if closure.values[i] > 0]
-        delta = bounded_correction(
-            columns,
-            closure.residual,
-            tuple(rays[i] for i in active),
-            tuple(closure.values[i] for i in active),
+        rays, _ = current_model.equations()
+        active = (
+            [i for i in range(0, len(closure.values), 2) if closure.values[i] > 0]
+            if straight_motion is StraightMotion.REALLOCATABLE
+            else []
+        )
+        directions = tuple(rays[i] for i in active)
+        lengths = tuple(closure.values[i] for i in active)
+        budget = (
             maximum_straight_mm / boundary.targets.diameter_mm
             if maximum_straight_mm is not None
-            else None,
-            checkpoint,
-            minimum_length=minimum,
+            else None
         )
+        if branch_policy is BranchPolicy.MATERIAL:
+            delta = bounded_material_correction(
+                columns,
+                closure.residual,
+                directions,
+                lengths,
+                budget,
+                tuple(f.angle_radians for f in chain.topology.folds),
+                tuple(
+                    tuple(column[i] for column in turn_rates)
+                    for i in range(len(chain.topology.folds))
+                ),
+                checkpoint,
+                minimum_length=minimum,
+            )
+        else:
+            delta = bounded_correction(
+                columns,
+                closure.residual,
+                directions,
+                lengths,
+                budget,
+                checkpoint,
+                minimum_length=minimum,
+            )
     else:
         delta = affine_projection(
             [[column[a] for column in columns] for a in range(3)],

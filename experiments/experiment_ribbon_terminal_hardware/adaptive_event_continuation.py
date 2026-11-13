@@ -16,10 +16,12 @@ from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error, snapshot
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
+from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
 
 from .check import Report
 from .deviation_sequence import recover as recover_sequence
 from .gate import Gate
+from .joint_handoff import JointHandoff
 from .recovery_limits import Work, validate
 
 
@@ -42,6 +44,7 @@ def recover(
     work: Work,
     maximum_length_mm: float,
     minimum_straight_mm: float,
+    on_event_refinement: Callable[[JointHandoff], None] | None = None,
 ) -> Result:
     """
     Enter one existing correction sequence without fitting another local root.
@@ -49,9 +52,12 @@ def recover(
     The caller owns current witness/route identity and the original phase clocks.
     Helper preparation is deducted before the child starts its reduced clocks.
     Source/cancellation checks propagate; the caller merges completed counters
-    before testing its original clocks again. Only explicit hardware preparation
-    without any motion trial can leave topology work eligible. Final certificates are bound to the returned route,
-    not the earlier adaptive piece IDs or undo domains.
+    before testing its original clocks again. Unchanged hardware preparation can
+    leave topology work eligible without a motion trial. Final certificates are
+    bound to the returned route, not earlier adaptive piece IDs or undo domains.
+    A parent-enabled new closed material yield is held until child accounting,
+    fixed-geometry ownership and original clocks have been checked. It grants no
+    success, renewed correction entry or additional root choices.
     """
     cpu, wall = process_time(), perf_counter()
     validate(
@@ -102,6 +108,10 @@ def recover(
                 "elapsed_seconds": perf_counter() - wall,
             },
         )
+    yielded: list[JointHandoff] = []
+    callbacks: dict[str, Any] = {}
+    if on_event_refinement is not None:
+        callbacks["on_event_refinement"] = yielded.append
     result = recover_sequence(
         source,
         evidence,
@@ -111,6 +121,7 @@ def recover(
         work=left,
         maximum_length_mm=maximum_length_mm,
         minimum_straight_mm=minimum_straight_mm,
+        **callbacks,
     )
     detail = dict(result.detail)
     for key, ceiling in (
@@ -134,6 +145,46 @@ def recover(
         ):
             raise ArithmeticError("Continuation must retain finite nonnegative timings")
     accepted = result.contact
+    if (detail.get("stop_reason") == "event_refinement_handoff") != bool(yielded):
+        raise ArithmeticError("Event refinement receipt and yielded evidence disagree")
+    if yielded:
+        if len(yielded) != 1:
+            raise ArithmeticError("A correction entry yielded more than one material state")
+        state = yielded[0]
+        if (
+            accepted is not None
+            or detail.get("status") != "unresolved"
+            or detail.get("stop_reason") != "event_refinement_handoff"
+            or state.route is source
+            or state.route.targets != source.targets
+            or state.route.radius_mm != source.radius_mm
+            or _radii(state.route) != _radii(source)
+            or tuple(
+                p.geometry.width_mm
+                for p in state.route.pieces
+                if isinstance(p.geometry, CylindricalFold)
+            )
+            != tuple(
+                p.geometry.width_mm
+                for p in source.pieces
+                if isinstance(p.geometry, CylindricalFold)
+            )
+            or not isinstance(state.evidence, ContactResult)
+            or state.evidence.status != "penetration"
+            or state.evidence.limit is not None
+            or type(state.evidence.pairs_checked) is not int
+            or not 0 <= state.evidence.pairs_checked <= detail["contact_pairs"]
+            or detail["iterations"] < 1
+            or detail["newton_steps"] < 1
+            or not ordered_mating_caps(state.route.pieces, source.targets)
+            or not material_error(state.route) <= 1e-10
+            or any(
+                isinstance(p.geometry, Straight)
+                and 0 < p.geometry.material_length_mm <= minimum_straight_mm
+                for p in state.route.pieces
+            )
+        ):
+            raise ArithmeticError("Event refinement requires new closed fixed-material evidence")
     if accepted is not None:
         if (
             accepted.status != "separated"
@@ -166,4 +217,7 @@ def recover(
         detail.update(
             status="unresolved", stop_reason="phase_budget", hardware_preparation_only=False
         )
+    if yielded and detail["stop_reason"] == "event_refinement_handoff":
+        assert on_event_refinement is not None
+        on_event_refinement(yielded[0])
     return Result(result.route if accepted is not None else source, accepted, detail)

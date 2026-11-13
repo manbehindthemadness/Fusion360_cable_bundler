@@ -91,7 +91,7 @@ def test_actual_allocations_and_mask_order_match_with_impossible_fit_work_remove
     for chain in options:
         baseline_calls = Mock(wraps=allocation.least_squares)
         before: list[dict[str, Any]] = []
-        with patch.dict(vars(allocation), least_squares=baseline_calls):
+        with patch.dict(vars(allocation), least_squares=baseline_calls, separate=lambda *_: None):
             with patch.object(StraightReach, "excludes", return_value=False):
                 baseline = allocation.fit(
                     boundary,
@@ -113,6 +113,10 @@ def test_actual_allocations_and_mask_order_match_with_impossible_fit_work_remove
                 maximum_straight_mm=budget,
             )
         assert measured == baseline
+        if any(e["status"] == "whole_travel_excluded" for e in after):
+            assert baseline is None and calls.call_count == 0
+            saved_calls += baseline_calls.call_count
+            continue
         assert [e["mask"] for e in after if "mask" in e] == [
             e["mask"] for e in before if "mask" in e
         ]
@@ -144,7 +148,7 @@ def test_original_checkpoint_runs_before_a_skipped_mask() -> None:
 @pytest.mark.parametrize("scale", (0.1, 1.0, 20.0))
 def test_unreachable_roots_do_not_prepare_unused_guide_geometry(scale: float) -> None:
     """
-    All original masks remain accounted while an entirely excluded root skips guide placements.
+    An entirely excluded root records its unattempted masks and skips guide placements.
     """
     frames = Frames.create(_targets(scale))
     boundary = Boundary(frames.targets, 0.101 * scale)
@@ -158,7 +162,11 @@ def test_unreachable_roots_do_not_prepare_unused_guide_geometry(scale: float) ->
         )
     masks = 1 << (len(chain.topology.folds) + 1)
     assert result is None
-    assert len(events) == masks and guard.call_count >= masks
-    assert [event["mask"] for event in events] == list(range(masks))
-    assert all(event["status"] == "straight_reach_excluded" for event in events)
+    assert guard.call_count > 0
+    if events[0]["status"] == "whole_travel_excluded":
+        assert len(events) == 1 and events[0]["unattempted_masks"] == masks
+    else:
+        assert len(events) == masks and guard.call_count >= masks
+        assert [event["mask"] for event in events] == list(range(masks))
+        assert all(event["status"] == "straight_reach_excluded" for event in events)
     placements.assert_not_called()

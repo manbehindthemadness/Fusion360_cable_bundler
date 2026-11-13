@@ -29,6 +29,7 @@ from .adaptive_event_schedule import Action, Correction, choose, preparation_dec
 from .adaptive_event_window import Edit, EventId, Window, events, reidentify, reopen, select
 from .check import Report
 from .gate import Gate
+from .joint_handoff import JointHandoff
 from .recovery_limits import Work, validate
 
 
@@ -64,6 +65,9 @@ def recover(
     explicit unchanged hardware-preparation decline without a motion trial can
     leave event refinement eligible. The correction entry cannot renew itself.
     A failed phase returns the original source without renewing its allocation.
+    One fixed entry may yield a new closed strict departure crossing before
+    another reversal. Residual parent roots and updates can then refine that
+    current material; spent correction cannot restart and old lineage is retired.
     Removal prefers simpler certified geometry; missing pruning work is explicit,
     and no global minimality is claimed. All original physical checks remain.
     """
@@ -99,6 +103,7 @@ def recover(
         "reopened_windows": 0,
         "contact_checks_deferred": 0,
         "preparation_only_resumes": 0,
+        "closed_material_resumes": 0,
     }
 
     def bounded() -> None:
@@ -201,7 +206,9 @@ def recover(
             record(
                 {
                     "stage": "adaptive_workspace",
-                    "status": "subdivide_after_preparation_decline",
+                    "status": "subdivide_after_closed_material_handoff"
+                    if detail["closed_material_resumes"]
+                    else "subdivide_after_preparation_decline",
                     "window": [selected.begin, selected.end],
                     "parent_event_count": events(route),
                 }
@@ -260,6 +267,10 @@ def recover(
                     stop = "work_exhausted"
                     break
                 correction = Correction.SPENT
+                yielded: list[JointHandoff] = []
+                callbacks: dict[str, Any] = {}
+                if roots.attempted < 8:
+                    callbacks["on_event_refinement"] = yielded.append
                 # Reduced child clocks preserve actual completed counters even
                 # when the original clock rejects the following receipt.
                 child = continue_fixed(
@@ -271,6 +282,7 @@ def recover(
                     work=left,
                     maximum_length_mm=maximum_length_mm,
                     minimum_straight_mm=minimum_straight_mm,
+                    **callbacks,
                 )
                 spent = child.detail
                 iterations += spent["iterations"]
@@ -289,10 +301,40 @@ def recover(
                     }
                 )
                 bounded()
+                if yielded and child.contact is not None:
+                    raise ArithmeticError("A closed material yield cannot also claim acceptance")
                 if child.contact is not None:
                     lineage = reidentify(current, lineage, child.route, work.updates + 1)
                     current, accepted, stop = child.route, child.contact, "accepted"
                     break
+                if yielded:
+                    if (
+                        len(yielded) != 1
+                        or stop != "event_refinement_handoff"
+                        or spent.get("status") != "unresolved"
+                    ):
+                        raise ArithmeticError(
+                            "Adaptive refinement requires one explicit closed yield"
+                        )
+                    if roots.attempted >= 8 or remaining() is None:
+                        stop = "work_exhausted"
+                        break
+                    state = yielded[0]
+                    lineage = reidentify(current, lineage, state.route, work.updates + 1)
+                    current, evidence = state.route, state.evidence
+                    evidence_source = current
+                    detail["closed_material_resumes"] += 1
+                    record(
+                        {
+                            "stage": "adaptive_schedule",
+                            "action": "refine_after_closed_material_handoff",
+                            "roots_attempted": roots.attempted,
+                            "remaining_updates": work.updates - iterations,
+                            "route": snapshot(current),
+                            "evidence": asdict(evidence),
+                        }
+                    )
+                    continue
                 if (
                     action is Action.CORRECT_MODULE
                     and roots.attempted < 8

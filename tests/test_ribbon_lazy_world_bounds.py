@@ -11,6 +11,7 @@ import pytest
 
 from cable_bundler.routing.geometry import Vector3
 from experiments.experiment_ribbon_fold_route import contact
+from experiments.experiment_ribbon_fold_route.contact_boundary import BoundaryCache
 from experiments.experiment_ribbon_fold_route.contact_bounds import Cell, Span, prepare_projection
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Straight
 from tests.test_ribbon_aesthetic import _route
@@ -33,11 +34,13 @@ def test_world_bounds_stop_at_first_complete_separating_axis(
     axes = (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
     trace: list[tuple[int, Vector3]] = []
 
-    def prepare(piece: PlacedPiece, direction: Vector3) -> Callable[[Cell], Span]:
+    def prepare(
+        piece: PlacedPiece, direction: Vector3, *, boundary_cache: BoundaryCache | None = None
+    ) -> Callable[[Cell], Span]:
         """
         Observe evaluations while leaving every physical enclosure unchanged.
         """
-        original = prepare_projection(piece, direction)
+        original = prepare_projection(piece, direction, boundary_cache=boundary_cache)
 
         def evaluate(cell: Cell) -> Span:
             """
@@ -72,11 +75,13 @@ def test_partial_world_bounds_are_reused_only_for_identical_cells_and_axes(
     )
     trace: list[tuple[Cell, Vector3]] = []
 
-    def prepare(piece: PlacedPiece, direction: Vector3) -> Callable[[Cell], Span]:
+    def prepare(
+        piece: PlacedPiece, direction: Vector3, *, boundary_cache: BoundaryCache | None = None
+    ) -> Callable[[Cell], Span]:
         """
         Retain real enclosure arithmetic with an independent invocation trace.
         """
-        original = prepare_projection(piece, direction)
+        original = prepare_projection(piece, direction, boundary_cache=boundary_cache)
 
         def evaluate(cell: Cell) -> Span:
             """

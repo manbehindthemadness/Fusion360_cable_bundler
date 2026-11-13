@@ -14,6 +14,8 @@ from experiments.experiment_ribbon_fold_relaxation.model import Model as Closure
 from experiments.experiment_ribbon_fold_route.geometry import PlacedPiece, Pose, Straight
 from experiments.experiment_ribbon_fold_route.primitives import Piece
 
+from .local_material import LocalFolds
+
 
 @dataclass(frozen=True)
 class FlexibleModel(ClosureModel):
@@ -69,6 +71,13 @@ class FlexibleModel(ClosureModel):
         Identify all runway slots, including those initially absent at zero length.
         """
         return tuple(range(0, len(self.initial), 4))
+
+    @cached_property
+    def _local_folds(self) -> LocalFolds:
+        """
+        Share at most64 identical local shapes while recomputing every world placement.
+        """
+        return LocalFolds()
 
     def bounds(self, index: int) -> tuple[float, float]:
         """
@@ -142,7 +151,7 @@ class FlexibleModel(ClosureModel):
                     geometries.append(Straight(before + after))
             else:
                 geometries.append(
-                    CylindricalFold(
+                    self._local_folds(
                         self._radius_mm(index, radius),
                         angle,
                         bank,

@@ -27,6 +27,7 @@ from .feature_guidance import (
 )
 from .flat_continuation import ContactContinuation
 from .gate import Gate
+from .incident_window import ReturnCoordinates
 from .joint_contact import JointMode
 from .joint_contact import recover as recover_joints
 from .joint_handoff import JointHandoff
@@ -68,6 +69,7 @@ def recover(
     maximum_length_mm: float,
     minimum_straight_mm: float,
     start: SequenceStart = SequenceStart.EVIDENCE,
+    on_event_refinement: Callable[[JointHandoff], None] | None = None,
 ) -> Result:
     """
     Share the original allowance across coupled separation, distinct witnessed returns and straight correction.
@@ -78,8 +80,12 @@ def recover(
     or immediately when its actual interval selects a distinct unreflected turn
     and another logical update remains.
     It never transfers closure, acceptance or renewed work. A
-    material crossing selects the existing dominant turn once per fold, without
-    trying another fold after failure. Hardware-only blockers start with fixed
+    material crossing selects the existing dominant turn once per fold. A later
+    closed strict outgoing-flat crossing can select its untried carrying bend when
+    that dominant turn was already reflected. Its actual material interval and
+    bordering straight slots provide the correction coordinates; remote material
+    coordinates stay fixed, without a wider retry. No fold is flipped back or swept
+    as an alternative to a failed action. Hardware-only blockers start with fixed
     bends; initial straight-projection failure can expand joint mobility once
     before any motion, sharing the same original work.
     Adaptive hardware motion may retain one newly measured complete flat crossing
@@ -87,6 +93,9 @@ def recover(
     closed blocked state can fall back after algebraic decline, within original
     work. Final hardware and complete contact checks remain mandatory.
     Earlier actual connector features remain guidance at the same fixed targets.
+    An adaptive parent may receive a new closed departure crossing before its
+    next reversal. This optional yield transfers current evidence, never success
+    or work; standalone callers keep the original correction path.
     One later crossing selecting an already reflected fold can continue with
     the current bend signs under the remaining allowance; it never flips back.
     All changed geometry needs full new contact and refined hardware proof.
@@ -137,6 +146,7 @@ def recover(
     stages = 0
     motion_attempted: bool | None = False
     accepted: Result | None = None
+    event_state: JointHandoff | None = None
     stop = "work_exhausted"
     detail: dict[str, Any] = {}
     if start is SequenceStart.BLOCKED_MATING:
@@ -214,6 +224,20 @@ def recover(
             )
         elif evidence.status == "penetration" and evidence.witness is not None:
             selected = select_fold(candidate, evidence.witness)
+            coordinates = ReturnCoordinates.GLOBAL
+            if selected in reflected:
+                departure = UnreflectedReturns(frozenset(reflected)).select(
+                    candidate, evidence.witness
+                )
+                if departure is not None:
+                    if on_event_refinement is not None and candidate is not source:
+                        if remaining() is None:
+                            break
+                        event_state = JointHandoff(candidate, evidence)
+                        stop = "event_refinement_handoff"
+                        break
+                    selected = departure
+                    coordinates = ReturnCoordinates.WITNESSED_INTERVAL
             if selected is None or (selected in reflected and material_continuation):
                 stop = "unsupported_or_repeated_return"
                 break
@@ -223,7 +247,10 @@ def recover(
             else:
                 reflected.add(selected)
                 mode = MaterialGuidance(
-                    selected, tuple(features.values()), ReturnLength.RESTORATION_GOAL
+                    selected,
+                    tuple(features.values()),
+                    ReturnLength.RESTORATION_GOAL,
+                    coordinates,
                 )
         else:
             mode = ContactGuidance(
@@ -366,6 +393,10 @@ def recover(
             status="unresolved", stop_reason="phase_budget", hardware_preparation_only=False
         )
         record({"stage": "spatial_sequence", "status": "unresolved", "detail": detail})
+    if event_state is not None and detail["stop_reason"] == "event_refinement_handoff":
+        assert on_event_refinement is not None
+        checkpoint()
+        on_event_refinement(event_state)
     return Result(
         accepted.route if accepted is not None else source,
         accepted.contact if accepted is not None else None,

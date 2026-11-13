@@ -6,13 +6,25 @@ from __future__ import annotations
 
 import math
 from functools import lru_cache
-from typing import Callable, Optional
+from typing import Protocol
 
 from devtools.ribbon_analysis.isometric_fold import CylindricalFold
 
-Corners = tuple[tuple[float, float], ...]
-Heights = tuple[float, float]
-Extrema = Callable[[Corners, Heights], Optional[tuple[float, float]]]
+from .contact_boundary import Boundary, Corners, EdgeBoundary, Heights
+
+
+class Extrema(Protocol):
+    """
+    Enclose one cell, optionally using its identically reconstructed boundary geometry.
+    """
+
+    def __call__(
+        self, corners: Corners, heights: Heights, *, boundary: Boundary | None = None
+    ) -> tuple[float, float] | None:
+        """
+        Retain complete axis-specific stationary roots and finite guards for this cell.
+        """
+        ...
 
 
 def extrema(
@@ -37,34 +49,28 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
     the parallelogram boundary. Four edges at both heights retain every original
     endpoint, G1 join and stationary phase. Arithmetic order and finite guards
     remain unchanged; the returned evaluator retains only this projection's
-    coefficients, including at most sixteen height-dependent coefficient tuples,
+    coefficients, including at most sixteen height-dependent coefficient pairs,
     with no material-cell result cache, global route cache or acceptance authority.
-    Zero-height offsets retain their original sign despite equal numeric cache keys.
     """
     radius, angle = fold.radius_mm, abs(fold.angle_radians)
     sign = math.copysign(1.0, fold.angle_radians)
     arc = radius * angle
     sine, cosine = math.sin(angle), math.cos(angle)
-    arc_x = radius * sine
-    arc_z = sign * radius * (1 - cosine)
 
     @lru_cache(maxsize=16)
-    def height_coefficients(height: float) -> tuple[float, float, float, float, float]:
+    def height_coefficients(height: float) -> tuple[float, float]:
         """
-        Reuse stationary coefficients and unchanged height offsets without reassociating arithmetic.
+        Reuse only the stationary amplitude and phase shift for an unchanged material height.
         """
         rho = radius - sign * height
         a, b = alpha * rho, -sign * gamma * rho
-        return (
-            rho,
-            math.hypot(a, b),
-            math.atan2(b, a),
-            sign * height * sine,
-            height * cosine,
-        )
+        return math.hypot(a, b), math.atan2(b, a)
 
     def edge_values(
-        start: tuple[float, float], end: tuple[float, float], heights: Heights
+        start: tuple[float, float],
+        end: tuple[float, float],
+        heights: Heights,
+        boundary: EdgeBoundary | None,
     ) -> list[float]:
         """
         Retain endpoints, join crossings and all stationary points in their original order.
@@ -72,30 +78,29 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
         Evaluate scalar offsets here to avoid one Python call per point and
         temporary per-height lists. Preserve every original arithmetic operation.
         """
-        xi, eta = start
-        dx, de = end[0] - xi, end[1] - eta
-        parameters = [0.0, 1.0]
-        low, high = 0.0, -1.0
-        if dx != 0:
-            parameters.extend([t for cut in (0.0, arc) if 0 < (t := (cut - xi) / dx) < 1])
-            low, high = max(0.0, min(xi, end[0]) / radius), min(angle, max(xi, end[0]) / radius)
-        slope_scale = dx / radius if dx != 0 else 0.0
-        transverse_rate = beta * de
-        stationary_rate = -beta * de
-        values: list[float] = []
-        for height in heights:
-            points = list(parameters)
-            rho, amplitude, shift, height_sine, height_cosine = height_coefficients(height)
-            if height == 0.0:
-                height_sine, height_cosine = sign * height * sine, height * cosine
+        if boundary is None:
+            xi, eta = start
+            dx, de = end[0] - xi, end[1] - eta
+            parameters = [0.0, 1.0]
+            low, high = 0.0, -1.0
             if dx != 0:
-                derivative = slope_scale * amplitude
+                parameters.extend([t for cut in (0.0, arc) if 0 < (t := (cut - xi) / dx) < 1])
+                low, high = max(0.0, min(xi, end[0]) / radius), min(angle, max(xi, end[0]) / radius)
+        else:
+            xi, eta, dx, de, low, high, _ = boundary
+            parameters = []
+        values: list[float] = []
+        for index, height in enumerate(heights):
+            points = list(parameters)
+            if dx != 0:
+                amplitude, shift = height_coefficients(height)
+                derivative = (dx / radius) * amplitude
                 if amplitude != 0 and (derivative == 0 or not math.isfinite(derivative)):
                     return [math.nan]
-                if not math.isfinite(transverse_rate):
+                if not math.isfinite(beta * de):
                     return [math.nan]
                 if low <= high and derivative != 0:
-                    ratio = stationary_rate / derivative
+                    ratio = -beta * de / derivative
                     # Include an extremum at +/-1 despite last-bit division error.
                     if abs(ratio) <= 1 + 1e-14:
                         phase = math.acos(max(-1.0, min(1.0, ratio)))
@@ -105,28 +110,35 @@ def prepare_extrema(fold: CylindricalFold, alpha: float, beta: float, gamma: flo
                             for winding in range(first, last + 1):
                                 p = root + winding * math.tau
                                 points.append(max(0.0, min(1.0, (radius * p - xi) / dx)))
+            if boundary is not None:
+                values.extend(
+                    alpha * x + beta * across + gamma * z for x, across, z in boundary.rows[index]
+                )
             for t in points:
                 along, across = xi + dx * t, eta + de * t
                 if along <= 0:
                     x, z = along, height
                 elif along >= arc:
-                    offset = along - arc
-                    x = arc_x + offset * cosine - height_sine
-                    z = arc_z + sign * offset * sine + height_cosine
+                    x = radius * sine + (along - arc) * cosine - sign * height * sine
+                    z = sign * radius * (1 - cosine) + sign * (along - arc) * sine + height * cosine
                 else:
-                    phase = along / radius
+                    phase, rho = along / radius, radius - sign * height
                     x = rho * math.sin(phase)
                     z = sign * (radius - rho * math.cos(phase))
                 values.append(alpha * x + beta * across + gamma * z)
         return values
 
-    def bounds(corners: Corners, heights: Heights) -> tuple[float, float] | None:
+    def bounds(
+        corners: Corners, heights: Heights, *, boundary: Boundary | None = None
+    ) -> tuple[float, float] | None:
         """
         Enclose all original boundary extrema, declining nonfinite arithmetic.
         """
         values: list[float] = []
-        for start, end in zip(corners, corners[1:] + corners[:1]):
-            values.extend(edge_values(start, end, heights))
+        for index, (start, end) in enumerate(zip(corners, corners[1:] + corners[:1])):
+            values.extend(
+                edge_values(start, end, heights, None if boundary is None else boundary[index])
+            )
         if not all(map(math.isfinite, values)):
             return None
         return min(values), max(values)

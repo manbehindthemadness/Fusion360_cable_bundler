@@ -17,6 +17,24 @@ class BranchPolicy(Enum):
 
     INDEX = "root_index"
     CONTINUOUS = "continuous_rotation"
+    MATERIAL = "continuous_material"
+
+
+def material_continuous(
+    previous: tuple[CylindricalFold, ...], following: tuple[CylindricalFold, ...]
+) -> bool:
+    """
+    Reject a finite signed half-turn alias without forbidding a deliberate bend reflection.
+
+    SO3 identifies rotations across plus/minus pi, but these regular material
+    folds bend around opposite sides. This guard applies only to a claimed
+    continuous local correction. Explicit reflection policies elsewhere retain
+    their own evidence and acceptance rules.
+    """
+    return len(previous) == len(following) and all(
+        abs(after.angle_radians - before.angle_radians) <= math.pi
+        for before, after in zip(previous, following)
+    )
 
 
 def _rotation(fold: CylindricalFold) -> tuple[float, float, float]:
