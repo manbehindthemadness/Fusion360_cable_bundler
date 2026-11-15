@@ -17,10 +17,11 @@ from .deviation_sequence import HARDWARE_PREPARATION_DECLINES
 
 class Correction(Enum):
     """
-    Keep the one original fixed-correction entry available or irreversibly consumed.
+    Keep ordinary correction available, spent, or waiting for new topology after an initial trial.
     """
 
     READY = "ready"
+    AWAITING_REFINEMENT = "awaiting_refinement"
     SPENT = "spent"
 
 
@@ -30,6 +31,7 @@ class Action(Enum):
     """
 
     REFINE = "refine"
+    CORRECT_COMPETING = "correct_initial_competing_contact"
     CORRECT_MODULE = "correct_owned_module"
     CORRECT_EXHAUSTED = "correct_exhausted_roots"
     CORRECT_DECLINED = "correct_declined_allocation"

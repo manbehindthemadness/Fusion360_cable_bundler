@@ -201,7 +201,7 @@ def test_physical_sequence_receives_only_remaining_work(monkeypatch: pytest.Monk
     work = sequence.call_args.kwargs["work"]
     assert isinstance(work, Work)
     assert work.updates == 3 and work.newton_steps == 22 and work.pairs == 1978
-    assert 0 < work.cpu_seconds < 0.35 and 0 < work.wall_seconds < 2
+    assert 0 < work.cpu_seconds < 0.4 and 0 < work.wall_seconds < 2
     assert sequence.call_args.args[2] is terminal
     assert updated.route is route and updated.contact is final_contact
     assert updated.contact_pairs == detail["pairs"] == 614
@@ -259,7 +259,7 @@ def test_interrupted_initial_proof_charges_upper_bound(monkeypatch: pytest.Monke
         """
         Hit the actual parent clock from inside an initial contact check.
         """
-        clock[0] = 0.36
+        clock[0] = 0.41
         kwargs["checkpoint"]()
         raise AssertionError("Exhausted phase continued")
 

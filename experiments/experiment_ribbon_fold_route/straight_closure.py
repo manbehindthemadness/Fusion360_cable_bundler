@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable
 
 from cable_bundler.routing.geometry import Vector3, difference
@@ -14,6 +15,18 @@ from experiments.experiment_ribbon_bend_reduction.closure import affine_projecti
 
 from .geometry import PlacedPiece, Pose, Straight, pose_error
 from .mating import fixed_fold_frames_match, ordered_mating_caps
+
+
+class SourceReadiness(Enum):
+    """
+    Preserve legacy closed-route entry or explicitly permit positional correction after strict orientation.
+
+    The owner still validates material/native eligibility and certifies actual
+    final closure. This policy changes source admission, never target accuracy.
+    """
+
+    FINAL_SHAPE = "final_shape"
+    ORIENTED_MATERIAL = "oriented_material"
 
 
 @dataclass(frozen=True)
@@ -35,6 +48,7 @@ def prepare(
     checkpoint: Callable[[], None],
     *,
     fixed_slots: frozenset[int] = frozenset(),
+    readiness: SourceReadiness = SourceReadiness.FINAL_SHAPE,
 ) -> ClosureSpace | None:
     """
     Validate and prepare one fixed-fold correction space in millimeters.
@@ -42,11 +56,14 @@ def prepare(
     Preserve slot order through actual folds, including absent boundary slots.
     Supplied lengths must describe these exact pieces; no guessed index mapping,
     target shift, orientation change or active-set search is allowed. Position
-    must already meet ordinary1e-7route closure and frames the existing strict
-    mating criterion. Preparation grants no correction, native eligibility or
+    ordinarily meets1e-7route closure and frames the existing strict mating
+    criterion. Explicit oriented entry permits an open position with those
+    same strict frames. Preparation grants no correction, native eligibility or
     physical certificate. Different projectors share this same slot/frame contract.
     """
     checkpoint()
+    if not isinstance(readiness, SourceReadiness):
+        raise ValueError("Select explicit source closure readiness")
     if any(not math.isfinite(v) or v < 0 for v in lengths_mm) or any(
         type(i) is not int or not 0 <= i < len(lengths_mm) for i in fixed_slots
     ):
@@ -67,7 +84,8 @@ def prepare(
     expected = Pose(targets.end, targets.end_tangent, targets.end_width)
     actual = pieces[-1].end_pose()
     if not already_closed and (
-        not fixed_fold_frames_match(pieces, targets) or max(pose_error(actual, expected)) > 1e-7
+        not fixed_fold_frames_match(pieces, targets)
+        or (readiness is SourceReadiness.FINAL_SHAPE and max(pose_error(actual, expected)) > 1e-7)
     ):
         return None
     checkpoint()
@@ -83,6 +101,7 @@ def correction(
     checkpoint: Callable[[], None],
     *,
     fixed_slots: frozenset[int] = frozenset(),
+    readiness: SourceReadiness = SourceReadiness.FINAL_SHAPE,
 ) -> tuple[float, ...] | None:
     """
     Project one actual-cap defect using the original affine arithmetic and occupied slot order.
@@ -90,7 +109,9 @@ def correction(
     This returns one proposal, not closure proof. Adapters must recompose their
     actual model, enforce bounds/native sizes/quality and check ordered mating.
     """
-    space = prepare(pieces, targets, lengths_mm, checkpoint, fixed_slots=fixed_slots)
+    space = prepare(
+        pieces, targets, lengths_mm, checkpoint, fixed_slots=fixed_slots, readiness=readiness
+    )
     if space is None:
         return None
     if space.already_closed:

@@ -4,6 +4,7 @@ Bound residual-driven closure work while retaining unfinished, still-progressing
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
@@ -31,6 +32,10 @@ class ReclosureAllocation(Enum):
 class Unclosed:
     """
     Retain one algebraic branch, its measured residual and the policy that produced its progress.
+
+    Ordered alias identities record actual finite continuous-factor trials that
+    crossed the signed half-turn boundary. They grant no closure, infeasibility
+    certificate, extra correction or automatically inserted event.
     """
 
     chain: Chain
@@ -39,6 +44,7 @@ class Unclosed:
     branch_policy: BranchPolicy = BranchPolicy.INDEX
     goal: ClosureGoal = ClosureGoal.ROUTE
     allocation_policy: ReclosureAllocation = ReclosureAllocation.GUIDE
+    alias_folds: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         """
@@ -50,6 +56,13 @@ class Unclosed:
             raise ValueError("Retain an explicit unfinished closure goal")
         if not isinstance(self.allocation_policy, ReclosureAllocation):
             raise ValueError("Retain an explicit closure allocation policy")
+        if (
+            not isinstance(self.alias_folds, tuple)
+            or any(type(index) is not int for index in self.alias_folds)
+            or tuple(sorted(set(self.alias_folds))) != self.alias_folds
+            or any(not 0 <= index < len(self.chain.topology.folds) for index in self.alias_folds)
+        ):
+            raise ValueError("Retain ordered distinct existing aliased fold identities")
 
 
 def refine(
@@ -104,6 +117,7 @@ def refine(
     precision_pending = False
     goal_options = {"goal": goal} if goal is ClosureGoal.MATING else {}
     current, closure = unfinished.chain, unfinished.closure
+    aliases = set(unfinished.alias_folds)
     if closure.error <= limit:
         measured = closure_allocation(
             boundary,
@@ -178,6 +192,14 @@ def refine(
                     }
                 )
                 continue
+            if policy is BranchPolicy.CONTINUOUS:
+                aliases.update(
+                    index
+                    for index, (before, after) in enumerate(
+                        zip(current.topology.folds, probe.topology.folds)
+                    )
+                    if abs(after.angle_radians - before.angle_radians) > math.pi
+                )
             trial = nearest(
                 Model(boundary, probe.topology),
                 checkpoint,
@@ -248,7 +270,13 @@ def refine(
             return None
     return (
         Unclosed(
-            current, closure, unfinished.iteration + maximum_steps, policy, goal, allocation_policy
+            current,
+            closure,
+            unfinished.iteration + maximum_steps,
+            policy,
+            goal,
+            allocation_policy,
+            tuple(sorted(aliases)),
         )
         if closure.error > limit or precision_pending
         else None

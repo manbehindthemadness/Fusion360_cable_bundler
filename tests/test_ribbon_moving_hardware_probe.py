@@ -56,7 +56,7 @@ def test_subset_miss_cannot_certify_clearance_or_hide_an_unselected_intrusion() 
     hardware = Hardware.create(route.targets, Dimensions(4, 4, 5))
     domain = ProbeDomain(route, ((Terminal.START, 2),))
     missed = inspect(route, hardware, probe_domain=domain)
-    assert missed.status == "unresolved" and missed.witness is None and missed.cells_checked == 1
+    assert missed.status == "unresolved" and missed.witness is None and missed.cells_checked == 2
     assert "full clearance unmeasured" in missed.reason
     assert inspect(route, hardware).status == "blocked"
 
@@ -105,9 +105,9 @@ def test_partial_probe_does_not_cache_clearance_or_renew_shared_gate_work() -> N
     gate = Gate(route.targets, Mock(), Mock())
     assert gate.probe(route, "subset", domain=domain).status == "unresolved"
     assert gate.probe(route, "same_subset", domain=domain).status == "unresolved"
-    assert gate.cells == 2 and gate.cache_hits == 0
+    assert gate.cells == 4 and gate.cache_hits == 0
     assert gate.certify(route, "full").status == "clear"
-    assert gate.cells == 4
+    assert gate.cells == 6
     gate.cells = 1024
     assert gate.probe(replace(route), "exhausted").status == "unresolved"
     assert gate.cells == 1024
@@ -248,3 +248,38 @@ def test_real_joint_retains_actual_internal_hardware_evidence_before_another_pro
     assert callable(observed.call_args.kwargs["checkpoint"])
     if outcome == "late":
         assert result.detail["stop_reason"] == "phase_budget" and project.call_count == 1
+
+
+@pytest.mark.parametrize("terminal,x", [(Terminal.START, -2.0), (Terminal.END, 32.0)])
+def test_flat_discovery_finds_outer_width_intrusion_with_one_charged_cell(
+    terminal: Terminal, x: float
+) -> None:
+    """
+    Reach a narrow real intersection missed by the original material-cell midpoint.
+    """
+    route = _primitives((_straight(0, 0, 0, 10), _straight(x, 1, 0, 0.5), _straight(30, 0, 0, 1)))
+    hardware = Hardware.create(route.targets, Dimensions(0.1, 1, 5))
+    domain = ProbeDomain(route, ((terminal, 1),))
+    report = inspect(route, hardware, maximum_cells=1, probe_domain=domain)
+    assert report.status == "blocked" and report.cells_checked == 1
+    assert report.witness is not None and report.witness.piece == 1
+    assert report.witness.terminal == terminal.value
+    assert abs(report.witness.point.y) < 0.05 and abs(report.witness.material[1]) > 0.9
+
+
+def test_flat_discovery_miss_cannot_start_interval_work_after_cell_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Charge an unsuccessful proposal and preserve the original stop before any fallback cell.
+    """
+    from experiments.experiment_ribbon_terminal_hardware import check
+
+    route = _primitives((_straight(0, 0, 0, 10), _straight(30, 0, 0, 1)))
+    hardware = Hardware.create(route.targets, Dimensions(1, 1, 5))
+    domain = ProbeDomain(route, ((Terminal.START, 1),))
+    fallback = Mock(side_effect=AssertionError("No unpaid interval cell"))
+    monkeypatch.setitem(vars(check), "clip_profile", fallback)
+    report = inspect(route, hardware, maximum_cells=1, probe_domain=domain)
+    assert report.status == "unresolved" and report.cells_checked == 1 and report.witness is None
+    assert not fallback.called

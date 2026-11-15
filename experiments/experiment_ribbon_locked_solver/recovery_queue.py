@@ -35,7 +35,7 @@ def recover_failed(
     terminal: Gate | None = None,
 ) -> Recovery:
     """
-    Spend at most four total updates,.35CPU/2wall and the original remaining pair pool.
+    Spend at most four total updates,.4CPU/2wall and the original remaining pair pool.
 
     Preserve prediction order. Only a different penetrating material feature
     permits handing unused updates to the next already-derived branch. A fold

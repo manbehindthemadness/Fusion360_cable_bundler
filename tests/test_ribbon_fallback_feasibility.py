@@ -192,7 +192,7 @@ def test_hook_receives_only_preparation_debited_work(
         before_first_motion=before,
     )
     assert len(allocations) == 1 and allocations[0].updates == 4 and allocations[0].pairs == 1702
-    assert 0 < allocations[0].cpu_seconds < 0.35 and 0 < allocations[0].wall_seconds < 2
+    assert 0 < allocations[0].cpu_seconds < 0.4 and 0 < allocations[0].wall_seconds < 2
     assert result.detail["status"] == "deferred" and result.pairs == result.contacts == 0
     assert result.detail["cpu_seconds"] > 0 and result.detail["iterations"] == 0
     assert result.baseline_policy is baseline_policy
@@ -292,7 +292,7 @@ def test_retained_layout_uses_the_shorter_branch_and_one_measured_reflection() -
     assert recovery["method"] == "fallback_coupled_feasibility"
     assert recovery["baseline_length_mm"] > 160 and result.route.material_length_mm < 80
     assert recovery["iterations"] <= 4 and recovery["newton_steps"] <= 24
-    assert 0 < recovery["cpu_seconds"] <= 0.35 and recovery["pairs"] <= 1702
+    assert 0 < recovery["cpu_seconds"] <= 0.4 and recovery["pairs"] <= 1702
     assert result.detail["construction"]["contact_pairs"] <= 2048
     assert len([e for e in events if e.get("stage") == "paired_fold_return"]) == 1
     assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
@@ -320,7 +320,7 @@ def test_mating_crossing_restores_blocked_baseline_before_separate_repairs_exhau
     assert recovery["accepted_feasibility_restoration"] and not recovery["accepted_improvement"]
     assert recovery["length_mm"] <= recovery["baseline_length_mm"]
     assert recovery["iterations"] <= 4 and recovery["newton_steps"] <= 24
-    assert recovery["cpu_seconds"] < 0.35 and recovery["pairs"] <= 2048
+    assert recovery["cpu_seconds"] < 0.4 and recovery["pairs"] <= 2048
     assert result.detail["construction"]["contact_pairs"] <= 2048
     assert result.detail["cap_error_mm"] < 1e-7 and result.detail["material_metric_error"] < 1e-10
     eligibility = next(

@@ -22,7 +22,7 @@ from experiments.experiment_ribbon_fold_route.contact_flat_geometry import (
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, PlacedPiece, Straight
 
 from .check import Report
-from .model import Box, Hardware
+from .model import Box, Hardware, Terminal
 from .reversal_model import ordered_residual
 
 
@@ -118,6 +118,30 @@ class FeaturePlane:
     box: Box
     family: int
     side: Side
+
+    @property
+    def mating_straight(self) -> bool:
+        """
+        Identify only the independent straight adjoining its own fixed mating cap.
+
+        Its complete material must approach the outward mating halfspace and
+        touch the fixed face at closure. Grouped features, folds and the opposite
+        terminal retain ordinary positive clearance guidance. Identity alone
+        grants no cap match or hardware certificate.
+        """
+        ordinal = 0 if self.box.terminal is Terminal.START else len(self.model.folds)
+        return (
+            self.reference.straight
+            and self.reference.fold == ordinal
+            and self.members == (self.reference,)
+        )
+
+    @property
+    def minimum_gap_mm(self) -> float:
+        """
+        Permit intended mating-face touch only for its own independent terminal straight.
+        """
+        return 0.0 if self.mating_straight else 1e-7
 
     @cached_property
     def corners(self) -> tuple[Vector3, ...]:

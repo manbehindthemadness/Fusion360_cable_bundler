@@ -140,6 +140,12 @@ def _roots(a: float, b: float, c: float) -> tuple[float, ...]:
     return (value / a, c / value) if value else (-b / (2 * a),)
 
 
+# Public numerical primitives share the existing implementation and contracts.
+relative_rotation = _quaternion
+remaining_rotation = _remaining
+material_factors = _piece
+
+
 def orient(
     start: Pose,
     end: Pose,

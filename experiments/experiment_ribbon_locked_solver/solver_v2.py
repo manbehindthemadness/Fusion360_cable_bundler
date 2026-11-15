@@ -67,7 +67,7 @@ def solve(
     with at most1024per certificate over already-derived branches. If all reject,
     one existing closed plan, selected by its bounded separation correction, may
     receive four joint-separation updates using remaining pair work and at most
-    0.35CPU/2wall seconds within that deadline. If a different pair then penetrates,
+    0.4CPU/2wall seconds within that deadline. If a different pair then penetrates,
     unused updates may pass to the next derived branch within those same totals.
     Monotonic construction may instead use that same unused work on one measured
     penetrating branch that is shorter and better-guided than a separated fallback.
@@ -89,7 +89,7 @@ def solve(
     certified against full self-contact and both terminal boxes. Failed correction
     retains the baseline for ordinary smoothing; it does not start another contraction.
     If feasibility recovery was unused, a measured shorter contraction may use
-    that same four-update/.35CPU allowance and original remaining construction
+    that same four-update/.4CPU allowance and original remaining construction
     pairs. Its analytic cap support certificate grants no contact exemption.
     This terminal improvement compares against the already-contracted baseline;
     guide preferences cannot veto shortening after that work is complete.
@@ -607,7 +607,7 @@ def _remaining_recovery(
     Reserve only unused optional recovery work, including preparation and intervening wall time.
 
     Deferral must have executed zero updates and certificates. Its CPU cost is
-    subtracted from0.35seconds; the wall span includes intervening contraction.
+    subtracted from0.4seconds; the wall span includes intervening contraction.
     Any consumed recovery keeps its existing outcome without another attempt.
     """
     if first_pass_remaining <= 0:

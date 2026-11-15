@@ -18,6 +18,7 @@ from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
     ContactMotion,
     MaterialGuidance,
 )
+from experiments.experiment_ribbon_terminal_hardware.flat_support_linearization import Linearization
 from experiments.experiment_ribbon_terminal_hardware.material_return_selection import (
     UnreflectedReturns,
     select_fold,
@@ -103,10 +104,23 @@ def test_real_joint_transfers_before_another_projection_only_when_new_return_is_
         project(values)
         return (0.001,) + (0.0,) * (len(values) - 1) if project.call_count == 1 else None
 
+    def linearize_boundary(
+        _constraints: Any,
+        _values: tuple[float, ...],
+        terms: tuple[float, ...],
+        rows: list[list[float]],
+        *_args: Any,
+    ) -> Linearization:
+        """
+        Keep the seven-row algebra double explicit; full support mechanics have separate analytical coverage.
+        """
+        return Linearization(terms, tuple(tuple(row) for row in rows), 0, 0, 0, 0)
+
     replacements = {
         "JointEvaluation": Mock(return_value=_Equations()),
         "redistributed_step": projection,
         "shortest_run_step": projection,
+        "linearize_flat_supports": linearize_boundary,
         "joint_jacobian": lambda model, values, *args, **kwargs: [
             [0.0] * len(values) for _ in range(7)
         ],

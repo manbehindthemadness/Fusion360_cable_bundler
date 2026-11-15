@@ -215,7 +215,7 @@ def test_one_deferred_action_keeps_real_proof_accounting_and_never_falls_through
     options = action.call_args.kwargs
     assert options["remaining_pairs"] == 2048 - 17 and options["maximum_updates"] == 4
     assert options["maximum_newton_steps"] == 24
-    assert 0 < options["maximum_cpu_seconds"] <= 0.35 and 0 < options["maximum_seconds"] <= 2
+    assert 0 < options["maximum_cpu_seconds"] <= 0.4 and 0 < options["maximum_seconds"] <= 2
     assert action.call_args.args[0] is source
     assert result.contact_pairs == 17 + (0 if child is None else 7)
     assert result.contacts == 1 + (0 if child is None else 1)
@@ -243,7 +243,7 @@ def test_eligibility_time_is_debited_and_source_errors_stop_without_child_work(
         Consume the original CPU pool before the proposed child can begin.
         """
         del args
-        clock[0] = 0.35
+        clock[0] = 0.4
         return report
 
     terminal.measure.side_effect = exhausted

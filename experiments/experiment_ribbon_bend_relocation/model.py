@@ -109,6 +109,8 @@ def retract_active(
     checkpoint: Callable[[], None],
     *,
     closure_policy: ClosurePolicy = ClosurePolicy.NORMALIZED,
+    maximum_steps: int = 6,
+    on_step: Callable[[], None] | None = None,
 ) -> tuple[float, ...] | None:
     """
     Restore external caps with six Newton steps and four scalar halvings per step.
@@ -120,12 +122,16 @@ def retract_active(
     normalized residual can otherwise retain a positional mismatch on a long route
     and exhaust terminal subdivision at its intended mating face. Both policies
     share the same six Newton steps and caller allowance; no cap is snapped.
+    A bounded caller may reduce that ceiling and debit each started correction
+    through on_step, including a failed projection. The callback grants no work.
     """
     if not isinstance(closure_policy, ClosurePolicy):
         raise ValueError("Supply an explicit joint closure policy")
+    if type(maximum_steps) is not int or not 0 <= maximum_steps <= 6:
+        raise ValueError("Use zero to six genuinely remaining cap corrections")
     fixed = tuple(i for i in model.straight_indices if initial[i] == 0.0)
     values = initial
-    for _ in range(6):
+    for _ in range(maximum_steps):
         checkpoint()
         residual = model.residual(values)
         error = max(abs(v) for v in residual)
@@ -133,6 +139,8 @@ def retract_active(
             closure_policy is ClosurePolicy.NORMALIZED or ordered_caps_closed(model, values)
         ):
             return values
+        if on_step is not None:
+            on_step()
         rows = model.jacobian(values)
         right = [-v for v in residual]
         for index in fixed:

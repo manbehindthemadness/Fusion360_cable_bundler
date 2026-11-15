@@ -41,6 +41,12 @@ class Protection:
         """
         return self.minimum_gap - self.plane.gap(values)
 
+    def __call__(self, values: tuple[float, ...]) -> float:
+        """
+        Expose the same immutable protection as a typed correction equation.
+        """
+        return self.residual(values)
+
 
 def _covered(observed: list[FeaturePlane]) -> set[tuple[Terminal, Region]]:
     """

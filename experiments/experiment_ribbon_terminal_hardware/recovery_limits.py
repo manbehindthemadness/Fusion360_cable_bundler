@@ -7,6 +7,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+MAXIMUM_CPU_SECONDS = 0.4
+
 
 @dataclass(frozen=True)
 class Work:
@@ -34,7 +36,7 @@ class Work:
             raise ValueError("Supply the remaining original pair pool")
         if type(self.newton_steps) is not int or not 0 <= self.newton_steps <= 24:
             raise ValueError("Supply zero to twenty-four remaining corrections")
-        for value, ceiling in ((self.cpu_seconds, 0.35), (self.wall_seconds, 2.0)):
+        for value, ceiling in ((self.cpu_seconds, MAXIMUM_CPU_SECONDS), (self.wall_seconds, 2.0)):
             if (
                 type(value) not in (int, float)
                 or not math.isfinite(value)

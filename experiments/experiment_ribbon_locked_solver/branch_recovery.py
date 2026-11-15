@@ -76,7 +76,7 @@ def recover_construction(
     shared gate demonstrates baseline hardware intrusion. Eligibility/preparation
     costs remain charged; only unused work reaches later terminal recovery.
     No new roots or pair allowance are added: recovery shares the original2048pool
-    and caller's four-second deadline, with its existing four-update/.35CPU cap.
+    and caller's four-second deadline, with its existing four-update/.4CPU cap.
     Unsupported failures, exhausted work and unsuccessful improvement retain the
     baseline. Caller errors propagate; actual spent work is counted even if rejected.
     """

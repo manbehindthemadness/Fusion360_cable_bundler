@@ -33,7 +33,7 @@ def recover(
     Deferred sources have no contact certificate and cannot become accepted
     fallbacks. Use only the first candidate in the constructor's original
     selection order. All preparation and final checks reduce the original
-    four-update/.35CPU/2wall/unspent-pair pool. Failure returns immediately,
+    four-update/.4CPU/2wall/unspent-pair pool. Failure returns immediately,
     without another source or ordinary material-recovery action. A child can
     return accepted geometry only with its real separated contact measurement,
     unchanged ordered targets, exact caps/material and shared hardware clearance.

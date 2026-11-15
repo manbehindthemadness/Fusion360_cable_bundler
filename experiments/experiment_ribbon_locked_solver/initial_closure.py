@@ -26,12 +26,21 @@ from experiments.experiment_ribbon_fold_route.geometry import Straight
 from experiments.experiment_ribbon_fold_route.mating import ordered_mating_caps
 from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_terminal_hardware.adaptive_event_construction import Roots
+from experiments.experiment_ribbon_terminal_hardware.adaptive_event_recovery import (
+    recover as continue_events,
+)
+from experiments.experiment_ribbon_terminal_hardware.alias_refinement import (
+    construct as refine_alias,
+)
 from experiments.experiment_ribbon_terminal_hardware.cone_escape import construct, plan
 from experiments.experiment_ribbon_terminal_hardware.deviation_sequence import (
     recover as continue_route,
 )
 from experiments.experiment_ribbon_terminal_hardware.gate import Gate
-from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+from experiments.experiment_ribbon_terminal_hardware.recovery_limits import (
+    MAXIMUM_CPU_SECONDS,
+    Work,
+)
 
 
 class _Exhausted(RuntimeError):
@@ -55,9 +64,12 @@ def recover(
     Spend one original recovery allocation on a measured initial cone miss.
 
     Existing accepted, physically rejected and deferred constructions never enter.
-    One added direction and its exact compensations use one logical update and
-    at most four angular corrections. Only the genuine remainder reaches the
-    existing physical sequence, with the same hardware gate and pair pool.
+    A recorded signed material alias instead refines that existing event with
+    one logical update and at most six cap corrections. Other missing directions
+    retain their original one-update/four-correction construction. Only the
+    genuine remainder reaches physical recovery, with the same gate and pair pool.
+    Non-alias entry keeps the closest original cone candidate; a lower residual
+    in another bounded domain cannot silently displace its missing-ray evidence.
     No alternate construction follows decline. Every candidate is retained as
     inspection evidence before physical checks; evidence alone cannot be output.
     Interrupted initial contact charges its allowance as an explicit upper bound.
@@ -81,7 +93,7 @@ def recover(
     if any(candidate.closure.error <= limit for candidate in result.closure_candidates):
         return result, None
     cpu, wall = process_time(), perf_counter()
-    work = Work(4, CONTACT_PAIR_BUDGET - result.contact_pairs, 0.35, 2.0)
+    work = Work(4, CONTACT_PAIR_BUDGET - result.contact_pairs, MAXIMUM_CPU_SECONDS, 2.0)
     roots = Roots()
     detail: dict[str, Any] = {
         "status": "unresolved",
@@ -110,11 +122,24 @@ def recover(
         source = min(
             result.closure_candidates, key=lambda item: (item.closure.error, item.chain.roots)
         )
-        escape = plan(boundary, source, bounded)
-        if escape is not None:
+        if not source.alias_folds:
+            originals = tuple(item for item in result.closure_candidates if item.iteration == 0)
+            if originals:
+                source = min(originals, key=lambda item: (item.closure.error, item.chain.roots))
+        continuation = continue_events if source.alias_folds else continue_route
+        if source.alias_folds:
             detail["iterations"] = 1
-            candidate = construct(escape, threshold_mm, maximum_straight_mm, roots, bounded, record)
+            detail["purpose"] = "initial_signed_alias_refinement"
+            candidate = refine_alias(boundary, source, threshold_mm, roots, bounded, record)
             detail["stop_reason"] = "closure_declined"
+        else:
+            escape = plan(boundary, source, bounded)
+            if escape is not None:
+                detail["iterations"] = 1
+                candidate = construct(
+                    escape, threshold_mm, maximum_straight_mm, roots, bounded, record
+                )
+                detail["stop_reason"] = "closure_declined"
         if candidate is not None:
             record(
                 {
@@ -175,7 +200,7 @@ def recover(
                 )
                 detail["stop_reason"] = "work_exhausted"
                 if left is not None:
-                    child = continue_route(
+                    child = continuation(
                         candidate,
                         contact,
                         terminal,
@@ -185,7 +210,9 @@ def recover(
                         maximum_length_mm=candidate.material_length_mm,
                         minimum_straight_mm=threshold_mm,
                     )
-                    if any(
+                    if child is None:
+                        detail["stop_reason"] = "unsupported_physical_continuation"
+                    elif any(
                         type(child.detail.get(key)) is not int or child.detail[key] < 0
                         for key in ("iterations", "newton_steps", "contacts", "contact_pairs")
                     ) or (
@@ -194,18 +221,37 @@ def recover(
                         or child.detail["contact_pairs"] > left.pairs
                     ):
                         raise ArithmeticError("Physical sequence exceeded the remaining allocation")
-                    detail["sequence"] = child.detail
-                    for key in ("iterations", "contacts", "contact_pairs", "contact_seconds"):
-                        detail[key] += child.detail[key]
-                    detail["newton_steps"] = child.detail["newton_steps"]
-                    detail["stop_reason"] = child.detail["stop_reason"]
-                    if child.contact is not None and child.contact.status == "separated":
-                        candidate, contact = child.route, child.contact
+                    if child is not None:
+                        child_roots = child.detail.get("roots_attempted", 0)
+                        child_declined = child.detail.get("declined_roots", 0)
+                        child_reclosures = child.detail.get("local_reclosures", 0)
                         if (
-                            terminal.certify(candidate, "initial_closure_recovered").status
-                            == "clear"
+                            type(child_roots) is not int
+                            or not 0 <= child_roots <= 8 - roots.attempted
+                            or type(child_declined) is not int
+                            or not 0 <= child_declined <= child_roots
                         ):
-                            accepted = candidate
+                            raise ArithmeticError("Physical continuation exceeded remaining roots")
+                        if (
+                            type(child_reclosures) is not int
+                            or not 0 <= child_reclosures <= 4 - roots.reclosures
+                        ):
+                            raise ArithmeticError("Physical continuation renewed local reclosures")
+                        roots.attempted += child_roots
+                        roots.declined += child_declined
+                        roots.reclosures += child_reclosures
+                        detail["sequence"] = child.detail
+                        for key in ("iterations", "contacts", "contact_pairs", "contact_seconds"):
+                            detail[key] += child.detail[key]
+                        detail["newton_steps"] = child.detail["newton_steps"]
+                        detail["stop_reason"] = child.detail["stop_reason"]
+                        if child.contact is not None and child.contact.status == "separated":
+                            candidate, contact = child.route, child.contact
+                            if (
+                                terminal.certify(candidate, "initial_closure_recovered").status
+                                == "clear"
+                            ):
+                                accepted = candidate
         bounded()
     except _Exhausted:
         accepted = None

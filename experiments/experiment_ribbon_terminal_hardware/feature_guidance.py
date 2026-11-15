@@ -163,6 +163,9 @@ def member_planes(
     A fold and adjoining straight need not clear the same face of a finite box.
     Each member still encloses its complete width and thickness. The final shared
     hardware certificate remains authoritative; these are correction equations.
+    An own-mating straight instead uses the fixed outward mating halfspace.
+    Its cap must touch that face, so a positive side-clearance request conflicts
+    with the unchanged target. This selects guidance, never a mating proof.
     """
     parts: list[FeaturePlane] = []
     keys: set[tuple[object, ...]] = set()
@@ -175,6 +178,9 @@ def member_planes(
                 continue
             prepared.add(identity)
             prototype = replace(whole, reference=member, members=(member,))
+            if prototype.mating_straight:
+                parts.append(replace(prototype, family=0, side=Side.AFTER))
+                continue
             piece = locate(model.original, pieces, member)
             choices: list[tuple[float, FeaturePlane]] = []
             for family, raw in enumerate(prototype._axes(piece)):

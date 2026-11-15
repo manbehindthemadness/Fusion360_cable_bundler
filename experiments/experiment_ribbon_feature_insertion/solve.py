@@ -22,6 +22,7 @@ from experiments.experiment_ribbon_joint_route.boundary import Boundary
 from experiments.experiment_ribbon_spline_guide.guide import agreement
 
 from .allocation import Allocation, fit
+from .closure_goal import ClosureGoal
 from .contact_measurement import ContactPolicy
 from .features import chains
 from .guide_frames import Frames
@@ -109,6 +110,13 @@ def construct(
     and unmeasured, for the caller's one existing terminal-feasibility action.
     Clear, unresolved or witness-free hardware reports retain ordinary contact
     measurement. Deferral grants no source clearance or extra recovery allowance.
+    With terminal proofs enabled, existing initial reclosure requests actual
+    mating precision. Its original steps, halvings and physical continuation
+    remain unchanged. An optional guide optimum cannot discard already computed
+    proof-ready coordinates merely because ordinary route closure would accept
+    its larger residual. This changes geometry precision, never proof tolerances.
+    If every construction fails, retain already computed unfinished refinements
+    alongside original cone evidence for the same bounded initial recovery.
     """
     if not isinstance(cap_policy, CapPolicy):
         raise ValueError("Supply an explicit cap separation policy")
@@ -140,6 +148,7 @@ def construct(
                     minimum_straight_mm=threshold_mm,
                     **budget_options,
                 ),
+                goal=ClosureGoal.MATING if terminal is not None else ClosureGoal.ROUTE,
             )
             initial_unclosed.append(pending)
             outcome = refine(
@@ -149,6 +158,7 @@ def construct(
                 allocation = outcome
             elif isinstance(outcome, Unclosed):
                 unfinished.append(outcome)
+                initial_unclosed.append(outcome)
         if allocation is not None:
             candidates.append(allocation)
             branches.append(_branch(allocation, frames, record))
@@ -237,6 +247,8 @@ def construct(
             if measure(recovered_branch):
                 selected = recovered_branch
         else:
+            if isinstance(outcome, Unclosed):
+                initial_unclosed.append(outcome)
             record(
                 {
                     "stage": "feature_closure_continuation",

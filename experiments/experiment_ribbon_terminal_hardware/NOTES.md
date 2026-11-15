@@ -1,5 +1,59 @@
 # Finite terminal hardware trial
 
+2026-11-14 — signed half-turn event refinement (2940–2948)
+
+A finite continuous-factor trial can identify the same SO(3) rotation across
++pi/-pi while reversing the physical material bend. Failed initial construction
+now retains the best already-computed unfinished chain and the ordered identities
+of actual aliased trial folds. It does not infer an alias from a seed, final
+shape, angle threshold alone or a desired result. Closed/accepted constructions
+keep their existing path. Other missing-direction cases retain cone escape.
+
+When that failed initial handoff carries alias evidence, one original action
+splits its first witnessed bend into two same-bank half turns. Radius, width,
+material order and combined orientation remain fixed; mandatory flat leads mean
+position must be restored rather than assumed. The shared cap-retraction kernel
+allows at most six remaining Newton steps/four halvings and debits every started
+correction before projection, including failures. Only the genuine remainder
+enters the existing adaptive event controller. Original four actions/24Newton/
+eight local roots/.35CPU/2wall/2048pairs and shared hardware bounds remain. No
+parent event-count cap or acceptance relaxation is introduced. Every final route
+still needs actual caps, native sizes, material, self-contact and hardware checks.
+
+2944 ordinary maintained361source: known2932case007 is numerically accepted,
+CPU.869254s; recovery3actions/11Newton/8roots/.196507CPU and362pairs, seven events
+before ordinary smoothing. FINAL length10.204728232mm. Three distinct known N4/
+N10/N8 collateral routes pass byte-identically to their ordinary2922baselines.
+Original2932failure remains recorded. 2946oneknownnative construction/namedfidelity/
+boundary pass,0warnings; generation3.305724s,audit4.208772s,maxerror1.03380e-9mm.
+2945startup omitteddeadline before geometry:0nativeattempts; corrected2946uses
+the same unused attempt/original review deadline. These are0freshcase credits.
+
+QA:199affected checks pass; three older assertions fail identically with exact
+pre-change modules (2943baseline receipts), not introduced here. Final42new/initial
+checks pass after accounting refinement. Six changed code/test paths pass Ruff
+lint/format and complete IDE diagnostics; full-repository QA was not requested.
+2948fresh N1only numerical cohort:20/20passes on newseed3881842527,4006priorhashes
+excluded. Seven layouts use existing adaptive recovery; none exercises the new
+alias split, so positive unseen transfer of that specific path remains unproved.
+The same20routes pass native/namedfidelity/boundary2949,0warnings/retries/
+unattempted/timingmisses. Native generationmedian2.860121s,auditmedian2.626434s;
+maxerror1.22536e-9mm. Noextrauniquecredit; companionfinalizedONCE. Full physical/
+continuous native mechanics remain unmeasured. No production promotion or historical-rate pooling.
+
+
+Current paired recovery refreshes satisfied complete-member hardware axes between
+accepted poses, keeping source-mating/material equations and strict final proofs.
+It also extends positive native slivers after orientation readiness without waiting
+for positional closure. Existing work budgets, targets and native floors remain.
+See paired-return NOTES for four-known numerical preservation, the current20/20
+fresh numerical cohort and the repaired N1 named native/fidelity/boundary pass.
+The same20fresh routes also pass named native fidelity and boundary qualification
+without warnings (2926..2928), with two resource interruptions and no geometry
+retries. Full mechanical/continuous physical audits remain unmeasured. Former-source
+native plan2916 is unstarted,
+zero attempts, and preserved for replacement under explicit source provenance.
+
 2418selected preservation completed:10planned/attempted/collected,8numerical
 passes/2unresolved/0unattempted, all eight prior passes preserved and EVERYaccepted
 route byte-identical2386. Native builder/audit sources unchanged; existing2388/
@@ -4192,3 +4246,1004 @@ apps/doc/ownership/logs before action; qualify16pending nativecases separately
 under new bounded plan, then investigate NEW2690case017. Never retry2690inputs as
 fresh or run its3unattempted reservations after the recorded stop. No commit or
 productionpromotion/subagents. Do not start more work until user resumes.
+
+
+2026-11-13 — checkpoint2703: resumed native qualification and mating precision
+
+User resumed work after IDE restart; current user commit cbe9c2b is preserved.
+2691 reconnected MCP session3983996e-1cfb-46e3-8f72-57f6f896e9c1; initialized
+notification was required after initialize. Initial census rejection changed no
+geometry. Fusion29731/documentbd8a6516-399e-45d3-8584-a5c6e10bc149 remained live.
+All344 prior source hashes matched2685; standards revision matches, only its
+untracked.DS_Store unchanged. No standards changes or new commits.
+
+2692 qualified all16 numerical passes from2690:16native/namedfidelity/boundary
+passes,0warnings/retries. Same16inputs,not16newlayouts. Native median1.010635105s,
+maxerror2.29622e-9mm,2solve/native timing-goal misses.637RSSsamples peak636096KiB;
+driver64.125s. Allstage receipts retained; fullphysical/continuouspeak unmeasured.
+
+NEW2690case017 diagnosis: earlier57.420041mm hardwareclearbranch actually has
+strict material3/6penetration, so it is not a usable safe fallback. Selected
+44.598619153mm branch has contactseparated15pairs but caperror1.3025163e-10mm,
+outside unchanged1e-10mm analytic mating precondition.512BOX/478PIECE cells
+exhaust shared1024hardware allowance. No actual hardware intrusion was witnessed.
+2693 packet/fourCADviews inspect this exact firstpass, separately from smoothing.
+2694diagnostic setup failed before correction: reconstructing original guide
+failed recorded-chain provenance;0Newton/geometry attempts, receipt preserved.
+2695replacement uses exact recordedfolds/reference, one existing2-step MATING
+action: .014990CPU/.015003875wall, cap7.36921e-14mm, maxanglechange2.84683e-12rad.
+2696postinspection contactseparated15/hardwareclear12. Not fresh/native credit.
+
+2697 retained generalized fix requests ClosureGoal.MATING for existing initial
+reclosure when terminal proof is enabled. Legacy no-hardware ROUTE goal remains.
+Same steps/halvings/continuousfallback; no extra optimizer, roots, targets or proof
+tolerance change. Existing MATING machinery keeps measured proof-ready coordinates
+when optional guide allocation loses precision. Separate completion helper/trials
+were declined/archived; only solve.py + new goal-policy test are retained, plus
+updated solver lock.124affected tests pass;1PRE-EXISTING fallback test fails the
+same on exact unmodified baseline (2697/baseline-fallback-test.txt). It assumes
+four recovery updates although no recovery now runs; original test restored
+untouched. Ruff/format/IDE clear on2changed-code paths. FullQA unrun.
+2698selected12:11required numericalpasses/1priorunresolved.2699knownNEW2690case17
+automatic solve accepted .297155CPU; hardware56cells/3clear/0uncertain, cap1.07e-14.
+2700ONE native/namedfidelity/boundarypass,0warnings,build.603446374s,
+audit.907286917s,maxerror3.62613e-9mm,35RSSsamplespeak517904KiB. Original2690
+failure remains failed; this selected repair gets0freshcredit.
+2701accepted currentdiagnostic:45.044605344mm,cap1.02044e-14mm,contactseparated10/
+hardwareclear14;fourCADexports inspected. No instrument probe.
+
+2702NEW FRESH seed2755230369,3846novelty exclusions,20unique N1..10reservations.
+Case001N5numericalaccepted .790144CPU;case002N9unresolved .368804CPU;18unattempted.
+Firstfailure stop;0tuning/retries/sourcechanges. Aggregate recordedonce. Current
+case002 actually uses guide-fit repair;4updates/8roots(4declined)/7Newton/211pairs/
+.237376recoveryCPU,7events, joint_update_limit. Two terminal features retained;
+last child136.342775mm still unclosed. This is NOT the prior cap-precision issue.
+No independent spatial inspection or repair of this newest failure yet.
+2703ONE native/namedfidelity/boundarypass for SAME accepted2702case001,0warnings;
+build2.272098s/audit3.011569333s/maxerror8.14336e-10mm,72RSSsamplespeak723440KiB.
+Failed2702case002native0;18reservations stay retired. Do not infer a fixed-sample
+failure rate, pool different populations/stops, or claim broad efficacy.
+
+Current Fusion:one2701diagnostic(5sketches/0bodies) plus onehidden2703nativebody/
+2profiles; old2692/2700 bodies and old2693diagnostic retired exact-owned only after
+receipts.2703/final-state.json verifies idle and actual revision. Source344hashes
+EXACT2697verified. Next:inspect2702case002 stages spatially; original failure and
+work caps remain. Objective incomplete, user authorization resumed; no new pause,
+completion, production promotion or subagents. Goal-service status was last paused
+and its API has no resume operation; do not create a replacement goal.
+
+
+2026-11-13 — checkpoint2708: memory-aware spatial review and declined scheduling trial
+
+Goal is ACTIVE with revised user objective: prove general effectiveness while
+monitoring IDE memory/logs/UI warnings and solver CPU. Previous goal turn was
+progress (native qualifications, precision fix and new fresh failure); this turn
+also supplies evidence that changes the next action. No goal completion claim.
+
+2704 sampled PyCharm64885 at5.7..5.9GiB with fresh13:09:59..13:10:01
+LowMemoryWatcher signals, gc_overloaded false. User explicitly reported NO UI
+warning; no conditional restart pause was triggered. RSS subsequently fell to
+3.7GiB then rose near6GiB during IDE inspections. Last memory logs remain13:10:01;
+no OutOfMemoryError/GC-overhead/LowMemoryNotifier evidence found. Continue bounded
+work with monitoring; checkpoint immediately if actual UI warning is reported.
+Memory samples/log excerpts2704/memory-evidence.json and2708/memory-final.json.
+
+2705read-only capture of EXACT2702case002event665: closed7event112.157408355mm,
+cap1.13692e-13mm/frame5.55112e-16. Fullmaterialcheck finds strict fold8/straight12
+penetration196pairs; actualendhardware intrusion onfold8 in32cells. Fold8bank
+1.3232874rad has13.6530867mm flat leads, crossing the9.3786081mm straight12.
+Four CADexports inspected; no instrument motionprobe allocated/executed.
+This replaces exactowned2701diagnostic only; native2703case001unchanged.
+Original final openproposal is261.160995424mm at event709, later than the
+136.342775mm handoff. Both remain distinct from this closed displayedcandidate.
+
+2706trial allowed the same32pair negative screen when all8roots were spent but
+one fixedcorrection entry remained. A strict competing material witness then
+guided existing fixedcorrection with retainedhardwareguidance. No extra roots,
+updates, tolerances or time/pair pools.173focused tests pass; final schedule8
+pass; Ruff/format and2changed-code IDEchecks clear. Newduplicate-test findings
+were fixed by sharing the same explicit controller-boundary helper.
+2707selected13:12requirednumericalpasses/1priorunresolved,0native/freshcredit.
+2708known2702case002still UNRESOLVED .360580solverCPU. It now finds8/12in4pairs
+and entersmaterial-informedfixedcorrection, but after1Newton yields a new0/2
+crossing while caps are open16.5858046mm. Secondstage reachesjoint_update_limit.
+Original4updates/8roots/7Newton remain;216pairs/.227884recoveryCPU. This is not
+a CPU stop or a solved layout. No fresh/native/general efficacy credit.
+
+Trial2706DECLINED and its two code/test edits plus lock rolled back. All344source
+hashes EXACT2697verified; declined implementation/tests/sourcepins archived2706.
+Prior124pass/1confirmedpre-existingfallbacktestfailure remains baseline QA, not
+repeated after exact restore. No maintained solver change retained this turn.
+
+Next inspect joint_contact.py early_material_return handling (around1018..1034),
+which emits new_material_return before caps_complete, then RestorationHandoff
+around1538..1563. The new witness is retained as a constraint already; determine
+whether a premature second reversal interrupts original cap restoration rather
+than making useful progress. Any trial needs a new bounded plan, not more steps
+or an unchanged retry. Keep failed/unattempted2702 statistics intact.
+
+2708/post-trial-idle.json separately verifies idle Fusion with2705currentdiagnostic
+5sketches/0bodies and2703hiddennativebody/2profiles, unchangedrevision. No new
+native build, endpoint solve, fresh input, commit, production promotion or agent.
+Objective remains incomplete/active; fresh transfer of a repair is still unproven.
+
+2026-11-13 — checkpoint2710: cap-proximity scheduling trial rejected
+
+2709 tested delaying early material handoff until positional cap error was at
+most half the actual ribbon thickness. This changed scheduling only; physical
+acceptance, targets, roots, updates, Newton, CPU and pair ceilings were unchanged.
+Candidate QA:202 focused/affected tests passed; four-path Ruff and format passed.
+Three IDE inspections were clear; joint_contact.py inspection timed out at60s
+and was unavailable, not a clear result. This QA applies to the declined trial.
+
+2710 selected preservation:13 planned,10 evaluated,8 numerically accepted,
+2 unresolved (one prior affine-corner outcome and one new required regression),
+3 unattempted after first regression. proof-cost-2172-19 exhausted2048 pairs and
+.363348 recovery CPU; its fixed continuation used3 stages/10 Newton/1907 pairs.
+Total selected solver CPU11.419631s. No native attempts, builds, full physical
+audits or fresh-layout credit. Native failure rate remains unmeasured here.
+2711 current-failure qualification was NOT attempted and is retired with receipt.
+Cap distance alone is therefore not a retained handoff rule.
+
+2709 implementation, tests and lock were archived and rolled back exactly.
+All344 pinned files match2697/verified.json; retained initial MATING-goal change
+and earlier work remain intact. Baseline QA remains124 passes plus one confirmed
+pre-existing fallback-test failure; unaffected checks were not repeated.
+
+Next question, UNIMPLEMENTED: original2702case002 fixed continuation had two
+updates permitting12 total Newton steps, but stages spent[1,6], leaving5 unused.
+Audit whether partially spent stage capacity can carry within the original
+aggregate allocation while still charging every stage/action. Freeze a separate
+bounded plan and prove accounting before any trial; this is not permission for
+more updates, Newton, roots, CPU, pairs or relaxed acceptance.
+
+2710/post-trial-idle.json verifies idle Fusion, unchanged2705 diagnostic
+(5sketches/0bodies), and unchanged2703 native comparison (one hiddenbody/2profiles).
+No instrument probe or new geometry this turn. Memory checkpoint2710 records
+PyCharm RSS4572560KiB; actual latest LowMemoryWatcher signal remains13:10:01.
+User reports "No warning visible". Continue monitoring; no conditional pause
+triggered. Goal remains active/incomplete. Fresh2702 outcomes remain unchanged.
+
+2026-11-13 — checkpoint2715: second scheduling counterexample and recorded excursion
+
+2712 trial required prior material-reversal history before early transfer from
+angular ContactGuidance; existing material-return transfer remained.214 distinct
+focused/affected tests and changed-path Ruff/format passed. Test IDE clear;
+joint_contact.py IDE inspection timed out20s, unavailable.2713 selected13 stopped
+at required terminal-linear-2287-16:8attempted,7numericalaccepted/1newunresolved,
+5unattempted;8.110890 total solverCPU. Regression recovery.351294CPU/8Newton/
+242pairs,phase_budget. Baseline hardware stage yields after1Newton and its later
+material reversal succeeds; trial kept hardware correction until CPU exhaustion.
+No native attempts, builds, full physical audits or fresh credit.2714 current
+failure qualifier NOT attempted. Trial archived2712 and rolled back;344source
+hashes EXACT2697. Broad cap-distance and stage-history delay rules both declined.
+
+Accounting audit: original2702case002 spends[1,6]Newton across two fixed stages,
+leaving5 below its initial12Newton aggregate ceiling. Existing contract charges
+each stage at leastone update and ceil(Newton/6); carrying those5 into stage2
+would alter that per-stage contract. No pooled-ledger or budget change implemented.
+
+2715 read-only reconstruction of7original reflected-stage poses matches exact
+original stage710 final snapshot. No optimizer, physical certificates, geometry
+probe, fresh case, native attempt or Fusion mutation. Metadata CPU.005280s.
+Original open handoff cap metric1.4108955mm; reflecting selected fold2 immediately
+raises it to45.8468261mm. Six recorded corrections reach3.23955447mm while material
+length grows136.342775->261.160995mm: straight totals55.530988->139.076393mm,
+fold material80.811787->122.084603mm. Fold3 bank reaches-1.460849rad, with31.252222mm
+leads on each side. Final positive guidance row1 (second of four retained hardware
+member rows) dominates normalized merit. This is violated optimization guidance,
+not a fresh intrusion certificate. Later negative hardware misses do not prove
+clearance. More correction steps alone have no demonstrated benefit.
+
+Measurement setup initially used wrong primitive length property and stopped;
+corrected to documented material_length_mm without optimization. First failure
+retained. Original nonstandard JSON Infinity bound archived and converted to null
+(unbounded), with explicit serialization provenance; geometry not recomputed.
+Next inspect that retained hardware-member separating direction and reversal
+geometry against actual whole-member/hardware placement before another policy
+trial; do not invent a specimen-specific exemption or enlarge work.
+
+2713/post-trial-idle.json confirms unchanged2705diagnostic/2703hiddennative.
+PyCharm RSS6405744KiB at20:46UTC; last actual LowMemoryWatcher13:10:01local,
+user last reports no UI warning. Conditional pause not triggered. No further
+native work or retained geometry added. Goal active/incomplete;fresh2702unchanged.
+
+2026-11-13 — checkpoint2722: intended mating-straight guidance; current case unresolved
+
+Previous goal turn was progress: rejected2712 stage-history policy, exact rollback,
+and2715 recorded-trajectory measurements changed the next investigation. This turn
+identified and corrected a guidance conflict; no general-effectiveness claim yet.
+2716 reconstructs all six recorded hardware residuals EXACTLY. Dominant row1 is
+END Region(7,straight), the actual own-mating straight. After update2 the retained
+lateral family9 AFTER gap is-3.514435mm while BEFORE is-0.133107mm. Closed fixed
+mating requires this straight to touch the outward hardware face; an ordinary
+positive side-clearance request conflicts with that boundary condition.
+
+Retained2717 mechanism: independent own-terminal straight selects fixed outward
+mating halfspace family0 AFTER and zero touch goal. Folds, grouped material,
+opposite-terminal and internal straights retain1e-7mm guidance. Complete width/
+thickness, fixed targets, all final mating/contact/hardware/native gates and
+original4updates24Newton8roots/.35CPU2wall2048pairs remain unchanged. Identity
+and guidance do not certify clearance or waive an unmatched mating frame.
+
+QA119focused+153affected=272passes,4previously retired gym tests skipped.18new
+scaled/mirrored/start/end analytical checks cover touch goals, strict nonmating
+preferences and actual positive/negative intrusion behavior. Tiny extensions can
+exhaust the original checker and remain UNRESOLVED, never passed; larger ones
+produce strict occupied witnesses. Initial test assumptions about zero outward
+interval padding and whole-check discovery were corrected; failure logs retained.
+Ruff/format5paths pass;feature_plane/hardware_halfspaces/newtest IDEclear.
+feature_guidance has2PRE-EXISTING protected-member weak warnings verified in HEAD;
+joint_contact IDE timedOut15s, unavailable. No fullQA or fullphysical audit.
+
+2718 selected13:12required numericalpasses/1priorunresolved,0unattempted,
+14.403604solverCPU. No native builds or new-layout credit.2719 ONE current known
+2702case002 qualifier remains unresolved .306112solverCPU/.173317recoveryCPU,
+4updates/8roots/3Newton/83pairs. After ordinary hardware first stage, material
+reflection reaches cap metric.460666mm after2Newton, then joint_no_descent with
+strict1/3crossing and no remaining stage. Original failure remains unchanged.
+Comparison with original six-step3.23955mm/261.161mm excursion is diagnostic,
+not a causal timing or successful-route claim. All current failed branches retained.
+
+2720 separately combined2717 with prior2706 competing-contact screening at
+exhausted roots.112focused tests/Ruff/format/2IDEclear;2721same13selected:
+12requiredpasses/1priorunresolved,14.765665solverCPU.2722 ONE current qualifier
+stillunresolved .361526solverCPU/.228725recoveryCPU,4updates/8roots/7Newton/
+216pairs, joint_update_limit; fixed-stage length103.224530mm is not a valid route.
+Combination DECLINED/archived and only adaptive_event_recovery/test/lock restored.
+344source hashes EXACT2717/verified.json. No handoff-delay policy retained.
+Do not pool repeated selected inputs as26independent configurations.0native
+attempts/builds/fullphysicalaudits/freshcredit across these development replays.
+
+Next inspect the retained2719near-start1/3crossing and failed correction descent;
+identify an actual geometric degree of freedom/deviation rather than assume
+another stage or more Newton steps. Current case still needs resolution; future
+fresh unique inputs and native qualification remain required to prove transfer.
+
+2722/post-trial-idle.json verifies current2705diagnostic and2703hiddennative
+unchanged. Live numerical modules were NOT reloaded; retained native geometry
+predates this solver change. No new geometry/probe, commit, production promotion,
+subagent or application restart. PyCharmRSS6145168KiB; user last reports no UI
+warning. Prior last actual low-memory signal13:10:01; current active log rotated
+and has no actual LowMemoryWatcher line. No conditional restart pause triggered.
+Goal remains ACTIVE/incomplete. Original fresh2702 statistics unchanged.
+
+2026-11-13 — checkpoint2729: nonsmooth support derivative confirmed; bounded branch prototype
+
+Previous turn was progress (retained2717 own-mating guidance, selected numerical
+preservation and new failure evidence). This turn changes no maintained solver
+source: all344paths EXACT2717/verified.json. No full solver replay, fresh layout,
+native build, instrument motionprobe or physical certificate ran. ONE known
+complete configuration supplies recorded-state diagnostic variants; these are
+not additional independent configurations or accepted solutions.
+
+2723 reconstruction matched2719raw residuals but stopped at an incorrect setup
+assertion that no native zero-slot replacement was needed.0nonlineartrials;first
+projector only. Failure retained.2724 separately planned the actual original
+initial+native-replacement path. Exact recorded residuals and unchanged nonlinear
+merit; base.0107776867343, predicted.0000000567408615, but all four ordinary trials
+increase the actual new material row13. CPU.023701s. No geometry accepted.
+2725 existing CENTERED differentiation also fails all four trials,CPU.028784s.
+2726 signed coordinate/directional audit: two negative bank changes reverse the
+contact-row derivative sign. Full directional derivative converges+.0031544367
+while the scalar Jacobian predicts-.0107776300. This is a first-order model
+mismatch, not merely insufficient trial halving. CPU.012118s,0projections.
+2727 one negative-endpoint reorientation before existing native replacement also
+fails four trials,CPU.027070s. No derivative-policy change retained.
+
+2728 exact full-flat prism support decomposition:8vertices each;4active vertex
+pairs. Their worst directional derivative+.0031544231 matches actual+.0031544367;
+the scalar max derivative predicts the opposite sign. Existing8physical rows
+would become11, within original13. CPU.012365s,0projections/certificates.
+2729 replaces only that linear row with four complete active support branches in
+one existing16-step projector; full ORIGINAL nonlinear equations and merit stay
+authoritative.11physical rows, no new roots/stages/Newton/certificate. First trial
+fails (.0142292893); second ordinary trial descends to.0106598877 from.0107776867.
+CPU.016134s. This is one improving diagnostic step, not a solved/accepted route,
+physical clearance, native success, timing improvement or generalized validation.
+
+Next implement2730/implementation-plan.json: a focused typed flat-support
+linearization module, preserving all tied active prism branches within existing
+13-row capacity, before the original projector/native replacement. Preserve full
+raw nonlinear merit/final certificates, four trials,16working-set steps, original
+4updates24Newton8roots/.35CPU2wall2048pairs. No additional optimizer or fallback.
+If a complete bundle cannot fit/preserve vertex identity, retain original model
+with explicit decline rather than truncate support and claim success. Analytical
+scaled/mirrored ties/smooth controls, directional consistency and capacity/native
+mask tests precede selected13preservation and one current-case qualifier. Native
+qualification and future fresh unique layouts remain separate and necessary.
+2730 is PLANNED, NOT IMPLEMENTED. Do not describe a prototype step as a repair.
+
+2729/post-trial-idle.json confirms unchanged2705diagnostic/2703hiddennative.
+Live numerical modules NOT reloaded; native geometry still predates2717change.
+PyCharmRSS6349920KiB; current actual LowMemoryWatcher log records none after
+rotation, older lastknown13:10:01. User last says no UI warning. Conditional pause
+not triggered. Memory2729/memory-checkpoint.json. Goal active/incomplete; original
+fresh2702 outcomes and all selected/native/failed classifications unchanged.
+
+2026-11-13 — checkpoint2735: guarded complete-support correction retained experimentally
+
+Previous goal turn was progress: exact recorded derivative mismatch and bounded
+four-branch prototype changed implementation direction.2730 implemented typed
+flat_support_linearization.py and signed full-prism support_values in the shared
+flat geometry module. Raw nonlinear gaps/merit, complete width/thickness, target
+frames, final hardware/contact/native checks and original work limits remain.
+Every tied active vertex pair must fit13physicalrows; no subset is presented as
+complete. Capacity/topology declines retain the original scalar linearization.
+Support derivatives use the same1e-5endpoints; native fixed columns remain zero.
+
+2730 broad pre-first-projector activation DECLINED.197affected tests pass with
+17previously retired layout tests skipped.2731selected13 stopped at second case:
+1numericalaccepted/1requiredregression/11unattempted. closed-motion-2179-05 changed
+from accepted7Newton to another closed crossing/refinement and recoveryCPU.350909,
+phase_budget.2732current-case qualifier NOT attempted. Trial code/tests/lock
+archived2730; no broad activation policy retained or unsuccessful cases erased.
+Setup failures retained: Python3.9runtime Union alias initially used unsupported
+PEP604execution; missing test filename caused0tests to run; six protocol controls
+used an intentionally fake7-row algebra inconsistent with2material rows. Fixed
+alias/path and made new support boundary explicit in those existing controls.
+New test tuple typing warning fixed. No test was silently skipped to pass.
+
+Retained2733 guard: first ordinary Jacobian/projector unchanged. ONLY during an
+already allocated native-slot replacement, a complete active bundle substitutes
+when original scalar prediction descends but its full-support branch prediction
+does not. Otherwise original rows/direction remain. No additional optimizer,
+trial, Newton, root or stage. Same4updates24Newton8roots/.35CPU2wall2048pairs,
+16working-setsteps and4ordinarytrials.23newanalytical tests cover scale/mirror,
+both separation orders, raw span/directional agreement, smooth preservation,
+capacity decline, fixed columns, topology/caller failure and guard selection.
+199affectedpass/17priorretiredskips;Ruff/format passes;module/newtest/protocoltest
+IDEclear. flat_separation has2PRE-EXISTING optional-narrowing weak warnings verified
+inHEAD. joint_contact inspection timedOut15s/unavailable. Prior feature_guidance
+protected-access weak warnings remain out of scope. FullQA/fullphysical unrun.
+
+2734 selected13 all attempted:12requirednumericalpasses/1priorunresolved,
+14.456168total solverCPU. These are the SAME known13, not fresh configurations.
+2735 ONE current2702case002 qualifier remains UNRESOLVED .332968solverCPU,
+.200124recoveryCPU,4updates8roots4Newton111pairs. First hardware stage unchanged.
+Material stage activates1bundle/3additional linear rows, accepts3Newton instead
+of2719's2, then ordinary joint_no_descent at cap metric.442033632mm with actual
+0/3crossing. No remaining stage. This corrects the diagnosed false direction but
+has not solved the complete layout or proved a timing/general effectiveness gain.
+Original fresh failure stays failed;0freshcredit/nativeattempts/fullphysicalaudit.
+
+Current345source hashes EXACT2733/verified.json; prior2717mating guidance and2697
+initial MATING-goal changes retained. No global support-policy expansion, delay
+policy, new derivative scheme, pooled work ledger or extra motion allowance.
+Next inspect the NEW2735stall (0/3witness,3accepted material Newton): determine
+whether active-support modeling is needed after the one guarded native replacement,
+or whether a distinct geometric deviation is required. Do not assume another
+stage or more steps. A persistent bundle policy, if justified, needs a separate
+bounded plan, analytical controls and selected preservation before qualification.
+Fresh unique layouts/native validation remain necessary once a repair succeeds.
+
+2735/post-trial-idle.json verifies unchanged2705diagnostic and2703hiddennative;
+no live numerical reload, new geometry/probe, commit/promotion/subagent/restart.
+PyCharmRSS5121920KiB; current actualLowMemoryWatcher lines none after logrotation,
+lastknown older13:10:01;user last reports no UI warning. Conditional restart pause
+not triggered. Memory2735/memory-checkpoint.json. Goal remains ACTIVE/incomplete.
+
+2026-11-13 — checkpoint2739/2740: retained support memory and IDE resource checkpoint
+
+Previous turn was progress: guarded support model integrated and preserved known
+passes, exposing the next stall.2736 reconstructs exact2735stalled pose and
+retains the four previously diagnosed support identities. One original projector
+uses12physicalrows (<=13); second ordinary trial descends .010659887687->
+.010478959198. CPU.023653s;one known-state variant,0fullsolves/native/freshcredit.
+
+Retained2737 implements action-owned SupportMemory and explicit IDENTIFY/RETAIN
+selection. Guarded native replacement remains the only first diagnosis. Admitted
+support identities persist through later original corrections, union current
+active supports, retain exact constraint/axis/side ownership and are pruned when
+removed/replaced. Each complete bundle still must fit original13physicalrows;
+no truncated coverage or new optimizer/trial/Newton/root/stage. Raw complete
+nonlinear gaps/merit and all final physical/native gates remain authoritative.
+Tests cover branch memory through mirrored geometry changes and identity/side/
+pruning as well as existing directional/capacity/native-mask contracts.
+201affectedpass/17previouslyretiredskips;25newanalytical tests total. Ruff/format
+3changedpaths pass;module/test IDEclear;large joint_contact inspection again
+15s timeout/unavailable. Existing flat optional-narrowing and feature protected-
+access weak warnings remain pre-existing/out of scope. FullQA/fullphysical unrun.
+
+2738same selected13:12required numericalpasses/1priorunresolved,allattempted,
+13.943804total solverCPU. All2734selectedcorrection paths had ZERO support-bundle
+activation, so preservation does not establish positive geometry transfer of this
+new mechanism. Do not count repeated selected inputs as new configurations.
+2739ONE currentknown2702case002 qualifier remains UNRESOLVED .384925solverCPU,
+.254852recoveryCPU,4updates8roots7Newton207pairs. Material stage reaches all6
+allocatedNewton,4bundlepreparations/12cumulativeaddedrows/1capacitydecline,
+0topologydeclines,thenjoint_update_limit. Final actual proposal172.285235mm;
+retained sequence source136.342775mm and original closed112.157408mm remain
+separate. Final normalizedcap maximum.007088953/guidance.009678065; actual final
+cap metric not independently remeasured. No timing improvement or accepted route.
+Source345paths EXACT2737/verified.json; prior2733guard/2717mating/2697precision
+work retained. No native builds, new fresh layouts or full physical audits.
+
+Next geometric question: crossing3/6starts in BEFORE flat of fold1, while largest-
+turn rule selects fold2.2740 freezes ONE incidence-derived following-bend variant
+from originalstage683, not a search over reversals. Budget1remainingupdate6Newton/
+4trials/.2CPU1wall1841pairs. Its Gate starts charged for ENTIRE2739hardware spend
+338cells/.013801CPU/.013803wall, conservatively avoiding budget renewal. Uses exact
+original native minimum2.9999999999999997e-5mm. Cached-state timing excludes original
+construction and cannot count as a cold solve or generalization.2740 NOT LAUNCHED.
+Older2723..2729directional prototypes used1e-5diagnostic native floor, not the exact
+original3e-5. No full route/native acceptance was claimed; the adopted2735step
+matches the measured prototype. Full cold workers always use original exactfloor.
+
+RESOURCE CHECKPOINT: get_python_environment for2740 remains IN FLIGHT in
+functions.exec cell289, last verified by functions.wait as still running. Do not
+launch Python without this SDK result, duplicate the lookup, or infer terminal
+status from its delay.2740has0attempts/no worker marker. No numerical/native work
+is active;2739/post-trial-idle.json confirms idle Fusion with unchanged2705scene/
+2703hiddennative. Only IDE read-only SDK RPC is pending.
+
+Fresh actual PyCharm logs14:48..14:50 show repeated gc_overloadedTRUE and
+LowMemoryNotifier scores reaching5/threshold5;SDK lookup stalled while PyCharm
+uses450..486%CPU,RSSabout4.3GiB.2740/memory-checkpoint.json preserves actual logger
+records, excluding echoed tool strings. Asked user asynchronously whether a UI
+low-memory warning is now visible (prior answerNo predates these signals); answer
+PENDING. Safe restart checkpoint ready; conditional UI observation not inferred.
+No app restart/reconfiguration, code reload, commit/promotion, or goal-complete/
+paused/blocked transition. Goal remains ACTIVE/incomplete. Re-poll cell289; if UI
+warning/restart confirmed, preserve this idle point for user app restart.
+
+SDK UPDATE — cell289 subsequently returned terminal tools/call transport timeout
+after300s, no SDK result. Cell CLOSED; do not wait it again or blindly duplicate
+the operation. Underlying IDE read-only completion unobserved.2740 remains
+UNATTEMPTED,0Python/native launches. UI observation stillpending; goal active,
+no automaticpause. Recover IDE connection at preserved idle restartcheckpoint.
+
+2026-11-13 — checkpoint2742: goal service now BLOCKED after three consecutive
+turns with the same failed SDK prerequisite and overloaded IDE process. Latest
+PID64885 remains~322.5%CPU with fresh gc_overloadedTRUE14:59:18. No numerical/native
+job is active;2740diagnostic remains saved/unattempted. UI observation pending;
+blocking is independently the unavailable required SDK preflight. Recover/restart
+PyCharm then resume; revalidate sessions/source/configuredSDK before work.
+345sourcehashes still EXACT2737. Audit2742/blocked-audit.json. No completion claim.
+
+2026-11-13 — checkpoint2754, restart recovery and declined reversal policies
+
+PyCharm restart recovered configured SDK access (newPID73055). Old SDKcell289
+is terminal/closed.2740 cached following-bend diagnostic then ran; reporter called
+nonexistent Gate.summary(), but its flushed journal and final candidate survive.
+Recovered outcome unresolved; legacy direct final BOX_AXES measurement also differs
+from original sequence PIECE_AXES. No unchanged retry or acceptance inferred.
+2743 metadata found cap3.9129796e-9mm, outside strict ordered mating1e-10mm.
+
+Retained2744 cap precision policy uses the existing probe1e-5 threshold and centered
+six-cap derivatives only near closure. Physical/support rows, tolerances, native
+eligibility and original work remain unchanged.249 distinct focused/affected tests
+pass, including9 new analytical tests; Ruff/format pass. New test IDE clear;
+large joint_derivatives/joint_contact IDE requests timed out15s, unavailable.
+2746 selected13:12 required numerical passes/1 prior unresolved,13.632751 solverCPU.
+No causal timing or positive generalization claim from preservation.
+
+2745 changed-source cached variant restores original sequence proof callbacks,
+correct Gate.detail reporting and exact native minimum. One remaining update,
+6Newton/4ordinary trials,1841pairs,original conservative hardware debit. Numerically
+accepted: correctionCPU.150566s,683pairs,cap2.9549289656e-11mm,material251.230832895mm;
+hardware525cells/.021401CPU includes entire prior failed hardware allocation.
+ONE known-state variant,0 full cold solves/native/fresh credit. Length exceeds
+compactness goal; not a production or displayed native result.
+
+2747 proposed first positive interval turn for all flat first contacts. Analytical
+QA passed after explicitly updating old selection expectations;168passes/4prior
+retiredskips.2748 first required selected case regressed:0accepted/1unresolved/
+12unattempted,.512563solverCPU. Stopped, collected and restored pretrial source,
+tests and lock.2749 cold qualifier unattempted.2750 metadata confirmed this prior
+case starts closed1.11e-13mm, whereas current cached stage starts open1.4108955mm;
+both contacts are BEFORE/straight.2751 narrowed the policy to open-cap restoration
+using unchanged ordered-cap predicate.177tests/4priorretiredskips,Ruff/format and
+both changed-path IDE checks passed.2752 preserved3cases then regressed flat-phase
+case2215:3accepted/1unresolved/9unattempted,4.472892total solverCPU. First-regression
+stop honored.2753 cold current qualifier unattempted. This second policy was also
+removed; all345sourcehashes now exactly2744/verified.json. Declined implementations,
+tests and locks archived under2747/2751; both reviews retain every outcome.
+
+Neither flat incidence nor cap-restoration state alone justifies reversing the
+first incident turn. Do not condition on these selected layouts to hide regressions.
+A future selector needs evidence of actual whole motion, cap compensation and
+competing hardware/material constraints before claiming a generalized improvement.
+No fresh campaign or native qualification started after failed preservation.
+
+2754 read-only Fusion callback verifies idle SelectCommand, no pending command or
+worker, unchanged2705diagnostic/2703hidden native comparison. No live numerical
+reload or new geometry. Latest IDE~4.10GiB/~111%CPU; anchored post-restart memory
+signals have gc_overloadedFALSE (latest16:09:53), no new UI warning established.
+Goal service still BLOCKED from2742 despite recovered SDK; work incomplete.
+
+2026-11-13 — checkpoint2775, current cold solve and native qualification
+
+Retained2761 prevents premature straight-only mating polish while an angular
+owner still has an unspent correction and its actual fixed-fold orientation does
+not meet the existing strict predicate. Exhausted/stalled final-proof opportunity,
+physical tolerances and all original work caps remain unchanged.232 focused tests
+passed,including6new scale/angle dispatch controls.2762selected13 preserved12required
+passes/1priorunresolved. Large joint_contact IDE15s unavailable,testclear.
+
+Retained initial competing-contact discovery uses existingHardwareContacts32screen
+before first hardware-driven rewrite. Only an actual inverse-verified crossing
+starts material correction while the sequence retains actual current hardware.
+Miss/unknown retains ordinary refinement. Unbounded2768initialentry was declined
+at2769:10accepted/1requiredregression/1priorunresolved/1unattempted;24Newton stranded
+without new events.2771bounds the initial trial to1originalupdate/6Newton, retains
+the closed incumbent until complete acceptance and charges every failed step,
+comparison and timer. AWAITING_REFINEMENT prohibits renewed correction on the
+unchanged source; a newly constructed local module permits ordinary correction.
+No enlarged4update/24Newton/8root/.35CPU2wall/2048pair or hardware allocation.
+The optional trial is not a second uncharged budget or an unchanged retry.
+
+199current affectedtests pass;51unaffected stalled/cap-derivative passes retained,
+250distinct covered.13newtests overall:6angular/5initialevidence/2boundedtopology.
+Ruff/format pass,small changed modules/tests IDEclear; adaptive_event_recovery and
+joint_contact15s IDE timeouts unavailable.2772selected13:12requiredpasses and1prior
+unresolved,10.767197solverCPU;all13attempted. Positive mechanism transfer is on
+examined known cases,not fresh generalization.2773ONEcold known2702case002 passes:
+.522460totalCPU/.522591wall,.048262recoveryCPU,1update3Newton0roots0rewrites,
+232recoverypairs.68.85444688165819mm/4folds/9pieces;cap1.9594967758e-13mm,
+materialmetric4.44089e-16. Proposed60.27448mm shortening failed hardware and was
+not selected. The accepted compact raw route is the native/inspection input.
+
+2774ONE native attempt/built/namedfidelity/boundarypass,0warnings,maxerror
+7.4880848067e-10mm. Nativeconstruction1.909201s,audit2.322174s,driver6.811s.
+Complete solverCPU<=matchednativeconstruction goal met.70retained100ms FusionRSS
+samples peak601696KiB;continuous in-kernel peak unmeasured. Exact native compiled
+bodies verified in read-only preflight; known pre2585 cached end-pose implementation
+retains original surface arithmetic. No numerical module reload.1024conditioning
+and inverse before persistence retained. No full physical/continuous mechanical
+certification beyond named measurements. Original2702failure unchanged;0freshcredit.
+
+2775accepted-route read-only capture and owned display replacement complete.
+Four CAD exports(top/front/side/iso) visually reviewed; no new solve/probe/build.
+Native._qualification_2774 retainsonehiddenbody2profiles. Exact old2703native and
+2705diagnostic5sketches/palette retired only after saved receipts/ownership checks.
+Current inspector component/v4BAAEARZULAAAAAAAAAAAA,palette487214372080,fingerprint
+5b091bc12c1c959e0b601fe0ab3e6ab5f97bce4b57df4f9b12c37590504450a0;
+idle verified in2775/final-ownership.json. Source345exact2771/verified.json.
+PyCharmPID73055 latest~4.03GiB/~100%CPU,SDKresponsive;GC-overload16:43..16:44thenfalse
+16:45,no newer anchoredsignals found;UIquestionpending. Goal now ACTIVE,incomplete.
+
+Earlier this turn:2755cap-disturbance and2756margin-ranking hypotheses rejected;
+2756guidance_gaps_mm output actually contains normalized gaps (multiply byscale).
+No ranking-derived physical claim. Unconditionalearly2758/2763 policies declined
+2759(0pass1fail12unattempted)/2764(3pass1fail9unattempted),all failures retained.
+2766found competing original self-contact on3retainedstates;2767material-first
+correction variants accepted3/3,0cold/native/freshcredit. Those diagnostics explain
+the retained evidence-driven entry; they are not independent new layouts.
+
+2026-11-13 — checkpoint2778, fresh numerical and native evidence
+
+2776reserved20new uniqueN1..10population layouts underseed3415276634,excluding3866
+prior hashes;source345exact2771unchanged.20attempted/20numericallyaccepted,
+0failed/0unattempted/0retries. Numerical aggregate finalizedONCE in FreshRegistry,
+fresh-numeric-9c361f96abf846debd47452edfcbe87f.2777qualifies SAME20 configurations:
+20nativeattempted/built/namedfidelity/boundarypasses,0warnings,maxerror
+2.7886762515e-9mm. Companion:native aggregate finalizedONCE,0additionaluniquelayouts.
+ObservedN1x3,N2x2,N3x1,N4x5,N5x4,N6x1,N7x2,N9x2;N8/N10werenotdrawn.
+Full physical/continuous mechanical audit beyond named measurements unmeasured.
+This finite firstfailure-capped20sample is descriptive,not a newfixed100failure-rate
+estimate or evidence of universal robustness. Original historical statistics intact.
+
+SolverCPUtotal10.567172s,median.3945305,max1.590120. Nativeconstructiontotal
+21.517753s,median.891496813,max2.473811291;audits23.570382543s,driver77.873s.
+Timing-goal missescase2(1.091693CPU>.851203native)andcase16(1.350967>.731514),
+not native failures.774retained100ms FusionRSS samples peak701616KiB(~685MiB),
+no sample errors/resource stops;continuous in-kernel peak unmeasured.
+
+Exposure audit2776/mechanism-exposure.json:onefreshcase15N9 used initial competing
+trial,which remainedunresolvedafter6Newton. Reserved eventrefinement then built
+new localgeometry and completed withinoriginalbudget.19casesdidnotenterinitial
+trial. This tests the fallback ownership/accounting path on unseen geometry;no
+causal claim that the old solver would fail or earlytrial increasedfreshpassrate.
+No counterfactual replay or tuned-case fresh credit was used.
+
+Current diagnostic remains shown2773knowncase002repair(2775palette/5sketches).
+It was nativelyqualified2774;that body was retired during freshnativebatch. Current
+native._qualification_2777 holdsONEhiddenbody/twoprofiles fromfreshcase020, a
+DIFFERENTlayout than shown diagnostic.2778/final-state.json verifies exact tokens,
+revision,hiddenpositivebody,onepalette/4paintedviews and idleSelectCommand. All old
+2774bodies and precedingfreshbodies retired only after unchanged passing receipts.
+2775layout ack:994x783CSS,4painted902x520backingcanvases,0surface refreshes/error.
+
+Latest IDEPID73055 responsiveSDK,~5.15GiBRSS/~263%CPU after earlier3.6GiB low.
+17:38..17:39new actualLowMemoryWatcher signals are gc_overloadedFALSE;no new
+notifier/overloaded record. UI-warning question remainspending. Logaudit2778.
+All workers and kernel callbacks terminal;no automatic pause/blocked/complete.
+Next bounded cohort needs new seed/unique reservations and resource review.
+
+2026-11-13 — checkpoint2783, second fresh cohort stopped and representation evidence
+
+Source345 remains exact2771; no production or solver edit since qualification.
+2779 fresh seed4121908436/3886priorhash exclusions reserved20unique layouts:
+4numericalpasses then eligiblecase005 unresolved;15unattempted retired. Aggregate
+finalizedONCE asfresh-numeric-cfe53a6310ab42758edabd1f3c910e6f.2780 native companion
+qualifies SAMEfouracceptedprefix:4attempts/builds/namedfidelity/boundarypasses,
+0warnings,maxerror1.0530252836e-9mm;fullphysicalaudit unmeasured. Timinggoal miss
+case003(.431713CPU>.429767666native);constructiontotal4.537728s,audits6.521648s,
+driver17.945s.179retained100msFusionRSS samplespeak665008KiB. Original numerical
+failure receives0nativeattempts. Keep2776/2779cohorts separate,not a pooled fixed
+failure-rate estimate;no tuned replay or oldfailure erased.
+
+2781verified currentcase005N4/D.75/zones8,2eligible,exacttargets/novelty/nonadjacency.
+Original.482563CPU/.327199recovery,4updates12Newton8roots2rewrites372pairs.
+2782closedstage68540.2527319428mm/cap4.2964e-14mm is a distinct retained ancestor;
+actualfinalstage71655.0847507614mm/cap3.0350470563mm remains failed. Closedsource
+hardwareclear128cells butstrictselfpenetration96pairs:BEFOREfold5(piece9)crosses
+separate outgoingflat(piece11) afteradjacentfold6. FourCADexports reviewed.
+
+2783representation.py performs no motion orsolve:absorb outgoingstraight into
+fold6AFTER lead,retaining the exact material map andlength;1005samplepositions
+maxdifference2.6645e-15mm. Existingpaired_return_fold changesNone->entryordinal5;
+dominantturn stays6. A representation dependence is evidenced,not a repairpass.
+First require independent analytic scale/rigid/mirror/split/nonpair controls.
+ConditionalONEcached correction in2783plan remainsNOTLAUNCHED:1remainingupdate/
+6Newton/.16CPU1wall/1676pairs;precharge entireoriginalhardware460cells/.023833CPU/
+.023834041wall;originalPIECE_AXES callbacks/allphysical gates,nofallback/retry.
+No new spatial motionprobeallocated/consumed;0fresh/nativecredit.
+
+Current2782palette485778029072/component/v4BAAEAI7ILAAAAAAAAAAAA owns5sketches,
+0bodies;fingerprint799d2a4901304399852a459ee70d4254312e58535c07589e4c0fc659a3dbf679.
+Currentnative._qualification_2780 holdsONEhiddenbody/twoprofiles from passing
+case004,DIFFERENTlayout than failureview. Exactidle/ownership2782/final-ownership;
+priornativeowners2777/2774/2703empty. Allworkers/callbacksterminal,no reload.
+IDE73055last6.11GiBRSS/~99%CPU;SDKresponsive. Newactual17:41..17:42GCtrue/notifier
+score3thenfalse17:42:08;UIwarning replypending. Recheckbefore another solve.
+199current+51unaffected focusedtests retained,250distinct;two largeIDEinspections
+unavailable15stimeouts. GoalACTIVE/incomplete;no completion/pause/blocked claim.
+
+2026-11-13 — checkpoint2784, classification evidence and two declined corrections
+
+2783analytical classifier/map checks pass48 independent scale/orientation/sign/
+flat-split families. Synthetic coordinates are NOT penetration or feasibility
+proof. Internal straight travel can also be represented inside fold leads;
+primitive adjacency must not be treated as invariant material topology.
+ONE2783cached correction selected the derived entryfold5:unresolved6Newton/
+.128981CPU/145pairs;4newmaterialconstraints and3hardwareconstraints. Actualfinal
+proposal49.6942147558mm/cap.5134513015mm,unchanged closedancestor returned.
+No classifier implementation retained or repairpass claimed.
+
+Separate2784artifact-local interval-only counterfactual (7vs22coordinates) also
+unresolved6Newton/.038672CPU/192pairs.0additionalmaterial/hardwareconstraints
+observed but6unresolvedhardware measurements,NO clearance proof. Actualfinal
+proposal37.9342606361mm/cap1.0547469322mm,unchanged closedancestor returned.
+This was a separately planned known-state diagnostic,not a chained retry or
+expanded original allowance. Both used1update/6Newton/.16CPU1wall/1676pairs and
+precharged entireoriginalhardware460cells/.023833CPU/.023834041wall. Journals
+flushed before reporting;0coldsolves/nativeattempts/freshcredit. Source345exact2771.
+
+Next hypothesis saved2784/next-hypothesis.json: algebraic orientation-preserving
+initialization for reflected interval, checked on independent families before
+any further geometry. IncidentJoints currently flips only one angle; observed
+.2rad angularstep saturation and residualframeerror motivate investigation,
+not a proof of infeasibility or reason to enlarge sixNewton/trust/allocation.
+No further motion allocated. Current2782diagnostic and2780nativecomparison
+unchanged,idle;allworkers terminal. SDKresponsive,IDE73055down~4.13GiBRSS/53.5%CPU;
+latestactualmemoryeventfalse17:42:08,no newer anchoredsignals. Fusion139664KiBRSS.
+No solver/productioncode change,newQA claim,commit,subagent orcompletion.
+GoalACTIVE/incomplete; original2779eligiblecase005failure remains.
+
+2026-11-13 — checkpoint2793, exact paired-factor branch and allocation evidence
+
+2785existingrotation_choices verified48analyticalfamilies andretainedpair5/6:
+alternateBOTHsignschange,angles1.100994705/1.009998410,banks-.499534138/+.499534138,
+frameerror3.2724e-16;positiondelta4.31292686mm unallocated. A singleangleflip
+misses this exact orientation branch. These aremathcontrols,notphysicalcoverage.
+2786ONElocal3rayequalitysolve requiresnegativeinnerstraight-6.721739mm;declined
+.000768CPU. This excludes onlythatfixedlocalcone,notgloballayoutfeasibility.
+2787APIcontracterrorbeforeprojection preserved;2788separatereplacementwithreal
+nativefloors closes35.6567046644mm/cap5.6871e-15mm in.007334CPU,buthardwareblocked
+startpiece4/13cells;contactnotattempted.2791independentsharedspatialcapture then
+provesstrictselfpenetration97pairs(pieces2/4)and samehardwareblock. NoFusiondisplay
+replacement:current2782viewremainsoriginalclosedancestor.0solves/probes/native.
+2789evidence-selectorerrorbeforeprojectionpreserved:hardwarewas cachedfrom182,
+not reemitted atsequenceentry.2790replacementmatchesexactsource230route/report:
+ONEinitial4foldLPwith3hardwaremembers+3protections/nativefloors remainsaffine
+unresolved in.005349CPU. No candidate orphysicalproof completed there.
+2792minimum-changeLPdeclinesnegative4.3754e-16mm onoriginalabsentslot;unchanged
+failure retained.2793constructsARCHIVED2792proposal through existingsteps.advance
+underseparateplan,0newprojection/root/Newton;onlyabsentcoordinatechangesbythat
+amount,existingpositivematerialkept. Closed39.2803520679mm/cap5.6173e-15mm,
+material5.6839e-16,refinedhardwareCLEAR42cells(prechargedtotal502). Fullselfcontact
+stillFAILSstrictpenetration281pairs(pieces3/5),earlierreturn. .043243CPU. No repair
+pass/nativebuild/promotion. Rootledgerintegrationunverified;original8rootswere
+alreadyexhausted at7foldsource. Never claimthese asadditionalunchargedsolverroots.
+AllvariantsareONEknownconfiguration atdifferentfrozenstages,0coldsolves/native/
+freshcredit;original2779failure andallharnesserrors unchanged. Source345exact2771.
+
+Next2793/next-hypothesis.json: derive/test one generalized witnessedpairedbranch
+sequence/action+sharedledger before anynextgeometry. Strictcurrentnegativeevidence
+choosescanonicaltwo-bendbracket;uniqueexactalternatebranch,closeststraightmotion,
+retainedconstraints/provenance. Neverflipback/alreadyrefactoredpairlookup. Debit
+allgeneratedroots includingdeclines inside4updates8roots/.35CPU2wall2048pairs;
+hardwareoriginal.1CPU/.25wall1024cells. No extra roots afterexhaustion,pooledoldwork
+oroneoffspecimenvariant. Wholeprototype plan needed,NOTIMPLEMENTED/NOTLAUNCHED.
+
+20minreview remainswithininterval: SDKresponsive,IDE73055latest5214512KiB(~4.97GiB)
+104.9%CPU,Fusion127344KiB. Lastanchoredwatcher/notifier17:42:08GCfalse,nonewactual
+signals;2791filterexcludes tool/conversationechoes. UIstateunconfirmed. Workers
+terminal;current2782diag/2780nativecomparisonunchanged. No source/productioncode
+edit,newunit/IDEverificationclaim,commit/subagent. GoalACTIVE/incomplete.
+
+2026-11-13 — checkpoint2795, generalized paired-return prototype and first whole run
+
+Newexperiments/experiment_ribbon_paired_return has focusedledger,factors,allocation,
+sequence modules andNOTES,outsideselectedsolver/production. Selected345sources
+stillEXACT2771;combined350prototypepolicy pinnedseparately2794/2795. No selected
+lockedit,promotion,commitorsubagent. New29focusedtests,Ruff/format andallnewfile
+IDEinspections PASS/clear. A partialtest-filetimeoutwasfollowedbycomplete20sIDE
+inspection;initialimportpatchweak/errorsfixedwithestablishedvars(monkeypatch)
+idiom. Completecode/testdiffreview. Prior250focusedchecks unaffected;279distinct
+covered. Oldtwo large selectedIDEtimeouts remainunavailable,nounnecessaryrepeat.
+
+Canonicalbracketrevalidatesstrictinversepoints andfollows2completeorderedfolds,
+notprimitiveadjacency. UniqueENTRY-reversingalgebraicrootfixesfullendframe;
+independenttestsprovecompanionneednotalwayschangesign. Both-signreversalwas
+oneexaminedspecimen,noteligibility. Two rootsdebitedBEFOREfactorization;actual
+returnedrootsreportedseparately,reservationsneverrefunded. Actions andfresh
+inversepairadmissionscharged;actualproofsretainsharedpair/clocks. Noflipback,
+rootgridorimplicitnewoptimizer. Material/hardwareconstraintsretainedwithout
+dropping;13rowcapacitydeclines. Nativefloorskeepoccupiedmaterial. Closedsource
+terminaltouchallowancesretained/rescaledwhenreboundtoopenfactorization;theopen
+workinggeometrydoesnotinventmatching-sourcecertificates. Failedcandidate,
+acceptedgeometryandactualevidenceposeareexplicitlydistinct.
+
+ONEwhole2795prototype onoriginal2779case005closedstage685:UNRESOLVEDsecond
+allocationafter2actions/4rootreservationsand4returnedroots/298comparisons,
+.054338CPU/.054334708wall,0Newton. Twoactualpairs1/2and5/6 selected;2material
+constraintsretained,0hardwarefeatures. Firstclosedcandidate37.5625228706mm/
+cap5.6173e-15mm;refinedhardwareCLEAR42cells/.002531CPU. Fullselfcontact FAILSstrict
+penetration296pairs(pieces3/5),then nextpairedrootallocationdeclines. Thisisnot
+geometryacceptance. Workerpeak29409280bytes(~28MiB),.054855CPU/.055168167wall.
+Standalone4action8root/.35CPU2wall2048pair pool,neveraddedtoprior2779spentwork
+orclaimed integratedbudgetcompliance.0coldsolves/nativeattempts/freshcredit.
+Original2779failure andfreshstatistics remainunchanged. Alljournal/result/last
+candidate/evidencepose/sourcechecks retained. No furtherrununder2795plan.
+
+Next2795/review.json: auditlimitingsecondallocationconstraints read-onlybefore
+policychange,notblindloosening/retry/budgetexpansion. Newmechanismimplemented
+andcontract-tested,notqualifiedasgeneralizedrepair. CurrentFusion2782view and
+2780hiddennativecomparisonunchanged;no geometrywrites. IDE73055~4.90GiBRSS/
+112.5%CPU,SDKresponsive;lastactualanchoredmemoryevent18:30:25GCfalse(newnon-overloadedsignal);nonewGCtrue/notifier since17:42;
+UIstateunconfirmed(2795/memory-log). Fusion84768KiB. Workers/callbacks
+terminal. GoalACTIVE/incomplete; originalscopepreserved.
+
+2026-11-13 — checkpoint2800, frozen-cone proof and continuous frame coordinate
+
+2796read-onlycapture reconstructs actual2795secondallocation:11physicalrows,
+cap/nullspacepreparationvalid,notrowcapacity/constantcontradiction. Nooptimizer
+ornewgeometry.2797frozenmatrixtraceoforiginalprojector stops atupdate4 (not16cap):
+pendingrowdependentnorm2~1.646e-26,allnegativeactivecombinationcoefficients,
+noadmissibledualrelease.2798exactFraction separation ofall8nonnegativestraight
+rays givesunitnormal(-.0503246929,-.0814270636,.9954079860);requiredprojection
+-.0063118785283 despite1e-8XYZallowance,~.273mm missingprojection atscale43.2528mm.
+Thisis a frozenaffinecone exclusion,NOTglobalphysical/nonlinear infeasibility.
+Material/hardwareconstraints were nottheactiveobstruction. Noiterationincrease.
+
+The balancedfactor family fixesone continuousbank freedom.2799derivationeliminates
+secondquaternion.z via tan(theta1/2)=z/(sin(bank1)*y+cos(bank1)*x); remainingfactor
+followsalgebraically.144independentorientationchecks,max5.1179e-16;failed-stage
+bank-.85926104127 and±1e-5 matchstablebranch. No positionalfit/physicalcoverage.
+Added FrameFamily asreusableexperimentalcoordinate,notyetwiredtomotion.22newtests
+PASS,includingunequalradii/banks,retainedextraleads,scale/sign andsingularinvalid
+inputdeclines. Ruff/format andnewfamily/tests/sharedAPIIDEclear. Prior29paired
+checks retained;51prototypecontracts total. Old250selectedchecks unchanged;
+no fullsuite/native/freshqualification. Source/cancel/geometry outcomes unchanged.
+
+Public orientationaliases relative_rotation,remaining_rotation,material_factors
+share existing implementations,avoidprotectedimports. ASTreview2800 provesall
+previousbodies/otherAST unchanged;only3aliasassignmentsadded. Canonical source
+lockrefrozen/verified:345selectedfiles,orientationhashonlydifffrom2771;combined
+351with6prototypefiles. Old2795350-source andfreshpins immutable. No live reload.
+AninitialnewfileSDKlookupmissedIDEindexing;oneformatterranwithpreviousknownSDK,
+thenallsubsequentPythoncalls usedsuccessfulknownmoduleSDKlookup. A Nodeprosewrite
+SyntaxError causednowrites andwascorrected;2800/process-issues recordsboth. No
+geometry orfailedoutcome overwritten.
+
+Next2800/review: derive/test typedcontinuouspair-coordinate motion retainingexact
+orientation;position/native/material/hardwareconstraints andoriginalsharedNewton/
+update/root/time/pairgates. No manualbankvariants,forcednewbends orlargerbudget.
+Only afterQA freezeONEnewwholeprototype.2795stillUNRESOLVED,FrameFamilynotintegrated.
+Thisturn0coldsolver/native/freshattempts;current2782Fusionview/2780comparison
+unchanged. IDE73055latest~6.65GiBRSS/31.9%CPU,SDKresponsive;actual18:54..18:57GCfalse,
+lastGCtrue/notifier17:42. Fusion85312KiB,workers/callbacksterminal.20minreview
+completed;no newheavyexperiment launched. GoalACTIVE/incomplete.
+
+2026-11-13 — checkpoint2802, orientation-eliminated motion connected
+
+FamilyJoints and boundedcontinuation nowshare completeconstraintpreparation with
+fixedallocation. Onlystraightcoordinates receivenativefloors;source-target/provenance
+guards retained. Independentbank derivescompanionangles/bank,keepsotherbends fixed,
+andverifiesdependentangularincrements<=original.2rad. Fullactualtargetorientation
+precondition andorderedmatingcapcompletion remainstrict. No rotationalNewtonnoise.
+Oldnativefloor/completeflat/member/terminalsourcebounds retained;capacitystill13.
+Ledgerchargesglobal/per-actionNewtons,includingfailedprojection/trial. Onefallback
+action<=6Newton/4trials,global4updates8roots24Newton/.35CPU2wall2048pairs unchanged.
+
+41affectedfocusedtests PASS(29paired+12motion),22priorframechecks retained;63total.
+Ruff/format andallchangedIDEinspections clear;completecode/diffreview. Selected345
+sourceunchanged2800;8prototypefiles353combinedpin2801. Noproductionintegration.
+ONEwhole2802known-stageprototypeUNRESOLVED3actions/4roots/298pairs/3Newton/
+.066584CPU/.066583708wall. Firstclosed37.5625mmcandidatehardwareCLEAR42cells but
+strictselfpenetration296pairs. FamilythenacceptedtwoNewtonupdates;thirdLINEAR
+projectiondeclined,notdescenttrialexhaustion/iterationcap. FinalOPENproposal
+44.1566208714mm/cap5.1147463422mm retainedseparately,not accepted.0coldsolver/
+native/freshcredit. Original2779failure unchanged;no originalglobalbudgetpassclaim.
+
+Workerpost-reportassertionfailed becausewrapperstillcomparedtohistoric2771pin.
+Bodyresult/journalwerealreadystored. Independentaftercheck verifiesALL353current
+planhashes,sourcepacket andselectedlock.2802/postcheck-review retainsbothoutcomes;
+NO geometryretry. Avoidfuturehardcodedhistoricpostchecks,usecurrentplanreceipt.
+Nextread-onlythirdmatrixaudit andcoupledowned-pairfreedom analysis beforepolicy
+change. No moregeometryunder2802plan orblindbankvariants/budgetincreases.
+
+Memorycheckpoint:IDE73055latest7316048KiB(~6.98GiB)/112.7%CPU;SDKresponsive,NEW
+19:25GCtrue/notifierscore1then19:25:53false. UIwarningquestionpending,not assumed
+absent. Fusion107056KiB;no newFusiongeometry/display. Current2782diag/2780native
+comparison unchanged;workers/callbacksterminal. Restart-safecheckpointstored.
+GoalACTIVE/incomplete;no automaticpause/blocked/complete.
+
+Checkpoint2817 continuation review: paired-return remains a standalone prototype;
+selected345-source policy is unchanged2800. Coupled continuous orientation charts,
+hard native minimum coordinates, remaining original action charging, measured
+Taylor-error trial sizing and nonduplicated native rows have focused contracts,
+but have not repaired valid2779case005. Latest known-state attempt unresolved:
+12Newton4actions4roots298pairs/.121877CPU, no cold/native/fresh credit. Full354-file
+pre/postsource guards pass.63affectedtests+22unchangedframecontracts retained;
+changedIDE/Ruff/format clear. All workers terminal, no CAD writes this turn.
+See paired-return/NOTES.md and summary.txt for current diagnostic ownership and
+the next projection-policy audit; archived failures/statistics remain unchanged.
+
+2823 standalone paired-return accepts the retained closed2779case005stage685:
+3actions4roots4Newton451pairs/.110924CPU,45.09347154373134mm, cap6.1037e-13mm.
+Numericalmaterial/nativefloor/refinedhardware/fullselfcontact PASS. The decisive
+change is allowing existing signed joints to compensate across internal pair
+frames; only external mating frames remain fixed. Positive sliver extension and
+reclosure reuse native_slots.extensions and are charged before motion.71affected
+tests+22retainedframechecks;IDE/Ruff/format clear;355sourcepin2822.
+ONEknownconfiguration only,0cold/native/freshcredit. Selected345unchanged2800;
+all earlier failed outcomes remain.2824 identifies an earlier actual supported
+pair after first adaptive rewrite; original laterstage685alreadyspent8roots, so
+integration cannot append a fresh sequence there. Retain coexisting hardware and
+all original parent remainingWork/Gate/root accounting before cold qualification.
+
+2835checkpoint: integration now shares residual parentWork/Gate/roots and retains
+coexistinghardware;all childcharges survive failure. Three separately pinned cold
+known2779case005attempts2826/2828/2835 remain UNRESOLVED, no native/fresh credit.
+Latest.404012solverCPU/.142444recoveryCPU;4actions10Newton3roots272pairs. Full
+tied-support rows correct a demonstrated wrong scalar derivative sign and permit
+3updates, fourth stillfailsdescent. No physical/tolerance/budget weakening.
+117focused+73additionaltestsPASS,13legacyZeroBanks assertionFAIL,16retiredSKIP;
+2833failure-specific instrumentation establishes13failbeforechangedhelper. Changed
+IDE/Ruff/format clear;356-sourcepin2834. Currenteight-foldstate differs from old
+2782seven-foldCADscene. Next spatialinspection and closedhandoff/deviation audit;
+see summary.txt and paired-return/NOTES.md for exact scope and source receipts.
+
+2844 checkpoint: closedpairedhandoff now preserves parentrefinement(2840source356,
+206affectedtests/IDE/Ruff/format clear), but2841coldresult stillfailsendhardware.
+2842latehardware correction yields90.94mm and selfcontact; rejected. Separate
+EARLY4fold diagnostic2844 accepts36.8220mm with material/nativefloor/hardware/
+fullselfcontact checks:2actions2roots8Newton/.143923CPU. It uses a diagnostic-only
+same-action root/hardware correction adapter and is NOT a selectedcoldpass.
+Next integrate initialpairedadmission carefully with originalfallback reserve;
+cold/preservation/native/fresh qualification remains. Originaloutcomesimmutable.
+Fusionownershiprevalidated2839:current2837eightfoldview5sketches0bodies,all4painted
+canvases/noerror,old2782view and obsolete2780nativebody/profiles retired exactly.
+
+2851 supersedes the2844 adapter-only status: same-action root/hardware correction
+is maintained and fingerprints all356selected sources. Initial fixed correction
+keeps its original1action6Newton first; only failure admits a supported paired
+trial of atmost2remainingactions12Newton2roots. After maximal combined spending,
+original4/24/8 pools leave1action6Newton6roots for fallback. After insertion,
+owned-module fixed correction also precedes paired root changes; paired recovery
+can precede another rewrite. Tests exercise both priorities and failed-charge
+retention.211affectedtests,Ruff/format,bothchangedIDEpass.
+
+Cold known2779case005 accepts on2851 in.644294CPU/.657252wall; recovery is compact
+36.8220115712mm/4folds with both hardware constraints and fullcontact. Knowncase,
+0native/freshcredit. Preservation plan14knowncases:12evaluated,10accepted,
+2unresolved(includes old affine diagnostic),2unattempted. Earlier2847initial and
+2850owned-module scheduling regressions are retained and resolved by priorities.
+2851stops on prior-case9-2420 CPU exhaustion during finalcontact: finalNewton
+values/residuals EXACTLY match passing2772, no pairedentry/supportbundles.2852
+separate source-verification-timing diagnostic accepts under unchanged budgets
+in.973321CPU; verify costs~.0116CPU/call. It does not erase the failure or prove
+reliable runtime margin. Native/fresh gates remain unmet. Next work is proof
+cost/runtime sensitivity, not target changes, budget expansion or pass-only retries.
+
+
+
+
+
+
+Checkpoint2908 — SAME359-source pin2898/verified.json (also2908/verified.json).
+Goal ACTIVE/incomplete. This turn made PROGRESS:20newunique layouts authored/
+tested, aggregate finalized once, new eligible failure isolated and directional
+model diagnosis measured. No paused/completed/blocked status was requested/set.
+
+FRESH COHORT2904
+NEW registryseed664759494, identifierfresh-numeric-d87cd962a63c45b88089568ea576e685.
+3906prior fingerprints excluded;20unique layouts reserved BEFORE outcomes. Registry
+now3926layout hashes.20planned/20evaluated/19numericalpasses/1UNRESOLVED(case020)/
+0unattempted,0retries/source changes.0nativeattempts/built/audited; nativefailure
+rate UNMEASURED. All source/input guards pass. Family drawN9x6,N4x3,N10x2,N2x4,
+N6x3,N3x1,N1x1;N5/7/8notdrawn. D.75, rolls[-90,90], allfaces/zones, nonadjacent.
+Finalized ONCE via2904finalize.py/summary.json/finalized.json and registryrecord;
+DO NOT rerun finalize. All reservedinputs remainused. NumericalCPUmedian.3804175s,
+min.218376/max1.320124/total9.440119s, cohort149.318s includesorchestration/idle.
+Do NOT pool cappedfirstfailure cohorts into fixed100 failure-rate denominator.
+Prior2776 20/20 and2779 4/5+15unattempted remain separate; old86/100scope differs.
+mechanism-usage.json: only failedcase020 invokes pairedreturn/newdiscovery;
+none of19positivecases exercise pairedtermination. Thus19passes show preserved
+unseen breadth, NOT demonstrated transfer of that specific repair to a new pass.
+
+CURRENT ELIGIBLE FAILURE
+2904case020N1D.75;zones5(-1,0,1) and9(0,-1,-1), faces4/1, rolls355/307degree.
+Current nonadjacent input-policy passes; do not discard finite solver exhaustion
+as invalid input. Original10.800639mm fourfold source differs from rejectedpaired
+8.491921mm/9piece OPENproposal and finalblocked18.262814mm/eightfold parentfallback.
+Solver.324261CPU/.329324wall; recovery.203472CPU, parent4actions14Newton5roots195pairs.
+Initialfixed1action6Newtonfails; childpaired2actions2roots8Newton1pair/.100900CPU,
+2features10rows. NewENDwitness atpairedNewton1. Step8all4nonlineartrialfailure;
+no accepted childproposal, no fullchildselfcontact or nativeclaim. Originalresult
+andallhistoricaloutcomes unchanged; this case is now KNOWN for future diagnostics,
+never freshcredit again. Keep19acceptedroutes pinned for pending nativecoverage.
+
+BOUNDED DIAGNOSTICS (no maintainedsource change)
+2905setup fails before replay/Jacobian/projector: omittedWitness.box_coordinates;
+0projections,2diagnostic roots rederived,error.json preserved. Corrected2906newplan
+reconstructs originalfailedNewton8: ONEprojector/4originaltrials +3small directional
+residualevaluations,0wholecoldsolves/native/Fusionwrites/freshcredit,.028242CPU.
+All4trials admissible and improve cap merit, but ONLYrow14loses a previously
+satisfied inequality. Row14 HardwareRow END Region(fold2,straightFALSE), i.e.
+THIRD orderedfold, box-axisfamily0/Side.AFTER. Not a straight/mating-boundary row.
+Currentconservative slack.00003748499mm; fulltrialintrudes bound.03815180348mm.
+Small-direction errors shrink, so no established wronginfinitesimal gradient.
+Interiorhalf-slack reserve already active since3, endpoint-only trustbox.113464
+persists because endpoint model agrees. SourceBoundaryrow9 is excluded correctly.
+2907ONEseparateprojection prototype derives angular-onlybox from backward
+linearization error overlastacceptedstep, using originalquarter allowance and
+1e-14noise floor; keeps originalstraight-travel box. Row14sets.0016254461radian
+angularbound, all4trialsnow strictdescent with no lost hardrows; fulltrialmaxcap
+.0394451->.0351434, frame.0287200->.0249600 NORMALIZED. .029035CPU. This is ONE
+accepted diagnostic step, NOT closedcaps/fullproof or a solvedlayout. No maintained
+angularbox policy or whole-known-case test yet. No arbitrary seed/ordinal values
+encoded in prototype; all bounds derived from actual currentgeometry data.
+
+MEMORY / PENDING QUESTION
+PyCharmPID73055 freshGCoverload/notifier score reached5/5 and6/5 around01:04/04:50
+andagain01:28/01:30localNov14. UIwarning visibility NOTknown; asyncquestion asks
+'Is a low-memory warning visible now?' optionsNo warningvisible /Yes—pauseatthis
+checkpoint. NOANSWER received; do not treat preselection/time as approval. User's
+priorNoWarningVisible predates these new signals. Numericalworkers were isolated,
+SDK responsive/recentGC samplesfalse; completed underoriginal4GiBworker/3.8launch
+andWITHOUTFusiongeometry. Nativeconstruction explicitly HELD pending memorycheck;
+0freshnativeattempts. LatestFusion133536KiB/IDE5302496KiB. Do not infer a UIwarning
+fromRSS/logalone or forcequit/reconfigure apps. Ifuser explicitly choosespause,
+callupdate_goal(paused),reportstatusandstopgoalwork. GoalcurrentlyACTIVE.
+All SDKworkers/networkcallbacks terminal. No live Fusion writes this turn.
+Lastverified2903 Fusionview/nativeownership remain authoritative ONLYatthatreadback;
+revalidate before futurewrite/cleanup. One2902accepted75.355mmguide5sketches/onepalette
+plus2901qualifiedcase0021hiddenbody2profiles. Nativeowner_qualification_2901,
+bodyrevisionbb413eb8-b187-477d-ad5d-21420cd85402; currentview/v4BAAEAir8LAAAAAAAAAAAA,
+paletteribbon_spatial_483079404624,fingerprint
+1b74355409d5085953cc332dd35bb1c882ee14a9d38e5e6c69f3e691d80c953f.
+Currentdisplay is NOTnewN1failure. No numerical/builderreload, commit, production
+promotion or standards change. Earlier13legacyassertionfailures retained/outscope;
+prior284QAcontracts/13requiredknownpasses/1oldunresolved/2nativepasses unchanged.
+
+NEXT
+Before sourcechanges, qualify19acceptedfreshroutes natively under NEWboundedplan,
+firstnative/fidelity/boundary/resource/sourcefailurestop, onebody/2profiles atatime,
+retireexactowned current2901case002 onlyafterits existing receipts/idle check and
+freshprefixpreflight. Nativeplan has NOTbeenprepared/started. Pendingmemoryquestion
+holdsconstruction. Numericalaggregate2904alreadycomplete; nativecompanion may be
+recorded separately as identifier+:native, never additionalnewlayoutcredit or an
+overwrite of the numericalregistryrow.
+Independent next mathwork ifmemoryreport pending: prospectively test angular-only
+physical-curvature box across ONEwholeknowncase020 solve with originalbudgets in
+an artifactadapter, keeping maintained359source unchanged until nativecoverage.
+No prototypeworkeradapter exists yet. If useful, implement typed explicit per-
+model physical angularbound, retain endpoint localbox/straight travel and exclude
+actual sourceBoundaryrows, meaningful analytical tests, then coldpreservation and
+newsourcequalification. Do NOT increase Newton/trial/event budgets or callone
+accepted projection generalization. Any later freshcohort usesNEWseed/UNIQUElayouts.

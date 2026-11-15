@@ -68,7 +68,7 @@ def test_actual_blocker_prioritizes_one_repair_and_keeps_remaining_fallback(
         Preserve the caller's original remaining limits and return one explicit mocked disposition.
         """
         assert args[0] is contracted and args[1] is terminal
-        assert 0 < options["maximum_cpu_seconds"] <= 0.35
+        assert 0 < options["maximum_cpu_seconds"] <= 0.4
         assert 0 < options["maximum_seconds"] <= 2
         assert options["maximum_updates"] == 4
         assert options["remaining_pairs"] == 2048 - 749

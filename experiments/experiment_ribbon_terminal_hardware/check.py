@@ -19,6 +19,7 @@ from experiments.experiment_ribbon_fold_route.contact_profile import clip_profil
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Pose
 from experiments.experiment_ribbon_fold_route.mating import matching_frame
 
+from .flat_witness import find as flat_witness
 from .model import Box, Hardware, Terminal
 from .probe_domain import ProbeDomain
 from .sat import BoxProjection, separated_on_piece_axes
@@ -101,6 +102,9 @@ def inspect(
     An explicit source-bound probe domain visits only selected original members
     for negative discovery. Its strict witness retains original piece identity;
     a completed subset without intrusion remains unresolved, never clearance.
+    Negative discovery first spends one cell per selected member on affine flat
+    point proposals across both terminals. Remaining cells retain the original
+    interval traversal; failed proposals are charged and never establish clearance.
     """
     if hardware.targets != route.targets:
         raise ValueError("Hardware and route must retain the same exact targets")
@@ -127,6 +131,32 @@ def inspect(
         if probe_domain is not None
         else hardware.boxes
     )
+    if probe_domain is not None:
+        for terminal, index in probe_domain.pairs:
+            if checkpoint is not None:
+                checkpoint()
+            if checked >= maximum_cells:
+                return Report(
+                    "unresolved", checked, reason="Terminal material-cell budget exhausted"
+                )
+            checked += 1
+            box = next(box for box in boxes if box.terminal is terminal)
+            proposed = flat_witness(
+                route.pieces[index], box, route.targets.lines, route.targets.diameter_mm
+            )
+            if proposed is not None:
+                return Report(
+                    "blocked",
+                    checked,
+                    Witness(
+                        terminal.value,
+                        index,
+                        proposed.material,
+                        proposed.point,
+                        proposed.box_coordinates,
+                    ),
+                    "Strict flat-profile point enters terminal proxy clearance envelope",
+                )
     for box in boxes:
         matching = mating_frame(route, box)
         at_end = box.terminal is Terminal.END

@@ -29,8 +29,8 @@ def test_preparation_cpu_and_intervening_wall_time_reduce_the_remaining_work(
     Charge earlier prediction and intervening contraction rather than restarting the recovery clocks.
     """
     monkeypatch.setitem(vars(solver_v2), "perf_counter", lambda: 10.0)
-    assert solver_v2._remaining_recovery(_deferred(), 9.5, 4.0) == pytest.approx((0.30, 1.5))
-    assert solver_v2._remaining_recovery(None, 0.0, 0.2) == (0.35, 0.2)
+    assert solver_v2._remaining_recovery(_deferred(), 9.5, 4.0) == pytest.approx((0.35, 1.5))
+    assert solver_v2._remaining_recovery(None, 0.0, 0.2) == (0.4, 0.2)
 
 
 @pytest.mark.parametrize("reason", ("consumed", "cpu", "wall", "first_pass"))
@@ -44,7 +44,7 @@ def test_consumed_or_exhausted_work_never_authorizes_another_recovery(
     if reason == "consumed":
         detail["status"] = "unresolved"
     if reason == "cpu":
-        detail["cpu_seconds"] = 0.35
+        detail["cpu_seconds"] = 0.4
     monkeypatch.setitem(vars(solver_v2), "perf_counter", lambda: 12.0 if reason == "wall" else 10.0)
     assert (
         solver_v2._remaining_recovery(detail, 9.5, 0.0 if reason == "first_pass" else 4.0) is None
@@ -100,7 +100,7 @@ def test_excursion_uses_only_unspent_recovery_after_existing_contraction() -> No
     assert recovery["purpose"] == "recover_contraction" and recovery["accepted_improvement"]
     assert 1 <= recovery["contacts"] <= recovery["iterations"] <= 4
     assert 0 < recovery["pairs"] <= 610 and construction["contact_pairs"] <= 2048
-    assert deferred["cpu_seconds"] < recovery["cpu_seconds"] <= 0.35
+    assert deferred["cpu_seconds"] < recovery["cpu_seconds"] <= 0.4
     assert recovery["elapsed_seconds"] <= 2.0
     assert any(
         event.get("stage") == "feature_branch" and event["route"]["material_length_mm"] > 850

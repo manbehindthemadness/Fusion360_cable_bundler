@@ -207,9 +207,9 @@ def _nearest_axis(
     return max(choices, key=lambda item: item[0])[1] if choices else None
 
 
-def _flat_span(
+def _projection_terms(
     piece: PlacedPiece, part: FlatPart, axis: Vector3, placed: FlatRegion
-) -> tuple[float, float]:
+) -> tuple[float, tuple[float, ...], float]:
     """
     Project an exact prepared phase through the unchanged full-profile affine support arithmetic.
 
@@ -221,11 +221,22 @@ def _flat_span(
         raise ValueError("Required flat material region vanished")
     a, b = dot(Vector3(*placed.tangent), axis), dot(Vector3(*placed.width), axis)
     normal = unit(Vector3(*placed.normal))
-    height = part.half_height * abs(dot(normal, axis))
+    height = part.half_height * dot(normal, axis)
     origin = dot(Vector3(*placed.cap_origin), axis)
     if part.phase is FlatPhase.AFTER:
         origin += -piece.geometry.material_length_mm * a
     values = tuple(a * s + b * q for s, q in placed.polygon)
+    return origin, values, height
+
+
+def _flat_span(
+    piece: PlacedPiece, part: FlatPart, axis: Vector3, placed: FlatRegion
+) -> tuple[float, float]:
+    """
+    Retain the original complete-prism extrema and outward profile height arithmetic.
+    """
+    origin, values, signed_height = _projection_terms(piece, part, axis, placed)
+    height = abs(signed_height)
     return origin + min(values) - height, origin + max(values) + height
 
 
@@ -242,6 +253,27 @@ class FlatSeparation:
     pair: tuple[Region, Region]
     parts: tuple[FlatPart, FlatPart]
     axis: Vector3
+
+    def support_values(
+        self, values: tuple[float, ...]
+    ) -> tuple[tuple[float, ...], tuple[float, ...]]:
+        """
+        Project every full-prism vertex in stable polygon and signed-height order.
+
+        Signed height preserves each physical support branch through projection
+        ties. These values enclose the same complete flat regions as gap; they
+        grant no clearance and are not restricted to an occupied witness point.
+        """
+        pieces = self.model.pieces(values)
+        result = []
+        for tag, part in zip(self.pair, self.parts):
+            piece = locate(self.model.original, pieces, tag)
+            placed = self.model.flat_regions(piece, part.phase, part.low_q, part.high_q)
+            origin, polygon, height = _projection_terms(piece, part, self.axis, placed)
+            result.append(
+                tuple(origin + point + sign * height for point in polygon for sign in (-1, 1))
+            )
+        return result[0], result[1]
 
     @classmethod
     def create(

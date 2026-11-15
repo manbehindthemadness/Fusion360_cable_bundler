@@ -39,6 +39,8 @@ def separated_alternatives(
     identity and required positive gap. These bounds guide the next correction,
     never certify the entire route or waive final hardware/contact measurements.
     Caller checkpoints bound all work and propagate cancellation without a result.
+    The own-terminal straight retains its explicit zero mating-boundary goal;
+    it never acquires permission to penetrate or a hardware certificate.
     """
     if not math.isfinite(minimum_gap_mm) or minimum_gap_mm <= 0:
         raise ValueError("Use the existing positive hardware gap")
@@ -49,7 +51,7 @@ def separated_alternatives(
     attempts = 0
     for index, plane in enumerate(planes):
         checkpoint()
-        minimum = minimum_gap_mm / plane.model.scale
+        minimum = (0.0 if plane.mating_straight else minimum_gap_mm) / plane.model.scale
         if plane.gap(values) >= minimum:
             continue
         attempts += 1

@@ -9,8 +9,72 @@ import math
 from experiments.experiment_ribbon_contraction.contract import cap_error
 from experiments.experiment_ribbon_contraction.runner import material_error
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
+from experiments.experiment_ribbon_fold_route.mating import fixed_fold_frames_match
 
 from .feature_plane import SignedJoints
+
+
+def _matching_geometry(
+    route: FoldRoute, model: SignedJoints, *, length_ceiling_mm: float | None
+) -> bool:
+    """
+    Require unchanged targets, ordered model identity and finite permitted length.
+    """
+    if route.targets != model.original.targets or not model.preserves(route):
+        return False
+    length = route.material_length_mm
+    if not math.isfinite(length) or (
+        length_ceiling_mm is not None
+        and (not math.isfinite(length_ceiling_mm) or length > length_ceiling_mm)
+    ):
+        return False
+    return True
+
+
+def _isometric(route: FoldRoute) -> bool:
+    """
+    Retain the original finite material metric and tolerance independently of cap closure.
+    """
+    material = material_error(route)
+    return math.isfinite(material) and material <= 1e-10
+
+
+def preserved_material(
+    route: FoldRoute, model: SignedJoints, *, length_ceiling_mm: float | None
+) -> bool:
+    """
+    Require unchanged model geometry and isometric material without assuming positional closure.
+    """
+    return _matching_geometry(route, model, length_ceiling_mm=length_ceiling_mm) and _isometric(
+        route
+    )
+
+
+def oriented_material_ready(
+    route: FoldRoute,
+    model: SignedJoints,
+    *,
+    length_ceiling_mm: float | None,
+    minimum_straight_mm: float,
+) -> bool:
+    """
+    Admit one positional solve on valid native material with fixed-fold orientation, without assuming closure.
+
+    Straight corrections cannot repair orientation or change targets. No source
+    positional threshold is necessary for their linear equations; final actual
+    cap certification remains mandatory after correction.
+    """
+    return (
+        math.isfinite(minimum_straight_mm)
+        and minimum_straight_mm >= 0
+        and fixed_fold_frames_match(route.pieces, route.targets)
+        and preserved_material(route, model, length_ceiling_mm=length_ceiling_mm)
+        and all(
+            piece.geometry.material_length_mm > minimum_straight_mm
+            for piece in route.pieces
+            if isinstance(piece.geometry, Straight)
+        )
+    )
 
 
 def closed_material(
@@ -23,19 +87,12 @@ def closed_material(
     growth allowance. Nonfinite measurements fail closed. This grants no native
     slot, contact or hardware certificate and performs no geometry correction.
     """
-    if route.targets != model.original.targets or not model.preserves(route):
-        return False
-    length = route.material_length_mm
-    if not math.isfinite(length) or (
-        length_ceiling_mm is not None
-        and (not math.isfinite(length_ceiling_mm) or length > length_ceiling_mm)
-    ):
+    if not _matching_geometry(route, model, length_ceiling_mm=length_ceiling_mm):
         return False
     caps = cap_error(route)
     if not math.isfinite(caps) or caps > 1e-7:
         return False
-    material = material_error(route)
-    return math.isfinite(material) and material <= 1e-10
+    return _isometric(route)
 
 
 def stalled_certificate_ready(

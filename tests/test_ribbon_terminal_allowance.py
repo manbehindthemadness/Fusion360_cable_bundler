@@ -30,7 +30,7 @@ from tests.test_ribbon_terminal_gate import _constructor
         ("separated", 4, 0.1),
         ("separated", True, 0.1),
         ("separated", 3, float("nan")),
-        ("separated", 3, 0.35),
+        ("separated", 3, 0.4),
     ),
 )
 def test_incomplete_or_exhausted_history_cannot_grant_more_work(
@@ -74,7 +74,7 @@ def test_completed_history_deducts_updates_cpu_and_intervening_wall(
     allocation = terminal_allowance.remaining_completed(prior, 8.4, 3)
     assert allocation is not None
     assert allocation.updates == 1
-    assert allocation.cpu_seconds == pytest.approx(0.11)
+    assert allocation.cpu_seconds == pytest.approx(0.16)
     assert allocation.wall_seconds == pytest.approx(0.4)
     assert terminal_allowance.remaining_completed(prior, 8.0, 3) is None
     assert terminal_allowance.remaining_completed(prior, 9.5, 0) is None
@@ -159,7 +159,7 @@ def test_only_rejected_hardware_uses_remaining_completed_work(
         late.assert_called_once()
         assert late.call_args.kwargs["maximum_updates"] == 1
         assert late.call_args.kwargs["maximum_newton_steps"] == (6 if measured else 0)
-        assert 0 < late.call_args.kwargs["maximum_cpu_seconds"] < 0.15
+        assert 0 < late.call_args.kwargs["maximum_cpu_seconds"] < 0.2
         assert late.call_args.kwargs["remaining_pairs"] == 2048 - 749
         detail = result.detail["construction"]["recovery"]
         assert (

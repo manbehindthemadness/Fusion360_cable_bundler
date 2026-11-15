@@ -37,6 +37,7 @@ from .check import Report
 from .gate import Gate
 from .hardware_contact_discovery import HardwareContacts
 from .joint_handoff import JointHandoff
+from .paired_event_handoff import recover as recover_pair
 from .recovery_limits import Work, validate
 
 
@@ -84,6 +85,24 @@ def recover(
     both colliding members. Contained crossings retain fixed correction rather
     than repeatedly rebuilding the same module; a miss retains hardware correction.
     Negative work shares the original pair/CPU pools and supplies no clearance.
+    The same bounded discovery precedes the first hardware-driven rewrite. A
+    strict competing crossing starts correction with both current blockers;
+    a miss or uncertainty preserves the ordinary refinement schedule.
+    The initial fixed trial receives at most one logical update and six Newton steps.
+    Only if that fixed trial fails, a supported exact paired return may use at
+    most two remaining original updates, twelve Newton steps and two roots before
+    extra events. This preserves simpler successful correction. Its root reclosure
+    and hardware correction use their already charged actions; failure keeps
+    every charge and the original incumbent for residual event refinement.
+    Until full acceptance the original closed source remains the incumbent.
+    Failure retains every charge and leaves only residual topology work; ordinary
+    correction becomes eligible again only after new local geometry is constructed.
+    After a rewrite, a supported strict two-fold material return may use one
+    paired-branch sequence before another rewrite. Owned-module fixed correction
+    retains priority over changing its root family. Paired recovery retains
+    coexisting hardware and shares only the parent's genuine remaining roots,
+    actions, Newton steps, comparisons, clocks and hardware gate. Every failed
+    child charge survives, and failure retains the closed incumbent.
     """
     validate(
         remaining_pairs=work.pairs,
@@ -102,6 +121,9 @@ def recover(
     roots = Roots(newton_limit=work.newton_steps)
     correction = Correction.READY
     pending: Action | None = None
+    initial_hardware: Report | None = None
+    current_hardware = evidence if isinstance(evidence, Report) else None
+    paired_spent = False
     current = source
     evidence_source = source
     lineage: tuple[EventId, ...] = tuple((0, i) for i in range(len(source.pieces)))
@@ -142,6 +164,28 @@ def recover(
             wall_seconds=perf_counter() - wall,
         )
 
+    def discover_material(route: FoldRoute, report: Report) -> ContactResult | None:
+        """
+        Charge initial and later negative discovery to the same original comparison and time pools.
+        """
+        nonlocal pairs, contact_seconds
+        allowance = work.pairs - pairs
+        if allowance <= 0:
+            return None
+        started = perf_counter()
+        try:
+            negative = hardware_contacts.inspect(route, report, allowance, bounded)
+        except _Exhausted:
+            charged = min(32, allowance)
+            pairs += charged
+            detail["interrupted_hardware_discovery_pairs"] = charged
+            raise
+        finally:
+            contact_seconds += perf_counter() - started
+        if negative is not None:
+            pairs += negative.pairs_checked
+        return negative
+
     def certify(route: FoldRoute) -> tuple[ContactResult | None, Report | None]:
         """
         Check hardware first, retaining actual evidence without renewing either proof pool.
@@ -162,18 +206,7 @@ def recover(
             detail["contact_checks_deferred"] += 1
             negative = None
             if accepted is None and roots.attempted < 8 and iterations < work.updates:
-                started = perf_counter()
-                try:
-                    negative = hardware_contacts.inspect(route, terminal_proof, allowance, bounded)
-                except _Exhausted:
-                    charged = min(32, allowance)
-                    pairs += charged
-                    detail["interrupted_hardware_discovery_pairs"] = charged
-                    raise
-                finally:
-                    contact_seconds += perf_counter() - started
-                if negative is not None:
-                    pairs += negative.pairs_checked
+                negative = discover_material(route, terminal_proof)
             record(
                 {
                     "stage": "adaptive_proof",
@@ -264,6 +297,29 @@ def recover(
         bounded()
         if cap_error(source) > 1e-7 or material_error(source) > 1e-10:
             return None
+        if isinstance(evidence, Report):
+            initial_competing = discover_material(current, evidence)
+            record(
+                {
+                    "stage": "adaptive_proof",
+                    "status": "initial_competing_contact",
+                    "hardware": asdict(evidence),
+                    "negative_discovery": None
+                    if initial_competing is None
+                    else asdict(initial_competing),
+                    "contact_scope": "negative_discovery_only",
+                }
+            )
+            bounded()
+            if (
+                initial_competing is not None
+                and initial_competing.status == "penetration"
+                and initial_competing.witness is not None
+                and initial_competing.limit is None
+            ):
+                initial_hardware = evidence
+                evidence = initial_competing
+                pending = Action.CORRECT_COMPETING
         while iterations < work.updates and pairs < work.pairs:
             bounded()
             action = choose(
@@ -278,12 +334,152 @@ def recover(
             if pending is not None and action is not Action.STOP:
                 action = pending
             pending = None
+            if (
+                (
+                    (edits and action is Action.REFINE)
+                    or (action is Action.CORRECT_COMPETING and "initial_competing_trial" in detail)
+                )
+                and not paired_spent
+                and evidence_source is current
+                and isinstance(evidence, ContactResult)
+                and roots.attempted <= 6
+            ):
+                left = remaining()
+                initial_pair = not edits and action is Action.CORRECT_COMPETING
+                if initial_pair and left is not None:
+                    left = Work(
+                        min(2, left.updates),
+                        left.pairs,
+                        left.cpu_seconds,
+                        left.wall_seconds,
+                        min(12, left.newton_steps),
+                    )
+                pair_yielded: list[JointHandoff] = []
+                child_pair = (
+                    None
+                    if left is None
+                    else recover_pair(
+                        current,
+                        evidence,
+                        current_hardware,
+                        terminal,
+                        checkpoint,
+                        record,
+                        work=left,
+                        maximum_roots=min(2, 8 - roots.attempted)
+                        if initial_pair
+                        else 8 - roots.attempted,
+                        minimum_straight_mm=minimum_straight_mm,
+                        on_event_refinement=pair_yielded.append,
+                    )
+                )
+                if child_pair is not None:
+                    paired_spent = True
+                    spent_pair = child_pair.detail
+                    iterations += spent_pair["updates"]
+                    roots.attempted += spent_pair["roots_debited"]
+                    roots.newton_steps += spent_pair["newton_steps"]
+                    pairs += spent_pair["pairs"]
+                    contacts += spent_pair["contact_checks"]
+                    contact_seconds += spent_pair["contact_seconds"]
+                    detail["paired_return"] = dict(spent_pair)
+                    if initial_pair:
+                        detail["initial_paired_trial"] = dict(spent_pair)
+                    stop = spent_pair["stop_reason"]
+                    bounded()
+                    if child_pair.accepted is not None:
+                        if pair_yielded:
+                            raise ArithmeticError(
+                                "A paired refinement handoff cannot also claim acceptance"
+                            )
+                        if not isinstance(child_pair.evidence, ContactResult):
+                            raise ArithmeticError(
+                                "Accepted paired geometry requires a material certificate"
+                            )
+                        lineage = reidentify(
+                            current, lineage, child_pair.accepted, work.updates + 1
+                        )
+                        current, accepted, stop = (
+                            child_pair.accepted,
+                            child_pair.evidence,
+                            "accepted",
+                        )
+                        break
+                    if pair_yielded:
+                        if len(pair_yielded) != 1 or stop != "event_refinement_handoff":
+                            raise ArithmeticError(
+                                "Require one explicit closed paired-refinement handoff"
+                            )
+                        if roots.attempted >= 8 or remaining() is None:
+                            stop = "work_exhausted"
+                            break
+                        state = pair_yielded[0]
+                        if (
+                            state.route is not child_pair.evidence_route
+                            or state.evidence is not child_pair.evidence
+                        ):
+                            raise ArithmeticError(
+                                "Refinement must retain the actual measured paired candidate"
+                            )
+                        lineage = reidentify(current, lineage, state.route, work.updates + 1)
+                        current, evidence, evidence_source = (
+                            state.route,
+                            state.evidence,
+                            state.route,
+                        )
+                        current_hardware = None
+                        correction = Correction.SPENT
+                        detail["closed_material_resumes"] += 1
+                        detail["paired_material_resumes"] = (
+                            detail.get("paired_material_resumes", 0) + 1
+                        )
+                        record(
+                            {
+                                "stage": "adaptive_schedule",
+                                "action": "refine_after_closed_paired_handoff",
+                                "roots_attempted": roots.attempted,
+                                "remaining_updates": work.updates - iterations,
+                                "route": snapshot(current),
+                                "evidence": asdict(evidence),
+                            }
+                        )
+                        continue
+                    if remaining() is None:
+                        break
+                    if initial_pair:
+                        correction = Correction.AWAITING_REFINEMENT
+                        if initial_hardware is not None:
+                            evidence = initial_hardware
+                            current_hardware = initial_hardware
+                            evidence_source = current
+                        pending = Action.REFINE
+                        record(
+                            {
+                                "stage": "adaptive_schedule",
+                                "action": "refine_after_bounded_paired_trial",
+                                "remaining_updates": work.updates - iterations,
+                                "remaining_roots": 8 - roots.attempted,
+                                "source_retained": True,
+                            }
+                        )
+                    continue
+            if action is Action.CORRECT_COMPETING and "initial_competing_trial" in detail:
+                if initial_hardware is None:
+                    raise ArithmeticError("Initial correction must retain its hardware evidence")
+                evidence = initial_hardware
+                current_hardware = initial_hardware
+                action = Action.REFINE
             if action is Action.STOP:
                 if not edits and iterations == 0:
                     return None
                 stop = "work_exhausted" if roots.attempted == 8 else "unsupported_local_witness"
                 break
-            if action in (Action.CORRECT_MODULE, Action.CORRECT_EXHAUSTED, Action.CORRECT_DECLINED):
+            if action in (
+                Action.CORRECT_COMPETING,
+                Action.CORRECT_MODULE,
+                Action.CORRECT_EXHAUSTED,
+                Action.CORRECT_DECLINED,
+            ):
                 record(
                     {
                         "stage": "adaptive_schedule",
@@ -296,7 +492,19 @@ def recover(
                 if left is None:
                     stop = "work_exhausted"
                     break
-                correction = Correction.SPENT
+                correction = (
+                    Correction.AWAITING_REFINEMENT
+                    if action is Action.CORRECT_COMPETING
+                    else Correction.SPENT
+                )
+                if action is Action.CORRECT_COMPETING:
+                    left = Work(
+                        1,
+                        left.pairs,
+                        left.cpu_seconds,
+                        left.wall_seconds,
+                        min(6, left.newton_steps),
+                    )
                 yielded: list[JointHandoff] = []
                 callbacks: dict[str, Any] = {}
                 if roots.attempted < 8:
@@ -321,6 +529,8 @@ def recover(
                 pairs += spent["contact_pairs"]
                 contact_seconds += spent["contact_seconds"]
                 detail["fixed_continuation"] = dict(spent)
+                if action is Action.CORRECT_COMPETING:
+                    detail["initial_competing_trial"] = dict(spent)
                 detail["correction_schedule"] = action.value
                 stop = spent["stop_reason"]
                 record(
@@ -362,6 +572,22 @@ def recover(
                             "remaining_updates": work.updates - iterations,
                             "route": snapshot(current),
                             "evidence": asdict(evidence),
+                        }
+                    )
+                    continue
+                if action is Action.CORRECT_COMPETING and remaining() is not None:
+                    if child.route is not current or initial_hardware is None:
+                        raise ArithmeticError(
+                            "A failed initial trial must retain its closed incumbent"
+                        )
+                    pending = Action.CORRECT_COMPETING
+                    record(
+                        {
+                            "stage": "adaptive_schedule",
+                            "action": "paired_after_bounded_competing_trial",
+                            "remaining_updates": work.updates - iterations,
+                            "remaining_newton_steps": work.newton_steps - roots.newton_steps,
+                            "source_retained": True,
                         }
                     )
                     continue
@@ -421,6 +647,8 @@ def recover(
             lineage = lineage[: window.begin] + children + lineage[window.end :]
             edits.append(edit)
             current = candidate
+            if correction is Correction.AWAITING_REFINEMENT:
+                correction = Correction.READY
             record(
                 {
                     "stage": "adaptive_events",
@@ -432,6 +660,9 @@ def recover(
                 }
             )
             measured, hardware = certify(current)
+            current_hardware = (
+                hardware if hardware is not None and hardware.status == "blocked" else None
+            )
             if (
                 hardware is not None
                 and hardware.status == "blocked"

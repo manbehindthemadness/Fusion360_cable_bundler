@@ -21,13 +21,15 @@ from experiments.experiment_ribbon_fold_relaxation.steps import advance
 from experiments.experiment_ribbon_fold_route.contact import ContactResult, inspect_contact
 from experiments.experiment_ribbon_fold_route.contact_cap_support import CapPolicy
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute, Straight
-from experiments.experiment_ribbon_terminal_hardware.recovery_limits import Work
+from experiments.experiment_ribbon_terminal_hardware.recovery_limits import (
+    MAXIMUM_CPU_SECONDS,
+    Work,
+)
 
 from .attached_regions import RegionPolicy, continues_feature, with_attached_straights
 from .separation import Separation, Side, TopologyChanged, regions
 from .separation_step import InitialStep, plan_step
 
-MAXIMUM_CPU_SECONDS = 0.35
 MAXIMUM_WALL_SECONDS = 2.0
 
 
@@ -106,7 +108,7 @@ def recover(
     linearized separation constraint, bounded joint steps and existing nonlinear
     cap retraction with actual ordered mating frames before certification. The
     stronger stopping rule uses the same six Newton steps, not output snapping.
-    Local limits are0.35CPU/2wall seconds, subordinate to caller
+    Local limits are0.4CPU/2wall seconds, subordinate to caller
     limits. Callers may reserve part of those allowances for selection; explicit
     sublimits may only reduce the defaults. Never return the rejected source as
     an accepted fallback. Pair/depth

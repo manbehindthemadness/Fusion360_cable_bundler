@@ -1,3 +1,58 @@
+USER-DIRECTED SYSTEM MEMORY REVISION — 2026-11-15
+Native work may use up to90%of system memory: require at least10%actual system
+memory free, replacing the earlier50%-free launch gate. This is90%used, not90%free.
+The user directs proceeding without crashing the OS. Retain the separate4GiB
+Fusion/local RSS ceiling and3.8GiB process launch limit, bounded native scope,
+120s case/240s cohort and earlier estimated review deadlines. Sample actual host
+headroom before each build and during checkpointed work; stop below10%free or
+on a process-memory/resource failure. Do not repeatedly renew a stopped cohort.
+No unrelated applications are closed or OS memory settings changed. Preserve old
+memory-stopped results and freeze a new scope under this authorized policy.
+
+USER-DIRECTED DIMENSIONAL ACCURACY REVISION — 2026-11-15
+The default acceptance tolerance for dimensional deviations, measurements and
+audits is now0.01mm, inclusive, wherever this preserves successful geometry
+construction and the ability to generate and audit valid material coordinates.
+This is the acceptance accuracy, not merely a warning band around a1e-6mm goal.
+Do not stop or refine an otherwise acceptable result solely to chase smaller
+residuals. Preserve measured errors and uncertainty; never round away a violation
+or count missing/unresolved measurement as a pass. An enclosure must establish
+the applicable tolerance; an overlarge bound alone is not a witnessed violation.
+
+Use tighter values only where needed for geometry/API construction, valid and
+auditable material coordinates, or numerical robustness elsewhere. Record the
+specific dependency and reason for each tighter exception. Distinguish internal
+arithmetic/domain/conditioning requirements from physical dimensional acceptance.
+Topology, source provenance, conductor identity and explicit ordering remain
+discrete invariants. Failed construction, invalid topology, missing audits and
+invalid/noninvertible material maps cannot be waived by a small distance error.
+Fixed input targets and nominal physical constraints are not moved or retuned.
+Dimensional contact/clearance deviations follow this accuracy unless a documented
+tighter separation is needed for those construction or audit requirements.
+
+Material path/increment discrepancies are assessed at corresponding coordinates
+to0.01mm, including local increments and complete paths; do not accumulate a new
+0.01mm allowance per station or hide local distortion by cancelling totals.
+No percentage strain allowance is inferred.0.01mm is a length, not0.01degrees or
+a dimensionless ratio. Review angular/ratio checks through their geometric effect
+or document a necessary tighter exception; do not silently substitute units.
+This supersedes older dimensional warning/failure bands and demands for exact
+dimensional equality below. Preserve historical source/results with their original
+gates, and label new-policy evidence separately. Resource, memory, fixed-scope,
+first-stop/review and independent-layout coverage safeguards remain unchanged.
+
+USER-DIRECTED RECOVERY CPU REVISION — 2026-11-14
+The user explicitly raised the shared ribbon feasibility-recovery CPU ceiling
+from0.35to0.4seconds and directed execution of the generalized-solver plan.
+Apply0.4to new recovery allocations and debit all nested work from that same
+pool. This revises only the recovery CPU ceiling:4actions/24Newton/8roots,
+2wallseconds/2048sharedcontactcomparisons, hardware/negative-screen limits,
+4GiB RSS/3.8GiB launch, fixed inputs and physical gates remain unchanged.
+The separate optional bend-contraction0.35CPU limit remains unchanged.
+Preserve old source/results and label the new baseline; no retroactive passes.
+Prioritize the whole-algorithm audit and cross-layout qualification over further
+single-specimen technique trials. Production promotion remains separate.
+
 USER-DIRECTED SELECTED-CASE REGRESSION CATALOGUE — 2026-11-11
 A separate optional catalogue may retain selected cases' seeds, exact values,
 ordered target poses, settings/source identity and original evidence references
@@ -74,8 +129,9 @@ Source corruption, unknown provenance and resource/harness errors retain their
 existing stop/review requirements. Aggressive future testing may expose recurring
 real defects; no stale or inadmissible fixture should block that testing.
 
-USER-DIRECTED NATIVE DIMENSIONAL WARNING BAND — 2026-11-02
+HISTORICAL NATIVE DIMENSIONAL WARNING BAND — 2026-11-02
 -------------------------------------------------------
+Superseded for new work by the2026-11-15 dimensional accuracy revision above.
 Keep the original native dimensional accuracy goals (currently1e-6mm), but treat
 measured goal misses strictly below0.01mm as warnings instead of aborting geometry.
 At or above0.01mm remains a dimensional failure. Measure/report original errors,
@@ -464,6 +520,7 @@ builder change, new seed bank or native cable batch is authorized by this reset.
 
 USER-CLARIFIED EQUAL MATERIAL LENGTHS — 2026-10-31
 -----------------------------------------------
+Apply the2026-11-15 dimensional accuracy revision to measured equality below.
 Left, center and right are corresponding material paths in one physical ribbon.
 They must have equal material lengths; a single common length may still grow.
 Banking/fold reversals must preserve that compatibility rather than lengthening

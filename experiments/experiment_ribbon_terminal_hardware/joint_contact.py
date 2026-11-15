@@ -57,6 +57,8 @@ from .feature_guidance import (
 from .feature_plane import FeatureCoverage, FeaturePlane, SignedJoints
 from .flat_continuation import ClosedFlatContinuation, ContactContinuation
 from .flat_separation import FlatSeparation, ProfileExtent
+from .flat_support_linearization import SupportMemory, SupportSelection
+from .flat_support_linearization import linearize as linearize_flat_supports
 from .gate import Gate
 from .hardware_halfspaces import separated_alternatives
 from .hardware_motion import expand as expand_hardware
@@ -64,7 +66,7 @@ from .hardware_motion import straight_growth_requires_angles
 from .incident_model import IncidentJoints
 from .incident_window import IncidentWindow, ReturnCoordinates
 from .joint_completion import closed_material, stalled_certificate_ready
-from .joint_derivatives import Difference
+from .joint_derivatives import Difference, mating_cap_jacobian
 from .joint_derivatives import jacobian as joint_jacobian
 from .joint_evaluation import JointEvaluation
 from .joint_handoff import JointHandoff
@@ -221,6 +223,9 @@ def recover(
     material and coupled guidance. Cap residuals may change independently
     within the previous maximum merit, using the same single
     bounded projector and strict predicted/nonlinear maximum-merit descent.
+    When ordinary cap readiness precedes strict fixed-fold orientation, retain
+    an unspent angular correction before straight-only mating polish. Exhausted
+    or stalled owners retain their original final-certificate opportunity.
     Motion regularization decays with the square of that merit; original bounds
     receive an equivalent positive coordinate transform inside the projector.
     A working set declined for exhaustion or raw inequalities can supply its
@@ -514,6 +519,9 @@ def recover(
     native_zero_face_reuses = 0
     hardware_halfspace_attempts = 0
     hardware_halfspace_rebindings = 0
+    support_bundles = support_added_rows = support_capacity_declines = support_topology_declines = 0
+    support_memory = SupportMemory()
+    centered_cap_linearizations = 0
     hardware_guidance_values: tuple[float, ...] | None = None
     material_guidance_values: tuple[float, ...] | None = None
     material_halfspace_attempts = 0
@@ -560,7 +568,8 @@ def recover(
         Reuse identical raw equations only while the actual constraint set remains fixed.
         """
         equation_terms = model.residual(coordinates) + tuple(
-            1e-7 / model.scale - feature.gap(coordinates) for feature in scalar_planes
+            feature.minimum_gap_mm / model.scale - feature.gap(coordinates)
+            for feature in scalar_planes
         )
         equation_terms += tuple(protection.residual(coordinates) for protection in protections)
         if bounded_length:
@@ -899,6 +908,16 @@ def recover(
                 or error < 1e-13
                 or ordered_caps_complete(candidate, terms)
             )
+            if (
+                caps_complete
+                and not stalled_certificate_requests
+                and (reflected or coupled_contact)
+                and not straight_contact
+                and newton < newton_limit
+                and not fixed_fold_frames_match(candidate.pieces, candidate.targets)
+            ):
+                # Fixed-fold polishing cannot repair the remaining orientation.
+                caps_complete = False
             if caps_complete and error >= 1e-13 and not stalled_certificate_requests:
                 ordered_cap_completions += 1
                 emit(
@@ -1263,6 +1282,44 @@ def recover(
                 admissible=admissible,
                 difference=Difference.ONE_SIDED,
             )
+            centered_caps = mating_cap_jacobian(
+                linear_model,
+                values,
+                terms[:6],
+                model.residual,
+                fixed,
+                bounded,
+                admissible=admissible,
+            )
+            if centered_caps is not None:
+                jacobian[:6] = centered_caps
+                centered_cap_linearizations += 1
+            scalar_terms, scalar_jacobian = terms, jacobian
+            if (
+                support_memory.active
+                and (reflected or coupled_contact)
+                and not straight_contact
+                and independent_contacts
+            ):
+                linearization = linearize_flat_supports(
+                    constraints,
+                    values,
+                    terms,
+                    jacobian,
+                    linear_model,
+                    fixed,
+                    admissible,
+                    bounded,
+                    memory=support_memory,
+                    selection=SupportSelection.RETAIN,
+                )
+                terms = linearization.terms
+                jacobian = [list(row) for row in linearization.rows]
+                support_memory.remember(linearization.supports)
+                support_bundles += linearization.bundles
+                support_added_rows += linearization.added_rows
+                support_capacity_declines += linearization.capacity_declines
+                support_topology_declines += linearization.topology_declines
             project_step = (
                 active_step
                 if (straight_contact and native_pins)
@@ -1411,6 +1468,26 @@ def recover(
                             str(i): (values[i] + delta[i]) * model.scale for i in native_candidates
                         },
                     )
+                if (reflected or coupled_contact) and not straight_contact and independent_contacts:
+                    linearization = linearize_flat_supports(
+                        constraints,
+                        values,
+                        scalar_terms,
+                        scalar_jacobian,
+                        linear_model,
+                        fixed,
+                        admissible,
+                        bounded,
+                        memory=support_memory,
+                    )
+                    support_capacity_declines += linearization.capacity_declines
+                    support_topology_declines += linearization.topology_declines
+                    if linearization.contradicts(terms, jacobian, delta):
+                        terms = linearization.terms
+                        jacobian = [list(row) for row in linearization.rows]
+                        support_bundles += linearization.bundles
+                        support_added_rows += linearization.added_rows
+                        support_memory.remember(linearization.supports)
                 jacobian = [
                     [0.0 if i in frozen_native else value for i, value in enumerate(row)]
                     for row in jacobian
@@ -1583,6 +1660,11 @@ def recover(
         "maximum_length_mm": maximum_length_mm,
         "stop_reason": stop,
         "flat_constraints": len(constraints),
+        "centered_cap_linearizations": centered_cap_linearizations,
+        "support_bundles": support_bundles,
+        "support_added_linear_rows": support_added_rows,
+        "support_capacity_declines": support_capacity_declines,
+        "support_topology_declines": support_topology_declines,
         "material_guidance_releases": material_guidance_releases,
         "probe": asdict(probe),
         "curved_discovery": asdict(curved_probe),

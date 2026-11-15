@@ -1,3 +1,26 @@
+2026-11-15 user-directed system memory revision: allow90%used/require10%free,
+superseding the50%-free native launch gate. Retain4GiB RSS/3.8GiB process launch,
+existing time/work limits and bounded scopes. The user directs proceeding without
+crashing the OS; check actual headroom at launch/during checkpointed work and stop
+below10%free. Preserve old stopped scopes; no OS settings or unrelated apps changed.
+See experiment_testing_rules.txt for the current policy.
+
+2026-11-15 user-directed dimensional accuracy revision:0.01mm inclusive is the
+default acceptance accuracy for dimensional measurements/deviations and material
+coordinate audits wherever geometry construction and valid material-coordinate
+generation/auditing remain sound. It supersedes the older1e-6goal/warning band
+and strict dimensional equality demands. Use tighter values only for a recorded
+construction, material-coordinate validity or numerical robustness dependency.
+No per-station accumulation of0.01mm allowances; local and complete-path audits
+remain required. Discrete topology/identity/order/provenance and missing/invalid
+audit failures are not waived. Preserve historical gates/results. See the current
+revision at the top of experiment_testing_rules.txt for scope and unit handling.
+
+2026-11-14 user-directed recovery CPU revision: new shared feasibility-recovery
+allocations use0.4CPU seconds, superseding0.35for that phase only. Other work,
+wall, memory and physical limits remain unchanged; historical evidence retains
+its original budget. See experiment_testing_rules.txt for the current scope.
+
 USER-DIRECTED FIXED-SAMPLE FAILURE-RATE RUN — 2026-11-09
 For the explicit goal "run another 100 layouts and determine failure rate", use
 100 entirely new precommitted layouts with one unchanged solver source. Preserve
@@ -32,7 +55,7 @@ solve those that still fail, keeping numerical/native/post-build outcomes separa
 Do not treat a failed output or exhausted solver as proof of invalid input.
 See the current explicit exception in experiment_testing_rules.txt.
 
-2026-11-02 user-directed native dimensional warning revision: retain original
+Historical, superseded2026-11-15: native dimensional warning revision retained original
 accuracy goals; native dimensional goal misses strictly below0.01mm warn and
 continue, while0.01mm or greater fails. Preserve raw errors and complete audits.
 Angles, topology/identity, material/contact and resource gates remain separate.

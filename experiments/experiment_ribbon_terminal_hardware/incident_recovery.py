@@ -64,7 +64,7 @@ def recover(
     """
     Reclose one measured free incident reversal, then correct its actual connector and flat contacts.
 
-    All phases share four updates/24Newton steps, at most0.35CPU/two wall seconds
+    All phases share four updates/24Newton steps, at most0.4CPU/two wall seconds
     and the supplied original pair pool. No other fold, sign family, radius or
     endpoint candidate is tried. The caller selects this strategy only for proven
     hardware intrusion beside unresolved depth contact; known penetration retains

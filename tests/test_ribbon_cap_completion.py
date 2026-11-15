@@ -11,18 +11,22 @@ from unittest.mock import Mock
 
 import pytest
 
-from cable_bundler.routing.geometry import Vector3
+from cable_bundler.routing.geometry import Vector3, cross, linear_combination
 from experiments.experiment_ribbon_fold_route.contact import ContactResult
 from experiments.experiment_ribbon_fold_route.geometry import Straight
 from experiments.experiment_ribbon_fold_route.primitives import fold
 from experiments.experiment_ribbon_terminal_hardware import joint_contact
 from experiments.experiment_ribbon_terminal_hardware.cap_completion import ordered_caps_complete
 from experiments.experiment_ribbon_terminal_hardware.check import Report, inspect
+from experiments.experiment_ribbon_terminal_hardware.feature_guidance import (
+    ContactGuidance,
+    ContactMotion,
+)
 from experiments.experiment_ribbon_terminal_hardware.feature_plane import SignedJoints
 from experiments.experiment_ribbon_terminal_hardware.joint_evaluation import JointEvaluation
 from experiments.experiment_ribbon_terminal_hardware.model import Dimensions, Hardware
 from tests.test_ribbon_aesthetic import _route
-from tests.test_ribbon_contact_refinement import _gate
+from tests.test_ribbon_contact_refinement import _depth, _gate
 
 
 @pytest.mark.parametrize("scale", (0.5, 1.0, 100.0))
@@ -93,6 +97,72 @@ def test_small_center_frame_error_does_not_hide_ordered_side_lane_displacement()
         source.targets, lines=101, end_width=Vector3(0, math.cos(1e-8), math.sin(1e-8))
     )
     assert not ordered_caps_complete(replace(source, targets=targets), (0.0,) * 7)
+
+
+@pytest.mark.parametrize("scale", (0.5, 1.0, 100.0))
+@pytest.mark.parametrize("angle", (0.0, 5e-10))
+def test_angular_owner_keeps_its_projector_until_fixed_fold_orientation_matches(
+    monkeypatch: pytest.MonkeyPatch, scale: float, angle: float
+) -> None:
+    """
+    An ordinary-ready frame defect must reach angular correction before fixed-fold polish or proof.
+
+    Checker and equation boundaries isolate dispatch; this does not claim physical
+    clearance or that the deliberately declined projector solved the route.
+    """
+    source = _route(
+        (Straight(0.25 * scale), fold(2 * scale, 1.2, math.pi, 0.2, scale), Straight(3 * scale))
+    )
+    target = source.targets
+    normal = cross(target.end_tangent, target.end_width)
+    target = replace(
+        target,
+        end_tangent=linear_combination(
+            target.end_tangent, math.cos(angle), normal, math.sin(angle)
+        ),
+    )
+    source = replace(source, targets=target)
+    model = SignedJoints(source)
+
+    def equations(_self: JointEvaluation, values: tuple[float, ...]) -> tuple[float, ...]:
+        """
+        Keep real ordered-cap residuals while isolating satisfied inequality dispatch.
+        """
+        return model.residual(values) + (-1.0,)
+
+    assert ordered_caps_complete(source, equations(Mock(), model.initial))
+    monkeypatch.setattr(JointEvaluation, "equations", equations)
+    projector = Mock(return_value=None)
+    polish = Mock(return_value=None)
+    monkeypatch.setitem(vars(joint_contact), "redistributed_step", projector)
+    monkeypatch.setitem(vars(joint_contact), "restore_mating", polish)
+    monkeypatch.setitem(
+        vars(joint_contact), "inspect_contact", Mock(return_value=ContactResult("separated", 1))
+    )
+    terminal = _gate(source)
+    result = joint_contact.recover(
+        source,
+        _depth(),
+        terminal,
+        lambda: None,
+        lambda _: None,
+        maximum_length_mm=source.material_length_mm,
+        minimum_straight_mm=1e-5,
+        remaining_pairs=123,
+        maximum_cpu_seconds=0.35,
+        maximum_seconds=2,
+        maximum_updates=1,
+        mode=ContactGuidance((), ContactMotion.BEND_JOINTS),
+    )
+    assert result is not None
+    polish.assert_not_called()
+    if angle:
+        projector.assert_called_once()
+        terminal.certify.assert_not_called()
+        assert result.contact is None and result.detail["newton_steps"] == 0
+    else:
+        projector.assert_not_called()
+        terminal.certify.assert_called_once()
 
 
 @pytest.mark.parametrize(

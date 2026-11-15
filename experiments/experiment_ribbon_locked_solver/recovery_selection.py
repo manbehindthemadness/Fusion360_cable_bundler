@@ -59,7 +59,7 @@ def select_recovery(
     steps do not favor a long excursion for a small clipping difference. Values
     needing more than four steps retain their original fraction order. These are
     initial linear predictions, not an acceptance or nonlinear convergence promise.
-    Selection and the later single recovery share the original.35CPU/2wall limits.
+    Selection and the later single recovery share the original.4CPU/2wall limits.
     Unsupported predictions are logged; caller errors propagate.
     """
     started, cpu = perf_counter(), process_time()

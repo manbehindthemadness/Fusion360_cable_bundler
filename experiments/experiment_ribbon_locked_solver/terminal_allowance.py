@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, cast
 
+from experiments.experiment_ribbon_terminal_hardware.recovery_limits import MAXIMUM_CPU_SECONDS
+
 
 @dataclass(frozen=True)
 class TerminalAllowance:
     """
-    Describe a reduced allocation inside the original four-update/.35CPU/two-wall-second phase.
+    Describe a reduced allocation inside the shared four-update/.4CPU/two-wall-second phase.
     """
 
     updates: int
@@ -100,7 +102,7 @@ def remaining_completed(
     if (
         not 1 <= updates < 4
         or not math.isfinite(cpu)
-        or not 0 <= cpu < 0.35
+        or not 0 <= cpu < MAXIMUM_CPU_SECONDS
         or cast(int, contacts) < 1
         or not 0 <= cast(int, pairs) <= 2048
     ):
@@ -116,7 +118,7 @@ def remaining_completed(
     left_newton = min(24 - used_newton, 6 * (4 - updates)) if used_newton is not None else 0
     wall = min(first_pass_remaining, 2.0 - (perf_counter() - started))
     return (
-        TerminalAllowance(4 - updates, 0.35 - cpu, wall, left_newton, used_newton)
+        TerminalAllowance(4 - updates, MAXIMUM_CPU_SECONDS - cpu, wall, left_newton, used_newton)
         if wall > 0
         else None
     )

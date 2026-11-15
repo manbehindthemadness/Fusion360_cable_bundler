@@ -61,7 +61,7 @@ def test_exhausting_any_resource_prevents_another_strategy(
         ("pairs", 0),
         ("pairs", 2049),
         ("cpu_seconds", float("nan")),
-        ("cpu_seconds", 0.350001),
+        ("cpu_seconds", 0.400001),
         ("wall_seconds", float("inf")),
         ("wall_seconds", 2.000001),
     ],
@@ -72,6 +72,20 @@ def test_malformed_or_enlarged_allocations_reject(field: str, value: float) -> N
     """
     with pytest.raises(ValueError):
         replace(Work(4, 2048, 0.35, 2.0), **{field: value})
+
+
+def test_revised_cpu_ceiling_preserves_remainders_and_smaller_allocations() -> None:
+    """
+    Permit the revised parent ceiling while debiting earlier work without renewing any other resource.
+    """
+    parent = Work(4, 2048, 0.4, 2.0)
+    remaining = parent.remaining(updates=1, pairs=360, cpu_seconds=0.35, wall_seconds=0.5)
+    assert remaining is not None
+    assert remaining.cpu_seconds == pytest.approx(0.05)
+    assert (remaining.updates, remaining.pairs, remaining.newton_steps) == (3, 1688, 24)
+    assert remaining.wall_seconds == 1.5
+    assert parent.remaining(updates=0, pairs=0, cpu_seconds=0.4, wall_seconds=0) is None
+    assert Work(1, 32, 0.35, 0.25).cpu_seconds == 0.35
 
 
 @pytest.mark.parametrize("value", [-0.01, float("nan"), float("inf"), True])

@@ -1,5 +1,47 @@
 # Guide-derived tight feature insertion — 420–423, 2026-11-02
 
+2026-11-14 — signed half-turn event refinement (2940–2948)
+
+A finite continuous-factor trial can identify the same SO(3) rotation across
++pi/-pi while reversing the physical material bend. Failed initial construction
+now retains the best already-computed unfinished chain and the ordered identities
+of actual aliased trial folds. It does not infer an alias from a seed, final
+shape, angle threshold alone or a desired result. Closed/accepted constructions
+keep their existing path. Other missing-direction cases retain cone escape.
+
+When that failed initial handoff carries alias evidence, one original action
+splits its first witnessed bend into two same-bank half turns. Radius, width,
+material order and combined orientation remain fixed; mandatory flat leads mean
+position must be restored rather than assumed. The shared cap-retraction kernel
+allows at most six remaining Newton steps/four halvings and debits every started
+correction before projection, including failures. Only the genuine remainder
+enters the existing adaptive event controller. Original four actions/24Newton/
+eight local roots/.35CPU/2wall/2048pairs and shared hardware bounds remain. No
+parent event-count cap or acceptance relaxation is introduced. Every final route
+still needs actual caps, native sizes, material, self-contact and hardware checks.
+
+2944 ordinary maintained361source: known2932case007 is numerically accepted,
+CPU.869254s; recovery3actions/11Newton/8roots/.196507CPU and362pairs, seven events
+before ordinary smoothing. FINAL length10.204728232mm. Three distinct known N4/
+N10/N8 collateral routes pass byte-identically to their ordinary2922baselines.
+Original2932failure remains recorded. 2946oneknownnative construction/namedfidelity/
+boundary pass,0warnings; generation3.305724s,audit4.208772s,maxerror1.03380e-9mm.
+2945startup omitteddeadline before geometry:0nativeattempts; corrected2946uses
+the same unused attempt/original review deadline. These are0freshcase credits.
+
+QA:199affected checks pass; three older assertions fail identically with exact
+pre-change modules (2943baseline receipts), not introduced here. Final42new/initial
+checks pass after accounting refinement. Six changed code/test paths pass Ruff
+lint/format and complete IDE diagnostics; full-repository QA was not requested.
+2948fresh N1only numerical cohort:20/20passes on newseed3881842527,4006priorhashes
+excluded. Seven layouts use existing adaptive recovery; none exercises the new
+alias split, so positive unseen transfer of that specific path remains unproved.
+The same20routes pass native/namedfidelity/boundary2949,0warnings/retries/
+unattempted/timingmisses. Native generationmedian2.860121s,auditmedian2.626434s;
+maxerror1.22536e-9mm. Noextrauniquecredit; companionfinalizedONCE. Full physical/
+continuous native mechanics remain unmeasured. No production promotion or historical-rate pooling.
+
+
 ## Initial continuous closure uses bounded straight transfers — checkpoint2097
 
 The existing continuous-factor action now eliminates legal positive-straight

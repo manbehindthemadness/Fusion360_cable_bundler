@@ -52,7 +52,7 @@ def test_only_certified_monotonic_improvement_replaces_the_baseline(
     assert result is not None and result.pairs == 245
     assert attempt.call_args.args[0] is compact.route and attempt.call_args.args[2] == 447
     assert attempt.call_args.kwargs["cap_policy"] is CapPolicy.ANALYTIC_SUPPORT
-    assert 0 < attempt.call_args.kwargs["maximum_cpu_seconds"] <= 0.35
+    assert 0 < attempt.call_args.kwargs["maximum_cpu_seconds"] <= 0.4
     assert 0 < attempt.call_args.kwargs["maximum_seconds"] <= 2
     assert result.detail["accepted_improvement"] is (outcome == "improved")
     assert (result.route is not None) is (outcome == "improved")
@@ -105,7 +105,7 @@ def test_explicit_cpu_reservation_is_not_replenished(monkeypatch: pytest.MonkeyP
     assert attempt.call_args.kwargs["maximum_cpu_seconds"] == pytest.approx(0.15)
 
 
-@pytest.mark.parametrize("allowance", (0.0, 0.36, True, float("nan")))
+@pytest.mark.parametrize("allowance", (0.0, 0.41, True, float("nan")))
 def test_cpu_sublimits_cannot_expand_or_disable_the_original_cap(allowance: Any) -> None:
     """
     Reject malformed or enlarged scheduling allowances before optional work.

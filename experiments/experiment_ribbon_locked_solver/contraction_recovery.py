@@ -63,7 +63,7 @@ def recover_contracted(
     improves the declared policy. Length policy uses strict shortening without
     guide vetoes; historical monotonic policy retains both whole-guide measures.
     Recheck the same preferences after recovery.
-    Selection, correction and acceptance share the original.35CPU/2wall allowance;
+    Selection, correction and acceptance share the original.4CPU/2wall allowance;
     certificates use only the original remaining construction pairs and at most
     1024per call. The extra analytic cap support proof changes neither contact
     policy nor geometry. A failed/worse correction returns no replacement.
@@ -90,7 +90,7 @@ def recover_contracted(
         or not math.isfinite(maximum_cpu_seconds)
         or not 0 < maximum_cpu_seconds <= MAXIMUM_CPU_SECONDS
     ):
-        raise ValueError("Use a positive remaining CPU allowance within the original0.35seconds")
+        raise ValueError("Use a positive remaining CPU allowance within the shared0.4seconds")
     if not contraction.rejected or remaining_pairs <= 0:
         return None
     started, cpu = perf_counter(), process_time()

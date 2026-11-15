@@ -23,7 +23,7 @@ from experiments.experiment_ribbon_terminal_hardware import joint_contact
 from experiments.experiment_ribbon_terminal_hardware.check import Report
 from experiments.experiment_ribbon_terminal_hardware.feature_plane import SignedJoints
 from experiments.experiment_ribbon_terminal_hardware.joint_evaluation import JointEvaluation
-from experiments.experiment_ribbon_terminal_hardware.joint_mating import restore
+from experiments.experiment_ribbon_terminal_hardware.joint_mating import SourceReadiness, restore
 from experiments.experiment_ribbon_terminal_hardware.run_translation import StraightSlots
 from tests.test_ribbon_aesthetic import _route
 from tests.test_ribbon_stalled_certification import _Control
@@ -72,7 +72,10 @@ def test_actual_joint_caps_close_with_fixed_folds_and_exact_absent_slots(
 
 
 @pytest.mark.parametrize("failure", ("fixed", "native", "length", "nonfinite", "frame"))
-def test_joint_polish_cannot_bypass_original_domains_or_guess_a_new_face(failure: str) -> None:
+@pytest.mark.parametrize("readiness", tuple(SourceReadiness))
+def test_joint_polish_cannot_bypass_original_domains_or_guess_a_new_face(
+    failure: str, readiness: SourceReadiness
+) -> None:
     """
     A real positive slot cannot cross its native floor, pin or inherited quality ceiling.
     """
@@ -92,8 +95,36 @@ def test_joint_polish_cannot_bypass_original_domains_or_guess_a_new_face(failure
         minimum_straight_mm=10 if failure == "native" else 1e-5,
         length_ceiling_mm=9 if failure == "length" else None,
         fixed=frozenset({0}) if failure == "fixed" else frozenset(),
+        readiness=readiness,
     )
     assert result is None
+
+
+@pytest.mark.parametrize("gap", [4e-6, 0.01, 1.0])
+def test_positional_entry_is_explicit_and_final_mating_remains_exact(gap: float) -> None:
+    """
+    Legacy entry still declines an open route; explicit oriented material closes through the same one kernel.
+    """
+    source = _route((Straight(10),))
+    model = SignedJoints(source)
+    values = (model.initial[0] + gap / model.scale,)
+    route = model.route(values)
+    assert route is not None
+    common = dict(minimum_straight_mm=1e-5, length_ceiling_mm=None, fixed=frozenset())
+    assert restore(route, model, values, (0.0,) * 6, lambda: None, **common) is None
+    result = restore(
+        route,
+        model,
+        values,
+        (0.0,) * 6,
+        lambda: None,
+        readiness=SourceReadiness.ORIENTED_MATERIAL,
+        **common,
+    )
+    assert result is not None
+    closed = model.route(result)
+    assert closed is not None and ordered_mating_caps(closed.pieces, source.targets)
+    assert closed.targets is source.targets
 
 
 def test_joint_polish_requires_exact_source_coordinates_and_keeps_guard_errors() -> None:

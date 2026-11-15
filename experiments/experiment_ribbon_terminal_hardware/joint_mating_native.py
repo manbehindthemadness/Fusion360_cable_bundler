@@ -9,7 +9,7 @@ from typing import Callable
 
 from experiments.experiment_ribbon_fold_route.geometry import FoldRoute
 from experiments.experiment_ribbon_fold_route.native_length import minimum_coordinate
-from experiments.experiment_ribbon_fold_route.straight_closure import prepare
+from experiments.experiment_ribbon_fold_route.straight_closure import SourceReadiness, prepare
 
 from .active_projection import ActiveFaces, active_step
 from .feature_plane import SignedJoints
@@ -54,6 +54,7 @@ def project(
     *,
     minimum_mm: float,
     fixed: frozenset[int],
+    readiness: SourceReadiness = SourceReadiness.FINAL_SHAPE,
 ) -> tuple[float, ...] | None:
     """
     Return one native-bounded proposal using the existing sixteen-update working-set kernel.
@@ -73,6 +74,7 @@ def project(
         tuple(values[i] * model.scale for i in indices),
         checkpoint,
         fixed_slots=frozenset(slot for slot, index in enumerate(indices) if index in fixed),
+        readiness=readiness,
     )
     if space is None:
         return None

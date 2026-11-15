@@ -97,7 +97,11 @@ def test_strict_current_hardware_witness_defers_contact_then_requires_both_final
         contact.call_args.args[0] is result.route
         and contact.call_args.kwargs["maximum_pairs"] == 23
     )
-    proofs = [e for e in recorded if e.get("stage") == "adaptive_proof"]
+    proofs = [
+        e
+        for e in recorded
+        if e.get("stage") == "adaptive_proof" and e["status"] != "initial_competing_contact"
+    ]
     assert proofs[0]["contact"] is None and proofs[0]["hardware"] == asdict(evidence)
     assert proofs[1]["contact"] == asdict(certificate)
 
@@ -232,7 +236,11 @@ def test_hardware_clearance_does_not_hide_an_unresolved_contact_report(
     )
     assert result is not None and result.contact is None and result.route is source
     assert order == ["hardware", "contact"] and result.detail["contact_pairs"] == 11
-    receipt = next(e for e in records if e.get("stage") == "adaptive_proof")
+    receipt = next(
+        e
+        for e in records
+        if e.get("stage") == "adaptive_proof" and e["status"] != "initial_competing_contact"
+    )
     assert receipt["contact"] == asdict(unresolved) and receipt["hardware"]["status"] == "clear"
     planner.assert_called_once()
 

@@ -5,9 +5,12 @@ Share bounded finite-difference derivatives for the same constrained joint coord
 from __future__ import annotations
 
 from enum import Enum
+from math import isfinite
 from typing import AbstractSet, Callable
 
 from .projection_system import CoordinateBounds
+
+PROBE_STEP = 1e-5
 
 
 class Difference(Enum):
@@ -62,7 +65,7 @@ def jacobian(
             continue
         low, high = model.bounds(index)
         a, b = list(values), list(values)
-        a[index], b[index] = max(low, value - 1e-5), min(high, value + 1e-5)
+        a[index], b[index] = max(low, value - PROBE_STEP), min(high, value + PROBE_STEP)
         if base is not None:
             probe = b
             if probe[index] == value or (admissible is not None and not admissible(tuple(probe))):
@@ -87,3 +90,39 @@ def jacobian(
             )
         columns.append([(y - x) / (b[index] - a[index]) for x, y in zip(first, last)])
     return [[column[row] for column in columns] for row in range(row_count)]
+
+
+def mating_cap_jacobian(
+    model: CoordinateBounds,
+    values: tuple[float, ...],
+    residual: tuple[float, ...],
+    evaluate: Callable[[tuple[float, ...]], tuple[float, ...]],
+    fixed: AbstractSet[int],
+    checkpoint: Callable[[], None],
+    *,
+    admissible: Callable[[tuple[float, ...]], bool],
+) -> list[list[float]] | None:
+    """
+    Center only smooth cap rows once their residual falls below the original coordinate probe size.
+
+    First-order truncation can otherwise dominate the final correction and
+    prevent the existing analytic mating precondition. Use the same endpoints,
+    bounds and fixed columns, with no new optimizer or correction. Hardware and
+    material equations are never evaluated here or assigned centered derivatives.
+    Far-cap callers retain their exact original matrix and probe work. This
+    selects numerical guidance, never a changed physical tolerance or proof.
+    """
+    if len(residual) != 6 or any(not isfinite(term) for term in residual):
+        raise ValueError("Supply six finite normalized cap residuals")
+    if max(abs(term) for term in residual) >= PROBE_STEP:
+        return None
+    return jacobian(
+        model,
+        values,
+        evaluate,
+        6,
+        fixed,
+        checkpoint,
+        admissible=admissible,
+        difference=Difference.CENTRAL,
+    )

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from operator import mul
 from typing import Callable, Protocol, Sequence
 
 
@@ -23,9 +24,9 @@ class CoordinateBounds(Protocol):
 
 def dot(a: Sequence[float], b: Sequence[float]) -> float:
     """
-    Accumulate a deterministic small dense inner product.
+    Accumulate the same ordered rounded products without a Python generator loop.
     """
-    return math.fsum(x * y for x, y in zip(a, b))
+    return math.fsum(map(mul, a, b))
 
 
 @dataclass(frozen=True)
