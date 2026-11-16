@@ -12,13 +12,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 
-from artifacts.verification.resume3204.polynomial import add, elevate, multiply
 from cable_bundler.routing.geometry import Vector3, cross, difference, dot, magnitude
 
 from .capture import same_direction, same_point
 from .profile_transition import TransitionEdge, evaluate
 from .root_profiles import CapFrame
 from .spatial_frame import FrameSpan, restrict
+from .tensor_composition import compose_fields
 
 Point = tuple[Fraction, ...]
 Net = tuple[tuple[Point, ...], ...]
@@ -137,29 +137,10 @@ def compose(
         )
         for v in range(3)
     )
-    center, width, thickness = frame.fields()
-    columns = []
-    degree = max(len(frame.center), len(frame.width), len(frame.thickness)) + 4
-    for q, b, weight in source:
-        checkpoint()
-        xyz = tuple(
-            elevate(
-                add(
-                    add(multiply(center[k], weight), multiply(width[k], q)),
-                    multiply(thickness[k], b),
-                ),
-                degree,
-            )
-            for k in range(3)
-        )
-        columns.append(xyz + (elevate(weight, degree),))
-    rows = tuple(
-        tuple(tuple(columns[v][k][u] for k in range(4)) for v in range(3))
-        for u in range(degree + 1)
-    )
     section_rows = tuple(
         tuple(tuple(source[v][k][u] for k in range(3)) for v in range(3)) for u in range(6)
     )
+    rows = compose_fields(section_rows, frame.fields(), checkpoint)
     return SpatialPatch(section, frame, rows, section_rows)
 
 

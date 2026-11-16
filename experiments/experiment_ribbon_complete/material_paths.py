@@ -75,8 +75,14 @@ def enclose(
     Bound integral abs(|X_t|-|C_t|) over the local span at every or one exact source edge v.
 
     For homogeneous X=H/w, A=H_t*w-H*w_t and R=A dot A-|C_t|²*w⁴.
-    Then abs(speed difference) <= abs(R)/(w⁴*|C_t|). Exact Bernstein
-    coefficient ranges cover the entire rectangle. Local parameter derivatives
+    Rationalization gives abs(speed difference)=abs(R)/(w²*(|A|+w²*|C_t|)).
+    Positive lower bounds on both speed numerators strengthen the denominator;
+    an inconclusive |A| lower bound contributes zero and preserves the original
+    reference-only enclosure. Each degree-n Bernstein basis is nonnegative and
+    integrates to1/(n+1). This bounds the residual's absolute integral by the
+    average of the per-row maximum absolute coefficients. Absolute values
+    precede averaging, so local extension/compression cannot cancel. This covers
+    every fixed transverse coordinate over the entire rectangle. Local derivatives
     integrate over one local unit interval, so no global-span scale is lost.
     No automatic subdivision or independent time/work allocation is introduced.
     An explicit edge coordinate restricts the same tensor exactly before measuring;
@@ -122,11 +128,16 @@ def enclose(
     minimum_speed = (
         square_root_lower(minimum_speed_squared) if minimum_speed_squared > 0 else Fraction(0)
     )
-    discrepancy = (
-        max(abs(lower), abs(upper)) / (min(x for row in weight for x in row) ** 4 * minimum_speed)
-        if minimum_speed > 0
-        else None
+    numerator_squared_lower = min(x for row in squared for x in row)
+    numerator_speed_lower = (
+        square_root_lower(numerator_squared_lower) if numerator_squared_lower > 0 else Fraction(0)
     )
+    weight_lower_squared = min(x for row in weight for x in row) ** 2
+    denominator_lower = weight_lower_squared * (
+        numerator_speed_lower + weight_lower_squared * minimum_speed
+    )
+    residual_integral = sum(max(abs(value) for value in row) for row in residual) / len(residual)
+    discrepancy = residual_integral / denominator_lower if minimum_speed > 0 else None
     checkpoint()
     return SpanPathBound(patch, lower, upper, discrepancy, edge_coordinate)
 

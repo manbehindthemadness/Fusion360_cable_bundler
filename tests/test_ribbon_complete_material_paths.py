@@ -61,6 +61,20 @@ def test_nonuniform_parameter_speed_does_not_imply_material_stretch() -> None:
     assert result.discrepancy_upper_mm <= Fraction(1, 200)
 
 
+def test_affine_longitudinal_shear_uses_both_positive_speeds() -> None:
+    """
+    A constant path-speed difference has a near-sharp enclosure, rather than losing one rationalized speed.
+    """
+    changed = replace(frame(), width=(Vector3(0, 1, 0), Vector3(0.1, 1, 0)))
+    geometry = patches(changed)
+    patch = max(geometry, key=lambda p: abs(p.section.rows[0][-1][0] / p.section.rows[0][-1][2]))
+    root = patch.section.rows[0][-1]
+    exact = abs(Fraction(0.1) * root[0] / root[2])
+    result = enclose(patch, checkpoint, edge_coordinate=Fraction(1))
+    assert exact > Fraction(0) and result.discrepancy_upper_mm is not None
+    assert exact <= result.discrepancy_upper_mm < Fraction(3, 2) * exact
+
+
 def test_local_stretch_and_compression_cannot_cancel_into_a_pass() -> None:
     """
     For offset q the speed is10+2q(1-2t), giving equal totals but nonzero local mismatch.

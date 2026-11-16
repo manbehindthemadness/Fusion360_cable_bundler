@@ -19,6 +19,7 @@ from uuid import UUID
 from cable_bundler.routing import RoutePreview
 
 from .contracts import BranchPlan, CompleteRibbonInput, ConductorKey, IncompleteRibbonInput
+from .topology import ancestry, terminal_chains
 
 
 class LengthBasis(Enum):
@@ -142,27 +143,11 @@ def chain(
     """
     Walk explicit terminal-to-root links, preserving serial route order and rejecting corruption.
     """
-    ids: list[UUID] = []
-    evidence: list[LengthEvidence] = []
-    seen: set[UUID] = set()
-    current = terminal
-    while True:
-        checkpoint()
-        attachment_id = current.attachment.attachment_id
-        if attachment_id in seen or current.conductor != terminal.conductor:
-            raise IncompleteRibbonInput(
-                "A measured end chain changed conductor or contains a cycle"
-            )
-        seen.add(attachment_id)
-        ids.append(current.source.leg.route_id)
-        evidence.append(lengths[current.source.leg.route_id])
-        parent_id = current.attachment.parent_attachment_id
-        if parent_id is None:
-            break
-        if parent_id not in branches:
-            raise IncompleteRibbonInput("A measured end chain is missing its parent")
-        current = branches[parent_id]
-    return tuple(ids), tuple(evidence)
+    ordered = ancestry(terminal, branches, checkpoint)
+    return (
+        tuple(b.source.leg.route_id for b in ordered),
+        tuple(lengths[b.source.leg.route_id] for b in ordered),
+    )
 
 
 def summed(evidence: tuple[LengthEvidence, ...]) -> tuple[Fraction, Fraction]:
@@ -242,11 +227,14 @@ def audit_ranges(
         value.lower_mm <= 0 for value in lengths.values()
     ):
         raise IncompleteRibbonInput("Full trunk and branch lengths must have positive lower bounds")
-    branches = {branch.attachment.attachment_id: branch for branch in plan.branches}
-    parents = {branch.attachment.parent_attachment_id for branch in plan.branches}
-    leaves = [branch for branch in plan.branches if branch.attachment.attachment_id not in parents]
+    ordered = terminal_chains(plan.branches, checkpoint)
+    leaves = tuple(values[0] for values in ordered)
     chains = {
-        leaf.attachment.attachment_id: chain(leaf, branches, lengths, checkpoint) for leaf in leaves
+        values[0].attachment.attachment_id: (
+            tuple(branch.source.leg.route_id for branch in values),
+            tuple(lengths[branch.source.leg.route_id] for branch in values),
+        )
+        for values in ordered
     }
     totals = {identity: summed(evidence) for identity, (_, evidence) in chains.items()}
     output = []
