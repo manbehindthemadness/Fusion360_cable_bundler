@@ -2207,3 +2207,118 @@ labels/trim/trunkfidelity,transverse/interior metrics and complete ownership-awa
 contact remain. Case029hit.4CPU in its approved six-action trial and is NOT repaired;
 076works only in the approved five-used/six-ceiling diagnostic,ordinary4unchanged.
 Native/current diagnostic scopes CLOSED;no automatic retries or budget renewals.
+
+
+Checkpoint3364 — case029 limit-only resolution,2026-11-17UTC.
+User explicitly requested adjusting29limits to determine what resolves it. Frozen
+four-rung host-only ladder: .8CPU/6actions/2048pairs; .8/6/8192;1.6/6/8192;
+1.6/8/8192. Max4attempts/10workerwall each/40aggregate;2recoverywall/24Newton/
+8roots/6Newtonperaction/hardware bounds/memory/physical gates unchanged. Original
+3359targets,namespace,settings and frozen3185candidate/context order retained.
+New isolated adapter changes only Work action/pair validation, deferred parent
+allocation/action guard and two CPU-ceiling globals. One shared nonrenewable pool;
+spent initial comparisons still deducted. No core source bytes or Fusion runtime
+modified; defaults restore on normal/error exits. Source drift/nesting refuses.
+
+FIRST rung resolves numerical trunk:5actions/13Newton/2roots/1098pairs,
+.414608recoveryCPU/.416088958wall,strict separated contact/clear terminal result.
+Prepared all4endings,combined source-owned longitudinal bound within0.01mm;
+3806metricspans. Worker2.884712166wall/2.867315CPU,preparation1.381094833wall/
+1.377861CPU,audit1.437675584wall/1.433218CPU. Min52%actualfree,no resource stop;
+4GiB sampled RSS guard enforced,peak not retained by gym report. All timers are
+nested subsets where applicable; worker total is not recovery-only timing.
+1independent selected configuration planned/evaluated;0nativeattempts/builds/
+fullyphysicalqualified; native failure rate unmeasured. Three larger rungs are
+UNATTEMPTED after first success. Original4action and6action/.4CPU failures remain.
+This shows additional CPU was sufficient with6actions/2048pairs; .414608actual
+is not a minimum proof and .8successful tested ceiling is not a production policy.
+Both029/076have selected changed-budget numerical successes; neither repairs the
+ordinary4action/.4CPU baseline or changes original100fresh first-attempt outcomes.
+
+11focused boundary/restoration tests pass,all3newPythonfiles Ruff/format/fullIDE
+clear. No fullQA/newnative/physicalqualification. Runtime850/selected361unchanged.
+Parent summary/notes/finalmanifest archived byte-for-byte before doc update;
+3364plan,diagnostic,closure and rung dispositions preserve scope/provenance.
+Standards HEAD matches recorded revision;untracked.DS_Store dirty state reported,
+working-tree standards not applied or changed. ScopeCLOSED;no further retry.
+
+
+Checkpoint3365 — user-requested case029native view,2026-11-17UTC.
+One exact saved3364rung1complete plan;1configuration planned/nativeattempted/built,
+0failures/unattempted,0fullyphysicalqualified. Original trunk+all4endings produce
+5closed positive solids bound to identical savedsourceobjects. No solve,reroute,
+candidate/target/radius/profile/builderchange,union,healing or outputrepair.
+Kernelprediction unknown before build;actual nativebuildstage1.523048167s,
+constructor-onlysum1.476781417s. Source numerical timings are separate saved-run
+measurements,not a matched fresh coldsolve/nativeperformance benchmark.
+Named inventory/ownership/positive-solid checks complete;ending-support fidelity,
+native material/trim/trunk fidelity,junction flow,transverse/interior metrics and
+complete ownership-aware contact audits UNATTEMPTED. No physicalpass inferred.
+
+Frozenretire5/build20/display5/capture5,35saggregate;oneadditional5sframing+
+5scapture fromunused SAME35spool,preplanned before display-only call. Totalcharged
+stages2.461231626s;min49%actualfree,maxsampled buildRSS891472KiB,no resource/source/
+kernel stop. Ownedobsolete3356occurrence/group removed only after idlecontext,
+exactmoduleownership and no added bodies/sketches/nestedoccurrences checks;7old
+transientwrappers released,receipts retained.3363three-layout array retainedhidden
+as immediatecomparison. Rootstill0persistentbodies/0sketches/2ownedoccurrences.
+Currentcomponent/v4BAAEApwIAAAAAAAAAAAAA,module3365.native.PARTS/SAVED/COMPONENT/
+OCCURRENCE/GROUP owns5transients+displaycopies. Blue trunk,orangeendings at original
+coordinates. Firstisometriccapture preserved;closeframing hidesonlyoverlapping
+annotation and adjustsorthographiccamera. Componentname retains unqualifiedlabel.
+Final3365/case029-close.png capturedAFTERframingreturn andvisuallyinspected.
+BothnewPythonadaptersRuff/format/fullIDEclear;actualFusionkernel/displayverified.
+No sourcebuilderedits or unaffectedunitreruns;fullQA/physicalqualification absent.
+Core361/runtime850/defaults unchanged. Parentdocs/finalmanifest archived before
+updates;allreceipts/finalpins retained. ScopeCLOSED;no furthernativeattempts.
+
+
+Checkpoint3366 — saved029and100newcomplete numerical diagnostics,2026-11-17UTC.
+User requested keeping029for later,then100more usingrecentfixes and reviewing
+failures. Exact029targets,successful3364completeplan,3365nativeproof/view andlive
+5bodies remain;case029-retained.json records pointers. One5sSATexport using
+TemporaryBRepManager.exportToFile failed with SDKuserrestricted;hostapplicationlog
+AppLogFile20261116T153617.log:7763 confirms. NoSATcreated,retry/nativebuild or license
+change. Exportfailure/source/planretained;not a new routingconfiguration.
+
+Freshidentifierfresh-complete-f2f3d5522d5e43aa8bdec8cf3867daa2,seed1938376862,
+4428priorfingerprints excluded.100unique inputs reserved before outcomes. N1..10,
+D.75,zone300%,roll[-90,90],nonadjacentseparatedcubicles;alllanes/bothends/one-diameter
+endingextensions/no descendants. Same frozen3185candidate/contextorder andrecent
+3360phasepullback/3361pairbound/3362bound-firstaudits. Uniform isolated6action/.8CPU
+recoveryexception forALL100,otherwise2wall/24Newton/8roots/2048pairs/6Newtonperaction,
+hardware andphysicalgates unchanged. Ordinary4action/.4CPUdefaults remain unchanged.
+No case-conditioned policy,retuning,retry,sourcechange or targetmovement occurred.
+Fixed100continuation countsgeometry/auditexhaustion;source/memory/cancellation/
+unknownharness errors hardstop.11newboundarytests verify fail-closedstopclassification.
+
+100planned/100attempted/100collected,0unattempted/uncollected/retries.98preparedtrunk+
+ALLendings andwithinplannedlongitudinalincrementbound;2trunkunresolved,ending/material
+auditsUNATTEMPTED.0auditcoverageerrors/timeouts/hardstops.0nativeattempts/builds/
+fullyphysicalqualified.2/100numericalpreparationfailures,not98physicalpasses or a
+compactness/visualquality/usability result. Original3359rate cannot be replaced or
+pooled:source/auditpolicies andresourcecaps differ. RegistryfinalizedONCE,backup
+novelty-before/after.sqlite3retained alongside aggregate/raw first-attempt receipts.
+Conductorcount totalsN1:14,N2:7,N3:12,N4:4,N5:10,N6:14,N7:8,N8:13,N9:11,N10:7.
+
+Workerwalltotal325.271566s,min/median/max.266439/3.349740/9.416354s;cohortelapsed
+511.614086s<1200,workeraggregate<1000,10s/case. Min49%actualfree,maxworkerpeak
+285552KiB<4GiB.074N10nearcap9.416354s flagged without retry. Receipt-only10sreview
+measured17recoveryevents;018/048,N3both,preparedwith6/5actions and.472175/.486828CPU,
+showing newallocation exercised beyondoldcaps;no matchedoldbudgetcounterfactual.
+
+FAILURES retained without fixing:
+034,N8,D.75:2actions/5Newton/1root/2048pairs/.446092recoveryCPU<.8,worker.702735wall.
+Earlier fullproof depthlimited,lastfullproof pairslimited338remainingcomparisons;
+combinedparentpool2048spent. Stopunsupported_or_exhausted_flat_constraints,not a
+demonstratedCPU shortage;no interrupteduppercharge marker in finaldetail.
+092,N1,D.75:initialclosurerecovery unsupported_missing_direction,0actions/0Newton/
+0roots/0pairs/.000330CPU,worker.266439wall. No correction direction entered;extraCPU
+alone is not indicated. Finitefailure does not establishphysicalinfeasibility.
+Bothfailure geometries differ fromoriginal3359cases with sameordinals. Allsource
+inputseeds/poses/provenance retained;no post-result deletion or exclusion.
+
+All4newPythonfilesRuff/format/fullIDEclear;11focusedtests pass. FullQAunattempted;
+core361/runtime850/defaults/production unchanged. Current3365live029scene unchanged,
+3363comparisonhidden. Parentdocs/finalmanifest archivedbeforeupdatingcurrentstatus.
+100-case scopeCLOSED. Nextboundeddecision follows review,not automaticrefinement.
