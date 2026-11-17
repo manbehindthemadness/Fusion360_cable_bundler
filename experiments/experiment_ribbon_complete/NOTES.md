@@ -2369,3 +2369,67 @@ clear. FullQA unattempted. Parentdocs/finalmanifest archivedbeforeupdates;origin
 first-attempt outcomes/registry not rewritten. Numerical/native scopesCLOSED;no
 furtherlimit-only retries or solverchanges. View092originalselectedstage faithfully,
 never describe it as the final refined trial or acceptedfullribbon.
+
+
+Checkpoint3368 CLOSED — failure-acquisition and comparison,2026-11-17UTC.
+User requests batchesof100newuniqueinputs until50failures,then common-denominator
+analysis. Uniform lastfresh3366numericalpolicy6actions/.8CPU/2048pairs fordeferred
+recovery,otherbranches keeporiginalsmaller allocations. Selected3367initialclosure
+capture and8192pairexceptions are not promoted. No solver/candidate/target/radius/
+physicalgatechanges or retries during campaign. CountNEW numericalpreparation,
+materialunresolved/violation andexpectedtime/spanexhaustion,not allunqualified
+physicalstatuses. Unknownsource/harness/memory/cancellation errors stopwholecampaign.
+Finishfullcurrent100when50crossed;retainovershoot. Eachbatchnewseed and100physical
+fingerprints reservedBEFOREoutcomes;allpreviousregisteredinputs excluded. Same
+N1..10/D.75/300percent/nonadjacentcubicles/rollranges/alllanes/bothends/one-diameter
+endingextensions/no descendants. Prior3366first-attempt2failures remainseparate.
+Frozenlimits:10workerwall/case,1000workerwall/1200elapsed/batch;4GiB/3.8launch/
+>=10%actualfree;diskfree>=10GiB;max100batches/10000cases/8hoursscheduling. Review
+each100and<=20minutes;no automaticlimitexpansion. Atprior2%roughestimate2500cases/
+3–4hours,not a promisedrate.0nativebuilds andnoFusionwrites;scene3367unchanged.
+Campaigncontroller/stopclassification11newfocusedtests pass;3newPythonfiles Ruff/
+format/fullIDEclear. Parentdocs/finalmanifest archivedbeforeactive checkpoint.
+Campaignsource/policyimmutable;batchNNN/percaseledgers andsummaries finalizedONCE,
+registrybackupbefore/aftereachbatch. Source361/runtime850/defaults unchanged.
+21batches completed:2100planned/attempted/collected,0unattempted/uncollected/retries.
+All2100physicalfingerprints ANDlayoutseedsunique;oneidenticalsource/policyset.
+Registry4528prior excluded beforefirstbatch,6628totalafterlast. No duplicate credit.
+2046preparedtrunk+ALLendings/withinplannedlongitudinalbound;54numericalfailures:
+48trunkunresolved,5case10secondstops,1metricspanexhaustion.2timeoutsduringconstruction,
+3timeouts+spanstopafterallendingpreparation;retainedprefixes do notqualifybounds.
+50thfailurebatch021case038;finishfullbatchretained54;no batch022 orselectedreplay.
+No measuredlongitudinalviolation;unresolved/stopped isnotproof ofviolation/infeasibility.
+0nativeattempts/builds/fullphysicalqualified;nativefailurerate/compactness/physical
+usabilityUNMEASURED. NoFusionwrites;scene3367notrevalidatedduringcampaign.
+Finalreasons:joint_update_limit9,hardware_not_clear8,native_support_degeneracy6,
+physical_inequality_capacity5,case_time_limit5,linear_projection_infeasible5,
+work_exhausted4,no_closed_local_allocation3,local_budget3,joint_no_descent2,
+native_projection_infeasible1,feature_capacity1,metric_span_limit1,
+unsupported_or_exhausted_flat_constraints1. Total54,noneomitted orreclassifiedpass.
+Sharedlocalcorrection34(23limits/unsupportedconstraints+11closure/projection),
+hardware8,nativesupportdegeneracy6,time/span6. Fivehardwarefailureshit1024cells;
+othersdidnot. Nativeprojectionlabelisanumericalslotconstraint,notFusionkernelcall.
+Native6supportdistances.000000843..000005991mm<.00001constructionthreshold;
+representationunresolved,notmaterialviolation. No tolerancechange/nativeattempt.
+Same-directiontangents16/186fail(8.60%)vs38/1914(1.99%)others;failuresacross8Nvalues.
+N1:10/196(5.10%)vs44/1904(2.31%)others;allN1..10havefailures. Oppositetangent195/195
+prepared,notuniversalsuccess. Relative-rollhalf-turnexplicitlyambiguous,notguessed.
+Allcomparisonsinclude passingdenominators,descriptiveadaptivestop,no fixed-nCI/
+causalclaim. No case/seed/face/countdispatch ornewcandidatesproposed.
+Workerwall6881.521616s/CPU6854.990892s;sumactivebatchelapsed8172.091914s excluding
+betweenbatchreviews. Workerwall min/median/max.102234/3.223459/10.008325s. Scheduling
+checkpointovershootsremainfailures. Min36%actualfree/max142592KiBworkerpeakRSS;
+no source/memory/disk/cancel/harnessstop. Analysis8.55sbeforewrite/<120s,>=41%free.
+18856analysispinsverified before all2100result/plan/source/seed/fingerprintchecks.
+54finalsavedtrunkdetails/events retained;initialeventexploratoryscanmissingstage
+fixedinreadonlyreviewer,0solverretries. 8newfocusedreviewtests,Ruff/format/fullIDE
+clear;controller11earlierpass unaffected. No fullrepositoryQA orlivevalidation.
+ExactACTIVEsummary/notes archived3368/active-parent beforefinaldocreplacement;
+final-plan.json explicitlysupersedescurrentdocpins while retainingarchivedbytes.
+Detailedreport3368/report.md andanalysis-summary/analysis-rows/failure-details/
+mechanism-reviewJSON. Goal2979stillUNACHIEVED,0fullyphysicalqualifiedribbons.
+Nextrecommendedwork:sharedlocalclosure/clearancecorrection andactiveconstraints,
+using same-direction subgroup andpassingcontrols;native6/time6 separateworkpackages.
+LargerCPUaloneunsupported:peractionNewton/inequality/childallocationsoftenbindfirst.
+Futuregeneralizedfixrequiresmatched54failures+2046passingcontrols,newfrozenholdout,
+thenboundednative/completephysicalproof. No additionalexperiment orfixstarted here.
