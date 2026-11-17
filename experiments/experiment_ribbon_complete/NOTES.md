@@ -2322,3 +2322,50 @@ All4newPythonfilesRuff/format/fullIDEclear;11focusedtests pass. FullQAunattempte
 core361/runtime850/defaults/production unchanged. Current3365live029scene unchanged,
 3363comparisonhidden. Parentdocs/finalmanifest archivedbeforeupdatingcurrentstatus.
 100-case scopeCLOSED. Nextboundeddecision follows review,not automaticrefinement.
+
+
+Checkpoint3367 — user-authorized expanded limits and rejection views,2026-11-17UTC.
+Selected3366cases034N8/092N1,originalexacttargets/candidates/settings/radii/physical
+rules. Frozen3rungs each:6actions/.8CPU/8192pairs;6/1.6/8192;8/1.6/8192,maximum
+6attempts/10workerwall each/60aggregate.2wall/24Newton/8roots/6Newtonperaction and
+hardware unchanged. Only FIRST rung executed for each;4largerrungs UNATTEMPTED
+after complete034preparation and structural092unsupported_missing_direction.
+Isolatedhostadapter extends deferredparent andinitialclosureWork allocation and
+CPU/pairglobals,restoringfunctions/globals/alias on all exits. Initial construction
+still4s/2048pairs. Exactinitialinput captured BEFORErecovery;no candidatepolicy change.
+Ordinary4action/.4CPU defaults/core361/runtime850/production unchanged.
+
+034recovers with2324comparisons/.455344CPU/2actions/5Newton;worker7.840746s,
+trunk+all16endings prepared,combinedlongitudinalboundqualifies. Pairincrease was
+sufficient with unchanged.8CPU/6actionceiling. Selectedreplay has0freshcredit;
+original3366fresh100remains98prepared/2unresolved. Nativeexactsourceownership/
+closedpositivetopology checked for17childsolids;1completeconfiguration built,
+buildstage2.427790750s,fullphysical/nativefidelityaudits UNATTEMPTED.
+092sameunsupported_missing_direction,0actions/Newton/pairs/.000293CPU,worker.256053s.
+Largerworkpool does not supply a missingmotiondirection. Solverreturns no accepted
+route/inspectionroute. Capturedinitialinput reproduces original selection rule:
+original iteration0cone coordinates,not a later refined trial or new fitting.
+Those unchanged coordinates give14.650274706mm trunk with2.123369364mm capgap.
+One rejectedtrunkonly nativeclosedsolid builds in.389315542s. Endings UNATTEMPTED,
+contactUNMEASURED,not a complete/nativeaccepted ribbon. No geometryrepair/targetmove
+or statusupgrade. Display pinkbody/greenfixedendframe/yellowgap explicitly labelled
+in componentname.034blue trunk/orange16endings. No fake ending geometry for092.
+
+Nativefrozen9stages75saggregate includeownedretirement,2builds,display,2separate
+view/capturepairs andfinalarray. Allcomplete4.181611125s,min31%actualfree,maxsampled
+RSS891136KiB. No source/resource/kernelstop or rebuild. 2configurations attempted,
+1completebuilt/1partialrejecteddisplay/0fullyphysicalqualified/0freshcredit.
+BothPNGcaptures takenAFTERrespectiveviewreturned andvisuallyinspected.
+Finalreadbackidle/root0bodies/0sketches/2ownedoccurrences,bothnewgroupsvalidvisible.
+Current3367component/v4BAAEABQMAAAAAAAAAAAAA,children034/v4BAAEALAMAAAAAAAAAAAAA,
+092/v4BAAEAzgMAAAAAAAAAAAAA;source geometry unchanged,092displaytranslation80mm.
+Module3367.native.PARTS/SAVED/GROUPS/COMPONENT/OCCURRENCE retains18transients+copies.
+029component/v4BAAEApwIAAAAAAAAAAAAA/5wrappers retainedhidden immediatecomparison.
+Obsolete3363owned3layoutarray/29wrappers retired only afterexactprovenance/no added
+bodies/sketches/childcontentchecks;allhistoricalnumerical/native/viewreceipts remain.
+
+2newfocused restoration/accountingtests pass;all4newPythonfiles Ruff/format/fullIDE
+clear. FullQA unattempted. Parentdocs/finalmanifest archivedbeforeupdates;original
+first-attempt outcomes/registry not rewritten. Numerical/native scopesCLOSED;no
+furtherlimit-only retries or solverchanges. View092originalselectedstage faithfully,
+never describe it as the final refined trial or acceptedfullribbon.
