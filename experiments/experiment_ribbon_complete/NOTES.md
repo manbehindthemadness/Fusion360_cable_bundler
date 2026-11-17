@@ -2433,3 +2433,198 @@ using same-direction subgroup andpassingcontrols;native6/time6 separateworkpacka
 LargerCPUaloneunsupported:peractionNewton/inequality/childallocationsoftenbindfirst.
 Futuregeneralizedfixrequiresmatched54failures+2046passingcontrols,newfrozenholdout,
 thenboundednative/completephysicalproof. No additionalexperiment orfixstarted here.
+
+
+Checkpoint3369 CLOSED — inspect frozen failures,2026-11-17UTC.
+User requests inspecting54failurestoidentifygeneralizedsolution. No solverchanges,
+candidate/target/tolerance/workallocationchanges,newsolve,probe,nativebody or
+physicalqualification.54journals inspected;46contain106completedjointactions;
+6nativeprecheckrejections+2constructiontimeouts have no completedjointstate.
+All5physical_inequality_capacitycases hit13rowcapacity;all5linearprojectioncases
+recordworking-setexhaustion intherelevantcorrection,notproof ofinfeasibility.
+Exactanalytical20variableproblem d0..5=0,d6..19>=1 hasknownleast-normoptimum
+sixzeros/fourteenones,objective7;currentprojectionprepare rejects14physicalrows.
+This demonstratesimplementationlimit,notfeasibility ofactualnonlinearinputs.
+9finaljoint_update_limit:7lastpairscomparable underunchangedjournaledbindings,
+6lateimprovements<2%,1=18.53%;1bindingreplacement/1singleupdate excluded.
+Authoritative late-update-comparability.json supersedes preliminaryrow-count-only
+comparison in mathematical-findings.json. Do notcomparemeritacrossreboundrows.
+Existingbackend alreadyhasactive-set/residualredistribution;proposalstrengthens
+completeconstraintinventory vsindependentbasis,rank-awareexchanges andvalidated
+within-caseactiveidentityreuse. No staleJacobian/dualreuse,case-specificdispatch,
+physicalconstraintdeletion orautomaticCPU/rowbudgetchange. Originalfinalgateshold.
+Directlytargets10row/projectionfailures;transfer toother24localfailuresUNPROVEN.
+Two savedtrunks captured bymaintainedspatialinstrument in.200569/.241820s:
+21/45N3 finalmatchingjoint-update-limitstage length54.355520191mm,
+center-capgap.453963025mm/maxlane.454922403mm/framevectorerror.011086839;
+strictselfpenetration617pairs andendhardwareintrusion134cells. It isopen/rejected,
+notacceptedroute orsubstitutionforparentfinalreturnedobject. Bothoccupied-point
+witnesses retained. Nearby9/89N3passingcontrol length32.466230337mm,closedcaps,
+selfseparated222pairs/hardwareclear52cells. Selecteddeterministicallyfrom25N3
+same-tangentcontrols bynormalizedposefeatures;differentroll19vs1degree means
+notmatchedcausalcomparison. Sourcecapturedtrunksonly,endingsnotdisplayed.
+FourviewSVG/HTML andcompleteQuickLook-squarePNG visuallyreviewed;exactmaterial
+samples/proxyboxes/witnesses,sharedpercolumnmm-scale/startframecameraalignment.
+No nativebodies orFusiondisplayreplacement. FirstnonsquareQuickLookPNGcropped;
+missing-filethumbnailstartupterminated;onlyfullsquarePNGisrevieweddelivery.
+IABunavailable;no browserinteractionclaimed. Read-onlyFusioninitialpropertyerror
+andretainedstalerunentrypointwritefailure diagnosed inapplicationlog;explicit
+runwrappernowverified. No receipt overwrite/reload/geometryretry. Retainedowners
+3367/3365valid,sameUntitled/PID15508/root0bodies/0sketches/2occurrences,idleSelect.
+Inspectionreport3369/inspection.md,correctionstates/residuals,analyticalcertificate,
+capturepackets andsourcepins retained. Parent3368docs/finalmanifest archivedexactly
+beforemaintaineddocupdates. Selected361/runtime850unchanged. No appcodechanged;
+documentationdiffreview+analyticalchecks+visualreview,notrepeatedapplicationQA.
+MissingfullJacobians/rowbindings/dualstates preventsactualcase-levellinearproof.
+Nextboundeddecision:passiveexactlinearsystemcapture on5capacity+5projectioncases
+withpassingcontrols,thenseparatealgebraicprototypeundercurrentallocations.
+No suchsolverreplay/prototypeimplemented here. Native6/time-span6needseparatework;
+freshholdout/native/physicalqualificationstillrequired. Goal2979UNACHIEVED.
+
+
+## Checkpoint3370 — bounded projection prototype
+
+Thirteen selected cold captures retained200augmented systems:175dual/25primal.
+All ten original failure inputs remained unresolved; three controls again prepared
+all endings and qualified for source longitudinal bounds. No retries, new native
+builds, fresh validation credit or full physical passes occurred. The original
+2,100-case/54-failure campaign remains unchanged.
+
+One offline row-basis variant retained sixteen updates and existing gates. Of175
+dual systems,159returned under both backends,13declined under both,2improved and
+1regressed at the raw inequality gate. Maximum measured system CPU7.029ms.
+This mixed result does not justify installing the variant. The14-active-row exact
+analytical optimum passes, but actual overflowing ribbon Jacobians are blocked
+before construction. Complete physical inventory, dependent-row consistency and
+checked basis exchanges remain unimplemented; stable physical identities are also
+needed before warm starts. No routing/candidate/budget/production change.
+
+Worker time13.031027wall/12.875765CPU; capture overhead0.007843CPU; minimum46%
+actual free memory. Three focused tests, Ruff/format and full IDE checks pass.
+No full repository QA. Details artifacts/verification/resume3370/report.md;
+checkpoint pins3370/final-plan.json; exact previous docs archived3370/parent.
+
+
+## Checkpoint3371 — failure growth and saved029lineage
+
+Read-only inspection confirms restoration can worsen endpoint closure and grow
+material while reducing its combined maximum residual. Across72exactly reconstructed
+material-return actions in42failed configurations,29have an accepted endpoint-gap
+increase>0.01mm. This selected-failure count is descriptive;31coupled actions and
+3exact reconstruction mismatches are excluded. The passing N1control also has
+unsuccessful intermediate corrections before recovery succeeds.
+
+In displayed21/45, late step2has46.309322mm length/0.060141mm lane gap/clear connector
+proxies; step3has51.654791/0.530126/blocked proxies. A new contact row raises the
+current composite merit; its23.41%decrease allows closure and hardware to worsen.
+Earlier full-fold reversal opens a closed cap by34.974729mm; that discarded trial
+is not the source of every later branch. Six saved snapshots, not six independent
+configurations, share a reviewed same-scale progression3371/progression.html.
+
+Saved029does contain an explicit fallback: recovery grows34.718→38.312→49.422→54.197
+→58.461mm, then optional shortening55.583mm clears self-contact but enters the start
+connector proxy. The exact58.461mm construction is restored and matches the native
+saved plan. Four joint stages/13Newton updates, not ten qualified solutions.
+One module prune was unavailable, with zero simplification attempts. Untouched-object
+undo is not general simplification of deformed material. No unnecessary fold or
+shorter valid route has yet been established. Preserve the safe fallback while
+investigating coordinated closure/contact/connector constraints and compactness.
+
+No solver/production/candidate/budget change, new solve/probe/native attempt or fresh
+credit. Full physical qualification remains zero.58saved configurations inspected
+at different depths. Stage1capture packet survives a collector-key error without
+rerun; timing/headroom receipt unavailable. Other5captures total0.977035wall seconds.
+No code changes/application QA repeats; pinned sources unchanged. Findings3371/findings.md,
+checkpoint3371/final-plan.json; exact previous docs archived3371/parent.
+
+
+## Checkpoint3372 — selected-source failure origins
+
+The42unresolved routing failures already enter recovery with a physical blocker:
+39connector intrusions and3self-intersections. Thirty-eight connector sources match
+the deferred constructor source roots exactly; one enters through initial closure
+escape, closes/self-separates, then fails connector checking before joint recovery.
+The other12of54failures are6initial native-support representation declines,
+2construction-process timeouts and4audit resource stops after trunk/all endings
+prepare. Timeouts are process outcomes; their geometric origins are not equated.
+
+Initial construction fits endpoint/guide frames and allocates straight lengths
+before separate caller collision checks. Recovery then introduces whole-fold
+reversals, closure/contact tradeoffs, open handoffs and added structure. The origin
+and later amplification are distinct. Passing controls include both early-blocked
+recovery and a later contraction-induced connector regression, so an early fault
+does not itself predict final failure. No code or limit changes, new solves,
+probes/captures/native work. Read-only analysis0.257343CPU/0.260782wall seconds,
+minimum46%actual free. App QA not repeated for prose/read-only work.
+
+Authoritative per-case classification3372/selected-origins.json follows the selected
+source; draft earliest-fault inventories also include discarded alternatives and
+must not replace it. Parent docs archived3372/parent; pins3372/final-plan.json.
+
+
+## Checkpoint3373 — cleared scratch and material comparisons
+
+Retired exactly the two verified owned3365/3367 scratch occurrences and released
+23transient wrappers. Saved geometry plans, images and native receipts remain.
+One new owned graphics component displays four saved layouts in seven stage views:
+21/45connector/self-contact growth,20/14self-contact growth,1/31native-support
+representation decline, and029original source versus retained final construction.
+Blue initial, orange later, red contact witnesses, grey connector envelopes.
+Common physical scale and rigid display transforms; endings omitted. These are
+sampled own-material meshes, not native solids or new physical qualification.
+
+Five bounded captures and two reused packets;81,920triangles. Packet preparation
+0.870954wall seconds; cleanup0.692655; display0.295635. Minimum measured actual
+free memory53% across cleanup/display, maximum sampled RSS486192KiB. No solver
+changes, new solves/probes/native attempts or fresh configuration credit.
+Overview and focused first comparison images reviewed; current ownership and
+closed pins in3373/final-plan.json. App tests not repeated for graphics/prose work.
+
+
+## Checkpoint3374 — native-support screen becomes advisory
+
+**<u>OPEN REQUIREMENT — MERGE-SAFE OPTIONAL TEXTURE COORDINATES</u>**
+
+User explicitly underlines this as a likely future failure. Retaining the original
+material map does not yet provide merge-safe texture generation. Native face count,
+order, IDs and seam survival must not define material/texture identity. Map the
+resulting BRep back to the original material coordinates across merged or split
+faces and seams, verify correspondence within the existing0.01mm dimensional
+allowance, and detect ambiguous assignments. An actual topology-changing regression is required
+before claiming support: all3374 examples retained their authored face counts.
+Texture-only ambiguity must disable optional texture output with an explicit
+diagnostic while preserving otherwise valid geometry. Required physical/material
+audit failures remain hard gates. Implementation and validation remain OPEN.
+Recorded in documentation checkpoint3375; no code or experiment change.
+
+Three saved initial trunks previously flagged by support proximity built as
+closed positive solids without rerouting or new healing:1/31N7,3/76N2,11/63N10.
+Build wall seconds3.774047/0.338480/0.985527; face counts254/122/362 all match
+authored counts. Case3/76 uses its first archived branch, independently flagged
+by the old screen, rather than its last declined alternative. Nine source points
+per skin patch give6588on-trim samples, maximum7.568292e-10mm error. These finite
+checks validate tested collection-order pairing, not persistent face identity,
+continuous correspondence or global material/texture inversion. Trunks only:
+zero native complete-ribbon coverage or full physical qualification.
+
+ConstructionReadiness preserves the original proximity measurement and raw
+witness, emitting construction_warning instead of a numerical proposal veto.
+The same policy reaches all existing readiness boundaries through the unchanged
+context order. Geometry, candidates, physical gates and resource limits remain.
+Measurement/recorder/checkpoint errors propagate. Three complete numerical
+replays prepare14/4/20endings and satisfy the existing longitudinal material
+bound in3.385468/1.309514/4.517279wall seconds; all remain physically unqualified.
+Historical campaign failures and first-attempt statistics are unchanged.
+Only C's final replay trunk equals its natively tested initial trunk. The other
+two replays return different trunks, which were not built in this scope.
+
+32focused tests covered, affected gym/test Ruff and all6changed-file IDE checks
+clear; fullQA not run. Baseline3374/advisory-runtime-final-plan.json explicitly
+revises gym candidate/job metadata/lock and related tests, preserving361selected
+sources. Live baseline configuration bound after matching loaded lock functions;
+no reload. Old live freeze metadata label persists until normal restart; source
+hashes and fresh worker warning events remain authoritative. Failed temp-ID audit
+and rolled-back nested-token display receipts retained; no kernel retry. Corrected
+audit used existing bodies; one graphics-only display renewal succeeded. Current
+Cmesh/native comparison visible, final image reviewed;2other probe bodies released.
+Parent docs/source archives and final pins under3374.

@@ -1,5 +1,5 @@
 """
-Invoke the unchanged frozen experimental trunk candidate under its existing inner limits.
+Invoke the frozen trunk algorithm with advisory native proximity under existing inner limits.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ from experiments.experiment_ribbon_locked_solver.settings import Settings
 from experiments.experiment_ribbon_locked_solver.solver import Result
 from experiments.experiment_ribbon_locked_solver.solver_v2 import solve
 
+from .readiness import ConstructionReadiness
+
 
 class CandidateBundle(Protocol):
     """
@@ -23,7 +25,6 @@ class CandidateBundle(Protocol):
     kernel_installed: Callable[[], ContextManager[Any]]
     equations_installed: Callable[[], ContextManager[Any]]
     projection_installed: Callable[[], ContextManager[Any]]
-    Policy: Callable[[float], Any]
     mobility_installed: Callable[[Any], ContextManager[Any]]
     returns_installed: Callable[[], ContextManager[Any]]
     caps_installed: Callable[[], ContextManager[Any]]
@@ -46,16 +47,18 @@ def construct(
     native_point_tolerance_mm: float,
 ) -> Result:
     """
-    Reuse3338/3346's exact context order once, with no extra candidates or recovery work.
+    Preserve3338/3346's context order and work limits with advisory native proximity.
 
     This dependency on a frozen artifact bundle is explicit and development-only.
     The outer gym watchdog adds no inner feasibility allocation or physical pass.
+    Sampled native-support proximity records a warning; physical routing checks
+    and actual native construction/material correspondence remain independent.
     """
     with ExitStack() as stack:
         stack.enter_context(candidate.kernel_installed())
         evidence = stack.enter_context(candidate.equations_installed())
         stack.enter_context(candidate.projection_installed())
-        policy = candidate.Policy(native_point_tolerance_mm)
+        policy = ConstructionReadiness(native_point_tolerance_mm)
         for installation in (
             candidate.mobility_installed(evidence),
             candidate.returns_installed(),

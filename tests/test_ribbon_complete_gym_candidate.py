@@ -24,7 +24,7 @@ def test_adapter_calls_unchanged_candidate_once_inside_original_context_order(
     """
     entered, exited, calls = [], [], []
     evidence = object()
-    policy = object()
+    policies = []
 
     def factory(context_name: str) -> Callable[..., ContextManager[Any]]:
         """
@@ -37,6 +37,8 @@ def test_adapter_calls_unchanged_candidate_once_inside_original_context_order(
             Yield the shared equation receipt in the same scope as the real adapter.
             """
             entered.append(context_name)
+            if context_name in ("readiness_installed", "initial_installed"):
+                policies.append(_args[0])
             yield evidence
             exited.append(context_name)
 
@@ -56,8 +58,6 @@ def test_adapter_calls_unchanged_candidate_once_inside_original_context_order(
     )
     for name in names:
         monkeypatch.setattr(candidate.candidate, name, factory(name))
-    bundle: candidate.CandidateBundle = candidate.candidate
-    monkeypatch.setattr(bundle, "Policy", lambda tolerance: policy)
     expected = Result(None, None, {"status": "analytical_unresolved"}, None)
 
     def solve(*args: Any, **kwargs: Any) -> Result:
@@ -78,3 +78,6 @@ def test_adapter_calls_unchanged_candidate_once_inside_original_context_order(
     assert calls[0][0] == (source, SETTINGS, checkpoint, events.append)
     assert calls[0][1] == {"native_point_tolerance_mm": 1e-5}
     assert tuple(exited) == tuple(reversed(names))
+    assert len(policies) == 2 and policies[0] is policies[1]
+    assert isinstance(policies[0], candidate.ConstructionReadiness)
+    assert policies[0].point_tolerance_mm == 1e-5

@@ -1,5 +1,5 @@
 """
-Pin experimental gym execution to the unchanged candidate and complete-pipeline sources.
+Pin gym execution to the authorized advisory-screen candidate and complete pipeline.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from pathlib import Path
 from artifacts.verification.resume3227 import manifest
 
 ROOT = Path(__file__).resolve().parents[2]
-BASELINE = ROOT / "artifacts/verification/resume3362/candidate-r1-plan.json"
+BASELINE = ROOT / "artifacts/verification/resume3374/advisory-runtime-final-plan.json"
 
 
 def capture() -> dict[str, str]:

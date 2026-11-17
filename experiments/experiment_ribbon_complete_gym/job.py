@@ -133,7 +133,7 @@ def freeze(scene: Scene, namespace: UUID, directory: Path, tolerance_mm: float) 
         "settings": asdict(SETTINGS),
         "native_point_tolerance_mm": tolerance_mm,
         "fixture": "both ends; one diameter extension; all lanes; no descendants",
-        "candidate": "unchanged3338/3346 frozen3185 context bundle",
+        "candidate": "3338/3346 frozen3185 context order;3374 advisory native-support screen",
         "new_native_calls": 0,
         "generalization_credit": False,
     }
@@ -147,7 +147,7 @@ def run(directory: Path, constructor: TrunkConstructor | None = None) -> Path:
     Execute once and retain flushed prefix evidence on a known resource or geometry stop.
 
     An injected constructor supports analytical boundary tests; normal execution
-    uses the unchanged candidate adapter. This function never starts native work,
+    uses the pinned candidate adapter. This function never starts native work,
     retries, renews limits or returns a physical pass. Launch/source/input failures
     propagate before a numerical operation; in-flight failures retain their report.
     """
