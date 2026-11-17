@@ -78,8 +78,13 @@ class SpatialPatch:
         """
         Require complete positive-weight world and section tensors before evaluation.
         """
-        expected = max(len(self.frame.center), len(self.frame.width), len(self.frame.thickness)) + 5
-        for net, rows, size in ((self.rows, expected, 4), (self.section_rows, 6, 3)):
+        section_count = len(self.section.rows)
+        expected = (
+            max(len(self.frame.center), len(self.frame.width), len(self.frame.thickness))
+            + section_count
+            - 1
+        )
+        for net, rows, size in ((self.rows, expected, 4), (self.section_rows, section_count, 3)):
             if (
                 len(net) != rows
                 or any(len(row) != 3 for row in net)
@@ -138,7 +143,8 @@ def compose(
         for v in range(3)
     )
     section_rows = tuple(
-        tuple(tuple(source[v][k][u] for k in range(3)) for v in range(3)) for u in range(6)
+        tuple(tuple(source[v][k][u] for k in range(3)) for v in range(3))
+        for u in range(len(section.rows))
     )
     rows = compose_fields(section_rows, frame.fields(), checkpoint)
     return SpatialPatch(section, frame, rows, section_rows)

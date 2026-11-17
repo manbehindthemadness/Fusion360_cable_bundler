@@ -22,6 +22,7 @@ from .branch_construction import BranchRoot, construct
 from .branch_plan import SpatialBranchPlan
 from .branch_targets import BranchTargets, capture_targets
 from .contracts import CapPort, CompleteRibbonInput, IncompleteRibbonInput
+from .profile_transition import TransitionTiming
 
 
 class TrunkConstructor(Protocol):
@@ -95,6 +96,8 @@ def prepare(
     trunk_constructor: TrunkConstructor,
     checkpoint: Callable[[], None],
     record: Callable[[dict[str, Any]], None],
+    *,
+    timing: TransitionTiming = TransitionTiming.QUINTIC,
 ) -> RibbonPlan:
     """
     Capture once, construct one trunk, and prepare every branch in original order.
@@ -130,7 +133,7 @@ def prepare(
             raise IncompleteRibbonInput(
                 "Constructed trunk differs from the frozen complete targets"
             )
-        for branch in construct(captured, source.roots, checkpoint):
+        for branch in construct(captured, source.roots, checkpoint, timing=timing):
             branches.append(branch)
             record(
                 {

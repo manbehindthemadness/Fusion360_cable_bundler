@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import Enum
 from fractions import Fraction
 from typing import cast
 
@@ -21,6 +22,33 @@ Point = tuple[Fraction, Fraction, Fraction]
 Row = tuple[Point, ...]
 Net = tuple[Row, ...]
 Pair = tuple[float, float]
+
+
+class TransitionTiming(Enum):
+    """
+    Select a fixed C2 profile progression without changing geometric boundary conditions.
+    """
+
+    QUINTIC = (0, 0, 0, 1, 1, 1)
+    LOW_ENERGY = (0, 0, 0, 1, 0, 1, 1, 1)
+
+    @property
+    def controls(self) -> tuple[Fraction, ...]:
+        """
+        Return exact scalar Bernstein controls for the selected fixed progression.
+        """
+        return tuple(Fraction(value) for value in self.value)
+
+
+def blend_point(first: Point, last: Point, value: Fraction) -> Point:
+    """
+    Blend one exact homogeneous control while retaining its three-component type.
+    """
+    return (
+        (1 - value) * first[0] + value * last[0],
+        (1 - value) * first[1] + value * last[1],
+        (1 - value) * first[2] + value * last[2],
+    )
 
 
 @dataclass(frozen=True)
@@ -85,7 +113,7 @@ def homogeneous(net: Net, u: float, v: float) -> tuple[float, ...]:
 @dataclass(frozen=True)
 class TransitionEdge:
     """
-    Retain one degree5/2 homogeneous loft patch and original edge/material identity.
+    Retain one prescribed C2 homogeneous loft patch and original edge/material identity.
 
     Coordinates are local to the conductor's fixed nominal root center. First
     three rows reproduce the root and last three the terminal circle. This gives
@@ -98,6 +126,7 @@ class TransitionEdge:
     terminal_radius_mm: float
     terminal: MaterialArc
     rows: Net
+    timing: TransitionTiming = TransitionTiming.QUINTIC
 
     def __post_init__(self) -> None:
         """
@@ -106,7 +135,8 @@ class TransitionEdge:
         if not math.isfinite(self.terminal_radius_mm) or self.terminal_radius_mm <= 0:
             raise ValueError("A positive prescribed terminal radius is required")
         if (
-            len(self.rows) != 6
+            not isinstance(self.timing, TransitionTiming)
+            or len(self.rows) != len(self.timing.value)
             or any(len(row) != 3 for row in self.rows)
             or any(
                 len(p) != 3 or any(type(x) is not Fraction for x in p)
@@ -114,11 +144,16 @@ class TransitionEdge:
                 for p in row
             )
             or self.rows[:3] != (self.rows[0],) * 3
-            or self.rows[3:] != (self.rows[-1],) * 3
+            or self.rows[-3:] != (self.rows[-1],) * 3
             or self.rows[0] != homogeneous_row(self.source.geometry, self.center_q_mm)
             or self.rows[-1] != homogeneous_row(self.terminal, 0.0)
+            or self.rows
+            != tuple(
+                tuple(blend_point(a, b, value) for a, b in zip(self.rows[0], self.rows[-1]))
+                for value in self.timing.controls
+            )
         ):
-            raise ValueError("A complete provenance-matched quintic endpoint blend is required")
+            raise ValueError("A complete provenance-matched C2 endpoint blend is required")
 
     def jet(self, u: float, v: float) -> SectionJet:
         """
@@ -193,13 +228,18 @@ def circle_edge(source: MaterialArc, center: float, radius: float) -> MaterialAr
 
 
 def build(
-    profile: RootProfile, center_q_mm: float, terminal_radius_mm: float
+    profile: RootProfile,
+    center_q_mm: float,
+    terminal_radius_mm: float,
+    *,
+    timing: TransitionTiming = TransitionTiming.QUINTIC,
 ) -> tuple[TransitionEdge, ...]:
     """
     Freeze positive-weight transitions for every root edge without changing its exact cap outline.
     """
     if (
-        not math.isfinite(center_q_mm)
+        not isinstance(timing, TransitionTiming)
+        or not math.isfinite(center_q_mm)
         or not math.isfinite(terminal_radius_mm)
         or terminal_radius_mm <= 0
     ):
@@ -217,7 +257,15 @@ def build(
         end = homogeneous_row(terminal, 0.0)
         patches.append(
             TransitionEdge(
-                edge, center_q_mm, terminal_radius_mm, terminal, (root,) * 3 + (end,) * 3
+                edge,
+                center_q_mm,
+                terminal_radius_mm,
+                terminal,
+                tuple(
+                    tuple(blend_point(a, b, value) for a, b in zip(root, end))
+                    for value in timing.controls
+                ),
+                timing,
             )
         )
     return tuple(patches)

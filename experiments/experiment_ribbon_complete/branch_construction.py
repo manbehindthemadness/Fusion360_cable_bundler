@@ -19,6 +19,7 @@ from cable_bundler.routing.geometry import Vector3, cross, dot, linear_combinati
 from .branch_plan import SpatialBranchPlan, assemble
 from .capture import FRAME_IDENTITY, finite
 from .contracts import CompleteRibbonInput, IncompleteRibbonInput, ResolvedBranch
+from .profile_transition import TransitionTiming
 from .root_profiles import CapFrame, RootProfile
 from .spatial_frame import ChartOrientation, FrameSpan
 
@@ -126,6 +127,8 @@ def construct(
     complete: CompleteRibbonInput,
     roots: tuple[BranchRoot, ...],
     checkpoint: Callable[[], None],
+    *,
+    timing: TransitionTiming = TransitionTiming.QUINTIC,
 ) -> Iterator[SpatialBranchPlan]:
     """
     Yield every branch's actual patches in captured order under one caller allocation.
@@ -152,4 +155,5 @@ def construct(
             root.cap,
             frames(branch.source, root, checkpoint),
             checkpoint,
+            timing=timing,
         )

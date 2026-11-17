@@ -1709,3 +1709,501 @@ Those stage caps are development safeguards, not intrinsic solver requirements.
 Future display delivery must include a successful command return followed by a
 valid/visible group and actual post-return screenshot; pre-error graphics writes
 alone are insufficient evidence of delivery.
+
+Checkpoint3349 adds reusable planned whole-path rejection witnesses and a complete
+numerical evaluation entry. Exact chord lower bounds are summed positively over
+disjoint intervals of every original span, both serial terminal chains, and all
+descendants; sibling chains remain alternatives. One inclusive0.01mm allowance
+applies. A missing violation witness is never a material compliance pass. Planned
+source side labels do not establish native or junction material correspondence.
+
+The two unchanged frozen demonstrations were diagnosed once within one5s/1024call
+allocation:320calls,2.298966s,RSS202624KiB,min55%actualfree. BOTH violate the planned
+whole-path material rule: outer traces exceed0.010604871mm across the two endings.
+N2 reproduces3343; N3 now has the same concrete rejection. No solver/native calls,
+new layouts, geometry edits or qualification credit. The selected361 remain fixed.
+The complete numerical evaluation preserves unresolved trunks, propagates resource
+stops and lists missing physical gates; it is not yet connected to the gym UI or
+range tester. A generalized ending correction remains necessary before acceptance.
+
+Focused verification:15witness tests,4evaluation tests and17affected existing tests
+pass; five new files pass Ruff/format and full IDE inspection. One initial test
+allocation mistake (fixture has explicit control spans) was corrected to a count
+derived from frozen inputs; no experiment or production work limit was increased.
+Receipts and frozen pins are under artifacts/verification/resume3349/.
+
+Checkpoint3350 connects complete numerical evaluation to an independent experimental
+endpoint gym. `experiment_ribbon_complete_gym` supplies the unchanged3338 fixture,
+an explicit manual controller, source-pinned worker, cancellation and separate
+complete diagnostic palette. It grants no native builder, automatic range batch,
+novelty credit or physical acceptance. The old selected361 and candidates are fixed.
+The fixture freezes both ends/all lanes one diameter outside caps, without descendants;
+it is not a generalized solver decision about required ending length.
+
+Both palettes are installed/visible in the owned scratch design and actual HTML
+handshake is verified. Setup1.715210s and post-return verification0.263150s preserve
+the original native body's revision. No screenshot-based palette visual QA was done.
+One actual same-N3 worker replay prepares all six endings and returns the expected
+planned material violation: outer trace lower bounds0.010604871mm exceed the ONE
+0.01mm allowance. Total4.509227CPU/4.530399wall seconds,192witness calls,min32%free;
+CPU is below the prior matched native constructor6.411730s. No native rebuild/new
+layout/fully qualified ribbon. Native, junction, contact, curvature, interior and
+complete material upper-bound qualifications remain outstanding.
+
+Two launch checks stopped BEFORE any solver call. Tuple/list normalization alone
+did not resolve cross-runtime roundoff:95 numerical leaves differ by at most
+2.220446049250313e-15. Both failures are retained. The exact current input was then
+captured before the single worker run, respecting the user's0.01mm rule, with no
+outcome-based fitting. Frozen old input and old registry were never overwritten.
+Twelve new gym tests pass, including fixture parity, unchanged context order,
+one-shot worker lifecycle, cancellation, source/input drift and interrupted logs.
+Ruff/format and full IDE inspections apply to the new code; no full QA was run.
+The next solver task is a general material-correct ending policy plus actual
+physical audits. Current gym status is diagnostic-testable, not solver qualification.
+
+
+Correction3353 selects a fixed low-energy C2 ending progression in new gym workers.
+Trunk candidates, targets, cap shapes, center curves and identities are unchanged.
+The three original operator layouts now have rigorous both-ending increment upper
+bounds~0.008872378mm<0.01mm, compared with old witnessed lower bounds above
+0.010604871mm. Exact rational trace derivatives include positive weight bounds and
+actual axis-motion/cross-term error. No normalization, tolerance change or fitting.
+The test reused saved trunks:7.039370s is a cached comparison, not an end-to-end
+solve benchmark. Existing coordinate/termination certificate states are preserved.
+Ending-only scope explicitly excludes trunk/native correspondence and other
+physical gates. Complete status remains unqualified. No new native geometry built.
+The live source-baseline configuration now points to3353/candidate-plan.json;
+freeze/capture AST bodies are unchanged, with no Python module/function reload.
+Old results remain unchanged; the next Evaluate request uses the corrected worker.
+64focused tests pass across final valid checks; Ruff/format/fullIDE are clear.
+Initial unit-proof limitations and incorrect off-midplane assertion were corrected
+before the one three-case packet; original QA failures are retained in its plan.
+This closes the user's bounded last-attempt correction. No additional campaign
+is scheduled, and full physical/generalized solver qualification remains unfinished.
+
+Checkpoint3354: qualification gap and actual saved-plan measurements
+------------------------------------------------------------------
+User directed resolving the incomplete workflow and establishing exactly where
+the project stands. The latest three receipts use the corrected3353 source:
+728c6cde and3af7c16f are unqualified, not witnessed material rejections;
+f1b2d479 has an unresolved trunk after joint-update exhaustion. No new solver
+run, candidate adjustment, target movement, rule change or production edit.
+
+New qualification.inspect calls the existing branch_bends and material_atlas
+audits on the exact saved plans. A started row precedes each operation; results
+flush immediately and exceptions propagate without retry or suffix success.
+The caller owns the shared clock/memory checks. The module is not yet integrated
+into gym evaluation and cannot produce a complete physical pass.
+
+Frozen3354/plan.json covers all three unchanged receipts once:10seconds/case,
+30seconds aggregate,4GiB sampledRSS/3.8GiB launch,10%actual system reserve.
+Both configurations with prepared geometry completed all six ending bend/support
+audits and all six piecewise material-coordinate map certificates. Principal
+reach, normal-field, local-coordinate and lateral geometric bounds certified on
+every audited ending. These are12child endings in TWO configurations, not12cases.
+The unresolved-trunk configuration has no ending audit; its branch stage explicitly
+records not_attempted/incomplete_plan. All outcomes and prefixes are preserved in
+3354/audit-events.jsonl and audit-result.json. Wall3.996228/.003712/4.275939seconds;
+wholepacket9.320225seconds, maxsampledRSS141248KiB,min26%systemfree. No resource stop.
+Two new boundarytests pass; new module, tests and packet Ruff/format/IDEclear.
+Initial packet lint/format corrections occurred before freezing or measurement.
+The artifact-path SDK query was unavailable; project-module query verified3.9.6.
+One Ruff invocation followed that failed path query before the module query was
+repeated; subsequent Python/uv calls used the verified project module preflight.
+
+Current evidence and remaining implementation boundaries:
+
+* Trunk routing: two of these three numerical outputs accepted; one unresolved.
+  This is neither a feasibility proof nor a generalized reliability estimate.
+* Ending longitudinal increments: existing3353 rigorous both-ending upper bounds
+  pass0.01mm in both prepared configurations. No full-trunk residual is supplied.
+* Ending geometric bends and piecewise material-coordinate maps: now measured
+  and certified on both prepared configurations. A valid coordinate map does not
+  establish preservation of transverse or longitudinal material metrics.
+* Whole-path material accounting: material_accounting supports conditional sums;
+  TrunkDiscrepancy is a caller assertion and explicitly lacks a geometry-qualified
+  trunk extraction adapter. It cannot be filled with an assumed zero.
+* Material junction correspondence: remains unestablished. Matching caps/labels
+  or separately closed positive-volume parts do not prove connection flow.
+* Complete contact: contact_* supplies component/domain/pair mechanisms, but the
+  gym does not execute a complete structure-wide ownership-aware contact audit.
+  No clearance pass is inferred from the ending coordinate certificates.
+* Native construction: native_execution.iter_bodies already translates a saved
+  trunk and endings into individually capped transient bodies. The gym never
+  calls it; it does not itself join or qualify the material junctions.
+* Native/post-build fidelity: native_* provides scoped adapters/enclosures, not
+  an installed complete-plan post-build acceptance pipeline. Corrected ending
+  construction and correspondence are still unmeasured in Fusion.
+
+Native preflight failed BEFORE geometry: Fusion still held a profile_transition
+module with no TransitionTiming class. New worker results contain that class,
+so a coherent clean session is required before deserialization/construction.
+No module/class replacement or reload was used to bypass this boundary. User
+acknowledged a request to save work and restart Fusion. OldPID29731 subsequently
+disappeared; MCPactiveCommand failed HTTPtransport to127.0.0.1:27182/mcp. Native
+work is PAUSED pending a ready Fusion/MCP session, not repeated blindly. All older
+native pools stay closed; a new fixed native plan must precede a later attempt.
+Independent cases examined3, additional numerical audits attempted2/completed2,
+nativeattempted0/built0/fullyphysicallyqualified0. No fresh coverage credit.
+
+Checkpoints3355/3356: first corrected saved configuration built and inspected natively
+----------------------------------------------------------------------------------
+After the user restarted Fusion, MCP and clean imports were verified inPID15508,
+Fusion2706.1.17/Python3.14.7. No stale classes/module replacement. Native preflight
+verified loaded constructor function bodies against current source. First eligible
+saved operator layout728c6cde(seed2585057607) was fixed before the single attempt:
+all original targets, identities, trunk, ending controls and candidates unchanged.
+Declared native prediction unknown; full physical disposition unqualified.
+New allocation20seconds construction/5audit/5display,4GiBRSS/3.8GiBlaunch/10%reserve;
+old native pools remain closed. No solver invocation, search, retry or geometry repair.
+
+3355 built one configuration: unchanged trunk plus all six endings return closed
+positive-volume solids. Constructor timings sum1.379063seconds; inclusive stage
+2.654298seconds,maxsampledRSS824000KiB,min52%free. Initial capture stopped after
+.345037seconds at BRepBody.findByTempId with invalid argument tempId. Two topology
+rows were retained; all seven bodies remained owned and no display had occurred.
+Read-only followup confirmed transient faces expose collection IDs and an empty
+SDKrevision; body-definition associative IDs cannot be queried by that lookup.
+Host application log was inspected before preparing the capture correction.
+
+3356 freezes a successor capture over the SAME seven bodies, with0newnativecalls.
+5seconds capture/5display/2postreturn plus prior measured execution remains below
+the original30second allocation; no geometry budget was renewed. Capture uses
+actual face collections. Each original tensor must have a UNIQUE exact encoded
+Cartesian-control match, identical full basis and exactly proportional normalized
+weights. No nearest-surface, tolerant assignment, parameter permutation or fitting.
+NativeSurfaceSnapshot observation identity uses an explicit coefficient hash,
+NOT a claimed SDKrevision or native material label. Actual coefficients remain in
+3356/events.jsonl, bound to the owned body objects and original saved plan.
+Reusable native_ending_fidelity.compare bounds complete untrimmed support positions
+by control error plus the exact source-to-encoding bound, once per support.
+Different bases/weights or an overlarge bound stay unresolved, never a false pass.
+
+All7native solids qualified closed/positive; all28ending supports have positional
+bounds<=0.01mm,with0unresolved inventory rows. Capture2.388039seconds,display.657098,
+post-return1.017538; combined actual stages including initial failed capture7.062010
+seconds<30,minrecorded29%systemfree. Nativebody creation was not repeated. Display
+survives command return;3356/post-return.png was actually viewed. Blue trunk/orange
+endings are copied native graphics in one owned child of the startup Untitled
+design(document8aea1905-1e8b-4f6f-bd5f-6107d1a26d7e),component/v4BAAEAvAAAAAAAAAAAAAAA.
+Root0persistent bodies/0sketches/1ownedchild; no other document was altered/saved.
+Live native_probe.PARTS/SAVED/GROUP/COMPONENT own the evidence; oldPID29731 owners
+and gym palettes are gone. No complete gym UI was reinstalled by this native test.
+
+Three new analytical regression tests cover a known native support translation on
+both sides of tolerance, homogeneous weight scaling and changed basis/weights.
+All pass; new reusable module,test and both capture adapters Ruff/format/IDEclear.
+FullQA not run. Initial adapter import-order/lambda lint findings corrected before
+freezing or geometry. The unsupported native lookup remains an immutable failure.
+
+Independent configurations planned1/nativeattempted1/built1/fullyaudited0; whole
+physical accepted0/unresolved1,invalidcontrols0,freshgeneralizationcredit0. The
+other latest numerical cases remain unresolved-trunk/unattempted-native and
+numerically-accepted/outside-this-native-scope respectively. No success-rate claim.
+Original recorded numerical wall2.522543 exceeds native constructor wall1.379063:
+timing goal is missed on this saved case. This comparison combines a historical
+numerical receipt with cached native translation,not one new cold combined benchmark.
+Remaining gates: whole-trunk material residual and local/complete accounting,
+junction flow,persistent native material labels,trim coverage,trunk native fidelity,
+and complete ownership-aware contact. Source/surface positional bounds do not clear
+these gates. Ending bound leaves~0.001127622mm of the single0.01mm material allowance
+for trunk and junction discrepancies; an assumed zero trunk is still inadmissible.
+3355/3356native scope closes here. Exact status and preserved failure references are
+in3356/status.json; authoritative successor pins in3356/final-plan.json.
+
+
+Checkpoints3357/3358: source-measured trunk increments and future gym receipts
+----------------------------------------------------------------------------
+The missing trunk scalar bound is now measured from the unchanged material_patches
+implementation. A repeated fixed-q midplane probe extracts its actual piecewise
+Hermite controls; it is an evaluation of the implicit authoring field, not a new
+profile, native body, fitted path or ideal cylinder substitute. Original oblique
+crease phase converts to common local physical material distance, retaining the
+q-dependent entry. Existing exact Bernstein material_distance.measure bounds each
+positive polynomial cell; absolute errors add over all pieces, then the largest
+two label bounds cover each conductor's left/center/right comparison. Opposite
+root labels and original input ownership must agree. Original spatial seam gaps
+and prefix coordinate roundoff are retained separately, never silently normalized.
+The resulting scalar accounting remains conditional on seam/junction/native
+material correspondence, transverse metrics and interior ownership. It does not
+qualify native BRep charts or the whole physical structure.
+
+Frozen3357 measured the three original3350 saved corrected plans exactly once:
+728c6cde trunk<=2.02772821e-8mm,combined<=0.008872397900mm,2176spans,.7069435s;
+f1b2d479 trunk unresolved,metrics unattempted,0spans,.003532833s;
+3af7c16f trunk<=7.49005794e-8mm,combined<=0.008872452523mm,2385spans,.784464542s.
+Both endings and trunk use one inclusive0.01mm allowance, with no cancellation or
+per-piece slack. Total1.733126666s<30; each case<10s/16384spans; minimum recorded
+54%systemfree and no resource stop. No new solver/native calls or geometry edits.
+All exact bounds and original control/provenance receipts are retained under3357;
+original operator receipts remain unchanged. Two prepared complete configurations
+were measured among three examined; no fresh/generalized/whole-physical success.
+
+3358 archives original job/lock/test/docs before wiring this diagnostic into future
+gym workers. Trunk-unresolved means metric work unattempted; a measurement stop
+retains the prepared plan, failure and original finite allocation without retry.
+The new16384span cap shares the existing10second worker clock, memory reserve and
+source checks. Recovery0.4CPU and all candidate/target/native geometry policies
+stay fixed. Runtime source baseline intentionally advances to3358/candidate-plan;
+833runtime pins and all361selected source files verified. A future worker now emits
+source-owned per-conductor combined bounds, source gaps, measurement timing and
+remaining qualifications. Top-level status stays unqualified/unresolved/violated
+as before; no physical success path is claimed. No gym UI installation or Fusion
+module replacement occurred. Cached measurement timing is not a fresh solve/native
+benchmark and does not establish compliance with the numerical/native timing goal.
+
+Verification:17focused metric/accounting tests pass; final9job tests pass;4controller
+tests pass. New regression cases cover oblique phase/material cuts, actual Hermite
+error, nonunit-frame stretch, foreign ownership, shared span exhaustion, preserved
+worker failure prefixes and an unresolved trunk with zero metric work. Ruff and
+format checks and full IDE inspections clear for every changed Python file. One
+IDE optional-value formatting weak warning corrected before source freeze; no
+geometry rerun. Complete changed-file diff reviewed; full QA/native revalidation
+not run. Remaining complete gates are unchanged except the planned scalar trunk
+measurement now exists: source seam ownership, junction flow, native persistent
+labels/trim coverage, trunk native fidelity, transverse/interior metrics and complete
+ownership-aware contact. Native viewport/evidence stays3356; fully qualified0.
+Authoritative successor3358/final-plan.json retains historical failures and pins.
+
+
+Checkpoint3359: hundred fresh complete numerical diagnostics, all outcomes retained
+---------------------------------------------------------------------------------
+User chose100fresh diagnostic layouts and, after the first10second worker stop,
+explicitly instructed "Just try them all and then come back and deal with the
+failures." Frozen inputs were reserved before outcomes through FreshRegistry:
+identifierfresh-complete-6282703863f749e28b8bff25996b70cf,seed502422455,4328prior
+fingerprints excluded. PopulationN1..10,D.75,void/zone300%,allfaces/zones,rolls[-90,90],
+nonadjacent cubicles; both-end/all-lane one-diameter endings,no descendants. This
+is endpoint/profile breadth,not certified interior-event coverage or arbitrary
+split topology. All100were attempted/collected once; no retries or solver tuning.
+All833runtime pins and361selected sources remained unchanged across the sample.
+
+98layouts prepare a trunk and all required endings;2trunks unresolved. Results:
+54within the named planned longitudinal increment bound,5completed but upperbound
+unresolved,34material-domain coverage errors,5watchdog timeouts. Top-level states
+59unqualified/39stopped/2trunk_unresolved; no physical successes inferred. Five
+unresolved scalar bounds areallN1,ordinals022/064/068/075/083,~.01774477mm upper;
+no observed violation follows merely from a conservative upper exceeding.01mm.
+Nativeattempted0/built0/audited0; nativefailure rate and fresh paired native timing
+unmeasured. Fullphysical accepted0. Invalid-control oracle absent; none authored.
+
+The original run stopped aftercase2's10second resource gate and retained it. User
+then authorized counting case time/span/geometry audit failures without stopping
+on them; memory/source/cancellation/infrastructure failures remained hard stops.
+The original600second scheduling allocation stopped beforeordinal93. To complete
+the user's explicit fixed100input instruction, a final100second allocation was
+frozen for only8unattempted original inputs, with unchanged10second case watchdog,
+4GiB/3.8GiBlaunch/10%systemreserve,0extra layouts/retries/nativecalls. All source and
+input pins remain intact. continuation-plan and tail-plan retain both amendments;
+stop.json and continuation-stop.json remain immutable original stop evidence.
+Workerwalltotal556.733165s; min/median/max.447863/5.578316/10.007910s. Cooperative
+case stops overshoot by checkpoint latency, not extra allowance. Maxworkerpeak
+244224KiB,minrecorded47%free; no memory/source/tool failure. Caller/SDK/startup and
+paused review time are not worker execution; continuation elapsed723.972502s also
+includes the later tail and review intervals and is not a claim that600s held for
+that combined scope. Registry aggregate recordedONCE; never collect/finalize again.
+
+After collection, one frozen10second metadata-only pass inspected all34coverage
+errors from saved plans, without metric reevaluation, curve evaluation, solver or
+native calls. Everycase has a final encoded phase knot abs(angle)*count/count that
+differs from nominal abs(angle), producing exact nonadjacent interior bend/after
+material intervals. Largest induced material-cut difference9.3384508134e-16mm;
+inspection1.406272s. This identifies a shared audit/representation mismatch,not
+34provedinvalid ribbons and not repaired material correspondence. Keep original
+failed receipts. Next priority is a mathematically coherent source-to-material
+parameter mapping whose representation error is included within ONE0.01mm budget,
+with no geometry change or tolerance-per-station slack. Generic tighter pairwise
+N1bounds and audit-cost improvement follow;2trunk failures remain separate.
+No source repair or new solve campaign was launched after the fixed sample.
+
+Four ignored packet/continuation/tail/metadata adapters passed Ruff/format/fullIDE;
+six explicit scheduler boundary assertions verified timeout continuation while
+retaining RSS/systemreserve/source/IO stops. Complete new adapter and documentation
+changes reviewed. No app/solver/worker edit,pytest rerun,fullQA,native build or live
+UI operation this turn. The3356viewport remains unchanged. Scalar breadth now has
+54fresh named-check passes among100firstattempts; still zero fully qualified
+complete ribbons. Source-seam,junction,native chart/trim/fidelity,transverse/interior
+metrics and ownership-aware contact remain required. Final3359pins retain all
+inputs,stops,results,archived prior docs and metadata evidence.
+
+
+Checkpoint3360: general phase pullback fixes the34saved coverage-error measurements
+---------------------------------------------------------------------------------
+User authorized the common audit-coordinate correction, analytical verification
+and only the34affected saved-plan measurements, preserving original geometry,
+candidates,0.01mm allowance and first-attempt receipts. Original source/test/lock
+and docs were hash-verified against3359and archived before edits. Selected361
+solver sources and the material_surfaces authoring/native builders stay unchanged.
+
+New material_phase.uniform_phase_chart validates the COMPLETE original encoded
+uniform cubic knot grid and multiplicities. For requested absolute angle A and
+Noriginal cells, physical phase cuts are exact rational A*i/N. Encoded source
+knots remain available separately; altered/nonuniform/degenerate bases reject
+without tolerance snapping. Both cell-coordinate maps are increasing. The same
+unit parameter evaluates each unchanged original polynomial control segment and
+its nominal material increment. Thus before/bend/after use consistent exact cuts,
+while the derivative-based metric bound includes all phase encoding error.
+
+For original polynomial P_i(t),the existing enclosure bounds
+integral_0^1 abs(norm(P_i'(t))-delta_s_i)dt,with
+delta_s_i=R*A/(N*cos(bank)). Actual controls still encode their original rounded
+phase interval. The comparison therefore includes the encoded-to-nominal Jacobian
+error, without assigning unit speed or adding a separate physical allowance.
+q-dependent entry cuts preserve original staggered material correspondence.
+Source spatial seam gaps and native/junction material ownership remain separate
+qualifications; neither is normalized away. No geometry,profile,identity,solver
+candidate or output repair is introduced by this parameter map.
+
+Analytical checks:9new positive/negative-fold and staggered-label regression cases
+fail before correction and pass afterward. They verify exact complete material
+domains and identical original authoring controls.9additional chart cases verify
+positive maps,requested endpoints,exact affine length-error inclusion,one-ulp
+source-grid rejection and missing/degenerate/malformed basis rejection.48focused
+tests across chart,trunk,distance,accounting,job andcontroller pass; final13trunk
+tests pass after replacing a Fraction/int assertion with an explicitly typed
+Fraction(0),resolving2IDEunreachable warnings without suppression. Initial import
+ordering fixed before source freeze. All6changed Python files Ruff/format/fullIDE
+clear; complete source/test/adapter/doc diffs reviewed. FullQA not run.
+
+Frozen selected diagnostic:all34original3359coverage-error plans measured ONCE,
+no solver/native calls or geometry change.10s/16384spans percase,240saggregate,
+4GiBRSS/3.8GiBlaunch/10%systemreserve. Actual61.056283s total;maxcase3.637047s,
+max10214spans,min55%systemfree,maxsampledRSS222256KiB.32within the named combined
+planned longitudinal bound(max.008872533942mm);2N1cases028/061remain upper-bound
+unresolved(~.01774477mm),not witnessed violations. ZEROoldcoverage errors,stopped
+orunattemptedcases,time/span/source/memory stops. All source spatial seams remain
+measured(max9.094947e-13mm). Original controls/provenance and exact derived bounds
+are retained in the new*-material.pkl receipts,under source-pinned3360.
+
+Original3359first-attempt result54withinbound/5upperunresolved/34coverageerror/
+5timeouts/2trunkunresolved is UNCHANGED. The32selected recheck bounds are diagnostic
+repair evidence,not fresh/generalized-success or a rewritten86/100first-attempt
+rate. No registry refinalization,newrandominputs,native construction or live UI
+operation occurred.0fullyphysicallyqualified complete ribbons; all seam/native/
+junction/transverse/interior/contact gates remain. Other original5N1bounds,
+5timeouts and2trunk failures were not remeasured or repaired in this scope.
+
+Runtime baseline advances intentionally to3360/candidate-plan.json,840runtimepins;
+all361selected solver sources verified unchanged. Future complete-gym workers use
+the corrected diagnostic mapping; no Fusion module/class replacement was attempted.
+The retained3356viewport is unchanged and its ownership must be rechecked before
+future native work.3360measurement scope closes here; final-plan.json preserves
+all predecessor receipts,explicit source archives,analytical failures and results.
+
+
+Checkpoint3361 — direct paired material-increment enclosure (2026-11-17 UTC).
+A general exact rational comparison now encloses integral|leftspeed-rightspeed|
+through squared-speed differences on the original shared frame. Common weight
+factors cancel algebraically before absolute coefficient integration. Actual
+width motion and nonorthogonal center/width terms remain bounded; unsupported
+comparisons retain the triangle fallback. Each span retains all three required
+left/center/right comparisons; positive local distortions never cancel across
+spans,branches or ends. No conductor-count condition,geometry change or extra slack.
+Shared extraction verifies both world and section source controls. The existing
+side/center energy bound remains,with a conservative general total-variation
+width-motion remainder. One inclusive0.01mm allowance still covers complete chains.
+
+ONLYthe7saved upper-unresolved plans022/028/061/064/068/075/083 remeasuredONCE:
+7within combined planned longitudinal bound(.008872386264.. .008872397704mm),
+0failures/stops/skips/unattempted.2.504771s aggregate under60s;maxcase.407660wall/
+.406242CPU/1179spans under10wall/16384;min56%free,maxsampledRSS183136KiB.
+Measurement pool is separate from solver0.4CPU; no new timing/success inference.
+Original3359first-attempt100statistics and3360receipts immutable;0newsolves/native
+calls/freshcredit/fullphysicalqualified. Five audit timeouts,two unresolved trunks
+and all named complete physical gates remain. Next scope is audit cost,not more
+random sampling or geometry tuning. No Fusion/native/UI change in this packet.
+40focusedtests pass,including6newanalytical cases;Ruff/format/fullIDE clear for all
+5changedPythonfiles. FullQA/nativeUI unattempted. Successor3361archives exact parent
+bytes and pins inputs,code,derivation,results and docs;runtime845pins/core361unchanged.
+One initial chained QA command used one SDKpreflight for threeuv invocations;
+this missed the EACH-invocation rule. Subsequent commands used individual preflights;
+final focused tests,Ruff and format verification each had their own SDKpreflight.
+Scope CLOSED; no automatic retry or budget enlargement authorized by this receipt.
+
+
+Checkpoint3362 — bound-first audit and approved six-action diagnostics,2026-11-17UTC.
+Gym workers now prepare/preserve the original complete plan,measure rigorous combined
+longitudinal bounds first,and skip redundant chord rejection witnesses ONLY when
+those exact source-owned bounds qualify. Inconclusive bounds still run the original
+witness audit; proven violations reject. The final checkpoint precedes result
+commit,so late cancellation cannot publish completion. Serialization retains full
+conductor,side,terminal and route identity. No solver/candidate/geometry change.
+Five saved3359timeouts002/005/011/052/090 remeasuredONCE under10s/16384spans each,
+60saggregate:5withinbound,0stops/skips/unattempted,maxbound.008872565165mm.
+Total21.178648s,maxcase4.945713s/13252spans;min58%actualfree,maxRSS228592KiB.
+Cached measurements exclude solving; the unchanged worker cap is not a new timing
+success claim. Original100first-attempt statistics/registry remain immutable.
+Three saved layouts022/001/052(N1/N2/N10)measuredONCE for existing ending bending
+and material-map subgates:3complete audit configurations,0unresolved/stop/skip.
+All26endings certified principal reach,normal field,lateral bending and conditioned
+piecewise coordinates;26is subordinate workload,not26ribbons.17.385298s<60,
+maxcase11.906624s<20;no geometry/native construction or physical pass transfer.
+
+Original trunk029/076each exhausted4actions at.227671/.297652CPU. User explicitly
+approved ONE diagnostic each with up to6actions,otherwise unchanged. An isolated
+host-only AST adapter changes exactly3action-budget literals,restores on all exits,
+and never touches core source/Fusion. Defaults remain4;no promotion of this probe.
+029:stillunresolved,phase_budget at5actions/13Newton/2roots/2004pairs/.401297CPU;
+.001297s checkpoint overshoot is retained and rejected,not a raised.4CPU allowance.
+076:accepted separated trunk,5actions/13Newton/7roots/541pairs/.287773recoveryCPU;
+prepared2endings,combined longitudinal bound qualifies,worker2.283968s.No native
+calls/fullphysicalpass/freshcredit. These two selected replays have a different
+action ceiling and cannot replace original first-attempt outcomes. Both attempts
+spent;no replay or further budget increase scheduled.029remains a real finite
+solver failure,not proved physically infeasible. Default4-action076stillunresolved.
+
+42focusedtests pass(25worker/evaluation/accounting,17diagnostic/deferred;5newcases).
+All9changedPythonfiles pass Ruff/format/fullIDE;fullQA and native/UI unattempted.
+Fusion read-only heartbeat:PID15508/version2706.1.17/Python3.14.7,Untitled,
+SelectCommand,root0bodies;live owner scene unchanged. No reload/integration change.
+Unexecuted initial source freeze retained; r1frozen before measurements after final
+test formatting. One metadata-only Python read missed its individual SDKpreflight;
+all final checks/expensive runs individually preflighted. Source/policy limits intact.
+Runtime baseline3362/candidate-r1-plan.json,850pins;selected361bytes unchanged.
+Remaining physical work:source seams,junction flow,native chart/trim/trunk fidelity,
+transverse/interior metrics and complete ownership-aware contact. ZERO fully
+physically qualified complete ribbons. No further solver action budget authorized.
+
+
+Checkpoint3363 — three complete native demonstrations,2026-11-17UTC.
+Selected original3359cases022/001/052,N1/N2/N10; all three had source ending bending
+and conditioned material-map subgates certified in3362. Frozen native predictions
+unknown before calls; same unchanged builders and exact saved source objects.
+3planned/3nativeattempted/3built/3named positional post-build audits complete,
+0nativefailures/skips/unattempted;0freshcredit/0fullyphysicalqualified. Each includes
+original trunk and all2/4/20endings.29closed positive solids are subordinate workload,
+not29configurations. All116ending support tensors uniquely match exact encoded
+Cartesian controls,bases and normalized weights; encoding bounds<=0.01mm. No fitting,
+nearest matching,label assignment or trim/native material metric claim follows.
+Build-stagewall.350671/.355768/1.712535s; actual constructor-only sums in result.json.
+Support audits.040173/.053124/.159693s. No solver/recovery call,healing,radius/profile
+change,union or native retry. Original numerical3359timers are not a matched fresh
+cold construction benchmark. Full native trunk fidelity remains unmeasured.
+20build/10audit/5display per case,105s aggregate; actual charged stages including
+optional failed presentation's conservative5s debit and corrected presentation
+are12.371966s. Maxsampled build/auditRSS826096KiB,minactualfree36%including final
+presentation. No time/RSS/source stop during builds or support audits.
+
+One optional display-only spacing operation failed before its first transform:
+Fusion requires nested occurrence transforms through a root assembly proxy.
+Host application logs4219..4225 confirm the stop; original presentation.py/plan/
+failure retained. Autodesk Occurrence.createForAssemblyContext and transform2 docs
+reviewed; new presentation_proxy.py performs one5s correction using unused aggregate
+pool,without reloading old code or rebuilding bodies. It completes in3.717159s.
+See https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_Occurrence_createForAssemblyContext.htm
+Final viewport captured AFTER return and inspected at3363/presentation.png. Blue
+trunks/orangeendings,labelledN1/N2/N10 at display-only offsets0/60/120mm,source
+bodies unchanged. Old owned3356comparison hidden,retained as immediate comparison.
+New scenecomponenttoken/v4BAAEAGQEAAAAAAAAAAAAA;3childtokens in presentation receipt.
+FusionPID15508/document8aea1905-1e8b-4f6f-bd5f-6107d1a26d7e,SelectCommand,root0bodies/
+0sketches/2ownedoccurrences. Module3363.native.PARTS/GROUPS/COMPONENT/OCCURRENCE owns
+new transient wrappers and displayed native copies. No unknown/user design edited.
+
+7focused native-support/fidelity tests pass(4newcases);newnative/test/twodisplay
+adapters Ruff/format/fullIDEclear. Together with3362,49focusedtests passed this turn;
+no repository-wide QA. Core361and runtime850defaultworker sources unchanged.
+Fullphysicalqualification STILL0: source seam/junction flow,native persistent
+labels/trim/trunkfidelity,transverse/interior metrics and complete ownership-aware
+contact remain. Case029hit.4CPU in its approved six-action trial and is NOT repaired;
+076works only in the approved five-used/six-ceiling diagnostic,ordinary4unchanged.
+Native/current diagnostic scopes CLOSED;no automatic retries or budget renewals.

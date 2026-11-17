@@ -13,7 +13,7 @@ from .branch_reference import SpanSeam, center_error_squared, validate_spans
 from .branch_terminal import TerminalCertificate
 from .branch_terminal import certify as certify_terminal
 from .contracts import BranchPlan, CompleteRibbonInput
-from .profile_transition import build
+from .profile_transition import TransitionTiming, build
 from .root_profiles import CapFrame, RootProfile
 from .spatial_certificate import CoordinateCertificate
 from .spatial_certificate import certify as certify_coordinates
@@ -49,6 +49,8 @@ def assemble(
     cap: CapFrame,
     frames: tuple[FrameSpan, ...],
     checkpoint: Callable[[], None],
+    *,
+    timing: TransitionTiming = TransitionTiming.QUINTIC,
 ) -> SpatialBranchPlan:
     """
     Bind a complete captured branch to explicit frames and an already-qualified native root.
@@ -65,7 +67,7 @@ def assemble(
     seams = validate_spans(frames, checkpoint)
     diameter = branch.source.leg.diameter_mm
     radius = (complete.group.diameter_mm if diameter is None else diameter) / 2
-    sections = build(root, root_center_q_mm, radius)
+    sections = build(root, root_center_q_mm, radius, timing=timing)
     patches = tuple(
         tuple(compose(section, frame, checkpoint) for section in sections) for frame in frames
     )

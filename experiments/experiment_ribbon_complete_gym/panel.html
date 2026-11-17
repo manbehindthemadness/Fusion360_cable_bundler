@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Complete ribbon gym</title>
+<style>
+body {font:14px system-ui,sans-serif; color:#e6e9ed; background:#222831; padding:16px; margin:0}
+h1 {font-size:20px} button {padding:9px 13px; margin:4px; cursor:pointer}
+button:disabled {cursor:default; opacity:.45} p {line-height:1.5} pre {white-space:pre-wrap; overflow-wrap:anywhere; background:#15191f; padding:12px}
+.scope {color:#f1c76e} #status {font-size:18px; font-weight:600}
+</style></head><body>
+<h1>Complete ribbon gym · experimental</h1>
+<p>Use the endpoint gym to choose a layout, then evaluate its trunk and all conductor endings together.</p>
+<p class="scope">Diagnostic only. No physical pass or native build. Endings are fixed one diameter outside both caps, with no descendants.</p>
+<button id="start">Evaluate current layout</button><button id="cancel" disabled>Cancel</button><button id="poll">Refresh status</button>
+<p id="status">Ready</p><p id="detail"></p><pre id="result">No complete evaluation requested.</pre>
+<p>One case per click. Ten-second numerical watchdog; existing 0.4-second recovery CPU limit unchanged. One 0.01 mm whole-path material allowance. Missing checks stay unqualified.</p>
+<script>
+let busy = false, polling = null;
+const byId = id => document.getElementById(id);
+async function host() {
+  for (let attempt=0; attempt<20; attempt++) {
+    const value = Reflect.get(window,"adsk");
+    if (value && typeof value.fusionSendData === "function") return value;
+    await new Promise(resolve => window.setTimeout(resolve,100));
+  }
+  throw new Error("Fusion controls are unavailable. No request was sent.");
+}
+function render(state) {
+  const active = ["running","cancelling"].includes(state.status);
+  byId("start").disabled = active; byId("cancel").disabled = !active;
+  byId("status").textContent = state.status || "idle";
+  byId("detail").textContent = state.error || (state.status === "planned_material_violation" ? "Planned whole-path material violation: this layout is rejected." : state.status === "unqualified" ? "No violation witnessed by this check. Physical qualification remains incomplete." : "");
+  byId("result").textContent = JSON.stringify(state,null,2);
+  if (polling) window.clearTimeout(polling);
+  polling = active ? window.setTimeout(() => request("poll"),1000) : null;
+}
+async function request(action) {
+  if (busy) return; busy = true;
+  try {
+    const bridge = await host();
+    let raw = await bridge.fusionSendData("complete_ribbon_"+action,"{}");
+    for (let attempt=0; action === "poll" && raw === "" && attempt<20; attempt++) {
+      await new Promise(resolve => window.setTimeout(resolve,100));
+      raw = await bridge.fusionSendData("complete_ribbon_poll","{}");
+    }
+    const response = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (response.ok) render(response.state);
+    else byId("detail").textContent = response.error;
+  } catch(error) {
+    byId("detail").textContent = String(error);
+  } finally { busy = false; }
+}
+byId("start").onclick = () => request("start");
+byId("cancel").onclick = () => request("cancel");
+byId("poll").onclick = () => request("poll");
+request("poll");
+</script></body></html>
