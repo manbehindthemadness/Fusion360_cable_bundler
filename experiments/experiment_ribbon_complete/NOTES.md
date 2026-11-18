@@ -2696,3 +2696,22 @@ Each stage now owns a second graphics group with four annotation items and
 attribute ribbonDiagnostic/endLabels=resume3378; scene legend updated. Annotation
 stage0.130315s, minimum52%actual free, sampled RSS718768KiB. Final viewport image
 reviewed; plan/receipts/image and archived parent docs under3378.
+
+
+## Checkpoint3379 — stage-qualified bend names
+
+Named all68cylindrical-fold primitives across the twelve displayed stages. Names
+follow case-I/T-Fordinal, e.g.A-I-F1(initial) and A-T-F1(last recorded trial), in
+route order from End A toward End B. Ordinals are local to a stage; changed fold
+counts and trial provenance do not establish corresponding material identity or
+which specific folds were added. These name individual cylindrical folds, not
+multi-fold steering stages or journal events. Leader anchors use the exact
+centerline material point at half the curved bend phase, excluding flat leads.
+
+Screen-facing names and leaders reside in a third graphics group per stage,
+two entities per fold, attribute ribbonDiagnostic/bendLabels=resume3379. Existing
+end labels, geometry and user camera retained. Mapping includes primitive index,
+source label, signed angle, bank, radius and anchor coordinates in3379/labels-plan.json.
+Viewport image reviewed. Annotation0.169395s, minimum52%actual free, sampled
+RSS614320KiB. No solver/native build/source changes or application-test repeat.
+Parent docs and annotation receipts under3379; owner remains resume3377.
