@@ -2628,3 +2628,71 @@ and rolled-back nested-token display receipts retained; no kernel retry. Correct
 audit used existing bodies; one graphics-only display renewal succeeded. Current
 Cmesh/native comparison visible, final image reviewed;2other probe bodies released.
 Parent docs/source archives and final pins under3374.
+
+
+## Checkpoint3376 — remaining three support-proximity failures
+
+Unchanged3374advisory source and ordinary4action/0.4CPU recovery limits, one
+numerical attempt each:13/75N5,16/3N1,21/32N4 prepare all10/2/8endings and meet
+the existing longitudinal material bound. Worker wall seconds2.427707/0.918307/
+2.080698. Three exact returned final trunks, one native attempt each, build closed
+positive solids in1.910463/0.879981/1.790414seconds.184/74/182actual faces match
+authored counts. All3906sampled material points are on the tested trimmed faces;
+maximum error1.189807e-9mm. Sample audits0.525876/0.273961/0.678299seconds.
+
+Together with3374, all6of6support-rejection cases now complete numerical
+preparation and the longitudinal bound:6of54original failures,11.1111%. Historical
+campaign statistics remain immutable; selected diagnostics earn no fresh credit.
+Native checks cover trunks only: zero native complete-ribbon builds or complete
+physical qualification. Finite collection-order pairing does not establish
+persistent face identity, continuous correspondence or a texture inverse. No
+face-count changes observed; the underlined merge-safe texture requirement stays OPEN.
+
+Minimum47%actual free memory, maximum sampled native RSS532608KiB. Existing
+mesh/nativeCcomparison unchanged; no new scene entities, no retained new trunk
+bodies, retries, source changes or budget expansions. Prior code QA retained
+without redundant application tests; documentation diff reviewed. Plans, exact
+returned routes/plans, native samples and results under3376; parent docs archived.
+
+
+## Checkpoint3377 — six saved local-correction failure comparisons
+
+Reconstructed owned Fusion scratch with6selected configurations from the34local
+recovery/closure/projection failures: A3/4N8iteration cap, B2/54N1inequality
+capacity, C15/17N2work exhaustion, D15/66N6local budget, E4/57N3linear projection,
+F16/45N5closed-allocation failure. Twelve stage views show the3372selected initial
+source in blue and the last directly recorded journal trial in orange. The latter
+is unaccepted and does not establish uninterrupted accepted-step ancestry. Exact
+event indices/stages and original route hashes retained. Common physical scale,
+shared paired rigid frame, red occupied witnesses, grey connector proxies, green
+targets and magenta open-gap lines. Meshes only; endings omitted.
+
+148752triangles;12bounded material captures, zero new solves/probes/native builds,
+fresh credit or full physical qualification. A grows61.591531to164.642290mm while
+its last trial remains open2.665040mm despite contact/proxy clearance. E's last
+trial has4.330048mm gap; C/D still self-intersect; F's hardware remains unresolved.
+These remain failed/unfinished trials, not physical feasibility declarations.
+Overview and focusedA images reviewed; current camera framesA, other cases grouped
+B..Fin browser. All per-stage checks/provenance in3377/results-summary.json.
+
+User cleared active Move before cleanup. Old3373owner/eight children including
+3374nativeC retired after exact ownership/content checks; old native wrappers
+released, on-disk evidence retained. One new owner attribute resume3377 with six
+case children/twelve stage grandchildren; zero persistent bodies/sketches. Cleanup
+0.126804s, display1.093212s; minimum display41%actual free, peak sampled RSS829312KiB.
+No source changes; prior code QA retained without application-test repeats.
+Current ownership supersedes3373/3374live scene. Parent docs archived3377/parent.
+
+
+## Checkpoint3378 — fixed terminal A/B labels
+
+Added24screen-facing labels and leader lines across the12saved stage views:
+End A(start) is the captured start target, End B(end) the captured end target.
+Assignments remain identical in initial/last-trial pairs. These identify fixed
+terminals, not material-side identity or a claim that an open trial reaches them.
+Dark blue denotes End A, purple End B. Existing scene geometry and user camera
+preserved; no solver, native build, source change or application-test repeat.
+Each stage now owns a second graphics group with four annotation items and
+attribute ribbonDiagnostic/endLabels=resume3378; scene legend updated. Annotation
+stage0.130315s, minimum52%actual free, sampled RSS718768KiB. Final viewport image
+reviewed; plan/receipts/image and archived parent docs under3378.
