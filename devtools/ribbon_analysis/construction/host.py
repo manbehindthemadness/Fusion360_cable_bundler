@@ -23,6 +23,12 @@ from .journal import load
 from .resources import budget
 
 
+class DisplayPaused(RuntimeError):
+    """
+    Decline drawing during a temporary document/command interruption without latching failure.
+    """
+
+
 def bind(palette: Any, delegate: Any) -> adsk.core.HTMLEventHandler:
     """
     Register a fresh native callback and return it for retention by the palette owner.
@@ -96,9 +102,14 @@ class Incoming(adsk.core.HTMLEventHandler):
                 self.viewer.auto_zoom = request["auto_zoom"]
             self.viewer.draw(request["index"], request["feature"])
             event.returnData = json.dumps({"ok": True, "index": self.viewer.index})
+        except DisplayPaused as error:
+            event.returnData = json.dumps(
+                {"error": str(error), "paused": True, "index": self.viewer.index}
+            )
         except (ValueError, TypeError, RuntimeError, OSError, ArithmeticError) as error:
-            self.viewer.last_error = str(error)
-            event.returnData = json.dumps({"error": str(error)})
+            if self.viewer.last_error is None:
+                self.viewer.last_error = str(error)
+            event.returnData = json.dumps({"error": self.viewer.last_error})
 
 
 class Viewer:
@@ -108,7 +119,8 @@ class Viewer:
     The caller provides an empty, explicitly tagged component in the active idle
     document. This class never discovers or deletes other owners or BRep geometry.
     Frozen local samples are displayed locally; world snapshots retain saved poses.
-    A host error latches navigation until the operator reviews the retained state.
+    Temporary document/command interruptions pause navigation. Actual ownership,
+    source, API and resource failures latch until the operator reviews the state.
     """
 
     def __init__(self, component: Any, document_id: str, journal: Path, page: Path) -> None:
@@ -146,20 +158,24 @@ class Viewer:
 
     def guard(self) -> None:
         """
-        Require original sources, owner, same active idle document and no latched display failure.
+        Require original sources/owner and no latched failure; pause temporary document/command changes.
         """
         app = adsk.core.Application.get()
         if self.last_error is not None:
-            raise RuntimeError("Construction display stopped: " + self.last_error)
+            raise RuntimeError(self.last_error)
+        if not self.component.isValid:
+            raise RuntimeError("Construction viewer geometry owner is no longer valid")
         attribute = self.component.attributes.itemByName("ribbonConstruction", "run")
-        if (
-            app.activeDocument is None
-            or app.activeDocument.creationId != self.document_id
-            or app.userInterface.activeCommand != "SelectCommand"
-            or attribute is None
-            or attribute.value != self.run_id
-        ):
-            raise RuntimeError("Construction viewer ownership or idle document changed")
+        if attribute is None or attribute.value != self.run_id:
+            raise RuntimeError("Construction viewer geometry owner changed")
+        if app.activeDocument is None or app.activeDocument.creationId != self.document_id:
+            raise DisplayPaused(
+                "Playback paused: return to the original document, then press Play."
+            )
+        if app.userInterface.activeCommand != "SelectCommand":
+            raise DisplayPaused(
+                "Playback paused: finish or cancel the active Fusion command, then press Play."
+            )
         if any(
             hashlib.sha256(path.read_bytes()).hexdigest() != expected
             for path, expected in self.pins.items()

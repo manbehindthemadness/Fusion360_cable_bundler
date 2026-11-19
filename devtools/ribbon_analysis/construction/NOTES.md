@@ -9,6 +9,15 @@ group. It creates no BRep bodies and changes no routing acceptance rules.
 ## What the viewer shows
 
 Previous/Next, a scrubber, phase filtering and Play step through numbered stages.
+The optional Loop checkbox repeats playback from the last to the first step in
+the active phase filter. It starts unchecked; Pause stops repeating playback,
+and clearing Loop restores stopping at the end. Manual navigation still stops Play.
+Playback errors also stop Play/Loop. An active Fusion command or a different
+active document pauses without permanently latching the viewer: return to the
+original idle document and press Play or navigate manually. The browser returns
+to the last native-confirmed stage after a pause. Valid acknowledgements clear
+the pause message. Changed/deleted ownership, source drift, API and resource
+failures remain latched; repeated requests preserve the first error unchanged.
 Four synchronized views show isometric, XY, XZ and YZ projections. Drag the
 isometric view to orbit, wheel to zoom, and use Fit/reset to restore the camera.
 The selected feature is pink; new or changed geometry is orange; rejected-stage

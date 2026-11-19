@@ -114,3 +114,65 @@ def test_selection_carries_auto_zoom_preference(bridge: Any, enabled: bool) -> N
     assert viewer.auto_zoom is enabled
     viewer.draw.assert_called_once_with(2, "")
     assert json.loads(event.returnData)["ok"] is True
+
+
+@pytest.mark.parametrize("interruption", ["command", "document"])
+def test_temporary_host_interruption_pauses_without_latching_or_drawing(
+    bridge: Any, interruption: str
+) -> None:
+    """
+    Returning to the original idle document permits manual continuation without clearing a failure.
+    """
+    app = SimpleNamespace(
+        activeDocument=SimpleNamespace(creationId="original"),
+        userInterface=SimpleNamespace(activeCommand="SelectCommand"),
+    )
+    bridge.adsk.core.Application = SimpleNamespace(get=lambda: app)
+    viewer = bridge.Viewer.__new__(bridge.Viewer)
+    viewer.last_error, viewer.index = None, 3
+    viewer.document_id, viewer.run_id, viewer.pins = "original", "owned", {}
+    groups = Mock()
+    viewer.component = SimpleNamespace(
+        isValid=True,
+        attributes=SimpleNamespace(itemByName=Mock(return_value=SimpleNamespace(value="owned"))),
+        customGraphicsGroups=groups,
+    )
+    if interruption == "command":
+        app.userInterface.activeCommand = "MoveCommand"
+    else:
+        app.activeDocument.creationId = "other"
+    event = SimpleNamespace(
+        action="construction_select", data='{"index":4,"feature":""}', returnData=""
+    )
+    bridge.Incoming(viewer).notify(event)
+    response = json.loads(event.returnData)
+    assert response["paused"] is True and response["index"] == 3
+    assert viewer.last_error is None
+    groups.add.assert_not_called()
+    app.userInterface.activeCommand = "SelectCommand"
+    app.activeDocument.creationId = "original"
+    viewer.guard()
+
+
+def test_permanent_owner_failure_preserves_one_original_error(bridge: Any) -> None:
+    """
+    Repeated navigation cannot grow a latched error or bypass a changed geometry owner.
+    """
+    bridge.adsk.core.Application = SimpleNamespace(get=Mock())
+    viewer = bridge.Viewer.__new__(bridge.Viewer)
+    viewer.last_error, viewer.index = None, 3
+    viewer.run_id = "owned"
+    viewer.component = SimpleNamespace(
+        isValid=True,
+        attributes=SimpleNamespace(itemByName=Mock(return_value=SimpleNamespace(value="changed"))),
+    )
+    event = SimpleNamespace(
+        action="construction_select", data='{"index":4,"feature":""}', returnData=""
+    )
+    handler = bridge.Incoming(viewer)
+    handler.notify(event)
+    original = event.returnData
+    handler.notify(event)
+    assert event.returnData == original
+    assert "geometry owner changed" in json.loads(original)["error"]
+    assert "paused" not in json.loads(original)

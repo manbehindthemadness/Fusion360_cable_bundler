@@ -5,7 +5,8 @@
 /** @typedef {{id:string, label:string, kind:string, parents:string[], source:string}} FeatureDefinition */
 (() => {
   const el = id => document.getElementById(id);
-  const fail = error => { el("error").hidden = false; el("error").textContent = String(error); };
+  let haltPlayback = () => {};
+  const fail = error => { haltPlayback();el("error").hidden = false; el("error").textContent = String(error); };
   window.addEventListener("error", event => fail(event.message));
   window.addEventListener("unhandledrejection", event => fail(event.reason));
   try {
@@ -13,6 +14,7 @@
     const packet = JSON.parse(el("packet").textContent);
     const all = packet.steps, definitions = packet.features;
     let index = 0, selected = "", timer = null, yaw = -.7, pitch = .55, zoom = 1, drag = null;
+    haltPlayback = stop;
     let visible = all.map((_, i) => i), bridgeSequence = 0;
     let retainedFit = null;
     const keys = ["iso", "xy", "xz", "yz"], views = keys.map(id => el(id));
@@ -59,7 +61,9 @@
         if(sequence !== bridgeSequence) return;
         if(raw==="" || raw===null || raw===undefined)throw new Error("Fusion did not acknowledge this step. The browser advanced locally; the Fusion viewport update is unconfirmed.");
         const response = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if(response && response.paused===true){if(Number.isInteger(response.index))choose(response.index,false);fail(response.error);return;}
         if(!response || response.ok!==true)throw new Error("Fusion display: " + (response&&response.error||"Invalid acknowledgement"));
+        el("error").hidden=true;
       }).catch(fail);
     }
     function refreshList() {
@@ -74,7 +78,7 @@
       choose(visible[next]);
     }
     function stop() { if(timer!==null){clearInterval(timer);timer=null;}el("play").textContent="Play"; }
-    function choose(next) {
+    function choose(next, notify=true) {
       if(!Number.isInteger(next)||next<0||next>=all.length) throw new Error("Invalid construction step");
       index=next;
       if(!visible.includes(index)){el("phase").value="all";refreshList();}
@@ -89,7 +93,7 @@
       const local=stage.scene.some(o=>o.space==="local");
       el("mode").textContent=local?"LOCAL primitive · millimeters":"WORLD placement · millimeters";
       el("notice").textContent=(local?"Local primitive at its construction origin; connector targets are intentionally absent. ":"")+(stage.details.partial_construction?"Partial assembly view; not a complete ribbon output. ":"")+(stage.details.geometry_notice||"")+(stage.basis==="reconstructed"?" Reconstructed from saved data; original construction decisions were not recorded.":stage.basis==="unavailable"?" This stage has no recorded geometry.":" Recorded event; acceptance applies only to its original stated checks.");
-      describe();draw();bridge();
+      describe();draw();if(notify)bridge();
     }
     function describe() {
       const object=all[index].scene.find(o=>o.feature===selected), feature=definitions[selected];
@@ -146,7 +150,7 @@
     el("features").onchange=event=>{selected=event.target.value;describe();draw();bridge();};
     el("clear").onclick=()=>{selected="";el("features").value="";describe();draw();bridge();};
     el("origin").onclick=()=>{stop();const first=all.findIndex(s=>s.scene.some(o=>o.feature===selected));if(first>=0)choose(first);};
-    el("play").onclick=()=>{if(timer!==null){stop();return;}el("play").textContent="Pause";timer=setInterval(()=>{if(visible.indexOf(index)===visible.length-1){stop();return;}move(1);},900);};
+    el("play").onclick=()=>{if(timer!==null){stop();return;}el("play").textContent="Pause";timer=setInterval(()=>{if(visible.indexOf(index)===visible.length-1){if(el("loop").checked){choose(visible[0]);}else{stop();}return;}move(1);},900);};
     for(const id of ["compare","frames","isolate"]) el(id).onchange=draw;
     el("auto_zoom").onchange=()=>{draw();bridge();};
     el("reset").onclick=()=>{yaw=-.7;pitch=.55;zoom=1;retainedFit=null;draw();};
