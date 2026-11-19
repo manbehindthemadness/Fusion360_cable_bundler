@@ -9,8 +9,9 @@ allocation. Independent occupied-material and connector audits remain required.
 from __future__ import annotations
 
 import math
+from dataclasses import asdict
 from itertools import product
-from typing import Callable
+from typing import Any, Callable
 
 from cable_bundler.routing.geometry import difference, dot, magnitude, unit
 from devtools.ribbon_analysis.prepath import controls
@@ -25,7 +26,7 @@ from .linear import Row
 from .support import fold_support
 
 
-def bridge(boundary: Boundary) -> Pose:
+def bridge(boundary: Boundary, *, trace: Callable[[dict[str, Any]], None] | None = None) -> Pose:
     """
     Derive a common frame between outward handles without heading or roll trials.
 
@@ -33,9 +34,13 @@ def bridge(boundary: Boundary) -> Pose:
     Width is the bisector of separately transported ordered terminal widths.
     Opposite transport and width ambiguities reject; no world axis resolves them.
     The returned origin is a reference, not a waypoint imposed on the ribbon.
+    Optional tracing publishes computed handles/frame without changing arithmetic;
+    recorder errors propagate and stop the caller rather than losing history.
     """
     target = boundary.targets
     _, departure, arrival, _ = controls(target)
+    if trace is not None:
+        trace({"stage": "handles", "departure": asdict(departure), "arrival": asdict(arrival)})
     displacement = difference(arrival, departure)
     if magnitude(displacement) <= 1e-10:
         raise ValueError("Outward handles do not define a bridge direction")
@@ -48,24 +53,63 @@ def bridge(boundary: Boundary) -> Pose:
     if magnitude(mean) <= 1e-10:
         raise ValueError("Opposed transported widths leave the bridge frame ambiguous")
     origin = departure.translated(displacement, 0.5)
-    return Pose(origin, tangent, unit(mean))
+    result = Pose(origin, tangent, unit(mean))
+    if trace is not None:
+        trace(
+            {
+                "stage": "bridge",
+                "pose": asdict(result),
+                "transported_widths": [asdict(value) for value in widths],
+                "origin_is_reference_not_waypoint": True,
+            }
+        )
+    return result
 
 
-def chains(boundary: Boundary, checkpoint: Callable[[], None]) -> tuple[Chain, ...]:
+def chains(
+    boundary: Boundary,
+    checkpoint: Callable[[], None],
+    *,
+    trace: Callable[[dict[str, Any]], None] | None = None,
+) -> tuple[Chain, ...]:
     """
     Factor both fixed terminal frames through one common outward-handle bridge.
 
     Retain existing exact algebraic roots and material order. No root is selected
     by a saved specimen or local fold-sign flip. Empty terminal groups and more
     than six folds remain unsupported representations, rather than fallbacks.
+    Optional tracing publishes endpoint inputs, rotation factors and declared
+    chains as computed; it neither supplies values nor selects roots.
     """
     target = boundary.targets
-    middle = bridge(boundary)
+    if trace is not None:
+        trace({"stage": "targets", "targets": asdict(target), "radius_mm": boundary.radius_mm})
+    middle = bridge(boundary, trace=trace)
     start = Pose(target.start, target.start_tangent, target.start_width)
     end = Pose(target.end, target.end_tangent, target.end_width)
     width = 2 * boundary.half_width_mm
     first = rotation_choices(start, middle, boundary.radius_mm, width)
+    if trace is not None:
+        trace(
+            {
+                "stage": "rotation_factors",
+                "terminal": "A",
+                "start": asdict(start),
+                "end": asdict(middle),
+                "choices": [[asdict(fold) for fold in group] for group in first],
+            }
+        )
     last = rotation_choices(middle, end, boundary.radius_mm, width)
+    if trace is not None:
+        trace(
+            {
+                "stage": "rotation_factors",
+                "terminal": "B",
+                "start": asdict(middle),
+                "end": asdict(end),
+                "choices": [[asdict(fold) for fold in group] for group in last],
+            }
+        )
     if len(first) * len(last) > 8:
         raise ValueError("Terminal approach roots exceed the existing eight-root allowance")
     result = []
@@ -85,6 +129,8 @@ def chains(boundary: Boundary, checkpoint: Callable[[], None]) -> tuple[Chain, .
                 (a, b),
             )
         )
+        if trace is not None:
+            trace({"stage": "chain", "chain": asdict(result[-1])})
     return tuple(result)
 
 

@@ -102,6 +102,54 @@ material-route experiments:
 - Supply `stable_chain="…"` only when unchanged ordered topology is established.
   Otherwise snapshots receive independent IDs and no correspondence is claimed.
 
+For actual placement origins, `experiments.experiment_ribbon_construction_diagnostic.origin`
+adapts optional `trace=` hooks on `terminal_approaches.chains/bridge` and `Frontier`.
+The hooks publish computed inputs, approach handles, common bridge frame, returned
+rotation factors, declared chains, completed LPs and executed separation branches.
+The adapter retains the affine equations/whole-material support rows used in each
+model, and samples actual LP coordinates through that same model. `route_scene`
+can take a previously defined `origin` feature to link its first fold to the
+declared chain and its rotation-factor parents. No saved route initializes this
+capture. The observer does not select roots or change angles/lengths/acceptance;
+recorder failures propagate and capture time stays within caller resource limits.
+
+Run one explicitly scoped, endpoint-only diagnostic with:
+
+```sh
+uv run python -m experiments.experiment_ribbon_construction_diagnostic.origin_run \
+  --input artifacts/verification/PREPARED/endpoint-input.json \
+  --output artifacts/verification/NEW_ORIGIN_CAPTURE
+```
+
+The input has exactly `targets` (the ordered `Targets` fields) and `radius_mm`.
+Route-shaped payloads reject. The output directory must not exist. This executes
+the current unselected terminal-construction experiment once: at most eight
+algebraic roots/six bends, 64 LP nodes/4096 active intersections, 10-second
+preparation/2-second allocation/30-second outer wall. CPU misses against 0.4 seconds
+are recorded; memory, cancellation, recorder and source errors remain hard stops.
+The shared journal limits still apply. Obtain/freeze the applicable scope before
+running; this command does not authorize additional experiments.
+
+Local factor displays have **no world placement yet**. Zero-travel model templates
+are explicitly unclosed equation references. LP allocations may close both caps
+while failing separation rows; their recorded disposition remains visible. A
+selected inspection allocation is not a qualified output. These are observed
+decision boundaries and sampled geometry, not every arithmetic operation inside
+rotation factoring/LP enumeration. Native builds and independent audits are absent.
+
+Checkpoint3403 captured one retained E layout from endpoints: 44 observed stages,
+four roots relaxed, 23 nodes/1189 intersections before the unchanged two-second
+allocation wall stop. The 49.615928 mm inspection route did not satisfy all supplied
+separation rows. Combined preparation/allocation CPU was 1.288035 seconds, including
+observer work (0.888035 over target). No retry, native build, independent physical
+audit or fresh coverage followed. Prior 3394 geometry/evidence remains unchanged.
+The registered host opens the new frozen trace at the connector-only first stage;
+the previous exact owner is hidden as its sole immediate comparison. Native
+draws of handles/shared frame and return to the first stage passed; all four page
+views rendered and the live screenshot was inspected. This turn did not repeat
+browser-button navigation testing. Twenty-five focused Python tests, changed-file
+Ruff/format and IDE diagnostics passed. Evidence is under `resume3403/`.
+
 The waypoint experiment now has optional `trace=` callbacks on `run(...)` and
 `ClearanceMotion(...)`. For a newly approved diagnostic, send ordinary `record`
 events and both trace callbacks to the SAME bridge. Raw proposals appear before

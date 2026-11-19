@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import heapq
 import math
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import asdict, dataclass
+from typing import Any, Callable
 
 from .disjunction import Work
 from .envelopes import Exclusion, satisfied
@@ -76,14 +76,24 @@ class Frontier:
     Physical qualification and branch-representation completeness remain external.
     """
 
-    def __init__(self, cases: tuple[Case, ...], work: Work) -> None:
+    def __init__(
+        self,
+        cases: tuple[Case, ...],
+        work: Work,
+        *,
+        trace: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         """
         Freeze at most eight existing roots and start one nonrenewable shared frontier.
+
+        Optional tracing observes completed LPs and executed separation branches.
+        Recorder failures propagate; callback time remains in caller wall/CPU use.
         """
         if not 1 <= len(cases) <= 8 or work.maximum_vertices <= 0 or work.maximum_nodes <= 0:
             raise ValueError("Use one to eight roots and positive shared work limits")
         self.cases = cases
         self.work = work
+        self.trace = trace
         self.best: Choice | None = None
         self.inspection: Choice | None = None
         self.roots_relaxed: list[int] = []
@@ -147,6 +157,21 @@ class Frontier:
                 self.best = choice
         if result.status == "work_limit":
             self.status = "work_limit"
+        if self.trace is not None:
+            self.trace(
+                {
+                    **self.work.events[-1],
+                    "stage": "allocation",
+                    "rows": [asdict(row) for row in node.rows],
+                    "unsatisfied_exclusions": [
+                        group.name
+                        for group in case.exclusions
+                        if choice is not None and not satisfied(group, choice.values)
+                    ],
+                    "best_root": self.best.root if self.best else None,
+                    "best_length_mm": self.best.length_mm if self.best else None,
+                }
+            )
         return result
 
     def run(self, checkpoint: Callable[[], None]) -> None:
@@ -202,6 +227,15 @@ class Frontier:
                 continue
             if missing in node.chosen:
                 raise ArithmeticError("Active arrangement lost its own constraints")
+            if self.trace is not None:
+                self.trace(
+                    {
+                        "stage": "separation_branch",
+                        "root": node.root,
+                        "exclusion": asdict(case.exclusions[missing]),
+                        "parent_length_bound_mm": bound,
+                    }
+                )
             for alternative in case.exclusions[missing].alternatives:
                 self._push(bound, Node(node.root, node.rows + alternative, node.chosen | {missing}))
         self.status = "supplied_constraints_satisfied" if self.best is not None else "unresolved"

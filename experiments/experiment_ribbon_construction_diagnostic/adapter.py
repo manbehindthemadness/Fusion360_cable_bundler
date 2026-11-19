@@ -101,7 +101,9 @@ def inputs(journal: Journal, route: FoldRoute) -> list[dict[str, Any]]:
     return context
 
 
-def route_scene(journal: Journal, route: FoldRoute, chain_id: str) -> list[dict[str, Any]]:
+def route_scene(
+    journal: Journal, route: FoldRoute, chain_id: str, *, origin: str | None = None
+) -> list[dict[str, Any]]:
     """
     Sample unchanged material pieces with ordered-fold/straight-slot identity and rigid entry frames.
 
@@ -113,7 +115,7 @@ def route_scene(journal: Journal, route: FoldRoute, chain_id: str) -> list[dict[
         raise ValueError("Construction display supports at most32material pieces per snapshot")
     result = []
     fold_index = 0
-    previous = "End A"
+    previous = origin or "End A"
     placement_predecessor = "End A"
     for ordinal, piece in enumerate(route.pieces):
         straight = isinstance(piece.geometry, Straight)
