@@ -1,0 +1,11 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "id": "f5642dd4-2b9d-4cb5-8c89-812278e0899d",
+  "author": "Kevin Eales",
+  "description": {"": "Keep an explicitly prepared frozen construction viewer alive for native UI events."},
+  "version": "0.1.0",
+  "runOnStartup": false,
+  "supportedOS": "windows|mac",
+  "editEnabled": true
+}

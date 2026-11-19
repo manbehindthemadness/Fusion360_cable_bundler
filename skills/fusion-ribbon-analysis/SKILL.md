@@ -20,6 +20,12 @@ Read [references/api.md](references/api.md) when adapting a candidate or creatin
 a view. Numerical analysis imports no Fusion API. Graphics need Fusion's supplied
 `adsk` and an explicitly owned development component in the active idle document.
 
+For feature origins and step-by-step construction, use the shared
+`devtools/ribbon_analysis/construction/` journal/player and its documented adapters.
+Distinguish observed execution from reconstructed primitive assembly and missing
+history; playback must not invoke a solver. See the construction section in the
+API reference. This instrument adds no solve/build or validation authorization.
+
 ## Working together
 
 - Current geometry scope (user-directed2026-10-31): use only endpoint-gym-created

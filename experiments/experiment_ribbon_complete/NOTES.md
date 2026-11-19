@@ -2715,3 +2715,135 @@ source label, signed angle, bank, radius and anchor coordinates in3379/labels-pl
 Viewport image reviewed. Annotation0.169395s, minimum52%actual free, sampled
 RSS614320KiB. No solver/native build/source changes or application-test repeat.
 Parent docs and annotation receipts under3379; owner remains resume3377.
+
+2026-11-18 — checkpoint3381: signed constrained bend response, no solver change
+
+User's reversed-fold observations and E's connector-side anchor clarification are
+retained in resume3380/bend-direction-review.md. Existing material-return choice
+is the largest unsigned lane turn, not a causal certificate. Forward placement
+fixesA; reflectedF4 displacesB before reclosure. E closed-form inverse anchoring
+preservesB and movesF4entry1.485272mm; it does not simultaneously preserveA.
+
+3381 measured C15/17N2 and E4/57N3 original closed initial routes only. Each has
+26signed projected linear responses and one sealed existing-instrument probe.
+No sign reversal/newfold/solver source change. Point predictions match within
+.000000519/.000001546mm, caps close2.56e-13/6.89e-13mm. Actual complete-region
+projection guidance improves.002633/.001857mm versus predicted.006131/.002500mm;
+this is not measured penetration depth. C remains selfpenetrating, E becomes
+contactdepthunresolved; both hardwareblocked. Geometry CPU.004296/.004206s,
+linearanalysisCPU.007982/.007189s, probe+inspectionCPU.065426/.087063s.
+
+Initial harness model mismatch stopped before derivatives or probe; corrected
+setup separately frozen, failure retained. Original normalizedgap artifacts had
+incorrect mm field labels; preserved with explicit erratum. Authoritative final
+units in3381/comparison-mm.json; predictions/geometry/ranking unaffected.
+All852runtime pins unchanged. No integration: signed local response predicts
+motion but not certified clearance, nor proves a unique causal fold. ExactB-anchor
+strategy remains unimplemented; ordinary probe retraction still fixesA/restoresB.
+Next work needs explicit two-ended, complete-material+hardware constraints before
+more reversals or added events. Current3379Fusion display/camera unchanged; no
+native/live display/fullphysical/freshcoverage. Goal2979 remains UNACHIEVED.
+
+2026-11-18 — checkpoint3382: end anchor works; joint trial declined on compactness
+
+New experimental EndAnchoredJoints preserves material order/geometry and holds
+End B at every placement, including derivative trials; six closure equations now
+measure End A. This model is not selected by the runtime solver. Five analytical
+cases pass, including half-turn detection and both bend-motion directions at two
+scales; Ruff/format and three changed-code IDE inspections are clear.
+
+One bounded E4/57N3initialtrunk evaluation combined existing complete-material and
+hardware inequalities under the existing elastic projector, with no sign flips or
+new events.1action/10sharedclosureNewton/.046200CPU/.046197wall. Four standard
+scalar halvings closed both target frames and improved both original guidance
+violations individually. Every proposal declined ONLY the predeclared diagnostic
+initiallength+.01mm ceiling: growth3.061987/1.528104/.763999/.381992mm. This was a
+chosen compactness restriction, NOT a user physical rule; no infeasibility claim.
+Declined proposal routes/coordinates retained, no independent physical clearance
+claimed for them. Final retained route is original23.274488mm, selfpenetrating and
+hardwareblocked; final inspection197pairs/18cells/.076655wall.57%free,peakRSS33.97MB.
+
+No new native/fresh/completephysical qualification; current3379scene unchanged.
+Runtime852 unchanged; only test and frozen diagnostic import the new model.
+Next account for compactness inside the joint calculation rather than post-hoc
+veto, explicitly distinguishing objective from physical rule. No automatic ceiling
+increase, second evaluation or runtime integration. Plan/sourcepins/all trial
+receipts and findings under3382. Goal2979 remains UNACHIEVED.
+
+2026-11-18 — checkpoint3383: compactness row admits two local steps; E still invalid
+
+User explicitly requests next trial. ONE selected E4/57N3initialtrunk evaluation,
+adding full material length as third inequality inside the same end-anchored joint
+projector. Existing analytic gradient matches finite derivative row within1.57e-11.
+All3382targets/profile/order/radii/signs/fourfold count/proxies/budgets unchanged;
+initial+.01mm remains a diagnostic length ceiling, not a user physical rule.
+
+Two accepted local steps close both connectors and improve both retained positive
+guidance violations. Length23.274488392→23.273465461mm; no added events or reversals.
+3actions/24sharedclosureNewton/.127241CPU/.127256wall. Third action's closed
+proposals improvehardware but worsenmaterialguidance, so rejected. Two subsequent
+zero-correction checks decline with no extra Newton spent. Raw no-admissible-step
+stop also reflects exhausted24closure steps; no infeasibility claim or fourth action.
+
+Final independent contactdepthunresolved338pairs and End B hardwareblocked20cells;
+NOT a repaired route. Postinspection.093222wall;58→59%free,peakRSS23.69MB. No source/
+API/CPU/wall/RSS failure. No native/fresh/fullphysical credit or Fusion scene change.
+Ruff/format/runnerIDEclear; unchanged five end-anchor tests retained. Selected852
+runtime unchanged; new model remains unselected. Exact runner diff reviewed,
+receipts3383/findings.md. Length row improves this mechanism's local behavior,
+but finite nonlinear material response still blocks continued joint improvement.
+No automatic extra steps, sign trials, ceiling expansion or integration.
+
+2026-11-18 — checkpoint3384: prediction optimism and cap-only restoration separated
+
+One retrospective reconstruction of3383action3only:1Jacobian/1original elastic
+projector, no retraction/recovery sequence rerun. Exact bound-limited scalar step
+reproduces; stored closed equations/poses reproduce with zero numeric error.
+Beforematerial guidanceviolation.061676341mm. Fullstep prediction.037824430,
+raw.076432220,closed.085504244: regression starts before closure and grows after.
+Halfstep prediction.049750386,raw.059200680,closed.062285806: raw improvement
+.002475661mm is erased by.003085126mm cap-restoration regression. These quantities
+are projection guidance, not measured penetration depths or clearance.
+
+Same active complete-prism support pair(6,1),8x8vertices throughout; no support
+switch demonstrated in this comparison. RawAerror.410369/.103167mm means closure
+cannot be skipped; End B stays anchored. Existing retract_active restores only
+caps/activezero slots, so retainedmaterial/hardware/length inequalities can regress.
+Next investigate inequality-preserving nonlinear closure under SAME aggregate
+budgets; no added events/sign trials, feasibility claim or implemented repair.
+
+Reconstruction.010789CPU/.010788wall,51%free,peakRSS22.59MB. Initial setup expected
+literal1/.5 steps and stopped BEFOREnumerics; actual recorded values are slightly
+bound-clipped. Preserved stopped runner/receipts; attempt2uses exact recorded
+values and halving identities. Authoritative3384/attempt2/result.json. Current
+runner Ruff/format/IDE clear; original852runtime, experimentalmodel, current3379
+Fusion and historical outcomes unchanged. No tests repeated for analysis-only
+scope, no new native/physical/fresh/fullribbon coverage. Goal2979UNACHIEVED.
+
+2026-11-18 — checkpoint3385: scratch replaced with current E-only failure states
+
+User clarifies accuracy discussion was a question, NOT a tolerance/rule revision.
+No acceptance gate changed. User explicitly requests scratch cleanup/display of
+current failing variations only. Verified exact3377owner/6cases/12stages, idle
+SelectCommand, zero persistent bodies/sketches/features before replacement.
+Prepared five E004/057N3action3states from retained evidence, no numerical solve,
+projector/retraction/native build or new physical audit.35840sampled triangles,
+same physical scale, one underlying historical layout, not five independent cases.
+
+Newowner E004-057 N3 - current failing variations only, attribute
+ribbonDiagnostic/owner=resume3385. S=currentbeforeaction3;FR/FC=fullraw/closed;
+HR/HC=halfraw/closed. Both closed variants rejected; all states unqualified.
+EndA(start)/EndB(end)labels and E-stage-F1..4leaders retained. Grey connector
+proxies, blueS/amberraw/purpleclosed, magenta actualrawA gaps.410/.103mm.
+Toporthographic view set for readability; F4labels moved above next-row titles.
+Final viewport-final.png reviewed. Geometry unchanged by annotation/camera edits.
+
+Old3377owner and12stages retired, module handles released. Currentroot1occurrence,
+0BReps/0sketches,5stagechildren/1graphicsgroup each, ownerlegend; same document
+8aea1905-1e8b-4f6f-bd5f-6107d1a26d7e/Fusion15508. Currentmodule
+ribbon_failure_scene_3385 storesowner/occurrence/stages. Prior3377..3379 live
+ownership references now historical. Packet.218147s/display1.963990s,min45%/28%
+actualfree,displaymaxsampledRSS412320KiB. No selected-solver/physical-rule changes. Current
+artifact helpers Ruff/format/IDEclear; no application QA repeated for visualization.
+Lint-only explicit stage-shift capture after sampling preserved as-executed source
+and revision receipt; packet unchanged. All receipts under3385.

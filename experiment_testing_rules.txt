@@ -1,3 +1,21 @@
+USER-DIRECTED TEST CPU OVERRUN POLICY — 2026-11-18
+During testing, CPU-budget violations are recorded performance failures, not
+automatic reasons to abort geometry creation or diagnostic display. Retain the
+0.4-second recovery CPU target and measure actual CPU time, excess and phase
+separately from numerical validity, construction and physical qualification.
+Allow bounded diagnostic work and geometry output beyond a CPU target so the
+result can be inspected; label over-budget and physically invalid/unqualified
+output explicitly. Do not count it as meeting the intended plugin performance.
+
+This supersedes CPU-only stop conditions for new explicitly configured tests,
+including CPU-only gates that otherwise prevent reaching construction. It does
+not authorize unlimited work: freeze finite work and wall-time limits before
+execution. Wall-time, memory/headroom, cancellation, source/API/host-error stops
+remain in force. Physical acceptance rules and production runtime behavior are
+unchanged. Preserve historical CPU-stopped outcomes; no retroactive passes.
+Existing harness CPU exceptions need explicit test-mode handling before the next
+affected run; changing this policy text alone does not change runtime enforcement.
+
 USER-DIRECTED SYSTEM MEMORY REVISION — 2026-11-15
 Native work may use up to90%of system memory: require at least10%actual system
 memory free, replacing the earlier50%-free launch gate. This is90%used, not90%free.

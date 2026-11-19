@@ -1,3 +1,11 @@
+2026-11-18 user-directed testing CPU policy: CPU overruns are performance failures
+and must not alone abort diagnostic geometry creation/display. Retain the0.4s
+recovery target, actual timing and overrun labels. Future tests need explicit
+test-mode handling of existing CPU stops and finite wall/work bounds; memory,
+headroom, cancellation, source/API/host and physical acceptance gates remain.
+Production runtime enforcement and historical results are unchanged. See the
+current policy at the top of experiment_testing_rules.txt.
+
 2026-11-15 user-directed system memory revision: allow90%used/require10%free,
 superseding the50%-free native launch gate. Retain4GiB RSS/3.8GiB process launch,
 existing time/work limits and bounded scopes. The user directs proceeding without

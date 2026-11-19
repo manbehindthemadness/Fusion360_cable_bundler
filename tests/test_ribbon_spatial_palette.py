@@ -26,9 +26,7 @@ def palette_module(monkeypatch: pytest.MonkeyPatch) -> Any:
     host.core = core
     monkeypatch.setitem(sys.modules, "adsk", host)
     monkeypatch.setitem(sys.modules, "adsk.core", core)
-    result = importlib.import_module(
-        "experiments.experiment_ribbon_spatial_inspection.palette_layout"
-    )
+    result = importlib.import_module("devtools.ribbon_analysis.palette_layout")
     monkeypatch.setitem(vars(result), "adsk", host)
     return result
 
@@ -198,4 +196,24 @@ def test_malformed_layout_cannot_mutate_geometry_and_a_later_report_recovers(
     event.data = json.dumps(_report())
     wrapper.notify(object())
     assert json.loads(event.returnData) == {"ok": True} and wrapper.layout_reports == 1
+    original.notify.assert_not_called()
+
+
+def test_shared_layout_supports_construction_without_changing_spatial_imports(
+    palette_module: Any,
+) -> None:
+    """
+    Both viewers share the same native sizing policy while preserving separate message namespaces.
+    """
+    compatibility = importlib.import_module(
+        "experiments.experiment_ribbon_spatial_inspection.palette_layout"
+    )
+    assert compatibility.show is palette_module.show
+    assert compatibility.LayoutIncoming is palette_module.LayoutIncoming
+    original = Mock()
+    wrapper = palette_module.LayoutIncoming(original, action="construction_layout")
+    event = SimpleNamespace(action="construction_layout", data=json.dumps(_report()), returnData="")
+    palette_module.adsk.core.HTMLEventArgs.cast.return_value = event
+    wrapper.notify(object())
+    assert wrapper.layout_reports == 1 and json.loads(event.returnData) == {"ok": True}
     original.notify.assert_not_called()

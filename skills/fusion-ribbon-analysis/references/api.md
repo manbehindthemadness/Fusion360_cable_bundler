@@ -540,3 +540,23 @@ constructs the whole ribbon. No production builder or diagnostic discovery metho
 is switched by importing these helpers.211..213verify one complete gym specimen's
 sampled surfaces, three ordered guides, cap frames and seam chains. Different gym
 layouts and complete physical compliance remain unmeasured.
+
+## Construction history (checkpoint3397)
+
+The opt-in shared instrument in `devtools/ribbon_analysis/construction/` records
+feature lineage, source attribution, local primitives, world placement, proposal
+and correction events in bounded append-only JSONL. Its offline four-view player
+and owned Fusion palette replay frozen data without executing routing. See the
+[construction contract and adapters](../../../devtools/ribbon_analysis/construction/NOTES.md).
+Application `RibbonShape` and experimental `FoldRoute` adapters are available;
+existing solver record callbacks can tee into an `EventBridge`. Historical
+primitive assembly is explicitly reconstructed, missing events stay unavailable,
+and optional waypoint correction observers are off by default. No native builder
+capture, new search, physical qualification or production promotion is implied.
+
+Like the recorded-search inspector above, construction playback requires a
+persistent Fusion host. Use an add-in or the registered
+`experiments/experiment_ribbon_construction_host/` script bundle with its explicit
+source-pinned viewer request. That script calls `adsk.autoTerminate(False)` and
+ends on palette Close or script Stop. A transient MCP call that leaves a visible
+palette and retained viewer does not verify that later native events will work.
